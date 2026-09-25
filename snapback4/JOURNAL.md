@@ -55377,3 +55377,142 @@ recovery bound, both 240-second session limits, all sequence counts, other
 deadlines and all compatibility pins are unchanged. No client production code,
 package version, keychain setting or credential changed. Nothing was published.
 The final commit appends this qualification record only.
+
+## 2026-09-24 — LLP 3000.013 Lane R: column min/max (0.4.2)
+
+Implemented domain, page and row-list `min`/`max` through the shared
+server/device interpreter. Domains use sum's authorized incremental consumer,
+admission and complete-coverage contract. Nulls are skipped; empty/all-null
+inputs return null, while a cut stays unavailable even through `?? 2`.
+Binary calls keep their prior meaning. Ambiguous ordered-page commas and
+competing focal scopes reuse E_QUARRY_AMBIGUOUS with concrete rewrites.
+
+Existing indexes whose next column follows the equality prefix provide an
+ascending minimum or descending maximum seek. Equality-pin permutations and
+extra tie columns are safe for a scalar endpoint. Nullable endpoints skip the
+entire null segment; other domains scan under the unchanged meters. The cost
+certificate names seek versus scan and shares the runtime's order eligibility.
+No dedicated extremum index is synthesized just to turn a scan into a seek.
+
+Measured minimum and maximum each examine one row among 10,000; an all-null
+10,000-row index examines zero. A 4,096-row text scan retains one selected
+value and fits 128 KiB. The 16 new language tests cover empty/null inputs,
+hidden rows, rule-before-predicate ordering, cuts, types, overloads, optional
+filters, expiry, page binding and stale maintained-value index refusal. A late
+binary-read regression caught aggregate planning reordering a cap-bounded
+binary operand; restricting consumer recognition and preserving enclosing
+collection comparisons fixes it without changing aggregate plans. Both
+memory and SQLite device tests agree with the server, deny partial/horizon
+and online-only predictions, and survive reopen. The 80 guide tests and the
+10 source-cost tests pass; the 18 cost-classification tests include the new
+receiptStatus operation. The language card compiles and runs the exact
+`min(receipts where .message = m.id, .state) ?? 2` helper.
+
+Qualified the combined lane diff with `scripts/test.sh`:
+**`== 0 failure(s) in 1141 s`**. The final run uses sixteen Cargo build jobs and disabled
+incremental compilation, with the script's existing serial-client option.
+The earlier serial-client control run also passed:
+`== 0 failure(s) in 1266 s`, 1,502 client passes and ten existing skips.
+No test, deadline or assertion was removed or weakened. An initial attempt
+was interrupted after shared-disk ENOSPC prevented compilation and log writes;
+only this lane's ignored Cargo cache and temporary data were relocated to
+executable /dev/shm. The first completed run ended `== 1 failure(s) in 604 s`:
+the guide operation-class pin lacked receiptStatus, fixed by adding its
+correct Grows classification. The next ended `== 1 failure(s) in 493 s`:
+all Rust checks passed, but 14 concurrent client transport/recovery cases
+failed intermittently. Their isolated controls passed 73 tests with zero
+failures and one existing skip. Every name, error and reproduction command
+is in reports/20260925-intent-lane-r.md; the underlying concurrent transport
+cause remains unresolved. A 16-CPU concurrent retry ended
+`== 1 failure(s) in 443 s`: Rust passed, but an unchanged full-release restore
+case observed done instead of parked. Its isolated rerun passed 1/1; the
+timing cause is unresolved and final qualification uses serial client files.
+No supplied-baseline failure was repaired here.
+
+Production wasm measures 1,772,147 bytes raw / 493,832 gzip on Rust 1.97.0 and
+wasm-bindgen 0.2.127: +6,351 / +2,192 against the last recorded 0.4.1 artifact,
+not a freshly rebuilt control or independent component attribution. The
+shared aggregate runtime and typed IR exceed the 492,000-byte gzip ratchet
+by 1,832 bytes; raise it to 494,000 in this commit, leaving 168 bytes. Runtime
+examined, steps, heap and write ceilings are unchanged.
+
+Preserved sum's non-uniform-domain admission/completeness restriction and the
+existing refusal of indexes over expiring maintained totals' live value.
+Did not redesign authorization, disclosure, durability, client contracts or
+the planner; did not add SQL lowering, change versions, push or publish.
+All touched source files remain below 1,500 lines. The broken llp-orient
+symlink required direct orientation from the commissioned documents/source.
+
+## 2026-09-24 — LLP 3000.013 Lane R: review round 1
+
+Addressed Astra's two Medium findings and Grok's matching Medium heap
+finding. Extremum planning now recognizes point-shaped arguments before
+adding an order, preserving binary min/max on complete maintained group
+lookups even when the view has an index on value. Streamed winners reserve
+their full payload, including shared JSON subtrees; the fold records the
+exact allowance and releases it when replacing the winner. Also addressed
+Grok's Low test finding by checking min/max/fallback values after reopening
+both device stores, in addition to their completeness flags.
+
+Three new regressions prove scalar overload compatibility for both
+operators and positional/named/explicit/compound group keys, heap exhaustion
+while a prior JSON winner stays live, and release of replaced nested JSON
+winners under a small heap. Both reported defects failed before the fixes.
+Focused validation passed 19 extrema tests, 80 guide tests and both device
+tests. Final `scripts/test.sh`: **`== 0 failure(s) in 1136 s`**, exit 0;
+all Rust targets/doctests passed, and clients reported 1,512 tests, 1,502
+passed, 10 existing skips and 0 failed. Used the script's existing serial
+client option and this lane's existing tmpfs build/temp directories.
+
+The first suite attempt hit environmental E0514 in the lifecycle panic
+probe: it selected a Rust 1.93.1 libc artifact from the mixed cache while
+using pinned Rust 1.97.0. Quarantined that incompatible rlib/rmeta; the
+isolated probe then passed, as did all 20 lifecycle tests in the final run.
+Preserved the failed Rust and partial client logs before stopping that
+already-red attempt with SIGTERM (143, no final summary line) and rerunning
+with Grok's final test assertions. No baseline failure was repaired.
+
+Production wasm: 1,771,556 bytes raw / 493,764 gzip, a whole-artifact change
+of −591 / −68 from round 0's recorded build on the same toolchain. Keep the
+494,000-byte gzip budget (236 bytes headroom) and every runtime meter ceiling.
+No new language form/refusal, guide rewrite, design change, version change,
+push or publication. All touched source files remain below 1,500 lines.
+Full file map, reproductions, review status and durable log paths:
+`reports/20260925-intent-lane-r-round1.md`.
+
+## 2026-09-24 — LLP 3000.013 Lane R: review round 2
+
+Addressed Grok's Medium heap-admission finding and Astra's Low test gap.
+An authorized, filtered extremum row now releases its decode/key scratch
+before the fold reserves its selected payload. The fold reuses the old
+winner's exact reservation, admits only growth, drops old owned bytes
+before cloning the replacement, and releases only the excess when
+shrinking. Failed admission leaves the old winner charged. Count and sum
+keep their existing projection/source-row accounting.
+
+Added the two measured completion regressions: one 2.5 MB JSON row now
+completes under the default 16 MiB heap for both operators, and max over
+distinct a/b payloads replaces its winner under 18 MiB. Both finish at
+2,500,676 retained heap bytes, versus the pre-fix cuts at 17,511,524 and
+20,011,880 bytes. Strengthened the nested JSON replacement test to grow
+and shrink on every one of 128 rows for both operators. Growing winners
+finish at 8,487 payload / 9,175 total heap bytes; shrinking winners at
+359 / 1,047. Reversing the old/new reservation subtraction makes this test
+fail with an undercharged winner; that deliberate mutation was reverted.
+
+Focused validation passed 21 extrema and 80 guide tests. Final
+`scripts/test.sh`: **`== 0 failure(s) in 1249 s`**, exit 0. All Rust
+targets/doctests passed; clients reported 1,512 tests, 1,502 passed,
+10 existing skips and 0 failed. Used the existing serial-client option
+and lane-local tmpfs build/temp directories. During test development,
+fixed an inferred integer type and raised only the varying-size fixture's
+heap from 64 to 128 KiB to admit its larger decode buffer; its final-charge
+checks remain tight. No final suite, baseline or environmental failure.
+
+Production wasm: 1,771,743 bytes raw / 493,779 gzip (+187 / +15 against
+round 1's recorded whole artifact on the same toolchain). Keep the
+494,000-byte gzip budget with 221 bytes headroom and all runtime ceilings.
+No syntax, refusal, planner or guide change, no design deviation, no
+version change, push or publication. Touched source files remain below
+1,500 lines; the largest is read.rs at 1,392. Full file map, failure record,
+measurements and logs: `reports/20260925-intent-lane-r-round2.md`.

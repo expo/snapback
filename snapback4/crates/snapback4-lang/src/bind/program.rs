@@ -20,6 +20,7 @@ mod returned_shapes;
 mod diagnostics;
 mod constraints;
 mod expr;
+mod extrema;
 mod objects;
 mod write_keys;
 mod reads;

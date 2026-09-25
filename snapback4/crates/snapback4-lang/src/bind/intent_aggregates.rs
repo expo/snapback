@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Default)]
 pub(super) struct Contexts {
     pub domains: BTreeSet<String>,
+    pub extrema: BTreeMap<String, String>,
     required: BTreeMap<String, BTreeSet<String>>,
 }
 impl Contexts {
@@ -19,9 +20,12 @@ impl Contexts {
             self.required.insert(read.site.to_string(), required.clone());
         }
         if let Expr::Call { name, args, .. } = value
-            && matches!(name.as_str(), "count" | "sum") && !functions.contains_key(name)
+            && is_consumer(name, args, tables) && !functions.contains_key(name)
             && let Some(Expr::Read(read)) = args.first() && read.range.is_none() {
             self.domains.insert(read.site.to_string());
+            if matches!(name.as_str(), "min" | "max") && let Some(field) = args.get(1).and_then(intent::column) {
+                self.extrema.insert(read.site.to_string(), field.into());
+            }
         }
         consumer(value, tables, functions, required);
     }
@@ -54,14 +58,65 @@ fn required_args(args: &[ArgDecl]) -> BTreeSet<String> {
     args.iter().filter(|arg| !arg.type_.optional).map(|arg| arg.name.clone()).collect()
 }
 
+pub(super) fn is_consumer(name: &str, args: &[Expr], tables: &BTreeMap<String, TableInfo>) -> bool {
+    if matches!(name, "count" | "sum") { return true; }
+    if !matches!(name, "min" | "max") { return false; }
+    let Some(field) = args.get(1).and_then(intent::column) else { return false; };
+    // A binary comparison of two pages keeps their observable row order.
+    // A focal member absent from this table can belong to an outer shape.
+    match args.first() {
+        Some(Expr::Read(read)) => tables.get(&read.table).is_some_and(|table|
+            extremum_domain(read, table) && (field == "id" || table.columns.contains_key(field))),
+        _ => true,
+    }
+}
+
+fn extremum_domain(read: &ReadExpr, table: &TableInfo) -> bool {
+    if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some()
+        || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return true; }
+    // Decide the argument's kind before adding an aggregate order. In
+    // particular, a complete maintained group lookup is a scalar total.
+    // Positional keys without an index retain their point/refusal path;
+    // only the binder can resolve their types or diagnose an ambiguity.
+    let named = read.keys.iter().all(|key| key.column.is_some());
+    if !named && read.index.is_none() { return false; }
+    let index = read.index.as_deref().or_else(|| table.maintained.as_ref().map(|_| "byGroup"));
+    !table.indexes.iter().any(|candidate| candidate.unique && candidate.is_plain()
+        && index.is_none_or(|name| candidate.name == name)
+        && (candidate.columns.len() == read.keys.len()
+            || named && table.total_unique(candidate) && candidate.columns.len() < read.keys.len())
+        && (!named || candidate.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column)))))
+}
+
 fn consumer(value: &mut Expr, tables: &BTreeMap<String, TableInfo>, functions: &BTreeMap<String, FunctionDecl>, required: &BTreeSet<String>) {
     match value {
-        Expr::Call { name, args, .. } if matches!(name.as_str(), "count" | "sum") && !functions.contains_key(name) => {
-            if let Some(Expr::Read(read)) = args.first_mut() { choose(read, tables, required); }
+        Expr::Call { name, args, .. } if is_consumer(name, args, tables) && !functions.contains_key(name) => {
+            choose_consumer(name, args, tables, required);
         }
         Expr::Exists { read, .. } => choose(read, tables, required),
         _ => {},
     }
+}
+
+pub(super) fn choose_consumer(name: &str, args: &mut [Expr], tables: &BTreeMap<String, TableInfo>, required: &BTreeSet<String>) {
+    if !is_consumer(name, args, tables) { return; }
+    let field = if matches!(name, "min" | "max") { args.get(1).and_then(intent::column).map(str::to_owned) } else { None };
+    let Some(Expr::Read(read)) = args.first_mut() else { return; };
+    if let Some(field) = field
+        && read.index.is_none() && read.order_keys.is_empty() && read.range.is_none() && read.matching.is_none()
+        && let Some(table) = tables.get(&read.table) {
+        let mut conjuncts = Vec::new();
+        if let Some(filter) = &read.filter { intent::split(*filter.clone(), &mut conjuncts); }
+        let mut pins = read.keys.iter().filter_map(|key| key.column.clone()).collect::<BTreeSet<_>>();
+        pins.extend(conjuncts.iter().filter_map(|value| intent::equality(value, table).map(|(column, _)| column)));
+        let pins: Vec<_> = pins.into_iter().collect();
+        if !pins.iter().any(|pin| pin == "id") && table.indexes.iter().any(|index| index.is_plain()
+            && index.columns.get(pins.len()) == Some(&field) && index.columns[..pins.len()].iter().all(|column| pins.contains(column))) {
+            read.order_keys.push(field);
+            return;
+        }
+    }
+    choose(read, tables, required);
 }
 
 pub(super) fn choose(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>, required: &BTreeSet<String>) {

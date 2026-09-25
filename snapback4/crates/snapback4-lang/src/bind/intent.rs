@@ -140,6 +140,17 @@ impl Requests {
                 kept.push(predicate);
             }
         }
+        // An extremum has no observable tie order. Reuse an endpoint index
+        // even when its equality prefix permutes the canonical pin order or
+        // its suffix carries additional tie columns. Ordinary pages keep the
+        // exact-order planner below.
+        let extremum_index = self.contexts.extrema.get(&read.site.to_string())
+            .filter(|field| words.is_none() && order.first() == Some(field))
+            .and_then(|field| table.indexes.iter().filter(|index| index.is_plain()
+                && index.columns.get(columns.len()) == Some(field)
+                && index.columns[..columns.len()].iter().all(|column| columns.contains(column)))
+                .min_by_key(|index| &index.name));
+        if let Some(index) = extremum_index { columns = index.columns[..columns.len()].to_vec(); }
         read.keys = columns.iter().filter_map(|column| pins.remove(column)).collect();
         read.filter = conjunction(kept);
         read.order_keys = order.clone();
@@ -159,7 +170,7 @@ impl Requests {
             self.errors.push(crate::diag::ambiguous(&read.site, format!("{} has several declared indexes covering this predicate read", read.table),
                 format!("choose `by {}` explicitly or keep one definition", candidates[0].name)));
         }
-        read.index = Some(if let Some(index) = candidates.first() { index.name.clone() }
+        read.index = Some(if let Some(index) = extremum_index.or_else(|| candidates.first().copied()) { index.name.clone() }
             else { self.index_computed(table, columns, words, read.computed.clone(), &read.site, true) });
     }
 }

@@ -27,6 +27,7 @@ pub(crate) struct Certificate {
     pub bounds: Bounds,
     pub growth_sites: Vec<Growth>,
     pub per_write: Vec<String>,
+    pub aggregates: Vec<String>,
     pub whole_job: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub variants: Vec<Variant>,
@@ -76,7 +77,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             operation: program.name.clone(), class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
-            growth_sites: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
+            growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
     };
@@ -300,6 +301,26 @@ impl Analysis<'_> {
             }
             Expr::Binary { left, right, .. } => self.expr(left, times) | self.expr(right, times),
             Expr::Unary { value, .. } => self.expr(value, times),
+            Expr::Builtin { builtin: Builtin::Extremum { field, max, domain: true }, args } if matches!(args.first(), Some(Expr::Scan(_))) => {
+                let Expr::Scan(scan) = &args[0] else { unreachable!() };
+                let ordered = scan.orders_field(self.schema, field) && scan.order == if *max { Order::Desc } else { Order::Asc };
+                let operation = if *max { "max" } else { "min" };
+                self.result.aggregates.push(format!("{operation}({domain}, .{field}): {access} on {table}.{index}; nulls skipped; a cut has no scalar answer",
+                    domain = self.scan_domain(scan), table = scan.table, index = scan.index,
+                    access = if ordered { "ordered-index seek to the first visible match" } else { "metered scan of the domain" }));
+                let mut priced = scan.clone();
+                if ordered {
+                    priced.take = Bound::Literal(1);
+                    priced.existence = true;
+                    if scan.range.as_ref().is_none_or(|range| range.gt.is_none() && range.gte.is_none())
+                        && self.schema.table(&scan.table).and_then(|table| table.columns.get(field)).is_some_and(|column| matches!(column, snapback4_core::schema::ColumnType::Optional(_))) {
+                        self.growth(&scan.site, format!("null .{field} rows skipped before the {operation} endpoint"), "make the column required if the product has no missing values");
+                        self.rows(self.result.bounds.meters.examined);
+                    }
+                }
+                self.scan(&priced, times, false);
+                true
+            }
             Expr::Builtin { builtin, args } => args.iter().fold(matches!(builtin, Builtin::Connected), |d, e| self.expr(e, times) | d),
             Expr::Get(read) | Expr::Exists(read) => { self.point(read, times, true); true }
             Expr::Block { body, value } => { self.body(body, times); self.expr(value, times) }

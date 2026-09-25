@@ -55,6 +55,18 @@ table messages:
   expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count unswept rows
   sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
+table receipts:
+  message: messages
+  state: int ?
+  public 'delivery status is public in this example'
+  online only
+
+fn receiptState(m: messages):
+  return min(receipts where .message = m.id, .state) ?? 2
+query receiptStatus(messageId: messages):
+  m = messages[messageId] ! else NOT_FOUND
+  return { slowest: receiptState(m), fastest: max(receipts where .message = m.id, .state) }
+
 table posts:
   authorId: principal
   immutable authorId
@@ -233,8 +245,11 @@ query digest(roomId: rooms):
   if head != null and head.body != null:
     bodySize = count(head.body)                                     -- a null guard narrows the snapshot field through the rest of this block
   sum = sum(page, .at)
+  earliest = min(page, .at)
+  latest = max(page, .at)
+  smallest = min([{ state: null }, { state: 1 }], .state)
   grouped = group(page, 'authorId') { author: .key, count: count(.items) }
-  return { sum, grouped, first: first(page), last: last(page), at: at(page, 1), total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
+  return { sum, earliest, latest, smallest, grouped, first: first(page), last: last(page), at: at(page, 1), total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
 
 query mentions(body: text <=4000):
   return tokens(body)                 -- the @mentions in a text, without the @, at most 64: a bounded list
@@ -467,8 +482,14 @@ Named keys select columns explicitly. `t where predicate first 20 by .at
 after c` pages matching rows. `last` reverses the order; id breaks ties.
 Optional filters use `(status = null or .status = status)` to select a plan
 for absent or present inputs; an empty `matching q` needle browses in order.
-`count(t where predicate)` and `sum(t where predicate, .amount)` stream a
-domain. A cut total is unavailable, never a partial number. `exists` stops
+`count(t where predicate)`, `sum(t where predicate, .amount)`,
+`min(t where predicate, .col)` and `max(t where predicate, .col)` stream a
+domain. Min/max skip null values, as SQL does, and return null for an empty
+or all-null domain; otherwise they return the column's type. An ordered
+index seeks to the first visible matching non-null value; otherwise the
+engine scans under its meters. `check --cost` names the plan. A cut aggregate
+is unavailable, never a partial answer (even before `?? 2`). A device needs
+complete coverage of the domain. Rules apply before any comparison. `exists` stops
 at a visible match; an unknown domain cannot establish absence.
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
@@ -480,11 +501,16 @@ narrow with `if x != null:`, `x ! else CODE`, `x ?? default`, or `require x
 != null else CODE`. Guards narrow fields of a bound row too, through `and`/`or`,
 conditional arms and the paths that survive an early return; rebinding clears the fact. `time - time` is an int of milliseconds; `time + int` a
 time. Text `+` concatenates two present texts. `count(text | page | list)` counts characters or items; `lower(text)`, `trim(text)`, `join(list, separator)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,
-`max(a, b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
+`max(a, b)`, `min(page, .col)`, `max(page, .col)` (also lists of rows), `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
 `group(list, 'col')`, `first(list)`, `last(list)`, `at(list, index)` (element or null),
 `tokens(text)`, `sha256(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,
 `(lo, hi) = sorted(a, b)`. `x = expr` binds or reassigns a local with a compatible type; reassignment resets its refinements. Arguments cannot be shadowed. A program ends
 with `return [value]`, or with its last expression, or with its final write.
+An inline ordered page needs parentheses to separate its order keys from
+the column argument: `min((t first 20 by .at), .col)`. Binary `min(a, b)`
+and `max(a, b)` retain their meaning; a collection followed by `.col` selects
+the aggregate.
+
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
 
 `sha256` is for high-entropy capability tokens and content checksums. It hashes

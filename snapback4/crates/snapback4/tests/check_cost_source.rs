@@ -40,6 +40,22 @@ impl Project {
 impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
 #[test]
+fn extrema_cost_names_seek_or_scan_and_prices_the_endpoint() {
+    let source = "table receipts:\n  owner: principal\n  state: int\n  by byState: owner, state, id\n  by byOwner: owner, id\n  read <- .owner = viewer\n  sync to .owner\nquery low():\n  return min(receipts where .owner = viewer, .state)\nquery high():\n  return max(receipts where .owner = viewer, .state)\nquery scan():\n  return min(receipts[viewer] by byOwner, .state)\n";
+    let p = Project::new(source);
+    let cost = p.run(&["check", "--cost"]);
+    assert!(cost.contains("min(receipts where .owner = viewer, .state): ordered-index seek"), "{cost}");
+    assert!(cost.contains("max(receipts where .owner = viewer, .state): ordered-index seek"), "{cost}");
+    assert!(cost.contains("metered scan of the domain on receipts.byOwner"), "{cost}");
+    let json: serde_json::Value = serde_json::from_str(&p.run(&["check", "--cost", "--json"])).unwrap();
+    for op in ["low", "high", "scan"] {
+        let certificate = json["scale"].as_array().unwrap().iter().find(|c| c["operation"] == op).unwrap();
+        assert_eq!(certificate["class"], if op == "scan" { "grows" } else { "constant" });
+        if op != "scan" { assert_eq!(certificate["bounds"]["rows_examined"], 1); }
+    }
+}
+
+#[test]
 fn board_quotes_source_read_with_four_planner_variants() {
     let p = Project::new(SOURCE);
     let cost = p.run(&["check", "--cost"]);
