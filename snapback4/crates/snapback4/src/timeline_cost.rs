@@ -44,7 +44,8 @@ fn acquisition(schema: &Schema, t: &snapback4_core::schema::timeline::Timeline, 
     }
     lines.push(format!("      {} and {}: full sync; private edge epochs and work stay synced", t.edges[0], t.table("RemovedEvents")));
     lines.push(format!("      history: newest {} events per followed author, unchanged; acquisition never changes delivery", snapback4_core::schema::timeline::HISTORY_WINDOW));
-    lines.push("      cards: an unheld original withholds the whole query and continuation; retry original input online, loading offline or while a prediction is unobserved".into());
+    lines.push("      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading".into());
+    lines.push("      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data".into());
 }
 
 fn row_bounds(table: &Table, event: bool) -> Option<(usize, usize, usize, usize)> {

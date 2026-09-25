@@ -1,6 +1,26 @@
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
-import type { BackendJson } from "./backend.ts";
+import type { BackendJson, ProgramJson, SchemaJson } from "./backend.ts";
+
+export function followingReads(schema: SchemaJson, tables: Set<string>, program?: ProgramJson) {
+  const sources = schema.timelines?.flatMap(t => [t.posts[0], t.reposts[0]]) ?? [];
+  const online = new Set(sources.filter(name => !schema.tables[name]?.sync));
+  const pointRead = (value: unknown): boolean => {
+    if (!value || typeof value !== "object") return false;
+    return Object.entries(value).some(([kind, child]) =>
+      (["Get", "Exists"].includes(kind) && online.has((child as { table?: string })?.table ?? "")) || pointRead(child));
+  };
+  return {
+    following: sources.some(name => tables.has(name)) || !!schema.timelines?.some(t => tables.has(`${t.name}Feed`)),
+    remoteCard: online.size > 0 && pointRead(program?.body),
+  };
+}
+
+// @ref LLP 3000.016#2.2 — one precedence before server-run and remembered-answer shortcuts.
+export async function routeWithheld<R>(online: boolean, held: boolean, pending: () => Promise<boolean>, withheld: R, server: () => Promise<R>): Promise<R> {
+  if (!online || await pending() || held) return withheld;
+  return server();
+}
 
 export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, nativeReady: boolean): boolean {
   const program = backend.programs.find(program => program.name === op.name);

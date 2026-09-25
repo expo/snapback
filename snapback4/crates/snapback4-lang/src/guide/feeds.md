@@ -161,18 +161,24 @@ because its original card has `removed: true`.
 
 The source floors are **global and non-sliding**, fixed at acquisition time,
 not per followed author. New arrivals accumulate; nothing evicts older held
-rows. Owned events take the posts floor; the private inbox acquires its newest
-1,000 copies per reader. This acquisition limit does not change the
-1,000-event history window per followed author. Follows and removal records
-remain fully synced.
+rows. The private inbox acquires its newest 1,000 copies per reader. This
+acquisition limit does not change the 1,000-event history window per followed
+author. Owned events, follows and removal records remain fully synced: a
+missing event must be distinguishable from an original that was never admitted.
 
 An inbox page within its floor needs no posts. A shaped page is complete offline
 only when every card is held too. A recent repost of an old original, or a quiet
-author's old post, may need the server even on the first page. A missing card
-withholds the **whole query**, with no null card or continuation: online the
-client retries the original input cursor on the server; offline it is `loading`.
-While a predictable write remains unobserved, the page stays withheld. The
-server cannot replace a predicted row before that write is observed.
+author's old post, may need the server even on the first page. A horizon card
+miss, required online-only card, or inbox scan past its floor withholds the
+**whole query** as `{ loading: true }`, with no data or continuation. Offline,
+while a predictable write remains unobserved, or for a `held` query, it stays
+withheld. Otherwise the client retries the original input cursor on the server;
+a transport failure stays loading. Remembered answers never replace this result.
+
+An examined-meter cut above the floor remains partial data with its continuation.
+A full page ending at the floor is data; its next page is withheld. Pending
+backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains
+unavailable. The server cannot replace a prediction before it is observed.
 
 Render an incomplete result as incomplete. Continue with `next` when present.
 If a meter cut returns no continuation, retry the same cursor after cleanup.
@@ -182,7 +188,9 @@ Devices predict their own event's own-inbox copy when inputs are held and
 covered. Follow and unfollow queue without prediction. Offline reads use the
 last synced follows, removals and cards; remote changes arrive on reconnect.
 Reposts need a held original, event and removal probe; otherwise the entire
-mutation queues without a row. `check --cost` names the horizon inputs.
+mutation queues without a row. These conditions are necessary: a horizon on
+reposts can still make its unique-pair absence unknown. `check` classifies each
+input by its residency; follow/unfollow remain `predicts: never`.
 Use the normal pending-write, freshness and completeness state (`guide app`).
 
 ## Boundaries and refusals
@@ -196,8 +204,8 @@ do not widen a private audience to fit this shape.
 
 Posts and reposts accept `sync public`, `sync public last N by .at`, or
 `online only`. Use the mapped time column; its index must be exactly `(at, id)`.
-Follows require full `sync public`. With online-only cards, shaped pages run on
-the server and writes to those sources queue without prediction. Changing any
+Follows require full `sync public`. Online-only cards use the withholding order
+above; writes to those sources queue without prediction. Changing any
 sync choice advances the generation and re-snapshots acquisition; a device
 never trims in place. Returning to full sync re-acquires the whole table.
 
