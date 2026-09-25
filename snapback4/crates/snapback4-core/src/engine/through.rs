@@ -136,19 +136,10 @@ impl Runner<'_> {
             .children(parent)
             .map(|(n, _, _)| n.clone())
             .collect();
-        if self.device && !children.is_empty() {
-            let parent_row = self.tx.get(parent, id.as_str()?)?.ok_or_else(|| RuntimeError::Prediction("parent delete needs a held parent".into()))?;
-            for name in &children {
-                let through = self.schema.tables[name].through.as_ref().unwrap();
-                if !self.child_coverage(name, through, &parent_row)? {
-                    return Err(RuntimeError::Prediction("parent deletion needs complete current child coverage; queued without a row".into()));
-                }
-            }
+        if self.device {
+            let occupied = self.device_work(|runner| runner.current_children(parent, id, &children))?;
+            return if occupied { Err(self.parent_has_children(parent)) } else { Ok(()) };
         }
-        let refusal = || RuntimeError::Structural {
-            code: "E_PARENT_HAS_CHILDREN",
-            message: format!("{parent} at {} has stored children; delete its live read-through children and sweep expired children, then retry `delete {parent}[id]` (guide rules)", self.statement_site),
-        };
         self.meter
             .charge(MeterKind::Examined, children.len() as u64 * 3)?;
         self.meter.step(children.len() as u64 * 3)?;
@@ -185,7 +176,7 @@ impl Runner<'_> {
                 1,
             )?;
             if !never.is_empty() || !finite.is_empty() {
-                return Err(refusal());
+                return Err(self.parent_has_children(parent));
             }
             // §3.3 forbids physical removal even when §6's live probe is empty.
             // The author's implementation ruling keeps this case fail-closed.
@@ -201,11 +192,61 @@ impl Runner<'_> {
                 )?
                 .is_empty()
             {
-                return Err(refusal());
+                return Err(self.parent_has_children(parent));
             }
         }
         Ok(())
     }
+
+    fn parent_has_children(&self, parent: &str) -> RuntimeError {
+        RuntimeError::Structural {
+            code: "E_PARENT_HAS_CHILDREN",
+            message: format!("{parent} at {} has stored children; delete its live read-through children and sweep expired children, then retry `delete {parent}[id]` (guide rules)", self.statement_site),
+        }
+    }
+
+    // @ref LLP 3000.014#5 — retained history cannot terminally refuse a
+    // current delete. Mismatched, expired or uncovered witnesses must queue.
+    fn current_children(&mut self, parent: &str, id: &Value, children: &[String]) -> Result<bool, RuntimeError> {
+        if children.is_empty() { return Ok(false); }
+        let uncertain = || RuntimeError::Prediction("parent deletion needs complete matching current child coverage; queued without a row".into());
+        self.meter.charge(MeterKind::Examined, 1)?;
+        self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[parent]))?;
+        let parent_row = self.tx.get(parent, id.as_str()?)?.ok_or_else(uncertain)?;
+        for name in children {
+            let table = self.schema.tables[name].clone();
+            let through = table.through.as_ref().unwrap();
+            if !self.child_coverage(name, through, &parent_row)? { return Err(uncertain()); }
+            let table_scratch = self.meter.mark();
+            // Expected captures plus a reusable row/cursor, reserved before seeking.
+            self.meter.heap(super::write_target::row_copy_ceiling(&table).saturating_mul(3))?;
+            let mut expected = crate::value::object([] as [(&str, Value); 0]);
+            stamp(&self.schema.tables[parent], through, &parent_row, &mut expected)?;
+            let mut bounds = Bounds::default();
+            loop {
+                let scratch = self.meter.mark();
+                self.meter.charge(MeterKind::Examined, 1)?;
+                self.meter.step(through.fields.len() as u64 + 1)?;
+                let page = self.tx.scan_metered(name, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut self.meter)?;
+                let Some((row, key)) = page.into_iter().next() else { break };
+                if !self.tx.retained_row(name, &row)? {
+                    if self.expired(&table, &row)
+                        || !(self.tx.current_row(name, &row)? || self.is_provisional(name, &row)?)
+                        || !capture_matches(through, &expected, &row) { return Err(uncertain()); }
+                    return Ok(true);
+                }
+                bounds.after = crate::key::decode(&key).map(|key| key.into_iter().skip(1).collect());
+                self.meter.release_heap(scratch);
+            }
+            self.meter.release_heap(table_scratch);
+        }
+        Ok(false)
+    }
+}
+
+pub(super) fn capture_matches(through: &Through, expected: &Value, row: &Value) -> bool {
+    through.fields.keys().map(String::as_str).chain([PARENT_DEADLINE])
+        .all(|field| row.field(field).ok() == expected.field(field).ok())
 }
 
 pub(super) fn stamp(

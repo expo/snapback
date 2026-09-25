@@ -18,7 +18,8 @@ pub(super) fn remember<T: DeviceTx>(tx: &T, table: &str, id: &str) -> Result<(),
     tx.base_remember(table, id, image.as_deref())
 }
 
-pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), RuntimeError> {
+pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<BTreeSet<String>, RuntimeError> {
+    let mut touched = BTreeSet::new();
     for (name, id, image) in tx.base_entries()? {
         let Some(table) = schema.table(&name) else { continue };
         let old = tx.get(&name, &id)?;
@@ -33,8 +34,10 @@ pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), Runtim
                 }
             }
         }
+        touched.insert(name);
     }
-    tx.base_clear()
+    tx.base_clear()?;
+    Ok(touched)
 }
 
 pub(super) fn enqueue<T: DeviceTx>(tx: &T, entry: &Queued) -> Result<(), RuntimeError> {
@@ -236,7 +239,8 @@ pub(super) fn replayable(entry: &Queued, programs: &BTreeMap<String, Program>, w
         && (entry.seq <= declaration.0 || entry.seq > declaration.1)
 }
 
-pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<String, Program>, watermark: u64) -> Result<(), RuntimeError> {
+pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<String, Program>, watermark: u64) -> Result<BTreeSet<String>, RuntimeError> {
+    let mut touched = BTreeSet::new();
     let declaration = replay_limit(tx)?;
     let store = tx.meta(STORE_ID)?;
     for data in tx.outbox_entries()? {
@@ -252,6 +256,7 @@ pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<S
             // B2a is independent of page deferral: refusal withdrawal uses this set.
             Ok((predicted, ids)) if ids.len() <= entry.new_ids.len() => {
                 tx.release("replay")?;
+                touched.extend(predicted.iter().filter_map(|key| key.split_once('/').map(|(table, _)| table.to_owned())));
                 if entry.predicted != predicted {
                     entry.predicted = predicted;
                     enqueue(tx, &entry)?;
@@ -276,7 +281,7 @@ pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<S
             Err(error) => return Err(error),
         }
     }
-    Ok(())
+    Ok(touched)
 }
 
 // Receipts and their incarnation are one outbox value, persisted together.

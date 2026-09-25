@@ -1,6 +1,6 @@
 //! Parent authorization is shared; device acquisition remains a separate fact.
 // @ref LLP 3000.014#5 — only matching live current captures may borrow a parent verdict.
-use super::{read_auth::Verdict, rules, runner::Runner, through::{ParentVerdict, stamp}};
+use super::{read_auth::Verdict, rules, runner::Runner, through::{ParentVerdict, capture_matches, stamp}};
 use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Audience, through::*}, value::Value};
 
 impl Runner<'_> {
@@ -87,7 +87,7 @@ impl Runner<'_> {
             let Some((row, key)) = page.into_iter().next() else { return Ok(true) };
             if !self.read_charge(MeterKind::Examined, 1)? || !self.read_charge(MeterKind::Steps, through.fields.len() as u64 + 1)? { return Ok(false); }
             let current = !self.expired(&table, &row) && !self.tx.retained_row(child, &row)?;
-            if current && (parent.is_none() || through.fields.keys().map(String::as_str).chain([PARENT_DEADLINE]).any(|field| row.field(field).ok() != expected.field(field).ok())) { return Ok(false); }
+            if current && (parent.is_none() || !capture_matches(through, &expected, &row)) { return Ok(false); }
             bounds.after = crate::key::decode(&key).map(|key| key.into_iter().skip(1).collect());
             // One cursor is retained, with a schema-sized reservation; row scratch is reusable.
             self.meter.release_heap(scratch);

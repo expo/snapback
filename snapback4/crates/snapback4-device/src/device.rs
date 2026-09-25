@@ -755,7 +755,9 @@ impl<S: DeviceStore> Device<S> {
             touched.extend(page.joined.keys().cloned());
             touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));
         }
-        predictions::restore(&tx, &self.schema)?;
+        // @ref LLP 3000.014#5 — publication can rewrite or withdraw pending
+        // rows even on an empty clock page; invalidate both sides of replay.
+        touched.extend(predictions::restore(&tx, &self.schema)?);
         if replacing {
             let groups = history::load(&tx, history::STAGED_GROUPS)?;
             tx.clear_rows()?;
@@ -801,7 +803,7 @@ impl<S: DeviceStore> Device<S> {
         if !page.more { tx.set_meta(ACQUIRED, &self.generation.to_string())?; }
         deferred::acknowledge(&tx, page.watermark, &acknowledgements)?;
         predictions::publish_declaration(&tx, declaration)?;
-        predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?;
+        touched.extend(predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?);
         tx.commit()?;
         self.store_identity = owner_store.clone();
         if replacing {
