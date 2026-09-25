@@ -121,6 +121,23 @@ test('held device publication enforces the 16.7ms frame bound with controlled sc
   watch.close();
 });
 
+test('a one-millisecond recovered floor crossing republishes a held deadline immediately', async t => {
+  const f = fixture(t, 'fallback'), open = f.options.device.open;
+  f.options.device.open = async () => ({ ...await open(), onOutbox(listener) { f.recover = listener; return () => {}; } });
+  const deadline = Date.now() + f.offset + 4000;
+  f.outcome = request => ({ data: request.now < deadline ? ['typing'] : [], complete: true, tables: [], nextExpiry: request.now < deadline ? deadline : null });
+  const client = await f.open(); t.after(() => close(client, t));
+  f.recover(deadline - 1);
+  const watch = client.observe({ ...read, held: true }, {}); watch.subscribe(() => {});
+  await drain(); assert.deepEqual(watch.getSnapshot().data, ['typing']);
+  const wall = Date.now();
+  f.recover(deadline); await drain();
+  assert.equal(Date.now(), wall, 'no wall-time timer was delivered');
+  assert.equal(client.now(), deadline);
+  assert.deepEqual(watch.getSnapshot().data, [], 'even a 1ms recovered shift reschedules the frozen deadline');
+  watch.close();
+});
+
 for (const earlier of ['device', 'server']) test(`composition publishes at both deadlines, ${earlier} first`, async t => {
   const f = fixture(t, 'composition');
   const start = Date.now() + f.offset;

@@ -123,6 +123,20 @@ test('malformed metadata and invalid samples cannot poison device time', async (
   assert.equal(clock.issuedDeviceNow(), 1000);
 });
 
+test('recovered issued time wakes deadlines without changing the estimate or accepting invalid floors', () => {
+  const clock = new ServerClock(() => 1_000_000), notices = [];
+  clock.subscribe((shift, reschedule) => notices.push({ shift, reschedule, delay: clock.deviceDelay(1_004_000) }));
+  clock.raiseIssued(1_003_999);
+  clock.raiseIssued(1_004_000);
+  assert.deepEqual(notices, [{ shift: 3999, reschedule: true, delay: 4000 }, { shift: 1, reschedule: true, delay: 0 }]);
+  assert.equal(clock.estimatedServerNow(), 1_000_000);
+  assert.equal(clock.serverDelay(1_004_000), 4000);
+  assert.equal(clock.issuedDeviceNow(), 1_004_000);
+  for (const value of [1_002_000, 1_004_000, -1, NaN, Infinity, 1_004_001.5, Number.MAX_SAFE_INTEGER + 1]) clock.raiseIssued(value);
+  assert.equal(notices.length, 2);
+  assert.equal(clock.issuedDeviceNow(), 1_004_000);
+});
+
 test('stream final-body clock stamp supersedes pre-advance response headers', async () => {
   const clock = new ServerClock();
   const before = Date.now();

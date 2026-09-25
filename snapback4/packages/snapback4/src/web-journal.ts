@@ -192,7 +192,13 @@ export class AdmissionJournal {
   admit(device: WebDevice, entry: unknown): Record<string, unknown> {
     const next = invoke(device, { op: "next_submission" });
     if (next.denied) return next;
-    return invoke(device, { op: "admit", entry: { ...entry as Entry, seq: next.ok } });
+    const floor = invoke(device, { op: "meta", key: "server-clock-floor" });
+    if (floor.denied) return floor;
+    // Capture remains synchronous. Recovery ahead of this admission in the
+    // device chain may have advanced time since capture, including after a crash.
+    const issued = Number(floor.ok), requested = entry as Entry;
+    const now = Number.isSafeInteger(issued) && issued >= 0 ? Math.max(requested.now, issued) : requested.now;
+    return invoke(device, { op: "admit", entry: { ...requested, now, seq: next.ok } });
   }
 }
 

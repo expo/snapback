@@ -45,8 +45,8 @@ export interface DeviceCore {
   /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
   onClient?(client: LocalClient, url: string): void | (() => void);
   readonly media?: MediaStorage;
-  /** Web recovery may acquire an orphan outbox without a backend change. */
-  onOutbox?(listener: () => void): () => void;
+  /** Web recovery reports committed admission time before later device calls. */
+  onOutbox?(listener: (issuedFloor?: number) => void): () => void;
   /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   /** A host with fallible work after commit must synchronously expose the
@@ -184,6 +184,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   });
   let stopSuspend: (() => void) | undefined;
   let stopOutbox: (() => void) | undefined;
+  let flushRecovered: (() => void) | undefined;
   let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
@@ -198,6 +199,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const state = await call({ op: "state" });
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
+  stopOutbox = core.onOutbox?.(time => { clock.raiseIssued(time ?? 0); flushRecovered?.(); });
   await clock.attach(core);
   if (session && session.expiresAt <= clock.issuedDeviceNow()) {
     await forgetSession(base, sessions);
@@ -1275,6 +1277,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             return admitted.denied.code === "E_WRITE_ID_REUSE" ? failed : emitLocalFailure(failed);
           }
           const entry = admitted.ok as Queued;
+          clock.raiseIssued(entry.now ?? 0);
           if (!entry.predictable && !entry.predicted.length) Object.assign(pending, { reason: !acquired
             ? "queued without a row: not acquired yet"
             : "queued without a row: local data does not justify prediction" });
@@ -1457,6 +1460,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   const prepared = startDeferred(options);
+  flushRecovered = () => { void flush(); };
   const start = async () => {
     if (closed) return;
     if (prepared && session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
@@ -1474,7 +1478,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
       });
     }
-    stopOutbox = core.onOutbox?.(() => { void flush(); });
     follow();
     void flush();
     scheduleRefresh();

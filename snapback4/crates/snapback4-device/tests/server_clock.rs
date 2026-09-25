@@ -102,11 +102,12 @@ fn recovery_retirement<H: Host>(host: &mut H) {
         let name = format!("recovery-{receipt_recovery}");
         let (_, backend) = compile(SOURCE);
         let mut device = host.open(&name, Some(backend)).unwrap();
+        device.set_meta("server-clock-floor", "1002000").unwrap();
         device.queued_with_clock_floor(true).unwrap(); // attachment precedes recovery
         device.enqueue(&entry("recovered", 1_004_000)).unwrap();
         assert_eq!(device.meta("server-clock-floor").unwrap().as_deref(), Some("1004000"));
         if receipt_recovery {
-            device.set_meta("server-clock-floor", "0").unwrap(); // legacy entry
+            device.set_meta("server-clock-floor", "1002000").unwrap(); // legacy entry
             device.settle("recovered", Some(100)).unwrap(); // recovery's outbox upsert
             assert_eq!(device.meta("server-clock-floor").unwrap().as_deref(), Some("1004000"));
         }

@@ -19,7 +19,7 @@ export class ServerClock {
   private revision: string | undefined;
   private order = 0;
   private epochBarrier = 0;
-  private listeners = new Set<(shift: number, revisionChanged: boolean) => void>();
+  private listeners = new Set<(shift: number, reschedule: boolean) => void>();
   private save: ((value: string) => Promise<void>) | undefined;
   private saving: Promise<void> = Promise.resolve();
   constructor(private wall: () => number = Date.now) { readers.set(this.issuedDeviceNow, this); }
@@ -35,7 +35,15 @@ export class ServerClock {
   private deviceCandidate = (): number => Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.round(this.wall() + (this.issuedOffset ?? 0))));
   /** Monotonic issued device time: execution, prediction, expiry and rendering. */
   issuedDeviceNow = (): number => this.last = Math.max(this.last, this.deviceCandidate());
-  subscribe = (listener: (shift: number, revisionChanged: boolean) => void): (() => void) => {
+  /** Adopt a committed admission without changing the server-time estimate. */
+  raiseIssued(time: number): void {
+    if (!Number.isSafeInteger(time) || time < 0 || time <= this.last) return;
+    const shift = time - Math.max(this.last, this.deviceCandidate());
+    this.last = time;
+    // Even a one-millisecond floor increase may cross a frozen deadline.
+    if (shift > 0) for (const listener of this.listeners) listener(shift, true);
+  }
+  subscribe = (listener: (shift: number, reschedule: boolean) => void): (() => void) => {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   };

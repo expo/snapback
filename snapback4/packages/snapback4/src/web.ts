@@ -79,7 +79,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       let orphanRetry: ReturnType<typeof setTimeout> | undefined;
       let retryCount = 0;
       const waiting = new Map<string, AbortController>();
-      const outboxListeners = new Set<() => void>();
+      const outboxListeners = new Set<(issuedFloor?: number) => void>();
       const recoverInBackground = () => {
         chain = chain.then(async () => {
           if (closing) return;
@@ -119,8 +119,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         waiting.clear();
       };
       const recoverOrphans = async () => {
-        const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
-          for (const notify of outboxListeners) notify();
+        const retry = await adoptOrphans(device!, name, store.name, persist, settle, time => {
+          for (const notify of outboxListeners) notify(time);
         }, waitForLock);
         if (retry) retryOrphans();
       };
@@ -396,7 +396,7 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: (issuedFloor: number) => void, waitForLock: (name: string) => void): Promise<boolean> {
   if (!persist.others || !persist.remove) return false;
   let retry = false;
   const orphanPrefix = `${name}:tab-`;
@@ -410,6 +410,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     if (!held) { waitForLock(orphan); continue; }
     let destinationDirty = false;
     let enqueued = false;
+    let issuedFloor = 0;
     try {
       // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
       // A journal can outlive its database. Loading a missing IDB store would
@@ -452,7 +453,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
       const latest = new Map<string, string | null>();
       for (const change of saved) if (change.s === "o") latest.set(change.k, change.v);
-      const entries = [...latest.values()].filter((v): v is string => v !== null).map(v => JSON.parse(v) as { id: string; seq: number; sent_seq?: number | null; observed_seq?: number | null });
+      const entries = [...latest.values()].filter((v): v is string => v !== null).map(v => JSON.parse(v) as { id: string; seq: number; now?: number; sent_seq?: number | null; observed_seq?: number | null });
       entries.sort((a, b) => a.seq - b.seq);
       const existing = new Set((JSON.parse(device.call(JSON.stringify({ op: "queued" }))).ok as { id: string }[]).map(e => e.id));
       const transfers = new Map(saved.filter(c => c.s === "j" && c.v !== null).map(c => [c.k, JSON.parse(c.v!) as { recovered: boolean; storeId: string }]));
@@ -471,12 +472,13 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
           if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
           existing.add(entry.id);
           enqueued = true;
+          if (Number.isSafeInteger(entry.now)) issuedFloor = Math.max(issuedFloor, entry.now!);
         }
         removed.push({ s: "o", k: entry.id, v: null });
       }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;
-      if (enqueued) adopted();
+      if (enqueued) adopted(issuedFloor);
       if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { if (removed.length) await persist.save(orphan, removed); }
       else await persist.remove(orphan);
     } catch (error) {

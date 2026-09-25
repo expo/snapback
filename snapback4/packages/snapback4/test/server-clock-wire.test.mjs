@@ -94,34 +94,40 @@ for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps it
 test('web orphan recovery after attachment preserves its admission floor through settlement and rollback', async t => {
   const name = 'late-clock', orphan = `${name}:tab-old`, persist = memoryPersistence(), batches = [];
   const entry = { id: 'orphan', seq: 1, op: 'write', args: { hiddenHandle: false, refuse: false },
-    viewer: 'alice', now: 1_004_000, new_ids: [], predicted: [], predictable: false };
-  await persist.save(orphan, [{ s: 'm', k: 'device:store_id', v: 'clock-store' }, { s: 'o', k: entry.id, v: JSON.stringify(entry) }]);
+    viewer: 'alice', now: 1_002_000, new_ids: [], predicted: [], predictable: false };
+  const later = { ...entry, id: 'orphan-later', seq: 2, now: 1_004_000 };
+  await persist.save(orphan, [{ s: 'm', k: 'device:store_id', v: 'clock-store' },
+    ...[entry, later].map(e => ({ s: 'o', k: e.id, v: JSON.stringify(e) }))]);
   const held = await persist.claim(orphan, false); t.after(() => held.release());
   const device = webDevice({ wasm, persist: { ...persist, async save(store, changes) {
     batches.push({ store, changes }); await persist.save(store, changes);
   } } });
-  let wall = 1_004_000, core = await device.open(name, { initial_backend: modelBackend }); t.after(() => core.close());
+  let wall = 1_000_000, core = await device.open(name, { initial_backend: modelBackend }); t.after(() => core.close());
   const observe = { op: 'observe_store', page: { snapshot: false, generation: 1, events: [], watermark: 0, more: false, store_id: 'clock-store', requested_watermark: 0 } };
   assert.equal((await core.call(observe)).denied, undefined);
+  await core.call({ op: 'set_meta', key: 'server-clock-floor', value: '1002000' });
   const clock = new ServerClock(() => wall); await clock.attach(core);
-  assert.equal(clock.issuedDeviceNow(), wall);
+  core.onOutbox(time => clock.raiseIssued(time));
+  assert.equal(clock.issuedDeviceNow(), 1_002_000);
   assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
-  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, '1002000');
   await held.release();
   assert.equal((await core.call(observe)).denied, undefined); // Normal orphan recovery, after attach.
   assert.equal(await persist.has(orphan), false);
-  assert.equal((await core.call({ op: 'queued' })).ok[0].now, entry.now);
-  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, String(entry.now));
+  assert.deepEqual((await core.call({ op: 'queued' })).ok.map(e => e.now), [entry.now, later.now]);
+  assert.equal(clock.issuedDeviceNow(), later.now, 'the existing live clock adopts the maximum, without reopening');
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, String(later.now));
   assert.ok(batches.some(({ store, changes }) => store === name
     && changes.some(c => c.s === 'o' && c.k === entry.id && c.v)
-    && changes.some(c => c.s === 'm' && c.k === 'client:server-clock-floor' && c.v === String(entry.now))), 'transfer and floor share the durable batch');
-  assert.equal((await core.call({ op: 'settle', id: entry.id })).denied, undefined);
+    && changes.some(c => c.s === 'o' && c.k === later.id && c.v)
+    && changes.some(c => c.s === 'm' && c.k === 'client:server-clock-floor' && c.v === String(later.now))), 'both transfers and the maximum floor share the durable batch');
+  for (const e of [entry, later]) assert.equal((await core.call({ op: 'settle', id: e.id })).denied, undefined);
   assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
   await core.close(); // No clock flush can preserve the retired timestamp.
   wall -= 4000;
   core = await device.open(name, null);
   const reopened = new ServerClock(() => wall); await reopened.attach(core);
-  assert.equal(reopened.issuedDeviceNow(), entry.now);
+  assert.equal(reopened.issuedDeviceNow(), later.now);
 });
 
 test('a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries', async t => {
