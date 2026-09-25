@@ -223,6 +223,12 @@ fn seeded_changes_match_the_old_live_recomputation() {
 #[test]
 fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     use snapback4_core::{Store, rows::{Dir, Bounds}};
+    fn assert_no_cap_counters(store: &Store) {
+        assert!(store.meta("cap_counts_schema").unwrap().is_none());
+        let present: bool = store.conn().query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_cap_counts')", [], |row| row.get(0)).unwrap();
+        assert!(!present, "expiry index adoption must not introduce unused cap counters");
+    }
     let b=snapback4_lang::compile(&[("schema.q".into(),SOURCE.into())]);
     assert!(b.diagnostics.is_empty());
     let path=std::env::temp_dir().join(format!("sb4-q-upgrade-{}-{}.sqlite",std::process::id(),snapback4_core::now_ms()));
@@ -230,6 +236,7 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     let directory=path;
     let path=directory.join("store.sqlite");
     let mut server=Engine::new_at(Store::open(&path).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),0).unwrap();
+    assert_no_cap_counters(server.store());
     server.seed([row(0,Value::Int(100)),row(1,Value::Int(1000)),row(2,Value::Null)]).unwrap();
     let generation=server.generation();
     let mut legacy=server.schema().clone();
@@ -256,6 +263,12 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     tx.commit().unwrap(); drop(server);
     let mut server=Engine::open_at(Store::open(&path).unwrap(),100).unwrap();
     assert_eq!(server.generation(),generation+1);
+    assert_no_cap_counters(server.store());
+    let schema_hash = server.schema().hash();
+    assert_eq!(server.store().meta("schema_hash").unwrap().as_deref(), Some(schema_hash.as_str()));
+    for maintain in &server.schema().maintains {
+        assert_eq!(server.schema().tables[&maintain.source].indexes[&maintain.contribution_index()].components.len(), 2);
+    }
     assert_eq!(read(&mut server,100).data,Value::Int(2));
     assert_eq!(read(&mut server,100).metered.examined,3);
     let row=server.store().rows("unreadCounts").unwrap().remove(0);
@@ -263,6 +276,7 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     drop(server);
     let server=Engine::open_at(Store::open(&path).unwrap(),200).unwrap();
     assert_eq!(server.generation(),generation+1,"unchanged reopen does not rebuild");
+    assert_no_cap_counters(server.store());
     drop(server); std::fs::remove_dir_all(directory).unwrap();
 }
 

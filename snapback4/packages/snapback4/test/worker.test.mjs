@@ -619,6 +619,8 @@ test("effect settlement still reports a refusal other than lease loss", async ()
 
 
 for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${replay ? "suppressed" : "deferred"} presence effects`, { timeout: 30_000 }, async t => {
+  const settlementReply = Promise.withResolvers();
+  t.after(() => settlementReply.resolve());
   const f = await actionFixture(t, { flags: replay ? ["--replay"] : [], source: `use personas alice
  effect notify
  table notes:
@@ -641,16 +643,24 @@ for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${re
   assert.equal(dependencies(), replay ? 0 : 1);
   assert.equal(effects().length, replay ? 0 : 1);
   let handlers = 0, claims = 0;
+  let settlementReceived = false, polledAfterSettlement = false;
   const errors = [];
   const worker = f.launch({ wait: 0, effects: { notify: () => { handlers++; } }, onError: e => errors.push(String(e)), fetch: async (url, init) => {
+    const claim = String(url).endsWith("/effects/claim");
+    if (claim && settlementReceived) polledAfterSettlement = true;
     const response = await fetch(url, init);
-    if (String(url).endsWith("/effects/claim")) { await response.clone().json(); claims++; }
+    if (String(url).endsWith("/done")) { settlementReceived = true; await settlementReply.promise; }
+    if (claim) { await response.clone().json(); claims++; }
     return response;
   } });
   await until(() => claims >= 1);
   assert.equal(handlers, 0);
   assert.equal((await f.post("/dev/clock/advance", { duration: "36s" })).advancedMs, 36_000);
   await until(() => replay ? claims >= 2 : effects()[0]?.state === "sent");
+  settlementReply.resolve();
+  // The database commit precedes the worker's receipt of its response. Stop
+  // only at the next claim, after the held settlement has been fully consumed.
+  if (!replay) await until(() => polledAfterSettlement);
   f.stop.abort(); await worker.done;
   assert.deepEqual(errors, []);
   assert.equal(handlers, replay ? 0 : 1);

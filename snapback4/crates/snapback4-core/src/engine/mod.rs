@@ -341,10 +341,15 @@ impl Engine {
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
         let mut schema: Schema = schema;
+        let stored_schema_hash = schema.hash();
         schema.prepare_contribution_indexes();
+        let schema_hash = schema.hash();
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
-        let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&Schema::hash(&schema))) { generation }
+        // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
+        let generation = if stored_schema_hash == schema_hash
+            && store.meta("live_sum_candidates")?.as_deref() == Some("1")
+            && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { generation }
             else { Self::activate(&mut store, &schema, &programs, None, now)? };
         Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }

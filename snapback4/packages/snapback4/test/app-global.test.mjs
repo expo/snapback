@@ -6,7 +6,14 @@ import { memorySessionStore, restoreSession, sessionKey } from "../dist/auth.js"
 import { processDevice } from "../dist/native.js";
 import { binary, until, server } from "./helpers/app-server.mjs";
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
-const probe = async (url, token) => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code;
+const probe = async (url, token) => {
+  // Use the fixture's bounded retry for an aborted pooled socket. Wrap a
+  // successful response so an absent refusal is not mistaken for retry work.
+  const reply = await until(async () => ({ body: await (await fetch(url + "/probe", {
+    headers: { authorization: `Bearer ${token}` },
+  })).json() }), "probe response");
+  return reply.body.denied?.code;
+};
 const login = async (url, email) => (await (await fetch(url + "/auth/login", { method: "POST", body: JSON.stringify({ email, password: "password-a" }) })).json()).session;
 
 for (const tier of ["online", "local"]) for (const heldResponse of [false, true]) test(`${tier}: global logout follows another tab's ${heldResponse ? "held" : "persisted"} rotation and revokes external siblings`, { timeout: 30_000 }, async t => {
