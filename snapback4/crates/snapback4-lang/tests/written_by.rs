@@ -64,6 +64,40 @@ fn private_equality_term_refuses_in_a_read_rule() {
 }
 
 #[test]
+fn private_equality_term_refuses_in_a_delete_rule() {
+    let source = SOURCE.replace("delete <- .principal = viewer", "delete <- .readUpTo = 0");
+    let b = compile(&[("private-delete.q".into(), source.clone())]);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && !d.rewrite.is_empty()), "{:?}", b.diagnostics);
+    bound(&source.replace("written by .principal", "written by .principal readable by audience"));
+}
+
+#[test]
+fn recorded_attribution_cannot_capture_a_public_rows_private_immutable_field() {
+    let source = r#"
+table posts:
+  owner: principal
+  secret: int default 0 written by .owner
+  immutable secret
+  public
+  online only
+table likes:
+  postId: posts
+  immutable postId
+  public
+  online only
+maintain leaked: count likes by postId.secret
+  read <- allow
+  online only
+"#;
+    let b = compile(&[("private-capture.q".into(), source.into())]);
+    let d = b.diagnostics.iter().find(|d| d.code == "E_FIELD_AUTHORITY").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
+    assert!(d.message.contains("cannot record another row's private field"), "{d:?}");
+    assert!(!d.rewrite.is_empty());
+    let admitted = bound(&source.replace("written by .owner", "written by .owner readable by audience"));
+    assert_eq!(admitted.schema.tables["likes"].recorded["postId.secret"].column, "secret");
+}
+
+#[test]
 fn writes_card_splits_the_read_mark_section() {
     let card = guide::card("writes").unwrap();
     assert!(card.contains("behavior.\n\n## Writing a member's read mark\n"));

@@ -49434,3 +49434,58 @@ log is retained and is not counted as a passing run. Final report:
 `/home/ccheever/sb5/lane-b1.r1.final.md`. No design-of-record deviation or
 new diagnostic code. PostgreSQL was not runtime-tested; no adapter-specific
 code changed. No push, publication or deployment.
+
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 2: second blind-review corrections
+
+Closed the second Astra/Grok review findings without expanding the lane. The
+absent-upsert arm now checks the insert rule before field ownership and uses
+NOT_FOUND when that rule refuses. Its existing target-attempt boundary restores
+the meter. The paired regression compares the full original refusal state
+(including code, message and detail) and every meter field in absent and hidden
+worlds on memory and disk SQLite engines. The transfer test no longer expects
+a split. Direct-insert and readable-target E_FIELD_AUTHORITY coverage remains.
+The rules card states the corrected guarantee.
+
+Owner-partition delivery uses a dedicated metered raw-witness probe. A device
+omits an owner partition when a delivery witness is unknown, including under
+negation, without publishing unknown_fact or setting beyond_horizon. Server
+recipient checks remain exact. New memory/SQLite device tests cover notes with
+online-only access and a two-owner record whose other owner's membership is
+absent locally. They check held images, successful prediction, the committed
+stream image and server owner-partition logs. The point-patch fixtures return a
+boolean; a separate provisional-row result read still needs its own readable
+witness. No provisional-read authorization was relaxed.
+
+Runtime E_FIELD_AUTHORITY envelopes now carry the owner-specific repair in
+rewrite and guide rules. The actual rebuilt WebDevice dispatcher regression
+checks both owner and recipient column names. Bind-time tests now refuse
+capture of a private immutable field from an otherwise public referenced row,
+and delete <- .readUpTo = 0; audience-readable forms are compiling controls.
+
+The round-1 implementation failed the upsert and delivery regressions, and its
+wasm failed the structured-envelope assertion. Restoring the old delivery probe
+and disabling the two schema guards deliberately failed the two device and two
+language regressions. All mutations were restored. Focused Rust checks passed
+26/26, and the actual wasm dispatcher file passed 2/2. Evidence is retained in
+target/b1-r2-before-all.log, target/b1-r2-mutations.log,
+target/b1-r2-focused2.log and target/b1-r2-wasm-dispatch.log.
+
+scripts/build-wasm.sh measures 1,765,887 B raw / 489,738 B gzip on Rust 1.97.0
+and wasm-bindgen 0.2.127, without wasm-opt. Relative to round 1's 1,765,480 /
+489,547, this is +407 raw / +191 gzip for the whole artifact. It includes the
+upsert check ordering, delivery probe and runtime repair metadata; no individual
+byte attribution is claimed. Keep the 490,000 B ratchet with 262 B headroom.
+Runtime meter ceilings are unchanged.
+
+Final blocking result with FORCE_COLOR unset: `== 0 failure(s) in 762 s`.
+All Rust targets and doctests passed; client tests: 1,089 passed, 0 failed,
+10 existing skips. Node 24.18.0 and the existing serial-client-file mode,
+eight Rust test processes and eight build jobs were used. The suite's wasm
+rebuild confirmed the same size. Full log: target/b1-r2-suite.log; process
+identities: target/b1-r2-suite-processes.jsonl. No client implementation,
+timing or assertions were changed to get this result. git diff --check passes.
+Final per-item report: /home/ccheever/sb5/lane-b1.r2.final.md.
+No new design scope, diagnostic code, schema/store format, or PostgreSQL
+adapter change. PostgreSQL was not runtime-tested. No push, publication or
+deployment.

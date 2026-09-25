@@ -125,6 +125,8 @@ redact the former owner's copy, or remove it if the row also becomes unreadable.
 A device queues a transition that needs another owner's omitted value or
 would acquire ownership of that value; an independent owned-field patch
 still predicts. Ordinary row grants do not add dependencies to such a patch.
+Unknown owner-delivery witnesses also do not prevent that prediction; the
+server decides which owners may receive the committed image.
 Only a named `update (old, next)` transition may use a private field as a
 rule input; ordinary update rules cannot test guesses against it.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
@@ -162,6 +164,9 @@ field is not yours. Name a required principal column on this table, declare a
 default, and omit the field when writing another principal's row. For a private
 field needed in an index or aggregate, append `readable by audience` only when
 that disclosure matches the application. It requires `written by` first.
-An unreadable update target or refused absent upsert keeps `NOT_FOUND`, so
-field refusals do not reveal whether a hidden row exists. The trusted system
+An unreadable update target or an absent upsert refused by the insert rule
+keeps `NOT_FOUND`, with the same refusal and meter. Field ownership is checked
+after that insert rule, so callers who can neither read nor insert cannot
+learn whether a hidden row exists. Direct inserts and readable targets retain
+`E_FIELD_AUTHORITY` with the owner-specific repair. The trusted system
 principal retains its existing rule bypass.

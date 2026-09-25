@@ -190,7 +190,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         for (row, recipients) in [(old, &mut before), (new, &mut after)] {
             if let Some(row) = row {
                 for owner in table.field_owners(row) {
-                    if crate::engine::rules::evaluate(&table.rules.read, &owner, None, row, false, runner)? {
+                    if runner.field_owner_can_read(&table.rules.read, &owner, row)? {
                         recipients.insert(partition_of(&owner));
                     }
                 }

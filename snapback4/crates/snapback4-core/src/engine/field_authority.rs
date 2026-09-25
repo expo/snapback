@@ -1,9 +1,35 @@
 //! Field writes use the old owner; row transition rules still constrain them.
 // @ref LLP 3000.015#1 — ownership grants only the explicitly touched owned fields.
 use super::runner::Runner;
-use crate::{error::RuntimeError, schema::Effect, value::Value};
+use super::rules::{self, Probe};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Effect, RuleExpr}, value::Value};
+
+/// Delivery accounting must not make another recipient's unknown membership
+/// a dependency of the writer's prediction. Server witnesses remain exact.
+struct DeliveryProbe<'a, 'b> {
+    runner: &'a mut Runner<'b>,
+    known: bool,
+}
+
+impl Probe for DeliveryProbe<'_, '_> {
+    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        if !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
+        let (present, known) = self.runner.probe_witness(table, index, key, equalities, false)?;
+        self.known &= known;
+        Ok(present)
+    }
+
+    fn created(&mut self, _table: &str, _index: &str, _key: &[Value]) -> bool { false }
+}
 
 impl Runner<'_> {
+    pub(crate) fn field_owner_can_read(&mut self, rule: &RuleExpr, owner: &str, row: &Value) -> Result<bool, RuntimeError> {
+        let mut probe = DeliveryProbe { runner: self, known: true };
+        let readable = rules::evaluate(rule, owner, None, row, false, &mut probe)?;
+        // Even a negated unknown witness cannot authorize an owner partition.
+        Ok(readable && probe.known)
+    }
+
     pub(super) fn authorize_fields(&self, table: &str, row: &Value, supplied: &Value) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let fields = supplied.as_object()?;

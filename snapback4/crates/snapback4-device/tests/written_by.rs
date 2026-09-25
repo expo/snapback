@@ -169,8 +169,8 @@ fn owner_transfer_revokes_or_redacts_on_both_stores() {
             let hidden=call(&mut e,"secret","alice",json!({"id":"row"}),"hidden");
             let absent=call(&mut e,"secret","alice",json!({"id":"absent"}),"absent");
             refused(&hidden,"NOT_FOUND");refused(&absent,"NOT_FOUND");
-            for (id, code) in [("row", "NOT_FOUND"), ("absent", "E_FIELD_AUTHORITY")] {
-                refused(&call(&mut e,"put","alice",json!({"id":id}),&format!("upsert-{id}")),code);
+            for id in ["row", "absent"] {
+                refused(&call(&mut e,"put","alice",json!({"id":id}),&format!("upsert-{id}")),"NOT_FOUND");
             }
         }
         host.close("a",a);host.close("b",b);
@@ -339,18 +339,87 @@ fn combined_transfer_and_private_patch_uses_the_old_owner() {
 }
 
 #[test]
-fn absent_upsert_reports_field_authority_but_hidden_target_stays_not_found() {
+fn absent_upsert_and_hidden_target_have_indistinguishable_refusals() {
     for disk in [false, true] {
-        let (memory, backend) = compile(&TRANSFER.replace("insert <- .owner = viewer", "insert <- allow"));
-        let host = Sqlite::new("upsert-authority");
-        let mut e = if disk { Engine::new(snapback4_core::store::Store::open(&host.path("server")).unwrap(), backend.schema, backend.programs).unwrap() } else { memory };
-        sent(&call(&mut e, "make", "bob", json!({}), "hidden"));
-        for (id, code) in [("fresh", "E_FIELD_AUTHORITY"), ("hidden", "NOT_FOUND")] {
-            refused(&call(&mut e, "put", "alice", json!({"id":id}), &format!("put-{id}")), code);
+        let mut outcomes = Vec::new();
+        for exists in [false, true] {
+            let (memory, backend) = compile(TRANSFER);
+            let host = Sqlite::new("upsert-authority");
+            let mut e = if disk { Engine::new(snapback4_core::store::Store::open(&host.path("server")).unwrap(), backend.schema, backend.programs).unwrap() } else { memory };
+            if exists { sent(&call(&mut e, "make", "bob", json!({}), "target")); }
+            let out = call(&mut e, "put", "alice", json!({"id":"target"}), "put");
+            refused(&out, "NOT_FOUND");
+            assert_eq!(query(&mut e, "one", "bob", json!({"id":"target"}))["secret"], if exists { json!(73) } else { Json::Null });
+            outcomes.push(out);
         }
-        assert_eq!(query(&mut e, "one", "bob", json!({"id":"hidden"}))["secret"], 73);
-        assert_eq!(query(&mut e, "one", "bob", json!({"id":"fresh"})), Json::Null);
+        // Compare the original refusal (including detail), not the sanitized receipt.
+        assert_eq!(outcomes[0].state, outcomes[1].state);
+        assert_eq!(outcomes[0].metered, outcomes[1].metered);
     }
+}
+
+fn held_owned_patch_without_delivery_witness<H: Host>(host: &mut H, online_access: bool) {
+    let access_sync = if online_access { "online only" } else { "sync to .principal last 1 by byPrincipal" };
+    let second_owner = if online_access { "" } else { "  other: principal\n  otherSecret: int default 0 written by .other\n" };
+    let source = format!(r#"
+table access:
+  room: text <=20
+  principal: principal
+  unique room, principal
+  by byPrincipal: principal, id
+  read <- .principal = viewer
+  {access_sync}
+table notes:
+  room: text <=20
+  owner: principal
+  secret: int default 0 written by .owner
+{second_owner}  read <- exists access[.room, viewer]
+  sync to access[.room]
+mutation mark(id: notes) predicts:
+  update notes[id] {{ secret: 9 }}
+  return true
+query one(id: notes):
+  return notes[id]
+"#);
+    let (mut e, backend) = compile(&source);
+    let mut row = json!({"id":"note","room":"room","owner":"alice","secret":1});
+    if !online_access { row["other"] = json!("bob"); row["otherSecret"] = json!(73); }
+    let rows = [("access", json!({"id":"a","room":"room","principal":"alice"})),
+        ("access", json!({"id":"b","room":"room","principal":"bob"})), ("notes", row)];
+    e.seed(rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(&e.schema().tables[table], &row).unwrap())).collect::<Vec<_>>()).unwrap();
+    let mut device = host.open("alice", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut e, "alice", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let access = device.store().raw_rows("access");
+    assert_eq!(access.len(), usize::from(!online_access));
+    assert!(access.iter().all(|row| row.field("principal") == Ok(&id("alice"))));
+    let held = device.store().raw_rows("notes");
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].field("secret"), Ok(&Value::Int(1)));
+    assert!(held[0].field("otherSecret").is_err());
+    let prediction = device.predict("mark", "alice", &json!({"id":"note"}), 1000, vec![], 1).unwrap();
+    assert_eq!(prediction.predicted.len(), 1);
+    let seq = sent(&call(&mut e, "mark", "alice", json!({"id":"note"}), "mark"));
+    device.apply(&stream_page(&mut e, "alice", device.state().unwrap().0), false).unwrap();
+    assert_eq!(wire::to_json(&device.query("one", "alice", &json!({"id":"note"}), 1000).unwrap().data)["secret"], 9);
+    // Server recipient probes remain exact, including Bob's locally absent membership.
+    let tx = e.store_mut().read_transaction().unwrap();
+    let owner = if online_access { "p:alice" } else { "p:bob" };
+    assert!(tx.read_log(owner, seq - 1, 100).unwrap().iter().any(|event| event.id == "note"
+        && event.data.as_ref().is_some_and(|row| row.field(if online_access { "secret" } else { "otherSecret" }) == Ok(&Value::Int(if online_access { 9 } else { 73 })))));
+    tx.rollback().unwrap();
+    host.close("alice", device);
+}
+
+#[test]
+fn held_owned_patch_predicts_with_online_only_access() {
+    held_owned_patch_without_delivery_witness(&mut Memory::new(), true);
+    held_owned_patch_without_delivery_witness(&mut Sqlite::new("online-access"), true);
+}
+
+#[test]
+fn held_owned_patch_predicts_without_the_other_owners_membership() {
+    held_owned_patch_without_delivery_witness(&mut Memory::new(), false);
+    held_owned_patch_without_delivery_witness(&mut Sqlite::new("other-membership"), false);
 }
 
 #[test]

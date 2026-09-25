@@ -23,3 +23,34 @@ test('web trusts structural admission of its backend but still validates argumen
   const executed = call(programs, 'executed');
   assert.ok(executed.ok?.denied, JSON.stringify(executed));
 });
+
+test('wasm field-authority refusals carry the owner-specific repair and rules guide', () => {
+  for (const owner of ['owner', 'recipient']) {
+    const table = {
+      columns: { id: 'Id', [owner]: 'Principal', secret: 'Int' },
+      defaults: { secret: { Literal: { Int: 0 } } },
+      written_by: { secret: { owner } },
+      indexes: { byId: { components: [{ Column: 'id' }], unique: true } },
+      rules: { read: 'Allow', insert: 'Allow', update: 'Deny', delete: 'Deny' },
+      sync: { audience: 'Public' },
+      constraints: [{ Capabilities: ['field-authority'] }],
+    };
+    const mutation = { name: 'patch', kind: 'Mutation', args: {}, body: [
+      { Update: { table: 'records', key: literal({ Id: 'row' }), patch: literal({ Row: { secret: { Int: 7 } } }) } },
+    ] };
+    const device = new WebDevice(JSON.stringify({ generation: 1, schema: { tables: { records: table } }, programs: [mutation] }), '[]');
+    const request = value => JSON.parse(device.call(JSON.stringify(value)));
+    try {
+      const applied = request({ op: 'apply', first: true, page: { snapshot: true, events: [
+        { table: 'records', kind: 'put', id: 'row', data: { id: 'row', [owner]: 'bob' } },
+      ], watermark: 1, more: false, generation: 1 } });
+      assert.ok('ok' in applied, JSON.stringify(applied));
+      const reply = request({ op: 'predict', name: 'patch', viewer: 'alice', args: {}, now: 1 });
+      const refusal = reply.ok?.denied;
+      assert.equal(refusal?.code, 'E_FIELD_AUTHORITY', JSON.stringify(reply));
+      assert.equal(refusal.guide, 'rules');
+      assert.ok(refusal.rewrite.includes('omit secret'), JSON.stringify(refusal));
+      assert.ok(refusal.rewrite.includes(`write as the principal in .${owner}`), JSON.stringify(refusal));
+    } finally { device.free(); }
+  }
+});
