@@ -2,21 +2,22 @@ import type { Read } from "./contract.ts";
 // @ref LLP 3000.014#5 — a fallback replaces current pages, preserving delivered history.
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
 export function hasRetainedRows(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some((row) => object(row) && row.retained === true);
+  if (value === true) return true;
+  if (Array.isArray(value)) return value.some(hasRetainedRows);
   return object(value) && Object.values(value).some(hasRetainedRows);
 }
-export function keepRetainedRows(current: unknown, local: unknown): unknown {
+export function keepRetainedRows(current: unknown, local: unknown, mask: unknown): unknown {
   if (Array.isArray(current) && Array.isArray(local)) {
-    return [...current, ...local.filter((row) => object(row) && row.retained === true)];
+    return [...current, ...local.filter((_, index) => Array.isArray(mask) && mask[index] === true)];
   }
   if (object(current) && object(local)) {
-    return Object.fromEntries(Object.entries(current).map(([field, value]) => [field, keepRetainedRows(value, local[field])]));
+    return Object.fromEntries(Object.entries(current).map(([field, value]) => [field, keepRetainedRows(value, local[field], object(mask) ? mask[field] : undefined)]));
   }
   return current;
 }
 
 type Observation<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean };
-type Local<R> = { result: Observation<R>; terminal: boolean; outcome: { unknown?: boolean; data?: unknown } };
+type Local<R> = { result: Observation<R>; terminal: boolean; outcome: { unknown?: boolean; data?: unknown; retainedRows?: unknown } };
 
 // Re-observe after the server reply: retention, pending writes and incarnation
 // may have changed while that request was in flight.
@@ -34,5 +35,5 @@ export async function readThroughFallback<R>(
   if (second.terminal || !("data" in second.result.read) || failed || await stopped()) return second.result;
   if (!second.outcome.unknown) return second.result;
   const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-  return { read: { ...remote.read, data: keepRetainedRows(remote.read.data, second.outcome.data) as R, fresh: false, complete: false }, tables: first.tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
+  return { read: { ...remote.read, data: keepRetainedRows(remote.read.data, second.outcome.data, second.outcome.retainedRows) as R, fresh: false, complete: false }, tables: first.tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
 }

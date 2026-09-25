@@ -110,7 +110,7 @@ fn expiry<H:Host>(host:&mut H) {
 fn reused<H:Host>(host:&mut H) {
     for retained in [false,true] {
         let source=if retained{SOURCE.replace("table comments:","table comments:\n  retain delivered-history")}else{SOURCE.into()};
-        let source=format!("{source}\nmutation dropComment(id: comments):\n  delete comments[id]\n");
+        let source=format!("{source}\nmutation dropComment(id: comments):\n  delete comments[id]\nquery shaped(task: tasks):\n  comments where .task = task first 10 by .at {{id, body}}\nquery spread(task: tasks):\n  rows = comments where .task = task first 10 by .at\n  result = []\n  for c in rows:\n    result = result + [{{ ...c, ...(c {{ body }}) }}]\n  return result\n");
         let(mut e,b)=setup(&source);
         write(&mut e,"post",&[("id",id("c")),("task",id("t")),("body",snapback4_core::Value::String("old".into()))]);
         let mut d=host.open(if retained{"history"}else{"reuse"},Some(b)).unwrap();acquire(&mut e,&mut d,100);
@@ -122,11 +122,11 @@ fn reused<H:Host>(host:&mut H) {
         if retained {events.push(json!({"table":"comments","kind":"scope","id":"scope","data":["o"]}));}
         let page:StreamPage=serde_json::from_value(json!({"snapshot":false,"events":events,"watermark":page.watermark,"more":false,"generation":e.generation()})).unwrap();
         d.apply(&page,false).unwrap();
-        for name in ["page","search"] {
+        for name in ["page","search","shaped","spread"] {
         let answer=query(&mut d,name,"t",100);
         assert_eq!(answer["unknown"],true,"{answer}");assert_eq!(answer["complete"],false,"{answer}");
-        if retained {assert_eq!(answer["data"][0]["id"],"c","{answer}");assert_eq!(answer["data"][0]["retained"],true,"{answer}");}
-        else {assert_eq!(answer["data"],json!([]),"mismatched current child stays out: {answer}");}
+        if retained {assert_eq!(answer["data"][0]["id"],"c","{answer}");assert_eq!(answer["data"][0]["retained"],true,"{answer}");assert_eq!(answer["retainedRows"][0],true,"{answer}");}
+        else {assert_eq!(answer["data"],json!([]),"mismatched current child stays out: {answer}");assert!(answer.get("retainedRows").is_none(),"{answer}");}
         }
         let count=query(&mut d,"countFor","t",100);assert_eq!(count["data"],Json::Null,"{count}");assert_eq!(count["unknown"],true,"{count}");
     }

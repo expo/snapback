@@ -969,7 +969,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     if (!held && serverRun(op)) return link === "online" ? server() : remembered();
     type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
-    type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+    type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
     // Keep whole-query and component routing on the same coverage rule.
     // @ref LLP 3000.007#20.22.1 — ask the server only for facts the device cannot establish (a missing fact, presence), not cuts the server would repeat; the same rule routes a composed component.
     const wantsServer = (coverage: Coverage) => !held && !coverage.retained && !!coverage.unknown;
@@ -994,7 +994,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server(remembered, true, true) : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
     const pending = async () => (await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0));
     // A read-through page may contain retained history beside an unknown current page.
-    if (!held && outcome.unknown && hasRetainedRows(outcome.data) && link === "online" && !await pending())
+    if (!held && outcome.unknown && hasRetainedRows(outcome.retainedRows) && link === "online" && !await pending())
       return readThroughFallback(server, local, first.result, () => revision !== incarnation, async () => link !== "online" || await pending(), () => serverAnswers.delete(key));
     const components = Object.values(outcome.components ?? {});
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — one original server query, then a second local observation and one publication of independent fields.

@@ -141,3 +141,15 @@ for(const tier of ["wasm","process"]) test(`${tier}: four-level capture, covered
   assert.deepEqual(expired.ok.data,[]);
   const authoritative=await client.query({kind:"query",name:"page"},{task:"t"});assert.deepEqual(authoritative.data,[]);assert.equal(authoritative.complete,true);
 });
+import { hasRetainedRows, keepRetainedRows } from "../dist/local-through.js";
+
+test("retained fallback uses device provenance, not an application field", () => {
+  const ordinary = { id: "ordinary", retained: true };
+  const history = { id: "history", retained: true };
+  const mask = { rows: [{ id: false, retained: false }, true] };
+  assert.equal(hasRetainedRows(mask), true);
+  assert.equal(hasRetainedRows({ rows: [{ id: false, retained: false }] }), false);
+  assert.deepEqual(keepRetainedRows({ rows: [{ id: "server" }] }, { rows: [ordinary, history] }, mask),
+    { rows: [{ id: "server" }, history] });
+  assert.deepEqual(keepRetainedRows([], [ordinary], undefined), []);
+});

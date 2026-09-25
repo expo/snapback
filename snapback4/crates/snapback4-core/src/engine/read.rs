@@ -896,7 +896,7 @@ impl Runner<'_> {
                 if kept_history {
                     self.beyond_horizon = true;
                     self.components.note(|frame| { frame.beyond = true; frame.retained = true; });
-                    if let Value::Row(fields) = &mut row { fields.insert("retained".into(), Value::Bool(true)); }
+                    if let Value::Row(fields) = &mut row { fields.mark_retained(); }
                 }
                 let candidate = self.read_candidate(&scan.table, row, if kept_history { Some(true) } else { uniform_verdict }, if kept_history { Default::default() } else { prefix_expiry })?;
                 if self.read_capped() {

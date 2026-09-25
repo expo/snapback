@@ -49,6 +49,12 @@ fn one(
     let fail = |message: String, rewrite: String| {
         Diagnostic::new(site, "E_READ_THROUGH", message, rewrite).guide("rules")
     };
+    if info.decl.retain.as_ref().is_some_and(|(policy, _)| policy == "delivered-history")
+        && info.columns.contains_key("retained")
+    {
+        return Err(fail(format!("{name}.retained conflicts with delivered-history row metadata"),
+            "rename the application column to wasRetained; retained marks delivered history on read-through rows".into()));
+    }
     if !visiting.insert(name.into()) {
         return Err(fail(
             format!("read through cycle at {name}"),

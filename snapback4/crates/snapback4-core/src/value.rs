@@ -28,10 +28,10 @@ pub enum Value {
 // Row images are shared immutably (`Arc`) so a result, a page head and a
 // partition event can hold one copy; serialization is the plain map.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>);
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool);
 impl From<BTreeMap<String, Value>> for ObjectFields {
     fn from(value: BTreeMap<String, Value>) -> Self {
-        Self(std::sync::Arc::new(value))
+        Self(std::sync::Arc::new(value), false)
     }
 }
 impl FromIterator<(String, Value)> for ObjectFields {
@@ -82,8 +82,35 @@ impl<'de> Deserialize<'de> for ObjectFields {
     }
 }
 impl ObjectFields {
+    /// Output-only provenance, never recovered from a stored/application field.
+    pub fn is_retained(&self) -> bool { self.1 }
+    pub fn mark_retained(&mut self) {
+        self.1 = true;
+        self.insert("retained".into(), Value::Bool(true));
+    }
     pub fn shares_image(&self, other: &Self) -> bool {
         std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Value {
+    pub fn has_retained_rows(&self) -> bool {
+        match self {
+            Self::Row(fields) | Self::Map(fields) => fields.is_retained() || fields.values().any(Self::has_retained_rows),
+            Self::Array(items) => items.iter().any(Self::has_retained_rows),
+            _ => false,
+        }
+    }
+    /// A parallel transport mask, independent of application fields. It cannot
+    /// exceed the input's heap size: leaves collapse to bools, keys stay shared
+    /// in structure, and retained rows collapse to true.
+    pub fn retained_rows_mask(&self) -> Self {
+        match self {
+            Self::Row(fields) | Self::Map(fields) if fields.is_retained() => Self::Bool(true),
+            Self::Row(fields) | Self::Map(fields) => Self::Row(fields.iter().map(|(key, value)| (key.clone(), value.retained_rows_mask())).collect()),
+            Self::Array(items) => Self::Array(items.iter().map(Self::retained_rows_mask).collect()),
+            _ => Self::Bool(false),
+        }
     }
 }
 

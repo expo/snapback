@@ -39,3 +39,14 @@ const MODEL:&str="table parents:\n  owner: principal\n  archived: bool\n  immuta
     let b=snapback4_lang::compile(&[("bad.q".into(),source)]);
     for child in ["projects","tasks","comments"] {assert!(b.diagnostics.iter().any(|d|d.code=="E_SYNC"&&d.message.contains(&format!("private audience of {child}"))&&d.message.contains("grant probe")),"{:?}",b.diagnostics);}
 }
+
+#[test]fn delivered_history_reserves_its_marker_without_changing_ordinary_fields(){
+    let source=MODEL.replace("table children:","table children:\n  retain delivered-history\n  retained: bool");
+    let b=snapback4_lang::compile(&[("bad.q".into(),source)]);
+    assert!(b.diagnostics.iter().any(|d|d.code=="E_READ_THROUGH"&&d.rewrite.contains("wasRetained")),"{:?}",b.diagnostics);
+    let b=bound(&MODEL.replace("table children:","table children:\n  retain delivered-history"));
+    assert!(snapback4_lang::emit::typescript(&b).contains("retained?: boolean"));
+    let mut raw=b.schema.clone();raw.tables.get_mut("children").unwrap().columns.insert("retained".into(),snapback4_core::schema::ColumnType::Bool);
+    assert!(snapback4_core::schema::validate(&raw).iter().any(|d|d.message.contains("reserves retained")));
+    bound(&MODEL.replace("table children:","table children:\n  retained: bool"));
+}

@@ -656,11 +656,16 @@ impl<'a> Runner<'a> {
             Expr::Shape { base, fields } => {
                 // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
                 let base = self.expr(base)?;
-                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-                for metadata in ["pending", "retained"] {
-                    if base.as_object()?.get(metadata) == Some(&Value::Bool(true)) { fields.insert(metadata.into(), Value::Bool(true)); }
+                let mut fields: crate::value::ObjectFields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<_, RuntimeError>>()?;
+                // @ref LLP 3000.014#5 — retained history stays marked through projections.
+                // A spread can merge multiple row bases. Application fields named
+                // retained are ordinary data; only the reader creates provenance.
+                let bases = if let Value::Array(bases) = &base { bases.as_slice() } else { std::slice::from_ref(&base) };
+                for base in bases {
+                    if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
+                    if matches!(base, Value::Row(base) | Value::Map(base) if base.is_retained()) { fields.mark_retained(); }
                 }
-                let value = Value::Row(fields.into());
+                let value = Value::Row(fields);
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
@@ -970,7 +975,13 @@ impl<'a> Runner<'a> {
         // Count the canonical tagged representation without allocating a
         // second result-sized string. A shaped/scalar result cannot be
         // truncated without changing its type or inventing a continuation.
-        let count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        let mut count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        if self.device && value.has_retained_rows() {
+            // Reserve before constructing the mask and its transport image.
+            // Application data cannot forge which rows the fallback preserves.
+            self.meter.heap(value.heap_bytes().saturating_mul(2))?;
+            count = count.saturating_add(crate::json_codec::value_bytes(&value.retained_rows_mask()).map_err(|e| RuntimeError::Store(e.to_string()))?);
+        }
         if !self.meter.charge(MeterKind::OutputBytes, count)? {
             return Err(RuntimeError::Bound { kind: MeterKind::OutputBytes, actual: count, ceiling: self.meter.ceilings.output_bytes, site: self.meter.site().to_owned() });
         }
