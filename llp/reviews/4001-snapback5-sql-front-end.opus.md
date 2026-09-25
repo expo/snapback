@@ -1706,3 +1706,11 @@ What is left sits on the instruments that decide whether the program continues:
 4. Make a failed or empty (A) "not shown", and state the joint power (#4, #5).
 
 The Mediums can be fixed with those edits and need no further review round.
+
+
+## Revision 4 disposition pointer — 2026-09-25
+
+The implementing lead recorded this round's dispositions in
+[LLP 4001 §12](../4001-snapback5-sql-front-end.rfc.md#round-3-dispositions).
+This is an append-only implementation note, not a new review or a changed
+verdict. Step 3 verification follows separately; no fourth review was run.

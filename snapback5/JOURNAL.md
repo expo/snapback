@@ -88,3 +88,32 @@ setup corrections remain evidence, not qualification. No engine fix,
 budget raise, push, publication or deployment. The branch commits the
 scaffold and measurement only; the lane's handoff report is
 `/home/ccheever/sb5/lane-a.r0.final.md`.
+
+
+## 2026-09-25 — LLP 4001 revision 4
+
+Applied the three round-3 reviews under the author's commission: revision
+4, then step 3 verification, then stop before the separately commissioned
+pre-test 1. §12 records all dispositions; the historical reviews are
+unchanged except append-only pointers. No compiler or shared engine change.
+
+For authoring clarity I chose a uniform null rule, explicit typed shape
+casts, private-schema block helpers, and a real permissive policy beside
+a transition constraint. I declined position-dependent nullable predicate
+exceptions and trigger-as-grant semantics. Custom transition codes must move
+into mutation checks; silently erasing them would mislead builders. Missing
+#19 merge/group/reference-list/maintain-override forms are visible GAPs,
+not different programs disguised as lowerings. These choices keep the
+front end bounded without adding runtime work; no performance improvement
+is claimed from a text revision.
+
+Orientation: LLP 4001 §2–§4 govern the unchanged-engine boundary and spelling
+verification; LLP 3000.015 §1–§3 define the three proposed additions. The
+Snapback 4 rules, types, maintains, shapes, reads, writes and jobs guide cards
+supply the current authoring/authority facts. Both 4001 and 3000.015 remain
+Draft; the latter's equality-transition example freezes the owner's mark,
+so it is explicitly not represented as a monotonic-mark recipe. The current
+checkout lacks the three additions' parser support; verification will
+record actual failures rather than import another worktree or change core.
+AGENTS now explicitly supersedes the shelved README/NOT-DOING instructions
+for this bet; those files are outside the authorized edit set.

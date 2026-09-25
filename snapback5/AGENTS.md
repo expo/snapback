@@ -6,7 +6,9 @@ the runtime is the unchanged Snapback 4 binary, so LLP 4000's §4–§5 are hist
 design of record), then
 [LLP 3000.015](../llp/3000.015-shared-baseline-for-snapback5.spec.md), then
 this directory's [JOURNAL.md](./JOURNAL.md). Read [NOT-DOING.md](./NOT-DOING.md)
-before widening scope. LLPs for Snapback 5 are numbered **4000 and up**;
+as the historical LLP 4000 fence: its bans on authored sync/horizons/server
+markers and the README opening describe the shelved bet. For the current
+bet, LLP 4001 §2–§3 supersede them; no engine or predictor changes. LLPs for Snapback 5 are numbered **4000 and up**;
 extend LLP 4001 or an existing child before allocating another number.
 
 This is a fenced sibling of Snapback 4. The repository-root Snapback 1–3
@@ -17,10 +19,10 @@ shared `snapback4-*` crates follows that directory's own instructions and
 checks. A lane's explicit verification brief still applies to that lane.
 
 - Keep the engine shared. Shared authoring additions land in Snapback 4
-  first; treatment hooks live in feature-gated modules. The control build
-  excludes Snapback 5. Do not silently change the control's feature set,
+  first. LLP 4001's treatment is a separate SQL front end, not feature-gated
+  runtime hooks; the control is the unchanged Snapback 4 binary. Do not silently change the control's feature set,
   client contract or predictor.
-- One data language, Quarry; one interpreter and partition stream. No
+- SQL authoring lowers to Quarry; one unchanged interpreter and partition stream. No
   Snapback 1–3 runtime dependency. Copy source only deliberately, identify
   its origin in the journal and keep source files below 1,500 lines.
 - The journal is append-only and dated. Update governing LLPs with code
