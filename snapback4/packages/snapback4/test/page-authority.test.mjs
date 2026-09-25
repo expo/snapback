@@ -26,7 +26,7 @@ async function fixture(t, online = false) {
   writeFileSync(join(dir, 'snapback/schema.q'), readFileSync(new URL('./fixtures/page-authority.q', import.meta.url)));
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = new Promise(resolve => host.once('exit', resolve));
-  let log = '', client, core, held = false, release, entered = false, offline = false, failServer = false, failApply = false, holdWrites = false;
+  let log = '', client, core, held = false, release, entered = false, offline = false, failServer = false, serverLoading = false, failApply = false, holdWrites = false;
   const requests = [];
   host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
   t.after(async () => { release?.(); await client?.close(); host.kill('SIGTERM'); await exited; rmSync(dir, { recursive: true, force: true }); });
@@ -52,6 +52,9 @@ async function fixture(t, online = false) {
     if (holdWrites && path.startsWith('/m/')) throw Error('controlled pending write');
     if (offline || (failServer && path === '/q/serverPage')) throw Error('offline');
     const response = await fetch(input, init);
+    if (serverLoading && path === '/q/serverPage') {
+      return Response.json({ ...await response.json(), loading: true, data: null, complete: false }, { headers: response.headers });
+    }
     if (path === `/q/${held}`) {
       held = false; entered = true;
       await new Promise(resolve => { release = resolve; });
@@ -60,8 +63,21 @@ async function fixture(t, online = false) {
   } };
   client = online ? createClient(options) : await createLocalClient(options);
   if (!online) await client.sync();
-  return { client, post, requests, core: () => core, hold: (name = 'serverPage') => { held = name; entered = false; }, entered: () => entered, release: () => release?.(), offline: () => { offline = true; }, failServer: value => { failServer = value; }, failAfterApply: () => { failApply = true; }, holdWrites: () => { holdWrites = true; } };
+  return { client, post, requests, core: () => core, hold: (name = 'serverPage') => { held = name; entered = false; }, entered: () => entered, release: () => release?.(), offline: () => { offline = true; }, failServer: value => { failServer = value; }, loadingServer: () => { serverLoading = true; }, failAfterApply: () => { failApply = true; }, holdWrites: () => { holdWrites = true; } };
 }
+
+test('a loading server reply retires the remembered answer before a later transport failure', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.client.query(query('serverPage'), {})).data[0].body, 'private');
+  // Change only the query response: no replica commit may clear the cache
+  // for us, and no observer or background invalidation is needed.
+  f.loadingServer();
+  assert.deepEqual(await f.client.query(query('serverPage'), {}), { loading: true });
+  f.failServer(true);
+  const unavailable = await f.client.query(query('serverPage'), {});
+  assert.ok(!('data' in unavailable), 'an unavailable answer cannot reappear as remembered data');
+  assert.equal(unavailable.denied.code, 'E_OFFLINE');
+});
 
 for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {
   const f = await fixture(t);

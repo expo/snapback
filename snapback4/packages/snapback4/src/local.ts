@@ -940,7 +940,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
           if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
           const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-          if (json.loading || !("data" in json)) return { read: { loading: true } as Read<R>, tables, nextExpiry };
+          if (json.loading || !("data" in json)) {
+            serverAnswers.delete(key);
+            return { read: { loading: true } as Read<R>, tables, nextExpiry };
+          }
           const next = (json.next as Cursor | null | undefined) ?? null;
           const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
           if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
