@@ -1009,8 +1009,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await exitDone;
       if (closed) return;
       if (entry.sent_seq != null || entry.observed_seq != null) {
-        const known = await history.read(entry.id, true);
-        const receipt = known && known.state !== "pending" ? known : { state: "sent" as const, id: entry.id, seq: entry.sent_seq ?? entry.observed_seq!, replayed: true as const };
+        const receipt = await history.acknowledged(entry.id, entry.sent_seq ?? entry.observed_seq!);
         // A sent outbox entry already persisted its receipt before settlement;
         // re-reading it must not refresh an evicted receipt. Emission is per
         // client: another owner's durable receipt is still this client's first
@@ -1041,7 +1040,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
             const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }> } | undefined)?.receipt;
-            if (receipt) { await settleReceipt(history, call, receipt); return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }
+            if (receipt) { await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined); return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }
             ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
             if (response.ok) {
@@ -1206,13 +1205,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     async write(id) {
       if (unavailable()) return undefined;
-      const receipt = await history.read(id);
-      if (receipt && receipt.state !== "pending") return unavailable() ? undefined : receipt;
       const entry = (await queued()).find(entry => entry.id === id);
       if (unavailable()) return undefined;
-      if (!entry) { const latest = await history.read(id); return unavailable() ? undefined : latest; }
-      const seq = entry.sent_seq ?? entry.observed_seq;
-      if (seq != null) return { state: "sent", id, seq, replayed: true };
+      const seq = entry?.sent_seq ?? entry?.observed_seq;
+      const receipt = seq == null ? await history.read(id) : await history.acknowledged(id, seq).catch(() => history.read(id));
+      if (unavailable()) return undefined;
+      if (!entry || (receipt && receipt.state !== "pending")) return receipt;
       return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
         ? { reason: !acquired ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
     },

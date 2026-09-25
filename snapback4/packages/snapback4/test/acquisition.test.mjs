@@ -419,6 +419,22 @@ for (const state of ["sent", "failed"]) test(`receipt custody retains the first 
 });
 
 const ok = reply => { assert.equal(reply.denied, undefined, JSON.stringify(reply)); return reply.ok; };
+
+test('acknowledgement drops an unsaved replacement refusal before any persistence retry', async () => {
+  let abort = true, saved;
+  const attempts = [];
+  const history = new WriteHistory({
+    read: async () => saved ? JSON.stringify([saved]) : null,
+    save: async value => { attempts.push(JSON.parse(value)); if (abort) throw Error('receipt aborted'); saved = JSON.parse(value); },
+  });
+  await assert.rejects(history.keep({ state: 'failed', id: 'acknowledged', why: { code: 'E_STORE_REPLACED', family: 'store', message: 'unknown' } }));
+  abort = false;
+  const sent = await history.acknowledged('acknowledged', 7);
+  await history.keep(sent);
+  assert.deepEqual(attempts.map(write => write.state), ['failed', 'sent']);
+  assert.equal((await history.read('acknowledged')).seq, 7);
+});
+
 const keepReceipt = (core, receipt) => core.call({ op: "keep_write", value: JSON.stringify(receipt) }).then(ok);
 
 function receiptLocks(t) {

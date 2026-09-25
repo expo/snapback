@@ -1,0 +1,73 @@
+(node:2421919) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1276.312468ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (1159.54556ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (2186.24068ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2586.990964ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1587.923856ms)
+  ✔ a hide during the startup probe waits for its refused decision (1539.096697ms)
+  ✔ a hide during the startup probe waits for its restore decision (1558.893543ms)
+  ✔ a hide during the startup probe waits for its replacement decision (2047.027174ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (2047.200224ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (1488.311484ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (1660.949467ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1610.929281ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1581.180412ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (1588.407691ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1526.961061ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1551.645372ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (1563.379996ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1648.620562ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1549.669401ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (1598.278063ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (1139.446461ms)
+  ✔ a successful reconnect enables exit after startup 503s (1173.877427ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5566.927486ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5586.652577ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (5559.731496ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5700.122276ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1434.309913ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (1241.605119ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (1386.457003ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1596.32736ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (1613.327074ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1862.407608ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1572.139554ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (2237.382658ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (5778.739046ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (5748.924289ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (6852.670402ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (6747.117207ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6867.448225ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6981.394479ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6354.025891ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6426.023381ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1925.648877ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1903.092767ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6561.992985ms)
+  ✔ same-epoch logout tombstone refuses live admission (908.640853ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (952.540247ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (882.795273ms)
+✔ web admission review: recovery and transport respect the session boundary (136801.718288ms)
+ℹ {"mode":"held-sync","id":"01M3CYPDTP0CNHP0BYC0NH648E","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CYPEYZB73H1Z3RSPFQ35XV","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CYPKZPKXB11K4MNCC6WGH8","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CYPNHFWWQSAN3FH7EMR01K","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CYPQ22RG41B8D7Q3EF4RCY","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CYPRHB7QB5DHJ0CWPSWWT3","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CYPTJW7XCWWKFPN1S28HC2","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3CYSB11VY3PH987D80V0EJ9","originalStore":"0bca80c91595ba47f2d814ce6edad398","refusal":"E_STORE_REPLACED","auditA":16,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3CYSHRZZ5A4T7RVFB3C463X","originalStore":"0bca80c91595ba47f2d814ce6edad398","refusal":"E_STORE_REPLACED","auditA":16,"auditB":0}
+ℹ {"orphan":"01M3CYSRGKG92W1FQPQVM9M82C","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3CYSYSSW36NJRWYATNHHJN4","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3CYT51EAMDB717GPZVFSN9R","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3CYT6WSQNBH4HEMXZPB20GQ","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ tests 49
+ℹ suites 0
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 136902.7585

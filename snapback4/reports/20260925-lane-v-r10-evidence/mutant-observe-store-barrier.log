@@ -1,0 +1,31 @@
+(node:2383289) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ a pending changes rewind waits for an aborted successful receipt to become durable (831.318939ms)
+✖ web admission review: recovery and transport respect the session boundary (1637.47399ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1741.926205
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a pending changes rewind waits for an aborted successful receipt to become durable (831.318939ms)
+  AssertionError [ERR_ASSERTION]: observe_store must not install a restore fence over volatile receipt custody
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:749:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:728:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
