@@ -981,9 +981,11 @@ The next bet is [LLP 4001](./4001-snapback5-sql-front-end.rfc.md): the same
 engine under a language builders already know (Postgres DDL, RLS-shaped
 policies, SQL views and queries, a small mutation subset), which targets the
 item the record names most and the only surface this grader has scored at 94.
-Everything in this document's §4–§5 about the engine, `complete`, prediction
-and the log remains the design of record for that bet's runtime; its §9
-instruments are reused with the language as the treatment.
+That bet's runtime is Snapback 4's as LLP 3000, LLP 3000.007 §6, LLP 3000.013
+and LLP 3000.015 define it, **not** this document's §4–§5 (which describe the
+shelved derived-residency design); only §4.5 here, as a restatement of Snapback
+4's predictor, is cited by it. Its §9 instruments are reused with the language
+as the treatment (corrected 2026-09-25 after LLP 4001's round-1 reviews).
 
 ## Non-claims
 
