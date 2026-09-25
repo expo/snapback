@@ -56265,3 +56265,41 @@ authorization/disclosure/meter weakening, admission transaction change, push,
 package publication or iOS simulator claim. File map, examples, intentional
 expectation changes and qualification:
 [Lane Y round-4 report](reports/20260925-lane-y-r4.md).
+
+
+## 2026-09-25 — Lane Y round 5: legacy admission floors survive retirement
+
+Implemented all round-4 delta review findings in `1d4a49b6b`. Clock attachment
+now requests a transactional queue read that raises `server-clock-floor` to the
+maximum of its saved value and every queued admission's `now`, before replay
+can retire those entries. This repairs stores written by older clients that
+never committed a floor record. The shared device dispatcher carries the
+internal `restore_clock_floor` option; memory/Wasm and SQLite use the same
+writer transaction. Ordinary queue reads remain read transactions, and an
+unchanged floor causes no metadata write. Synchronous web admission capture
+and the new-admission transaction are unchanged.
+
+Three Rust regressions cover legacy retirement on both stores with absent,
+lower and higher saved floors, failed-backfill preservation, and idempotence.
+Actual Wasm and native bridge tests upgrade a legacy queue, require the floor
+before retirement, retire it, roll wall time back 4,000 ms and reopen without
+a clock flush: issued time stays at the legacy admission. New clock tests pin
+the legacy offset fallback without a live sample or `issuedOffset`, and ignore
+a non-admission `last` above wall time. A native offline reopen with old -31-day
+metadata retains its valid thirty-day session with zero credential deletions.
+Deliberate mutations removing the legacy fallback, trusting future `last`, and
+skipping the backfill each fail; all were restored.
+
+Focused checks: 6 Rust clock tests, 40 clock/regression tests and 12
+browser/wire/native tests pass. Full `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 557 s`**. Regular clients: 1,560 passed, 10 existing skips;
+all 78 model tests passed with 5,000 / 5,000 / 3,000 sequences. No lane-owned,
+baseline or environmental failure was waived. Held browser expiry lateness was
+2, 2, 1, 1 and 2 ms. Wasm is 1,776,539 B raw / 495,418 B gzip, up 463 raw / 104
+gzip bytes and below the unchanged 496,000 B ceiling. Reference audit: zero
+errors, zero unchecked references.
+
+No new Quarry form, public client API or refusal code, server implementation
+change, authorization/disclosure/meter weakening, push, package publication or
+iOS simulator claim. No known open finding. File map, examples, implementation
+choice and qualification: [Lane Y round-5 report](reports/20260925-lane-y-r5.md).
