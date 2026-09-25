@@ -51,7 +51,7 @@ fn why_rule_carries_the_target_visibility_contract() {
         // [rules::update_rule_refusals / admitted_hidden_updates / missing_update_and_incomplete_upsert](rules.rs)
         "Use a write admitted by its rule; NOT_FOUND on an update or upsert-patch does not prove absence.",
     ];
-    assert!(text.starts_with(&format!("# Rules — E_RULE {}", facts.join(" "))), "the original write-executing witness paragraph must stay intact: {text}");
+    assert!(text.starts_with(&format!("# Rules {}", facts.join(" "))), "the original write-executing witness paragraph must stay intact: {text}");
 }
 
 #[test]
