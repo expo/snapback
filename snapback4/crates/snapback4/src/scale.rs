@@ -92,7 +92,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
-        identities: Vec::new(), aliases: BTreeMap::new(), reassigned: reassigned(program),
+        identities: Vec::new(), aliases: copies(program), reassigned: reassigned(program),
         arguments: program.args.keys().cloned().collect(), unreachable: 0,
     };
     for (name, kind) in &program.args {
@@ -184,6 +184,35 @@ fn reassigned(program: &Program) -> BTreeSet<String> {
     out
 }
 
+/// Bindings that only copy another binding, from the whole program at once, so a
+/// test judged before the walk reaches a copy still reads through it. The IR
+/// names each binding once (`$selected1`), by `const` or `let`; a copy counts
+/// only if it is never reassigned. A copy of a reassigned local reads through to
+/// that local, which is no argument, so it states no presence fact either way.
+fn copies(program: &Program) -> BTreeMap<String, String> {
+    fn walk(value: &serde_json::Value, out: &mut BTreeMap<String, String>) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                for kind in ["Let", "Const"] {
+                    if let Some(serde_json::Value::Object(binding)) = fields.get(kind)
+                        && let Some(serde_json::Value::String(name)) = binding.get("name")
+                        && let Some(source) = binding.get("value").and_then(|v| v.get("Variable")).and_then(|v| v.as_str()) {
+                        out.insert(name.clone(), source.to_owned());
+                    }
+                }
+                for field in fields.values() { walk(field, out); }
+            }
+            serde_json::Value::Array(items) => { for item in items { walk(item, out); } }
+            _ => {}
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(&serde_json::to_value(&program.body).unwrap_or_default(), &mut out);
+    let reassigned = reassigned(program);
+    out.retain(|name, _| !reassigned.contains(name));
+    out
+}
+
 /// A condition no call satisfies: `false`, or two literals compared so the
 /// comparison fails. A `require` of it always refuses, so it leaves as a
 /// `return` does.
@@ -237,7 +266,11 @@ impl Analysis<'_> {
     /// The binding a presence test finally reads, through any aliases.
     fn identity(&self, name: &str) -> String {
         let mut name = name.to_owned();
-        while let Some(next) = self.aliases.get(&name) { name = next.clone(); }
+        // A chain of copies ends at its source; the bound only guards a malformed program.
+        for _ in 0..=self.aliases.len() {
+            let Some(next) = self.aliases.get(&name) else { break };
+            name = next.clone();
+        }
         name
     }
 
@@ -304,12 +337,6 @@ impl Analysis<'_> {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
                     if name.starts_with("$intentNeedle") {
                         self.labels.insert(name.clone(), display::expr(value));
-                    }
-                    // A binding that only copies another tests the same presence.
-                    if let Expr::Variable(source) = value && !matches!(stmt, Stmt::Assign { .. })
-                        && !self.reassigned.contains(name) && !self.reassigned.contains(source) {
-                        let root = self.identity(source);
-                        self.aliases.insert(name.clone(), root);
                     }
                     let data = self.expr(value, times);
                     // Union assignments across branches and loop iterations;

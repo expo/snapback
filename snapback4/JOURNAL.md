@@ -63004,3 +63004,19 @@ report, intentionally uncommitted at EPH-REPORT-FIX1.md, records each review fix
 all deviations/choices, exact suite counts, both failed notification mutants,
 base-archive reproductions and the five trial rows. Evidence is retained in
 snapback4/target/eph-fix1-evidence/. No requested implementation item remains.
+
+## 2026-09-26 — Scale certificate round 8: copies known before the walk
+
+Astra's review of round 7 (READY WITH CHANGES) found two Lows, both on the safe
+side. A copy made inside a branch (`if assignee != null: selected = assignee;
+if selected != null: return …`) was not yet known when the outer branch's exit
+was judged, so what followed was charged to every call. That had been so since
+round 5. The copies are now read from the whole program before the walk. The
+IR names every binding once (`$selected1`), so a name is one binding, and a copy
+counts only if it is never reassigned. A test pins the two placements as
+equivalent. The refusal tests also now cover literal comparisons that hold
+(`1 = 1`, `1 != 0`) and one that does not (`1 != 1`), which a constant answer
+for every literal comparison survived before. Two guards proved to be dead
+code and were dropped: one for a name bound twice, which the IR never
+produces, and one for a copy of a reassigned local, which reads through to a
+non-argument either way.

@@ -207,6 +207,11 @@ fn what_follows_a_branch_that_leaves_runs_only_in_the_other_case() {
     // A branch leaves through a nested test its own condition decides (Astra, scale round 6).
     let redundant = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee != null:\n  {pinned}  return t first 2 by .at\n");
     assert_eq!(classes(&certificate(&redundant)), classes(&within));
+    // A copy made inside the branch reads through as one made before it (Astra, scale round 7).
+    let inside = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    selected = assignee\n    if selected != null:\n  {pinned}  return t first 2 by .at\n");
+    let before = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  if assignee != null:\n    if selected != null:\n  {pinned}  return t first 2 by .at\n");
+    assert_eq!(classes(&certificate(&inside)), classes(&within));
+    assert_eq!(classes(&certificate(&before)), classes(&within));
     // Inside a decided test, what follows a branch that leaves never runs.
     let decided = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee != null:\n  {pinned}    return t first 2 by .at\n  return []\n");
     let c = certificate(&decided);
@@ -238,14 +243,16 @@ fn every_way_out_of_a_body_conditions_what_follows() {
 fn a_refusal_or_a_return_ends_what_it_leaves() {
     let pinned = "return t where (assignee = null or .assignee = assignee) first 2 by .at";
     // A refusal no call can pass leaves as a return does (Grok, scale round 6).
-    for refusal in ["require false else STOP", "require 1 = 0 else STOP"] {
+    for refusal in ["require false else STOP", "require 1 = 0 else STOP", "require 1 != 1 else STOP"] {
         let source = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {pinned}\n  else:\n    {refusal}\n  return t first 3 by .at\n");
         let c = certificate(&source);
         assert_eq!(c.class, Class::Backlog, "{refusal}: {}", c.line());
     }
-    // A refusal a call can pass does not.
-    let passing = format!("{EXPIRING}query q(assignee: principal ?):\n  require assignee != null else STOP\n  return t first 3 by .at\n");
-    assert_eq!(certificate(&passing).class, Class::Grows);
+    // A refusal a call can pass does not, a comparison of literals that holds included.
+    for passing in ["require assignee != null else STOP", "require 1 = 1 else STOP", "require 1 != 0 else STOP"] {
+        let source = format!("{EXPIRING}query q(assignee: principal ?):\n  {passing}\n  return t first 3 by .at\n");
+        assert_eq!(certificate(&source).class, Class::Grows, "{passing}");
+    }
     // What follows a return in the same body never runs.
     let dead = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {pinned}\n  return []\n  return t first 4 by .at\n");
     let c = certificate(&dead);
