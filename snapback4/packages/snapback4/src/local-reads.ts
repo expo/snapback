@@ -18,8 +18,10 @@ export interface LocalWatch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
-  /** The follow token of the last server answer that read presence (LLP 3000.017). */
-  presence: Set<string>;
+  /** Re-runs a watch whose server answer read presence (LLP 3000.017), every
+   * `presenceEvery` ms from then on. */
+  presenceRefresh: ReturnType<typeof setTimeout> | null;
+  presenceEvery?: number | undefined;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
@@ -46,6 +48,10 @@ export class LocalReads {
       watch.reset({ loading: true });
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watch.expiryTimer = null;
+      // A replaced store relearns presence intervals from its next server answer.
+      if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
+      watch.presenceRefresh = null;
+      watch.presenceEvery = undefined;
     }
   }
 }

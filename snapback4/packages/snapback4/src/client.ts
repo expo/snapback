@@ -10,7 +10,8 @@ import { deferStart, trackRotation } from "./client-start.ts";
 // Every word a screen reads is on the card (contract.ts).
 
 import { ReadObservation } from "./read-observation.ts";
-import { changeFeed, FOLLOW_RESTART } from "./changes.ts";
+import { changeFeed } from "./changes.ts";
+import { presenceRefresh } from "./presence-refresh.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
@@ -18,7 +19,6 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
-import { followTokens, presenceRenewal, sameFollow } from "./presence-follow.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -43,8 +43,10 @@ interface Watch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
-  /** The follow token of the last answer that read presence. */
-  presence: Set<string>;
+  /** Re-runs a watch whose answer read presence (LLP 3000.017), every
+   * `presenceEvery` ms until a successful answer reads none. */
+  presenceRefresh: ReturnType<typeof setTimeout> | null;
+  presenceEvery?: number | undefined;
   subscribers: Set<() => void>;
   inFlight: boolean;
   dirty: boolean;
@@ -176,6 +178,8 @@ export function createClient(options: ClientOptions): Client {
     delete headers["x-snapback-persona"];
     setViewer(null);
     setLink("signed-out");
+    // A dead session refreshes nothing (LLP 3000.017 §3.2).
+    for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
     for (const listener of [...sessionListeners]) listener(null);
   };
 
@@ -395,7 +399,7 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; presence?: string | undefined }> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; refresh?: number | undefined }> {
     const epoch = queryEpoch;
     if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
@@ -404,14 +408,14 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
     const json = result.json;
-    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null };
+    const refresh = typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined;
+    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null, refresh };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    const presence = typeof json.presence === "string" ? json.presence : undefined;
-    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, presence };
+    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, presence };
+    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
   }
 
   const currentRead = (result: { seq: number; epoch: number }) => result.epoch === queryEpoch && result.seq >= minimumReadSeq;
@@ -432,6 +436,32 @@ export function createClient(options: ClientOptions): Client {
     (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
 
+  // @ref LLP 3000.017#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
+  function schedulePresence(watch: Watch, answered: boolean, after?: number) {
+    if (answered) watch.presenceEvery = after;
+    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
+      watch.presenceRefresh = null;
+      void refreshPresence(watch);
+    });
+  }
+
+  // @ref LLP 3000.017#3.2 — a presence refresh reads in the background and publishes only an answer that
+  // nothing replaced meanwhile: expiry, invalidation and sign-out keep their own immediate withdrawal.
+  async function refreshPresence(watch: Watch) {
+    if (closed || storeRefusal || !credentials || watches.get(watch.key) !== watch) return;
+    if (watch.inFlight) return; // The fetch in flight re-arms the refresh when it settles.
+    const shown = watch.snapshot;
+    const result = await runQuery(watch.op, watch.args);
+    if (closed || watches.get(watch.key) !== watch) return;
+    if (watch.snapshot === shown && !watch.inFlight && currentRead(result) && !("loading" in result.read) && !result.transportOffline) {
+      watch.publish(result.read);
+      watch.tables = new Set(result.tables);
+      scheduleExpiry(watch, result.nextExpiry);
+      notify(watch);
+    }
+    if (!watch.inFlight) schedulePresence(watch, !result.transportOffline, result.refresh);
+  }
+
   async function refresh(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
     if (watch.inFlight) {
@@ -448,12 +478,13 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || !currentRead(result)) {
         watch.reset(storeRefusal ? { denied: storeRefusal } : { loading: true });
         scheduleExpiry(watch, null);
+        schedulePresence(watch, false);
         notify(watch);
         return;
       }
       watch.tables = new Set(tables);
-      followAnswer(watch, result.presence);
       scheduleExpiry(watch, exhausted ? null : nextExpiry);
+      schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
@@ -497,20 +528,6 @@ export function createClient(options: ClientOptions): Client {
     } catch {}
   }
 
-  // @ref LLP 3000.017#3.2 — live watches follow the presence they read.
-  let sentFollow: readonly string[] = [];
-  const renewal = presenceRenewal(() => watches.values(), (watch) => void refresh(watch as Watch));
-  function followAnswer(watch: Watch, presence: string | undefined) {
-    watch.presence = new Set(presence ? [presence] : []);
-    renewal.update();
-    // A held poll sent before this answer does not follow its token yet.
-    if (!sameFollow(followTokens(watches.values()), sentFollow)) changes.restart();
-  }
-  function rerunPresence(tokens: Iterable<string>) {
-    const moved = new Set(tokens);
-    if (!moved.size) return;
-    for (const watch of watches.values()) if ([...watch.presence].some((token) => moved.has(token))) void refresh(watch);
-  }
   const changes = changeFeed(doFetch, base, aborter.signal, () => { if (!closed && credentials) setLink("offline"); }, () => { if (!closed && credentials && link === "offline") void probe(); });
 
   async function poll() {
@@ -527,8 +544,7 @@ export function createClient(options: ClientOptions): Client {
         if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
-        sentFollow = followTokens(watches.values());
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, sentFollow);
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity);
         if (closed || storeRefusal) break;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
@@ -539,7 +555,6 @@ export function createClient(options: ClientOptions): Client {
         generation = json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) queryEpoch++;
-        if (json.presence?.length) rerunPresence(json.presence);
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
@@ -549,8 +564,7 @@ export function createClient(options: ClientOptions): Client {
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
-      } catch (error) {
-        if (error === FOLLOW_RESTART) continue;
+      } catch {
         if (closed || storeRefusal) break;
         if (credentials) setLink("offline");
         await new Promise((r) => setTimeout(r, 1000));
@@ -641,7 +655,7 @@ export function createClient(options: ClientOptions): Client {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presence: new Set<string>(), subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
         watches.set(key, watch);
         void refresh(watch);
         void poll();
@@ -673,6 +687,8 @@ export function createClient(options: ClientOptions): Client {
             own.reset({ loading: true });
             if (own.expiryTimer) clearTimeout(own.expiryTimer);
             own.expiryTimer = null;
+            if (own.presenceRefresh) clearTimeout(own.presenceRefresh);
+            own.presenceRefresh = null;
           }
         },
       };
@@ -798,13 +814,13 @@ export function createClient(options: ClientOptions): Client {
       if (closing) return closing;
       closed = true;
       stopClock();
-      renewal.stop();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      for (const watch of watches.values()) if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
       for (const watch of watches.values()) watch.publish({ denied: storeRefusal ?? ended() });
       for (const watch of watches.values()) notify(watch);
       watches.clear();

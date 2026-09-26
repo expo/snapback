@@ -1,6 +1,7 @@
-// LLP 3000.017: a live query that reads connected[p] follows p. Alice's
-// observed online mark for Bob moves when Bob's client starts polling and
-// when his grace ends, on every client tier.
+// LLP 3000.017: a live query that reads connected[p] re-runs on the interval
+// its server names. Alice's observed online mark for Bob turns when Bob's
+// client starts polling and when his grace ends, on every client tier, and
+// never falls back to loading while it refreshes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -30,6 +31,8 @@ table notes:
   sync to .owner
 query presenceOf(p: principal):
   return { online: exists connected[p], count: connected[p] }
+query withNotes(p: principal):
+  return { online: exists connected[p], notes: count(notes where .owner = viewer) }
 `;
 
 for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mark follows the principal it reads`, { timeout: 60000 }, async t => {
@@ -55,16 +58,28 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const mark = alice.observe(query, { p: "dev:bob" });
   t.after(() => mark.close());
   const online = () => mark.getSnapshot()?.data?.online;
-  assert.notEqual(await until(() => online() === false), null, "Bob starts away");
+  // The same presence beside rows the device holds: an answer composed from both.
+  const notes = alice.observe({ kind: "query", name: "withNotes" }, { p: "dev:bob" });
+  t.after(() => notes.close());
+  assert.notEqual(await until(() => online() === false && notes.getSnapshot()?.data?.online === false), null, "Bob starts away");
 
   // Bob's client holds a poll while it watches something.
   const bob = createClient(options("bob"));
   clients.push(bob);
   const bobWatch = bob.observe(query, { p: "dev:alice" });
-  const cameOnline = await until(() => online() === true && mark.getSnapshot().fresh === true);
+  const cameOnline = await until(() => online() === true, 8000);
   assert.notEqual(cameOnline, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob came online`);
   // The count rides along; a client that restarts its poll briefly holds two.
   assert.ok(mark.getSnapshot().data.count >= 1);
+  // A refresh keeps the answer: across a whole interval with no commit, no
+  // notification carries anything but an answer.
+  let loading = 0, refreshes = 0;
+  const stop = mark.subscribe(() => { if ("data" in mark.getSnapshot()) refreshes++; else loading++; });
+  await sleep(6000);
+  stop();
+  assert.equal(loading, 0, `a presence refresh showed ${loading} snapshots other than an answer`);
+  assert.ok(refreshes >= 1 && online() === true, "the mark refreshed and Bob is still online");
+  assert.equal(notes.getSnapshot().data?.online, true, "an answer composed from the device and the server refreshes too");
 
   // Bob leaves. His grace keeps him connected until the clock passes it.
   bobWatch.close();
@@ -78,8 +93,8 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const started = Date.now();
   const wentAway = await until(async () => {
     assert.equal(await advance(), 200);
-    return await until(() => online() === false && mark.getSnapshot().fresh === true, 1000) !== null;
-  }, 10000);
+    return await until(() => online() === false, 6500) !== null;
+  }, 20000);
   assert.notEqual(wentAway, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob's grace ended`);
   t.diagnostic(JSON.stringify({ tier, cameOnlineMs: cameOnline, wentAwayAfterCloseMs: Date.now() - started }));
 });

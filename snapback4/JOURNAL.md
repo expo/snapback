@@ -59342,3 +59342,91 @@ manufactured-sent ambiguity remains the previously deferred supervisor migration
 question; this round introduces no new open finding and makes no repair claim
 for that old case. Evidence lives beside the report in
 `reports/20260926-lane-v-r16-evidence/`.
+
+## 2026-09-26 — Live presence round 4: a token stands for its query
+
+Astra's third review was NOT READY and Grok's READY WITH CHANGES. Astra showed
+that a token could still say more than its query: `connected[p] > 1` stayed
+false while its token moved. A token also outlived its viewer's access, and the
+token table had no byte bound. Both reviews found that a moved token was polled
+in a loop while its watch re-ran, and that a full table stopped a watch's
+renewal for good. Astra also found that a late presence notice could end a
+bystander's poll.
+
+- **A token stands for its query.** It keeps the query's name, arguments and
+  viewer, and a digest of the answer it published. When a count it read moves,
+  the poll re-runs the query as the viewer, and reports the token only if the
+  digest changed. The baseline moves either way, so a change is reported once.
+- **A token that no longer answers its viewer retires silently.** That happens
+  when a commit since its answer touched a table it read, or when the re-run is
+  refused.
+- **A bounded table.** It holds 100,000 tokens, 64 MiB and 256 per viewer; the
+  least recently followed token makes room. Following keeps a token live, and
+  it lapses 120 s after the last follow. A lapsed, evicted or foreign token is
+  reported at once, so its watch re-runs. The client's five-minute renewal is
+  gone.
+- **Clients** stop following a reported token until the re-run answers. An
+  answer too large to follow carries an empty token, and its watch re-runs
+  every 30 s.
+- **Counts, not bits.** A second device, or one of two ending, moves
+  `connected[p]`, and both wake followers.
+- **Every wake is one more look.** The presence notice goes out under the
+  change lock, and a poll answers only a change it sees.
+
+Evidence: nine server tests, and eight server mutants that fail them; three
+client tests on a controlled transport; the three-tier test, where Bob's mark
+turns true in about 20 ms.
+
+## 2026-09-26 — Live presence round 5: a refresh, not a follow
+
+Astra's fourth review of the follow design was NOT READY again. It found that
+a clock-dependent answer such as `now + connected[p] * 0` reopened the
+hidden-count oracle. Retiring a token made a revocation observable at a
+presence change. Retained arguments outgrew their charge. And two clients
+reading each other's connection counts fed each other's poll restarts, at 65
+polls a second.
+
+Four rounds had each closed their predecessor's defects and opened new ones.
+Following presence exactly, without telling a client more than re-running its
+query would, needs a double evaluation at one instant, delivery-latched
+reports, conservative memory accounting and restart-free polling. For an
+online mark that is too much surface, so round 5 ships the simple version:
+
+- **An answer that read presence asks for its refresh.** The `/q/` reply
+  carries `refresh: 5000`, and names no principal or count.
+- **Clients re-run the watch every 5 seconds, keeping the answer.** The online
+  client retains it, marked `fresh: false`, until the new answer arrives. The
+  local tier publishes only the new answer. Closing a watch stops its refresh.
+- **The server keeps nothing and wakes nothing.** The token table, follow
+  lists, presence generation and count wakes are gone. The change poll is as it
+  was in 0.4.2.
+
+The once-per-run memoized presence read stays, so every read in one answer
+agrees. Alice's mark now turns within about 5 seconds, on every tier, with no
+loading in between. LLP 3000.017 §6 records the follow design and why it waits.
+
+## 2026-09-26 — Live presence round 6: the query asks, and the refresh waits its turn
+
+Astra's review of the refresh was NOT READY, and Grok's found smaller gaps:
+
+- **`refresh` disclosed a branch.** It came from the run's own reads, so
+  `if flag.enabled: return connected[viewer] * 0` revealed the flag. Now the
+  query decides, not the run: the binder's `presence` residency site, which
+  already covers helpers. Rules cannot read `connected`. Every reply of such a
+  query carries it, authored refusals included, so a query that is refused at
+  first keeps refreshing.
+- **A retained refresh outlived expiry and revocation.** The refresh is now a
+  background one-shot read. It publishes only if nothing was published, and no
+  other read began, while it ran. Expiry and invalidation withdraw at once, as
+  before, and win.
+- **The local tier flashed loading, and never stopped refreshing.** The
+  background read touches no snapshot until it publishes. A served answer
+  without `refresh` now stops it; a device answer keeps it.
+- **Timers.** A dead session and a replaced store clear them. The client clamps
+  an interval a timer cannot hold.
+- **Smaller fixes.** The memo is heap-metered, the outcome's presence map is
+  gone, and the Postgres feature builds again.
+
+A composed test finally exercises the composed path: retained history beside
+presence, on the wasm and process devices. Dropping the composed `refresh` copy
+fails it.

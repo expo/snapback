@@ -13,7 +13,7 @@ use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -166,7 +166,7 @@ impl Drop for AssetTransfer<'_> {
 
 /// A connection lasts as long as its poll and a grace after it: a client
 /// re-polls within milliseconds of an answer, a dropped one never does.
-use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
+use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION, PRESENCE_REFRESH};
 
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
@@ -175,120 +175,15 @@ use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
 pub struct Live {
     polls: Mutex<BTreeMap<String, (u32, Option<i64>)>>,
     clock: Arc<Mutex<crate::dev_clock::Clock>>,
-    /// How many held polls follow each principal (LLP 3000.017 §3.2).
-    followers: Mutex<BTreeMap<String, u32>>,
-    /// Follow tokens a query issued: an opaque handle for the presence it read,
-    /// bound to its viewer, never the bits themselves (LLP 3000.017 §3.5).
-    tokens: Mutex<BTreeMap<String, FollowToken>>,
-    /// Moves, under the change lock, whenever a followed presence may have changed.
-    generation: AtomicU64,
-}
-
-/// Wakes held polls for a presence change. The generation moves under the
-/// change lock, so a poll between its checks and its wait sees it rather than
-/// sleeping through the signal (LLP 3000.017 §3.2). Call without the engine lock.
-pub(crate) fn wake_presence(shared: &Shared) {
-    {
-        let _change = lock(&shared.seq);
-        shared.presence.generation.fetch_add(1, Ordering::SeqCst);
-    }
-    shared.committed.notify_all();
-}
-
-/// What one follow token stands for: its viewer, the connected bit each
-/// principal had when the query read it, and when the token lapses.
-#[derive(Debug)]
-struct FollowToken { viewer: String, bits: BTreeMap<String, bool>, until: i64 }
-
-/// How long a follow token lives (LLP 3000.017 §3.5).
-pub(crate) const FOLLOW_TOKEN: Duration = Duration::from_secs(600);
-/// At most this many live tokens; beyond it a read issues none.
-const TOKEN_LIMIT: usize = 100_000;
-
-/// A held poll's followed principals, counted while it waits.
-pub(crate) struct Following<'a> {
-    live: &'a Live,
-    principals: Vec<String>,
-}
-
-impl Drop for Following<'_> {
-    fn drop(&mut self) {
-        let mut followers = lock(&self.live.followers);
-        for principal in &self.principals {
-            if let Some(count) = followers.get_mut(principal) {
-                *count -= 1;
-                if *count == 0 { followers.remove(principal); }
-            }
-        }
-    }
 }
 
 impl Live {
     // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
-    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), tokens: Mutex::new(BTreeMap::new()), generation: AtomicU64::new(0) } }
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock } }
 
-    /// Counts a poll's followed principals until the guard drops.
-    pub(crate) fn following(&self, follow: &[(String, bool)]) -> Following<'_> {
-        let mut followers = lock(&self.followers);
-        let principals: Vec<String> = follow.iter().map(|(principal, _)| principal.clone()).collect();
-        for principal in &principals { *followers.entry(principal.clone()).or_insert(0) += 1; }
-        Following { live: self, principals }
-    }
-
-    /// Whether any held poll follows this principal.
-    pub(crate) fn followed(&self, principal: &str) -> bool { lock(&self.followers).contains_key(principal) }
-
-    /// Whether any held poll follows anyone.
-    pub(crate) fn any_followed(&self) -> bool { !lock(&self.followers).is_empty() }
-
-    /// The presence generation a poll compares across its checks and its wait.
-    pub(crate) fn generation(&self) -> u64 { self.generation.load(Ordering::SeqCst) }
-
-    /// Issues an opaque token for the presence a query read, bound to its
-    /// viewer. The bits stay here; the client sees only the token.
-    pub(crate) fn issue(&self, viewer: &str, bits: &BTreeMap<String, bool>) -> Option<String> {
-        let now = lock(&self.clock).presence_now();
-        let mut tokens = lock(&self.tokens);
-        if tokens.len() >= TOKEN_LIMIT {
-            tokens.retain(|_, token| token.until > now);
-            if tokens.len() >= TOKEN_LIMIT { return None; }
-        }
-        let id = snapback4_core::ids::mint(now, &mut 0).ok()?;
-        tokens.insert(id.clone(), FollowToken { viewer: viewer.to_owned(), bits: bits.clone(), until: now.saturating_add(FOLLOW_TOKEN.as_millis() as i64) });
-        Some(id)
-    }
-
-    /// The presence a live token of this viewer stands for; nothing for a
-    /// lapsed, unknown or foreign token.
-    pub(crate) fn token(&self, viewer: &str, id: &str) -> Option<BTreeMap<String, bool>> {
-        let now = lock(&self.clock).presence_now();
-        lock(&self.tokens).get(id).filter(|token| token.viewer == viewer && token.until > now).map(|token| token.bits.clone())
-    }
-
-    /// Whether this poll brought the principal online: nothing was open and
-    /// no grace was running. A client re-polling within its grace never does.
-    fn enter(&self, principal: &str) -> bool {
+    fn enter(&self, principal: &str) {
         let mut map = lock(&self.polls);
-        let now = lock(&self.clock).presence_now();
-        let entry = map.entry(principal.to_owned()).or_insert((0, None));
-        let connected = entry.0 > 0 || entry.1.is_some_and(|at| now.saturating_sub(at) < PRESENCE_GRACE.as_millis() as i64);
-        entry.0 += 1;
-        !connected
-    }
-
-    /// A followed principal's connected bit, and how long its grace has left
-    /// while only the grace keeps it connected (LLP 3000.017 §3.2).
-    fn follow(&self, principal: &str) -> (bool, Option<Duration>) {
-        let map = lock(&self.polls);
-        let now = lock(&self.clock).presence_now();
-        match map.get(principal) {
-            Some((open, _)) if *open > 0 => (true, None),
-            Some((_, Some(last))) => {
-                let remaining = (PRESENCE_GRACE.as_millis() as i64).saturating_sub(now.saturating_sub(*last));
-                if remaining > 0 { (true, Some(Duration::from_millis(remaining as u64))) } else { (false, None) }
-            }
-            _ => (false, None),
-        }
+        map.entry(principal.to_owned()).or_insert((0, None)).0 += 1;
     }
 
     fn leave(&self, principal: &str) {
@@ -1062,8 +957,12 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(None) => {}
                 }
             }
-            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                .map(|p| (p.program.kind, p.program.args.clone()));
+            let (signature, reads_presence) = {
+                let bound = lock(&shared.bound);
+                // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read: an answer discloses no branch.
+                let reads_presence = bound.schema.operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
+                (bound.programs.iter().find(|p| p.program.name == op).map(|p| (p.program.kind, p.program.args.clone())), reads_presence)
+            };
             let Some((kind, arg_types)) = signature else {
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
@@ -1121,8 +1020,6 @@ fn handle(mut request: Request, shared: &Shared) {
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
-                        // @ref LLP 3000.017#3.5 — the presence a query read leaves as an opaque token bound to its viewer.
-                        let follow = if outcome.presence.is_empty() { None } else { shared.presence.issue(&viewer, &outcome.presence) };
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             complete: bool,
@@ -1139,10 +1036,11 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter: Option<Json>,
                             #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
                             row_provenance: Option<wire::Plain<'a>>,
-                            // @ref LLP 3000.017#3.5 — a token for the presence this answer read, never the bits.
                             #[serde(skip_serializing_if = "Option::is_none")]
-                            presence: Option<String>,
+                            refresh: Option<u64>,
                         }
+                        // @ref LLP 3000.017#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
+                        let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
@@ -1152,15 +1050,20 @@ fn handle(mut request: Request, shared: &Shared) {
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
-                            if let Some(token) = &follow { reply["presence"] = json!(token); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
+                            if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, presence: follow });
+                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
-                    Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
+                    Err(refusal) => {
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.017 §3.2).
+                        if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
+                        respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
+                    }
                 }
             } else {
                 if kind == ProgramKind::Query {

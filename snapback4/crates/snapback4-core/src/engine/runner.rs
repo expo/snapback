@@ -959,10 +959,15 @@ impl<'a> Runner<'a> {
                             if !self.device && live > 0 && deadline.is_some() { self.effect_presence.absent = Some(super::presence::Scalar::Count(0)); }
                             Value::int(live as i128).map_err(Into::into)
                         } else {
-                            // @ref LLP 3000.017#3.1 — one run reads each principal once: every read and the follow token agree.
+                            // @ref LLP 3000.017#3.1 — one run reads each principal once, so every read in an answer agrees; the memo is metered.
                             let open = match self.presence_read.get(principal) {
                                 Some(open) => *open,
-                                None => { let open = presence.connections(principal); self.presence_read.insert(principal.to_owned(), open); open }
+                                None => {
+                                    self.meter.heap((principal.len() as u64).saturating_add(64))?;
+                                    let open = presence.connections(principal);
+                                    self.presence_read.insert(principal.to_owned(), open);
+                                    open
+                                }
                             };
                             Value::int(open as i128).map_err(Into::into)
                         }
