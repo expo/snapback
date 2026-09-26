@@ -32,3 +32,4 @@ rusqlite = { version = "0.40.2", features = ["bundled"], optional = true }
 
 [dev-dependencies]
 snapback4-lang = { path = "../snapback4-lang" }
+rusqlite = { version = "0.40.2", features = ["trace", "hooks"] }

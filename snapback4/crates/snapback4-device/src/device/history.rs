@@ -14,7 +14,7 @@ pub(super) enum Membership {
 }
 pub(super) type Groups = BTreeMap<String, BTreeMap<String, Membership>>;
 
-pub(super) fn load<T: DeviceTx>(tx: &T, key: &str) -> Result<Groups, RuntimeError> {
+pub(super) fn load(tx: &dyn crate::store::StreamTx, key: &str) -> Result<Groups, RuntimeError> {
     tx.meta(key)?.map(|value| decoded(&value)).transpose().map(|value| value.unwrap_or_default())
 }
 
@@ -30,7 +30,7 @@ pub(super) fn is_left(groups: &Groups, table: &str, group: &str) -> bool {
     groups.get(table).and_then(|groups| groups.get(group)) == Some(&Membership::Left)
 }
 
-pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent], joined: &wire::HeldGroups, staged: bool) -> Result<(), RuntimeError> {
+pub(super) fn events(tx: &dyn crate::store::StreamTx, schema: &Schema, events: &[StreamEvent], joined: &wire::HeldGroups, staged: bool) -> Result<(), RuntimeError> {
     if joined.is_empty() && !events.iter().any(|event| schema.table(&event.table).is_some_and(|table| table.leave == LeavePolicy::DeliveredHistory)) { return Ok(()); }
     let meta = if staged { STAGED_GROUPS } else { GROUPS };
     let mut groups = load(tx, meta)?;

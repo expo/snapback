@@ -36,6 +36,14 @@ fn failed_file_reader_refuses_without_waiting_for_the_writer() {
         assert_eq!(reply["denied"]["retryable"], true);
         assert!(start.elapsed() < Duration::from_secs(2));
         assert_eq!(host.shared.engine.waiting(), 0, "refusal must not queue for the writer");
+        let operation = if path == "/q/total" { "/q/<unknown>" } else { path };
+        wait_until(|| host.shared.latency.snapshot(false).operations[operation].n == 1);
+        let sample = host.shared.latency.snapshot(false);
+        let sample = &sample.operations[operation];
+        assert_eq!(sample.refused, 1, "reader refusals must be counted once");
+        assert!(sample.total.max > 0.0);
+        assert!(sample.total.max >= sample.wait.max);
+        assert_eq!(sample.wait.max == 0.0, after == 0, "only a successful checkout ends wait");
         {
             let mut readers = lock(&host.shared.readers);
             readers.fail_open_after = None;

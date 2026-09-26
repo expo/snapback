@@ -220,7 +220,24 @@ export type MutationPromise<R = unknown> = Promise<Write<R>> & {
   readonly why?: Refusal;
 };
 
+/** Physical local rows, including predictions and retained/expired images still
+ * stored. Counts confer no query authority. Media caches are separate. */
+export interface Residency {
+  /** UTF-8 stored row payload bytes, excluding keys and indexes. */
+  readonly tables: Readonly<Record<string, { readonly rows: number; readonly bytes: number }>>;
+  readonly totalBytes: number;
+  /** SQLite allocated pages (including free pages; excluding WAL/SHM files),
+   * or UTF-8 logical persistence record keys + values (before IDB packing).
+   * Neither is RSS or an estimate of IndexedDB's physical disk allocation. */
+  readonly totalBytesKind: "sqlite-pages" | "logical";
+  /** Allocated wasm linear memory shared by this realm's devices, not live heap. */
+  readonly wasmHeapBytes?: number;
+}
+
 export interface Client {
+  /** Local storage diagnostics; null on the online tier or mock. Rejects with
+   * a coded error on a closed/signed-out local client or a failed device read. */
+  residency(): Promise<Residency | null>;
   /** Estimated server Unix milliseconds; never goes backward on this device. */
   now(): number;
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;

@@ -36,11 +36,11 @@ impl Runner<'_> {
         row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
         self.aggregate_source_dependency(table_name);
-        let Some(maintain) = self.schema.maintain_for(table_name).cloned() else {
+        let Some(maintain) = self.schema.maintain_for(table_name) else {
             return Ok(Some(row));
         };
         // @ref LLP 3000.015#3 — a row-keyed count certifies its live basis on the internal ledger.
-        if maintain.row_key.is_some() { return self.live_row_view(&maintain, row); }
+        if maintain.row_key.is_some() { return self.live_row_view(maintain, row); }
         let source = self
             .schema
             .table(&maintain.source)
@@ -54,17 +54,25 @@ impl Runner<'_> {
                 super::write_target::row_copy_ceiling(&self.schema.tables[table_name])
                     .saturating_mul(16),
             );
-        self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
+        self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(maintain, row))
     }
 
     /// A maintained point read reserved its recount scratch up front
     /// (`aggregate_point_scratch`); recompute without a second reservation.
     pub(super) fn live_aggregate_prepaid(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
         self.aggregate_source_dependency(table_name);
-        let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
-        if maintain.row_key.is_some() { return self.live_row_view(&maintain, row); }
+        let Some(maintain) = self.schema.maintain_for(table_name) else { return Ok(Some(row)); };
+        if maintain.row_key.is_some() { return self.live_row_view(maintain, row); }
         if !self.schema.tables[&maintain.source].is_expiring() { return Ok(Some(row)); }
-        self.live_aggregate_inner(&maintain, row)
+        self.live_aggregate_inner(maintain, row)
+    }
+
+    // Shared selection only: witnesses and scalar recounts keep their distinct
+    // authorization, coverage, lifetime and metering behavior around it.
+    pub(super) fn live_contribution(&self, maintain: &Maintain, source: &crate::schema::Table, candidate: &Value, group: &[Value]) -> bool {
+        !self.expired(source, candidate)
+            && maintain.selected(candidate)
+            && maintain.source_key(candidate) == group
     }
 
     pub(super) fn live_aggregate_inner(
@@ -110,9 +118,7 @@ impl Runner<'_> {
                 if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? {
                     break 'sources;
                 }
-                if self.expired(source, &candidate)
-                    || !maintain.selected(&candidate)
-                    || maintain.source_key(&candidate) != group
+                if !self.live_contribution(maintain, source, &candidate, &group)
                 {
                     continue;
                 }

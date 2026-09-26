@@ -87,7 +87,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
         response.add_header(Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap());
         for header in cors(&request) { response.add_header(header); }
-        let _ = request.respond(response);
+        let _ = request.respond_checked_with_completion(response, |_| crate::serve::latency::finished(true));
         return;
     }
     let mut headers = vec![
@@ -114,7 +114,8 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if status == 206 {
         response = response.with_status_code(206);
     }
-    let delivered = request.respond_checked(response);
+    // @ref LLP 3000.019#3.7 — finish before reader disposal and one-view bookkeeping.
+    let delivered = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
     if grant.once && delivered.is_ok() {
         if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, shared.now()) {
             eprintln!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");

@@ -24,7 +24,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **Committed generated code; an auth mode; a supervised bundler.** As Snapback 2 (`rules/NOT-DOING.md`): types by inference, personas not modes, `SNAPBACK_URL` is the client contract.
 - **A TypeScript twin of the interpreter.** Retired by the author's ruling of 2026-09-13 (LLP 3000 §7): one implementation, in Rust, on every host — the core's SQLite under the native module, memory under wasm on the web with the host persisting each commit's changes. The web pays 312,924 B gzip before the diet where the twin's tier paid 16,842; the conformance obligation between two interpreters ends. Expo Go runs the online tier.
 - **More than one hosted target, an admin console, media transcoding or thumbnails, push delivery itself (a worker's), cron syntax beyond `every N at HH:MM`, vector or relevance-ranked search (word-prefix search is in: `words(..)` and `matching`), federation, multi-region, device-to-device sync, at-rest encryption claims.** After the clock, on evidence.
-- **Observability beyond `why`, `trace`, `logs`, `data`, `sql`.** The `sql` verb is read-only inspection of the developer's own store (LLP 3000.007 §8.8), never an application surface. Separately declared application SQL reads are admitted for increment D (LLP 3000.009 §6.2, §14.4; the 2026-09-16 Moves line below), not implemented by this inspection verb.
+- **Observability beyond `why`, `trace`, `logs`, `data`, `sql`, and server operation latency.** The `sql` verb is read-only inspection of the developer's own store (LLP 3000.007 §8.8), never an application surface. Separately declared application SQL reads are admitted for increment D (LLP 3000.009 §6.2, §14.4; the 2026-09-16 Moves line below), not implemented by this inspection verb.
 - **A guide corpus.** The compiler's facts, one language card and keyword cards, as Snapback 2; no freshness dates. Every card's Quarry is compiled by the suite and the language card is run, so a card cannot promise a form the parser refuses.
 
 - **Union audiences.** One `sync` line per table. A read rule with a second non-service disjunct is refused with the rewrite, never partially delivered; service grants add no device audience (LLP 3000.007 §20.6). `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
@@ -65,6 +65,12 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - One hosted target, SQLite in the production CLI, one platform binary at a time. A separately enabled Postgres evaluation adapter is not a hosted/deployable target (Moves below).
 
 ## Moves
+
+- **2026-09-26 — server operation latency (LLP 3000.019 §3.7).** Calibration #22
+  measured each read once and could not claim repeated p95/degradation testing.
+  Unblocks percentile measurements of the application's own load without a
+  custom timing harness. Taken off: a latency harness written by the builder;
+  general metrics, tracing infrastructure and an admin console remain excluded.
 
 - **2026-09-23 — Quarry states intent moves onto the doing-list** (Charlie:
   "if you need to try making *significant* architectural reworks in order to

@@ -1,0 +1,8 @@
+PASS new MP4 URI decodes H.264 64x48; image bytes/name and escaped paths preserved
+PASS legacy MP4 migration through URI/read and fresh helper reopen
+PASS both-variant interrupted writes resolve to latest bytes; format changes leave no shadow
+PASS cleanup removes canonical and interrupted variants without resurrection
+PASS supported MP4 recognition leaves images, unknown brands and truncated headers unchanged
+PASS invalid IDs/hex refuse without replacing bytes; store scopes remain separate
+PASS closed helper refuses every operation and preserves ordinary cache for reopen
+Identical binary copied to a new path; elapsed 33.728 seconds; exit 0

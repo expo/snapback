@@ -28,6 +28,11 @@ pub trait DeviceStore {
         Err(RuntimeError::Store("this host cannot count held rows for the native witness".into()))
     }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
+    /// Web residency is measured by its persistence host, outside the wasm.
+    #[cfg(feature = "native")]
+    fn residency(&mut self, _schema: &Schema) -> Result<serde_json::Value, RuntimeError> {
+        Err(RuntimeError::Input("residency needs a native SQLite device or the web persistence host".into()))
+    }
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError>;
     /// A consistent read that does not need to reserve a writer. Memory has
@@ -70,6 +75,8 @@ pub trait DeviceTx: Rows {
     /// when there was no row); the first image kept wins.
     fn base_remember(&self, table: &str, id: &str, image: Option<&str>) -> Result<(), RuntimeError>;
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError>;
+    /// Seek one touched id without loading confirmed images or unrelated tables.
+    fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError>;
     fn base_clear(&self) -> Result<(), RuntimeError>;
 
     /// A staged snapshot row, keyed by `key` (ordered), in `table`.
@@ -80,4 +87,20 @@ pub trait DeviceTx: Rows {
     /// One table's staged rows with keys after `after`: (key, image).
     fn staged_table_after(&self, table: &str, after: &str, limit: usize) -> Result<Vec<(String, String)>, RuntimeError>;
     fn staged_clear(&self) -> Result<(), RuntimeError>;
+}
+
+// Stream application borrows only rows and metadata. Keep the cold applicator
+// shared across the real transaction and its rollback-only recording wrapper,
+// without retaining outbox, staging, savepoint or commit vtable entries.
+pub(crate) trait StreamTx: Rows {
+    fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
+    fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError>;
+    fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError>;
+    fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError>;
+}
+impl<T: DeviceTx> StreamTx for T {
+    fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> { DeviceTx::meta(self, key) }
+    fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> { DeviceTx::set_meta(self, key, value) }
+    fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError> { DeviceTx::meta_prefix(self, prefix) }
+    fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError> { DeviceTx::delete_meta(self, keys) }
 }

@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 2.04s
+     Running tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-cab189b43150b71a)
+
+running 6 tests
+test repeated_count_reads_release_transient_members ... ok
+test private_expiry_recount_reconciles_edits_clock_advance_and_sweep ... ok
+test a_new_live_basis_and_later_sweep_cannot_subtract_the_same_input_twice ... ok
+test count_member_decode_obeys_the_same_heap_bound_as_an_ordinary_read ... ok
+test generated_scalar_comparisons_count_insertions_and_forward_reverse_marks ... ok
+test pending_and_completed_expiry_corrections_have_identical_public_meters ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.56s
+
+     Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-eac1a06a6d6298e0)
+
+running 3 tests
+test denied_view_witness_reserves_before_hidden_presence ... ok
+test ordinary_member_witness_control ... ok
+test hidden_member_payload_through_witness ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s

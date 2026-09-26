@@ -5,10 +5,18 @@ use crate::{
     error::{MeterKind, RuntimeError},
     rows::{Bounds, Dir},
     schema::{Maintain, row_image},
-    value::{Value, object},
+    value::Value,
 };
 
+#[cfg(feature = "sqlite")]
+use crate::value::object;
+
+// @ref LLP 3000.015#3 — devices predict from covered rows; durable recount
+// work and basis timestamps belong only to the server storage build.
 mod live;
+mod device;
+#[cfg(all(test, feature = "sqlite"))]
+mod range_tests;
 
 pub const WRITER_RECOUNT: usize = 1024;
 #[cfg(feature = "sqlite")]
@@ -39,9 +47,7 @@ impl Runner<'_> {
                 m.row_key
                     .as_ref()
                     .is_some_and(|k| m.source == table || k.table == table)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+            });
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let result = (|| {
             for m in views {
@@ -50,11 +56,11 @@ impl Runner<'_> {
                 }
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
-                    self.reserve_row_view(&m, 1)?;
+                    self.reserve_row_view(m, 1)?;
                     // Reserve the same bounded scan even if the private predicate is unchanged.
                     // Execute against its original allowance, then retain only the public charge.
                     let scan = self.meter.clone();
-                    let limit = self.scan_room(&m).min(WRITER_RECOUNT) as u64;
+                    let limit = self.scan_room(m).min(WRITER_RECOUNT) as u64;
                     self.meter.charge(MeterKind::Examined, limit)?;
                     self.meter.step(limit * (key.predicate.steps() * 2 + 4))?;
                     let heap = self
@@ -66,15 +72,15 @@ impl Runner<'_> {
                     self.meter.used.heap_bytes -= heap;
                     let reserved = std::mem::replace(&mut self.meter, scan);
                     self.maintain_prepaid = true;
-                    let result = self.row_view_member(&m, old, new);
+                    let result = self.row_view_member(m, old, new);
                     self.meter = reserved;
                     self.maintain_prepaid = false;
                     result?;
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
-                    self.reserve_row_view(&m, key.fanout.saturating_mul(2))?;
+                    self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
                     self.maintain_prepaid = true;
-                    self.row_view_source(&m, old, new)?;
+                    self.row_view_source(m, old, new)?;
                     self.maintain_prepaid = false;
                 }
             }
@@ -185,52 +191,57 @@ impl Runner<'_> {
         }
         let k = m.row_key.as_ref().unwrap();
         let t = &self.schema.tables[&m.source];
-        let prefix = vec![u.field(&k.member_key)?.clone()];
+        let prefix = std::slice::from_ref(u.field(&k.member_key)?);
         let Some(sync) = &t.sync else {
             return Ok(false);
         };
-        if self.retained_group(&m.source, &k.source_index(), &prefix)? {
+        let source_index = k.source_index();
+        if self.retained_group(&m.source, &source_index, &prefix)? {
             return Ok(false);
         }
         let Some(horizon) = &sync.horizon else {
-            return self.upsert_absence_proven(&m.source, &k.source_index(), &prefix);
+            return self.upsert_absence_proven(&m.source, &source_index, &prefix);
         };
         // An acquisition boundary proves a delivered suffix, independent of cached rows.
         // Only an audience pinned by the parent key can certify this whole source range.
-        let group = match &sync.audience {
-            crate::schema::Audience::Public => vec![],
-            crate::schema::Audience::Column(f) if f == &k.source_key => prefix.clone(),
+        let group: &[Value] = match &sync.audience {
+            crate::schema::Audience::Public => &[],
+            crate::schema::Audience::Column(f) if f == &k.source_key => &prefix,
             crate::schema::Audience::Target { prefix: fields, .. }
-                if fields == &vec![k.source_key.clone()] =>
+                if fields.len() == 1 && fields[0] == k.source_key =>
             {
-                prefix.clone()
+                &prefix
             }
             _ => return Ok(false),
         };
-        let expression = crate::ir::Expr::Literal(prefix[0].clone());
-        let pins = std::collections::BTreeMap::from([(&k.source_key, &expression)]);
-        let rule = t.rules.read.device_audience_rule();
-        if !super::rules::prefix_visibility(&m.source, t, &rule, &pins).uniform {
-            return Ok(false);
-        }
+        if !Self::view_source_uniform(&m.source, t, &k.source_key, &prefix[0]) { return Ok(false); }
         match self.tx.acquired_boundary(&m.source, &horizon.by, &group)? {
             Some(crate::rows::AcquiredBoundary::Whole) => Ok(true),
             Some(crate::rows::AcquiredBoundary::Key(floor)) => {
-                let h = t.indexes[&horizon.by].columns();
-                let planned = t.indexes[index].columns();
-                if h.get(group.len()) != planned.get(1) {
+                // @ref LLP 3000.020#3.2 — a public table's global suffix is not this parent's suffix.
+                if group != prefix { return Ok(false); }
+                let h = t.indexes[&horizon.by].components.get(group.len()).and_then(|c| c.column());
+                let planned = t.indexes[index].components.get(1).and_then(|c| c.column());
+                if h != planned {
                     return Ok(false);
                 }
-                let mut lower = bounds.clone();
-                lower.after = None;
-                lower.before = None;
-                let Some((lo, _)) = crate::rows::scan_range(&group, &lower, Dir::Asc) else {
+                // A certification starts from the predicate, never a resume position.
+                if bounds.after.is_some() || bounds.before.is_some() || bounds.at_or_after.is_some() {
+                    return Ok(false);
+                }
+                let Some((lo, _)) = crate::rows::scan_range(group, bounds, Dir::Asc) else {
                     return Ok(true);
                 };
                 Ok(lo >= floor)
             }
             None => Ok(false),
         }
+    }
+    fn view_source_uniform(name: &str, source: &crate::schema::Table, key: &String, parent: &Value) -> bool {
+        let expression = crate::ir::Expr::Literal(parent.clone());
+        let pins = std::collections::BTreeMap::from([(key, &expression)]);
+        let rule = source.rules.read.device_audience_rule();
+        super::rules::prefix_visibility(name, source, &rule, &pins).uniform
     }
     fn scan_room(&self, m: &Maintain) -> usize {
         let k = m.row_key.as_ref().unwrap();
@@ -262,13 +273,25 @@ impl Runner<'_> {
         live: bool,
     ) -> Result<(i64, bool, Option<Value>), RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
-        let prefix = vec![u.field(&k.member_key)?.clone()];
+        let prefix = std::slice::from_ref(u.field(&k.member_key)?);
+        let device_live = self.device && live;
+        let expiring = live && self.schema.tables[&m.source].is_expiring();
+        if device_live && self.device_allowance.is_some() && !self.provisional_sequence_read {
+            // @ref LLP 3000.020#3.2 — the whole predicate consumes sequences,
+            // including residual source columns and provisional member bounds.
+            let source_table = &self.schema.tables[&m.source];
+            let member_table = &self.schema.tables[&k.table];
+            let (mut source_sequence, mut member_sequence) = (false, false);
+            k.predicate.each_field(&mut |field| {
+                if let Some(field) = field.strip_prefix("$row.") { member_sequence |= member_table.sequences.contains_key(field); }
+                else { source_sequence |= source_table.sequences.contains_key(field); }
+            });
+            if source_sequence { self.observe_provisional_selection(&m.source, &source_table.indexes[index], prefix)?; }
+            if member_sequence { self.provisional_sequence_read |= self.is_provisional(&k.table, u)?; }
+        }
         // Keep bounds/cursor storage outside the transient row allocation scope.
         let cursor_bytes = crate::rows::word_heap::key_decode(
-            self.schema.tables[&m.source].indexes[index]
-                .components
-                .len()
-                + 1,
+            self.schema.tables[&m.source].indexes[index].components.len() + 1,
             crate::rows::MAX_INDEX_KEY_BYTES,
         );
         let scratch = cursor_bytes.saturating_mul(2).saturating_add(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4);
@@ -288,12 +311,20 @@ impl Runner<'_> {
                     // the shared candidate boundary also removes private fields before pricing.
                     let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true)?;
                     let Some((stored, position)) = rows.into_iter().next() else { return Ok(None); };
-                    let Some(stored) = stored else { return Err(RuntimeError::Prediction("row-view source authority is not covered".into())); };
-                    #[cfg(feature = "sqlite")]
-                    { self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1); }
-                    let source = stored.into_value();
-                    let selected = (!live
+                    let source = match stored {
+                        Some(stored) => {
+                            #[cfg(feature = "sqlite")]
+                            { self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1); }
+                            stored.into_value()
+                        },
+                        // A rejected device candidate is expired or unreadable, never a contribution.
+                        None if device_live => Value::Null,
+                        None => return Err(RuntimeError::Prediction("row-view source authority is not covered".into())),
+                    };
+                    let selected = !matches!(source, Value::Null) && (!live
                         || !self.expired(&self.schema.tables[&m.source], &source))
+                        // @ref LLP 3000.020#3.3 — retained copies never contribute to a current-row bound.
+                        && (!device_live || (self.tx.current_row(&m.source, &source)? || self.is_provisional(&m.source, &source)?))
                         && k.matches(&source, u);
                     if live && selected {
                         self.note_expiry(&self.schema.tables[&m.source], &source);
@@ -302,7 +333,7 @@ impl Runner<'_> {
                     self.meter.step(k.predicate.steps() * 2 + 4)?;
                     Ok(Some((
                         i64::from(selected) - i64::from(before),
-                        if live && self.schema.tables[&m.source].is_expiring() {
+                        if expiring {
                             Value::Array(crate::key::decode(&position).unwrap().into_iter().skip(prefix.len()).collect())
                         } else { source.field("id")?.clone() },
                         position,
@@ -320,7 +351,9 @@ impl Runner<'_> {
                     }
                     other => {
                         self.meter.release_heap(mark);
-                        let Some((n, id, position)) = other? else {
+                        let next = other?;
+                        if device_live && self.read_capped() { return Ok((total, false, last)); }
+                        let Some((n, id, position)) = next else {
                             return Ok((total, true, last));
                         };
                         total += n;
@@ -345,14 +378,17 @@ impl Runner<'_> {
         let u = new.or(old).unwrap();
         let id = u.field("id")?.as_str()?;
         let existing = self.view_get(&m.target, id)?;
+        #[cfg(feature = "sqlite")]
         let work_name = m.work_table();
         if new.is_none() {
+            #[cfg(feature = "sqlite")]
             if !self.device && let Some(basis) = self.view_get(&format!("$basis:{}",m.target),id)? {
                 self.view_delete(&format!("$basis:{}",m.target),&basis,true)?;
             }
             if let Some(row) = existing {
                 self.view_delete(&m.target, &row, false)?;
             }
+            #[cfg(feature = "sqlite")]
             if !self.device {
                 if let Some(work) = self.view_get(&work_name, id)? {
                     self.view_delete(&work_name, &work, true)?;
@@ -379,11 +415,15 @@ impl Runner<'_> {
             _ => None,
         };
         let live = self.schema.tables[&m.source].is_expiring();
-        let changed = k.fields().iter().any(|name| {
-            old.as_ref()
-                .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
+        let (mut changed, mut several) = (None, false);
+        k.predicate.each_field(&mut |field| {
+            if let Some(name) = field.strip_prefix("$row.")
+                && old.as_ref().is_none_or(|old| old.field(name).ok() != u.field(name).ok()) {
+                several |= changed.is_some_and(|previous| previous != name);
+                changed = Some(name);
+            }
         });
-        if !changed
+        if changed.is_none()
             && !live
             && let Some(existing) = &existing
         {
@@ -400,35 +440,18 @@ impl Runner<'_> {
                 && old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
         });
         if let Some(old) = delta {
-            let changed = k
-                .fields()
-                .into_iter()
-                .filter(|f| old.field(f).ok() != u.field(f).ok())
-                .collect::<Vec<_>>();
-            if changed.len() == 1 {
-                let fields = k
-                    .comparisons()
-                    .into_iter()
-                    .filter(|(_, f)| f == &changed[0])
-                    .map(|(s, _)| s)
-                    .collect::<std::collections::BTreeSet<_>>();
-                if fields.len() == 1 {
-                    let f = fields.into_iter().next().unwrap();
-                    let (a, b) = (old.field(&changed[0])?, u.field(&changed[0])?);
-                    if f != k.source_key && !matches!(a, Value::Null) && !matches!(b, Value::Null) {
-                        index = k.range_index(&f);
-                        let (lo, hi) = if a.total_cmp(b).is_gt() {
-                            (b, a)
-                        } else {
-                            (a, b)
-                        };
-                        bounds.gte = Some(lo.clone());
-                        bounds.lte = Some(hi.clone());
-                    }
+            if !several && let Some(changed) = changed
+                && let Some(f) = k.comparison_source(changed) {
+                let (a, b) = (old.field(changed)?, u.field(changed)?);
+                if f != k.source_key && !matches!(a, Value::Null) && !matches!(b, Value::Null) {
+                    index = k.range_index(f);
+                    let (lo, hi) = if a.total_cmp(b).is_gt() { (b, a) } else { (a, b) };
+                    bounds.gte = Some(lo.clone());
+                    bounds.lte = Some(hi.clone());
                 }
             }
         }
-        if self.device && !self.covered_view_source(m, &u, &index, &bounds)? {
+        if self.device && !live && !self.covered_view_source(m, &u, &index, &bounds)? {
             // A held settled value remains visible, but this provisional mark cannot certify it.
             self.unknown_fact(
                 &m.source,
@@ -436,14 +459,19 @@ impl Runner<'_> {
                 &[u.field(&k.member_key)?.clone()],
                 "row-keyed view recount",
             );
-            return Err(RuntimeError::Prediction("row-keyed view recount needs the covered source range; queued without a predicted row".into()));
+            return Err(RuntimeError::Prediction("row-keyed count certification needs the server; queued without a predicted result (guide maintains)".into()));
         }
         let limit = self.scan_room(m).min(WRITER_RECOUNT);
-        let (n, complete, _) = if live {
+        // @ref LLP 3000.020#3.2 — prediction uses the read's range and proof, never a durable expiry cursor.
+        let (n, complete, _) = if self.device && live {
+            if !source_readable { self.pending_view_read()?; }
+            let (n, complete) = self.device_live_count(m, &u)?;
+            (n, complete, None)
+        } else if live {
             self.live_basis_scan(m, &u, None, limit)?
         } else { self.view_scan(m, &u, delta, &index, bounds, limit, false)? };
         if self.device && !complete {
-            return Err(RuntimeError::Prediction("row-keyed recount exceeds this device writer's allowance; queued without a predicted value".into()));
+            return Err(RuntimeError::Prediction("row-keyed count certification needs the server; queued without a predicted result (guide maintains)".into()));
         }
         let base = existing.as_ref().map_or(0, |v| number(v, "value"));
         let total = if complete {
@@ -457,8 +485,10 @@ impl Runner<'_> {
             0
         };
         let row = self.view_image(m, &u, if live && !complete { 0 } else { total }, !complete)?;
+        #[cfg(feature = "sqlite")]
         if !self.device && complete { self.set_view_basis(m, id)?; }
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
+        #[cfg(feature = "sqlite")]
         if !self.device {
             let work = self.view_get(&work_name, id)?;
             if complete {
@@ -525,11 +555,15 @@ impl Runner<'_> {
                     }
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
+                    #[cfg(feature = "sqlite")]
                     let at = r.view_basis(m, id)?;
+                    #[cfg(not(feature = "sqlite"))]
+                    let at = i64::MIN;
                     let contributes = |v: &Value| live::live_at(t,v,at) && k.matches(v,&member);
                     let delta=i64::from(new.as_ref().is_some_and(contributes))-i64::from(old.as_ref().is_some_and(contributes));
                     r.charge_maintain(MeterKind::Steps,k.predicate.steps()*2)?;
                     if existing.as_ref().is_some_and(pending) {
+                        #[cfg(feature = "sqlite")]
                         if !r.device {
                             let name=m.work_table();
                             if let Some(work)=r.view_get(&name,id)? {
@@ -552,12 +586,15 @@ impl Runner<'_> {
                     } else {
                         if existing.is_none() {
                             if r.device { return Err(RuntimeError::Prediction("the held member needs a settled view before predicting its delta".into())); }
-                            // Adoption and ordinary member writes create the value. Repair a missing
-                            // value through bounded work, never an unreserved hidden source scan.
-                            let row=r.view_image(m,&member,0,true)?;
-                            r.view_put(&m.target,&row,None,false)?;
-                            let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
-                            r.view_put(&m.work_table(),&work,None,true)?;
+                            #[cfg(feature = "sqlite")]
+                            {
+                                // Adoption and ordinary member writes create the value. Repair a missing
+                                // value through bounded work, never an unreserved hidden source scan.
+                                let row=r.view_image(m,&member,0,true)?;
+                                r.view_put(&m.target,&row,None,false)?;
+                                let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
+                                r.view_put(&m.work_table(),&work,None,true)?;
+                            }
                         }
                         else {
                             let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;
@@ -610,6 +647,22 @@ impl Runner<'_> {
     ) -> Result<bool, RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
+        // @ref LLP 3000.020#3.2 — current authority is independent of whole-group acquisition.
+        if self.device && source.is_expiring() {
+            if source.sync.is_none()
+                || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
+                return Ok(false);
+            }
+            let parent = member.field(&k.member_key)?;
+            if !Self::view_source_uniform(&m.source, source, &k.source_key, parent) { return Ok(false); }
+            if !source.rules.read.is_uniformly_readable() {
+                // Admission restricts this rule to the parent and viewer. Check
+                // current witnesses; never trust synthetic delivery provenance.
+                let row = crate::value::object([("id", Value::Id(String::new())),
+                    (k.source_key.as_str(), parent.clone())]);
+                return Ok(self.read_authority(&m.source, &row, false)? == super::rules::Verdict::Readable);
+            }
+        }
         if source.rules.read.is_uniformly_readable() {
             return Ok(true);
         }
@@ -636,24 +689,6 @@ impl Runner<'_> {
         }
         self.covered_view_source(m, member, &k.source_index(), &Bounds::default())
     }
-    fn device_live_count(
-        &mut self,
-        m: &Maintain,
-        member: &Value,
-    ) -> Result<Option<i64>, RuntimeError> {
-        let index = m.row_key.as_ref().unwrap().source_index();
-        let bounds = Bounds::default();
-        if !self.covered_view_source(m, member, &index, &bounds)? {
-            return Ok(None);
-        }
-        let limit = if self.meter.cut == crate::meter::Cut::Abort {
-            self.scan_room(m).min(WRITER_RECOUNT)
-        } else {
-            self.scan_room(m)
-        };
-        let (n, complete, _) = self.live_basis_scan(m, member, None, limit)?;
-        Ok(complete.then_some(n))
-    }
     pub(super) fn live_row_view(
         &mut self,
         m: &Maintain,
@@ -677,6 +712,12 @@ impl Runner<'_> {
             return Ok(None);
         };
         if !self.row_view_source_readable(m, &member)? {
+            if self.device && self.schema.tables[&m.source].is_expiring()
+                && m.row_key.as_ref().unwrap().device_range(&self.schema.tables[&m.source])
+                    .is_some_and(|plan| plan.lower_bound(&member).is_some()) {
+                let k = m.row_key.as_ref().unwrap();
+                self.unknown_fact(&m.source, &k.source_index(), std::slice::from_ref(member.field(&k.member_key)?), "row-keyed source authority");
+            }
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
@@ -693,9 +734,9 @@ impl Runner<'_> {
                 if result.is_none() { self.pending_view_read()?; }
                 return Ok(Some(self.view_image(m,&member,result.unwrap_or(0),result.is_none())?));
             }
-            let total = self.device_live_count(m, &member)?;
-            if total.is_none() { self.pending_view_read()?; }
-            return Ok(Some(self.view_image(m,&member,total.unwrap_or(0),total.is_none())?));
+            let (total, complete) = self.device_live_count(m, &member)?;
+            if !complete { self.pending_view_read()?; }
+            return Ok(Some(self.view_image(m, &member, total, !complete)?));
         }
         if pending(&row) { self.pending_view_read()?; }
         Ok(Some(row))

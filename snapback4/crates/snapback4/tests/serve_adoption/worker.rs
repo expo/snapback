@@ -68,12 +68,21 @@ fn production_accept_loop_reads_while_exited_worker_waits_for_adoption() {
         else { assert!(reply.to_string().contains("before"), "{reply}"); }
         assert!(start.elapsed() < Duration::from_secs(2));
         assert!(!adoption.is_finished(), "response must precede adoption release");
+        wait_until(|| host.shared.latency.snapshot(false).operations[path].n == 1);
+        let snapshot = host.shared.latency.snapshot(false);
+        let sample = &snapshot.operations[path];
+        assert_eq!(sample.refused, 0);
+        assert!(sample.wait.max > 0.0, "detached engine acquisition must be stamped");
+        assert!(sample.total.max >= sample.wait.max);
     }
     std::fs::remove_file(dir.0.join("exit")).unwrap();
     gate.release();
     adoption.join().unwrap();
     wait_until(|| worker_status()["starts"].as_u64().unwrap_or(0) >= 2 && worker_status()["state"] == "running");
     assert_eq!(worker_status()["crashes"], 1);
+    for path in ["/q/who", "/sync"] {
+        assert_eq!(host.shared.latency.snapshot(false).operations[path].n, 1, "supervision must not inherit request timing");
+    }
     {
         let engine = lock(&host.shared.engine);
         let remaining: i64 = engine.store().conn().query_row("SELECT count(*) FROM _sessions WHERE COALESCE(family, token_digest) = ?1", [&family], |row| row.get(0)).unwrap();

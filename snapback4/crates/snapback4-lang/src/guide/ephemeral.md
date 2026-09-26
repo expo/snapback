@@ -61,7 +61,7 @@ query viewingIn(roomId: rooms):
 ```
 
 Keep the ordinary chats-list query device-held. Observe `typingInMyRooms`
-separately and render its room hints beside that list: never join an
+separately with `{ keep: true }` and render its room hints beside that list: never join an
 ephemeral table into a query that must work offline.
 A query reading ephemeral rows runs on the server; `N_EPHEMERAL_SERVER`
 explains this and suggests splitting it from device-held data.
@@ -69,7 +69,7 @@ explains this and suggests splitting it from device-held data.
 ## Calling from React
 
 ```tsx
-const typing = useQuery(api.typingIn, { roomId });
+const typing = useQuery(api.typingIn, { roomId }, { keep: true });
 const setTyping = useMutation(api.setTyping);
 const stopTyping = useMutation(api.stopTyping);
 <Composer onChangeText={text => text ? setTyping.run({ roomId }) : stopTyping.run({ roomId })}
@@ -77,6 +77,10 @@ const stopTyping = useMutation(api.stopTyping);
 <TypingIndicator visible={"data" in typing && (typing.data?.length ?? 0) > 0} />;
 ```
 
+`keep: true` keeps the indicator during a re-read after an unrelated write;
+expiry still clears it.
+A kept answer may show rows after membership is revoked until the re-read lands;
+keeping is an application choice (`guide reads`).
 `useQuery` watches normally and re-reads at the row's expiry. The client sends
 calls in order. `setTyping` is marked `renews`: waiting equal calls coalesce,
 and an equal last successful call can be reused for one quarter of the life

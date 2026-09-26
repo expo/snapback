@@ -1,0 +1,268 @@
+//! Doctor's documented commands against the real dev process and lifetime lock.
+use serde_json::{Value, json};
+use std::{fs, io::{BufRead, BufReader, Read, Write}, net::TcpStream, path::PathBuf, process::{Child, Command, Output, Stdio}, time::{Duration, Instant}};
+const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
+const SOURCE: &str = "use personas alice\nquery fast():\n  return 1\nquery idle():\n  return 2\n";
+struct Fixture(PathBuf);
+impl Fixture {
+    fn new(label: &str) -> Self {
+        let path = std::env::temp_dir().join(format!("sb4-latency-{}-{label}", std::process::id()));
+        fs::create_dir_all(path.join("snapback")).unwrap();
+        fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
+    }
+    fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn start(&self) -> Host { self.start_with(&[]) }
+    fn start_with(&self, args: &[&str]) -> Host {
+        let mut child = Command::new(BIN).current_dir(&self.0).args(["dev", "--no-watch", "--port", "0"]).args(args).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+        let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
+        assert!(!host.address.is_empty()); host
+    }
+}
+impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+struct Host { child: Child, address: String }
+impl Drop for Host { fn drop(&mut self) { let _ = self.child.kill(); let _ = self.child.wait(); } }
+impl Host {
+    fn request(&self, method: &str, path: &str, body: Value) -> Value {
+        let body = body.to_string();
+        let mut stream = TcpStream::connect(&self.address).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+        let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
+        serde_json::from_str(answer.split_once("\r\n\r\n").unwrap().1).unwrap()
+    }
+}
+fn success(output: Output) -> String {
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    String::from_utf8(output.stdout).unwrap()
+}
+
+#[test]
+fn doctor_latency_json_default_summary_all_operations_and_reset() {
+    let fixture = Fixture::new("small");
+    let host = fixture.start();
+    for _ in 0..5 { assert_eq!(host.request("POST", "/q/fast", json!({"args":{}}))["data"], 1); }
+    let started = Instant::now();
+    while host.request("GET", "/dev/latency", Value::Null)["operations"]["/q/fast"]["n"] != 5 {
+        assert!(started.elapsed() < Duration::from_secs(3));
+    }
+    let snapshot: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--json"]))).unwrap();
+    assert_eq!(snapshot["operations"]["/q/fast"]["n"], 5);
+    assert_eq!(snapshot["operations"]["/q/idle"]["n"], 0);
+    assert!(snapshot["since"].is_i64());
+    let ordinary = success(fixture.command(&["doctor"]));
+    assert!(ordinary.contains("/q/fast: n=5 refused=0 total p50="), "{ordinary}");
+    assert!(ordinary.contains("worst wait:"), "{ordinary}");
+    assert!(!ordinary.contains("/q/idle:"));
+    let all = success(fixture.command(&["doctor", "--latency"]));
+    assert!(all.contains("/q/idle: n=0"), "{all}");
+    let ordinary_json: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--json"]))).unwrap();
+    assert_eq!(ordinary_json["latency"]["operations"]["/q/fast"]["n"], 5);
+    let reset: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--reset", "--json"]))).unwrap();
+    assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
+    host.request("POST", "/q/fast", json!({"args":{}}));
+    let snapshot: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--json"]))).unwrap();
+    assert_eq!(snapshot["operations"]["/q/fast"]["n"], 1);
+    assert!(!fixture.command(&["doctor", "--reset"]).status.success());
+    assert!(!fixture.command(&["doctor", "--latency", "--release", "."]).status.success());
+    drop(host);
+    assert!(!fixture.command(&["doctor", "--latency"]).status.success());
+}
+
+#[test]
+fn doctor_latency_reads_and_resets_snapshots_above_the_http_chunk_threshold() {
+    let fixture = Fixture::new("large");
+    let source = format!("{SOURCE}{}", (0..300).map(|n| format!("query sample{n}():\n  return {n}\n")).collect::<String>());
+    fs::write(fixture.0.join("snapback/schema.q"), source).unwrap();
+    let _host = fixture.start();
+    for args in [vec!["doctor", "--latency", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
+        let text = success(fixture.command(&args));
+        assert!(text.len() > 32768, "exercise the server's chunking threshold");
+        let snapshot: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(snapshot["operations"].as_object().unwrap().len(), 309);
+        assert_eq!(snapshot["operations"]["/q/sample299"]["n"], 0);
+    }
+}
+
+
+fn no_discovery_record(fixture: &Fixture) {
+    if let Ok(entries) = fs::read_dir(fixture.0.join(".snapback4")) {
+        for entry in entries {
+            assert!(!entry.unwrap().file_name().to_string_lossy().starts_with("dev-address-"));
+        }
+    }
+}
+fn answer(fixture: &Fixture, args: &[&str]) -> Value {
+    serde_json::from_str(&success(fixture.command(args))).unwrap()
+}
+fn refused(fixture: &Fixture, args: &[&str]) -> String {
+    let output = fixture.command(args);
+    assert!(!output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+    String::from_utf8(output.stderr).unwrap()
+}
+
+#[test]
+fn doctor_inspects_fresh_and_memory_at_the_printed_url_without_records() {
+    for flag in ["--fresh", "--memory"] {
+        let fixture = Fixture::new(flag);
+        let host = fixture.start_with(&[flag]);
+        let url = format!("http://{}", host.address);
+        let data = fixture.0.join(".snapback4");
+        assert!(!data.join("store.sqlite").exists());
+        assert!(!data.join("serve.lock").exists());
+        no_discovery_record(&fixture);
+        host.request("POST", "/q/fast", json!({"args":{}}));
+        for args in [vec!["doctor", "--latency", "--json", "--url", &url], vec!["doctor", "--json", "--url", &url]] {
+            let answer = answer(&fixture, &args);
+            let snapshot = if args.contains(&"--latency") { &answer } else { assert_eq!(answer["ok"], true); &answer["latency"] };
+            assert_eq!(snapshot["operations"]["/q/fast"]["n"], 1);
+        }
+        let text = success(fixture.command(&["doctor", "--url", &url]));
+        assert!(text.contains("temporary dev store"), "{text}");
+        let text = success(fixture.command(&["doctor", "--latency", "--url", &url]));
+        assert!(text.contains("/q/idle: n=0"), "{text}");
+        let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);
+        assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
+        let missing = refused(&fixture, &["doctor", "--latency"]);
+        assert!(missing.contains("--url") && missing.contains("printed at startup"), "{missing}");
+        let ordinary = fixture.command(&["doctor"]);
+        let text = String::from_utf8_lossy(&ordinary.stdout);
+        assert!(text.contains("--url") && text.contains("printed at startup"), "{text}");
+        drop(host);
+        refused(&fixture, &["doctor", "--latency", "--url", &url]);
+        no_discovery_record(&fixture);
+    }
+}
+
+#[test]
+fn doctor_discovers_persisted_host_and_url_selects_a_simultaneous_temporary_host() {
+    let fixture = Fixture::new("alongside");
+    let persisted = fixture.start();
+    let store_id = persisted.request("GET", "/dev/status", Value::Null)["storeId"].clone();
+    let fresh = fixture.start_with(&["--fresh"]);
+    let fresh_id = fresh.request("GET", "/dev/status", Value::Null)["storeId"].clone();
+    assert_ne!(fresh_id, store_id);
+    no_discovery_record(&fixture);
+    let address = fs::read_to_string(fixture.0.join(".snapback4/serve.lock")).unwrap();
+    assert!(address.contains(&persisted.address));
+    fresh.request("POST", "/q/idle", json!({"args":{}}));
+    persisted.request("POST", "/q/fast", json!({"args":{}}));
+    let normal = answer(&fixture, &["doctor", "--json"]);
+    assert_eq!(normal["latency"]["operations"]["/q/fast"]["n"], 1);
+    assert_eq!(normal["latency"]["operations"]["/q/idle"]["n"], 0);
+    assert!(normal["storage"].is_object());
+    let url = format!("http://{}", fresh.address);
+    let explicit = answer(&fixture, &["doctor", "--json", "--url", &url]);
+    assert_eq!(explicit["latency"]["operations"]["/q/idle"]["n"], 1);
+    assert_eq!(explicit["storage"], Value::Null);
+    assert!(explicit["lines"].as_array().unwrap().iter().any(|line| line.as_str().unwrap().contains(
+        &format!("temporary dev store {};", fresh_id.as_str().unwrap()))));
+    let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);
+    assert_eq!(reset["operations"]["/q/idle"]["n"], 0);
+    assert_eq!(answer(&fixture, &["doctor", "--latency", "--json"])["operations"]["/q/fast"]["n"], 1);
+}
+
+#[test]
+fn doctor_checks_the_servers_project_before_read_or_reset_for_both_address_sources() {
+    let a = Fixture::new("project-a");
+    let b = Fixture::new("project-b");
+    // Persist a store in A, then point its old serve.lock address at B.
+    drop(a.start());
+    let server = b.start();
+    let url = format!("http://{}", server.address);
+    server.request("POST", "/q/fast", json!({"args":{}}));
+    let status = server.request("GET", "/dev/status", Value::Null);
+    assert_eq!(status["project"], json!(b.0.canonicalize().unwrap()));
+    fs::write(a.0.join(".snapback4/serve.lock"), format!("{}\n{url}\n", server.address.rsplit(':').next().unwrap())).unwrap();
+    let before = server.request("GET", "/dev/latency", Value::Null);
+    for explicit in [false, true] {
+        for mut args in [vec!["doctor"], vec!["doctor", "--json"], vec!["doctor", "--latency", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
+            if explicit { args.extend(["--url", &url]); }
+            let failure = refused(&a, &args);
+            assert!(failure.contains(b.0.to_str().unwrap()) && failure.contains("serves project"), "{failure}");
+        }
+    }
+    assert_eq!(server.request("GET", "/dev/latency", Value::Null), before, "neither the counter nor the window may change");
+}
+
+#[test]
+fn doctor_rejects_a_stale_serve_lock_store_identity() {
+    let fixture = Fixture::new("stale-store");
+    drop(fixture.start());
+    let fresh = fixture.start_with(&["--fresh"]);
+    fresh.request("POST", "/q/fast", json!({"args":{}}));
+    fs::write(fixture.0.join(".snapback4/serve.lock"), format!("{}\nhttp://{}\n", fresh.address.rsplit(':').next().unwrap(), fresh.address)).unwrap();
+    let before = fresh.request("GET", "/dev/latency", Value::Null);
+    for args in [vec!["doctor", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
+        assert!(refused(&fixture, &args).contains("different store"));
+    }
+    assert_eq!(fresh.request("GET", "/dev/latency", Value::Null), before);
+}
+
+#[test]
+fn doctor_url_refuses_non_loopback_and_supports_localhost() {
+    let fixture = Fixture::new("url");
+    for url in ["http://192.0.2.1:4400", "http://example.com:4400", "http://0.0.0.0:4400", "http://[2001:db8::1]:4400", "http://localhost@192.0.2.1:4400", "http://127.0.0.1:4400/path"] {
+        for args in [vec!["doctor", "--url", url], vec!["doctor", "--latency", "--reset", "--json", "--url", url]] {
+            let failure = refused(&fixture, &args);
+            assert!(failure.contains("loopback HTTP origin"), "{failure}");
+        }
+    }
+    let host = fixture.start();
+    let url = format!("http://localhost:{}/", host.address.rsplit(':').next().unwrap());
+    let result = answer(&fixture, &["doctor", "--url", &url, "--json"]);
+    assert_eq!(result["ok"], true);
+    assert!(result["storage"].is_object(), "persisted status must retain store health");
+    assert!(result["latency"]["operations"].is_object());
+    no_discovery_record(&fixture);
+}
+
+#[test]
+fn symlinked_snapback_directory_starts_and_serves_in_every_dev_mode() {
+    use std::os::unix::fs::symlink;
+    for args in [vec![], vec!["--fresh"], vec!["--memory"]] {
+        let fixture = Fixture::new(&format!("symlink-{}", args.first().unwrap_or(&"persisted")));
+        let external = fixture.0.join("external");
+        // Reopen an existing persisted store through the same directory alias
+        // lane R supports, rather than creating a new store through a symlink.
+        let previous_id = if args.is_empty() {
+            let original = fixture.start();
+            let id = original.request("GET", "/dev/status", Value::Null)["storeId"].clone();
+            drop(original);
+            fs::rename(fixture.0.join(".snapback4"), &external).unwrap();
+            Some(id)
+        } else { fs::create_dir(&external).unwrap(); None };
+        symlink(&external, fixture.0.join(".snapback4")).unwrap();
+        let host = fixture.start_with(&args);
+        assert_eq!(host.request("POST", "/q/fast", json!({"args":{}}))["data"], 1);
+        if let Some(id) = previous_id { assert_eq!(host.request("GET", "/dev/status", Value::Null)["storeId"], id); }
+        assert!(fs::symlink_metadata(fixture.0.join(".snapback4")).unwrap().file_type().is_symlink());
+        let url = format!("http://{}", host.address);
+        let mut doctor = vec!["doctor", "--latency", "--json"];
+        if args.is_empty() {
+            assert!(external.join("store.sqlite").is_file());
+            assert!(fs::read_to_string(external.join("serve.lock")).unwrap().contains(&url));
+        } else {
+            doctor.extend(["--url", &url]);
+            assert!(!external.join("store.sqlite").exists());
+            assert!(!external.join("serve.lock").exists());
+        }
+        let result = answer(&fixture, &doctor);
+        assert_eq!(result["operations"]["/q/fast"]["n"], 1);
+        no_discovery_record(&fixture);
+    }
+}
+
+#[test]
+fn doctor_url_inspects_and_resets_ipv6_loopback() {
+    let fixture = Fixture::new("ipv6");
+    let host = fixture.start_with(&["--fresh", "--bind", "::1"]);
+    let url = format!("http://{}", host.address);
+    assert!(url.starts_with("http://[::1]:"));
+    host.request("POST", "/q/fast", json!({"args":{}}));
+    let result = answer(&fixture, &["doctor", "--latency", "--json", "--url", &url]);
+    assert_eq!(result["operations"]["/q/fast"]["n"], 1);
+    let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);
+    assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
+    no_discovery_record(&fixture);
+}

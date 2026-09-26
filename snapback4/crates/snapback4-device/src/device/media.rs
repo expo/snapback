@@ -38,7 +38,7 @@ fn media_type(kind: &ColumnType) -> Option<bool> {
 
 /// Index only confirmed stream images, never predicted placements. Stale entries
 /// are harmless: every access checks the current row, generation and lifetime.
-pub(super) fn remember<T: DeviceTx>(tx: &T, table_name: &str, table: &Table, row: &Value, generation: u64) -> Result<(), RuntimeError> {
+pub(super) fn remember(tx: &dyn crate::store::StreamTx, table_name: &str, table: &Table, row: &Value, generation: u64) -> Result<(), RuntimeError> {
     if table.sync.is_none() { return Ok(()); }
     for (column, kind) in &table.columns {
         if media_type(kind).is_none() { continue; }
@@ -48,7 +48,7 @@ pub(super) fn remember<T: DeviceTx>(tx: &T, table_name: &str, table: &Table, row
     Ok(())
 }
 
-pub(super) fn forget<T: DeviceTx>(tx: &T, table: &Table, row: &Value) -> Result<(), RuntimeError> {
+pub(super) fn forget(tx: &dyn crate::store::StreamTx, table: &Table, row: &Value) -> Result<(), RuntimeError> {
     for (column, kind) in &table.columns {
         if media_type(kind).is_none() { continue; }
         if let Some(id) = row.field(column).ok().and_then(|v| v.field("id").ok()).and_then(|v| v.as_str().ok()) {
@@ -60,7 +60,7 @@ pub(super) fn forget<T: DeviceTx>(tx: &T, table: &Table, row: &Value) -> Result<
 
 /// Delivered history keeps rows, but retires their media. Page by the unique
 /// primary key: an audience index need not have a unique resume suffix.
-pub(super) fn leave<T: DeviceTx>(tx: &T, name: &str, table: &Table, group: &[Value]) -> Result<(), RuntimeError> {
+pub(super) fn leave(tx: &dyn crate::store::StreamTx, name: &str, table: &Table, group: &[Value]) -> Result<(), RuntimeError> {
     if !table.columns.values().any(|kind| media_type(kind).is_some()) { return Ok(()); }
     let columns = audience_prefix(table);
     let mut bounds = Bounds::default();

@@ -96,6 +96,8 @@ impl Shared {
     // is retained. Identity guards still refuse an obsolete generation.
     pub(super) fn reader(&self) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
         if let Some(result) = lock(&self.readers).detached() {
+            // @ref LLP 3000.019#3.7 — detached checkout is an engine acquisition too.
+            if result.is_ok() { latency::acquired(); }
             return result;
         }
         // A missing factory can also mean opening a file-backed reader failed.

@@ -65,7 +65,9 @@ impl<T, C: Clock> FairMutex<T, C> {
             queue = self.available.wait(queue).unwrap_or_else(PoisonError::into_inner);
         }
         drop(queue);
-        match self.value.lock() {
+        let value = self.value.lock();
+        if !background { super::latency::acquired(); }
+        match value {
             Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended }),
             Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended })),
         }
@@ -78,6 +80,8 @@ impl<T, C: Clock> FairMutex<T, C> {
     }
     #[cfg(test)]
     pub fn is_poisoned(&self) -> bool { self.value.is_poisoned() }
+    #[cfg(test)]
+    pub fn queued(&self) -> u64 { let q = self.queue.lock().unwrap(); q.next.wrapping_sub(q.serving) }
 }
 
 pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool }

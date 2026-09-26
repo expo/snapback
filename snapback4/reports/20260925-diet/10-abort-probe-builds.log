@@ -1,0 +1,13 @@
+production bytes 359504
+production elapsed 35.524 status -6
+SNAPBACK4_TEST_MAIN_REACHED
+SNAPBACK4_PANIC verb=serve generation=9 thread="maintenance" action=abort reason="abort witness" location=/Users/ccheever/projects/snapback-diet-20260925/snapback4/target/diet-abort-probes/probe.rs:1:302
+
+SNAPBACK4_SIGNAL verb=serve generation=9 reason=SIGABRT signal=6
+
+original bytes 552584
+original elapsed 86.976 status -6
+SNAPBACK4_TEST_MAIN_REACHED
+SNAPBACK4_PANIC verb=serve generation=9 thread="maintenance" action=abort reason="abort witness" location=/Users/ccheever/projects/snapback-diet-20260925/snapback4/target/diet-abort-probes/probe.rs:1:302
+
+SNAPBACK4_SIGNAL verb=serve generation=9 reason=SIGABRT signal=6

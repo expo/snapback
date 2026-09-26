@@ -1,27 +1,25 @@
+#[path = "../tests/latency/serve.rs"]
+mod latency_tests;
 use super::*;
 use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpStream};
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
+use std::{net::{SocketAddr, TcpStream}, sync::mpsc, thread::{self, JoinHandle}};
 
 #[path = "../tests/serve_adoption/mod.rs"]
 mod adoption_tests;
-
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
-
 #[path = "../tests/serve_ephemeral/mod.rs"]
 mod ephemeral_tests;
-
 #[path = "../tests/serve_presence/mod.rs"]
 mod presence_tests;
-
 #[path = "../tests/serve_sync/mod.rs"]
 mod sync_generation_tests;
 #[path = "../tests/serve_timeline/mod.rs"]
 mod timeline_tests;
 #[path = "../tests/serve_store/mod.rs"]
 mod store_tests;
+#[path = "../tests/serve_assets/mod.rs"]
+mod asset_list_tests;
 #[test]
 fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
     for dev in [true, false] {
@@ -70,6 +68,8 @@ impl Host {
         let generation = engine.generation();
         let readers = Mutex::new(QueryReaders::new(&engine));
         let shared = Arc::new(Shared {
+            project: std::env::current_dir().unwrap(), temporary: true,
+            latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
@@ -90,9 +90,9 @@ impl Host {
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
-            route_verification: routes::Verification::default(),
+            route_verification: routes::Verification::default(), owner: None,
             auth_work: Mutex::new(None),
-            upload_work: Mutex::new(None),
+            request_work: Mutex::new(None), upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
             query_wait: Mutex::new(None),

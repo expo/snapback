@@ -163,7 +163,7 @@ impl Runner<'_> {
                     self.meter.heap(word_heap::slots::<Value>(maintain.by.len()))?;
                     for field in &maintain.by { if let Ok(value) = candidate.field(field) { crate::engine::authorized_scan::InternalLedger::with_meter(&mut self.meter, |meter, scope| value.scalar_heap(scope).charge(meter, scope))?; } }
                 }
-                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
+                if !self.live_contribution(maintain, source, &candidate, &group) { continue; }
                 if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
                 if current { known = true; }
                 let candidate_expiry = source.deadline(&candidate);

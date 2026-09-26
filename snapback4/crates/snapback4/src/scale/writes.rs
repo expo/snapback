@@ -19,8 +19,8 @@ impl Analysis<'_> {
             for c in &table.constraints {
                 match c {
                     Constraint::Unique { index } if table.is_expiring() => self.expiry_write(name, index),
-                    Constraint::Unique { index } => self.lookup_growth(name, index, &site),
-                    Constraint::FinalExistsOnInsert { table, index, .. } => self.lookup_growth(table, index, &site),
+                    Constraint::Unique { index } => self.lookup_growth(name, index, &site, true),
+                    Constraint::FinalExistsOnInsert { table, index, .. } => self.lookup_growth(table, index, &site, true),
                     Constraint::Cap { .. } if table.is_expiring() => self.per_write(format!(
                         "{name}: cap uses a maintained physical count as an upper bound; below it no population scan is needed, otherwise live occupancy shares the 8,192-row physical authorization allowance")),
                     _ => {}

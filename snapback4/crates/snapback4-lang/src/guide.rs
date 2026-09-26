@@ -216,7 +216,38 @@ it never adopts current source for measurement. With no store it says not
 measured and names the fixture command. Add `--verbose` for every table,
 facts and notes (and on test, query meters and aggregate row counts).
 Measurements exclude transport framing, are not process RSS, and are not
-estimates for another fixture."##,
+estimates for another fixture.
+
+Measure the device that actually holds the window above:
+```ts
+const held = await client.residency();
+if (held) {
+  console.table(held.tables); // { notices: { rows, bytes }, ... }
+  console.log(held.totalBytes, held.totalBytesKind, held.wasmHeapBytes);
+}
+```
+Rows are physically held images, including predictions and retained/expired
+images still stored. They confer no query coverage or read authority. Table
+bytes are UTF-8 stored row payloads, excluding keys and indexes. Empty tables
+report zero. Native totalBytes is allocated SQLite pages, including indexes,
+metadata and free pages, excluding WAL/SHM files. Web totalBytes is UTF-8 logical
+persistence record keys and values before IndexedDB packing; it includes outbox,
+base images and staging, not physical disk allocation. Separate media and wasm
+code caches are excluded. wasmHeapBytes is allocated linear memory shared by
+all web devices in this realm, not live allocations or Chromium RSS. The online
+tier and mock return null. Closed/signed-out local clients reject with a coded error.
+A native handle whose store adopted another schema returns E_GENERATION; reopen it.
+If the device host fails during this read, E_STORE at client.residency names
+the failure; restart the device host and reopen the client before retrying.
+
+Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
+fixture, `token`, `deploy`, `rollback`) lock the database file for their lifetime.
+Native devices, including embedded C-ABI hosts, share ownership with each other
+and exclude backend writers until their stores close.
+A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the
+command once, then restart it. Another CLI writer also refuses; wait for it.
+The HTTP /seed development door already runs through the host. `check`, `data`,
+`sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time
 
 Expiry makes a row invisible when its declared deadline passes.
@@ -272,7 +303,7 @@ runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
 Disappearing messages are one field on
-insert; there is no purge job to write. A maintained `view` over an expiring table
+insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
 reads its physical total minus unswept expired contributions under the read
 meter through an internal group/expiry/source-id index. Live rows add no server
 read work. Devices still recompute live source contributions under their meter;
@@ -293,8 +324,9 @@ count index could bound a live threshold scan, but that read form is not built;
 it would have to refuse on devices, whose snapshots deliver live values rather
 than physical upper bounds. Signed sums have no such upper bound.
 A partial device counts only held live
-sources and says `complete: false`. A meter cut returns the contribution
-examined so far, also incomplete. A zero sum keeps its group while sources
+sources and says `complete: false`. A meter cut of an ordinary aggregate returns `data: null, complete: false`.
+An expiring row-keyed range read returns `{ value: L, recountPending: true }`
+with `complete: false`, the current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another.
 
 ## Operations
@@ -315,6 +347,7 @@ table clips:
   ownerId: principal
   photo: image <=10000000 once ?           -- `once`: one view per principal, never cached
   clip: video <=50000000 ?
+  photos: [image <=10000000] <=4 ?         -- each upload belongs to this row
   at: time
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
@@ -327,13 +360,28 @@ mutation sendClip(clip: video <=50000000):
   require duration != null else DURATION_UNKNOWN
   require duration <= 60000 else TOO_LONG
   return insert clips { ownerId: viewer, clip, at: now }
+
+mutation sendPhotos(photos: [image <=10000000] <=4):
+  return insert clips { ownerId: viewer, photos, at: now }
 ```
+
+Upload each image first, then pass the list of `{ id }` values to `sendPhotos`.
+Each element inherits the row's read rule.
+`[image <=10000000 once] <=4` applies one view per principal to each image.
+List placement and release reserve four examinations, two writes, eight steps
+and 16 KiB scratch per declared element slot (nested caps multiply), even for
+an empty or unchanged list; file bytes are not copied by placement.
+Scalar receipts retain their previous accounting: the proposed extra allowance
+of four examinations, two writes, eight steps and 16 KiB scratch per scalar slot
+was withdrawn because it broke existing scalar meter boundaries.
 
 The local client keeps server upload facts for prediction: `{ id }` works
 offline after upload, including reads of duration and dimensions. Without
 those facts the write queues unpredicted and the server judges it.
 With `createLocalClient({ assets: { keep: "viewed", maxBytes: 67108864 }, ... })`,
-ordinary viewed images and videos survive offline reopen in device storage.
+ordinary viewed images and videos in scalar columns survive offline reopen in
+device storage. List elements are served online; offline list retention is not
+implemented yet.
 `keep: "none"` (the default) retains no media. The byte bound evicts least
 recently used assets. Home-row deletion, clearing, expiry and partition leave
 purge the bytes; `once` is never stored. Online reads always revalidate.
@@ -366,7 +414,15 @@ for a second home. Fetch a once asset without Range; a consumed view cannot be
 retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
-a readable home row does not grant upload ownership."##,
+a readable home row does not grant upload ownership.
+
+Removing an element releases it; reordering keeps its home and view history;
+deleting the row releases all.
+
+Stored list ids from before list placement are not backfilled, and rewriting
+the cell with the same ids does not claim them. Readers still get
+E_ASSET_UNKNOWN (the upload owner can still preview) until a write places and
+claims fresh uploads in the cell."##,
         "client" => include_str!("guide/client.md"),
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,

@@ -149,8 +149,10 @@ impl PollResponse<'_> {
         drop(clock);
         // Once heartbeats began the status is 200; the final JSON still
         // carries a typed denial, including a session revoked during the wait.
+        let mut refused = status >= 400 || super::latency::Reply::refused(&body);
         let mut bytes = JsonBuffer(Vec::new());
         if serde_json::to_writer(&mut bytes, &body).is_err() {
+            refused = true;
             let refusal = snapback4_core::error::Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request fewer changes").guide("reads");
             bytes.0.clear();
             serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal), "serverNow": body["serverNow"], "clockRevision": body["clockRevision"] })).unwrap();
@@ -159,7 +161,11 @@ impl PollResponse<'_> {
         frame.extend_from_slice(&bytes.0);
         frame.extend_from_slice(b"\r\n0\r\n\r\n");
         if self.request.as_mut().unwrap().write_response_frame(&frame).is_ok() {
+            // @ref LLP 3000.019#3.7 — the final frame completes a held poll, not its first heartbeat.
+            super::latency::finished(refused);
             self.request.take().unwrap().finish_stream();
+        } else {
+            super::latency::finished(true);
         }
     }
 }

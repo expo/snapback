@@ -1010,3 +1010,180 @@ fixture Cargo.lock version update. Full log and exact exit status remain in
 ignored `target/lane-ad-evidence/r3-test-sh.log` and `r3-test-sh.exit`.
 Only this report and the one appended journal entry accompany the four scoped
 implementation commits. No push or publication.
+
+## Integration merge — 2026-09-27
+
+Ran the requested `git merge sb4-intent/integration-044` into
+`sb4-intent/ad-adoption`. The initial ref check returned the prompt's
+`2ddaf680253b4189cce703118bb52d3483e95a04`, but the named branch advanced during
+orientation, before the merge command. Git selected the actual second parent
+`6749988868c29f4c64dde79d354c1b52d7bd789b`: that commit plus main's image-list
+placement fix and its documentation. Retained this named-branch merge and
+qualified the resulting tree; no later integration commits were included.
+This is the one input-revision deviation from the prompt. The initial progress
+message claiming an exact `2ddaf6802` merge parent was corrected after checking
+`MERGE_HEAD` explicitly.
+This is integration only: no new Quarry form, adoption redesign, budget increase,
+push or publication. The one-second adoption target and documented `/changes`
+wait remain unchanged; the scale fixture was not rerun for this merge.
+
+### Conflict resolutions
+
+- `../llp/3000.019-what-the-builder-still-wrote.rfc.md`: retained both Revised
+  histories, AD §3.6 and LT §3.7, plus the integration's other additions.
+- `JOURNAL.md`: retained both sides' entries verbatim and in their original
+  relative order; appended one new dated merge entry after qualification.
+- `crates/snapback4-core/src/engine/row_views.rs`: retained P5's expired or
+  unreadable candidate handling, current-row/provisional checks and range
+  certification. Added AD's source-visit counter only to an admitted stored
+  row, under `cfg(feature = "sqlite")`. Kept the diet's server-only gates and
+  the explicitly qualified shared `crate::value::object` use.
+- `crates/snapback4-core/src/store.rs`: every constructor initializes AD's
+  adoption report/full-path oracle and R's ownership/file identity fields.
+  Detached readers clone the ownership handle and verify the database identity;
+  SQLite still drops before its raw ownership descriptor.
+- `crates/snapback4/src/serve.rs`: retained AD's disposable WAL fresh store,
+  detached reader factory, separate 32-slot writer/read admission, owned and
+  joined supervision thread, reader refusal policy and re-authentication.
+  Persisted dev/release opens now use R's `store_owner`; `announce` writes the
+  server address through its acquired `serve.lock` handle. LT's sample starts
+  before admission and wraps each request thread; response completion hooks,
+  `/dev/status` project/temporary fields and doctor URL support are retained.
+  Dev latency inspection/reset uses read admission, so saturated writers do not
+  make it unavailable; production service inspection retains writer admission.
+- `crates/snapback4/src/serve_adoption.rs`: kept AD's production
+  `adopt_candidate`, pending-name cleanup, recovered status, reader replacement
+  and per-view report. Generation-refusal reopening uses the retained R owner,
+  and successful publication updates LT's operation registry.
+- `crates/snapback4/src/serve_tests.rs`: kept both test-module additions and
+  initialized reader, ownership and latency fields together. Compacted imports
+  and module spacing to retain the 1,500-line ceiling (1,499 lines).
+
+### Required integration corrections and regression coverage
+
+`serve_readers.rs` stamps LT's first engine acquisition on successful detached
+checkout, including bearer authentication; a failed checkout does not stamp it.
+Writer/fallback acquisitions continue through LT's existing FairMutex hook.
+Completion/refusal classification remains on the common response paths. The
+supervision thread has no request-local sample to contaminate.
+
+Two tests added in `tests/latency/serve.rs` prove that detached checkout includes
+pre-acquisition request work in wait but excludes later query work (both bearer
+and persona), and that a saturated writer budget records exactly one refusal
+while query and dev latency inspection/reset still work. Existing seven
+reader-failure scenarios now assert exactly one latency refusal and zero wait
+unless an earlier checkout succeeded. The production supervisor/adoption test
+now asserts query/sync timing while supervision waits and unchanged request
+counts after the supervisor resumes.
+
+P5's existing `tests/unread_range/counted.rs` did not compile against the
+integration's image-placement `Rows::release_asset` signature (E0050/E0061).
+This exact old signature exists in the actual merge parent. Updated the test
+wrapper to forward table, row id and column along with id/time. No assertion,
+product behavior or native/web feature boundary was weakened. Its rerun passes.
+
+The single full suite also exposed R's
+`sync_and_changes_keep_the_owned_database_after_its_path_is_replaced` expectation
+that failed detached sync must fall back to the writer. That conflicts with AD's
+already accepted file-reader refusal policy. Updated
+`tests/run_admission/identity.rs` to inspect HTTP status and require retryable
+`E_STORE`/503 for both snapshot and stream after replacing the inode, with no
+events or store identity in the refusal. The unchanged `/changes` assertions
+still require the original store identity and sequence. Renamed the regression
+`sync_refuses_replaced_path_while_changes_keeps_the_owned_database`.
+This reconciles the test with the merged behavior; no product code or ownership
+check was relaxed. The full-suite cargo failure is retained in its exact result;
+the focused post-fix result is recorded separately below.
+
+### Affected checks
+
+Commands run from `snapback4/` with Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+Cargo jobs 8, dev/test debug information disabled, and shell file limit 65,536.
+Frozen Bun installation passed. Evidence is in ignored
+`target/lane-ad-evidence/merge-*`; each test/build command has its log there.
+
+| Check | Result |
+|---|---|
+| `cargo build -p snapback4` | Pass |
+| `bash scripts/build-wasm.sh` | Artifact built; inherited size gate fails (measurement below) |
+| `bun run build` in `packages/snapback4` | Pass |
+| `cargo test -p snapback4 --bin snapback4 -- --test-threads=1` | 149 passed, 4 intentional ignores |
+| `cargo test -p snapback4 --test latency -- --test-threads=1` | 9 passed |
+| `cargo test -p snapback4-core --lib store::adoption_tests` | 6 passed |
+| Core `row_view_accounting`, `row_view_legacy`, `row_view_witness` | 6 + 1 + 3 passed |
+| CLI `lifecycle`, `replay` | 20 + 15 passed |
+| `node --test packages/snapback4/test/native-opening.test.mjs` | 6 passed; includes E_STORE_BUSY naming the server |
+| `cargo test -p snapback4-device --test unread_range` | Initial inherited wrapper compile failure; corrected rerun 7 passed |
+| `cargo test -p snapback4-lang --test guide` | Whole guide: 86 passed |
+| Post-suite-failure `cargo test -p snapback4 --test run_admission -- --test-threads=1` | 23 passed; corrected identity/refusal expectation |
+
+Reference audit: 515 LLP docs / 9,552 refs / zero errors or unchecked. Changed
+source files fit 1,500 lines. Conflict resolutions pass whitespace checks;
+two trailing blank lines are inherited unchanged from integration in LLP
+3000.021 and `tests/check_adoption/mod.rs`.
+
+### Full suite and wasm
+
+Ran `scripts/test.sh` exactly once, from `snapback4/`:
+
+```sh
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ulimit -n 65536
+bash scripts/test.sh > target/lane-ad-evidence/merge-test-sh.log 2>&1
+```
+
+Exact summary, **exit status 1**:
+
+```text
+== 3 failure(s) in 1322 s
+   wasm build
+   cargo test
+   client tests
+```
+
+Every failure and its disposition:
+
+1. **Inherited budget failure, with a measured size delta — wasm build.**
+   The initial build and full suite both produce **1,980,253 B raw / 571,841 B
+   gzip**, **875 B over** the unchanged actual merge-parent cap of **570,966 B**.
+   This is **+2 B gzip versus the prompt's supplied 571,839 B integration
+   measurement**. The intervening main image-placement merge had already
+   ratcheted the cap from the prompt's 570,967 B to 570,966 B; this merge does
+   not edit the budget. The comparison includes that intervening main merge;
+   no separate rebuild or per-component attribution of the older revision is
+   claimed. Toolchain: Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt installed.
+   The web artifact compiles with `--no-default-features --features web`;
+   server-only adoption/counters remain behind `sqlite`.
+2. **Integration expectation mismatch, corrected — cargo test.** The only
+   failing Rust test was
+   `identity::sync_and_changes_keep_the_owned_database_after_its_path_is_replaced`
+   in `snapback4::run_admission`. Its curl expected success but received 503,
+   because AD refuses a failed file reader instead of falling back to the
+   writer. The reconciled test described above passes with the complete target:
+   **23 passed / 0 failed** (`merge-run-admission-final.log`). The production
+   behavior and R's inode/ownership checks were not changed to satisfy it.
+3. **Environmental/intermittent timing failure — client tests.**
+   `invocation lifetime releases provider and private-core fetch and body stalls
+   without late identity effects`, `packages/snapback4/test/identity.test.mjs:904`,
+   asserted `entered.value === true`, but saw false: the test's 100-ms
+   cancellation status timer won before the mocked private-core request entered.
+   The identity test, identity implementation and worker sources are unchanged
+   from both merge inputs. An unchanged focused rerun passes **1/1**
+   (`merge-identity-rerun.log`), and an unchanged whole-file rerun passes
+   **18/18** (`merge-identity-file-rerun.log`). This timing classification is
+   based on the failed entry assertion, timer, unchanged inputs and green
+   reruns; the full-run failure is not erased or relabeled as a pass.
+
+Full-run Rust tests/doctests: **3,779 passed / 1 failed / 24 ignored** (835 s).
+Client main batch: **2,458 passed / 1 failed / 10 skipped**; seven shards:
+**56 passed** (client phase 195 s). Seeded models: **78/78** (256 s).
+Fixture wrappers: **9/9**. Native build, docs budget, release guard, package
+build/typecheck, chat check/typecheck and Expo typecheck all pass. The full
+suite was not rerun. Its log and exit status are preserved in
+`target/lane-ad-evidence/merge-test-sh.log` and `merge-test-sh.exit`.
+
+No production code changed after that full run started. The only post-failure
+source correction is the ownership test's reconciliation; its full target was
+rerun successfully. No remaining introduced affected-test failure was found.
+The inherited wasm gate remains red. No push or publication.

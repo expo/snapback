@@ -241,6 +241,10 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
+        self.tx.base_id_after(table, after)
+    }
+
     fn provisional_sequence_floor(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
         Ok(self.tx.meta(&predictions::sequence_floor_key(parent, id))?.and_then(|v| v.parse().ok()).unwrap_or(0))
     }
@@ -371,6 +375,14 @@ fn invalidate_native(metadata: &mut BTreeMap<String, String>) {
     metadata.insert(NATIVE_GENERATION.to_owned(), String::new());
 }
 
+// @ref LLP 3000.007#18.3 — retained images stay acquired only for the same public table set.
+// BTreeMap order compares the sets without building another collection.
+// Legacy $recount/$basis work tables on either side are not partition evidence.
+fn same_public_tables(from: &Schema, to: &Schema) -> bool {
+    from.visible_tables().map(|(name, _)| name)
+        .eq(to.visible_tables().map(|(name, _)| name))
+}
+
 pub(crate) fn reset_for_install<T: DeviceTx>(tx: &T, metadata: &BTreeMap<String, String>, drop_images: bool) -> Result<(), RuntimeError> {
     let old = meta_u64(tx, GENERATION)?;
     let changed = metadata.get(GENERATION).is_some_and(|new| new != &old.to_string());
@@ -432,7 +444,7 @@ impl<S: DeviceStore> Device<S> {
         let reset = held != 0 && held != backend.generation;
         let keep_images = reset && previous.as_ref()
             .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
-        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
+        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| same_public_tables(&old.schema, &backend.schema))
             && store.meta(ACQUIRED)? == Some(held.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
@@ -553,8 +565,9 @@ impl<S: DeviceStore> Device<S> {
         let reset = backend.generation != self.generation;
         let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
         // @ref LLP 3000.007#18.3 — literal-default-only evolution keeps already acquired images readable.
-        // The image predicate permits added tables; those require acquisition.
-        let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len()
+        // Added public tables require acquisition; legacy server work tables
+        // synthesized by older web devices are not part of the partition.
+        let keep_acquired = keep_images && same_public_tables(&self.schema, &backend.schema)
             && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
@@ -1114,6 +1127,11 @@ impl<S: DeviceStore> Device<S> {
         Backend { generation: self.generation, schema: self.schema.clone(), programs: self.programs.values().cloned().collect() }
     }
 
+    #[cfg(feature = "native")]
+    pub fn residency(&mut self) -> Result<serde_json::Value, RuntimeError> {
+        self.store.residency(&self.schema)
+    }
+
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
@@ -1135,7 +1153,7 @@ fn scope_group(table: &Table, event: &StreamEvent) -> Result<Vec<Value>, Runtime
 
 /// A group the device left: drop its rows (`until-revoked`) or keep what
 /// was delivered (`delivered-history`).
-fn leave<T: DeviceTx>(tx: &T, schema: &Schema, table_name: &str, group: &[Value]) -> Result<(), RuntimeError> {
+fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, group: &[Value]) -> Result<(), RuntimeError> {
     let Some(table) = schema.table(table_name) else { return Ok(()) };
     if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
     let Some(sync) = &table.sync else { return Ok(()) };

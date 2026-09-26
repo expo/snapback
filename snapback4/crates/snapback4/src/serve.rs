@@ -55,7 +55,13 @@ pub(crate) mod read_cost;
 mod engine_lock;
 use engine_lock::{FairMutex, Lockable};
 
+#[path = "latency.rs"]
+pub(crate) mod latency;
+
 pub struct Shared {
+    latency: Arc<latency::Registry>,
+    project: std::path::PathBuf,
+    temporary: bool,
     ephemeral: Arc<snapback4_core::engine::ephemeral::Hub>,
     ephemeral_rate: ephemeral::Rate,
     wake: Mutex<ephemeral::Wake>,
@@ -88,8 +94,12 @@ pub struct Shared {
     pub auth: crate::auth::Admission,
     pub uploads: AtomicUsize,
     route_verification: routes::Verification,
+    // Drop after every SQLite connection; worker/request Arcs keep it alive.
+    owner: Option<Arc<crate::store_owner::Owner>>,
     #[cfg(test)]
     pub auth_work: WorkHook,
+    #[cfg(test)]
+    request_work: WorkHook,
     #[cfg(test)]
     pub upload_work: WorkHook,
     #[cfg(test)]
@@ -222,10 +232,10 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
-    Release { expected: u64, worker: Option<std::path::PathBuf> },
+    Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
-pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<(), String> {
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -247,18 +257,26 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
     let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
-        let path = project.store_path();
-        let path = if path.exists() { path.canonicalize().map_err(|e| e.to_string())? } else { path };
-        Some(crate::verbs::deployment_lock(path.parent().ok_or("store path has no parent")?)?)
+        Some(crate::store_owner::command(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
+    let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
+    if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
+    if let Mode::Release { owner, .. } = &mut mode {
+        // @ref LLP 3000.019#3.4 — publish through the acquired handle, including a release database symlink.
+        crate::store_owner::announce(Arc::get_mut(owner).ok_or("release owner already shared")?, address)?;
+    }
+    let host_owner = match &mode {
+        Mode::Release { owner, .. } => Some(owner.clone()),
+        _ => host_lock.take().map(Arc::new),
+    };
     // `--fresh` has private, disposable storage and the same WAL readers as dev.
     let fresh = if matches!(mode, Mode::Dev { fresh: true, .. }) { Some(query_readers::FreshDirectory::new()?) } else { None };
     let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::new_at(fresh.as_ref().unwrap().store().map_err(|e| e.to_string())?, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), clock.now()),
-        Mode::Dev { .. } => adoption::open(&project, &bound, &clock),
-        Mode::Release { expected, .. } => project.open_release_engine(&bound, *expected, clock.now()),
+        Mode::Dev { .. } => adoption::open(host_owner.as_deref().unwrap(), &bound, &clock),
+        Mode::Release { expected, .. } => host_owner.as_ref().unwrap().open_store(Duration::from_secs(5)).and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
     }.map_err(|e| e.to_string())?;
     adoption::report(&engine);
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
@@ -281,11 +299,15 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let readers = Mutex::new(QueryReaders::new(&engine));
     let shared = Arc::new(Shared {
+        project: project.root.canonicalize().map_err(|e| e.to_string())?,
+        temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
+        latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
         adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
-        route_verification: routes::Verification::default(),
+        route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
+        #[cfg(test)] request_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
@@ -295,11 +317,6 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
-    // Discover the live dev inspector through the existing lifetime lock file.
-    if let Some(file) = &mut host_lock {
-        file.set_len(0).map_err(|e| e.to_string())?;
-        write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
-    }
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
     let worker = match &mode {
         Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url.clone())?,
@@ -386,6 +403,8 @@ impl RequestAdmission {
 }
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
+    // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
+    let sample = latency::Sample::new(&request, &shared.latency);
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
@@ -395,10 +414,12 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
         // @ref LLP 3000.019#3.6 — only writer-independent handlers share the read reservation.
         // Default to the writer budget, so adding a writer door cannot silently
         // consume read slots. Authentication uses the same detached-read policy.
-        else if detached_request(request.method(), path) { RequestClass::Short }
+        else if detached_request(request.method(), path)
+            || shared.personas && matches!((request.method(), path), (Method::Get, "/dev/latency") | (Method::Post, "/dev/latency/reset")) { RequestClass::Short }
         else { RequestClass::Mutation };
     let Some(permit) = admission.acquire(class) else { request.abort(); return; };
-    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
+    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit;
+        if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } }) {
         eprintln!("snapback4: cannot start request thread: {error}");
     }
 }
@@ -595,19 +616,20 @@ pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
          Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
 }
 
-pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl serde::Serialize) {
+pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl latency::Reply) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
 
-pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
+pub(crate) fn respond(request: Request, status: u16, body: impl latency::Reply) {
     respond_with_cors(request, status, body, true)
 }
 
-fn respond_with_cors(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool) {
+fn respond_with_cors(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool) {
     respond_with_sync(request, status, body, allow_origin, None, None)
 }
 
-fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
+fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
+    let refused = status >= 400 || body.refused();
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
@@ -620,6 +642,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
         serde_json::to_writer(&mut bytes, &reply).expect("the fixed HTTP refusal and sync identity fit the response ceiling");
         200
     } else { status };
+    let refused = refused || encoded.is_err();
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared {
@@ -631,7 +654,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
         for header in cors(&request) { response.add_header(header); }
     }
     if status >= 400 && request.method() == &Method::Post {
-        let _ = request.respond_and_close(response);
+        let _ = request.respond_and_close_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
     }
     // `into_writer` drops the request reader before it returns. tiny_http
@@ -642,7 +665,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
             || (h.field.equiv("Connection") && h.value.as_str().split(',').any(|v| v.trim().eq_ignore_ascii_case("upgrade")))
     });
     if may_drain {
-        let _ = request.respond(response);
+        let _ = request.respond_checked_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
     }
     // @ref LLP 3000#7-decisions-during-execution — coalesce buffered JSON HTTP responses
@@ -652,7 +675,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
     let mut encoded = Vec::with_capacity(capacity);
     if response.raw_print(&mut encoded, request.http_version().clone(), request.headers(), request.method() == &Method::Head, None).is_ok() {
         let mut writer = request.into_writer();
-        let _ = writer.write_all(&encoded).and_then(|_| writer.flush());
+        latency::finished(writer.write_all(&encoded).and_then(|_| writer.flush()).is_err() || refused);
     }
 }
 
@@ -794,6 +817,8 @@ fn mutation_error_status(refusal: &Refusal) -> u16 {
 }
 
 fn handle(mut request: Request, shared: &Shared) {
+    request.set_cleanup_guard(latency::FinishOnDrop);
+    #[cfg(test)] test_work(&shared.request_work);
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
@@ -815,12 +840,15 @@ fn handle(mut request: Request, shared: &Shared) {
     if path.starts_with("/dev/clock") && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
+    if (method == Method::Get && path == "/dev/latency") || (method == Method::Post && path == "/dev/latency/reset") {
+        return latency::endpoint(request, shared, method == Method::Post);
+    }
     if method == Method::Get && path == "/dev/status" {
         if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
         // No engine lock: doctor must remain usable while an adoption waits on SQLite.
         let generation = *lock(&shared.generation);
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "generation":generation, "adoption":status.failure, "now":shared.now()}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now()}));
     }
     if method == Method::Options {
         respond_empty(request, 204);
@@ -1110,6 +1138,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(skip_serializing_if = "Option::is_none")]
                             refresh: Option<u64>,
                         }
+                        impl latency::Reply for QueryReply<'_> {}
                         // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
                         let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
@@ -1290,6 +1319,8 @@ mod poison_tests {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
+            project: std::env::current_dir().unwrap(), temporary: true,
+            latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
@@ -1310,8 +1341,9 @@ mod poison_tests {
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
-            route_verification: routes::Verification::default(),
+            route_verification: routes::Verification::default(), owner: None,
             auth_work: Mutex::new(None),
+            request_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),

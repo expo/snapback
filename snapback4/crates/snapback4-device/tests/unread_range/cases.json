@@ -1,0 +1,1097 @@
+[
+  {
+    "name": "covered-strict",
+    "value": 2,
+    "complete": true,
+    "unknown": false
+  },
+  {
+    "name": "inclusive-floor-tie",
+    "value": 3,
+    "complete": false,
+    "unknown": true,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".ordinal >= m.readUpTo"
+      ]
+    ],
+    "extra": [
+      {
+        "id": "a4",
+        "ordinal": 4
+      }
+    ]
+  },
+  {
+    "name": "strict-floor-tie",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "extra": [
+      {
+        "id": "a4",
+        "ordinal": 4
+      }
+    ]
+  },
+  {
+    "name": "inclusive-above-floor",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 5,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".ordinal >= m.readUpTo"
+      ]
+    ]
+  },
+  {
+    "name": "reversed",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        "m.readUpTo < .ordinal"
+      ]
+    ]
+  },
+  {
+    "name": "strongest-bound",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 0,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "strict-wins-equal-bound",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "joinedAt": 4,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".ordinal >= m.readUpTo"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "strict-wins-equal-bound-first",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 4,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal >= m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "null-bound",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "replace": [
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ]
+    ],
+    "mark": null
+  },
+  {
+    "name": "null-sibling-is-weakest",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ],
+    "mark": null,
+    "joinedAt": 4
+  },
+  {
+    "name": "upper-bound",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "mark": 7,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".ordinal < m.readUpTo"
+      ]
+    ]
+  },
+  {
+    "name": "wrong-order",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 3 by .at"
+      ]
+    ]
+  },
+  {
+    "name": "composite-wrong-order",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "replace": [
+      [
+        "  ordinal: int",
+        "  ordinal: int\n  by byWindow: conversationId, at, ordinal, id"
+      ],
+      [
+        "last 3 by .ordinal",
+        "last 3 by byWindow"
+      ]
+    ]
+  },
+  {
+    "name": "composite-leading-ordinal",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "  ordinal: int",
+        "  ordinal: int\n  by byWindow: conversationId, ordinal, at, id"
+      ],
+      [
+        "last 3 by .ordinal",
+        "last 3 by byWindow"
+      ]
+    ]
+  },
+  {
+    "name": "public-parent-mismatch",
+    "value": 2,
+    "complete": false,
+    "unknown": true,
+    "replace": [
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- allow"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync public"
+      ]
+    ]
+  },
+  {
+    "name": "below-floor",
+    "value": 3,
+    "complete": false,
+    "unknown": true,
+    "mark": 0
+  },
+  {
+    "name": "empty-whole",
+    "value": 0,
+    "complete": true,
+    "unknown": false,
+    "n": 0
+  },
+  {
+    "name": "whole",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "n": 2,
+    "mark": 0
+  },
+  {
+    "name": "missing-acquisition",
+    "value": 2,
+    "complete": false,
+    "unknown": true,
+    "omitBoundaries": true
+  },
+  {
+    "name": "own-and-tombstone",
+    "value": 0,
+    "complete": true,
+    "unknown": false,
+    "overrides": {
+      "5": {
+        "senderId": "bob"
+      },
+      "6": {
+        "tombstone": true
+      }
+    }
+  },
+  {
+    "name": "offline-expiry",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "overrides": {
+      "6": {
+        "until": 4102444800000
+      }
+    },
+    "actions": [
+      {
+        "kind": "query",
+        "now": 4102444800000,
+        "value": 1,
+        "complete": true,
+        "unknown": false
+      }
+    ],
+    "nextExpiry": 4102444800000
+  },
+  {
+    "name": "floor-expiry",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "overrides": {
+      "4": {
+        "until": 4102444800000
+      }
+    },
+    "actions": [
+      {
+        "kind": "member",
+        "readUpTo": 3
+      },
+      {
+        "kind": "query",
+        "now": 4102444800000,
+        "value": 2,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "floor-deletion",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "delete",
+        "id": "m04"
+      },
+      {
+        "kind": "member",
+        "readUpTo": 3
+      },
+      {
+        "kind": "query",
+        "value": 2,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "physical-deletion",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "delete",
+        "id": "m06"
+      },
+      {
+        "kind": "query",
+        "value": 1,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "backdated-delivery",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "message",
+        "id": "old",
+        "ordinal": 3
+      },
+      {
+        "kind": "member",
+        "readUpTo": 0
+      },
+      {
+        "kind": "query",
+        "value": 3,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "backward-watermark",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "member",
+        "readUpTo": 0
+      },
+      {
+        "kind": "query",
+        "value": 3,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "prediction-covered",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 5,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 1,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "prediction-uncovered",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 0,
+        "predictable": false
+      },
+      {
+        "kind": "query",
+        "value": 2,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "prediction-empty",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 10,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "meter-cut",
+    "value": "partial",
+    "complete": false,
+    "unknown": false,
+    "n": 8301,
+    "mark": 2,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 8300 by .ordinal"
+      ]
+    ]
+  },
+  {
+    "name": "retained-rejoin",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "sync to members[.conversationId] last 3 by .ordinal",
+        "sync to members[.conversationId] last 3 by .ordinal\n  retain delivered-history"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "leave"
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": false,
+        "unknown": true
+      },
+      {
+        "kind": "rejoin"
+      },
+      {
+        "kind": "query",
+        "value": 1,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "short-range-large-window",
+    "value": 3,
+    "complete": true,
+    "unknown": false,
+    "n": 20000,
+    "mark": 19997,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 19999 by .ordinal"
+      ]
+    ]
+  },
+  {
+    "name": "null-whole-semantics",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "n": 2,
+    "mark": null,
+    "replace": [
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ]
+    ]
+  },
+  {
+    "name": "upper-whole-semantics",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "n": 2,
+    "mark": 7,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".ordinal < m.readUpTo"
+      ]
+    ]
+  },
+  {
+    "name": "sequence-empty-prediction",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 10000,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "interrupted-acquisition",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "acquiring"
+      },
+      {
+        "kind": "query",
+        "value": 2,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "provisional-empty-range-refusal",
+    "value": 0,
+    "complete": true,
+    "unknown": false,
+    "mark": 10000,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "send"
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
+      }
+    ]
+  },
+  {
+    "name": "nonexpiring-pending-keeps-settled",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "  expire at .until\n",
+        ""
+      ],
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- allow"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync public"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "view",
+        "value": 42
+      },
+      {
+        "kind": "member",
+        "readUpTo": 0
+      },
+      {
+        "kind": "query",
+        "value": 42,
+        "complete": false,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "source-authority-lost",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "seed": [
+      {
+        "table": "access",
+        "row": {
+          "id": "grant",
+          "conversationId": "c",
+          "principal": "bob"
+        }
+      }
+    ],
+    "replace": [
+      [
+        "table conversations:",
+        "table access:\n  conversationId: conversations\n  principal: principal\n  immutable conversationId, principal\n  unique conversationId, principal\n  read <- .principal = viewer\n  sync to .principal\ntable conversations:"
+      ],
+      [
+        "  read <- .principal = viewer\n  update <-",
+        "  read <- exists access[.conversationId, viewer]\n  update <-"
+      ],
+      [
+        "  sync to .principal\ntable messages:",
+        "  sync to access[.conversationId]\ntable messages:"
+      ],
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- exists access[.conversationId, viewer]"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync to access[.conversationId]"
+      ],
+      [
+        "return unread where .principal = viewer first 100",
+        "return unread where .conversationId = 'c' first 100"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "delete",
+        "table": "access",
+        "id": "grant"
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "prediction-uncovered-empty",
+    "overrides": {
+      "4": {
+        "senderId": "bob"
+      },
+      "5": {
+        "senderId": "bob"
+      },
+      "6": {
+        "senderId": "bob"
+      }
+    },
+    "value": 0,
+    "complete": true,
+    "unknown": false,
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 0,
+        "predictable": false
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "null-no-other-column",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "mark": null,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .at > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "other-column-only",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".at > m.readUpTo"
+      ]
+    ]
+  },
+  {
+    "name": "public-whole",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "n": 2,
+    "mark": 0,
+    "replace": [
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- allow"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync public"
+      ]
+    ]
+  },
+  {
+    "name": "whole-expired-backlog",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "n": 9003,
+    "mark": 0,
+    "expireFirst": 9000,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 10000 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "query",
+        "now": 4102444800000,
+        "value": 3,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "lower-bound-expiry",
+    "value": 3,
+    "complete": false,
+    "unknown": true,
+    "mark": 0,
+    "overrides": {
+      "6": {
+        "until": 4102444800000
+      }
+    },
+    "nextExpiry": 4102444800000,
+    "actions": [
+      {
+        "kind": "query",
+        "now": 4102444800000,
+        "value": 2,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "prediction-1024",
+    "value": 1024,
+    "complete": true,
+    "unknown": false,
+    "n": 1026,
+    "mark": 2,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 1025 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 2,
+        "predictable": true
+      }
+    ]
+  },
+  {
+    "name": "prediction-1025",
+    "value": 1025,
+    "complete": true,
+    "unknown": false,
+    "n": 1027,
+    "mark": 2,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 1026 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 2,
+        "predictable": false
+      },
+      {
+        "kind": "query",
+        "value": 1025,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "provisional-nonempty-range-refusal",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "send"
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
+      }
+    ]
+  },
+  {
+    "name": "null-source-authority-lost",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "seed": [
+      {
+        "table": "access",
+        "row": {
+          "id": "grant",
+          "conversationId": "c",
+          "principal": "bob"
+        }
+      }
+    ],
+    "replace": [
+      [
+        "table conversations:",
+        "table access:\n  conversationId: conversations\n  principal: principal\n  immutable conversationId, principal\n  unique conversationId, principal\n  read <- .principal = viewer\n  sync to .principal\ntable conversations:"
+      ],
+      [
+        "  read <- .principal = viewer\n  update <-",
+        "  read <- exists access[.conversationId, viewer]\n  update <-"
+      ],
+      [
+        "  sync to .principal\ntable messages:",
+        "  sync to access[.conversationId]\ntable messages:"
+      ],
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- exists access[.conversationId, viewer]"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync to access[.conversationId]"
+      ],
+      [
+        "return unread where .principal = viewer first 100",
+        "return unread where .conversationId = 'c' first 100"
+      ],
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "delete",
+        "table": "access",
+        "id": "grant"
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": false,
+        "unknown": false
+      }
+    ],
+    "mark": null
+  },
+  {
+    "name": "strongest-bound-first",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 4,
+    "joinedAt": 0,
+    "replace": [
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "null-sibling-last",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 4,
+    "joinedAt": null,
+    "replace": [
+      [
+        "joinedAt: int default 0",
+        "joinedAt: int ?"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "sequence-short-range-large-window",
+    "value": 3,
+    "complete": true,
+    "unknown": false,
+    "n": 20000,
+    "mark": 19997,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ],
+      [
+        "last 3 by .ordinal",
+        "last 19999 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 19998,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 2,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "provisional-residual-sequence-refusal",
+    "value": 0,
+    "complete": true,
+    "unknown": false,
+    "mark": 10000,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ],
+      [
+        "last 3 by .ordinal",
+        "last 3 by .at"
+      ],
+      [
+        "and .senderId != m.principal",
+        "and .at > m.joinedAt"
+      ],
+      [
+        "require n < 0",
+        "require n > 0"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "send"
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
+      },
+      {
+        "kind": "server-accept",
+        "advance": 10000
+      }
+    ]
+  },
+  {
+    "name": "provisional-member-sequence-refusal",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "joinedAt: int default 0",
+        "joinedAt: sequence by conversationId"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 5,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 1,
+        "complete": true,
+        "unknown": false
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
+      }
+    ]
+  }
+]

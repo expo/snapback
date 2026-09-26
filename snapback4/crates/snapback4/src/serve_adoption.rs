@@ -11,10 +11,10 @@ fn locked(error: &RuntimeError) -> bool {
 
 fn retryable(error: &RuntimeError) -> bool { locked(error) || matches!(error, RuntimeError::Generation(_)) }
 
-pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
+pub(super) fn open(owner: &crate::store_owner::Owner, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
     let mut reported = None;
     loop {
-        match project.open_engine_at(bound, clock.now()) {
+        match owner.open_engine(bound, Duration::from_secs(5), clock.now()) {
             Ok(engine) => return Ok(engine),
             Err(error) if locked(&error) && !crate::lifecycle::stopping() => {
                 let reason = error.to_string();
@@ -179,7 +179,10 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                     }
                 }
                 let mut engine = lock(&shared.engine);
-                let adopted = adopt_candidate(&shared, &mut engine, &bound, || project.open_engine_at(&bound, shared.now()));
+                let adopted = adopt_candidate(&shared, &mut engine, &bound, || {
+                    shared.owner.as_ref().ok_or_else(|| RuntimeError::Store("temporary server cannot reopen a persisted store".into()))
+                        .and_then(|owner| owner.open_engine(&bound, Duration::from_secs(5), shared.now()))
+                });
                 match adopted {
                     Ok((next, reopened)) => {
                         seen_generation = next;
@@ -201,6 +204,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         let mut generation = lock(&shared.generation);
                         for note in &residency_notes { eprintln!("note: {note}"); }
                         for note in &bound.notes { eprintln!("note: {note}"); }
+                        shared.latency.adopt(&bound);
                         *active = bound;
                         *generation = next;
                         // Claims authenticate their supervisor revision while
