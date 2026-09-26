@@ -61728,3 +61728,52 @@ raw / 568,043 B gzip**, saving **3,482 B** from 571,525. Adding Following work
 separation measures **1,960,083 B raw / 566,391 B gzip**, a further **1,652 B**.
 The combined stage saves **5,134 B gzip**. No meter, runtime ceiling, owned
 source slot, bounded Following, wire or stored format changes.
+
+## 2026-09-26 — device diet qualification: isolate host timing targets
+
+Qualification exposed host contention in the blocking harness: the born-row
+growth test failed in the parallel pool then passed three unchanged isolated
+runs; a later run's freshly compiled abort probe exceeded its 30-second
+pre-main allowance. The first run had passed that probe. Keep `born_perf`
+and `lifecycle` beside the already isolated simulator `witness` target,
+after the ordinary Rust pool drains. Every test, seed, assertion, deadline
+and runtime ceiling remains; the 220-binary / 932-execution inventory is
+unchanged. This is test scheduling only, outside the device artifact.
+The full qualification record, including failed runs and host-startup
+diagnostics, is in `reports/20260925-diet/REPORT.md`.
+
+## 2026-09-25 — device diet: final measurement and lowered ratchet
+
+The unchanged production build at source commit `855c778083` is **1,960,083 B
+raw / 566,391 B gzip / 429,066 B Brotli**. Rust 1.97.0, wasm-bindgen 0.2.127;
+wasm-opt 132 `-Os` was tried by the existing script and rejected as larger
+gzip. Baseline `0badac9872` was **2,009,397 raw / 577,221 gzip**. The
+**10,830 B gzip** reduction is attributed by successive production builds:
+
+| Measured component | Before gzip B | After gzip B | Saved B |
+|---|---:|---:|---:|
+| Borrowed cold stream transaction interface | 577,221 | 576,762 | 459 |
+| Server row-view work and basis paths | 576,762 | 574,735 | 2,027 |
+| Shared point tail and contribution selection | 574,735 | 574,660 | 75 |
+| Borrowed immutable execution descriptors | 574,660 | 573,320 | 1,340 |
+| Server work-schema construction | 573,320 | 571,850 | 1,470 |
+| Shared predicate evaluator | 571,850 | 571,669 | 181 |
+| Server-only diagnostic branches | 571,669 | 571,525 | 144 |
+| Server upload ledger and private-column setup | 571,525 | 568,043 | 3,482 |
+| Following background work and server duplicate lookup | 568,043 | 566,391 | 1,652 |
+| Total | 577,221 | 566,391 | 10,830 |
+
+Lower the ratchet from 578,207 to **567,391 B**, exactly measured + 1,000,
+with this component table in its reason. The before/after top 40,
+dominators, monomorphizations, raw component census, rejected experiments
+and checks are in `reports/20260925-diet/REPORT.md`. Symbol-bearing shallow
+raw sizes are a proxy; gzip contributions come from the builds above.
+
+The below-520,000 target remains unmet by **46,392 B**. Keep the filesystem
+ticket open. The retained shared interpreter, typed codecs and collection
+instantiations need a broader measured redesign to attack that gap; this
+pass found no additional safe change of that scale. Runtime ceilings,
+stored/wire/schema formats, guide contracts, `written by`, `sequence by`,
+row views, bounded Following, event slots, read-through and publication
+procedure remain unchanged. Work is committed on the diet branch only;
+no push or publication.
