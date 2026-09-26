@@ -17,7 +17,7 @@ import { guardClient } from "../dist/app-client.js";
 const binary = process.env.SNAPBACK4_BIN ?? new URL("../../../target/debug/snapback4", import.meta.url).pathname;
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const op = name => ({ kind: "mutation", name });
-const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+const deferred = () => { let resolve, reject; const promise = new Promise((r, j) => { resolve = r; reject = j; }); return { promise, resolve, reject }; };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check, message) {
   for (const end = Date.now() + 15000; Date.now() < end; await sleep(5)) {
@@ -123,6 +123,8 @@ for (const tier of ["online", "app-online", "wasm", "process"]) for (const statu
     await until(() => f.gates.length === 3, "success did not release the next write");
     assert.equal(f.gates[2].id, secondId);
     assert.deepEqual((await client.pendingWrites()).map(w => w.id), [secondId]);
+    assert.equal((await client.pendingWrites())[0].state, "sent");
+    assert.equal(Object.hasOwn((await client.pendingWrites())[0], "reason"), false, "a dispatched online-only write has no queued prediction reason");
     f.gates[2].resolve(Response.json({ state: "failed", why: { code: "E_INPUT", family: "input", message: "invalid" } }));
     await Promise.all([first, second]);
     await until(async () => !(await client.pendingWrites()).length, "settlement did not empty the list");
@@ -132,6 +134,39 @@ for (const tier of ["online", "app-online", "wasm", "process"]) for (const statu
     assert.equal((await client.write(secondId)).state, "failed");
     assert.ok(changed.length >= 4);
     await client.close(); assert.deepEqual(await client.pendingWrites(), []);
+  });
+}
+
+for (const tier of ["online", "app-online", "wasm", "process"]) {
+  test(`${tier}: custody waits and dropped connections preserve sent until settlement`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier), { client } = await f.open();
+    const firstId = mintId(), secondId = mintId(), events = [];
+    client.onWrite(write => events.push(write));
+    const admitted = await client.mutate(op("remote"), { n: 1 }, { id: firstId, waitSeconds: 0 });
+    assert.equal(admitted.state, "pending");
+    assert.equal((await client.pendingWrites())[0].id, firstId, "custody return has a listed owner");
+    await until(() => f.gates.length === 1, "first dispatch");
+    const second = await client.mutate(op("remote"), { n: 2 }, { id: secondId, waitSeconds: 0.01 });
+    assert.equal(second.state, "pending");
+    assert.deepEqual((await client.pendingWrites()).map(w => [w.id, w.state]), [[firstId, "sent"], [secondId, "queued"]]);
+    f.gates[0].reject(new TypeError("connection dropped before any HTTP reply"));
+    await until(() => client.link() === "offline", "transport failure was not consumed");
+    assert.deepEqual((await client.pendingWrites()).map(w => [w.id, w.state, w.reason]), [
+      [firstId, "sent", undefined], [secondId, "queued", tier === "wasm" || tier === "process" ? "queued without a row: local data does not justify prediction" : undefined],
+    ]);
+    assert.deepEqual(events, [], "a dropped connection never settles custody");
+    await until(() => f.gates.length === 2, "same-id retry");
+    assert.equal(f.gates[1].id, firstId);
+    f.gates[1].resolve(Response.json({ denied: { code: "E_BUSY", family: "store", message: "hold", retryable: true } }, { status: 409 }));
+    await until(async () => (await client.pendingWrites())[0]?.state === "held", "hold after retry");
+    assert.equal((await client.write(firstId)).state, "pending");
+    assert.deepEqual((await client.pendingWrites()).map(w => w.state), ["held", "queued"]);
+    await until(() => f.gates.length === 3, "held retry");
+    f.pass(); f.gates[2].resolve(Response.json({ state: "sent", seq: 0, result: null }));
+    await until(() => events.length === 2, "custody did not report settlement");
+    assert.deepEqual(await client.pendingWrites(), []);
+    assert.equal((await client.write(firstId)).state, "sent");
+    assert.equal((await client.write(secondId)).state, "sent");
   });
 }
 

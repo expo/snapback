@@ -25,11 +25,14 @@ export async function localPendingWrites(queued: () => Promise<Queued[]>, histor
   if (unavailable()) return [];
   const terminal = await history.settledIds();
   if (unavailable()) return [];
-  return entries.filter(entry => successSequence(entry) == null && !terminal.has(entry.id)).map(entry => ({
-    id: entry.id, op: entry.op, args: entry.args,
-    state: entry.dispatch ? "held" : entry.dispatch != null || entry.sent_seq != null || entry.observed_seq != null ? "sent" : "queued",
-    ...(entry.dispatch ? { reason: entry.dispatch } : !entry.predictable && !entry.predicted.length
-      ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}),
-    predicted: entry.predicted,
-  }));
+  return entries.filter(entry => successSequence(entry) == null && !terminal.has(entry.id)).map(entry => {
+    const state = entry.dispatch ? "held" : entry.dispatch != null || entry.sent_seq != null || entry.observed_seq != null ? "sent" : "queued";
+    return {
+      id: entry.id, op: entry.op, args: entry.args,
+      state,
+      ...(entry.dispatch ? { reason: entry.dispatch } : state === "queued" && !entry.predictable && !entry.predicted.length
+        ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}),
+      predicted: entry.predicted,
+    };
+  });
 }

@@ -280,6 +280,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function refuseRestore(denied?: Refusal) {
     if (denied?.code !== "E_STORE_RESTORE") return;
     partitionDenied = denied;
+    pending.notify();
     observeIncarnation(storeIdentity, true);
     for (const watch of watches.values()) { watch.publish({ denied }); notify(watch); }
   }
@@ -533,6 +534,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!denied.retryable) {
       if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
       partitionDenied = denied;
+      if (denied.code === "E_STORE_RESTORE") pending.notify();
       for (const watch of watches.values()) void rerun(watch);
     }
   }
@@ -1262,7 +1264,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       });
     }),
     write(id) { return lookupWrite(history, queued, id, unavailable, () => acquired); },
-    pendingWrites: () => localPendingWrites(queued, history, unavailable, () => acquired),
+    pendingWrites: () => localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired),
     onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },

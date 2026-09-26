@@ -93,7 +93,8 @@ Predicted rows carry pending; a pending Write has no predicted result.
 `predicted` names its rows as `table/id`; a write without a prediction still
 appears. `state` is `queued` before dispatch, `sent` after dispatch starts with
 an unknown outcome, or `held` after a retryable refusal, with its code in
-`reason`. A dispatch interrupted before delivery can still be `sent`.
+`reason`. Only a `queued` write can carry a prediction sentence; `sent` has no
+reason. A dispatch interrupted before delivery can still be `sent`.
 This list's `sent` is not the terminal `Write.sent` receipt. A settled write
 leaves the list and still reaches `onWrite`. `onPendingWrites(notify)` asks
 you to read the list again when it changes; unsubscribe when finished.

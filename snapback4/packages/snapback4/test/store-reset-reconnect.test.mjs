@@ -20,6 +20,8 @@ table notes:
   public 'reconnect fixture'
   insert <- allow
   sync
+mutation pendingAdd(body: text <=100):
+  return insert notes { body }
 query all():
   return notes first 100 by byId
 `;
@@ -37,7 +39,7 @@ const current = read => read.fresh && read.complete && read.data?.length === 3 &
 async function fixture(t, kind = "wasm", waitSeconds = 25, watch = false) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-reconnect-"));
   mkdirSync(join(dir, "snapback")); writeFileSync(join(dir, "snapback/schema.q"), source);
-  let child, exit, url, core, blocked = false, holdAfter, nextAfter, lowerNotice = false;
+  let child, exit, url, core, blocked = false, holdAfter, nextAfter, lowerNotice = false, holdWrites = false;
   const clients = [], pages = [], polls = [], notices = [], persist = memoryPersistence();
   async function stop() {
     if (child && child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
@@ -62,6 +64,7 @@ async function fixture(t, kind = "wasm", waitSeconds = 25, watch = false) {
       fetch: async (input, init) => {
         if (blocked) throw new TypeError("transport disconnected");
         const parsed = new URL(input);
+        if (holdWrites && parsed.pathname.startsWith("/m/")) return new Promise(() => {});
         if (parsed.pathname === "/changes") {
           polls.push(parsed);
           if (!watch && !lowerNotice) return fetch(input, init);
@@ -83,7 +86,7 @@ async function fixture(t, kind = "wasm", waitSeconds = 25, watch = false) {
   }
   t.after(async () => { holdAfter?.resolve(); for (const client of clients) await client.close(); await stop(); rmSync(dir, { recursive: true, force: true }); });
   await start(false);
-  return { dir, start, stop, seed, open, post, pages, polls, notices, lowerNotice() { lowerNotice = true; }, get url() { return url; }, get core() { return core; },
+  return { dir, start, stop, seed, open, post, pages, polls, notices, lowerNotice() { lowerNotice = true; }, holdWrites() { holdWrites = true; }, get url() { return url; }, get core() { return core; },
     block(value) { blocked = value; }, holdPage() { holdAfter = gate(); nextAfter = gate(); return { release: holdAfter.resolve, entered: nextAfter.promise }; },
   };
 }
@@ -223,12 +226,22 @@ for (const kind of ["wasm", "process"]) test(`R4: ${kind} a same-identity head b
   // reply to a request made after acquiring N never reports less than N
   // (the maintain-adoption regression above covers the healthy case).
   const f = await fixture(t, kind, 1); await f.seed("A", 3);
-  const client = await f.open(); f.lowerNotice();
+  const client = await f.open(); f.holdWrites();
+  const write = await client.mutate({ kind: "mutation", name: "pendingAdd" }, { body: "kept for reconciliation" }, { waitSeconds: 0 });
+  await until(async () => (await client.pendingWrites())[0]?.state === "sent", "dispatch status missing");
+  const retained = (await f.core.call({ op: "queued" })).ok;
+  let invalidated = false;
+  client.onPendingWrites(() => { invalidated = true; });
+  f.lowerNotice();
   await until(() => f.notices.some(n => n.seq === 0), "the lower notice was not delivered");
   await until(async () => (await f.core.call({ op: "sync_state" })).ok.restore_refusal?.code === "E_STORE_RESTORE", "the lower head did not persist a restore halt");
   const read = await client.query(op, {});
   assert.equal(read.denied?.code, "E_STORE_RESTORE", JSON.stringify(read));
-  t.diagnostic(`${kind}: lower head=0 below acquisition → E_STORE_RESTORE`);
+  assert.deepEqual(await client.pendingWrites(), [], "halted custody exposes no pending arguments");
+  assert.equal(invalidated, true, "restore halt invalidates the mounted list");
+  assert.deepEqual((await f.core.call({ op: "queued" })).ok, retained, "stored outbox stays untouched for reconciliation");
+  assert.equal(retained[0].id, write.id);
+  t.diagnostic(`${kind}: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved`);
 });
 test("R3 finding 5: concurrent commits and an older receipt retry keep the actual head", { timeout: 30000 }, async t => {
   const f = await fixture(t, "server", 0, true);

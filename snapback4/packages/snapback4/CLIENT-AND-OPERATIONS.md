@@ -943,8 +943,10 @@ order, even when they have no predicted row. Each entry is
 `args` is the submitted JSON, and `predicted` lists `table/id` names.
 `queued` means dispatch has not begun; `sent` means dispatch began but the
 outcome is unknown, including an interrupted send; `held` means a retryable
-refusal holds the queue, with its code in `reason`. This `sent` is not a receipt.
-Settlement removes the entry and still emits `onWrite`. Subscribe with
+refusal holds the queue, with its code in `reason`. Only `queued` can carry a
+prediction sentence in `reason`; `sent` has no reason and is not a receipt.
+A bounded custody wait returning `pending` keeps the entry in its current outbox
+state. Settlement removes the entry and still emits `onWrite`. Subscribe with
 `client.onPendingWrites(notify)` and read again on notification; call the
 returned function to unsubscribe. Local and `createApp` custody survives
 reload; the raw `createClient` queue is in memory only. Closed and signed-out
