@@ -1028,14 +1028,27 @@ pub fn token(options: &Options) -> i32 {
 pub fn device(options: &Options) -> i32 {
     let Some(path) = options.positionals.first() else {
         eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
+        println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "usage: snapback4 device <store.sqlite> [backend.json]" } }));
         return 2;
     };
     let backend = match options.positionals.get(1) {
-        Some(file) => match std::fs::read_to_string(file).map_err(|e| e.to_string()).and_then(|text| snapback4_device::opening::Opening::parse(Some(&text)).map_err(|e| e.to_string())) {
-            Ok(backend) => backend,
-            Err(error) => {
-                eprintln!("device: {file}: {error}");
-                return 2;
+        Some(file) => {
+            let text = match std::fs::read_to_string(file) {
+                Ok(text) => text,
+                Err(error) => {
+                    let message = format!("device: {file}: {error}");
+                    eprintln!("{message}");
+                    println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": message } }));
+                    return 2;
+                }
+            };
+            match snapback4_device::opening::Opening::parse(Some(&text)) {
+                Ok(backend) => backend,
+                Err(error) => {
+                    eprintln!("device: {file}: {error}");
+                    println!("{}", json!({ "denied": error.refusal() }));
+                    return 2;
+                }
             }
         },
         None => snapback4_device::opening::Opening::Kept,
@@ -1044,7 +1057,13 @@ pub fn device(options: &Options) -> i32 {
     // excluding backend hosts and offline commands before any store writes.
     let owner = match crate::store_owner::device(Path::new(path)) {
         Ok(owner) => owner,
-        Err(error) => { eprintln!("{error}"); return 2; }
+        Err(error) => {
+            // @ref LLP 3000.019#3.4 — process hosts must receive ownership refusals before readiness.
+            let code = if error.starts_with("E_STORE_BUSY ") { "E_STORE_BUSY" } else { "E_STORE" };
+            eprintln!("{error}");
+            println!("{}", json!({ "denied": { "code": code, "family": "store", "message": error } }));
+            return 2;
+        }
     };
     let opened = owner.path().and_then(|path| snapback4_device::native::Device::open_with(path, backend));
     let mut device = match opened {
