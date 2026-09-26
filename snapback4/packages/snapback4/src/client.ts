@@ -395,7 +395,7 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; presence?: Record<string, boolean> }> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; presence?: Record<string, boolean> | undefined }> {
     const epoch = queryEpoch;
     if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
