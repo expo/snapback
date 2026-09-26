@@ -150,7 +150,10 @@ fn live_view_page_and_point_certificates_cover_real_receipts() {
         });
         let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         let mut rows = Vec::new();
-        for n in 0..100 {
+        // One row past the page, so the receipt includes the page's lookahead
+        // and a certificate priced at `take` rather than `take + 1` fails.
+        let seeded = if member_grant { 100 } else { 101 };
+        for n in 0..seeded {
             let c = if member_grant { "c0".into() } else { format!("c{n}") };
             if !member_grant || n == 0 { rows.push(("conversations", json!({"id":c,"title":"chat"}))); }
             let principal = if member_grant { format!("principal{n}") } else { "bob".into() };
@@ -166,15 +169,17 @@ fn live_view_page_and_point_certificates_cover_real_receipts() {
                 else if member_grant { BTreeMap::from([("conversationId".into(), Value::Id("c0".into()))]) }
                 else { BTreeMap::new() };
             let q = engine.query(name, Context::new("bob", args).at(1)).unwrap();
-            assert!(q.complete, "{variant} {name}: {q:?}");
+            // A cursorless page over more rows than it returns is incomplete (N_NO_CURSOR).
+            assert_eq!(q.complete, i == 1 || seeded == 100, "{variant} {name}");
             let count = Value::Int(if member_grant { 100 } else { 1 });
             if i == 0 {
                 let Value::Array(page) = &q.data else { panic!("{variant}: {q:?}") };
                 assert_eq!(page.len(), 100);
                 for row in page { assert_eq!(row.field("value").unwrap(), &count); }
             } else { assert_eq!(q.data, count); }
-            assert_eq!(q.metered.examined, (if i == 0 { 100 } else { 1 }) * if live { 3 } else { 2 }, "{variant} {name}");
-            assert_eq!(q.metered.rule_probes, (if i == 0 { 100 } else { 1 }) + u64::from(member_grant), "{variant} {name}");
+            let visited = if i == 0 { seeded } else { 1 };
+            assert_eq!(q.metered.examined, visited * if live { 3 } else { 2 }, "{variant} {name}");
+            assert_eq!(q.metered.rule_probes, visited + u64::from(member_grant), "{variant} {name}");
             assert!(certs[i].bounds.rows_examined >= q.metered.examined, "{variant} {name}: {q:?} exceeds {:?}", certs[i]);
             assert!(certs[i].bounds.probes >= q.metered.rule_probes, "{variant} {name}: {q:?} exceeds {:?}", certs[i]);
             eprintln!("{variant} {name}: certificate {} examined / {} probes, receipt {} / {}", certs[i].bounds.rows_examined, certs[i].bounds.probes, q.metered.examined, q.metered.rule_probes);
