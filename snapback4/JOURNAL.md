@@ -61622,3 +61622,50 @@ prevention, including every earlier failed case. The assertion was removed
 after qualification. `./ref-check --verbose` and `git diff --check` pass.
 The external `fix-forward-1.final.md` report retains the before/after regression
 logs, both failed suite attempts, the successful suite and the wasm measurement.
+
+
+## 2026-09-26 — 0.4.4 lane P1: multi-column sync windows and query order advice
+
+On `sb4-intent/p1-sync-windows` from `0badac987`, implemented the supplied
+LLP 3000.019 §3.1 column-list window spelling. `sync last 10000 by .at,
+.ordinal` lowers to the existing audience-prefixed ordinary index with one
+explicit id tiebreaker. Duplicate and audience columns refuse with located
+E_QUARRY_SYNTAX repairs. N_SYNC_ORDER names incompatible device page and
+window orders, including ascending scans and distinct physical indexes;
+check text/JSON and why expose it. Held-query advice preserves its local-only
+meaning. The sync/language cards compile the spelling; writes distinguishes
+existing-column order from sequence-by server-arrival order. The varied-order
+from-SQL worked example is explicitly online, with its census updated.
+
+Measured wasm: **2,009,169 B raw / 577,903 B gzip**, against the unchanged
+**578,207 B** budget (304 B headroom), Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. Core/device runtime, wire forms, authorization, disclosure,
+durability and meters are unchanged. No independently rebuilt baseline delta
+is claimed. New memory and SQLite witnesses acquire the full ordered floor,
+reopen offline, reject other-order/ascending coverage, preserve private
+conversation scope and apply streamed keys at the same boundary. The boundary
+fixture uses three rows; the 10,000-row declaration is compiler-tested, not a
+new scale claim. All 84 guide tests and the affected compiler, device and CLI
+targets pass, including 15 new language regressions.
+
+The required complete script ran once with four Rust test processes and
+serial client files: **`== 1 failure(s) in 3026 s`**, exit 1 (`cargo test`).
+Its 17 Rust assertion failures are ours:
+the from-SQL census (one), ascending shape-page notes (one), legacy digest
+page notes (11), and retained-source timeline notes (four). They were fixed
+without removing runtime assertions; all 81 readauth, five shape, 12 digest
+and nine timeline-adoption tests pass on rerun. The final advisory refinements
+were made after the full run compiled its Rust binaries; the affected language
+and CLI targets were rerun successfully on the final source. Client tests
+passed 1,997 with zero failures and 10 pre-existing platform/opt-in skips;
+all 78 seeded model checks passed. No baseline or environmental failures
+were observed.
+
+Stopped two design portions for the supervisor: `online only` is not a query
+modifier (the proposed header refuses E_QUARRY_SYNTAX), and changing page
+order cannot establish word-search or whole-domain aggregate coverage. The
+note therefore offers supported order/index repairs and excludes nonplain
+indexes and whole-domain aggregate metadata, including capped literal domains.
+No new query execution modifier, runtime coverage rule, budget increase,
+package publication or push. Report, exact failures, reproductions and
+qualification commands: `reports/20260926-p1-sync-windows.md`.
