@@ -292,7 +292,7 @@ fn validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not() {
 fn physical_key_edits_invalidate_a_matching_proof() {
     let source = "table notes:\n  public\n  online only\n";
     for update in [false, true] {
-        for legacy in [false, true] {
+        for missing in ["neither", "both", "operation"] {
             let b = compile(source);
             let mut e = Engine::new_at(Store::memory().unwrap(), b.schema, b.programs, 1).unwrap();
             e.seed_at([("notes".into(), object([("id", Value::Id("row".into()))]))], 2).unwrap();
@@ -300,20 +300,27 @@ fn physical_key_edits_invalidate_a_matching_proof() {
             let seq = e.seq().unwrap();
             let proof = e.store().meta("index_keys_validated").unwrap();
             assert!(proof.is_some());
-            if legacy {
+            let legacy = missing != "neither";
+            if missing == "both" {
                 // Simulate a store blessed by the unguarded predecessor binary.
                 e.store().conn().execute_batch("DROP TRIGGER _index_keys_insert_2048; DROP TRIGGER _index_keys_update_2048;").unwrap();
+            } else if missing == "operation" {
+                // Exactly the guard for the corrupting operation is absent.
+                e.store().conn().execute_batch(if update { "DROP TRIGGER _index_keys_update_2048" }
+                    else { "DROP TRIGGER _index_keys_insert_2048" }).unwrap();
             }
             // Leave the matching proof alone: only the physical key changes.
             let sql = if update { "UPDATE i SET k = ?1 WHERE id = 'row'" }
                 else { "INSERT INTO i SELECT num, ?1, 'corrupt' FROM _catalog WHERE name = 'notes.byId'" };
             assert_eq!(e.store().conn().execute(sql, [vec![b'x'; 3000]]).unwrap(), 1);
             assert_eq!(e.store().meta("index_keys_validated").unwrap(), if legacy { proof.clone() } else { None });
+            let guards = rows(&e, "sqlite_master");
             let before: Vec<_> = ["r", "i", "_log", "_commits", "_generations"].map(|t| rows(&e, t)).into();
             let next = compile(&format!("{source}query one():\n  return 1\n"));
             assert_eq!(e.adopt_at(next.schema, next.programs, 3).unwrap_err().code(), "E_INDEX_KEY_BYTES");
             assert_eq!(e.generation(), generation);
             assert_eq!(e.seq().unwrap(), seq);
+            assert_eq!(rows(&e, "sqlite_master"), guards, "guard installation rolls back");
             for (table, previous) in ["r", "i", "_log", "_commits", "_generations"].into_iter().zip(before) {
                 assert_eq!(rows(&e, table), previous, "{table} rollback");
             }
