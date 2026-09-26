@@ -4,7 +4,7 @@ import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { inheritClose } from "./closing-responses.ts";
 import { mintId } from "./client.ts";
-import { MutationIds, WriteHistory } from "./writes.ts";
+import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
@@ -126,7 +126,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // Discovery can fence this runtime and retire its queue. Do not add
         // a later admission behind that completed retirement transaction.
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
-        const refusal = await change(journal => {
+        let refusal: Write | undefined;
+        try { refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
             // MutationIds below checks normalized input without replacing its owner.
@@ -139,11 +140,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           if (identity) observeJournalStore(journal, identity);
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false });
           return undefined;
-        });
+        }); } catch (error) {
+          return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
+        }
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
-        const result = await raw.mutate(op, snapshot as A, { id });
+        const dispatch = async (): Promise<Write<R>> => {
+        const result = await raw.mutate(op, snapshot as A, { ...options, id });
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (terminal(result)) {
           try { await settle(result); }
@@ -152,6 +156,13 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           catch (error) { retain(result, error); }
         }
         return terminal(result) ? result : { state: "pending", id };
+        };
+        if (mutationWaitSeconds(options?.waitSeconds) === 0) {
+          // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — the committed journal owns recovery after this return.
+          void dispatch().catch(error => { try { report(error); } catch { /* Reporting must not reject a detached continuation. */ } });
+          return { state: "pending", id };
+        }
+        return dispatch();
       });
     }),
     async write(id) {

@@ -399,6 +399,22 @@ const cases = {
     equal(latest.data, { value: 3 }, "new observation remains live");
     await unmount(); allClosed(client);
   },
+  async "useMutation passes admission options and saved identity; custody clears inFlight"() {
+    const client = controlled(); let latest, running;
+    function Probe() { latest = useMutation(mutation); return null; }
+    await mount(h(Probe), client);
+    await act(async () => { running = latest.run({ n: 1 }, { waitSeconds: 0 }); });
+    check(latest.inFlight, "admission is in flight");
+    equal(client.writes[0].options, { waitSeconds: 0 }, "option forwarded");
+    await act(async () => { client.writes[0].resolve({ state: "pending", id: "admitted" }); await running; });
+    check(!latest.inFlight && latest.last.state === "pending", "custody releases composer");
+    await act(async () => { client.emitWrite(sent("admitted")); });
+    equal(latest.last.state, "sent", "onWrite settles last");
+    await act(async () => { running = latest.run({ n: 2 }, { id: "saved-id" }); });
+    equal(client.writes[1].options, { id: "saved-id" }, "saved ID forwarded");
+    await act(async () => { client.writes[1].resolve(sent("saved-id")); await running; });
+    await unmount();
+  },
   async "useMutation survives replay, rejection, concurrent writes and an obsolete lifetime"() {
     const client = controlled(); let latest;
     function Probe() { latest = useMutation(mutation); return null; }
