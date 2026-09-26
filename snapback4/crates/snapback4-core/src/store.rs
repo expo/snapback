@@ -51,6 +51,7 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
     page_size: u64,
     catalog: &'a BTreeMap<String, i64>,
@@ -244,7 +245,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -253,7 +254,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -263,7 +264,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.

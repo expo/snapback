@@ -116,7 +116,7 @@ impl Store {
             sql.rollback()?;
             return Ok(None);
         }
-        let tx = Tx { tx: sql, page_size: self.page_size, catalog: &self.catalog };
+        let tx = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &self.catalog };
         let resolved = crate::authority::live_session(&tx, digest, now)?.map(|session| (session.principal, session.kind));
         tx.rollback()?;
         Ok(resolved)

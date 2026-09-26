@@ -61900,3 +61900,13 @@ isolation reruns were needed: there were no timing failures. The final report
 is EPH-REPORT-E3.md at the worktree root and remains uncommitted. E3's requested
 work is complete; no push, stash, merge, rebase, publication or other-worktree
 edit was performed. Lead review/publication/calibration phases remain separate.
+
+### 2026-09-26 — LLP 3000.017 fix round 1: sequence probe cache
+
+The E3 lazy `_sequences` repair stays intact. Each SQLite Tx now caches its
+existence probe in a Cell; successful first creation sets the cell true.
+Rollback drops that cell with the transaction, so the next transaction probes
+again. Repeated sequence reads and allocations no longer repeat sqlite_master
+or CREATE TABLE checks. All 16 sequence_by tests pass, including absent reads,
+first-creation rollback, successful allocation and activation before allocation.
+This is a separate checkpoint for Opus F4; it changes no wire/schema bytes.
