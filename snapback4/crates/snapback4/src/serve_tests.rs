@@ -1503,3 +1503,31 @@ fn follow_parses_principal_bits_and_stops_at_the_limit() {
     assert_eq!(followed(Some(&many)).len(), FOLLOW_LIMIT);
     assert!(followed(None).is_empty());
 }
+
+/// LLP 3000.017 §3.5: a poll follows only presence its viewer's own queries
+/// read. Naming a principal in `follow` alone discloses nothing.
+#[test]
+fn follow_is_honored_only_for_presence_the_viewer_read() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    let head = lock(&host.shared.engine).seq().unwrap();
+    // Bob polls once: connected through his grace.
+    let (_, bob) = held_poll(host.address, "bob", &format!("since={head}&wait=0")).join().unwrap();
+    assert_eq!(status(&bob), 200);
+    // Alice never read Bob's presence: a differing bit answers nothing.
+    let started = Instant::now();
+    let probe = body(&host.request("GET", &format!("/changes?since={head}&wait=1&follow=dev%3Abob:0"), alice, ""));
+    assert!(started.elapsed() >= Duration::from_millis(900), "an ungranted follow must not answer early");
+    assert!(probe.get("presence").is_none(), "{probe}");
+    assert!(!host.shared.presence.followed("dev:bob"), "an ungranted follow is not counted");
+    // Once her query reads it, the same follow answers at once.
+    let read = body(&host.request("POST", "/q/online", alice, r#"{"args":{"p":"dev:bob"}}"#));
+    assert_eq!(read["presence"], json!({ "dev:bob": true }));
+    let started = Instant::now();
+    let granted = body(&host.request("GET", &format!("/changes?since={head}&wait=25&follow=dev%3Abob:0"), alice, ""));
+    assert!(started.elapsed() < Duration::from_secs(1));
+    assert_eq!(granted["presence"], json!({ "dev:bob": true }));
+    // Bob's read of his own presence grants Bob, not Alice's other principals.
+    assert!(host.shared.presence.granted("dev:alice", "dev:bob"));
+    assert!(!host.shared.presence.granted("dev:bob", "dev:bob"));
+}

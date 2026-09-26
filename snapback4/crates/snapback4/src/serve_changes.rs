@@ -45,7 +45,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
     };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
-    let follow = followed(params.get("follow"));
+    let mut follow = followed(params.get("follow"));
+    // @ref LLP 3000.017#3.5 — a poll follows only presence its viewer's queries read.
+    follow.retain(|(principal, _)| shared.presence.granted(&connected, principal));
     let mut response = PollResponse { request: Some(request), started: false, shared };
     {
         let mut engine = lock(&shared.engine);

@@ -18,7 +18,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
-import { PresenceFollow, sameFollow } from "./presence-follow.ts";
+import { PresenceFollow, presenceRenewal, sameFollow } from "./presence-follow.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -500,8 +500,10 @@ export function createClient(options: ClientOptions): Client {
   // @ref LLP 3000.017#3.2 — live watches follow the presence they read.
   const presenceBits = new PresenceFollow();
   let sentFollow: ReadonlyMap<string, boolean> = new Map();
+  const renewal = presenceRenewal(() => watches.values(), (watch) => void refresh(watch as Watch));
   function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
     watch.presence = new Set(Object.keys(presence ?? {}));
+    renewal.update();
     rerunPresence(presenceBits.observe(presence), watch);
     // A held poll sent before this answer does not follow its principals yet.
     if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
@@ -801,6 +803,7 @@ export function createClient(options: ClientOptions): Client {
       if (closing) return closing;
       closed = true;
       stopClock();
+      renewal.stop();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();

@@ -2,6 +2,9 @@
 
 /** At most this many principals ride on one held poll; the server takes as many. */
 export const FOLLOW_LIMIT = 64;
+/** A query read lets its viewer follow a principal for 10 minutes; watches that
+ * read presence re-run at half that, so an honest client never lapses (§3.5). */
+export const PRESENCE_RENEW_MS = 300_000;
 
 /** The newest connected bit this client has seen for each principal. */
 export class PresenceFollow {
@@ -36,4 +39,20 @@ export class PresenceFollow {
 /** Whether two follow lists carry the same principals and bits. */
 export function sameFollow(a: ReadonlyMap<string, boolean>, b: ReadonlyMap<string, boolean>): boolean {
   return a.size === b.size && [...a].every(([principal, bit]) => b.get(principal) === bit);
+}
+
+/** Re-runs watches that read presence on a timer while any exist, renewing the
+ * server's grants; returns a stop function for close. */
+export function presenceRenewal(watches: () => Iterable<{ readonly presence: ReadonlySet<string> }>, rerun: (watch: { readonly presence: ReadonlySet<string> }) => void) {
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const any = () => { for (const watch of watches()) if (watch.presence.size) return true; return false; };
+  return {
+    update() {
+      if (any() && !timer) {
+        timer = setInterval(() => { for (const watch of watches()) if (watch.presence.size) rerun(watch); }, PRESENCE_RENEW_MS);
+        (timer as { unref?: () => void }).unref?.();
+      } else if (!any() && timer) { clearInterval(timer); timer = undefined; }
+    },
+    stop() { if (timer) clearInterval(timer); timer = undefined; },
+  };
 }

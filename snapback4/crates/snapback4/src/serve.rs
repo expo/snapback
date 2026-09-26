@@ -177,7 +177,15 @@ pub struct Live {
     clock: Arc<Mutex<crate::dev_clock::Clock>>,
     /// How many held polls follow each principal (LLP 3000.017 §3.2).
     followers: Mutex<BTreeMap<String, u32>>,
+    /// (viewer, principal) → until when that viewer's poll may follow the
+    /// principal: renewed by each of the viewer's query reads (§3.5).
+    grants: Mutex<BTreeMap<(String, String), i64>>,
 }
+
+/// How long one query read lets its viewer follow a principal (LLP 3000.017 §3.5).
+pub(crate) const FOLLOW_GRANT: Duration = Duration::from_secs(600);
+/// At most this many live grants; beyond it a read grants nothing new.
+const GRANT_LIMIT: usize = 100_000;
 
 /// A held poll's followed principals, counted while it waits.
 pub(crate) struct Following<'a> {
@@ -199,7 +207,7 @@ impl Drop for Following<'_> {
 
 impl Live {
     // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
-    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()) } }
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), grants: Mutex::new(BTreeMap::new()) } }
 
     /// Counts a poll's followed principals until the guard drops.
     pub(crate) fn following(&self, follow: &[(String, bool)]) -> Following<'_> {
@@ -214,6 +222,28 @@ impl Live {
 
     /// Whether any held poll follows anyone.
     pub(crate) fn any_followed(&self) -> bool { !lock(&self.followers).is_empty() }
+
+    /// A query the viewer ran read these principals' presence; its polls may
+    /// follow them until the grant lapses. A poll never grants itself.
+    pub(crate) fn grant<'a>(&self, viewer: &str, principals: impl IntoIterator<Item = &'a String>) {
+        let now = lock(&self.clock).presence_now();
+        let until = now.saturating_add(FOLLOW_GRANT.as_millis() as i64);
+        let mut grants = lock(&self.grants);
+        for principal in principals {
+            let key = (viewer.to_owned(), principal.clone());
+            if grants.len() >= GRANT_LIMIT && !grants.contains_key(&key) {
+                grants.retain(|_, at| *at > now);
+                if grants.len() >= GRANT_LIMIT { continue; }
+            }
+            grants.insert(key, until);
+        }
+    }
+
+    /// Whether this viewer's queries read the principal's presence recently.
+    pub(crate) fn granted(&self, viewer: &str, principal: &str) -> bool {
+        let now = lock(&self.clock).presence_now();
+        lock(&self.grants).get(&(viewer.to_owned(), principal.to_owned())).is_some_and(|at| *at > now)
+    }
 
     /// Whether this poll brought the principal online: nothing was open and
     /// no grace was running. A client re-polling within its grace never does.
@@ -1071,6 +1101,8 @@ fn handle(mut request: Request, shared: &Shared) {
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
+                        // @ref LLP 3000.017#3.5 — only presence this viewer's own query read may be followed.
+                        shared.presence.grant(&viewer, outcome.presence.keys());
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             complete: bool,
