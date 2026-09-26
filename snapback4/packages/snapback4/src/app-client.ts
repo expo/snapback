@@ -5,6 +5,7 @@ import type { ObserveOptions, Client, Observed, Query, Read, Refusal } from "./c
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 import { peekObservation, registerObservationPeek } from "./observe-watch.ts";
+import { answerIdentity } from "./read-observation.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
@@ -12,7 +13,7 @@ import { peekObservation, registerObservationPeek } from "./observe-watch.ts";
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
   let active = true;
   const valid = () => active && validScope();
-  const approved = new WeakSet<Read<unknown>>();
+  const approved = new WeakSet<object>();
   const cleanups = new Set<() => void>(), invalidations = new Set<() => void>();
   const notify = (listener: () => void) => { try { listener(); } catch (error) { console.error("snapback4 client listener:", error); } };
   const refusal = async (): Promise<Refusal | undefined> => {
@@ -70,10 +71,16 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           emit();
           return;
         }
+        if (!closed && read && "data" in snapshot) {
+          // The source now owns the replacement's deadline. Retire the superseded
+          // answer before storage can wait past its deadline; staleness keeps identity.
+          snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read : loading) : denied();
+          emit();
+        }
         const refused = await refusal();
         if (closed) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
-        if ("data" in snapshot) approved.add(snapshot);
+        if ("data" in snapshot) approved.add(answerIdentity(snapshot));
         emit();
       };
       void refusal().then(refused => {
@@ -150,12 +157,12 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     },
   };
   guardAcquisition(client, raw, valid);
-  // Reuse only the exact live snapshot this facade already authorized. A new
-  // answer still waits for the asynchronous authority check; no answer is stored here.
+  // Reuse the live answer this facade authorized, including freshness-only copies.
+  // A new answer still waits for authority; the weak identity retains no answer.
   registerObservationPeek(client, (op, args, options) => {
     if (!valid()) return undefined;
     const read = peekObservation(raw, op, args, options);
-    return read && (!("data" in read) || approved.has(read)) ? read : undefined;
+    return read && (!("data" in read) || approved.has(answerIdentity(read))) ? read : undefined;
   });
   // LocalClient's existing runtime helper also crosses the data boundary.
   const local = raw as Client & { sync?: () => Promise<void> };

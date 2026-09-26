@@ -1187,6 +1187,64 @@ for (const hook of ["useQuery", "usePage"]) for (const guarded of [false, true])
   };
 }
 
+for (const hook of ["useQuery", "usePage"]) {
+  cases[hook + " createApp remount first commits the lingering answer during a held re-read"] = async () => {
+    const url = "http://lingering-reread-" + hook + ".test", memory = memorySessionStore();
+    await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 7 * 86400000 }, memory);
+    let latest, queries = 0, commits = [], changed = false, holding = false;
+    const change = deferred(), replacement = deferred();
+    const app = createApp({ url, sessionStore: memory, fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/schema") return Response.json({ schema: { tables: {} }, programs: [] });
+      if (path === "/probe") return Response.json({ ok: true, principal: "alice" });
+      if (path === "/changes") {
+        if (!changed) { changed = true; return change.promise; }
+        return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      }
+      if (path === "/q/read") {
+        queries++;
+        if (holding) await replacement.promise;
+        return Response.json({ data: [holding ? "replacement" : "secret"], complete: true, tables: ["notes"], seq: holding ? 1 : 0 });
+      }
+      throw Error(path);
+    } });
+    const settle = async condition => {
+      for (let n = 0; n < 200; n++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+        if (condition()) return;
+      }
+      throw Error("lingering re-read did not settle: " + JSON.stringify({ latest, queries }));
+    };
+    function Probe() {
+      latest = hook === "useQuery" ? useQuery(query, {}, { keep: true }) : usePage(query, {}, { keep: true }).read;
+      useLayoutEffect(() => { commits.push({ read: latest, html: host.innerHTML }); });
+      return latest.loading ? h("span", null, "Loading") : h("input", { defaultValue: latest.data?.[0] });
+    }
+    try {
+      check((await app.ready).ok, "createApp restored authority");
+      await mount(h(Probe), app.client);
+      await settle(() => latest.data?.[0] === "secret" && latest.fresh);
+      await unmount();
+      holding = true;
+      change.resolve(Response.json({ tables: ["notes"], seq: 1 }));
+      await settle(() => queries >= 2);
+      const before = queries;
+      commits = [];
+      await mount(h(Probe), app.client);
+      equal(commits[0]?.read.data, ["secret"], "first commit keeps the previously authorized answer");
+      check(commits[0].read.fresh === false && Number.isFinite(commits[0].read.since), "first commit carries the new stale metadata");
+      check(commits[0].html.includes('value="secret"') && !commits[0].html.includes("Loading"), "the editor is in the first committed DOM");
+      check(commits.every(commit => !commit.read.loading), "StrictMode subscription replay never flashes loading");
+      equal(queries, before, "joining the running watch adds no duplicate read");
+      replacement.resolve();
+      await settle(() => latest.data?.[0] === "replacement");
+    } finally {
+      change.resolve(Response.json({ tables: [], seq: 1 })); replacement.resolve();
+      await unmount(); await app.close();
+    }
+  };
+}
+
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
   cases[name + " composer preserves edits, immediate failure and offline admission"] = async () => {
     const client = controlled();

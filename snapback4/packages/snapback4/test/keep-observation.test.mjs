@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
-import { ReadObservation } from "../dist/read-observation.js";
+import { answerIdentity, ReadObservation } from "../dist/read-observation.js";
 import { LocalReads } from "../dist/local-reads.js";
 import { bindWatchPeek, peekObservation, observeWatch } from "../dist/observe-watch.js";
 import { guardClient } from "../dist/app-client.js";
@@ -73,6 +73,42 @@ test("app peek reuses only a live authorized snapshot and cannot cross withdrawa
   facade.fence()();
   assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
   remount.close();
+});
+
+
+test("facade approval follows freshness identity but never a new publication or reset", async t => {
+  const authority = deferred(), source = new ReadObservation(true), listeners = new Set(); let hold = false;
+  const data = { text: "same payload" }, publication = ready(data);
+  source.publish(publication);
+  const raw = { observe: () => ({ getSnapshot: () => source.snapshot,
+    subscribe: notify => { listeners.add(notify); return () => listeners.delete(notify); }, close() {} }) };
+  bindWatchPeek(raw, new Map([['keep:secret:{}', source]]), () => null);
+  const facade = guardClient(raw, () => hold ? authority.promise : Promise.resolve(true), () => true, () => why);
+  const watch = facade.client.observe(q, {}, { keep: true }), seen = [];
+  watch.subscribe(() => seen.push(watch.getSnapshot()));
+  t.after(() => { authority.resolve(true); watch.close(); facade.fence()(); });
+  await until(() => watch.getSnapshot().data === data);
+  const original = source.snapshot, identity = answerIdentity(original);
+  hold = true;
+  source.reload();
+  for (const notify of listeners) notify();
+  assert.notEqual(source.snapshot, original);
+  assert.equal(answerIdentity(source.snapshot), identity);
+  assert.equal(watch.getSnapshot().data, data, "freshness alone does not withdraw an approved answer");
+  assert.equal(watch.getSnapshot().fresh, false, "freshness metadata reaches the facade synchronously");
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), source.snapshot);
+  assert.ok(seen.every(read => "data" in read), "no loading notification for staleness");
+  for (const replace of [() => source.publish(publication), () => source.reset(publication)]) {
+    replace();
+    for (const notify of listeners) notify();
+    assert.notEqual(answerIdentity(source.snapshot), identity, "even the identical payload and Read object need new authority");
+    assert.equal(answerIdentity(original), identity, "old snapshot identity is immutable");
+    assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
+    assert.deepEqual(watch.getSnapshot(), { loading: true });
+  }
+  authority.resolve(true);
+  await until(() => watch.getSnapshot().data === data);
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), source.snapshot);
 });
 
 for (const op of ["apply", "admit", "settle", "clear_rows", "settle_exit", "adopt", "observe_store"]) {
@@ -322,6 +358,46 @@ test("createApp forwards source expiry while sessionStore.get is held", async t 
   assert.ok(snapshots.some(read => read.loading), "the source withdrawal notifies the app subscriber before storage resumes");
 });
 
+test("createApp withdraws a superseded answer while replacement authority is held", async t => {
+  const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
+  const clock = new ServerClock(() => wall), memory = memorySessionStore(), held = deferred();
+  const session = { kind: "user", token: "kept", principal: "alice", expiresAt: wall + 90 * 86400000 };
+  await keepSession(url, session, memory);
+  let holding = false, blocked = 0, queries = 0;
+  const replacement = deferred();
+  const app = createApp({ url, sessionStore: { ...memory, async get(key) {
+    if (holding) { blocked++; await held.promise; }
+    return memory.get(key);
+  } }, fetch: clock.wrap(async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json({ schema: { tables: {} }, programs: [] });
+    if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+    if (path === "/probe") return Response.json({ ok: true, principal: "alice" });
+    if (path.startsWith("/q/")) {
+      if (++queries === 1) return Response.json({ ...ready("A"), nextExpiry: deadline, refresh: 250 });
+      await replacement.promise;
+      return Response.json({ ...ready("B"), nextExpiry: deadline + 3_600_000 });
+    }
+    throw Error(path);
+  }) });
+  t.after(async () => { holding = false; held.resolve(); replacement.resolve(); await app.close(); });
+  assert.equal((await app.ready).ok, true);
+  const watch = app.client.observe(q, {}, { keep: true }), snapshots = [];
+  watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+  await until(() => watch.getSnapshot().data === "A" && watch.getSnapshot().fresh);
+  await until(() => queries === 2); // Raw background read is already past session storage.
+  holding = true; snapshots.length = 0;
+  replacement.resolve();
+  await until(() => blocked > 0);
+  clock.sample(deadline + 1, wall, wall, "server:1");
+  await delay(10);
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "superseded A cannot remain visible past its own deadline");
+  assert.ok(snapshots.some(read => read.loading), "replacement withdraws A and notifies before authority resumes");
+  assert.ok(snapshots.every(read => !("data" in read)), "B still needs authority");
+  holding = false; held.resolve();
+  await until(() => watch.getSnapshot().data === "B");
+});
+
 for (const withdrawn of [{ loading: true }, { denied: why }]) test(`app facade forwards ${"loading" in withdrawn ? "loading" : "denied"} synchronously but gates replacement data`, async () => {
   const authority = deferred(), listeners = new Set(); let hold = false, snapshot = ready("old");
   const source = { getSnapshot: () => snapshot, subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }, close() {} };
@@ -331,7 +407,7 @@ for (const withdrawn of [{ loading: true }, { denied: why }]) test(`app facade f
   await until(() => watch.getSnapshot().data === "old");
   hold = true; snapshot = ready("waiting");
   for (const listener of listeners) listener();
-  assert.equal(watch.getSnapshot().data, "old", "new data waits for authority");
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "superseded data withdraws while replacement waits for authority");
   snapshot = withdrawn;
   for (const listener of listeners) listener();
   assert.deepEqual(watch.getSnapshot(), withdrawn, "withdrawal is synchronous");

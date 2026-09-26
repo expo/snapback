@@ -1,6 +1,10 @@
 import type { Read, Refusal } from "./contract.ts";
 import type { ReadDeadlines } from "./read-expiry.ts";
 
+// @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
+const identities = new WeakMap<Read<unknown>, object>();
+export function answerIdentity(read: Read<unknown>): object { return identities.get(read) ?? read; }
+
 /** Default fallback retention and explicit application keep share one publication
  * fence. Resets retire in-flight
  * publications; online responses must also pass their commit-sequence fence. */
@@ -64,7 +68,9 @@ export class ReadObservation<T> {
 
   private stale(): void {
     if (!("data" in this.snapshot)) return;
+    const identity = answerIdentity(this.snapshot);
     this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: Math.min(this.since, Date.now()) }) };
+    identities.set(this.snapshot, identity);
     this.kept = true;
   }
 
@@ -80,7 +86,8 @@ export class ReadObservation<T> {
   private replace(read: Read<T>): void {
     this.revision++;
     if ("data" in read && read.since !== undefined) read = { ...read, since: Math.min(read.since, Date.now()) };
-    this.snapshot = read;
+    this.snapshot = { ...read };
+    identities.set(this.snapshot, {});
     this.kept = false;
     // Freshness age uses wall time even when row deadlines use issued device time.
     this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
