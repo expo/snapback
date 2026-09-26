@@ -38,7 +38,7 @@ const parked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(Error("closed"));
   else signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
 });
-async function fixture(t, tier) {
+async function fixture(t, tier, refresh) {
   const { url, dir } = await server(t, undefined, source);
   const wall = Date.now(), serverDeadline = wall + 3_600_000, deviceNow = wall + 7_200_000, deviceDeadline = deviceNow + 100;
   const seeded = await fetch(url + "/seed", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify([
@@ -50,6 +50,8 @@ async function fixture(t, tier) {
   let liveClock = clock, offline = false, hold = false, queries = 0, localQueries = 0, answerDeadline = serverDeadline;
   const fork = clock.fork.bind(clock); clock.fork = () => liveClock = fork();
   const gate = Promise.withResolvers();
+  const bodyGate = Promise.withResolvers();
+  let holdBody = false, bodiesHeld = 0, failedQueries = 0, failQueries = false;
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
   const options = { url, persona: "alice", device: { async open(...args) {
     const core = await opener.open(...args);
@@ -60,6 +62,7 @@ async function fixture(t, tier) {
     } };
   } }, fetch: clock.wrap(async (input, init) => {
     const path = new URL(input).pathname;
+    if (path.startsWith("/q/") && failQueries) { failedQueries++; throw Error("later query failed"); }
     if (offline) throw Error("controlled offline");
     if (path === "/changes") return parked(init.signal);
     const response = await fetch(input, init), json = await response.json();
@@ -67,18 +70,60 @@ async function fixture(t, tier) {
       queries++;
       if (hold) return Response.json({ loading: true, seq: json.seq, tables: json.tables });
       json.nextExpiry = answerDeadline;
+      if (refresh !== undefined) json.refresh = refresh;
     }
     // Strip server samples: the fixture owns both clocks, and they disagree.
-    return Response.json(json, { status: response.status });
+    const reply = Response.json(json, { status: response.status });
+    if (path.startsWith("/q/") && holdBody) {
+      holdBody = false; failQueries = true;
+      const body = reply.json.bind(reply);
+      reply.json = async () => { bodiesHeld++; await bodyGate.promise; return body(); };
+    }
+    return reply;
   }) };
   const client = tier === "online" ? createClient(options) : await createLocalClient(options);
-  t.after(async () => { hold = false; gate.resolve(); await client.close(); });
+  t.after(async () => { hold = false; gate.resolve(); bodyGate.resolve(); await client.close(); });
   if (client.sync) await client.sync();
   assert.equal(client.now(), deviceNow);
   assert.equal(liveClock.estimatedServerNow(), wall);
   return { client, clock: liveClock, wall, serverDeadline, deviceDeadline, queries: () => queries, localQueries: () => localQueries,
     hold: () => { hold = true; }, release: () => { hold = false; gate.resolve(); },
+    holdBody: () => { holdBody = true; }, releaseBody: () => bodyGate.resolve(),
+    bodiesHeld: () => bodiesHeld, failedQueries: () => failedQueries,
     answerDeadline: value => { answerDeadline = value; }, offline: async () => { offline = true; await client.sync(); } };
+}
+
+for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) for (const exact of [false, true]) {
+  test(`${tier} keep: pre-expiry HTTP body cannot restore memory (${lingering ? "lingering" : "active"}, ${exact ? "exact deadline" : "rollback"})`, async t => {
+    const f = await fixture(t, tier, exact ? undefined : 25), op = { kind: "query", name: "remote" };
+    const watch = f.client.observe(op, {}, { keep: true });
+    await until(() => watch.getSnapshot().data === true);
+    if (lingering) watch.close();
+    f.holdBody();
+    const reading = exact ? f.client.query(op, {}) : undefined;
+    await until(() => f.bodiesHeld() === 1, "background refetch reached its HTTP body");
+    if (exact) f.hold(); // Do not let recovery itself clean memory before rollback.
+    f.clock.sample(f.serverDeadline + (exact ? 0 : 1), f.wall, f.wall, "server:1");
+    await until(() => watch.getSnapshot().loading, "expiry withdrew the remembered answer");
+    const snapshots = [];
+    const joined = lingering ? f.client.observe(op, {}, { keep: true }) : watch;
+    joined.subscribe(() => snapshots.push(joined.getSnapshot()));
+    if (!exact) f.clock.sample(f.wall, f.wall, f.wall, "server:2");
+    const reads = f.queries();
+    // Exact-boundary case releases at the deadline, before rolling back.
+    if (exact) assert.equal(f.clock.estimatedServerNow(), f.serverDeadline);
+    f.releaseBody();
+    if (exact) {
+      assert.deepEqual(await reading, { loading: true }, "the held body settles at the exact deadline");
+      f.clock.sample(f.wall, f.wall, f.wall, "server:2");
+      f.release();
+    }
+    await until(() => f.failedQueries() > 0 && snapshots.length > 0, "the released body and failed retry settled");
+    assert.ok(snapshots.every(read => !("data" in read)), JSON.stringify(snapshots));
+    assert.deepEqual(joined.getSnapshot(), { loading: true });
+    assert.equal((await f.client.query(op, {})).denied?.code, "E_OFFLINE", "one-shot recovery cannot return the withdrawn answer");
+    assert.equal(f.queries(), reads, "every later /q/ failed");
+  });
 }
 
 for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-clock correction expires active and lingering answers; rollback cannot resurrect them`, async t => {

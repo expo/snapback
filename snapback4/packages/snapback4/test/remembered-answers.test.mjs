@@ -59,6 +59,38 @@ test("forgetting an expired answer preserves its highest store cut", () => {
   assert.equal(answers.get("expired")?.read.data, "new cut 10", "a newer read at the highest cut can still replace it");
 });
 
+for (const cut of [undefined, 10, 11]) test(`forget fences a pre-expiry reply at cut ${cut}, including later arrivals`, () => {
+  const answers = new RememberedAnswers();
+  answers.view().set("k", answer("expired"), 10);
+  const held = answers.view();
+  answers.forget("k");
+  held.set("k", answer("withdrawn"), cut);
+  assert.equal(answers.get("k"), undefined, "a later ticket or higher cut cannot cross expiry");
+  const next = answers.view();
+  next.set("k", answer("new"), cut ?? 10);
+  assert.equal(answers.get("k")?.read.data, "new", "a read begun after forget can remember an answer");
+  held.set("k", answer("higher but pre-expiry"), 12);
+  assert.equal(answers.get("k")?.read.data, "new", "accepting a new answer does not erase the barrier");
+  held.delete("k", 13);
+  assert.equal(answers.get("k")?.read.data, "new", "pre-expiry refusals cannot cross the barrier either");
+  next.set("k", answer("below refused cut"), 12);
+  assert.equal(answers.get("k")?.read.data, "new", "even a barrier-rejected refusal contributes its highest cut");
+  held.renew();
+  held.set("k", answer("renewed"), 13);
+  assert.equal(answers.get("k")?.read.data, "renewed");
+});
+
+test("forget fences absent keys too and a rejected answer still names its cut", () => {
+  const answers = new RememberedAnswers(), held = answers.view();
+  answers.forget("k");
+  held.set("k", answer("expired"), 15);
+  assert.equal(answers.get("k"), undefined);
+  answers.view().set("k", answer("old cut"), 14);
+  assert.equal(answers.get("k"), undefined);
+  answers.view().set("k", answer("current"), 15);
+  assert.equal(answers.get("k")?.read.data, "current");
+});
+
 // A read of a device program: the device's observation, then the server's reply.
 function reading(answers, { call, reply }) {
   const program = { name: "read", kind: "Query", args: {}, body: [], runs: "device" };
