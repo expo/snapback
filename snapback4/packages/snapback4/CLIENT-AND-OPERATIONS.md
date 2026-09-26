@@ -1068,7 +1068,7 @@ function Thread({ conversationId }: { conversationId: string }) {
     <Text>{link}: {"loading" in read ? "Loading…" : "denied" in read ? read.denied.message : `${items.length} messages`}</Text>
     {photo.status === "ready" && <Image source={{ uri: photo.url }} style={{ width: 240, height: 180 }} />}
     {photo.status === "loading" && <Text>Loading photo…</Text>}
-    {photo.status === "empty" && <Text>No photo</Text>}
+    {"data" in read && photo.status === "empty" && <Text>No photo</Text>}
     {photo.status === "denied" && <Text>{photo.why.message}</Text>}
     <Text onPress={() => void client.signOut()}>Sign out</Text>
   </View>;
