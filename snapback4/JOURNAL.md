@@ -59155,7 +59155,7 @@ reference map list the card. Aliases: receipt, delivered, read receipts, ticks,
 watermark. The operations doc's alias example now says `sql` → from-sql; it
 had said personas.
 
-## 2026-09-26 — A live query follows presence (LLP 3000.017)
+## 2026-09-26 — A live query follows presence (LLP 3000.018)
 
 A supervisor probe on 0.4.2 source found a defect. Alice observed
 `{ online: exists connected[bob] }` while Bob opened a client. A one-shot query
@@ -59403,7 +59403,7 @@ online mark that is too much surface, so round 5 ships the simple version:
 
 The once-per-run memoized presence read stays, so every read in one answer
 agrees. Alice's mark now turns within about 5 seconds, on every tier, with no
-loading in between. LLP 3000.017 §6 records the follow design and why it waits.
+loading in between. LLP 3000.018 §6 records the follow design and why it waits.
 
 ## 2026-09-26 — Live presence round 6: the query asks, and the refresh waits its turn
 

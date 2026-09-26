@@ -1,4 +1,4 @@
-// LLP 3000.017 §3: an answer of a query that may read presence asks its client
+// LLP 3000.018 §3: an answer of a query that may read presence asks its client
 // to re-run it. The online client refreshes in the background after the
 // interval its server named, and publishes only an answer nothing replaced
 // meanwhile; an answer that reads no presence, or a closed watch, never re-runs.

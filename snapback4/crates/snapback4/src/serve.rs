@@ -962,7 +962,7 @@ fn handle(mut request: Request, shared: &Shared) {
             }
             let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
                 .map(|p| (p.program.kind, p.program.args.clone()));
-            // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read,
+            // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
             // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some((kind, arg_types)) = signature else {
@@ -1046,7 +1046,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(skip_serializing_if = "Option::is_none")]
                             refresh: Option<u64>,
                         }
-                        // @ref LLP 3000.017#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
+                        // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
                         let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
@@ -1067,10 +1067,10 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(refusal) => {
                         let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
-                        // @ref LLP 3000.017#3.2 — a refusal names the cut its evaluation read, which the head
+                        // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }
-                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.017 §3.2).
+                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
                         if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
                         respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
                     }

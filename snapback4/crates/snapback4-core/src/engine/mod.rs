@@ -93,7 +93,7 @@ use std::collections::{BTreeMap, VecDeque};
 pub const PRESENCE_GRACE: std::time::Duration = std::time::Duration::from_secs(35);
 pub const PRESENCE_CONFIRMATION: std::time::Duration = std::time::Duration::from_secs(5);
 /// How soon a client re-runs a live query that read `connected[p]`. Presence
-/// changes without a commit, so no change feed names it (LLP 3000.017 §3).
+/// changes without a commit, so no change feed names it (LLP 3000.018 §3).
 pub const PRESENCE_REFRESH: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Who is connected right now: what a server knows from the long polls it
@@ -815,7 +815,7 @@ impl Engine {
     }
 
     /// A query and the store cut its transaction read, which a refusal also
-    /// carries, so a client can order it against answers (LLP 3000.017 §3.2).
+    /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
         let result = self.query_reading(name, context, &mut cut);

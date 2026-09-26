@@ -1254,7 +1254,7 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
 }
 
 
-/// LLP 3000.017 §3.2: a refusal names the cut its evaluation read. A commit
+/// LLP 3000.018 §3.2: a refusal names the cut its evaluation read. A commit
 /// between the reply's metadata and the query's own read makes that cut newer
 /// than the head, and the refusal is the newer state's; the head alone would
 /// order it before an answer read at a cut where the query succeeds.
@@ -1459,7 +1459,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
 #[path = "../tests/serve_changes/mod.rs"]
 mod review_changes;
 
-/// LLP 3000.017 §3.1: every answer of a query that may read presence asks its
+/// LLP 3000.018 §3.1: every answer of a query that may read presence asks its
 /// client to re-run it, whichever path ran, refusals too, and names no principal
 /// it read; an answer of a query that reads none does not.
 #[test]

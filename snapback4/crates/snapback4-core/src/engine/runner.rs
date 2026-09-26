@@ -160,7 +160,7 @@ pub struct Runner<'a> {
     /// fact excludes a mutation with this site from prediction.
     pub(crate) presence_unknown: bool,
     /// Principals whose `connected[p]` this run read on a server, with the
-    /// count it saw: read once per run, so every read agrees (LLP 3000.017 §3.1).
+    /// count it saw: read once per run, so every read agrees (LLP 3000.018 §3.1).
     pub(crate) presence_read: BTreeMap<String, u64>,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
@@ -959,7 +959,7 @@ impl<'a> Runner<'a> {
                             if !self.device && live > 0 && deadline.is_some() { self.effect_presence.absent = Some(super::presence::Scalar::Count(0)); }
                             Value::int(live as i128).map_err(Into::into)
                         } else {
-                            // @ref LLP 3000.017#3.1 — one run reads each principal once, so every read in an answer agrees; the memo is metered.
+                            // @ref LLP 3000.018#3.1 — one run reads each principal once, so every read in an answer agrees; the memo is metered.
                             let open = match self.presence_read.get(principal) {
                                 Some(open) => *open,
                                 None => {

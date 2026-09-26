@@ -1,4 +1,4 @@
-// LLP 3000.017 §3.1: a composed local answer carries the server's refresh. Bob
+// LLP 3000.018 §3.1: a composed local answer carries the server's refresh. Bob
 // keeps a room's history after leaving it (retained on his device); a query
 // that returns that history beside `exists connected[p]` is answered partly by
 // the device and partly by the server, and must still refresh.

@@ -1,4 +1,4 @@
-// LLP 3000.017 §3.2: remembered server answers are ordered by the store cut a
+// LLP 3000.018 §3.2: remembered server answers are ordered by the store cut a
 // reply read, then by when its read attempt began; a refetch within an attempt
 // is a new read, and a cut once named stays known.
 import test from "node:test";

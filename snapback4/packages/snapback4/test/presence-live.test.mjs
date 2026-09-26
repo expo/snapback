@@ -1,4 +1,4 @@
-// LLP 3000.017: a live query that reads connected[p] re-runs on the interval
+// LLP 3000.018: a live query that reads connected[p] re-runs on the interval
 // its server names. Alice's observed online mark for Bob turns when Bob's
 // client starts polling and when his grace ends, on every client tier, and
 // never falls back to loading while it refreshes.

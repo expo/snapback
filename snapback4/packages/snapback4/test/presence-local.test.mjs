@@ -1,4 +1,4 @@
-// LLP 3000.017 §3.2 on the local client, over the wasm and process devices: a
+// LLP 3000.018 §3.2 on the local client, over the wasm and process devices: a
 // background presence refresh is quiet when it fails, publishes an accepted
 // loading answer, and a reply that a newer read overtook changes neither the
 // answer, the interval, nor what a later recovery shows.

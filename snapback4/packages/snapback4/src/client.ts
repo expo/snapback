@@ -43,7 +43,7 @@ interface Watch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
-  /** Re-runs a watch whose answer read presence (LLP 3000.017), every
+  /** Re-runs a watch whose answer read presence (LLP 3000.018), every
    * `presenceEvery` ms until a successful answer reads none. */
   presenceRefresh: ReturnType<typeof setTimeout> | null;
   presenceEvery?: number | undefined;
@@ -178,7 +178,7 @@ export function createClient(options: ClientOptions): Client {
     delete headers["x-snapback-persona"];
     setViewer(null);
     setLink("signed-out");
-    // A dead session refreshes nothing (LLP 3000.017 §3.2).
+    // A dead session refreshes nothing (LLP 3000.018 §3.2).
     for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
     for (const listener of [...sessionListeners]) listener(null);
   };
@@ -339,7 +339,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   // A quiet request is a background presence refresh: its failure retries on the
-  // refresh timer and says nothing about the link (LLP 3000.017 §3.2).
+  // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
   function post(path: string, body: unknown, captured?: ClosingResponse, quiet = false) {
     let arrived = false;
     const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured, quiet), aborter.signal, () => arrived).then(result => {
@@ -438,7 +438,7 @@ export function createClient(options: ClientOptions): Client {
     (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
 
-  // @ref LLP 3000.017#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
+  // @ref LLP 3000.018#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
   function schedulePresence(watch: Watch, answered: boolean, after?: number) {
     // A closed client or ended credentials keep no interval, whichever read settles last.
     if (closed || !credentials) watch.presenceEvery = undefined;
@@ -449,7 +449,7 @@ export function createClient(options: ClientOptions): Client {
     });
   }
 
-  // @ref LLP 3000.017#3.2 — a presence refresh reads in the background and publishes only an answer that
+  // @ref LLP 3000.018#3.2 — a presence refresh reads in the background and publishes only an answer that
   // nothing replaced meanwhile: expiry, invalidation and sign-out keep their own immediate withdrawal.
   async function refreshPresence(watch: Watch) {
     if (closed || storeRefusal || !credentials || watches.get(watch.key) !== watch) return;

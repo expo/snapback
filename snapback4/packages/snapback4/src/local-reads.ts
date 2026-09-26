@@ -18,7 +18,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
-  /** Re-runs a watch whose server answer read presence (LLP 3000.017), every
+  /** Re-runs a watch whose server answer read presence (LLP 3000.018), every
    * `presenceEvery` ms from then on. */
   presenceRefresh: ReturnType<typeof setTimeout> | null;
   presenceEvery?: number | undefined;
@@ -46,7 +46,7 @@ type Written = AnswerOrder & { highest: number | undefined };
  * is not older. A reply below the highest cut any reply for the key has named,
  * kept or not, is older; otherwise a later cut than what is remembered wins,
  * and at the same cut, or when either names none, the read attempt that began
- * later wins (LLP 3000.017 §3.2). */
+ * later wins (LLP 3000.018 §3.2). */
 export class RememberedAnswers {
   private readonly answers = new Map<string, ServerAnswer>();
   private readonly written = new Map<string, Written>();

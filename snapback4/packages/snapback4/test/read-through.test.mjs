@@ -100,7 +100,7 @@ for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back
   const nestedLocal=host.answers.findLast(a=>a.name==="nested");
   assert.equal(nestedLocal.retainedRows[0].source,null);
   assert.deepEqual(nestedLocal.retainedRows[0].fields.rows[0].source,["children","old"]);
-  // LLP 3000.017 §3.1: a query that may read presence composes retained rows the same way, and the
+  // LLP 3000.018 §3.1: a query that may read presence composes retained rows the same way, and the
   // composed answer keeps the server's refresh, so the watch keeps re-reading.
   host.refresh=300;
   const sampled=client.observe({kind:"query",name:"sampled"},{parent:"a"});

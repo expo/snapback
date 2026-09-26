@@ -1,6 +1,6 @@
 // A live watch whose answer read `connected[p]` re-runs after the interval its
 // server named: presence changes without a commit, so no change feed names it
-// (LLP 3000.017 §3).
+// (LLP 3000.018 §3).
 
 /** The shortest refresh a client honors, whatever the server asks. */
 export const PRESENCE_REFRESH_FLOOR_MS = 250;

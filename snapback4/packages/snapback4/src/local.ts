@@ -423,7 +423,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = null;
       rotating = false;
       credentialRevision += 1;
-      // A dead session refreshes nothing (LLP 3000.017 §3.2).
+      // A dead session refreshes nothing (LLP 3000.018 §3.2).
       for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
       stopRefresh();
       if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
@@ -528,7 +528,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
 
   // A quiet request is a background presence refresh: its failure retries on the
-  // refresh timer and says nothing about the link (LLP 3000.017 §3.2).
+  // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
   function post(path: string, body: unknown, captured?: ClosingResponse, quiet = false) {
     const work = sendPost(path, body, captured, quiet);
     active.add(work);
@@ -872,7 +872,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false) {
-    // @ref LLP 3000.017#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
+    // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view();
     const queryEnvironment = {
       get backend() { return backend!; },
@@ -954,7 +954,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     });
   }
 
-  // @ref LLP 3000.017#3.2 — a presence refresh evaluates in the background and publishes only an answer
+  // @ref LLP 3000.018#3.2 — a presence refresh evaluates in the background and publishes only an answer
   // that nothing replaced meanwhile: expiry, invalidation and store replacement keep their own withdrawal.
   async function refreshPresence(watch: Watch) {
     if (closed || sessionDead || watches.get(watch.key) !== watch) return;
@@ -992,7 +992,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      // @ref LLP 3000.017#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
+      // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
       if (served) watch.presenceEvery = after;
       armPresence(watch);
       scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
