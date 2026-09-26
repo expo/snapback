@@ -197,7 +197,7 @@ impl Rows for Layered<'_> {
         self.durable_write()?;
         unreachable!()
     }
-    fn release_asset(&self, _: &str, _: i64) -> Result<(), RuntimeError> {
+    fn release_asset(&self, _: &str, _: &str, _: &str, _: &str, _: i64) -> Result<(), RuntimeError> {
         self.durable_write()
     }
     fn prefetch(&self, requests: &[PrefetchRequest]) {

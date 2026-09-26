@@ -337,8 +337,12 @@ Upload each image first, then pass the list of `{ id }` values to `sendPhotos`.
 Each element inherits the row's read rule. Removing an element releases it;
 reordering keeps its home and view history; deleting the row releases all.
 `[image <=10000000 once] <=4` applies one view per principal to each image.
-Placement and release reserve the scalar asset allowance times the declared
-list cap, even for an empty or unchanged list; file bytes are not copied by placement.
+List placement and release reserve four examinations, two writes, eight steps
+and 16 KiB scratch per declared element slot (nested caps multiply), even for
+an empty or unchanged list; file bytes are not copied by placement.
+Scalar receipts retain their previous accounting: the proposed extra allowance
+of four examinations, two writes, eight steps and 16 KiB scratch per scalar slot
+was withdrawn because it broke existing scalar meter boundaries.
 
 The local client keeps server upload facts for prediction: `{ id }` works
 offline after upload, including reads of duration and dimensions. Without
@@ -379,7 +383,10 @@ for a second home. Fetch a once asset without Range; a consumed view cannot be
 retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
-a readable home row does not grant upload ownership."##,
+a readable home row does not grant upload ownership.
+
+Legacy list references whose assets were never placed still download as
+404 E_ASSET_UNKNOWN (no backfill); replace them with fresh uploads to establish homes."##,
         "client" => include_str!("guide/client.md"),
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,

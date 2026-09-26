@@ -92,7 +92,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
-    pub(crate) fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> { self.raw.release_asset(id, now) }
+    pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #[cfg(feature = "sqlite")] column: &str, now: i64) -> Result<(), RuntimeError> { #[cfg(feature = "sqlite")] { self.raw.release_asset(id, table, row_id, column, now) } #[cfg(not(feature = "sqlite"))] { self.raw.release_asset(id, now) } }
     pub(crate) fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> { self.raw.effect_once(effect, key) }
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }

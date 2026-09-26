@@ -649,13 +649,7 @@ fn exhausted_target_pairs() {
                     let warm = call(&mut e, "warm", "bob", input.clone(), "warm");
                     assert!(matches!(warm.state, WriteState::Sent { .. }), "{resource}: {:?}", warm.state);
                     if resource == "heap" { e.set_ceilings(snapback4_core::meter::Ceilings { heap_bytes: warm.metered.heap_bytes + 1024, ..e.ceilings() }); }
-                    else {
-                        assert_eq!(warm.metered.rule_probes, 8192);
-                        // The target's declared scalar asset slot reserves four
-                        // examinations. Leave that independent resource room so
-                        // this pair still tests the exhausted rule-probe boundary.
-                        e.set_ceilings(snapback4_core::meter::Ceilings { examined: e.ceilings().examined + 4, ..e.ceilings() });
-                    }
+                    else { assert_eq!(warm.metered.rule_probes, 8192); }
                     let (_, observation) = observed(&mut e, "pressure", "bob", input.clone(), "same");
                     assert_eq!(observation.body()["why"]["code"], "E_BOUND", "{resource}/{address}/{guard}: {:?}", observation.body());
                     assert!(observation.body()["why"]["message"].as_str().unwrap().contains(if resource == "heap" {"heap"} else {"rule"}));
