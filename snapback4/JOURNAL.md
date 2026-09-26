@@ -59245,3 +59245,26 @@ at 21 though the watermark has not moved (Astra's surviving dependency
 mutation), an unkept view goes again after hiding and with the next answer, a
 kept view is not resent, and another conversation owes no view of the first.
 All nine mutants of the change fail the tests.
+
+## 2026-09-26 — Receipts card round 19: owed for the life of the client
+
+Astra's round-18 review found a view the client could not keep lost when its
+screen remounted: the hook's memory lived and died with the component. What
+the hook owes, runs and views alike, now lives for the life of the signed-in
+client, in a module-level `WeakMap` keyed by the client and scoped by viewer and
+conversation. A remount keeps it, and a replaced client or another viewer
+starts afresh. This also narrows 0.4.3's documented limit: a run dropped at
+the 64-run cap is now owed across remounts, and only a reload forgets it.
+
+A view is sent once. One the client could not keep (`E_ADMISSION`) goes again
+when the hook next runs. Round 18 resent a view whenever the member's row
+changed state, and the first answer of `progress` after an early send counted
+as such a change. That sent a kept view twice after a remount; the server
+records `seen` without a cap, so nothing needs that resend. The card's lead
+paragraph was also one word over the guide's 45-word limit. Only the full
+guide test checks that, and the recent rounds had run the card's own test
+alone.
+
+New React cases: an unkept view goes again after a remount, hidden; a
+replaced client, another viewer of the same client and another conversation
+owe no view of the first. All ten mutants of the change fail the tests.

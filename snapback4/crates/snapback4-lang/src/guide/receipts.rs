@@ -1,9 +1,9 @@
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member's client records what it fetched of the conversation and how far it
-has shown it, as ordinals, on its own membership row and in runs beside it. One
-helper turns them into every message's receipt, `sent`, `delivered` or `read`,
-live in the history query.
+Each member's client records what it fetched and how far it has shown it, as
+ordinals, on its own membership row and in runs beside it. One helper turns them
+into every message's receipt, `sent`, `delivered` or `read`, live in the history
+query.
 
 ```quarry
 table conversations:
@@ -158,27 +158,29 @@ Three things keep every fetched message moving:
   and the page of at most 100 messages ahead of the prefix, counted from the
   join, then the next page as the prefix moves, until the client is caught up.
   It never needs the page's cursor.
-- **Owing.** While mounted, the hook keeps what it has fetched, merged into
-  disjoint runs, for this conversation and signed-in client, until the
-  server's own rows cover it, even before `progress` first answers; a
-  predicted row covers nothing. It sends a run when the run is new or grows,
-  and again only when those rows move, even after a page is gone; a report the
-  client could not keep (`E_ADMISSION`) goes again with the next answer. When the
-  lowest run it holds lies above the prefix, it walks older pages it holds,
-  offline too.
+- **Owing.** For the life of the signed-in client, a remount included, the
+  hook keeps what it has fetched, merged into disjoint runs, for this viewer
+  and conversation, until the server's own rows cover it, even before
+  `progress` first answers; a predicted row covers nothing. It sends a run
+  when the run is new or grows, and again only when those rows move, even
+  after a page is gone; a report the client could not keep (`E_ADMISSION`)
+  goes again with the next answer. When the lowest run it holds lies above
+  the prefix, it walks older pages it holds, offline too.
 - **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
   its report still succeeds; the hook owes it until a merge or catching up
-  frees room. After a remount, what the pages and the page ahead still hold is
-  reported again; the rest waits for catching up, which needs the server.
+  frees room. A reload forgets what is owed: what the pages and the page ahead
+  still hold is reported again, and the rest waits for catching up, which
+  needs the server.
 
 `seen` records the newest message on screen, online or offline. The hook owes
 a view as it owes a run, until the member's row shows it; a view the client
 could not keep goes again with the next answer, even once the conversation is
-hidden. A message is
-`read` for a recipient once it is delivered and `seen` reaches it. Every
-watermark is the member's own report, bounded by the last message. Each
-message's receipt costs one scan of at most 50 member rows and a run lookup for
-each member not yet past it; `check --cost` prints the certificate.
+hidden or its screen remounted. A reload forgets it, and the next view records
+it again. A message is `read` for a recipient once it is delivered and `seen`
+reaches it. Every watermark is the member's own report, bounded by the last
+message. Each message's receipt costs one scan of at most 50 member rows and a
+run lookup for each member not yet past it; `check --cost` prints the
+certificate.
 
 Run the hook for a conversation in the background (`visible: false`) as well as
 on screen, so `delivered` follows fetching. Both mutations predict and queue
@@ -200,6 +202,18 @@ function runsOf(runs: [number, number][], ordinals: number[]) {
   }
   return merged;
 }
+// What the hook owes, for the life of the signed-in client, per viewer and conversation:
+// a remount keeps it, and a replaced client or another viewer starts afresh.
+type Debt = { owed: Map<string, { run: [number, number]; tried: string | null }>; viewed: { through: number; sent: number } };
+const debts = new WeakMap<object, Map<string, Debt>>();
+function debtOf(client: object, viewer: string | null, conversation: string): Debt {
+  const scopes = debts.get(client) ?? new Map<string, Debt>();
+  debts.set(client, scopes);
+  const scope = JSON.stringify([viewer, conversation]);
+  const debt = scopes.get(scope) ?? { owed: new Map(), viewed: { through: 0, sent: 0 } };
+  scopes.set(scope, debt);
+  return debt;
+}
 function useReceipts(conversation: string, visible: boolean) {
   const client = useClient();
   const viewer = useViewer();
@@ -208,8 +222,8 @@ function useReceipts(conversation: string, visible: boolean) {
   const mine = "data" in progress ? progress.data : null;
   const member = mine ? mine.member : null;
   // What it holds (the pages walked, the page ahead) it owes until the server's own rows
-  // cover it, for this conversation and signed-in client, remembered even before progress loads.
-  const owed = useMemo(() => new Map<string, { run: [number, number]; tried: string | null }>(), [client, viewer, conversation]);
+  // cover it, remembered even before progress loads; a view is owed the same way.
+  const { owed, viewed } = useMemo(() => debtOf(client, viewer, conversation), [client, viewer, conversation]);
   const held = [...page.items, ...(mine ? mine.ahead : [])].filter(m => !m.pending).map(m => m.ordinal);
   const prefix = member && !member.pending ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
   const stored = mine ? mine.runs.filter(r => !r.pending).map((r): [number, number] => [r.fromOrdinal, r.throughOrdinal]) : [];
@@ -237,19 +251,18 @@ function useReceipts(conversation: string, visible: boolean) {
   const lowest = runsOf([], held)[0];
   const short = floor !== null && lowest !== undefined && lowest[0] > floor + 1;
   useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
-  // A view is owed like a run, in the same scope, until the member's row shows it, hidden or not.
-  const viewed = useMemo(() => ({ through: 0, tried: null as string | null }), [client, viewer, conversation]);
   const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
   const newest = settled.length ? Math.max(...settled) : 0;
   const shown = member ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;
   useEffect(() => {
     // A view needs no watermark first: seen only moves forward.
     if (visible && newest > viewed.through) viewed.through = newest;
-    const through = viewed.through, mark = JSON.stringify([shown, through]);
-    if (through === 0 || (shown !== null && through <= shown) || viewed.tried === mark) return;
-    viewed.tried = mark;
+    // Sent once; one the client could not keep goes again when the hook next runs.
+    const through = viewed.through;
+    if (through === 0 || (shown !== null && through <= shown) || viewed.sent === through) return;
+    viewed.sent = through;
     void client.mutate(api.seen, { conversation, through }).then(write => {
-      if (write.state === "failed" && write.why.code === "E_ADMISSION" && viewed.tried === mark) viewed.tried = null;
+      if (write.state === "failed" && write.why.code === "E_ADMISSION" && viewed.sent === through) viewed.sent = 0;
     });
   }, [client, conversation, viewed, visible, shown, newest, progress]); // eslint-disable-line react-hooks/exhaustive-deps
   return page;

@@ -112,7 +112,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
 const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
   .match(/function useExpiringRows[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
-  .match(/function runsOf[\s\S]*?\n}\nfunction useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
+  .match(/function runsOf[\s\S]*?\nfunction useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
 import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
@@ -419,6 +419,45 @@ const cases = {
     await render(h(Receipts, { visible: false, conversation: "c2" }), refused);
     await act(async () => stream(refused).set(progressOf(20, 0, [])));
     check(!refused.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no view of the first: " + JSON.stringify(refused.calls));
+    await unmount();
+    // What is owed outlives a remount of the screen, for the same signed-in client.
+    const unkept = { state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } };
+    const refusing = (client, refuse) => {
+      client.mutate = (op, args) => {
+        client.calls.push({ op: op.name, viewer: client.viewer(), ...args });
+        client.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
+        return Promise.resolve(refuse(op, args) ? unkept : sent("ack"));
+      };
+      return client;
+    };
+    let remaining = 1;
+    const remounted = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), op => op.name === "seen" && remaining-- > 0);
+    await mount(h(Receipts, { visible: true }), remounted);
+    equal(remounted.acks.filter(ack => ack === "seen:20").length, 1, "the view is sent once");
+    await unmount();
+    await mount(h(Receipts, { visible: false }), remounted);
+    equal(remounted.acks.filter(ack => ack === "seen:20").length, 2, "an unkept view goes again after a remount, hidden");
+    await unmount();
+    // A replaced client owes no view of the first, and nor does another viewer of the same client.
+    const original = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), op => op.name === "seen");
+    await mount(h(Receipts, { visible: true }), original);
+    const replacement = receiptsClient(new Map([[null, ready([])]]), progressOf(20, 0, []));
+    await render(h(Receipts, { visible: false }), replacement);
+    await act(async () => stream(replacement).set(progressOf(20, 0, [])));
+    check(!replacement.calls.some(call => call.op === "seen"), "a replaced client owes no view of the first: " + JSON.stringify(replacement.calls));
+    await unmount();
+    const two = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), (op, args) => op.name === "seen" && args.conversation === "c1");
+    await mount(h(Receipts, { visible: true }), two);
+    await render(h(Receipts, { visible: false, conversation: "c2" }), two);
+    await act(async () => stream(two).set(progressOf(20, 0, [])));
+    check(!two.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no unkept view of the first: " + JSON.stringify(two.calls));
+    await unmount();
+    const shared = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), op => op.name === "seen" && shared.viewer() === "dev:test");
+    await mount(h(Receipts, { visible: true }), shared);
+    await render(h(Receipts, { visible: false }), shared);
+    await act(async () => shared.setViewer("dev:someone-else"));
+    await act(async () => stream(shared).set(progressOf(20, 0, [])));
+    check(!shared.calls.some(call => call.op === "seen" && call.viewer === "dev:someone-else"), "another viewer owes no view of the first: " + JSON.stringify(shared.calls));
     await unmount();
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
