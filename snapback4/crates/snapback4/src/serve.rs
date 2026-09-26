@@ -88,6 +88,8 @@ pub struct Shared {
     pub auth: crate::auth::Admission,
     pub uploads: AtomicUsize,
     route_verification: routes::Verification,
+    // Drop after every SQLite connection; worker/request Arcs keep it alive.
+    owner: Option<Arc<crate::store_owner::Owner>>,
     #[cfg(test)]
     pub auth_work: WorkHook,
     #[cfg(test)]
@@ -248,10 +250,10 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
-    Release { expected: u64, worker: Option<std::path::PathBuf> },
+    Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
-pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<(), String> {
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -273,18 +275,26 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
     let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
-        let path = project.store_path();
-        let path = if path.exists() { path.canonicalize().map_err(|e| e.to_string())? } else { path };
-        Some(crate::verbs::deployment_lock(path.parent().ok_or("store path has no parent")?)?)
+        Some(crate::store_owner::command(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
+    let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
+    if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
+    if let Mode::Release { owner, .. } = &mut mode {
+        // @ref LLP 3000.019#3.4 — publish through the acquired handle, including a release database symlink.
+        crate::store_owner::announce(Arc::get_mut(owner).ok_or("release owner already shared")?, address)?;
+    }
+    let host_owner = match &mode {
+        Mode::Release { owner, .. } => Some(owner.clone()),
+        _ => host_lock.take().map(Arc::new),
+    };
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
     let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::new_at(snapback4_core::Store::memory().map_err(|e| e.to_string())?, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), clock.now()),
-        Mode::Dev { .. } => adoption::open(&project, &bound, &clock),
-        Mode::Release { expected, .. } => project.open_release_engine(&bound, *expected, clock.now()),
+        Mode::Dev { .. } => adoption::open(host_owner.as_deref().unwrap(), &bound, &clock),
+        Mode::Release { expected, .. } => host_owner.as_ref().unwrap().open_store(Duration::from_secs(5)).and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
     }.map_err(|e| e.to_string())?;
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also
@@ -308,7 +318,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
         adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
-        route_verification: routes::Verification::default(),
+        route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -318,11 +328,6 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
-    // Discover the live dev inspector through the existing lifetime lock file.
-    if let Some(file) = &mut host_lock {
-        file.set_len(0).map_err(|e| e.to_string())?;
-        write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
-    }
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
     let mut worker = match &mode {
         Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,
@@ -1278,7 +1283,7 @@ mod poison_tests {
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
-            route_verification: routes::Verification::default(),
+            route_verification: routes::Verification::default(), owner: None,
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),

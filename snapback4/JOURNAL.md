@@ -63458,6 +63458,53 @@ no outbox work, push or publication. The supervisor-owned RFC in this checkout
 still has its earlier wording; the explicit revision-4 instruction governed
 this implementation. Previous journal entries are untouched.
 
+## 2026-09-26 — Lane R: device residency and store ownership (LLP 3000.019 §3.4)
+
+Implemented the supplied 0.4.4 design on `sb4-intent/r-residency` from
+`99153132b`. `client.residency()` reports physical local row counts and UTF-8
+stored payload bytes per visible table. Native SQLite keeps transactional
+counters, upgrades old stores in metered 512-key chunks, and reports allocated
+database pages. The web host accounts for committed persistence deltas and
+reports logical record bytes plus the realm's allocated wasm linear memory.
+Local/app calls retain session ownership checks; online and mock clients
+return null. The residency card defines the units beside its sync window.
+
+Selected the design's refusal alternative for offline CLI writers. The host,
+`run`, `token`, non-fixture `test`, deployment/rollback and the native smoke
+restart marker share lifetime store ownership. A live owner yields
+`E_STORE_BUSY`, its site/address and a concrete stop/run/restart rewrite before
+admission. `data` now opens read-only, including beside a held SQLite writer.
+External writers that ignore the lifetime protocol retain the existing
+bounded SQLite retry and generation fences. Updated affected fixtures to mint
+credentials offline or stop/run/restart, preserving their authority, clock,
+replay and durability assertions. Split two files to respect 1,500 lines.
+
+Measured wasm before and after: 2,021,689 B raw and 581,094 B gzip, **+0/+0 B**,
+with the unchanged 582,094 B gzip ceiling. Native known-row/byte fixtures,
+20,000-row upgrade, rollback/reopen/multiple-owner cases, real wasm persistence
+and public offline web/native clients pass. CLI refusal in both ownership
+directions, stale lock recovery, aliases and read-only inspection pass. The
+complete guide passes 85/85. Final `bash scripts/test.sh` exited 0 with the
+exact summary **`== 0 failure(s) in 1436 s`**; all 78 client-model tests pass.
+Ten existing client cases require unavailable platform/external artifacts and
+were explicitly skipped; none of this lane's new tests was skipped.
+
+The first full run reported `== 2 failure(s) in 1435 s` (`cargo test`,
+`client tests`), with 16 failed assertions, all treated as this lane's work:
+a standalone-contract import, old live CLI fixtures and a replay fixture
+whose sync receipt could beat its HTTP retry. They are fixed and individually
+listed in the handoff. An intermediate rerun was deliberately interrupted
+(exit 143) to fix the inspection opener and fence the smoke marker; it made
+no complete-suite claim.
+
+No authorization/disclosure rule, meter ceiling or wasm budget was weakened.
+No RPC job endpoint, Quarry syntax, package publication or native iOS/Android
+application qualification was added. Web logical bytes are not IndexedDB
+physical disk allocation, and wasm memory is not process RSS. No known open
+lane defect remains. Local implementation commits and the file-by-file test,
+choice, failure and skip record are in
+[the Lane R report](reports/20260926-lane-r-residency.md); supervisor review and
+integration remain pending. Nothing was pushed or published.
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
@@ -64851,3 +64898,184 @@ or redesigned; added the review's missing timer-clamping evidence. No engine,
 authorization, meter, outbox, public API/syntax, version or budget change.
 No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
 no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.
+
+## 2026-09-26 — Lane R round 1: release aliases and measured residency regressions
+
+Merged the requested main commit `992cec75c` in `b90a195f4`, preserving both
+journal additions and both client surfaces. The merged-tree targeted checks
+passed, including 114 client tests. Accepted both Astra findings. Release
+serve/deploy/rollback now acquire through the same resolved database path as
+`token --release`; the server announces through its acquired file handle.
+Two deployment aliases to a moved database admit exactly one server owner;
+the other server and offline writers return E_STORE_BUSY with its address.
+A real paused token command also excludes every competing release writer.
+
+Rejected residency calls now recheck closed/session state and otherwise
+return E_STORE with the device error, read site and reopen rewrite. The app
+facade rechecks custody on rejection too. Native counter installation repairs
+a table missing any of its three triggers, rebuilding and installing in one
+immediate transaction. Reporting still uses only counters and metadata.
+
+The requested negative probes fail: constant 65536 heap bytes disagree with
+actual wasm memory; a COUNT/SUM replacement reads the partition, caught by
+SQLite statement trace and authorizer observation; the table-only installed
+shortcut leaves the partial-install fixture stale. The heap test compares the
+actual exported memory before and after two pages of growth. The original
+release code reproduces Astra's uncoded missing-file failure, and the original
+read helper leaks the killed native process's uncoded rejection. All originals
+and mutants were restored. Focused checks pass residency 3 native / 5 client,
+admission 14 and guide 86, with no skips.
+
+At implementation `3adc19d52`, the single final `bash scripts/test.sh` exited
+0 with **`== 0 failure(s) in 3096 s`**. Rust: 3,580 passed, 19 ignored; fixture
+wrapper: 9 passed; clients: 2,220 passed and 10 existing environment-gated skips;
+seeded models: 78 passed. No failing or cancelled test, no post-suite code fix
+or test rerun. Client files were serialized on the shared host. Wasm remains
+**2,021,689 B raw / 581,094 B gzip**, +0/+0 from round 0 and 1,000 B below the
+unchanged **582,094 B** budget. Source stayed fixed throughout qualification.
+
+No behavior deviation, authority/disclosure relaxation, meter/budget increase,
+new Quarry syntax, push or publication. Partial-install evidence constructs
+the durable interrupted state and proves repair on reopen; it does not claim
+OS-crash injection into SQLite's atomic commit. Native iOS/Android application
+qualification remains outside this lane. No known open round-1 defect remains.
+Commits, file-by-file changes, exact checks, mutation evidence and limitations
+are in [the round-1 report](reports/20260926-lane-r-residency.md#round-1--2026-09-26).
+
+## 2026-09-26 — Lane R round 2: ownership belongs to the database
+
+Accepted every Astra/Grok round-1 finding. Backend commands and hosts now
+flock the database inode exclusively; native device processes use compatible
+shared locks and exclude backend writers. The guard retains its canonical
+path and descriptor, compares fstat/stat after acquisition, retries changed
+names before SQLite, and validates the retained identity on later opens.
+Server workers retain the guard through their SQLite lifetimes. Address
+records use no-follow/nonblocking opens, descriptor regular-file checks and
+0600 permissions before truncation; symlinks, FIFOs, directories and hard
+links refuse with E_STORE. Removing/replacing serve.lock cannot release
+ownership. Run retries cannot follow a retargeted alias into another host's
+store. The witness fixture now follows the same descriptor drop order.
+
+Native residency uses the store's generation-checked read transaction.
+Stale handles return E_GENERATION, including through the public process
+client. Exact page totals, actual interrupted installation with a competing
+installer, address-record replacement, live database/WAL/SHM relocation,
+retargeted retries, live-server device exclusion and multiple device owners
+are tested. Mutants adding one byte, returning 1 GiB, committing counters
+before triggers, or opening/closing an extra database descriptor all fail.
+The last exposes SQLite's POSIX-lock pitfall in DELETE mode; restored locks
+also coexist correctly with SQLite in WAL mode. No mutant remains.
+
+Local implementation commits are 1e01ec296, 6c8aec280 and d3a000f94, each with
+the requested GPT-6 Astra co-author trailer. Focused checks passed admission
+20, residency 3, installation boundary 1, ownership 3, guide 86 and client
+residency 5. The single complete `bash scripts/test.sh`, at 6c8aec280, exited
+1 with **`== 1 failure(s) in 3082 s`**. Its only failure, **wasm build**, was
+ours: the residency wrapper lacked the store method's native feature gate.
+All other checks passed: Rust 3,590 passed / 19 ignored; fixture wrapper 9;
+clients 2,220 passed / 10 existing environment-gated skips; models 78 passed.
+No failing or cancelled test case, and no baseline/environmental failure.
+
+After d3a000f94 fixed that gate, only affected checks were rerun: wasm build,
+release guard, native residency 3/3, witness barrier 1/1, package build and
+client residency 5/5 all passed. The full script was not rerun. Rebuilt wasm
+is **2,021,689 B raw / 581,094 B gzip**, +0/+0 by size and 1,000 B below the
+unchanged **582,094 B** budget; the artifact hash differs from the retained
+artifact used by the full client run, so no digest-identity claim is made.
+The rebuilt artifact passed the focused client test. Node was 24.13.1, Rust
+1.97.0, Bun 1.3.14 and wasm-bindgen 0.2.127; client files were serialized.
+
+No requested finding remains open. Shared device ownership is the compatible
+multiple-device choice; unsafe address records reuse E_STORE. No authority,
+disclosure, meter, budget or Quarry change, push or publication. Interruption
+uses SQLite's real installation boundary, not power-loss injection; relocation
+proves exclusion, not a live backup/migration protocol. Mobile app builds stay
+outside this lane. The [round-2 report](reports/20260926-lane-r-residency.md#round-2--2026-09-26)
+contains file-by-file changes, exact tests, mutation evidence and limitations.
+
+
+## 2026-09-26 — Lane R round 3: owned readers and embedded device ownership
+
+Accepted all three new Grok round-2 findings and its reopen-recount test gap.
+The owning SQLite store now retains device/inode identity; detached readers
+reject a replaced path before reading, and sync/changes use the original
+engine's existing fallback. A live one-row database and its sidecars moved
+aside with a two-row replacement at the path still return the original store
+identity, one event and watermark 1 in snapshot and stream sync; changes also
+retains the original identity and head.
+
+Native SQLite opens now acquire compatible shared ownership before SQLite or
+device-table initialization, including the C ABI used by embedded hosts. The
+store retains the descriptor until after its connection closes, and detached
+readers share that guard. Direct C-ABI tests prove live-server refusal without
+rows or device tables changing, two simultaneous opens, a usable surviving
+handle, and backend exclusion until the final close. Native E_STORE_BUSY
+carries a path site and concrete recovery. Address-record validation now
+precedes chmod/truncation; a refused unrelated hard-linked 0644 file keeps its
+mode and bytes. The guide and operations reference include embedded hosts.
+
+A SQLite auto-extension observes the real second Device::open from connection
+creation. Removing the installed-counter short-circuit fails the new test
+with 0 passed / 1 failed, exit 101, because it sees reads of r. The mutation
+was restored; all four native residency tests then passed. Other affected
+checks passed: admission 23, ownership 3, interrupted installation 1, complete
+guide 86, public client residency 5, and package build. Frozen dependency
+installation passed without changes. Implementation commits are 2726e185a,
+e70f80914, 274da8439 and 6010d0460, with the requested co-author trailer.
+
+Ran bash scripts/test.sh exactly once on 6010d0460, with source unchanged.
+Exit 0; exact summary **`== 0 failure(s) in 3120 s`**. Rust reported 3,595
+passed / 19 ignored including doctests; fixture wrapper 9 passed; clients
+2,220 passed / 10 existing environment-gated skips; seeded models 78 passed.
+No failed or cancelled case, no post-suite repair or rerun. Rust took 940 s,
+serialized clients 1,862 s, models 258 s. Rebuilt wasm is **2,021,689 B raw /
+581,094 B gzip**, +0/+0 from round 2, **1,000 B below the unchanged 582,094 B
+budget**. The full client suite used the rebuilt artifact. Logs and exact
+qualification metadata remain in target/lane-r3-evidence/.
+
+No rejected finding, design deviation, remaining known round-3 problem,
+authority/disclosure relaxation, meter/budget change, new Quarry form, version
+change, push or publication. No additional independent review is claimed:
+Astra's review did not complete this round. Evidence remains Linux, direct
+C-ABI/process clients and wasm, without mobile app builds or power-loss
+injection; replacement testing is not a live migration protocol. The
+[round-3 report](reports/20260926-lane-r-residency.md#round-3--2026-09-26)
+records the file-by-file changes, forms, tests and complete result.
+
+
+## 2026-09-26 — Lane R round 4: process hosts receive startup refusals
+
+Accepted Grok's sole round-3 finding. Every failure before the `device`
+ready line now emits one stdout denial while retaining existing stderr and
+exit behavior. Ownership refusals carry E_STORE_BUSY/E_STORE and family
+store; unreadable backend files and usage use E_INPUT; parsed backend errors
+retain their own code, including E_SCHEMA_CAPABILITY. The existing Node
+process opener consequently rejects with the code and message. Its JS API
+and the reviewed ownership/residency implementation are unchanged.
+
+Five new process/CLI regressions cover an independently held exclusive
+database descriptor, malformed and missing backend files, unsupported schema
+capabilities, and usage/invalid-store errors. They assert one denial, its
+family, no ready line, and retained stderr. The busy public-client case also
+proves no initialization or backend-install fallback. All five failed against
+the previous binary and passed after rebuilding. Focused startup/residency
+tests passed 10/10, the full guide target 86/86, and package build passed.
+Implementation commit 624e18144 carries the requested GPT-6 Astra co-author.
+
+Ran `bash scripts/test.sh` exactly once, on that committed source, unchanged
+throughout. Exit 0; exact summary **`== 0 failure(s) in 1331 s`**. The cargo-test
+phase passed 3,594 tests / 19 ignored (including doctests), with one additional
+guide pass in docs-budget; fixture wrapper 9 passed; clients 2,225 passed /
+10 existing environment-gated skips; models 78 passed. No failure or cancelled
+case, no repair or rerun. Rust took 854 s, clients 193 s, models 256 s. Build
+jobs were eight, Rust test processes 24, and normal client concurrency was
+selected on this 96-CPU host. Toolchain matches round 3.
+
+Rebuilt wasm: **2,021,689 B raw / 581,094 B gzip**, +0/+0 from round 3 and
+**1,000 B below the unchanged 582,094 B budget**. The complete client suite
+used it. Logs, exact qualification metadata and the wasm hash are in
+`target/lane-r4-evidence/`. No remaining round-4 finding, design deviation,
+meter/budget change, new Quarry form, version change, push or publication.
+No additional independent review or mobile app build is claimed. The
+[round-4 report](reports/20260926-lane-r-residency.md#round-4--2026-09-26)
+records the exact coverage and result.

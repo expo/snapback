@@ -5,6 +5,7 @@ import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
+import { readResidency } from "./residency.ts";
 import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
@@ -1167,6 +1168,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   let stopHost: void | (() => void);
   const client: LocalClient = {
+    residency: () => readResidency(call, unavailable),
     now: clock.issuedDeviceNow,
     act(op, args, options) {
       const response = closingResponses.request();

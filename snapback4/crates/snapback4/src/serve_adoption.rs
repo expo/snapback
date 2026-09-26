@@ -11,10 +11,10 @@ fn locked(error: &RuntimeError) -> bool {
 
 fn retryable(error: &RuntimeError) -> bool { locked(error) || matches!(error, RuntimeError::Generation(_)) }
 
-pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
+pub(super) fn open(owner: &crate::store_owner::Owner, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
     let mut reported = None;
     loop {
-        match project.open_engine_at(bound, clock.now()) {
+        match owner.open_engine(bound, Duration::from_secs(5), clock.now()) {
             Ok(engine) => return Ok(engine),
             Err(error) if locked(&error) && !crate::lifecycle::stopping() => {
                 let reason = error.to_string();
@@ -157,7 +157,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 let adopted = engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), shared.now());
                 let mut reopened = false;
                 let adopted = match adopted {
-                    Err(RuntimeError::Generation(_)) => project.open_engine_at(&bound, shared.now()).and_then(|mut next| {
+                    Err(RuntimeError::Generation(_)) => shared.owner.as_ref().ok_or_else(|| RuntimeError::Store("in-memory server cannot reopen a disk store".into())).and_then(|owner| owner.open_engine(&bound, Duration::from_secs(5), shared.now())).and_then(|mut next| {
                         next.share_ephemeral_hub(shared.ephemeral.clone())?;
                         next.set_presence(Some(shared.presence.clone()));
                         *engine = next;

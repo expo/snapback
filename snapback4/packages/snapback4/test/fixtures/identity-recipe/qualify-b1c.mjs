@@ -552,10 +552,11 @@ async function rawAuthorityWitness(paths, scratch) {
   const project = await prepareProject(scratch, "authority", paths, "raw");
   await assertScratch(scratch);
   safeCommand(paths.binary, project, ["check", "--json"]);
-  const engine = await startEngine(paths.binary, project);
+  safeCommand(paths.binary, project, ["test", "--residency"]);
   const service = safeCommand(paths.binary, project, ["token", "--service", "worker", "--days", "30"]).stdout.trim();
   const operator = safeCommand(paths.binary, project, ["token", "--service", "operator", "--days", "30"]).stdout.trim();
   secrets.add(service); secrets.add(operator);
+  const engine = await startEngine(paths.binary, project);
   const claim = async (actionName, id) => until(async () => {
     const value = (await http("/actions/claim", { action: actionName, limit: 1, lease: 10, wait: 0 }, service)).value;
     const requests = value.requests ?? [];

@@ -69,6 +69,15 @@ function project(t, source, entry) {
       const deployed = command(["deploy", release]);
       assert.equal(deployed.status, 0, safe(deployed.stdout + deployed.stderr));
     }
+    if (!serve) {
+      const initialized = command(["test", "--residency"]);
+      assert.equal(initialized.status, 0, safe(initialized.stderr));
+    }
+    const minted = command(["token", ...(serve ? ["--release", release] : []), "--service", "test-driver"]);
+    assert.equal(minted.status, 0, safe(minted.stderr));
+    const token = minted.stdout.trim();
+    const operator = command(["token", ...(serve ? ["--release", release] : []), "--service", "operator"]);
+    assert.equal(operator.status, 0, safe(operator.stderr));
     const args = serve ? ["serve", release, "--port", "0", "--worker", entryPath] : ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])];
     const child = spawn(binary, args, { cwd: directory, env: { ...process.env, SNAPBACK_NODE: NODE, ...env }, stdio: ["ignore", "pipe", "pipe"] });
     let log = "", url, exited = false, spawnError;
@@ -99,9 +108,6 @@ function project(t, source, entry) {
       if (exited) throw Error(safe(log) || "server exited before listening");
       return url;
     }, "server listening");
-    const minted = command(["token", ...(serve ? ["--release", release] : []), "--service", "test-driver"]);
-    assert.equal(minted.status, 0, safe(minted.stderr));
-    const token = minted.stdout.trim();
     const post = async (path, body = {}, credential, lease) => {
       const response = await fetch(url + path, { method: "POST", signal: AbortSignal.timeout(10_000), headers: {
         "content-type": "application/json", ...(credential ? { authorization: `Bearer ${credential}` } : { "x-snapback-persona": "alice" }),
@@ -115,7 +121,7 @@ function project(t, source, entry) {
       if (value.denied) throw Error(JSON.stringify(value));
       return value.state === "pending" ? undefined : value;
     }, `action ${name}/${id} settling`, 15_000, diagnostics);
-    return Object.assign(host, { url, token, post, call, collect, command });
+    return Object.assign(host, { url, token, operatorToken: operator.stdout.trim(), post, call, collect, command });
   }
   return { directory, command, checked, start, writeEntry(text) { writeFileSync(join(directory, "snapback/server.ts"), text); } };
 }
@@ -647,9 +653,7 @@ export default worker; await worker.done;
   const viewer = await f.post("/m/recordDisposition", { id: "viewer-disposition-attempt", args });
   assert.equal(viewer.state, "failed", JSON.stringify(viewer));
   assert.equal(viewer.why.code, "OPERATOR_SERVICE_REQUIRED");
-  const minted = p.command(["token", "--service", "operator"]);
-  assert.equal(minted.status, 0, safe(minted.stdout + minted.stderr));
-  const operatorToken = minted.stdout.trim();
+  const operatorToken = f.operatorToken;
   const writeId = "operator-disposition-v1";
   const first = await f.post("/m/recordDisposition", { id: writeId, args }, operatorToken);
   assert.equal(first.state, "sent", JSON.stringify(first)); assert.equal(first.result, null);

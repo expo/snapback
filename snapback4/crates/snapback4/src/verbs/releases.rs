@@ -1,6 +1,6 @@
 //! Immutable source releases with a database-authoritative activation pointer.
 use super::*;
-use std::fs::File;
+use crate::store_owner::Owner;
 use std::path::{Path, PathBuf};
 use std::io::Write;
 
@@ -11,21 +11,13 @@ fn directory(options: &Options) -> Result<PathBuf, String> {
 /// `dev` and `serve` hold this advisory lock for their lifetime. Activation refuses
 /// while it is held, so a successful deploy or rollback cannot leave a live
 /// process advertising old IR over a store that has moved generations.
-pub(crate) fn deployment_lock(dir: &Path) -> Result<File, String> {
-    std::fs::create_dir_all(dir).map_err(|e| format!("cannot create deployment directory: {e}"))?;
-    let file = std::fs::OpenOptions::new().create(true).read(true).write(true).open(dir.join("serve.lock")).map_err(|e| format!("cannot open deployment lock: {e}"))?;
-    file.try_lock().map_err(|error| match error {
-        std::fs::TryLockError::WouldBlock => {
-            "this store is live; stop its `snapback4 dev` or `snapback4 serve` process before starting another host, deploy or rollback".into()
-        }
-        std::fs::TryLockError::Error(error) => format!("cannot lock deployment: {error}"),
-    })?;
-    Ok(file)
+pub(crate) fn deployment_lock(dir: &Path) -> Result<Owner, String> {
+    crate::store_owner::command(&dir.join("store.sqlite"))
 }
-fn current(dir: &Path) -> Result<Option<u64>, String> {
+fn current(dir: &Path, owner: &Owner) -> Result<Option<u64>, String> {
     let database = dir.join("store.sqlite");
     if database.exists() {
-        let store = snapback4_core::Store::open(&database).map_err(|e| e.to_string())?;
+        let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
         if let Some(release) = store.meta("release").map_err(|e| e.to_string())? {
             return release.parse().map(Some).map_err(|_| "invalid release identity in store".into());
         }
@@ -54,7 +46,7 @@ fn check_change(dir: &Path, previous: Option<u64>, bound: &snapback4_lang::Bound
     }
     Ok(())
 }
-fn activate(dir: &Path, release: u64, previous: Option<u64>, bound: snapback4_lang::Bound, rollback: bool) -> Result<(), String> {
+fn activate(dir: &Path, owner: &Owner, release: u64, previous: Option<u64>, bound: snapback4_lang::Bound, rollback: bool) -> Result<(), String> {
     let pointer = dir.join("current");
     // Check required filesystem writes before changing the database. A
     // later crash can leave this copy stale; current() reads the DB first.
@@ -66,7 +58,7 @@ fn activate(dir: &Path, release: u64, previous: Option<u64>, bound: snapback4_la
         let mut ledger = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("releases.jsonl")).map_err(|e| e.to_string())?;
         let prepared = json!({"at": snapback4_core::now_ms(), "release": release, "previous": previous, "rollback": rollback, "state": "prepared"});
         writeln!(ledger, "{prepared}").and_then(|_| ledger.sync_all()).map_err(|e| e.to_string())?;
-        let store = snapback4_core::Store::open(&dir.join("store.sqlite")).map_err(|e| e.to_string())?;
+        let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
         let engine = snapback4_core::Engine::new_release(store, bound.schema, bound.programs.into_iter().map(|p| p.program), release, previous).map_err(|e| e.to_string())?;
         std::fs::rename(&staged, &pointer).map_err(|e| format!("release {release} activated in the database, but current copy could not be updated: {e}"))?;
         let activated = json!({"at": snapback4_core::now_ms(), "release": release, "previous": previous, "rollback": rollback, "generation": engine.generation(), "state": "activated"});
@@ -88,7 +80,7 @@ pub fn deploy(options: &Options) -> i32 {
         let project = project_or_exit();
         let bound = compile_or_exit(&project, options.json);
         std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
-        let previous = current(&dir)?;
+        let previous = current(&dir, &_deployment)?;
         check_change(&dir, previous, &bound, options)?;
         let sources = project.sources().map_err(|e| e.to_string())?;
         let releases = dir.join("releases");
@@ -122,7 +114,7 @@ pub fn deploy(options: &Options) -> i32 {
         let staged_bound = bound_at(stage.clone())?;
         if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
         std::fs::rename(&stage, &final_dir).map_err(|e| e.to_string())?;
-        activate(&dir, n, previous, staged_bound, false)?;
+        activate(&dir, &_deployment, n, previous, staged_bound, false)?;
         println!("deploy: release {n} is current in {} — `snapback4 serve {}` runs it", dir.display(), dir.display());
         Ok(())
     })())
@@ -132,11 +124,11 @@ pub fn rollback(options: &Options) -> i32 {
     report("rollback", (|| {
         let dir = directory(options)?;
         let _deployment = deployment_lock(&dir)?;
-        let active = current(&dir)?.ok_or("no current release")?;
+        let active = current(&dir, &_deployment)?.ok_or("no current release")?;
         let previous = (1..active).rev().find(|n| dir.join("releases").join(n.to_string()).join("snapback/schema.q").is_file()).ok_or("nothing to roll back to")?;
         let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
         check_change(&dir, Some(active), &bound, options)?;
-        activate(&dir, previous, Some(active), bound, true)?;
+        activate(&dir, &_deployment, previous, Some(active), bound, true)?;
         println!("rollback: release {previous} is current (was {active})");
         Ok(())
     })())
@@ -146,8 +138,8 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let bind = release_bind(options)?;
     let dir = directory(options)?;
     snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
-    let _deployment = deployment_lock(&dir)?;
-    let current = current(&dir)?.ok_or("no current release; deploy first")?;
+    let owner = deployment_lock(&dir)?;
+    let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project { root: dir.join("releases").join(current.to_string()) };
     snapback4_core::private_fs::directory(&release.data_dir()).map_err(|e| e.to_string())?;
     let link = release.store_path();
@@ -178,7 +170,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     return Err("serving shared releases requires a filesystem supporting symbolic links".into());
     let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
     let worker = options.flags.get("worker").map(|path| Path::new(path).canonicalize().map_err(|e| format!("--worker {path}: {e}"))).transpose()?;
-    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker }, &bind.to_string())
+    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker, owner: std::sync::Arc::new(owner) }, &bind.to_string())
 }
 
 pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {

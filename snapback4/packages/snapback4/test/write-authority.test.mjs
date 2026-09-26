@@ -147,10 +147,15 @@ test("write authority: a lost readable key-collision reply cannot recover its ke
 for (const tier of ["online", "local"]) test(`replay card: ${tier} keeps a lost response's same-id receipt and fresh result`, { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   const { createClient } = await import("../dist/client.js");
-  let lose = false;
+  let lose = false, replayOverHttp = false;
   const ids = [];
   const transport = async (input, init) => {
     const response = await fetch(input, init);
+    // This case proves the HTTP retry path. A concurrent sync can also
+    // legitimately settle the receipt, so drop that response until the retry.
+    if (replayOverHttp && ids.length < 3 && new URL(input).pathname === "/sync") {
+      await response.arrayBuffer(); throw new TypeError("sync held for HTTP replay");
+    }
     if (new URL(input).pathname === "/m/put") {
       ids.push(JSON.parse(init.body).id);
       if (lose) { lose = false; await response.arrayBuffer(); throw new TypeError("lost committed reply"); }
@@ -167,7 +172,7 @@ for (const tier of ["online", "local"]) test(`replay card: ${tier} keeps a lost 
   assert.equal(fresh.state, "sent");
   assert.equal(fresh.result.secret, "PRIVATE");
   assert.notEqual(fresh.replayed, true);
-  lose = true;
+  lose = true; replayOverHttp = true;
   await client.mutate(op, { key: "lookup" });
   await until(() => writes.length === 2, "retry did not settle");
   assert.equal(ids.length, 3);

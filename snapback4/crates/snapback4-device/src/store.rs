@@ -28,6 +28,11 @@ pub trait DeviceStore {
         Err(RuntimeError::Store("this host cannot count held rows for the native witness".into()))
     }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
+    /// Web residency is measured by its persistence host, outside the wasm.
+    #[cfg(feature = "native")]
+    fn residency(&mut self, _schema: &Schema) -> Result<serde_json::Value, RuntimeError> {
+        Err(RuntimeError::Input("residency needs a native SQLite device or the web persistence host".into()))
+    }
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError>;
     /// A consistent read that does not need to reserve a writer. Memory has

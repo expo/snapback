@@ -22,11 +22,26 @@ mod caps;
 mod authority;
 mod successor;
 mod sequences;
+mod ownership;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
+#[cfg(unix)]
+fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> {
+    use std::os::unix::fs::MetadataExt;
+    conn.path().filter(|path| !path.is_empty()).map(|path| {
+        std::fs::metadata(path).map(|m| (m.dev(), m.ino()))
+            .map_err(|e| RuntimeError::Store(format!("database identity at {path}: {e}")))
+    }).transpose()
+}
+
 pub struct Store {
     conn: Connection,
+    // Fields drop in declaration order: SQLite must close before the raw lock
+    // descriptor, whose close can discard process-wide SQLite POSIX locks.
+    ownership: Option<std::sync::Arc<std::fs::File>>,
+    #[cfg(unix)]
+    file_identity: Option<(u64, u64)>,
     page_size: u64,
     catalog: BTreeMap<String, i64>,
     /// Where uploaded bytes live: `assets/` beside the database file, or a
@@ -69,6 +84,8 @@ impl Store {
     /// running the writable store's initialization and upgrade path.
     pub fn open_read_only(path: &Path) -> Result<Self, RuntimeError> {
         let mut conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        #[cfg(unix)]
+        let file_identity = file_identity(&conn)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let tx = conn.transaction()?;
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
@@ -79,7 +96,7 @@ impl Store {
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
+        Ok(Self { conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -151,6 +168,8 @@ impl Store {
     }
 
     fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool) -> Result<Self, RuntimeError> {
+        #[cfg(unix)]
+        let file_identity = file_identity(&conn)?;
         // Our fixed indexed SQL should reuse its plan when keys or limits
         // change. Set this before caching statements: an existing VDBE
         // retains its parameter-expiry mask even after automatic reprepare.
@@ -234,7 +253,7 @@ impl Store {
         let identity = activation::identity(&opened)?;
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, page_size, catalog, assets_dir, ephemeral_assets, identity })
+        Ok(Self { conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
@@ -272,6 +291,13 @@ impl Store {
         let path = self.conn.path().filter(|path| !path.is_empty())
             .ok_or_else(|| RuntimeError::Store("an in-memory store has no independent reader".into()))?;
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        // @ref LLP 3000.019#3.4 — detached readers must answer from the owned database, not a replacement at its path.
+        // Compare after opening, before reading. Stat only: closing another raw
+        // database descriptor would discard this process's SQLite POSIX locks.
+        #[cfg(unix)]
+        if file_identity(&conn).ok().flatten() != self.file_identity {
+            return Err(RuntimeError::Store(format!("owned database at {path} moved or was replaced; stop and reopen its current path")));
+        }
         // This connection skips prepare's schema writes but needs the same
         // planning policy before any statements are cached.
         // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
@@ -279,7 +305,7 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+        Ok(Self { conn, ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {

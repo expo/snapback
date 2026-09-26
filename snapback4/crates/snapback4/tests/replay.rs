@@ -35,12 +35,13 @@ impl Host {
 #[test]
 fn held_effects_remain_durable_and_claimable_after_restart() {
     let f = Fixture::new("effects");
-    let host = f.start(&["--hold-effects"]);
-    let sent = host.post("/m/send", json!({"id":"replay", "args":{}}), "x-snapback-persona: alice");
-    assert_eq!(sent["result"], 7, "{sent}");
+    assert!(f.command(&["test", "--residency"]).status.success());
     let token = Command::new(BIN).current_dir(&f.0).args(["token", "--service", "worker"]).output().unwrap();
     assert!(token.status.success());
     let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
+    let host = f.start(&["--hold-effects"]);
+    let sent = host.post("/m/send", json!({"id":"replay", "args":{}}), "x-snapback-persona: alice");
+    assert_eq!(sent["result"], 7, "{sent}");
     assert!(host.post("/effects/claim", json!({}), "").get("denied").is_some());
     assert_eq!(host.post("/effects/claim", json!({}), &auth)["effects"], json!([]));
     let queued = f.engine().effects(Some("queued"), 10).unwrap();
@@ -119,9 +120,10 @@ fn replay_suppresses_committed_emits_and_preserves_writes_jobs_and_restarts() {
         let f = Fixture::new(if restart_with_replay { "suppress-replay" } else { "suppress-normal" });
         let control = Fixture::new(if restart_with_replay { "control-replay" } else { "control-normal" });
         for fixture in [&f, &control] { fs::write(fixture.0.join("snapback/schema.q"), WRITES).unwrap(); }
+        assert!(f.command(&["test", "--residency"]).status.success());
+        let auth = worker(&f);
         let host = f.start(&["--replay"]);
         let normal = control.start(&["--hold-schedules"]);
-        let auth = worker(&f);
         for i in 0..N {
             let request = json!({"id":format!("op-{i}"), "args":{"id":format!("{i:032x}"), "n":i}});
             for server in [&host, &normal] {
@@ -143,12 +145,15 @@ fn replay_suppresses_committed_emits_and_preserves_writes_jobs_and_restarts() {
         let rows = host.post("/q/rows", json!({"args":{}}), PERSONA)["data"].clone();
         assert_eq!(rows.as_array().unwrap().len(), N);
         assert_eq!(rows, normal.post("/q/rows", json!({"args":{}}), PERSONA)["data"]);
+        drop(host); drop(normal);
         for fixture in [&f, &control] {
             let out = fixture.command(&["run", "bump", "--json"]);
             assert!(out.status.success(), "{out:?}");
             let run: Value = serde_json::from_slice(&out.stdout).unwrap();
             assert_eq!(run["rowsWritten"], N, "{run}");
         }
+        let host = f.start(&["--replay"]);
+        let normal = control.start(&["--hold-schedules"]);
         let rows = host.post("/q/rows", json!({"args":{}}), PERSONA)["data"].clone();
         assert_eq!(rows, normal.post("/q/rows", json!({"args":{}}), PERSONA)["data"]);
         assert_eq!(f.engine().effect_counts().unwrap().get("suppressed"), Some(&((N * 2) as u64)));

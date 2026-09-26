@@ -152,11 +152,15 @@ fn offset_cli_advance_and_rejected_inputs_keep_time_monotone() {
 }
 
 #[test]
-fn run_now_pins_query_mutation_and_job_without_changing_running_dev() {
+fn run_now_refuses_live_dev_and_pins_offline_query_mutation_and_job() {
     let f = Fixture::new("run");
     let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
     let then = 1_789_352_669_447i64;
     let at = then.to_string();
+    let refused = f.command(&["run", "time", "--now", &at, "--json"]);
+    assert!(!refused.status.success()); assert!(String::from_utf8_lossy(&refused.stderr).contains("E_STORE_BUSY"));
+    assert!(host.query("time").as_i64().unwrap() <= snapback4_core::now_ms());
+    drop(host);
     let queried = output_json(f.command(&["run", "time", "--now", &at, "--json"]));
     assert_eq!(queried["data"], then);
     let post = output_json(f.command(&["run", "post", "--now", &at, "--json"]));
@@ -166,10 +170,11 @@ fn run_now_pins_query_mutation_and_job_without_changing_running_dev() {
     assert_eq!(counter["result"]["at"], then);
     let ran = output_json(f.command(&["run", "tick", "--now", &at, "--json"]));
     assert_eq!(ran["state"], "done");
-    assert_eq!(host.query("counters")[0]["at"], then);
     let wall = snapback4_core::now_ms();
     let relative = output_json(f.command(&["run", "time", "--now", "+25h", "--json"]));
     assert!(relative["data"].as_i64().unwrap() >= wall + 90_000_000);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert_eq!(host.query("counters")[0]["at"], then);
     assert!(host.query("time").as_i64().unwrap() <= snapback4_core::now_ms(), "run --now must not advance the host");
     for invalid in ["yesterday", "-1", "9007199254740992", "+999999999999999999999d"] {
         let out = f.command(&["run", "time", "--now", invalid]);
@@ -275,6 +280,7 @@ fn effect_fixture(label: &str) -> Fixture {
 }
 
 fn effect_token(f: &Fixture, release: bool) -> String {
+    if !release { assert!(f.command(&["test", "--residency"]).status.success()); }
     let args = if release { vec!["token", "--service", "worker", "--release", "deployment"] } else { vec!["token", "--service", "worker"] };
     let out = f.command(&args);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
@@ -284,8 +290,8 @@ fn effect_token(f: &Fixture, release: bool) -> String {
 #[test]
 fn clock_advance_preserves_a_live_effect_claim_and_settlement() {
     let f = effect_fixture("effect-live");
-    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     let auth = effect_token(&f, false);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     assert_eq!(host.post("/m/notify", json!({"id":"notify", "args":{}}))["state"], "sent");
     let claimed = host.auth_request("POST", "/effects/claim", json!({"lease":60}), &auth);
     let effect = &claimed["effects"][0];
@@ -309,8 +315,8 @@ fn clock_advance_preserves_a_live_effect_claim_and_settlement() {
 fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
     let f = Fixture::new("action-live");
     fs::write(f.0.join("snapback/schema.q"), format!("use server\n{SOURCE}\naction notify()\neffect ping\nmutation ping():\n  emit ping {{}}\n")).unwrap();
-    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     let auth = effect_token(&f, false);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     assert_eq!(host.post("/a/notify?wait=0", json!({"id":"action-live", "args":{}}))["state"], "pending");
     let claimed = host.auth_request("POST", "/actions/claim", json!({"lease":120, "session":60}), &auth);
     let action = &claimed["requests"][0];
@@ -373,8 +379,8 @@ fn action_retry_times_follow_dev_clock_and_real_expiry_still_fences_dev_and_serv
         let f = Fixture::new(if release { "action-expiry-release" } else { "action-expiry-dev" });
         fs::write(f.0.join("snapback/schema.q"), format!("use server\n{SOURCE}\naction notify()\n")).unwrap();
         if release { assert!(f.command(&["deploy", "deployment"]).status.success()); }
-        let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
         let auth = effect_token(&f, release);
+        let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
         assert_eq!(host.auth_request("POST", "/a/notify?wait=0", json!({"id":"expiry", "args":{}}), &auth)["state"], "pending");
         let first = host.auth_request("POST", "/actions/claim", json!({"lease":1, "session":1}), &auth)["requests"][0].clone();
         let token = first["session"]["token"].as_str().unwrap();
@@ -408,8 +414,8 @@ fn action_retry_times_follow_dev_clock_and_real_expiry_still_fences_dev_and_serv
 #[test]
 fn effect_retry_next_at_still_follows_the_dev_clock() {
     let f = effect_fixture("effect-retry");
-    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     let auth = effect_token(&f, false);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     host.post("/m/notify", json!({"id":"notify", "args":{}}));
     let claimed = host.auth_request("POST", "/effects/claim", json!({}), &auth);
     let id = claimed["effects"][0]["id"].as_str().unwrap();
@@ -432,8 +438,8 @@ fn real_time_effect_lease_loss_requeues_in_dev_and_serve() {
     for release in [false, true] {
         let f = effect_fixture(if release { "effect-wall-release" } else { "effect-wall-dev" });
         if release { assert!(f.command(&["deploy", "deployment"]).status.success()); }
-        let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
         let auth = effect_token(&f, release);
+        let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
         assert_eq!(host.auth_request("POST", "/m/notify", json!({"id":"notify", "args":{}}), &auth)["state"], "sent");
         let claimed = host.auth_request("POST", "/effects/claim", json!({"lease":1}), &auth);
         let id = claimed["effects"][0]["id"].as_str().unwrap();
@@ -459,8 +465,8 @@ fn real_time_effect_lease_loss_requeues_in_dev_and_serve() {
 fn grace_push_is_deferred_until_clock_advance_then_delivered_once() {
     let f = effect_fixture("grace-push");
     fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\neffect notify\nmutation push():\n  insert counters {{n: 1, at: now}}\n  if not exists connected[viewer]:\n    emit notify {{recipient: viewer}}\n")).unwrap();
-    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
     let auth = effect_token(&f, false);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
     host.request("GET", "/changes?wait=0", json!(null));
     assert_eq!(host.post("/m/push", json!({"id":"push", "args":{}}))["state"], "sent");
     let admitted_by = snapback4_core::now_ms();
@@ -500,8 +506,8 @@ fn grace_push_reconnect_is_satisfied_even_after_restart_and_disconnect() {
     for reconnect in [false, true] {
         let f = effect_fixture(if reconnect { "grace-reconnect" } else { "grace-restart" });
         fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\neffect notify\nmutation push():\n  if not exists connected[viewer]:\n    emit notify {{recipient: viewer}}\n")).unwrap();
-        let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
         let auth = effect_token(&f, false);
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
         host.request("GET", "/changes?wait=0", json!(null));
         assert_eq!(host.post("/m/push", json!({"id":"push", "args":{}}))["state"], "sent");
         let queued = host.auth_request("GET", "/effects", json!(null), &auth)["effects"][0].clone();
@@ -534,8 +540,8 @@ fn grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart(
     let f = effect_fixture("grace-serve");
     fs::write(f.0.join("snapback/schema.q"), "effect notify\nmutation push():\n  if not exists connected[viewer]:\n    emit notify {recipient: viewer}\n").unwrap();
     assert!(f.command(&["deploy", "deployment"]).status.success());
-    let host = f.start(&["serve", "deployment"]);
     let auth = effect_token(&f, true);
+    let host = f.start(&["serve", "deployment"]);
     // No connection/grace: immediate, also on the release host.
     assert_eq!(host.auth_request("POST", "/m/push", json!({"id":"immediate", "args":{}}), &auth)["state"], "sent");
     let immediate = host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"][0].clone();

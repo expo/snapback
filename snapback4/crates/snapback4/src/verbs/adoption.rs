@@ -34,11 +34,11 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     }).collect())
 }
 
-/// Read the live host through its existing lifetime lock's listener port. A
+/// Read the live host through its address record's listener port. A
 /// store identity check prevents a stale port from inspecting another project.
 pub(super) fn host(project: &Project, store_id: &str) -> Option<serde_json::Value> {
     use std::{io::{Read, Write}, net::{Ipv4Addr, TcpStream}, time::Duration};
-    let port: u16 = std::fs::read_to_string(project.data_dir().join("serve.lock")).ok()?.trim().parse().ok()?;
+    let port = crate::store_owner::inspector_port(&project.store_path())?;
     let mut stream = TcpStream::connect_timeout(&(Ipv4Addr::LOCALHOST, port).into(), Duration::from_millis(200)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(1))).ok()?;
