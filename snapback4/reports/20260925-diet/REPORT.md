@@ -102,3 +102,7 @@ Combined **1,340 B gzip saved**. No new representation, format or algorithm. Mat
 ## Candidate 1: replica index preparation
 
 573,320 → **571,850 B gzip** (1,982,094 → **1,976,372 B raw**): **1,470 B gzip saved**. `prepare_row_view_indexes` is shared; `prepare_row_view_work` requires SQLite. All lookup/lifetime/predicate indexes remain. Existing work-schema entries survive reopening unchanged; the new regression compares exact serialized schemas after index rebuilding and legacy preparation. Public backend wire serialization and the serde schema representation are unchanged. New web installations no longer synthesize private server tables. Their names still occur in the artifact because `is_recount_work` must refuse attempts to read engine-owned state.
+
+## Candidate 3: one predicate walker
+
+571,850 → **571,669 B gzip** (1,976,372 → **1,975,906 B raw**): **181 B gzip saved**. Shared evaluation takes an optional member for comparison operands. Bare boolean fields still refer to the source; null fallback, operator interpretation, short-circuit order and step pricing remain unchanged. Serialization is untouched.

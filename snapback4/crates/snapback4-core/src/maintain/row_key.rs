@@ -31,40 +31,7 @@ impl RowKey {
             .collect()
     }
     pub fn matches(&self, source: &Value, member: &Value) -> bool {
-        fn operand<'a>(o: &'a Operand, source: &'a Value, member: &'a Value) -> &'a Value {
-            match o {
-                Operand::Literal(v) => v,
-                Operand::Field(f) => f
-                    .strip_prefix("$row.")
-                    .map_or_else(|| source.field(f), |f| member.field(f))
-                    .unwrap_or(&Value::Null),
-            }
-        }
-        fn evaluate(p: &Predicate, source: &Value, member: &Value) -> bool {
-            match p {
-                Predicate::Bool(v) => *v,
-                Predicate::Field(f) => source.field(f) == Ok(&Value::Bool(true)),
-                Predicate::Not(p) => !evaluate(p, source, member),
-                Predicate::And(a, b) => evaluate(a, source, member) && evaluate(b, source, member),
-                Predicate::Or(a, b) => evaluate(a, source, member) || evaluate(b, source, member),
-                Predicate::Compare { op, left, right } => {
-                    let (a, b) = (
-                        operand(left, source, member),
-                        operand(right, source, member),
-                    );
-                    match op.as_str() {
-                        "=" => a == b,
-                        "!=" => a != b,
-                        "<" => a.total_cmp(b).is_lt(),
-                        "<=" => !a.total_cmp(b).is_gt(),
-                        ">" => a.total_cmp(b).is_gt(),
-                        ">=" => !a.total_cmp(b).is_lt(),
-                        _ => false,
-                    }
-                }
-            }
-        }
-        evaluate(&self.predicate, source, member)
+        self.predicate.matches_with_member(source, Some(member))
     }
 
     pub fn comparisons(&self) -> Vec<(String, String)> {

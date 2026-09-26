@@ -61692,3 +61692,12 @@ The regression checks exact serialized bytes for both the public projection
 work tables. Same build: **1,976,372 B raw / 571,850 B gzip**, **1,470 B gzip
 saved** from 573,320. Work-table name recognizers remain necessary for the
 engine-owned table fence; their string presence alone is not code leakage.
+
+## 2026-09-25 — device diet: one maintained predicate evaluator
+
+`Predicate::matches` and `RowKey::matches` share the boolean/comparison walker.
+An optional member changes only `$row.` comparison-operand resolution; bare
+boolean fields, missing-as-null behavior, short circuiting, comparisons and
+predicate step charges retain their existing semantics. Same build:
+**1,975,906 B raw / 571,669 B gzip**, **181 B gzip saved** from 571,850.
+No predicate, schema or wire serialization changes.

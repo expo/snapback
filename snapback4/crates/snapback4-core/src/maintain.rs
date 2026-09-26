@@ -39,8 +39,14 @@ pub fn calendar_ordinal(at: i64, millis: i64, offset: i64) -> i64 {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Operand { Field(String), Literal(Value) }
 impl Operand {
-    fn value<'a>(&'a self, row: &'a Value) -> &'a Value {
-        match self { Self::Field(field) => row.field(field).unwrap_or(&Value::Null), Self::Literal(value) => value }
+    fn value<'a>(&'a self, row: &'a Value, member: Option<&'a Value>) -> &'a Value {
+        match self {
+            Self::Field(field) => match member.zip(field.strip_prefix("$row.")) {
+                Some((member, field)) => member.field(field),
+                None => row.field(field),
+            }.unwrap_or(&Value::Null),
+            Self::Literal(value) => value,
+        }
     }
     fn fields(&self, out: &mut BTreeSet<String>) { if let Self::Field(field) = self { out.insert(field.clone()); } }
 }
@@ -52,14 +58,20 @@ pub enum Predicate {
 }
 impl Predicate {
     pub fn matches(&self, row: &Value) -> bool {
+        self.matches_with_member(row, None)
+    }
+
+    // One boolean/comparison walker; only comparison operands can refer to a
+    // keyed member. Bare boolean fields keep their source-row interpretation.
+    fn matches_with_member(&self, row: &Value, member: Option<&Value>) -> bool {
         match self {
             Self::Bool(value) => *value,
             Self::Field(field) => matches!(row.field(field), Ok(Value::Bool(true))),
-            Self::Not(value) => !value.matches(row),
-            Self::And(a, b) => a.matches(row) && b.matches(row),
-            Self::Or(a, b) => a.matches(row) || b.matches(row),
+            Self::Not(value) => !value.matches_with_member(row, member),
+            Self::And(a, b) => a.matches_with_member(row, member) && b.matches_with_member(row, member),
+            Self::Or(a, b) => a.matches_with_member(row, member) || b.matches_with_member(row, member),
             Self::Compare { op, left, right } => {
-                let (a, b) = (left.value(row), right.value(row));
+                let (a, b) = (left.value(row, member), right.value(row, member));
                 match op.as_str() { "=" => a == b, "!=" => a != b, "<" => a.total_cmp(b).is_lt(), "<=" => !a.total_cmp(b).is_gt(), ">" => a.total_cmp(b).is_gt(), ">=" => !a.total_cmp(b).is_lt(), _ => false }
             }
         }
