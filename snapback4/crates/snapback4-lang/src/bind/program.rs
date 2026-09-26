@@ -39,6 +39,9 @@ pub struct BoundProgram {
     pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub(crate) canonical_sources: BTreeMap<String, String>,
     pub(crate) selections: BTreeMap<String, String>,
+    /// Scan sites the compiler generated for a timeline read: the only scans whose
+    /// filter is exactly the platform's retirement check.
+    pub(crate) timeline_scans: std::collections::BTreeSet<String>,
     pub program: Program,
     pub(crate) presence: Option<snapback4_core::schema::Execution>,
     pub module: String,
@@ -53,6 +56,8 @@ impl BoundProgram {
     pub fn domain_source(&self, site: &str) -> Option<&str> { self.sources.get(&format!("domain/{site}")).map(|(_, text)| text.as_str()) }
     pub fn loop_source(&self, binding: &str) -> Option<&str> { self.sources.get(&format!("for/{binding}")).map(|(_, text)| text.as_str()) }
     pub fn selections(&self) -> &BTreeMap<String, String> { &self.selections }
+    /// Whether the scan at `site` is a timeline read's own expansion, not an authored scan.
+    pub fn timeline_scan(&self, site: &str) -> bool { self.timeline_scans.contains(site) }
     /// The actual binder choice, shared by `why` and structural cost reports.
     pub fn selection(&self, site: &str) -> Option<&str> { self.selections.get(site).map(String::as_str) }
 }
@@ -85,6 +90,10 @@ pub struct Binder<'a> {
     loops: u32,
     in_prelude: bool,
     record_ownership: bool,
+    /// The feed table and source site of the timeline read being expanded, while
+    /// it is: the generated scan carries that read's own site.
+    expanding_feed: Option<(String, Site)>,
+    timeline_scans: std::collections::BTreeSet<String>,
     notes: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
 }
@@ -116,7 +125,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -143,7 +152,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -225,7 +234,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -271,7 +280,11 @@ impl<'a> Binder<'a> {
             let expanded = if let Some(plan) = self.catalog.feed_views.get(&read.table) {
                 super::feed_view::read(timeline, plan, read)?
             } else { super::timeline::read(timeline, read)? };
-            return self.expr(&expanded, out);
+            // @ref LLP 3000.013#14.4 — the scale certificate trusts only the scan this expansion generates.
+            let outer = self.expanding_feed.replace((timeline.table("Feed"), read.site.clone()));
+            let bound = self.expr(&expanded, out);
+            self.expanding_feed = outer;
+            return bound;
         }
         if let Some(shaped) = self.page_shape(read) { return self.expr(&shaped, out); }
         if self.is_page(read, ReadMode::FilteredPoint)? {
@@ -378,6 +391,8 @@ impl<'a> Binder<'a> {
         let domain = if pins.is_empty() { read.table.clone() } else { format!("{} where {pins}", read.table) };
         self.sources.insert(format!("domain/{scan_site}"), (read.site.clone(), domain));
         if filter.is_some() && let Some(text) = filter_text { self.filters.insert(scan_site.clone(), text); }
+        // Only the generated scan itself, never an authored scan bound inside its keys, cursor or helpers.
+        if self.expanding_feed.as_ref().is_some_and(|(feed, site)| *feed == read.table && *site == read.site) { self.timeline_scans.insert(scan_site.clone()); }
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         // Authored spelling serves diagnostics; inferred-index residency sites
         // keep canonical bytes. Explicit-index search alternatives retain their

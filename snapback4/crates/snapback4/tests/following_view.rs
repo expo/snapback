@@ -15,9 +15,10 @@ fn full_target_check_cost_reports_one_inbox_and_meter_bounded_residuals() {
     let json=run(&["check","--cost","--json"]);assert!(json.status.success());
     let json:serde_json::Value=serde_json::from_slice(&json.stdout).unwrap();
     let home=json["scale"].as_array().unwrap().iter().find(|c|c["operation"]=="home").unwrap();
-    // Stale/tombstoned candidates can consume the meter. A page size cannot
-    // certify a population-independent number of skipped rows.
-    assert_eq!(home["class"],"grows");
+    // Stale/tombstoned candidates can consume the meter until cleanup purges
+    // them: a backlog, with the meter allowance, not growth with the corpus.
+    assert_eq!(home["class"],"backlog");
+    assert!(home["bounds"]["rows_examined"].as_u64().unwrap()>=8_193);
     assert_eq!(home["bounds"]["lanes"],0,"one direct inbox scan, no author merge lanes");
     assert!(home["growth_sites"].as_array().unwrap().iter().any(|g|g["reason"].as_str().unwrap().contains("Following `following`")));
     println!("MEASURE target home scale={home}");

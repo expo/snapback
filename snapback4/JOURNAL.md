@@ -59636,3 +59636,150 @@ round-11 and round-12 finding fixed and one gap: nothing required a store
 replacement to clear the order as well as the answers. A case now remembers a
 refusal at cut 100, clears, and requires the new store's first answer at cut 1
 to be remembered.
+
+## 2026-09-26 — The scale certificate separates a cleanup backlog from growth
+
+Calibration #21's builder read `scale: 6 of 8 operations are constant; 2 grow
+with data (home, cards)` on the paved Following program, and wrote that it was
+not treating short functional tests as a scale proof. The two reads grow only
+with a backlog: feed entries that an unfollow or a removal retired, which
+background cleanup purges in chunks of at most 256. Expired rows the sweep has
+not reached are the same kind of cost.
+
+The certificate now has a third class, `backlog`, which reads
+`constant once background cleanup catches up; until then at most N rows
+examined: …`. It keeps the read meter's allowance, because a burst or downtime
+can leave any backlog, and the summary counts it apart:
+`2 constant once background cleanup catches up (home, cards); 0 grow with
+data`. Only the scan the compiler generates for a timeline read qualifies:
+its one filter is the platform's retirement check. A residual filter over
+application data, a per-row read rule and a maintained aggregate over expiring
+contributions still grow. `guide bounds` says so, and the pinned certificates
+in the scale, expiry and Following tests moved with it.
+
+## 2026-09-26 — Scale certificate round 1: only the compiler's own timeline scan is a backlog
+
+Both review families found the same High: the first cut trusted a table's
+name. A scan of the owned feed table with a filter of its own
+(`feedFeed[viewer] … where not .repost`) was called a backlog, though live
+reposts survive cleanup. So was any application table whose name ended in
+`Broadcast`, which is not even an owned suffix. Now the binder records the one
+scan it generates when it expands a timeline read, and the certificate grants
+`backlog` to that scan alone. An authored scan grows, even one that spells the
+platform's check by hand. Without the binder's record there is no proof, and
+the read grows too.
+
+Inside a growing certificate a cleanup site now keeps its own words. Under a
+condition whose only extra work is cleanup, it reads `constant once background
+cleanup catches up (…)`. Beside real growth, it reads `also, until background
+cleanup catches up, …`. The README and `guide bounds` describe three classes,
+and apply `backlog` only when cleanup explains all of an operation's variable
+work.
+
+## 2026-09-26 — Scale certificate round 2: the record names one scan
+
+Both families found that round 1's record was ambient: it marked every scan of
+the feed table bound while a timeline read expanded, including an authored scan
+inside a helper in the read's own cursor or key. Such a read was certified
+`backlog` although live reposts it skips survive cleanup. The binder now
+records a scan only if it is the feed table read at the timeline read's own
+source site, which only the generated scan is. Astra also found that a
+condition's cleanup promise ignored unconditional growth; every variant now
+takes at least the class of the work that runs in all of them. The summary
+test now pins all three counts, and a test pins the guide's and README's
+three-class wording.
+
+## 2026-09-26 — Scale certificate round 3: a variant answers for every site that can run with it
+
+Both reviews of round 2 found that a condition's class still ignored growth
+recorded under other conditions: a scan that grows whether `status` is present
+or absent, or whatever `label` is, runs beside the variant where the assignee
+is pinned, yet that variant still promised `constant once background cleanup
+catches up`. Sites and variants now keep their presence conditions, and every
+variant takes at least the class of each site whose conditions do not
+contradict its own. Unconditional sites contradict nothing. New tests cover a
+status-wide scan, an orthogonal input, a coarser variant beside a finer
+growing site, and an unconditional expiring scan that makes otherwise
+constant variants a backlog.
+
+## 2026-09-26 — Scale certificate round 4: conditions are bindings, not spellings
+
+Astra's review of round 3 found conditions matched by the name the author
+wrote. A helper's `assignee` parameter, called with the query's `a`, looked
+like the query's own `assignee`, so a variant promised cleanup while the
+helper's scan grew. And `selected = assignee` was treated as independent of
+`assignee`. Conditions now carry the binding they test. A binding that only
+copies another, and neither is ever reassigned, tests its source. Variants
+merge by those bindings, and each reads under the name of the binding it
+finally tests: the helper's parameter reads as `a`, and a copy of `status`
+as `status`. A reassigned copy stays its own binding. New tests cover the
+helper, the helper in a loop, the alias, a reassigned copy, two bindings
+that share a spelling, and conditional cleanup beside constant variants.
+
+## 2026-09-26 — Scale certificate round 5: only an argument's presence defines a variant
+
+Astra's review of round 4 found three more gaps. A loop variable, or a copy
+reassigned in a loop, takes both values in one call, yet it was treated as a
+fixed condition. Repeated searches of one argument got separate identities.
+And an alias tested inside a test of its own source merged two contradictory
+facts into one variant. Presence variants now come only from an argument's
+presence, which is fixed for the whole call. A copy counts only if it is never
+reassigned, and Quarry never reassigns an argument. A test of anything else
+runs both ways, so its branches count as unconditional. A test that an
+enclosing test already decided adds no fact, and its other branch is recorded
+as unreachable. A searched argument is one condition however often it is
+searched.
+
+## 2026-09-26 — Scale certificate round 6: what follows a returning branch
+
+Astra (READY WITH CHANGES) and Grok (READY WITH CHANGES) reviewed round 5.
+Astra asked for sharper tests of the nested case. The nested test now pins its
+one variant and its one cleanup site, and a mirrored case checks the absent
+branch. Grok found two more gaps:
+
+- Code after a branch that returns was treated as running in every call. In
+  `if assignee != null: return <pinned>` followed by `return <unpinned>`, the
+  second scan runs only when the assignee is absent, yet it grew the present
+  variant. The walk now covers the whole body at once. What follows a branch
+  that leaves the body (`return`, `break`, `continue`) is analyzed in the
+  other branch's case. When both branches leave, or the branch an enclosing
+  test decided leaves, what follows never runs.
+- One presence state could be spelled two ways when its tests nested in
+  opposite orders. Condition names are now sorted, so `status and assignee`
+  reads `assignee and status` everywhere.
+
+Grok also named a surviving mutation: skipping expression blocks when
+finding reassigned bindings. A new test covers it: `matching (needle ?? 'x')`
+searches in every call, so it must not claim a constant absent case.
+
+Ten mutants of the change fail the tests. Four of them needed a new test of
+every way out of a body: both branches returning, `continue` in a loop, and
+a nested test whose branches both return. Quarry accepts code after such a
+test, so the certificate must not charge it.
+
+## 2026-09-26 — Scale certificate round 7: leaving, judged under the facts in force
+
+Astra reviewed round 6 (READY WITH CHANGES). Deciding whether a branch leaves
+its body was purely syntactic. A branch that returns through a nested test of
+the same argument, `if assignee != null: if assignee != null: return …`, was
+judged able to fall through, so what followed it was charged to every call. A
+test's exit is now judged under the presence facts each branch runs with. A
+decided nested test leaves exactly when its selected branch does. The
+fall-through test also compares the work (rows, probes and lanes) with its
+explicit-`else` twin, not only the classes: charging what follows at zero
+iterations survived before.
+
+Grok's review of round 6 (READY WITH CHANGES) found two more ways a scan that
+never runs was charged, both making a backlog operation read as growing. A
+`require` that no call can pass (`require false`, or two literals compared so
+the comparison fails) now leaves as a `return` does. Nothing after a `return`,
+`break`, `continue` or such a refusal in the same body is charged: it is
+walked for its bindings and its rows still count toward the bounds, but it
+adds no site. A loop whose body returns can run no times, so it never leaves.
+A test now pins that, since treating it as leaving survived before.
+
+One pessimism is left as it was in round 5: a helper that falls through after
+a returning branch is lowered with a `$returned` flag, which is not a presence
+test, so what follows is charged to every call. The README's certificate
+paragraph fits its three lines again, within the README's 300-line budget.
+Twelve mutants of rounds 6 and 7 fail the tests.

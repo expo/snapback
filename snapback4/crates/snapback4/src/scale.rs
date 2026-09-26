@@ -15,9 +15,11 @@ mod windows;
 pub(crate) use display::summary;
 pub(crate) use display::expr as expression;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+/// Constant work, work that background cleanup returns to constant, or work
+/// that grows with the corpus; a certificate takes the worst of its sites.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum Class { Constant, Grows }
+pub(crate) enum Class { Constant, Backlog, Grows }
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Certificate {
@@ -38,6 +40,9 @@ pub(crate) struct Variant {
     pub when: String,
     pub class: Class,
     pub indexes: BTreeSet<String>,
+    /// The presence conditions `when` names, each argument present or absent.
+    #[serde(skip)]
+    pub conditions: Vec<(String, bool)>,
 }
 
 /// Bounds are conservative allowances, not predictions or a promise that a
@@ -56,9 +61,16 @@ pub(crate) struct Bounds {
 pub(crate) struct Growth {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<String>,
+    /// Rows a background sweep removes: retired Following entries or expired
+    /// rows. The read meter bounds them while the backlog lasts.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub backlog: bool,
     pub site: String,
     pub reason: String,
     pub rewrite: String,
+    /// The presence conditions under which the site runs; none for every call.
+    #[serde(skip)]
+    pub conditions: Vec<(String, bool)>,
 }
 
 pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
@@ -80,6 +92,8 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
+        identities: Vec::new(), aliases: BTreeMap::new(), reassigned: reassigned(program),
+        arguments: program.args.keys().cloned().collect(), unreachable: 0,
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
@@ -93,17 +107,15 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
     } else {
         // @ref LLP 3000.013#5.2 — automatic sweeps commit at most 64 items;
         // retries only shrink that size. Inner domains still use the meter.
-        for stmt in &program.body {
+        // One walk of the whole body, so a branch that leaves it conditions what follows.
+        let body: Vec<Stmt> = program.body.iter().map(|stmt| {
+            let mut stmt = stmt.clone();
             if program.kind == ProgramKind::Job
-                && let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt
-                && scan.take == Bound::Meter {
-                let mut chunk = stmt.clone();
-                if let Stmt::For { domain: LoopDomain::Page(scan), .. } = &mut chunk {
-                    scan.take = Bound::Literal(64);
-                }
-                a.body(std::slice::from_ref(&chunk), 1);
-            } else { a.body(std::slice::from_ref(stmt), 1); }
-        }
+                && let Stmt::For { domain: LoopDomain::Page(scan), .. } = &mut stmt
+                && scan.take == Bound::Meter { scan.take = Bound::Literal(64); }
+            stmt
+        }).collect();
+        a.body(&body, 1);
         if program.kind == ProgramKind::Job {
             for stmt in &program.body {
                 if let Stmt::For { binding, domain: LoopDomain::Page(scan), .. } = stmt {
@@ -113,7 +125,17 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             }
         }
     }
-    a.result.class = if a.result.growth_sites.is_empty() { Class::Constant } else { Class::Grows };
+    // @ref LLP 3000.013#14.4 — skips that background cleanup removes are a backlog, not growth with the corpus.
+    a.result.class = if a.result.growth_sites.is_empty() { Class::Constant }
+        else if a.result.growth_sites.iter().all(|g| g.backlog) { Class::Backlog } else { Class::Grows };
+    // A site can run in every variant its conditions do not contradict, the
+    // unconditional ones in all of them, so no variant is better than such a site.
+    for variant in &mut a.result.variants {
+        for site in &a.result.growth_sites {
+            let contradicts = site.conditions.iter().any(|(name, present)| variant.conditions.iter().any(|(other, value)| name == other && present != value));
+            if !contradicts { variant.class = variant.class.max(if site.backlog { Class::Backlog } else { Class::Grows }); }
+        }
+    }
     // Do not clip structural allowances to ceilings: the runtime records
     // the charge that crosses a ceiling, and a query may try later sites.
     a.result
@@ -129,29 +151,128 @@ struct Analysis<'a> {
     data: BTreeMap<String, bool>,
     labels: BTreeMap<String, String>,
     in_filter: bool,
+    /// The presence conditions in force, as the author names them (for `when`)
+    /// and as binding identities (for matching sites to variants).
     conditions: Vec<(String, bool)>,
+    identities: Vec<(String, bool)>,
+    /// Bindings that only copy another binding, neither ever reassigned.
+    aliases: BTreeMap<String, String>,
+    reassigned: BTreeSet<String>,
+    /// The operation's arguments: only their presence, fixed for a call, defines a variant.
+    arguments: BTreeSet<String>,
+    /// Depth of branches an enclosing presence test rules out.
+    unreachable: u32,
     has_variants: bool,
 }
 
+/// Every binding the program reassigns anywhere, statement bodies and expression
+/// blocks included: such a binding is never an alias.
+fn reassigned(program: &Program) -> BTreeSet<String> {
+    fn walk(value: &serde_json::Value, out: &mut BTreeSet<String>) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                if let Some(serde_json::Value::Object(assign)) = fields.get("Assign")
+                    && let Some(serde_json::Value::String(name)) = assign.get("name") { out.insert(name.clone()); }
+                for field in fields.values() { walk(field, out); }
+            }
+            serde_json::Value::Array(items) => { for item in items { walk(item, out); } }
+            _ => {}
+        }
+    }
+    let mut out = BTreeSet::new();
+    walk(&serde_json::to_value(&program.body).unwrap_or_default(), &mut out);
+    out
+}
+
+/// A condition no call satisfies: `false`, or two literals compared so the
+/// comparison fails. A `require` of it always refuses, so it leaves as a
+/// `return` does.
+fn never_holds(condition: &Expr) -> bool {
+    match condition {
+        Expr::Literal(Value::Bool(false)) => true,
+        Expr::Binary { op: op @ (BinaryOp::Eq | BinaryOp::Ne), left, right } => match (left.as_ref(), right.as_ref()) {
+            (Expr::Literal(a), Expr::Literal(b)) => (a == b) == (*op == BinaryOp::Ne),
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
 impl Analysis<'_> {
+    /// The presence fact a test states: the binding's identity, its author's
+    /// name, and the presence under which the test holds. Only an argument's
+    /// presence, fixed for the whole call, is a fact.
+    fn fact(&self, condition: &Expr) -> Option<(String, String, bool)> {
+        display::presence(condition).filter(|_| self.has_variants).and_then(|(binding, search, present)| {
+            let root = self.identity(&binding);
+            // Quarry never reassigns an argument (locals cannot shadow one).
+            self.arguments.contains(&root).then(|| {
+                let name = display::author_name(&root);
+                if search { (format!("search {root}"), format!("search {name}"), present) } else { (root, name, present) }
+            })
+        })
+    }
+
+    /// Whether every path through a body leaves it, under the facts `known`: a
+    /// `return`, `break` or `continue`, or a test each of whose possible branches
+    /// leaves. A loop may not run.
+    fn leaves(&self, body: &[Stmt], known: &[(String, bool)]) -> bool {
+        body.iter().any(|stmt| match stmt {
+            Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
+            Stmt::Require { condition, .. } => never_holds(condition),
+            Stmt::If { condition, then_body, else_body } => match self.fact(condition) {
+                None => self.leaves(then_body, known) && self.leaves(else_body, known),
+                Some((identity, _, present)) => match known.iter().find(|(name, _)| *name == identity).map(|(_, value)| *value) {
+                    Some(value) => self.leaves(if value == present { then_body } else { else_body }, known),
+                    None => {
+                        let under = |value: bool| [known, &[(identity.clone(), value)]].concat();
+                        self.leaves(then_body, &under(present)) && self.leaves(else_body, &under(!present))
+                    }
+                },
+            },
+            _ => false,
+        })
+    }
+
+    /// The binding a presence test finally reads, through any aliases.
+    fn identity(&self, name: &str) -> String {
+        let mut name = name.to_owned();
+        while let Some(next) = self.aliases.get(&name) { name = next.clone(); }
+        name
+    }
+
     fn scan_domain(&self, scan: &Scan) -> String {
         self.source.and_then(|p| p.domain_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::domain(self.schema, scan))
     }
 
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
+        if self.unreachable > 0 { return; }
         self.variant(Class::Grows, None);
-        let growth = Growth { when: display::conditions(&self.conditions), site: site.into(), reason, rewrite: rewrite.into() };
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
+        if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
+    }
+
+    /// Rows a background sweep removes: bounded by the read meter while the
+    /// backlog lasts, and absent once cleanup catches up.
+    fn backlog(&mut self, site: &str, reason: String, rewrite: &str) {
+        if self.unreachable > 0 { return; }
+        self.variant(Class::Backlog, None);
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
     fn variant(&mut self, class: Class, index: Option<String>) {
+        if self.unreachable > 0 { return; }
         let Some(when) = display::conditions(&self.conditions) else { return; };
-        let at = self.result.variants.iter().position(|v| v.when == when).unwrap_or_else(|| {
-            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new() });
+        // One variant per combination of bindings, not per spelling: a helper's
+        // parameter and a query argument can share a name.
+        let same = |conditions: &[(String, bool)]| conditions.len() == self.identities.len() && conditions.iter().all(|c| self.identities.contains(c));
+        let at = self.result.variants.iter().position(|v| same(&v.conditions)).unwrap_or_else(|| {
+            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new(), conditions: self.identities.clone() });
             self.result.variants.len() - 1
         });
         let variant = &mut self.result.variants[at];
-        if class == Class::Grows { variant.class = class; }
+        if class > variant.class { variant.class = class; }
         if let Some(index) = index { variant.indexes.insert(index); }
     }
 
@@ -178,11 +299,17 @@ impl Analysis<'_> {
     }
 
     fn body(&mut self, body: &[Stmt], times: u64) {
-        for stmt in body {
+        for (at, stmt) in body.iter().enumerate() {
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
                     if name.starts_with("$intentNeedle") {
                         self.labels.insert(name.clone(), display::expr(value));
+                    }
+                    // A binding that only copies another tests the same presence.
+                    if let Expr::Variable(source) = value && !matches!(stmt, Stmt::Assign { .. })
+                        && !self.reassigned.contains(name) && !self.reassigned.contains(source) {
+                        let root = self.identity(source);
+                        self.aliases.insert(name.clone(), root);
                     }
                     let data = self.expr(value, times);
                     // Union assignments across branches and loop iterations;
@@ -193,7 +320,8 @@ impl Analysis<'_> {
                     let data = self.expr(value, times);
                     *self.data.entry(target.clone()).or_default() |= data;
                 }
-                Stmt::Return(value) => { self.expr(value, times); }
+                // Nothing after a statement that leaves the body runs.
+                Stmt::Return(value) => { self.expr(value, times); self.never(&body[at + 1..], times); return; }
                 Stmt::Emit { payload, once, .. } => {
                     self.expr(payload, times);
                     if let Some(key) = once {
@@ -203,14 +331,60 @@ impl Analysis<'_> {
                 }
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
-                    let presence = display::presence(condition, &self.labels).filter(|_| self.has_variants);
-                    if let Some((name, present)) = &presence { self.conditions.push((name.clone(), *present)); }
-                    self.body(then_body, times);
-                    if presence.is_some() { self.conditions.last_mut().unwrap().1 ^= true; }
-                    self.body(else_body, times);
-                    if presence.is_some() { self.conditions.pop(); }
+                    // @ref LLP 3000.013#14.4 — only an argument's presence, fixed for the whole call, defines a
+                    // variant. A test of anything else (a loop variable, a reassigned or computed binding) can
+                    // go both ways in one call, so its branches are recorded as unconditional.
+                    let fact = self.fact(condition);
+                    // What follows the test runs only after a branch that does not leave the body,
+                    // judged under the facts each branch runs with.
+                    let rest = &body[at + 1..];
+                    let under = |value: bool| match &fact {
+                        Some((identity, _, _)) if !self.identities.iter().any(|(known, _)| known == identity) => [self.identities.as_slice(), &[(identity.clone(), value)]].concat(),
+                        _ => self.identities.clone(),
+                    };
+                    let present = fact.as_ref().is_none_or(|(_, _, present)| *present);
+                    let (then_leaves, else_leaves) = (self.leaves(then_body, &under(present)), self.leaves(else_body, &under(!present)));
+                    match fact {
+                        None => {
+                            self.body(then_body, times); self.body(else_body, times);
+                            if then_leaves && else_leaves { self.never(rest, times); return; }
+                        }
+                        Some((identity, name, present)) => match self.identities.iter().find(|(known, _)| *known == identity).map(|(_, value)| *value) {
+                            // An enclosing test already decided it: one branch is that same case, the other never runs.
+                            Some(known) => {
+                                let (same, never, same_leaves) = if known == present { (then_body, else_body, then_leaves) } else { (else_body, then_body, else_leaves) };
+                                self.body(same, times);
+                                self.never(never, times);
+                                if same_leaves { self.never(rest, times); return; }
+                            }
+                            None => {
+                                self.conditions.push((name.clone(), present));
+                                self.identities.push((identity.clone(), present));
+                                self.body(then_body, times);
+                                self.conditions.last_mut().unwrap().1 ^= true;
+                                self.identities.last_mut().unwrap().1 ^= true;
+                                self.body(else_body, times);
+                                self.conditions.pop();
+                                self.identities.pop();
+                                if then_leaves && else_leaves { self.never(rest, times); return; }
+                                // @ref LLP 3000.013#14.4 — after one branch leaves, what follows runs only in the other's case.
+                                if then_leaves || else_leaves {
+                                    let value = present != then_leaves;
+                                    self.conditions.push((name, value));
+                                    self.identities.push((identity, value));
+                                    self.body(rest, times);
+                                    self.conditions.pop();
+                                    self.identities.pop();
+                                    return;
+                                }
+                            }
+                        },
+                    }
                 }
-                Stmt::Require { condition, .. } => { self.expr(condition, times); }
+                Stmt::Require { condition, .. } => {
+                    self.expr(condition, times);
+                    if never_holds(condition) { self.never(&body[at + 1..], times); return; }
+                }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }
                 Stmt::For { binding, domain, body } => {
                     let spelling = self.source.and_then(|p| p.loop_source(binding));
@@ -249,9 +423,16 @@ impl Analysis<'_> {
                     self.write(&target.table, if *upsert { "upsert" } else { "update" }, times);
                     if let Some(name) = result { self.data.insert(name.clone(), true); }
                 }
-                Stmt::Break | Stmt::Continue => {}
+                Stmt::Break | Stmt::Continue => { self.never(&body[at + 1..], times); return; }
             }
         }
+    }
+
+    /// Statements that never run: walked for their bindings, but no site of theirs counts.
+    fn never(&mut self, body: &[Stmt], times: u64) {
+        self.unreachable += 1;
+        self.body(body, times);
+        self.unreachable -= 1;
     }
 
     fn domain(&mut self, domain: &LoopDomain, times: u64, spelling: Option<&str>) -> (u64, bool) {
@@ -385,7 +566,7 @@ impl Analysis<'_> {
 
     fn lookup_growth(&mut self, name: &str, index: &str, site: &str) {
         if self.schema.table(name).is_some_and(|t| t.is_expiring()) && index != "byId" {
-            self.growth(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
+            self.backlog(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
                 "read by id, or use a non-expiring keyed view");
             self.rows(self.result.bounds.meters.examined);
         }
@@ -436,12 +617,24 @@ impl Analysis<'_> {
             grows = true;
         }
         if let Some(filter) = &scan.filter {
-            let timeline = self.schema.timelines.iter().find(|t| ["Feed", "Broadcast"].iter().any(|suffix| t.table(suffix) == scan.table));
-            let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
-            let reason = if let Some(window) = window { window } else if let Some(t) = timeline {
-                format!("Following `{}` entries skipped by retired follow epochs or removal tombstones before {} match", t.name, display::bound(&scan.take))
-            } else { format!("{} skipped by `{}` before {} match", scan.table, self.source.and_then(|source| source.filter_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::expr(filter)), display::bound(&scan.take)) };
-            self.growth(&scan.site, reason, rewrite);
+            // A timeline read carries no filter of its own (E_TIMELINE_READ): the scan the
+            // compiler generates for it filters only by the platform's retirement check, and
+            // cleanup purges what that skips. Any authored scan, even of the owned feed table,
+            // can skip rows no cleanup removes, so it grows. Without the binder's record there
+            // is no proof, and the scan grows too. The expansion is a plain scan, never a lane,
+            // so it has no window.
+            let timeline = self.source.filter(|source| source.timeline_scan(&scan.site))
+                .and_then(|_| self.schema.timelines.iter().find(|t| t.table("Feed") == scan.table));
+            let authored = self.source.and_then(|source| source.filter_source(&scan.site));
+            if let Some(t) = timeline {
+                self.backlog(&scan.site, format!("Following `{}` entries retired by an unfollow or a removal and not yet purged, skipped before {} match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)", t.name, display::bound(&scan.take)), "");
+            } else {
+                let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
+                let reason = if let Some(window) = window { window } else {
+                    format!("{} skipped by `{}` before {} match", scan.table, authored.map(str::to_owned).unwrap_or_else(|| display::expr(filter)), display::bound(&scan.take))
+                };
+                self.growth(&scan.site, reason, rewrite);
+            }
             grows = true;
         }
         if !visibility.uniform && self.program.kind != ProgramKind::Job {
@@ -450,8 +643,7 @@ impl Analysis<'_> {
             grows = true;
         }
         if table.is_some_and(|t| t.is_expiring()) {
-            self.growth(&scan.site, Self::expiry_reason(&scan.table, &format!("before {} live rows match", display::bound(&scan.take))),
-                "");
+            self.backlog(&scan.site, Self::expiry_reason(&scan.table, &format!("before {} live rows match", display::bound(&scan.take))), "");
             grows = true;
         }
         if scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
