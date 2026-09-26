@@ -1042,7 +1042,7 @@ impl<'r> Runner<'r> {
                     }
                     let row_expiry = self.next_expiry.scope();
                     if let Some(aggregate) = &mut aggregate {
-                        if matches!(aggregate, super::extrema::Aggregate::Extremum { .. }) {
+                        if matches!(aggregate, super::extrema::Aggregate::Extremum { projection: None, .. }) {
                             // Decoding, authorization and filtering are finished.
                             // Transfer row scratch to the selected payload's
                             // reservation before the fold admits its winner.

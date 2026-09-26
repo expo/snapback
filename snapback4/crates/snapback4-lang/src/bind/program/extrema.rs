@@ -1,9 +1,70 @@
-//! Resolve column extrema without changing the binary min/max overload.
+//! Resolve row extrema without changing the binary min/max overload.
 use super::*;
 
 impl Binder<'_> {
-    // @ref LLP 3000.013#5.1 — domains retain aggregate admission and coverage.
+    // @ref LLP 3000.019#3.2 — literal columns retain their encoding and seek;
+    // other scalar values bind to the aggregate row and fold the whole scan.
     pub(super) fn extremum(&mut self, name: &str, args: &[A], out: &mut setup::Body) -> Fallible<Option<(Expr, Ty)>> {
+        if matches!(&args[1], A::Member { base, .. } if matches!(base.as_ref(), A::Focal { .. })) {
+            return self.column_extremum(name, args, out);
+        }
+        let candidate = self.aggregate_domain(&args[0]).or_else(||
+            self.catalog.extremum_domains.get(&args[0].site().to_string()).cloned());
+        let domain = if let Some(read) = candidate {
+            self.is_page(&read, ReadMode::FilteredPoint)?.then_some(read)
+        } else { None };
+        let mut probe = self.clone();
+        let source_ty = match probe.expr(&args[0], &mut setup::Body::default()) {
+            Ok((_, ty)) => {
+                if ty.sequence().is_none() { return Ok(None); }
+                Some(ty)
+            }
+            Err(error) if domain.is_none() => return Err(error),
+            Err(_) => None,
+        };
+        let outer = probe.expr(&args[1], &mut setup::Body::default());
+        if let Ok((_, other)) = &outer {
+            if !other.is_optional() && source_ty.as_ref().is_some_and(|ty| ty.comparable(other)) {
+                return Ok(None); // the existing binary collection overload
+            }
+            // An expression which needs the enclosing focal row cannot silently
+            // switch to the aggregate row. Removing just that focal binding also
+            // distinguishes nested shapes/aggregates that own their own `.`.
+            probe.focal = None;
+            if self.focal.is_some() && probe.expr(&args[1], &mut setup::Body::default()).is_err() {
+                return Err(ambiguous(args[1].site(), format!("{name}'s value expression can bind the enclosing row"),
+                    format!("move `{name}({}, {})` into a helper outside the enclosing shape; pass enclosing values as named arguments", print::expression(&args[0]), print::expression(&args[1]))).guide("reads"));
+            }
+        }
+        let (source, item, domain) = if let Some(read) = domain {
+            let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+            (Expr::Scan(scan), Ty::Row(read.table), true)
+        } else {
+            let (source, ty) = self.expr(&args[0], out)?;
+            (source, ty.sequence().expect("probed sequence").0, false)
+        };
+        let saved = self.focal.replace(("$filter".into(), item.clone()));
+        let predicate = std::mem::replace(&mut self.in_predicate, false);
+        let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);
+        self.push_scope();
+        self.declare("$filter", item);
+        let mut body = setup::Body::default();
+        let projected = self.expr(&args[1], &mut body);
+        self.pop_scope();
+        self.kind = kind;
+        self.in_predicate = predicate;
+        self.focal = saved;
+        let (value, ty) = projected?;
+        if matches!(ty.required(), Ty::List(..) | Ty::Collection(..) | Ty::Page(..) | Ty::Object(..) | Ty::RowShape(..) | Ty::RowObject(..) | Ty::Row(..) | Ty::WriteRow(..)) {
+            return Err(type_error(args[1].site(), format!("{name} needs a scalar row expression, got {}", ty.name()),
+                format!("{name}({}, .column + 1)", print::expression(&args[0]))));
+        }
+        let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
+        Ok(Some((Expr::Builtin { builtin: Builtin::ExtremumOf { max: name == "max", domain }, args: vec![source, value] }, ty.optional())))
+    }
+
+    // @ref LLP 3000.013#5.1 — domains retain aggregate admission and coverage.
+    fn column_extremum(&mut self, name: &str, args: &[A], out: &mut setup::Body) -> Fallible<Option<(Expr, Ty)>> {
         let A::Member { base, name: field, .. } = &args[1] else { return Ok(None); };
         if !matches!(base.as_ref(), A::Focal { .. }) { return Ok(None); }
         // Speculation must not emit setup or consume fresh names for a scalar

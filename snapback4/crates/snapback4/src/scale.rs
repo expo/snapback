@@ -12,6 +12,8 @@ mod writes;
 mod dependencies;
 #[path = "scale/windows.rs"]
 mod windows;
+#[path = "scale/collections.rs"]
+mod collections;
 pub(crate) use display::summary;
 pub(crate) use display::expr as expression;
 
@@ -94,6 +96,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
         identities: Vec::new(), aliases: copies(program), tests: BTreeMap::new(), swept: BTreeSet::new(), written: Vec::new(),
         arguments: program.args.keys().cloned().collect(), unreachable: 0,
+        collections: collections::Collections::new(program),
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
@@ -144,6 +147,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
 }
 
 struct Analysis<'a> {
+    collections: collections::Collections,
     source: Option<&'a snapback4_lang::BoundProgram>,
     schema: &'a Schema,
     program: &'a Program,
@@ -655,7 +659,15 @@ impl Analysis<'_> {
                 self.result.bounds.arguments.insert(name.clone(), u64::from(*max));
                 (u64::from(*max), false)
             }
-            LoopDomain::DerivedArray { value, max, .. } => (u64::from(*max), self.expr(value, times)),
+            LoopDomain::DerivedArray { value, max, .. } => {
+                // @ref LLP 3000.019#3.2 — append's heap sentinel is not a
+                // length; use the completed census for loops as well as folds.
+                let max = if *max == u32::MAX {
+                    self.collections.bound(value, self.program, self.result.bounds.meters.examined)
+                        .unwrap_or(self.result.bounds.meters.steps)
+                } else { u64::from(*max) };
+                (max, self.expr(value, times))
+            }
             LoopDomain::Recurse(r) => {
                 self.expr(&r.seed, times);
                 // Execution visits depths 0..=depth: include the seed,
@@ -700,6 +712,34 @@ impl Analysis<'_> {
                     }
                 }
                 self.scan(&priced, times, false);
+                true
+            }
+            // @ref LLP 3000.019#3.2 — expression extrema price every source row,
+            // including the reads performed by the value expression per row.
+            Expr::Builtin { builtin: Builtin::ExtremumOf { max, domain }, args } => {
+                let count = if let Some(Expr::Scan(scan)) = args.first().filter(|_| *domain) {
+                    self.result.aggregates.push(format!("{}({}, expression): metered scan of the domain on {}.{}; nulls skipped; a cut has no scalar answer",
+                        if *max { "max" } else { "min" }, self.scan_domain(scan), scan.table, scan.index));
+                    let table = &self.schema.tables[&scan.table];
+                    let pinned = table.indexes[&scan.index].columns()[..scan.prefix.len()].to_vec();
+                    let cap = self.schema.group_bound(&scan.table, &pinned)
+                        .filter(|_| !table.is_expiring() && self.schema.maintain_for(&scan.table).is_none()
+                            && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))));
+                    if let Some(cap) = cap {
+                        // The physical population includes rejected/hidden rows.
+                        // Keep their predicate and complete-rule probe pricing.
+                        self.scan_candidates(scan, times, false, None, Some(u64::from(cap)));
+                        u64::from(cap)
+                    } else {
+                        self.scan(scan, times, false);
+                        self.result.bounds.meters.examined
+                    }
+                } else {
+                    self.expr(&args[0], times);
+                    self.collections.bound(&args[0], self.program, self.result.bounds.meters.examined)
+                        .unwrap_or(self.result.bounds.meters.steps)
+                };
+                self.expr(&args[1], times.saturating_mul(count));
                 true
             }
             Expr::Builtin { builtin, args } => args.iter().fold(matches!(builtin, Builtin::Connected), |d, e| self.expr(e, times) | d),
@@ -803,20 +843,24 @@ impl Analysis<'_> {
     }
 
     fn scan_with_window(&mut self, scan: &Scan, times: u64, merged: bool, window: Option<String>) {
+        self.scan_candidates(scan, times, merged, window, None);
+    }
+
+    fn scan_candidates(&mut self, scan: &Scan, times: u64, merged: bool, window: Option<String>, physical: Option<u64>) {
         if scan.variant.is_some() { self.variant(Class::Constant, Some(format!("{}.{}", scan.table, scan.index))); }
         for key in &scan.prefix { match key { IndexKeyExpr::Scalar(e) | IndexKeyExpr::WordPrefix(e) => { self.expr(e, times); } } }
         for e in [&scan.after, &scan.before].into_iter().flatten() { self.expr(e, times); }
         if let Some(r) = &scan.range { for e in [&r.gt, &r.gte, &r.lt, &r.lte].into_iter().flatten() { self.expr(e, times); } }
-        let take = self.bound(&scan.take);
+        let take = physical.unwrap_or_else(|| self.bound(&scan.take));
         let visibility = snapback4_core::engine::rules::scan_visibility(self.schema, scan);
         let table = self.schema.table(&scan.table);
         let mut grows = false;
-        if scan.take == Bound::Meter {
+        if scan.take == Bound::Meter && physical.is_none() {
             self.growth(&scan.site, format!("{} in the domain `{}`", scan.table, self.scan_domain(scan)),
                 "cap the domain, page it, or add a maintained view for its aggregate");
             grows = true;
         }
-        if let Some(filter) = &scan.filter {
+        if let Some(filter) = &scan.filter && physical.is_none() {
             // A timeline read carries no filter of its own (E_TIMELINE_READ): the scan the
             // compiler generates for it filters only by the platform's retirement check, and
             // cleanup purges what that skips. Any authored scan, even of the owned feed table,
@@ -837,7 +881,7 @@ impl Analysis<'_> {
             }
             grows = true;
         }
-        if !visibility.uniform && self.program.kind != ProgramKind::Job {
+        if !visibility.uniform && self.program.kind != ProgramKind::Job && physical.is_none() {
             self.growth(&scan.site, format!("{} skipped by its per-row read rule", scan.table),
                 "pin the read rule's deciding columns in the domain");
             grows = true;

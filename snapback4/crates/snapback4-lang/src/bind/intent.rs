@@ -267,6 +267,26 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         }
         doc.programs = programs;
     }
+    let mut needed = std::collections::BTreeSet::new();
+    for doc in &mut catalog.documents {
+        walk::document(doc, &mut |value| {
+            if let Expr::Call { name, args, .. } = value
+                && matches!(name.as_str(), "min" | "max")
+                && let Some(source) = args.first() && !matches!(source, Expr::Read(_)) {
+                needed.insert(source.site().to_string());
+            }
+        });
+    }
+    catalog.extremum_domains.retain(|site, _| needed.contains(site));
+    for read in catalog.extremum_domains.values_mut() {
+        // Plan the original guarded predicate without page/lane expansion.
+        let mut value = Expr::Read(read.clone());
+        walk::expression(&mut value, &mut |value| {
+            if let Expr::Read(read) | Expr::Exists { read, .. } = value { requests.read(&tables, read, false); }
+        });
+        let Expr::Read(planned) = value else { unreachable!("domain read") };
+        *read = planned;
+    }
     diagnostics.append(&mut requests.errors);
     let mut names = BTreeMap::new();
     for ((table_name, token), mut index) in requests.indexes {
@@ -299,6 +319,12 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             && let Some(name) = names.get(&(table.decl.name.clone(), by.clone())) { *by = name.clone(); }
     }
     for doc in &mut catalog.documents { walk::document(doc, &mut resolve); }
+    for read in catalog.extremum_domains.values_mut() {
+        let mut value = Expr::Read(read.clone());
+        walk::expression(&mut value, &mut resolve);
+        let Expr::Read(planned) = value else { unreachable!("domain read") };
+        *read = planned;
+    }
     for doc in &catalog.documents {
         for program in &doc.programs {
             if let Some(name) = program.name.strip_prefix("$view:")

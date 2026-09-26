@@ -114,3 +114,23 @@ fn equal_counts_guard_cannot_mix_two_satisfying_observations() {
     let bound = compile(&format!("query q():\n  require count(messages['left'] last 50 by byTime) = count(messages['current'] last 50 by byTime) else UNEQUAL\n{fields}"));
     assert!(bound.schema.operations["q"].components.is_empty());
 }
+
+#[test]
+fn expression_extrema_scope_rows_but_keep_external_dependencies() {
+    let schema = "table t:\n  n: int\n  cap 3\n  public\n  sync public\ntable remote:\n  n: int\n  public\n  online only\n";
+    for value in ["min(t, .n)", "min(t, .n + 0)", "max(t, .n + offset)", "sum(t, .n)",
+        "max(t where .n != 0, (min([{ inner: 2 }], .inner + 1) ?? 0) + .n)"] {
+        let b = compile(&format!("{schema}query q(offset: int):\n  return {{ a: {value}, z: remote['r'].n }}\n"));
+        assert_eq!(b.schema.operations["q"].components.len(), 2, "{value}: {:?}", b.programs[0].program);
+    }
+    for value in ["min(t, remote['r'].n ?? 0)", "min(t, .n + (outside ?? 0))"] {
+        let b = compile(&format!("{schema}query q():\n  outside = remote['r'].n\n  return {{ a: {value}, z: outside }}\n"));
+        assert!(b.schema.operations["q"].components.is_empty(), "{value}");
+    }
+    // The implicit row is local to the projection, not a free name that a
+    // following sibling is allowed to use (including in deserialized IR).
+    let scoped = Expr::Builtin { builtin: Builtin::ExtremumOf { max: false, domain: false }, args: vec![Expr::Array(vec![]), var("$filter")] };
+    assert_eq!(plan(&query(vec![record(scoped.clone())])).len(), 2);
+    let p = query(vec![Stmt::Return(Expr::Object(BTreeMap::from([("a".into(), scoped), ("z".into(), var("$filter"))])))]);
+    assert!(plan(&p).is_empty());
+}

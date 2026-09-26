@@ -119,7 +119,7 @@ table receipts:
   online only
 
 fn receiptState(m: messages):
-  return min(receipts where .message = m.id, .state) ?? 2
+  return min(receipts where .message = m.id, 2 if .state = 2 else 1) ?? 2
 query receiptStatus(messageId: messages):
   m = messages[messageId] ! else NOT_FOUND
   return { slowest: receiptState(m), fastest: max(receipts where .message = m.id, .state) }
@@ -539,7 +539,12 @@ for absent or present inputs; an empty `matching q` needle browses in order.
 `count(t where predicate)`, `sum(t where predicate, .amount)`,
 `min(t where predicate, .col)` and `max(t where predicate, .col)` stream a
 domain. Min/max skip null values, as SQL does, and return null for an empty
-or all-null domain; otherwise they return the column's type. An ordered
+or all-null domain; otherwise they return the value's type. The second argument
+also accepts a scalar row expression, such as `2 if .state = 2 else 1` or
+`.amount + 1`; `.field` binds the aggregate row, and named locals stay in scope.
+Expressions scan the domain (constant under a declared cap, growing otherwise).
+An expression that can bind an enclosing shape's row is ambiguous: put the
+aggregate in a helper and pass enclosing values by name. For literal `.col`, an ordered
 index seeks to the first visible matching non-null value; otherwise the
 engine scans under its meters. `check --cost` names the plan. A cut aggregate
 is unavailable, never a partial answer (even before `?? 2`). A device needs

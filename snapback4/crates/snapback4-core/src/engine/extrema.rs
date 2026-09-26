@@ -4,7 +4,7 @@ use crate::{error::{MeterKind, RuntimeError}, ir::{Expr, Order}, meter::Cut, val
 
 pub(in crate::engine) enum Aggregate<'a> {
     Total { value: i128, projection: Option<&'a Expr> },
-    Extremum { value: Value, retained: u64, field: &'a str, max: bool, seek: bool },
+    Extremum { value: Value, retained: u64, field: &'a str, projection: Option<&'a Expr>, max: bool, seek: bool },
 }
 impl<'a> Aggregate<'a> {
     pub(in crate::engine) fn total(projection: Option<&'a Expr>) -> Self { Self::Total { value: 0, projection } }
@@ -16,17 +16,21 @@ impl<'a> Aggregate<'a> {
         match self {
             Self::Total { value, projection } => {
                 let amount = if let Some(projection) = projection {
-                    let prior = runner.env.insert("$filter".into(), row.clone());
-                    let amount = runner.expr(projection);
-                    match prior { Some(value) => { runner.env.insert("$filter".into(), value); }, None => { runner.env.remove("$filter"); } }
-                    i128::from(amount?.as_int()?)
+                    i128::from(runner.aggregate_projection(row, projection)?.as_int()?)
                 } else { 1 };
                 *value += amount;
                 Ok(false)
             }
-            Self::Extremum { value, retained, field, max, seek } => {
+            Self::Extremum { value, retained, field, projection, max, seek } => {
                 runner.meter.step(1)?;
-                let next = if *row == Value::Null { row } else { row.field(field)? };
+                // @ref LLP 3000.019#3.2 — evaluate only after source authorization;
+                // expression allocations and setup remain metered, just as in sum.
+                let projected;
+                let next = if let Some(projection) = projection {
+                    runner.meter.heap(row.expression_copy(ExpressionAccess(())))?;
+                    projected = runner.aggregate_projection(row, projection)?;
+                    &projected
+                } else if *row == Value::Null { row } else { row.field(field)? };
                 if *next == Value::Null { return Ok(false); }
                 let replace = *value == Value::Null || if *max { next.total_cmp(value).is_gt() } else { next.total_cmp(value).is_lt() };
                 if replace {
@@ -51,13 +55,28 @@ impl<'a> Aggregate<'a> {
 }
 
 impl Runner<'_> {
+    // @ref LLP 3000.019#3.2 — sums and extrema bind projections identically.
+    // A cut or unknown point read's null placeholder must not escape as an
+    // application error (10 / (details[.target].n ?? 0)). Restore scope first.
+    fn aggregate_projection(&mut self, row: &Value, projection: &Expr) -> Result<Value, RuntimeError> {
+        let prior = self.env.insert("$filter".into(), row.clone());
+        let result = self.expr(projection);
+        match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
+        self.meter.require_uncapped()?;
+        if self.components.scalar.as_ref().is_some_and(|frame| frame.coverage().unknown) {
+            self.scalar_unavailable = true;
+            return Err(RuntimeError::Prediction("aggregate needs known projection inputs".into()));
+        }
+        result
+    }
+
     // @ref LLP 3000.013#5.1 — an extremum is unavailable on a cut or unknown
     // domain; one locally held endpoint never proves domain completeness.
-    pub(in crate::engine) fn extremum(&mut self, source: &Expr, field: &str, max: bool, domain: bool) -> Result<Value, RuntimeError> {
-        let fold = |seek| Aggregate::Extremum { value: Value::Null, retained: 0, field, max, seek };
+    pub(in crate::engine) fn extremum(&mut self, source: &Expr, field: &str, projection: Option<&Expr>, max: bool, domain: bool) -> Result<Value, RuntimeError> {
+        let fold = |seek| Aggregate::Extremum { value: Value::Null, retained: 0, field, projection, max, seek };
         let result = if domain {
             let Expr::Scan(scan) = source else { return Err(RuntimeError::Input("an extremum domain must be a scan".into())); };
-            let seek = scan.orders_field(self.schema, field) && scan.order == if max { Order::Desc } else { Order::Asc };
+            let seek = projection.is_none() && scan.orders_field(self.schema, field) && scan.order == if max { Order::Desc } else { Order::Asc };
             self.stream_aggregate(scan, fold(seek))
         } else {
             let inputs = crate::engine::components::Frame {

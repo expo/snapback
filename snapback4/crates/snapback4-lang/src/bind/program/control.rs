@@ -391,9 +391,9 @@ impl Binder<'_> {
                 {
                     binding.ty = if (op == "!=") == then_branch { binding.ty.required() } else { Ty::Null };
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
-                } else if let Some((name, path)) = field_path(candidate)
+                } else if let Some((name, path)) = field_path(candidate, self.focal.as_ref().map(|(name, _)| name.as_str()))
                     && !path.is_empty()
-                    && let Some(mut binding) = self.binding(name).cloned()
+                    && let Some(mut binding) = self.binding(&name).cloned()
                     && let Ok((_, ty)) = self.expr(candidate, &mut setup::Body::default())
                 {
                     // @ref LLP 3000.007#10 — null guards refine fields of lexical snapshots, through short circuits and surviving branches.
@@ -408,8 +408,8 @@ impl Binder<'_> {
     }
 
     pub(super) fn field_refinement(&self, expr: &A) -> Option<Ty> {
-        let (name, path) = field_path(expr)?;
-        self.binding(name)?.fields.get(&path).cloned()
+        let (name, path) = field_path(expr, self.focal.as_ref().map(|(name, _)| name.as_str()))?;
+        self.binding(&name)?.fields.get(&path).cloned()
     }
 
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
@@ -611,11 +611,14 @@ pub(super) fn exits(statements: &[Stmt]) -> bool {
 }
 
 /// Only lexical snapshots have stable fields; repeated database reads do not.
-fn field_path(expr: &A) -> Option<(&str, Vec<String>)> {
+// @ref LLP 3000.019#3.2 — the aggregate's declared row is a lexical snapshot;
+// null guards inside its value expression refine `.field` for that row only.
+fn field_path(expr: &A, focal: Option<&str>) -> Option<(String, Vec<String>)> {
     match expr {
-        A::Name { name, .. } => Some((name, Vec::new())),
+        A::Name { name, .. } => Some((name.clone(), Vec::new())),
+        A::Focal { .. } => Some((focal?.to_owned(), Vec::new())),
         A::Member { base, name, .. } => {
-            let (root, mut path) = field_path(base)?;
+            let (root, mut path) = field_path(base, focal)?;
             path.push(name.clone());
             Some((root, path))
         }

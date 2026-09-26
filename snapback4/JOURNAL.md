@@ -62583,6 +62583,49 @@ after qualification. `./ref-check --verbose` and `git diff --check` pass.
 The external `fix-forward-1.final.md` report retains the before/after regression
 logs, both failed suite attempts, the successful suite and the wasm measurement.
 
+
+## 2026-09-26 — 0.4.4 P2: min/max of scalar row expressions
+
+Implemented the supplied LLP 3000.019 §3.2 in lane
+`sb4-intent/p2-extremum-expressions`. `min(source, expression)` and
+`max(source, expression)` bind `.field` to each authorized source row, including
+conditional receipt values, nullable expressions, helpers and nested reads.
+The new `Builtin::ExtremumOf` preserves the existing column-extremum encoding
+and one-row index seek. Optional predicates and inferred enum lanes preserve
+an unpaged domain until typed overload selection. The shared interpreter
+serves the server and both device stores; cuts and incomplete coverage withhold
+the scalar. Certificates price projections as scans, constant under applicable
+physical caps, with nested reads multiplied by the row bound. The receipt card
+and its two deliberate text/hash pins changed with the implementation.
+
+Measured 186 passing affected tests after the planner follow-up, including the
+whole 84-test guide target; the 18 existing scale tests also passed earlier.
+Added nine language/engine tests, two memory/SQLite device tests and two scale
+certificate tests. A temporary direct server/compiled-wasm smoke passed all
+five receipt, fastest, nullable, defaulted and nested comparisons.
+
+Wasm on Linux, Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt:
+**2,023,872 B raw / 582,597 B gzip**, versus the untouched base's
+**2,009,169 B raw / 577,903 B gzip**. The delta is **+14,703 B raw / +4,694 B
+gzip**. The unchanged **578,207 B** ceiling is exceeded by **4,390 B**;
+this is an open landing blocker. No budget, runtime meter, authorization,
+disclosure or durability constraint was weakened.
+
+Ran the full `scripts/test.sh` once with four Rust test processes and serial
+client files. Its exact result was **`== 2 failure(s) in 2921 s`** (exit 1):
+**ours**, the wasm overrun above; **environmental timing variance**, the
+`clique_03::application_fixture` reader ratio of 3.5417372088989985 against 3.
+That isolated test passed unchanged on retry (ratios 1.0175986729207183 and
+0.9728921176066812); the original suite failure remains recorded. Client tests
+finished with 1,997 passes, zero failures and 10 pre-existing platform/fixture
+skips; all 78 seeded-model checks passed. No baseline content failure was
+identified. The full run began at `c8f1eaac9`; compiler-only follow-up
+`8d353ceee` received the separate final 186-test affected validation.
+
+Did not raise the wasm budget, change runtime ceilings, push, publish packages,
+or author the supervisor-owned LLP 3000.019. The file-by-file handoff, examples,
+test proofs and reproduction commands are in
+[`reports/20260926-p2-extremum-expressions.md`](reports/20260926-p2-extremum-expressions.md).
 ### 2026-09-25 — LLP 3000.017, E1 ephemeral tables
 
 Implemented the compiler, core, engine, HTTP server and device boundary for
@@ -63135,6 +63178,57 @@ of §3.3, package version, calibration, Expo binary packaging, push or publicati
 was performed. The complete file-by-file report, all nine failure names and
 the legacy reproduction are in
 [the lane report](reports/20260926-lane-o-pending-writes.md).
+
+## 2026-09-26 — 0.4.4 P2 round 1: projection cuts, coverage, pricing and device size
+
+Merged the requested `99153132b` into `sb4-intent/p2-extremum-expressions`
+(`7fec1c171`), retaining both journal histories and main's presence, receipts,
+backlog and ephemeral-table work. Rebuilt and passed 118 affected tests on
+that merged tree before changing implementation code.
+
+Accepted every finding in the Astra and Grok round-0 reviews. Projections now
+live in `args[1]` under non-recursive `ExtremumOf { max, domain }`, so the
+ordinary operand walkers suffice. Totals and extrema share projection
+binding/evaluation/restoration; a projection cut takes precedence over an
+application error. Component proofs scope the implicit row locally and retain
+real outside dependencies. Physical caps include hidden/rejected candidates
+without dropping rule probes. Non-domain projections use page/list bounds,
+including immutable aliases and list arguments, with enclosing iterations.
+Existing column encoding and one-row seeks remain unchanged.
+
+Added nine regression tests for nested-read cut boundaries, null-row winners,
+component scope and both-store coverage after reopen, hidden-row cap pricing,
+enclosing iterations and the page/list fixtures. All four trial mutations
+fail assertions: skipping null rows, dropping `times`, zeroing non-domain
+projection work and restoring its step-ceiling price. The restored affected
+targets pass; the full guide target passes all 85 tests. A direct compiled-wasm
+smoke passes five server/device comparisons.
+
+Final suite wasm: **2,024,130 B raw / 581,998 B gzip**, versus main's recorded
+**2,021,689 / 581,094**: **+2,441 raw / +904 gzip**. The merged round-0 artifact
+was 2,036,400 / 585,695; this round saves 3,697 B gzip. The unchanged 582,094 B
+ratchet passes with **96 B headroom**, zero bytes over. Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt, `CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0`.
+No budget, runtime meter, authorization or disclosure constraint was weakened.
+
+Ran `scripts/test.sh` exactly once on the final runtime implementation with
+four Rust processes and serial client files. Exact result: **`== 1 failure(s)
+in 3263 s`**, exit 1, **`cargo test`**. Its sole failure was **ours**:
+`ephemeral_compat::durable_schema_and_types_keep_base_bytes` found P2's added
+fixture key in the frozen flat fixture corpus. After the run, moved that
+fixture byte-for-byte to `tests/extremum_expressions/schema.q` and updated the
+three test includes. The compatibility test and both frozen snapshots remain
+unchanged. All **22** affected compatibility/language/device/certificate tests
+pass after this test-only fix. No second complete run was made; the original
+failure remains the full-run result. No baseline or environmental failure.
+
+Full-run counts: Rust 3,592 passed / one failed / 19 existing ignores; client
+2,179 passed / zero failed / 10 existing platform or optional-fixture skips;
+fixture wrappers 9/9; all 78 model checks passed, with the full 5,000 / 5,000 /
+3,000 sequence counts. Builds, typechecks, docs budget and release guard pass.
+Did not push, publish, raise a budget, change a runtime ceiling or rewrite an
+existing journal entry. Full dispositions, files, examples, measurements and
+logs are in `reports/20260926-p2-extremum-expressions.md` (Round 1).
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
@@ -64006,3 +64100,95 @@ cannot survive losing the page before any cancellation/acknowledgement write
 succeeds. The round-4 section of [the lane report](reports/20260926-lane-o-pending-writes.md)
 and local `target/lane-o-r4-evidence/` hold the full record. Nothing was pushed
 or published.
+
+
+## 2026-09-26 — 0.4.4 P2 round 2: shaped-list bounds and unheld projection proof
+
+Read both complete round-1 reviews and merged the requested main commit
+`992cec75c` first (`58823c9cb`). Only this journal conflicted; both complete
+append histories were retained, with no lines removed from either parent.
+All 146 targeted tests passed on the merged tree before the round-2 edits.
+
+Fixed Grok's shaped-page certificate finding in `scale/collections.rs` only.
+A list initialized as `[]` now counts pushes from bounded page, derived-array,
+literal-range and list-argument loops. Nested iterations multiply, pushes add,
+and an initialization inside a loop starts afresh. Aliases retain the bound;
+reassignments and open push domains retain the step-ceiling fallback. Grok's
+exact shaped page and its unshaped twin both return 9 and both certify and
+execute five examinations. The separate `scale.rs` control-flow walk is
+untouched. Pricing and its regressions are committed as `77be1ca12`.
+
+Added memory and SQLite tests for a projection point-reading online-only
+`secrets`, while the aggregate source is fully held. Min, max and defaults
+withhold null/incomplete before and after reopen; a fully synced control
+returns 9/complete. This is test coverage of the existing runtime, committed
+as `28a789307`. Actually skipping `unknown_fact` with the aggregate row bound
+fails both new tests at 0/complete. Restoring old collection pricing fails
+at 1,000,003 versus 5; removing assignment invalidation fails the reassigned
+alias's fallback assertion. All mutations were restored, and all 151 affected
+tests passed, including the complete 86-test guide and frozen compatibility.
+
+Ran `scripts/test.sh` exactly once with the implementation fixed throughout:
+**`== 0 failure(s) in 3224 s`**, exit 0. No ours, baseline or environmental
+failure; no repair or repeat run. Rust phase: 3,600 passed, 19 existing ignores
+(the docs-budget stage separately reran one guide assertion). Fixture wrappers:
+9/9. Ordinary clients: 2,215 passed, 10 existing skips. Models: 78/78, retaining
+both 5,000-sequence session runs and the 3,000-interleaving online run. All
+builds, typechecks, docs budget and release guard passed.
+
+The suite's wasm rebuild is **2,024,130 B raw / 581,998 B gzip**, identical to
+round 1, with **96 B headroom** under the unchanged **582,094 B** budget.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt; Node 24.13.1, Bun 1.3.14.
+No design deviation or open round-2 problem. Did not push, publish, raise a
+budget or meter, change device runtime code, or rewrite prior journal entries.
+The round-2 section of `reports/20260926-p2-extremum-expressions.md` records the
+files, examples, mutation evidence and logs. Only that report and this entry
+were added after qualification.
+
+
+## 2026-09-26 — 0.4.4 P2 round 3: unknown projection errors and appended-list bounds
+
+Read the lane prompt, prior report, and both complete round-2 blind reviews;
+accepted every finding. In the shared aggregate projection evaluator, restore
+`$filter`, check the meter, then give unknown scalar coverage precedence over
+an application error derived from a null placeholder. Both devices now return
+null/incomplete for `min(t, 10 / (secrets[.target].n ?? 0))` when only `t` is
+held; the server returns 2/complete with a secret value of 5. Memory and SQLite
+regressions cover min, max with an outer default, and a materialized page,
+before and after reopen. Fully synced controls agree with the server, and
+known zero-divisor controls still raise E_DIV_ZERO. Both new tests reproduced
+the erroneous E_DIV_ZERO before the fix. Commit: `4087278f3`.
+
+The collection census now resolves a sentinel-valued derived array through its
+source list after all pushes and assignments have been collected. The same
+bound prices reads directly inside that loop. Grok's exact copy program and
+its scalar-list shaped twin each certify Constant / 2 examinations, execute
+two, and return 9. Nested alias/shape bounds multiply correctly; unknown and
+cyclic sources retain the step-ceiling fallback; declared argument maxima,
+including u32::MAX, remain contracts. The scalar-list shape uses `{ n: . }`;
+`{ n }` asks for a field on an int and is a type error. Commit: `c6d42fa4d`.
+
+Added E_QUARRY_TYPE assertions for record and list projections in both min and
+max (`c43fb27f7`). Actual mutation trials fail on assertions: forcing the
+sentinel to one underprices two reads, and deleting the binder guard admits a
+record result without a diagnostic. Restored both mutations; all 180 affected
+tests passed, including the full 86-test guide, old extrema, both-store
+components and frozen-fixture compatibility. No existing assertion was weakened.
+
+Ran `scripts/test.sh` exactly once on implementation checkpoint `c43fb27f7`:
+**`== 0 failure(s) in 3235 s`**, exit 0. No ours, baseline or environmental
+failure; no repair or repeat full run. Rust: 3,606 passed, 19 existing ignores;
+fixture wrappers: 9/9; ordinary clients: 2,215 passed, 10 existing skips;
+seeded models: 78/78, retaining the two 5,000-sequence session runs and the
+3,000-interleaving online run. All builds, typechecks, docs budget and release
+guard passed. Frozen Bun install made no changes. Full log:
+`/tmp/lane-p2-r3-suite.log`.
+
+Standalone and full-suite wasm builds both measure **2,024,238 B raw /
+582,031 B gzip**, +108 raw / +33 gzip versus round 2. The unchanged
+**582,094 B** budget leaves **63 B headroom**, zero bytes over. Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt; Node 24.13.1, Bun 1.3.14. Whole-artifact
+measurement, not per-symbol attribution. No open round-3 problem or design
+change. Did not push, publish, raise a budget or meter, relax authorization or
+disclosure, or rewrite prior journal entries. The report's round-3 section
+contains the file list, examples, mutation evidence and qualification logs.

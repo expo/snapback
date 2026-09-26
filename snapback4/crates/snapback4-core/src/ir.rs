@@ -232,6 +232,10 @@ pub enum Builtin {
     Max,
     /// SQL-style column extrema; domain reads require complete coverage.
     Extremum { field: String, max: bool, domain: bool },
+    /// @ref LLP 3000.019#3.2 — expression extrema bind `$filter` per authorized row;
+    /// args[0] is the source and args[1] the projection, as in streaming sum.
+    /// The existing column extremum encoding is unchanged.
+    ExtremumOf { max: bool, domain: bool },
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
@@ -249,7 +253,7 @@ impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
             Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
-            Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
     }

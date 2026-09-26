@@ -24,7 +24,11 @@ with `return [value]`, or with its last expression, or with its final write.
 An inline ordered page needs parentheses to separate its order keys from
 the column argument: `min((t first 20 by .at), .col)`. Binary `min(a, b)`
 and `max(a, b)` retain their meaning; a collection followed by `.col` selects
-the aggregate.
+the aggregate. Its value can also be a scalar row expression:
+`min(rows, 2 if .state = 2 else 1)` or `max(rows, .amount + 1)`.
+Expressions scan every authorized row under the meters, skip null values,
+and return null for an empty or all-null source. Move an aggregate whose
+expression could bind an enclosing shape row into a helper.
 
 Pages, lists and shaped collections share the list operations: `sort`, `slice`,
 `count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements
