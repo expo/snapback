@@ -203,6 +203,49 @@ test("W10b typing guidance hides a short-lived server answer before the next ans
   }
 });
 
+// Hold custody open while exercising the actual published composer's event handlers.
+test("client card composer removes only admitted text while typing continues", async () => {
+  const source = read(join(root, "../../crates/snapback4-lang/src/guide/client.md"))
+    .match(/export function Composer[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  for (const [edited, outcome, expected] of [
+    ["hello", "pending", ""],
+    ["hello again", "pending", " again"],
+    ["hello again", "sent", " again"],
+    ["replacement", "pending", "replacement"],
+    ["hello again", "failed", "hello again"],
+    ["replacement", "failed", "replacement"],
+  ]) {
+    let draft = "hello", admit, submitted;
+    const custody = new Promise(resolve => { admit = resolve; });
+    const send = { inFlight: false, last: undefined, run: (args, options) => {
+      submitted = { args, options }; send.inFlight = true; return custody;
+    } };
+    const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
+      target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
+    })}\nComposer;`, {
+      api: { send: {} }, useMutation: () => send,
+      useState: () => [draft, update => { draft = typeof update === "function" ? update(draft) : update; }],
+      React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
+    });
+    const render = () => Composer({ conversationId: "room" }).children;
+    const [input, button] = render();
+    assert.equal(button.props.disabled, false);
+    button.props.onClick();
+    assert.equal(submitted.args.body, "hello");
+    assert.equal(submitted.options.waitSeconds, 0);
+    assert.equal(render()[1].props.disabled, true);
+    input.props.onChange({ target: { value: edited } });
+    assert.equal(draft, edited, "draft stays editable before custody");
+    admit({ state: outcome });
+    await custody;
+    await new Promise(resolve => setImmediate(resolve)); // Drain the VM realm's async continuation too.
+    send.inFlight = false; send.pending = outcome === "pending";
+    assert.equal(draft, expected, `${outcome}: ${edited}`);
+    assert.equal(render()[1].props.disabled, false, "pending settlement does not disable Send");
+  }
+});
+
 // Execute the published route owner: it retains route identity, never read data.
 test("profile route is chosen once per account and survives later loading", async () => {
   const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function initialProfileRoute[\s\S]*?\n}/)?.[0];

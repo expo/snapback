@@ -1,5 +1,5 @@
 //! The published receipt policy runs against the engine, not a prose-only model.
-use super::{args, card, clean, id, quarry, sent, text, Context, Engine, Value};
+use super::{args, card, clean, failed, id, quarry, sent, text, Context, Engine, Value, WriteState};
 
 #[test]
 fn client_aliases_keep_typing_on_ephemeral() {
@@ -64,11 +64,19 @@ query progress(room: rooms):
     let after = engine.query("progress", Context::new("bob", args(&[("room", room.clone())]))).unwrap().data;
     assert_eq!(before, after, "late older acknowledgements cannot regress either watermark");
     assert_eq!(receipt(&mut engine, &second), 0);
-    write(&mut engine, "mallory", "acknowledge", "outsider", &[("id", second.clone()), ("kind", text("read"))]);
+    let members_before = engine.store().rows("members").unwrap();
+    let outsider = engine.mutate("acknowledge", Some("outsider"), Context::new("mallory", args(&[("id", second.clone()), ("kind", text("read"))]))).unwrap();
+    let unknown = engine.mutate("acknowledge", Some("unknown"), Context::new("mallory", args(&[("id", id("missing")), ("kind", text("read"))]))).unwrap();
+    let member_unknown = engine.mutate("acknowledge", Some("member-unknown"), Context::new("bob", args(&[("id", id("missing")), ("kind", text("read"))]))).unwrap();
+    for outcome in [&outsider, &unknown, &member_unknown] { assert_eq!(failed(outcome), "NOT_FOUND"); }
+    if let (WriteState::Failed { why: hidden, .. }, WriteState::Failed { why: missing, .. }) = (&outsider.state, &unknown.state) {
+        assert_eq!(hidden, missing, "a hidden target discloses no existence through its refusal");
+    }
+    assert_eq!(engine.store().rows("members").unwrap(), members_before, "refused acknowledgements change no member's progress");
     assert_eq!(receipt(&mut engine, &second), 0, "an outsider cannot acknowledge for a recipient");
     for who in ["bob", "carol", "dave"] {
         write(&mut engine, who, "removeMember", &format!("leave-{who}"), &[("room", room.clone()), ("principal", id(who))]);
     }
     assert_eq!(receipt(&mut engine, &second), 2, "no remaining recipients means no remaining requirement");
-    println!("client receipts: sent=0, delivered=1, read=2; late join/rejoin excluded; removal/leave drop out; old progress and outsider ack unchanged");
+    println!("client receipts: sent=0, delivered=1, read=2; late join/rejoin excluded; removal/leave drop out; old ack succeeds unchanged; hidden/missing ack refused unchanged");
 }

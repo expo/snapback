@@ -8,14 +8,14 @@ import { useState } from "react";
 import { useMutation } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function Composer({ conversationId }: { conversationId: string }) {
-  const [draft, setDraft] = useState({ text: "", revision: 0 });
+  const [draft, setDraft] = useState("");
   const send = useMutation(api.send);
   async function submit() {
     const submitted = draft;
-    const write = await send.run({ conversationId, body: submitted.text }, { waitSeconds: 0 });
-    if (write.state !== "failed") setDraft(current => current.revision === submitted.revision ? { text: "", revision: current.revision + 1 } : current);
+    const write = await send.run({ conversationId, body: submitted }, { waitSeconds: 0 });
+    if (write.state !== "failed") setDraft(current => current.startsWith(submitted) ? current.slice(submitted.length) : current);
   }
-  return <><input value={draft.text} onChange={e => setDraft(d => ({ text: e.target.value, revision: d.revision + 1 }))} />
+  return <><input value={draft} onChange={e => setDraft(e.target.value)} />
     <button disabled={send.inFlight} onClick={() => void submit()}>Send</button>
     {send.last?.state === "failed" && <p role="alert">{send.last.why.message}</p>}</>;
 }
@@ -34,12 +34,14 @@ The signed-in tree follows `useAuth().state`, not a profile query. Decide the fi
 Keep headers and composers mounted through `loading`; rows follow the current read, never a saved previous answer. Reset user-owned state on account/backend change.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
 A query the device cannot complete goes `loading` while your predictable writes to its tables are pending; see `guide reads` and `snapback4 why <query>`.
+A total or extremum (`count`, `sum`, `min`, `max`) over input past the sync horizon, or a point read past it (a quoted message, a joined row), withholds the whole answer on the device; an order differing from the horizon's order alone gives partial data (`complete: false`).
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
 
 ## Acknowledgements and receipts
 
-Keep server-owned monotonic progress per member. “Read” means the conversation is open and the app foregrounded, not that a row rendered.
-Keep admitted progress and an in-flight guard in refs **above the list**, keyed by backend, account, room and delivery/read kind. Coalesce only a contiguous observed prefix; do not cross unloaded gaps.
+Keep server-owned monotonic progress per member. When the conversation is open and the app foregrounded, acknowledge the newest message and each newer arrival while it stays open; “read through” marks every earlier message too.
+Only an app whose declared policy is per-message visibility must acknowledge a contiguous observed prefix without crossing unloaded gaps.
+Keep admitted progress and an in-flight guard in refs **above the list**, keyed by backend, account, room and delivery/read kind.
 After `const write = await ack.run(args, { waitSeconds: 0 })`, remember the submitted progress only if `write.state !== "failed"`; a pre-custody refusal leaves it retryable.
 A later failed receipt clears that suppression; on reload reconcile against server progress and saved ids, never blindly resend an unknown receipt.
 Start **one** delivery observation after `useAcquired()` is true, not a live `usePage` for every conversation row.
@@ -82,15 +84,13 @@ fn receipt(m: messages):
   return state
 mutation acknowledge(id: messages, kind: enum('delivered', 'read')):
   m = messages[id]
-  if m != null:
-    member = members[m.room, viewer]
-    if member != null:
-      update members[member] { delivered: max(member.delivered, m.ordinal), readThrough: max(member.readThrough, m.ordinal) if kind = 'read' else member.readThrough }
+  require m != null else NOT_FOUND
+  member = members[m.room, viewer]
+  require member != null else NOT_FOUND
+  update members[member] { delivered: max(member.delivered, m.ordinal), readThrough: max(member.readThrough, m.ordinal) if kind = 'read' else member.readThrough }
 query messageReceipt(id: messages):
   return messages[id] { id, receipt: receipt(.) }
 ```
-
-Only acknowledge a known contiguous prefix; the maximum rendered row is not evidence of it. Keep the main thread query free of `receipt(.)` if that decoration needs the server.
 
 ## One-view photos
 
