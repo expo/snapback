@@ -64959,5 +64959,14 @@ ignored `target/lane-ad-evidence/`; the lane report retains commands and numbers
 Affected core, canonical CLI, device upgrade and whole-guide checks pass.
 A default 96-thread CLI attempt exhausted its 1,024-descriptor process limit;
 the canonical runner's single CLI thread passes 120 tests (two intentional
-ignored helpers). The required single final full-suite run follows these
-commits; its exact result will complete this entry. No push or publication.
+ignored helpers). The single final full suite ends exactly
+`== 1 failure(s) in 988 s`, listing only `wasm build`, exit 1. Its inherited
+size failure is 2,025,652 B raw / 582,551 B gzip, 457 B above the unchanged
+582,094 B cap and identical to round 0's final artifact. Rust tests/doctests
+pass 3,675 with 22 ignored; client main batch passes 2,377 with 10 skipped,
+the seven shards pass 56, and models pass 78/78. No sync or Following failure;
+both native and wasm unfollow/repost cases pass against the rebuilt server.
+No introduced or environmental full-suite failure. The final reference audit
+has zero errors. Evidence is under `target/lane-ad-evidence/r1-test-sh.log`;
+the report records commands, exact counts and all seven killed mutations.
+No push or publication.

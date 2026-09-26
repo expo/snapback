@@ -3,9 +3,11 @@
 ## Result and limits
 
 On the corrected calibration #22 source populations, M7→M8 adoption falls from
-**167,083 ms to 9,601 ms** (17.4×). A concurrent query falls from **167,084 ms to
-less than 1 ms**. Every physical row/index, log image and commit record compares
-exactly. The approximately one-second end-to-end target is **not met**.
+**167,083 ms to 9,601 ms** (17.4×) in round 0. Its detached-query timer reported
+less than 1 ms but did not prove the read overlapped the transaction. Round 1
+measures **6,884 ms adoption and a 531 µs query inside the held transaction**.
+Every physical row/index, log image and commit record compares exactly. The
+approximately one-second end-to-end target is **not met**.
 
 Query and sync readers use independent WAL connections while the existing atomic
 writer builds the successor. They read the old program. Newly introduced queries
@@ -86,7 +88,7 @@ against the same in-memory fixtures; it does not depend on a historical checkout
 | Generation metadata | see raw log | 1.761 |
 | Commit/checkpoint | 7,166.407 | 2,837.892 |
 | Whole adoption | 167,083 | 9,601 |
-| Concurrent read | 167,084 | <1 |
+| Concurrent read (round-0 overlap unasserted) | 167,084 | <1 |
 
 | Rebuilt view | Source rows visited | Optimized ms |
 |---|---:|---:|
@@ -215,7 +217,8 @@ The same request id returns the same sequence and leaves the total at two.
 - `m7_to_m8`: ignored scale fixture; runtime timings and per-view rows above.
 
 Corrected scale comparison: 1,447,966 rows, 9,077,137 index entries, 1,973,177 log
-entries, 316,734 commit records, **all exact**. See `equivalence.log` and the
+entries, 316,734 commit records, **all exact**. See
+`target/lane-ad-evidence/20260926-lane-ad-equivalence-repro.log` and the
 reproducible comparator output. Generation timestamps are intentionally outside
 that physical/log comparison; device-visible sequence and all images are inside.
 
@@ -413,7 +416,7 @@ stress runs invoked it 64 times with eight concurrent subprocesses.
   existing fixture strings to them. No source exceeds 1,500 lines.
 
 Targeted results: core adoption **5/5**, canonical CLI **120 passed, 2 ignored**,
-legacy-key/row tests **all passed**, device legacy-key upgrade **5/5**, whole
+legacy-key/row tests **8/8**, device legacy-key upgrade **5/5**, whole
 compiled guide **86/86**. See `r1-core-final.log`, `r1-http-canonical.log`,
 `r1-legacy-keys.log`, `r1-device-keys.log`, `r1-guide.log` and the six
 `r1-mutant-*.log` files. Mutants were restored before qualification.
@@ -516,6 +519,53 @@ wasm-size budget, authorization or durability rule was relaxed.
 
 ### Round-1 full-suite result
 
-The required single final `scripts/test.sh` run follows these commits. Its exact
-result and wasm measurement will be appended here when it completes. No clean
-full-suite result is claimed in advance.
+Ran **once**, after the implementation commits, from `snapback4/`:
+
+```sh
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+bash scripts/test.sh > target/lane-ad-evidence/r1-test-sh.log 2>&1
+```
+
+Exact summary, **exit status 1**:
+
+```text
+== 1 failure(s) in 988 s
+   wasm build
+```
+
+The sole failure is **baseline — wasm build**: **2,025,652 B raw / 582,551 B
+gzip**, against the unchanged **582,094 B** budget (**457 B over**). This is
+identical to round 0's final artifact (**round-1 delta: 0 B**), and one gzip byte
+smaller than the pristine lane baseline measured in round 0. Reproduce with
+`bash scripts/build-wasm.sh`. No budget increase or clean full-suite claim.
+There are **no introduced or environmental failures in this final run**.
+
+- Rust workspace tests and doctests: **3,675 passed, 0 failed, 22 ignored**;
+  cargo-test phase **501 s**. CLI **120 passed, 2 ignored**; whole guide **86/86**.
+- Client main batch: **2,377 passed, 10 skipped**. Seven separate client shards:
+  **56 passed**. Client phase **194 s**.
+- Seeded client models: **78/78**, **254 s**, including both 5,000-sequence
+  session models. Fixture wrapper tests: **9/9**.
+- Cargo build, docs budget, release guard, package typecheck/build, chat check
+  and typecheck, and Expo typecheck all passed.
+- **No sync or Following failure.** The concurrent detached-sync regression
+  and both generation cases pass. The native and wasm unfollow/repost cases
+  pass against the rebuilt round-1 server (3,030 ms and 4,215 ms respectively).
+  The separately reproduced round-0 Following comparison remains attributed
+  to joining an older sync round and comparing it with a newer server sequence,
+  as traced above; no row was skipped past a reported device watermark.
+
+Raw output and exit status are retained in ignored
+`target/lane-ad-evidence/r1-test-sh.log` and `r1-test-sh.exit`. The final reference
+audit reports **513 LLP docs, 9,500 refs in 26,971 files, 0 errors, 0 unchecked**
+(`r1-ref-check-final.log`). `git diff --check` passes; no changed source exceeds
+1,500 lines. The fixture-generated, unrelated native Cargo.lock version change
+was restored after the run.
+
+Round-1 implementation commits: `695f22867` (snapshot proof and Following
+comparison), `9c6cc53c1` (validation and performance), `1e90a1179` (admission,
+authority and HTTP regressions), `98f3c9fd2` (documentation and raw-log removal).
+The final evidence commit completes this report and the same dated journal
+entry. Every commit carries the requested Co-Authored-By trailer. No push or
+publication.
