@@ -1,6 +1,8 @@
 //! One process's short-lived rows and commit epoch, shared by every reader.
 // @ref LLP 3000.017#4.3-engine — no SQLite writer, log, replay record or durable receipt.
 mod layered;
+#[cfg(test)]
+mod wake_tests;
 use super::*;
 use crate::rows::{Bounds, Dir, MemoryRows, Rows};
 pub use crate::schema::ephemeral::Version;
@@ -213,6 +215,7 @@ pub struct HubState {
     accounting: Accounting,
     version: Version,
     ring: VecDeque<(u64, Vec<String>)>,
+    publisher: Option<Arc<dyn Fn(Snapshot) + Send + Sync>>,
 }
 impl HubState {
     fn new(identity: String, generation: u64, schema: &Schema) -> Self {
@@ -232,6 +235,7 @@ impl HubState {
                 incarnation: incarnation(),
             },
             ring: VecDeque::new(),
+            publisher: None,
         }
     }
     pub fn version(&self) -> Version {
@@ -243,6 +247,15 @@ impl HubState {
             ring: self.ring.clone(),
             tables: self.tables.keys().cloned().collect(),
         }
+    }
+    fn publish(&self) {
+        if let Some(publish) = &self.publisher { publish(self.snapshot()); }
+    }
+    fn rebind(&mut self, identity: String, generation: u64, schema: &Schema) {
+        let publisher = self.publisher.take();
+        *self = Self::new(identity, generation, schema);
+        self.publisher = publisher;
+        self.publish();
     }
     // Snapshot identity has already been established by the deferred transaction.
     pub fn bind(
@@ -258,7 +271,7 @@ impl HubState {
             ));
         }
         if generation > self.generation {
-            *self = Self::new(identity.into(), generation, schema);
+            self.rebind(identity.into(), generation, schema);
         }
         Ok(())
     }
@@ -309,13 +322,22 @@ impl Hub {
     pub fn snapshot(&self) -> Result<Snapshot, RuntimeError> {
         Ok(self.lock()?.snapshot())
     }
+    /// Install before serving. Called under the hub lock after each commit or
+    /// rebind; the callback may take the wake mutex, never the hub or engine.
+    // @ref LLP 3000.017#3.3-change-notification — publish before releasing the hub.
+    pub fn set_publisher(&self, publisher: impl Fn(Snapshot) + Send + Sync + 'static) -> Result<(), RuntimeError> {
+        let mut hub = self.lock()?;
+        hub.publisher = Some(Arc::new(publisher));
+        hub.publish();
+        Ok(())
+    }
     pub fn clear_and_rebind(
         &self,
         identity: String,
         generation: u64,
         schema: &Schema,
     ) -> Result<(), RuntimeError> {
-        *self.lock()? = HubState::new(identity, generation, schema);
+        self.lock()?.rebind(identity, generation, schema);
         Ok(())
     }
     pub fn sweep(&self, now: i64) -> Result<usize, RuntimeError> {
@@ -425,6 +447,7 @@ impl Engine {
             incarnation: hub.version.incarnation.clone(),
             tables,
         };
+        hub.publish();
         drop(hub);
         drop(tx);
         Ok(Outcome {

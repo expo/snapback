@@ -312,6 +312,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
     });
+    shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
     // Discover the live dev inspector through the existing lifetime lock file.
@@ -1260,6 +1261,7 @@ mod poison_tests {
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
         });
+        shared.install_ephemeral_wake();
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {
             let _engine = poisoned.engine.lock().unwrap();

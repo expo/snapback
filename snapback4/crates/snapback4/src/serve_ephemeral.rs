@@ -42,13 +42,14 @@ impl Rate {
 }
 impl Shared {
     // @ref LLP 3000.017#3.3-change-notification — lock order engine → hub → wake.
-    pub(super) fn publish_ephemeral(&self) {
-        // Re-snapshot under the hub before taking wake. An older publisher can
-        // never overwrite a newer incarnation or lose intervening ring entries.
-        if let Ok(hub) = self.ephemeral.lock() {
-            lock(&self.wake).eph = hub.snapshot();
-            self.polls.notify_all();
-        }
+    pub(super) fn install_ephemeral_wake(self: &Arc<Self>) {
+        let owner = Arc::downgrade(self);
+        self.ephemeral.set_publisher(move |snapshot| {
+            if let Some(shared) = owner.upgrade() {
+                lock(&shared.wake).eph = snapshot;
+                shared.polls.notify_all();
+            }
+        }).expect("new hub publisher");
     }
     pub(super) fn publish_engine(&self, engine: &Engine) {
         if let Ok(seq) = engine.seq() {
@@ -194,7 +195,6 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     match result {
         Ok((out, store_id)) => {
-            shared.publish_ephemeral();
             respond_timed(
                 request,
                 shared,

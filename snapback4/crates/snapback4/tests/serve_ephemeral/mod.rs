@@ -307,7 +307,6 @@ fn ephemeral_wake_finishes_with_the_serving_engine_locked() {
             .at(h.shared.now()),
         )
         .unwrap();
-    h.shared.publish_ephemeral();
     let (done, result) = mpsc::channel();
     thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
     let reply = result.recv_timeout(Duration::from_millis(250));
@@ -333,7 +332,6 @@ fn revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock() 
         ("roomId".into(), Value::Id("r".into())),
         ("payload".into(), Value::String(String::new())),
     ].into()).at(h.shared.now())).unwrap();
-    h.shared.publish_ephemeral();
     let (done, result) = mpsc::channel();
     thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
     let reply = result.recv_timeout(Duration::from_millis(250));

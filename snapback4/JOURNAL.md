@@ -61821,3 +61821,21 @@ The merged-main fixture inventory has two new durable row-view fixtures beyond
 E1's frozen 26. Capture their bytes from an isolated archive of 0badac987, retain
 the original frozen file unchanged, and add a separate supplemental baseline.
 This is an integration fixture addition, not a reason to weaken byte checks.
+
+
+### 2026-09-26 — E3 revision-3 wake ordering
+
+N3 is now part of the hub commit boundary. A publisher installed before serving
+runs with the hub held after committing the epoch/ring, and after every rebind,
+including a newer reader snapshot. It takes only the separate wake mutex and
+notifies polls. The server callback captures Shared weakly, avoiding a lifetime
+cycle; core-only engines need no publisher. The former post-return server
+publication is removed. Engine replacement and adoption retain the publisher.
+
+Two deterministic core tests pause after epoch 1 commits and before wake
+publication, racing a second commit and adoption respectively. Every callback
+asserts the hub mutex is still held before touching wake; the recorded versions
+and final ring/incarnation equal the hub. Both pass. All 12 ephemeral HTTP tests
+pass, including held-wait notification, interest/pacing and bearer/adoption
+cases. Their two direct-reader tests now rely on automatic commit publication,
+without a separate test-driven publish call. No expected HTTP values changed.

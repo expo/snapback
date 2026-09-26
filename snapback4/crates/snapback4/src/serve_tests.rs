@@ -97,6 +97,7 @@ impl Host {
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
         });
+        shared.install_ephemeral_wake();
         let server = Arc::new(
             Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())
                 .unwrap(),
