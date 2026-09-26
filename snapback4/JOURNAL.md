@@ -61955,3 +61955,24 @@ defaults waited for release at 175.257/175.427 ms. Six admission/normalization/
 background-error cases and all 27 React tests passed. A final review also
 prunes Expo's in-memory outcome when its saved reference is dismissed, so
 retiring sent references retires their transient results as well.
+
+The Node 24 isolated production-web-starter witness also times out after
+30,000 ms at its initial `Local data acquired` wait, before any composer
+interaction. An exact-source baseline probe restored all tracked Snapback 4
+files to 78bbe7b349, verified a clean diff against that commit, rebuilt its
+CLI and SDK with Node 24 and reproduced the identical timeout. It restored
+the lane afterward; evidence and the restore procedure are under
+`/tmp/ccp-l1/base-witness.*` and `baseline-witness.py`. This inherited witness
+failure does not block the lane under the brief, and no later witness stage
+is claimed as passed.
+
+The broader storage tests exposed their old promise-rejection expectations
+and their VM harness's missing new imports. Four assertion sites now require
+an E_STORE failed Write for both omitted and zero waits, preserving their
+no-dispatch/data-preservation checks. The generated-native adapter tests load
+the actual helper and platform module with separate credential and KV stores.
+Quarantined `.writes.damaged.*` copies also stay in KV, since they can contain
+message text. All 19 affected adapter/template tests pass on Node 24, including
+fresh Expo/web output typechecks and account/backend isolation. The interim
+full run was stopped before completion to include this final storage repair
+in a clean full run; final counts follow.

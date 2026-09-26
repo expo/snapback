@@ -13,9 +13,10 @@ interface Credentials {
 /** SDK online custody also contains message arguments. Preserve a legacy
  * journal before removing its old size-limited SecureStore value. */
 export function withIntentStorage(credentials: Credentials, storage: IntentStorage): Credentials {
+  const isIntent = (key: string) => key.endsWith(".writes") || key.includes(".writes.damaged.");
   return {
     async get(key) {
-      if (!key.endsWith(".writes")) return credentials.get(key);
+      if (!isIntent(key)) return credentials.get(key);
       const kept = storage.getItem(key);
       if (kept !== null) return kept;
       const legacy = await credentials.get(key);
@@ -23,11 +24,11 @@ export function withIntentStorage(credentials: Credentials, storage: IntentStora
       return legacy;
     },
     async set(key, value) {
-      if (key.endsWith(".writes")) storage.setItem(key, value);
+      if (isIntent(key)) storage.setItem(key, value);
       else await credentials.set(key, value);
     },
     async delete(key) {
-      if (key.endsWith(".writes")) storage.removeItem(key);
+      if (isIntent(key)) storage.removeItem(key);
       await credentials.delete(key);
     },
   };

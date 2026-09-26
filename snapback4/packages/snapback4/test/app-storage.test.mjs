@@ -23,7 +23,10 @@ function storage() {
     async set(key, value) { check(key); values.set(key, value); },
     async delete(key) { check(key); values.delete(key); },
   };
-  return { values, keys, store };
+  const intentValues = new Map();
+  const intentStore = { getItem: key => intentValues.get(key) ?? null,
+    setItem: (key, value) => { intentValues.set(key, value); }, removeItem: key => { intentValues.delete(key); } };
+  return { values, keys, store, intentValues, intentStore };
 }
 function generated(t, held, fetcher, address = url) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-secure-adapter-"));
@@ -33,6 +36,13 @@ function generated(t, held, fetcher, address = url) {
   assert.equal(init.status, 0, init.stdout + init.stderr);
   const js = ts.transpileModule(readFileSync(join(dir, "src/client.ts"), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const context = { exports: {}, process: { env: { EXPO_PUBLIC_SNAPBACK_URL: address } }, require(name) {
+    if (name === "./intents" || name === "./intent-store") {
+      const child = { exports: {}, require: context.require };
+      const file = name === "./intents" ? "intents.ts" : "intent-store.native.ts";
+      const code = ts.transpileModule(readFileSync(join(dir, "src", file), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+      vm.runInNewContext(code, child); return child.exports;
+    }
+    if (name === "expo-sqlite/kv-store") return { default: { getItemSync: held.intentStore.getItem, setItemSync: held.intentStore.setItem, removeItemSync: held.intentStore.removeItem } };
     if (name === "react-native") return { Platform: { OS: "ios" } };
     if (name === "expo-secure-store") return { getItemAsync: held.store.get, setItemAsync: held.store.set, deleteItemAsync: held.store.delete };
     if (name === "snapback4/app") return { createApp: options => createApp({ ...options, fetch: fetcher }) };
@@ -66,7 +76,7 @@ function transport() {
   return { fetcher, sent, online() { offline = false; } };
 }
 
-for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01ABC", "user_3A01ABC"], ["ab", "慢"]]) test(`generated SecureStore keeps ${a} and ${b} write custody separate`, async t => {
+for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01ABC", "user_3A01ABC"], ["ab", "慢"]]) test(`generated Expo storage keeps ${a} and ${b} write custody separate`, async t => {
   const held = storage(), wire = transport(), app = generated(t, held, wire.fetcher);
   await app.ready; await app.auth.login(a, "password");
   const pending = await app.mutate(mutation, { body: "secret from " + a });
@@ -79,6 +89,8 @@ for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01A
   await until(async () => (await app.client.write(pending.id))?.state === "sent");
   assert.deepEqual(wire.sent.map(write => [write.args.body, write.token]), [["from B", "Bearer token-" + b], ["secret from " + a, "Bearer token-" + a]]);
   assert.notEqual(storeKey("writes", url, a), storeKey("writes", url, b));
+  assert.ok([...held.values.keys()].every(key => !key.includes(".writes")), "SecureStore contains no newly written intent text");
+  assert.ok([...held.intentValues.keys()].some(key => key.endsWith(".writes")));
 });
 
 test("generated SecureStore separates formerly colliding backend session keys", async t => {
@@ -99,16 +111,17 @@ test("recovery refuses an intent with a foreign recorded owner even at the corre
   const held = storage(), wire = transport(), app = generated(t, held, wire.fetcher);
   await app.ready; await app.auth.login("a!b", "password");
   const pending = await app.mutate(mutation, { body: "A's private intent" });
-  const raw = JSON.parse(await held.store.get(storeKey("writes", url, "a!b")));
+  const raw = JSON.parse(held.intentStore.getItem(storeKey("writes", url, "a!b")));
   raw.owner = "a~b"; // defeat the top-level check: the intent still belongs to A.
   const bytes = JSON.stringify(raw), bKey = storeKey("writes", url, "a~b");
-  await held.store.set(bKey, bytes);
+  held.intentStore.setItem(bKey, bytes);
   await app.auth.logout(); wire.online();
   assert.equal((await app.auth.login("a~b", "password")).ok, true);
   assert.equal(app.auth.why.code, "E_CLIENT");
   assert.equal(await app.client.write(pending.id), undefined);
   assert.equal(wire.sent.length, 0);
-  assert.ok([...held.values].some(([key, value]) => key.startsWith(bKey + ".damaged.") && value === bytes));
+  assert.ok([...held.values.keys()].every(key => !key.includes(".writes")), "quarantine stays out of SecureStore too");
+  assert.ok([...held.intentValues].some(([key, value]) => key.startsWith(bKey + ".damaged.") && value === bytes));
   await app.mutate(mutation, { body: "B's own intent" });
   assert.deepEqual(wire.sent.map(write => write.args.body), ["B's own intent"]);
 });
@@ -120,9 +133,9 @@ test("recovery quarantines a valid same-principal journal transplanted from anot
   const pending = await a.mutate(mutation, { body: "private to backend A" });
   assert.equal(pending.state, "pending");
   const aKey = storeKey("writes", url, "alice"), bKey = storeKey("writes", otherUrl, "alice");
-  const bytes = await held.store.get(aKey);
+  const bytes = held.intentStore.getItem(aKey);
   await a.close();
-  await held.store.set(bKey, bytes); // Valid owner, arguments and ID; only backend differs.
+  held.intentStore.setItem(bKey, bytes); // Valid owner, arguments and ID; only backend differs.
   wire.online();
   const b = generated(t, held, wire.fetcher, otherUrl);
   await b.ready;
@@ -130,8 +143,8 @@ test("recovery quarantines a valid same-principal journal transplanted from anot
   assert.equal(b.auth.why?.code, "E_CLIENT");
   assert.equal(await b.client.write(pending.id), undefined);
   assert.equal(wire.sent.length, 0);
-  assert.ok([...held.values].some(([key, value]) => key.startsWith(bKey + ".damaged.") && value === bytes));
-  assert.equal(await held.store.get(aKey), bytes, "A's original custody remains intact");
+  assert.ok([...held.intentValues].some(([key, value]) => key.startsWith(bKey + ".damaged.") && value === bytes));
+  assert.equal(held.intentStore.getItem(aKey), bytes, "A's original custody remains intact");
   assert.equal((await b.mutate(mutation, { body: "own intent on backend B" })).state, "sent");
   assert.deepEqual(wire.sent.map(write => write.args.body), ["own intent on backend B"]);
 });
@@ -168,7 +181,11 @@ test("unavailable quarantine preserves the original bytes and blocks writes, not
   t.after(() => app.close());
   assert.equal((await app.ready).ok, true); assert.equal(app.auth.state, "signed-in");
   assert.equal(app.auth.why.code, "E_CLIENT");
-  await assert.rejects(app.mutate(mutation, { body: "not admitted" }), /storage unavailable/);
+  for (const waitSeconds of [undefined, 0]) {
+    const refused = await app.mutate(mutation, { body: "not admitted" }, { waitSeconds });
+    assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_STORE");
+    assert.match(refused.why.message, /storage unavailable/);
+  }
   assert.equal(await held.store.get(key), bytes); assert.equal(wire.sent.length, 0);
   broken = false;
   assert.equal((await app.mutate(mutation, { body: "now safe" })).state, "sent");

@@ -117,6 +117,9 @@ for (const starter of ["expo", "web"]) test(`CCP ${starter} generated intent tra
     assert.equal(old.get("sdk.writes"), "legacy intent", "failed migration retains old custody");
     fails = false; assert.equal(await custody.get("sdk.writes"), "legacy intent");
     assert.equal(old.has("sdk.writes"), false); assert.equal(values.get("sdk.writes"), "legacy intent");
+    await custody.set("sdk.writes.damaged.abc", "preserved intent");
+    assert.equal(old.has("sdk.writes.damaged.abc"), false);
+    assert.equal(values.get("sdk.writes.damaged.abc"), "preserved intent");
     await custody.set("sdk.session", "token"); assert.equal(old.get("sdk.session"), "token");
     assert.equal(values.has("sdk.session"), false, "credentials stay in their store");
     assert.match(mod.intentOutcome(undefined), /^Outcome unknown/);
