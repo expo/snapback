@@ -8,12 +8,28 @@ use snapback4_device::store::DeviceStore;
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/sync-windows.q");
 
 fn scenario<H: Host>(host: &mut H) {
-    let source = SOURCE.replace("last 10000", "last 3") + r#"
+    let source = SOURCE.replace("last 10000 by .at, .ordinal", "last 3 by byWindow")
+        .replace("  at: time", "  by byDay: conversationId, day(at), id\n  by byWindow: conversationId, at, ordinal, id\n  at: time")
+        .replace("  immutable conversationId", "  immutable conversationId\n  update <- exists members[.conversationId, viewer]") + r#"
+mutation move(messageId: messages, ordinal: int):
+  update messages[messageId] { ordinal }
+query one(messageId: messages):
+  return messages[messageId]
+query calendar(conversationId: conversations, c: cursor ?):
+  return messages[conversationId] last 2 by byDay after c
+query repairedCalendar(conversationId: conversations, c: cursor ?):
+  return messages[conversationId] last 2 by byWindow after c
+query suffix(conversationId: conversations, c: cursor ?):
+  return messages[conversationId] last 20 by byWindow after c
 query ascending(conversationId: conversations, c: cursor ?):
   return messages where .conversationId = conversationId first 2 by .at, .ordinal after c
 query otherOrder(conversationId: conversations, c: cursor ?):
   return messages where .conversationId = conversationId last 2 by .at after c
 "#;
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    let calendar_note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER" && n.message.starts_with("query calendar ")).unwrap();
+    assert!(calendar_note.rewrite.contains("last 2 by byWindow"));
+    assert!(!bound.notes.iter().any(|n| n.code == "N_SYNC_ORDER" && n.message.starts_with("query repairedCalendar ")));
     let (mut engine, backend) = compile(&source);
     let message = |name: &str, room: &str, at, ordinal| ("messages".into(), object([
         ("id", id(name)), ("conversationId", id(room)), ("at", Value::Int(at)), ("ordinal", Value::Int(ordinal)),
@@ -60,24 +76,52 @@ query otherOrder(conversationId: conversations, c: cursor ?):
     assert!(unknown && !crossing.complete);
     assert_eq!(wire::to_json(&crossing.data)[0]["id"], "x");
     assert_eq!(crossing.data.as_array().unwrap().len(), 1);
-    for operation in ["ascending", "otherOrder"] {
+    for operation in ["ascending", "otherOrder", "calendar"] {
         let (local, unknown, _) = device.query_with_coverage(operation, "dev:alice", &args, 1000);
         assert!(unknown && !local.unwrap().complete, "{operation}: needs server fallback");
         let server = engine.query(operation, context("dev:alice", &[("conversationId", id("c1")), ("c", Value::Null)]).at(1000)).unwrap();
         assert!(server.complete, "{operation} still runs on the server");
     }
-    // A newer ordinal at the same timestamp enters the known suffix. An
-    // older timestamp with a large ordinal is still below the same floor.
+    let (local, unknown, _) = device.query_with_coverage("repairedCalendar", "dev:alice", &args, 1000);
+    let local = local.unwrap();
+    assert!(!unknown && local.complete);
+    assert_eq!(local.data, first.data, "the calendar note's window-index repair restores offline coverage");
+    // Same timestamp, smaller ordinal; same timestamp/ordinal, smaller id;
+    // and the larger id on that exact tie. Every part of the floor matters.
     let watermark = device.store().meta("device:watermark").unwrap().unwrap().parse().unwrap();
-    engine.seed([message("new", "c1", 100, 4), message("older", "c1", 98, 9999)]).unwrap();
+    engine.seed([
+        message("new", "c1", 100, 4), message("older", "c1", 98, 9999),
+        message("lowOrdinal", "c1", 100, 1), message("w", "c1", 100, 2), message("y", "c1", 100, 2),
+    ]).unwrap();
     device.apply(&stream_page(&mut engine, "dev:alice", watermark), false).unwrap();
     let held = device.store().raw_rows("messages");
-    assert_eq!(held.len(), 4);
-    assert!(!held.iter().any(|row| row.field("id").unwrap() == &id("older")));
+    assert_eq!(held.len(), 5);
+    for name in ["older", "lowOrdinal", "w"] {
+        assert!(!held.iter().any(|row| row.field("id").unwrap() == &id(name)), "drop below-floor {name}");
+    }
+    assert!(held.iter().any(|row| row.field("id").unwrap() == &id("y")), "keep larger id on the full tie");
+    // A held row moving down stays point-readable, but leaves the suffix.
+    // A previously unheld row moving up must enter the suffix.
+    for (name, ordinal) in [("b", 1), ("z", 6)] {
+        let watermark = device.store().meta("device:watermark").unwrap().unwrap().parse().unwrap();
+        let result = engine.mutate("move", None, context("dev:alice", &[("messageId", id(name)), ("ordinal", Value::Int(ordinal))]).at(1000)).unwrap();
+        assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{result:?}");
+        device.apply(&stream_page(&mut engine, "dev:alice", watermark), false).unwrap();
+    }
+    host.close("windows", device);
+    let mut device = host.open("windows", None).unwrap();
+    let (point, unknown, _) = device.query_with_coverage("one", "dev:alice", &json!({"messageId":"b"}), 1000);
+    assert!(!unknown);
+    assert_eq!(point.unwrap().data.field("ordinal").unwrap(), &Value::Int(1));
+    let (page, unknown, _) = device.query_with_coverage("suffix", "dev:alice", &args, 1000);
+    let page = page.unwrap();
+    assert!(unknown && !page.complete, "the original floor still limits the suffix");
+    assert_eq!(page.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["z", "new", "a", "y", "x"]);
     let (result, unknown, _) = device.query_with_coverage("thread", "dev:alice", &args, 1000);
     let result = result.unwrap();
     assert!(!unknown && result.complete);
-    assert_eq!(wire::to_json(&result.data)[0]["id"], "new");
+    assert_eq!(wire::to_json(&result.data)[0]["id"], "z");
+    assert_eq!(result.data, engine.query("thread", context("dev:alice", &[("conversationId", id("c1")), ("c", Value::Null)]).at(1000)).unwrap().data);
     host.close("windows", device);
 }
 
