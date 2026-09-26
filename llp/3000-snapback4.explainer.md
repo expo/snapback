@@ -1636,6 +1636,15 @@ time-ordered 128-bit form.
   deadlines use 0.4.2's scoped `Expiry` carrying B2's complete-rule timeline.
   B2's live-cap law keeps superseding LLP 3000.013 §11.1's unswept-cap rule.
 
+**2026-09-25 — authorized ephemeral tables (LLP 3000.017).** The standing
+LLP 3000.009 §12 realtime line is enacted as `ephemeral <life>` tables in
+one server process. Their mutations use a durable read snapshot and a
+rollback-guarded memory hub, independent epochs and interest-filtered polls;
+every renewal rechecks the insert rule. No durable sequence, log, replay,
+outbox or device custody is created. Durable schemas retain their captured
+serialization and emitted TypeScript. Last-seen storage, multi-server
+presence and ephemeral authority over durable invariants stay excluded.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

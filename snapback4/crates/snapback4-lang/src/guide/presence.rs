@@ -8,6 +8,8 @@ query connections(p: principal):
   return connected[p]                    -- an int; `exists connected[p]` is the bool
 ```
 
+`connected[p]` is server-wide. For who is in a room, typing or viewing, use an ephemeral table (guide ephemeral).
+
 `connected[p]` is how many connections a principal holds open on the
 server now: a device following the stream keeps a long poll open
 (`GET /changes?wait=25&heartbeat=1`), and a poll that answered a moment ago still

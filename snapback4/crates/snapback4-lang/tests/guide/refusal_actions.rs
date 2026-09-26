@@ -8,6 +8,9 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_SEQUENCE_EXHAUSTED", &["Create a new parent for subsequent writes"]),
     ("E_VIEW_KEY", &["make the member row readable to its writers before marking."]),
 
+    ("E_QUARRY_EPHEMERAL", &["remove sync and durable clauses", "split mixed writes into separate client calls"]),
+    ("E_EPHEMERAL_FULL", &["Expired rows reclaim capacity", "retryable"]),
+    ("N_EPHEMERAL_SERVER", &["separate", "device-held"]),
     ("E_QUARRY_SELF_EQUALITY", &["members[conversation = .conversation]", "the named key reads the enclosing row"]),
     ("E_READ_THROUGH", &["read through .ref"]),
     ("E_READ_THROUGH_ADOPT", &["Reconcile the named table before adoption."]),

@@ -23,6 +23,16 @@ mutation addNote(body: text):
 `query` returns the newest page; pass its `next` back as `c`.
 `mutation` inserts atomically, using the default time.
 
+Short-lived server memory uses the ordinary table grammar (`guide ephemeral`):
+
+```quarry
+table typing:
+  principal: principal
+  read <- allow
+  insert <- .principal = viewer
+  ephemeral 4s
+```
+
 ## Limits
 
 - Use Quarry spellings such as `count(x)` and `first 20`: E_QUARRY_UNSUPPORTED.
@@ -571,7 +581,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 ## Left out on purpose, and the idiom
 
-Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
+Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal. Also see from-sql (aliases sql, convex, rosetta).

@@ -59,6 +59,8 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
     let feeds = feed_view::expand(&mut documents, &mut diagnostics);
+    // Following expansion adds its durable timeline inputs. Recheck before lowering.
+    if !feeds.is_empty() { ephemeral::declarations(&documents, &mut diagnostics); }
     let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
@@ -176,6 +178,11 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     }
     for doc in &catalog.documents {
         for decl in &doc.schedules {
+            let target = decl.target.strip_prefix("schema.").unwrap_or(&decl.target);
+            if schema.operations.get(target).is_some_and(|f| f.ephemeral) {
+                diagnostics.push(Diagnostic::new(&decl.site, "E_QUARRY_EPHEMERAL", "schedule cannot call an ephemeral mutation", "call the ephemeral mutation from the client").guide("ephemeral"));
+                continue;
+            }
             match bind_schedule(decl, &programs) {
                 Ok(schedule) => schema.schedules.push(schedule),
                 Err(diagnostic) => diagnostics.push(diagnostic),

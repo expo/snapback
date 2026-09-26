@@ -61573,3 +61573,75 @@ codex session could not authenticate.
 - Production binary: 11,960,272 bytes, SHA-256 `4bea81bf…c7e8`.
 
 Report: `reports/20260925-publication-0.4.2/REPORT.md`.
+
+### 2026-09-25 — LLP 3000.017, E1 ephemeral tables
+
+Implemented the compiler, core, engine, HTTP server and device boundary for
+`ephemeral 1s` through `ephemeral 60s`. The exhaustive IR effects walk includes
+expression blocks, helpers, loop domains and merge lanes; renewal keys account
+for assignments across loop iterations. Generation admission independently
+recomputes operation facts. The 26 valid existing language fixtures were captured
+at base `59dc258fe5e06cec28ee65da5bfe1bae3f3c7509` before any implementation;
+their schema JSON and emitted TypeScript remain byte-identical.
+
+One shared hub holds rows, writer/declared-size accounting, an epoch, incarnation
+and bounded ring under one mutex. A Layered Rows drop guard undoes every incomplete
+write. Ephemeral execution uses a deferred durable read snapshot, rechecks insert
+authority whenever it stamps a deadline, checks declared capacity before commit,
+and creates no durable replay, log, commit, outbox or row. Only queries with
+`ephemeralReads` lock the hub. Adoption clears memory; durable-to-ephemeral
+activation deletes physical rows/index entries. Import/seed and Postgres refuse.
+
+The HTTP lane precedes replay and has its own session token bucket. All route
+refusals, including auth and input admission, are HTTP 200 failed. Polls use a
+separate wake mutex/condition, interest filtering, 100 ms pacing, and independent
+memory versions; an already-blocked poll finishes with the serving engine mutex
+held. Presence reconnect checks are read-first. Server checkpoint
+`4c1c8492c` passed 81 server tests (including nine ephemeral HTTP tests).
+SERVER.md was updated before this checkpoint because it is under the E2-owned
+package tree. No tracked package files are edited after it; the explicitly
+required build/test scripts regenerate ignored wasm/build outputs there.
+
+The guide's typing alias, separate chats-list hint, 10 s viewing heartbeat,
+renewal law, timing bound and refusal table are executable examples. The old
+reads-card 4.5 s durable typing example is replaced per RFC §2.5: its pinned
+block hash, prose fact and test now follow the ephemeral card, and the language
+card's new declaration and keyword list update their two explicit pins. Existing
+durable schema/output fixtures were not changed. The card compile harness allows
+only the new mandated N_EPHEMERAL_SERVER note for ephemeral examples. E2 owns the
+README orientation line and the new TypeScript Ephemeral/Signal contracts; the
+old README keyword-list test still identifies that pending cross-lane addition.
+The React examples are additionally checked against the real Read union/current
+React hooks with current mutation handles; the Ephemeral overload is E2's proof.
+
+Small implementation choices where the RFC leaves mechanics open: a 256-entry
+change ring; dev personas use their principal as the session bucket identity,
+while bearer tokens use a digest; 4,096 idle-evicted bucket entries bound host
+memory. Different store identities are unordered and require explicit replacement
+rebind; a stale reader cannot rebind a new store back to the old one. The durable
+read transaction is ended while the memory undo guard is still alive. Declared
+capacity includes the bounded image plus each bounded index key, with no actual
+private payload size input. Unstable loop keys conservatively disable renewal.
+The chats-list hint uses a paged membership scan with a nested typing read, an
+accepted alternative in RFC §2.3. The device refuses both ordinary and replay
+admission before opening its writer transaction; reads stay unknown.
+
+Wasm on this host: base suite 2,008,093 B raw / 576,963 B gzip; E1 measured
+2,013,296 B raw / 578,843 B gzip (+5,203 raw / +1,880 gzip). The optional schema
+facts, hidden deadline handling and device admission guard add shared device
+code; this is a whole-artifact delta, not per-component attribution. Raise the
+578,207 B budget (over by 636 B) to measured + 1,000 = 579,843 B in this commit.
+Runtime meter ceilings are unchanged. Final full-suite results are recorded in
+the uncommitted EPH-REPORT-E1.md and retained target/eph-evidence logs.
+
+The base full suite reported one client failure: `failed fence revokes a discarded
+refresh before logout retry`, with Node `setTypeOfService EINVAL`. The same test
+passed alone on the base-built CLI/client artifacts. Base evidence is retained in
+target/eph-evidence/base-suite.log and base-client-isolated.log; no client source
+or expected output was changed to accommodate it.
+
+E1 confirming wasm build, after the renewal-loop fixed-point check: 2,013,288 B
+raw / 578,833 B gzip. Final ratchet is measured + 1,000 = 579,833 B. This is
++5,195 raw / +1,870 gzip against the base host build; the first E1 measurement
+above preceded that final compiler/admission check. React snippet typechecking
+against the real Read union and current hooks passes.
