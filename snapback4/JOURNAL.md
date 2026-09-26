@@ -59257,3 +59257,37 @@ The server tests cover:
 
 The three-tier client test still turns Alice's mark true about 20 ms after Bob
 connects.
+
+## 2026-09-26 — `guide receipts` round 2: monotonic receipts, fetched runs only
+
+Astra's review of the ordinal card (NOT READY) and Grok's round-1 delta review
+(NOT READY) agreed on the remaining defects:
+
+- A receipt could move backward when every recipient left.
+- A watermark claimed messages the client never fetched: the top of a paged
+  view, or anything behind the 500-message horizon.
+- Offline viewing was never acknowledged.
+- Pending sends rendered as accepted.
+
+Now:
+
+- **A receipt never moves backward.** A message records how many recipients it
+  had. Once all of them leave, the requirement is met, while a message sent to
+  nobody stays `sent`.
+- **A watermark claims only fetched messages.** Both `delivered` and `seen`
+  claim only an unbroken run of fetched messages after the member's delivered
+  watermark. The client loads older pages to close any gap, which removes the
+  500-message limit.
+- **Offline viewing counts.** Acknowledgements need only a complete page, not a
+  fresh one.
+- **Pending rows render as pending,** not as `sent`.
+
+The engine test adds three cases:
+
+- the only recipient reading, then leaving, then rejoining;
+- a refused `seen(99)`;
+- sends to nobody.
+
+Two new mutants each fail it: counting only remaining recipients, and an
+unbounded `seen`. The three-tier probe still moves sent → delivered → read
+within about 10 ms of each acknowledgement.
