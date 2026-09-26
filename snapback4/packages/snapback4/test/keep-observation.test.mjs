@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { ReadObservation } from "../dist/read-observation.js";
 import { LocalReads } from "../dist/local-reads.js";
-import { KeptAnswers } from "../dist/kept-answers.js";
+import { observeWatch } from "../dist/observe-watch.js";
 import { guardClient } from "../dist/app-client.js";
 import { createClient } from "../dist/client.js";
 const ready = data => ({ data, complete: true, cut: null, fresh: true, next: null });
@@ -13,25 +13,30 @@ async function until(check) { for (let i = 0; i < 600; i++) { if (check()) retur
 const q = { kind: "query", name: "secret" };
 
 for (const op of ["apply", "admit", "settle", "clear_rows", "settle_exit", "adopt", "observe_store"]) {
-  test(`local keep: ${op} fences in-flight answers and ${["apply", "admit", "settle"].includes(op) ? "keeps" : "drops"} active and idle data`, async () => {
+  test(`local keep: ${op} fences in-flight answers and ${["apply", "admit", "settle"].includes(op) ? "keeps" : "drops"} active and lingering data`, async () => {
     const reads = new LocalReads(), held = deferred();
     const keep = Object.assign(new ReadObservation(true), { expiryTimer: null, presenceRefresh: null });
     const plain = Object.assign(new ReadObservation(), { expiryTimer: null, presenceRefresh: null });
     keep.publish(ready("before")); plain.publish(ready("before"));
-    reads.keptAnswers.put("viewer/store/idle", ready("idle"));
+    const watches = new Map();
+    const idleHandle = observeWatch(watches, "idle", () => Object.assign(new ReadObservation(true), {
+      key: "idle", subscribers: new Set(), expiryTimer: null, presenceRefresh: null,
+    }), watch => watch.publish(ready("idle")), () => {}, () => null);
+    idleHandle.close();
+    const idle = watches.get("idle");
     const work = keep.fetch(() => held.promise, () => {});
-    if (["adopt", "observe_store"].includes(op)) reads.clear([keep, plain]);
-    else reads.committed([keep, plain], op);
+    if (["adopt", "observe_store"].includes(op)) reads.clear([keep, plain, idle]);
+    else reads.committed([keep, plain, idle], op);
     const retained = ["apply", "admit", "settle"].includes(op);
     assert.equal("data" in keep.snapshot, retained);
     if (retained) { assert.equal(keep.snapshot.fresh, false); assert.ok(Number.isFinite(keep.snapshot.since)); }
-    assert.equal(!!reads.keptAnswers.take("viewer/store/idle"), retained);
+    assert.equal("data" in idle.snapshot, retained);
     assert.deepEqual(plain.snapshot, { loading: true });
     held.resolve({ read: ready("obsolete") }); await work;
     assert.notEqual(keep.snapshot.data, "obsolete", "old evaluation cannot republish across any commit or reset");
     keep.publish({ denied: why });
     assert.deepEqual(keep.snapshot, { denied: why }, "a refusal replaces a kept answer");
-    reads.keptAnswers.clear();
+    idle.linger.close();
   });
 }
 
@@ -48,20 +53,25 @@ test("keep carries the original since across loading, then accepts null, empty d
   watch.reset({ loading: true }); assert.deepEqual(watch.snapshot, { loading: true });
 });
 
-test("idle answers are actually released by the 30-second timer", t => {
+test("lingering watches close on the 30-second timer and cannot return after clock rollback", t => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
-  const memory = new KeptAnswers();
-  memory.put("key", ready("old"));
+  const watches = new Map(); let stops = 0;
+  const open = () => observeWatch(watches, "key", () => Object.assign(new ReadObservation(true), {
+    key: "key", subscribers: new Set(), expiryTimer: null, presenceRefresh: null,
+  }), () => {}, () => stops++, () => null);
+  const watch = open(); watches.get("key").publish(ready("old")); watch.close();
+  assert.equal(watches.size, 1);
   t.mock.timers.tick(30_000);
-  // Moving wall time back proves the timer removed the entry, not just take's deadline check.
   t.mock.timers.setTime(1000);
-  assert.equal(memory.take("key"), undefined);
+  assert.equal(watches.size, 0); assert.equal(stops, 1);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  assert.deepEqual(open().getSnapshot(), { loading: true });
 });
 
 async function online(t) {
   const polls = [], releases = [];
   let seq = 10, generation = 1, store = "A", holding = false, answer = "private", reads = 0;
-  const session = { token: "old", principal: "alice", expiresAt: Date.now() + 90 * 86400000 };
+  const session = { kind: "user", token: "old", principal: "alice", expiresAt: Date.now() + 90 * 86400000 };
   let nextPrincipal = "alice";
   const client = createClient({ url: "http://keep.test", session, fetch: async (input, init) => {
     const path = new URL(input).pathname;
@@ -92,7 +102,7 @@ async function online(t) {
   polls.shift().resolve({ seq, generation, store_id: store, tables: [] });
   await until(() => polls.length);
   idle.close();
-  return { client, live, polls, releases, reads: () => reads,
+  return { client, live, idle, polls, releases, reads: () => reads,
     hold: value => { holding = value; }, answer: value => { answer = value; },
     principal: value => { nextPrincipal = value; },
     async change(patch = {}) {
@@ -123,7 +133,7 @@ for (const trigger of ["mutation", "notification"]) for (const outcome of ["next
   assert.ok(values.every(read => !("loading" in read)), JSON.stringify(values));
 });
 
-for (const reset of ["adoption", "replacement", "regression", "credentials", "viewer", "sign-out", "close"]) test(`online keep: ${reset} clears active and idle answers`, async t => {
+for (const reset of ["adoption", "replacement", "regression", "credentials", "viewer", "sign-out", "close"]) test(`online keep: ${reset} clears active and lingering answers`, async t => {
   const f = await online(t);
   f.hold(true);
   let ending;
@@ -138,9 +148,13 @@ for (const reset of ["adoption", "replacement", "regression", "credentials", "vi
   if (reset === "close") ending = f.client.close();
   await until(() => !("data" in f.live.getSnapshot()));
   const remount = f.client.observe(q, { idle: true }, { keep: true });
-  assert.ok(!("data" in remount.getSnapshot()), "the reset also retired idle memory");
+  assert.ok(!("data" in remount.getSnapshot()), "the reset also retired lingering snapshots");
   f.hold(false); for (const release of f.releases) release.resolve();
   if (ending) await ending;
+  if (["adoption", "credentials"].includes(reset)) {
+    await until(() => remount.getSnapshot().data === "private");
+    assert.deepEqual(f.idle.getSnapshot(), { loading: true }, "scope-ending reset closes the original lingering observation");
+  }
   if (["replacement", "regression", "viewer", "sign-out", "close"].includes(reset)) assert.ok(!("data" in f.live.getSnapshot()), "late replies cannot restore a revoked lifetime");
 });
 

@@ -98,6 +98,9 @@ for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", 
     watch = client.observe(readOp, {}, { keep: true });
     plain = client.observe(readOp, {});
     await until(() => watch.getSnapshot().data?.body === "private answer" && plain.getSnapshot().data?.body === "private answer", "initial answers");
+    const lingering = client.observe({ ...query, name: "second" }, {}, { keep: true });
+    await until(() => lingering.getSnapshot().data?.body === "private answer", "lingering query ready");
+    lingering.close();
     const values = [];
     watch.subscribe(() => values.push(watch.getSnapshot()));
     armed = true;
@@ -117,6 +120,10 @@ for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", 
     blocking = false; held.resolve();
     assert.equal((await operation).state, "sent");
     await until(() => change === "refusal" ? watch.getSnapshot().denied?.code === "HIDDEN" : change === "revoke" || change === "leave" ? watch.getSnapshot().data === null : watch.getSnapshot().data?.body === "next answer", "replacement answer");
+    await until(() => change === "revoke" || change === "leave" || change === "refusal"
+      ? lingering.getSnapshot().data === null : lingering.getSnapshot().data?.body === "next answer", "lingering watch reruns on the real commit without a subscriber");
+    const joined = client.observe({ ...query, name: "second" }, {}, { keep: true });
+    assert.equal(joined.getSnapshot(), lingering.getSnapshot(), "remount sees the current committed answer");
     assert.ok(values.length > 0);
     const beforeReplacement = change === "refusal" ? values.slice(0, values.findIndex(read => "denied" in read) + 1) : values;
     assert.ok(beforeReplacement.every(read => !("loading" in read)), JSON.stringify(values));
@@ -144,7 +151,7 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   const stop = watch.subscribe(() => {}), sibling = client.observe(query, {}, { keep: true });
   const stopSibling = sibling.subscribe(() => {});
   await until(() => watch.getSnapshot().data?.body === "private answer", "initial answer");
-  const sinceBefore = Date.now();
+  const originalSnapshot = watch.getSnapshot();
   stop(); watch.close();
   assert.equal(sibling.getSnapshot().data.body, "private answer", "one subscriber leaving does not close the shared watch");
   stopSibling(); // No close(): the last unsubscribe begins the keep window.
@@ -152,16 +159,15 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   const before = requests;
   watch = client.observe(query, {}, { keep: true });
   assert.equal(watch.getSnapshot().data?.body, "private answer");
-  assert.equal(watch.getSnapshot().fresh, false);
-  assert.ok(watch.getSnapshot().since <= sinceBefore);
-  await until(() => requests > before, "remount rereads immediately");
+  assert.equal(watch.getSnapshot(), originalSnapshot, "joins the current observation with unchanged fresh/since");
+  assert.equal(requests, before, "joining does not start another read");
   for (const [op, args, options] of [[query, {}, undefined], [query, { other: true }, { keep: true }], [{ ...query, name: "different" }, {}, { keep: true }]]) {
     const other = client.observe(op, args, options);
     assert.deepEqual(other.getSnapshot(), { loading: true }, "option, operation and arguments isolate keys");
     other.close();
   }
-  let wall = Date.now();
-  t.mock.method(Date, "now", () => wall);
+  let wall = performance.now();
+  t.mock.method(performance, "now", () => wall);
   watch.close();
   wall += 29_999;
   watch = client.observe(query, {}, { keep: true });
@@ -169,7 +175,7 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   watch.close();
   wall += 30_000;
   watch = client.observe(query, {}, { keep: true });
-  assert.deepEqual(watch.getSnapshot(), { loading: true }, "at 30 seconds memory has expired");
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "at 30 seconds the watch has closed");
   t.mock.restoreAll(); watch.close();
   holding = false; held.resolve();
   watch = client.observe(query, {}, { keep: true });

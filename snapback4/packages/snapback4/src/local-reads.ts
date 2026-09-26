@@ -1,8 +1,7 @@
-import { KeptAnswers } from "./kept-answers.ts";
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import type { BackendJson } from "./backend.ts";
-import type { ExpiryClock } from "./read-expiry.ts";
+
 
 export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, nativeReady: boolean): boolean {
   const program = backend.programs.find(program => program.name === op.name);
@@ -101,8 +100,6 @@ export class RememberedAnswers {
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
-  readonly keptAnswers: KeptAnswers;
-  constructor(clock?: ExpiryClock) { this.keptAnswers = new KeptAnswers(clock); }
 
   // @ref LLP 3000.019#3.3 — ordinary commits can revoke rows; retaining them is explicitly opt-in.
   committed(watches: Iterable<LocalWatch>, operation: string): void {
@@ -112,7 +109,6 @@ export class LocalReads {
   clear(watches: Iterable<LocalWatch>, reset = true): void {
     this.revision++;
     this.serverAnswers.clear();
-    if (reset) this.keptAnswers.clear();
     for (const watch of watches) {
       if (reset) watch.reset({ loading: true }); else watch.reload();
       if (reset || !watch.keep) {

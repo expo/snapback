@@ -1,5 +1,5 @@
 import { armReadExpiry } from "./read-expiry.ts";
-import { observeWatch } from "./kept-answers.ts";
+import { endLingering, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
@@ -243,13 +243,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
-  const ephemeralReads = new EphemeralReads(aborter.signal, () => answers.keptAnswers.clearEphemeral());
+  const ephemeralReads = new EphemeralReads(aborter.signal);
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
 
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
-  const answers = new LocalReads(clock);
+  const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
   // Unversioned syncedAt may be server time; omit it until a wall-time resync.
@@ -308,6 +308,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     identityChecked = false;
     seq = 0;
     lastSyncAt = 0;
+    endLingering(watches.values());
     answers.clear(watches.values());
     // Finish invalidating every answer before invoking application callbacks.
     const deliver = () => {
@@ -429,7 +430,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     endingSession = work;
     void work.catch(() => { if (endingSession === work) endingSession = undefined; });
     if (!sessionDead) {
-      answers.keptAnswers.clear();
+      endLingering(watches.values());
       sessionDead = true;
       session = null;
       rotating = false;
@@ -471,7 +472,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const expectedPrincipal = session.principal;
     rotating = true;
     credentialRevision += 1;
-    answers.keptAnswers.clear();
+    endLingering(watches.values());
     for (const watch of watches.values()) if (watch.keep) watch.reset({ loading: true });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -934,11 +935,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
 
   function watchEphemeral(watch: Watch) {
-    const tables = watch.ephemeralTables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
+    const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
-      if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }
-      void rerun(watch);
+      if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+      return () => {
+        if (watches.get(watch.key) !== watch) return;
+        if (reset) notify(watch);
+        void rerun(watch);
+      };
     });
   }
 
@@ -1207,9 +1212,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep === true;
       const key = `${keep ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`;
-      return observeWatch(watches, key, answers.keptAnswers, () => JSON.stringify([principal, storeIdentity, incarnation]),
+      return observeWatch(watches, key,
         () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation }),
-        watch => { watchEphemeral(watch); const d = watch.deadlines; if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup); void rerun(watch); },
+        watch => { watchEphemeral(watch); void rerun(watch); },
         watch => ephemeralReads.remove(watch), unavailable, false);
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
@@ -1378,7 +1383,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true;
-      answers.keptAnswers.clear();
+      endLingering(watches.values());
       closingResponses.begin();
       stopRefresh();
       stopHost?.();

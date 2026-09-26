@@ -1130,14 +1130,20 @@ It does not confer read or write authority. Without `keep`, behavior is unchange
 `usePage` still keeps loaded pages while an additional page loads.
 
 The same option is available on `client.observe(op, args, { keep: true })`.
-After the last subscriber leaves, the client keeps that answer in memory for
-30 seconds. A new opted-in watch with the same operation, arguments, viewer and
-store incarnation starts from it with `fresh: false` and re-reads immediately.
-A default watch never uses this memory. Credential/viewer changes, sign-out,
-store replacement or restore, adoption, `clear_rows` and `settle_exit` discard
-kept answers at once. An answer's expiry ends retention, even during loading or
-the 30-second idle window. Ephemeral incarnation changes discard affected active
-and idle answers. Closing the client discards the memory; it is not durable.
+With `keep: true`, a watch lingers for 30 seconds after its last subscriber
+leaves. It stays the live observation it was, with its subscription, expiry
+timers, and place in every reset, invalidation, ephemeral adoption and schema
+installation. A new opted-in subscriber with the same operation, arguments,
+viewer and store incarnation joins that watch and sees its current snapshot,
+with the `fresh` and `since` that snapshot has. After 30 seconds without a
+subscriber, the watch closes. Sign-out, credential or viewer changes, store
+replacement or adoption, and client `close` end a lingering watch at once.
+`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
+schema installation reset lingering observations just as they reset active
+ones, before notifying subscribers. There is no separate store of retired
+answers. A lingering local watch re-runs on commits; both clients keep the
+watch's normal reads, timers and change-feed interest running for those 30
+seconds. This costs observation memory and background work while unmounted.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.

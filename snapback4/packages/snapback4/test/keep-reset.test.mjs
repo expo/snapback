@@ -16,13 +16,13 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 async function until(check) { for (let i = 0; i < 600; i++) { if (check()) return; await delay(5); } assert.fail("reset not observed"); }
 
 for (const tier of ["wasm", "process"]) for (const reset of ["adoption", "replacement", "credentials", "viewer", "sign-out", "close"]) {
-  test(`${tier} keep: ${reset} drops active and idle answers before a held read lands`, { timeout: 20_000 }, async t => {
+  test(`${tier} keep: ${reset} drops active and lingering answers before a held read lands`, { timeout: 20_000 }, async t => {
     const dir = mkdtempSync(join(tmpdir(), "sb4-keep-reset-"));
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir, binary });
     let generation = original.generation, store = "A", principal = "dev:alice", marker = "old", hold = false, heldReads = 0;
     const gate = deferred(), commits = [];
     const backend = () => ({ ...original, generation, programs: [...original.programs, ...["marker", "idle"].map(name => ({ name, kind: "Query", args: {}, body: [{ Return: { Literal: { String: marker } } }] }))] });
-    const session = { token: "old-token", principal, expiresAt: Date.now() + 90 * 86400000 };
+    const session = { kind: "user", token: "old-token", principal, expiresAt: Date.now() + 90 * 86400000 };
     const client = await createLocalClient({ url: "http://keep-reset.test", session, sessionStore: memorySessionStore(),
       device: { async open(...args) {
         const core = await opener.open(...args);
@@ -65,7 +65,7 @@ for (const tier of ["wasm", "process"]) for (const reset of ["adoption", "replac
     await until(() => !("data" in watch.getSnapshot()));
     assert.ok(notices.some(read => !("data" in read)), "reset publishes withdrawal before replacement evaluation");
     const remount = client.observe(idleOp, {}, { keep: true });
-    assert.ok(!("data" in remount.getSnapshot()), "the same reset invalidates the idle cache");
+    assert.ok(!("data" in remount.getSnapshot()), "the same reset invalidates the lingering watch");
     if (reset === "adoption" || reset === "replacement") {
       await until(() => heldReads > 0);
       await resetting;
@@ -73,8 +73,12 @@ for (const tier of ["wasm", "process"]) for (const reset of ["adoption", "replac
     }
     hold = false; gate.resolve(); await resetting;
     if (reset === "adoption" || reset === "replacement") {
-      await until(() => watch.getSnapshot().data === "new");
+      await until(() => watch.getSnapshot().data === "new" && remount.getSnapshot().data === "new");
+      assert.deepEqual(idle.getSnapshot(), { loading: true }, "scope-ending reset closes the old lingering observation permanently");
       assert.ok(notices.every(read => read.data !== "old"), "old held replies cannot cross the reset");
-    } else if (reset !== "credentials") assert.ok(!("data" in watch.getSnapshot()));
+    } else if (reset === "credentials") {
+      await until(() => remount.getSnapshot().data === "old");
+      assert.deepEqual(idle.getSnapshot(), { loading: true }, "credential change ends the old lingering watch");
+    } else assert.ok(!("data" in watch.getSnapshot()));
   });
 }

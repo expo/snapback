@@ -11,7 +11,6 @@ export class ReadObservation<T> {
   kept = false;
   resetVersion = 0;
   deadlines: ReadDeadlines | undefined;
-  ephemeralTables: readonly string[] = [];
   private since: number | undefined;
   private revision = 0;
 
@@ -41,6 +40,9 @@ export class ReadObservation<T> {
           result = await run();
           continue;
         }
+        // Acceptance may itself adopt an incarnation and synchronously reset
+        // this observation (or let a peer close it). That retires this fetch.
+        if (revision !== this.revision) return { ...result, read: this.snapshot };
         if (publishResult) {
           this.publish(result.transportOffline ? { loading: true } : result.read);
           notify();

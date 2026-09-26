@@ -20,7 +20,7 @@ const parked = signal => new Promise((_, reject) => {
   else signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
 });
 
-for (const tier of ["wasm", "process", "online"]) test(`${tier} keep: ephemeral incarnation retires idle memory before active callbacks`, async t => {
+for (const tier of ["wasm", "process", "online"]) test(`${tier} keep: ephemeral incarnation retires lingering snapshots before active callbacks`, async t => {
   const { url, dir } = await ephemeralServer(t);
   const gate = Promise.withResolvers();
   let incarnation = "A", holding = false, remount, resetSnapshot, idleSnapshot;
@@ -117,7 +117,7 @@ for (const keep of [false, true]) test(`online ${keep ? "keep" : "default"}: tok
   assert.equal(reads, keep ? 2 : 1);
 });
 
-test("online keep: live viewer discovery resets active and idle answers and retries in-flight observations", async t => {
+test("online keep: live viewer discovery resets active and lingering answers and retries in-flight observations", async t => {
   let viewer = "alice", holding = false, reads = 0, remount, resetSnapshot;
   const gate = Promise.withResolvers(), polls = [];
   const client = createClient({ url: "http://keep-viewer.test", token: "token", fetch: async (input, init) => {

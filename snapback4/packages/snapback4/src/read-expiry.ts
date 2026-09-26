@@ -7,16 +7,6 @@ export interface ReadDeadlines {
   localWakeup: boolean;
 }
 export type ExpiryClock = Pick<ServerClock, "deviceDelay" | "serverDelay">;
-export const wallExpiryClock: ExpiryClock = {
-  deviceDelay: deadline => Math.max(0, deadline - Date.now()),
-  serverDelay: deadline => Math.max(0, deadline - Date.now()),
-};
-
-export function answerExpired(deadlines: ReadDeadlines | undefined, clock: ExpiryClock): boolean {
-  return !!deadlines && ((!deadlines.localWakeup && deadlines.device !== null && clock.deviceDelay(deadlines.device) === 0)
-    || (deadlines.server !== null && clock.serverDelay(deadlines.server) === 0));
-}
-
 interface ExpiringRead {
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null;

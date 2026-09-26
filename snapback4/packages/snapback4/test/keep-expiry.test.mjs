@@ -1,4 +1,4 @@
-// A kept answer's deadlines survive commits, unavailable reads and retirement.
+// A kept answer's live deadlines survive commits, unavailable reads and lingering.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { ServerClock } from "../dist/clock.js";
-import { KeptAnswers } from "../dist/kept-answers.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { processDevice } from "../dist/native.js";
 import { server, binary, until } from "./helpers/app-server.mjs";
@@ -129,32 +128,21 @@ for (const tier of ["wasm", "process", "online"]) {
     });
   }
   for (const expired of [false, true]) {
-    test(`${tier} keep: remount ${expired ? "rejects an expired answer" : "re-arms the unexpired answer's deadline"}`, async t => {
+    test(`${tier} keep: remount ${expired ? "rejects an expired answer" : "keeps the lingering watch's deadline"}`, async t => {
       const f = await fixture(t, tier);
       let watch = f.client.observe(q, {}, { keep: true });
       await until(() => watch.getSnapshot().data?.body === "private answer");
+      const before = watch.getSnapshot();
       watch.close(); f.hold();
-      if (expired) f.expire();
+      if (expired) { f.expire(); await until(() => watch.getSnapshot().loading, "the lingering watch expires"); }
       watch = f.client.observe(q, {}, { keep: true });
-      if (expired) assert.deepEqual(watch.getSnapshot(), { loading: true }, "take checks the answer deadline synchronously");
+      if (expired) assert.deepEqual(watch.getSnapshot(), { loading: true }, "joins the already expired observation");
       else {
         assert.equal(watch.getSnapshot().data?.body, "private answer");
-        assert.equal(watch.getSnapshot().fresh, false);
+        assert.equal(watch.getSnapshot(), before, "fresh and since belong to the live snapshot");
         f.expire();
-        await until(() => watch.getSnapshot().loading, "the restored deadline still withdraws");
+        await until(() => watch.getSnapshot().loading, "the still-armed deadline withdraws");
       }
     });
   }
 }
-
-test("idle deadline checks use device/server clocks and distinguish a local wakeup", () => {
-  let device = 10, server = 20;
-  const memory = new KeptAnswers({ deviceDelay: d => Math.max(0, d - device), serverDelay: d => Math.max(0, d - server) });
-  memory.put("composed", ready("old"), { device: 11, server: 21, localWakeup: false });
-  memory.put("remembered", ready("old"), { device: 11, server: 21, localWakeup: true });
-  device = 11;
-  assert.equal(memory.take("composed"), undefined);
-  const kept = memory.take("remembered"); assert.equal(kept.read.data, "old");
-  memory.put("remembered", kept.read, kept.deadlines); server = 21;
-  assert.equal(memory.take("remembered"), undefined, "the server deadline still governs remembered data");
-});

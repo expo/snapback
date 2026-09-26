@@ -68,13 +68,18 @@ and its `since`; a new answer or refusal replaces it. A kept answer may still
 show rows a revocation withdrew until the re-read lands. This is an application
 presentation choice, not evidence that the rows remain authorized.
 `client.observe(op, args, { keep: true })` is the same option without React.
-After the last subscriber leaves, an opted-in watch keeps its answer for
-30 seconds. A matching operation and arguments under the same viewer and store
-incarnation starts from it and re-reads immediately. Credential or viewer
-changes, sign-out, store replacement or restore, adoption, `clear_rows` and
-`settle_exit` drop kept answers. An answer's expiry ends retention even during
-loading or idle memory; ephemeral incarnation changes discard affected active
-and idle answers. Without `keep`, behavior is unchanged.
+With `keep: true`, a watch lingers for 30 seconds after its last subscriber
+leaves. It keeps its live subscription, expiry timers and place in every reset,
+invalidation, ephemeral adoption and schema installation. A new opted-in
+subscriber with the same operation, arguments, viewer and store incarnation
+joins the watch's current snapshot, with its `fresh` and `since`. After 30 seconds
+without a subscriber it closes. Sign-out, credential or viewer changes, store
+replacement or adoption, and client `close` end a lingering watch at once.
+`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
+schema installation reset lingering watches like active ones before notifying.
+There is no separate store of retired answers. Lingering local watches re-run
+on commits; observation memory and normal background work continue while
+unmounted. Without `keep`, behavior is unchanged.
 
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
