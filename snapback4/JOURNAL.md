@@ -59464,3 +59464,21 @@ round-11 and round-12 finding fixed and one gap: nothing required a store
 replacement to clear the order as well as the answers. A case now remembers a
 refusal at cut 100, clears, and requires the new store's first answer at cut 1
 to be remembered.
+
+## 2026-09-26 — Live presence round 15: a composed read clears nothing before its reply
+
+Grok's review of rounds 12 to 14 found every earlier finding fixed and one new
+defect from round 12. That round turned a composed read's up-front cleanup into
+an ordered deletion. The deletion named no cut, because the server had not
+answered yet, so it took the order's place by its read's ticket alone. An
+earlier read's answer at a higher cut, landing while the composed read was out,
+was then turned away. The composed read's lower refusal was turned away too,
+and nothing was remembered. Any cleanup before the reply is unordered: as a
+forget it erases a newer answer, and as a deletion it blocks an older read's
+higher cut. So the composed read now clears nothing up front. Its reply names
+the server's cut and takes its place in the order, as it already did. A case
+covers Grok's schedule: cut 100 lands during the composed read, which is then
+refused at cut 40, and the cut-100 answer is kept. Two routing tests had pinned
+the old erase: offline, a composed read left the cache empty. They now require
+that it leave the cache as it was. A composed read still never recovers a whole
+answer, and its reply, when one comes, takes its place in the order.

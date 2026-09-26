@@ -371,7 +371,9 @@ for (const left of [[], 0]) for (const failed of [false, true]) {
     if (failed) f.env.post = async () => { f.env.link = "offline"; return { ok: false }; }; else f.env.link = "offline";
     const read = await f.read();
     assert.deepEqual(read.data, data); assert.equal(read.complete, false); assert.equal(read.fresh, false);
-    assert.equal(f.env.serverAnswers.size, 0, "composition never uses whole-answer memory");
+    // Composition never uses whole-answer memory, and clears it only through a reply's place
+    // in the order: offline, no reply names a cut (LLP 3000.017 §3.2).
+    assert.equal(f.env.serverAnswers.size, 1, "a composed read clears no memory without a reply");
   });
 }
 for (const held of [false, true]) for (const fenced of [false, true]) {
@@ -453,7 +455,7 @@ for (const left of [[{ body: "retained" }], [], 0]) for (const fenced of [false,
     const read = await f.read();
     assert.deepEqual(read, { loading: true }, "Read<T> cannot publish a missing sibling as T or express component loading");
     assert.equal(attempts, failed && !fenced ? 1 : 0);
-    assert.equal(f.env.serverAnswers.size, 0, "independent components never recover whole-answer memory");
+    assert.equal(f.env.serverAnswers.size, 1, "independent components never recover whole-answer memory, nor clear it without a reply");
   });
 }
 
