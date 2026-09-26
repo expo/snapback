@@ -110,3 +110,14 @@ Combined **1,340 B gzip saved**. No new representation, format or algorithm. Mat
 ## Candidate 5: text and dependency audit
 
 571,669 → **571,525 B gzip** (1,975,906 → **1,975,265 B raw**): **144 B gzip saved**. `07-dependencies.txt` is the normal web graph: no lang crate. `07-includes.txt` and `07-test-gates.txt` record fixture includes and their test gates. No test/fixture/guide/explanation symbols survive. Shared RuntimeError still contained action/route classification and the structural-admission rewrite despite their producers being excluded; match-arm cfgs now follow those producers. Already-serialized server refusals use Refusal, not RuntimeError, and are unchanged. All emitted web error rewrites remain.
+
+## Additional server-only paths reached through runtime checks
+
+The baseline also names `with_asset_facts` (2,443 B), `reserve_columns` (839 B plus helpers), and `timeline_enqueue` (1,387 B); asset placement and birth work are partly inlined. The web MemoryTx uses Rows' `holds_assets = false`, and Runner's device path exits column birth/reservations and enqueue before doing work. Compile those same no-op choices into the web build. Preserve evaluated arguments, received asset facts, synchronized columns, own Following copies and every native path. The native feature still compiles the complete bodies.
+
+| Component | Raw | Gzip | Gzip saved |
+|---|---:|---:|---:|
+| Authoritative upload ledger and private-column setup | 1,963,959 | 568,043 | 3,482 |
+| Following background enqueue and server duplicate lookup | 1,960,083 | 566,391 | 1,652 |
+
+Combined **5,134 B gzip saved**. Maintained-column guide/LLP 3000.007.001 §3.2 and the assets card explicitly place these ledgers on the server. LLP 3000.016 keeps background work server-owned while device source slots and own copies remain.

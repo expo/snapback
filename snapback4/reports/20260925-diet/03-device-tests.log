@@ -29,4 +29,3 @@ test catchup_expired_before_and_after_watermark_sqlite ... ok
 test inherited_expiry_replay_sqlite ... ok
 
 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
-

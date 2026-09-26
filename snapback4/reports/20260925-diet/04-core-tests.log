@@ -156,4 +156,3 @@ test engine::read::read_verdict_tests::r1a_short_circuit_dependencies_match_comp
 test partition::born_tests::randomized_commits_match_original_events_and_meter ... ok
 
 test result: ok. 127 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.99s
-

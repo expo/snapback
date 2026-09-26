@@ -61711,3 +61711,20 @@ and route classification/guide branches now share their producers' SQLite
 gate; the structural-fanout rewrite shares the existing web admission gate.
 Device runtime diagnostics and received serialized refusal envelopes stay
 intact. Same build: **1,975,265 B raw / 571,525 B gzip**, **144 B gzip saved**.
+
+## 2026-09-25 — device diet: remaining server ledger and work paths
+
+The symbol census also retained `with_asset_facts` (2,443 shallow B),
+`reserve_columns` (839 B plus helpers), `timeline_enqueue` (1,387 B) and
+inlined asset placement/column birth work. Web device stores have no upload
+ledger, never mirror private maintained-column totals, and never enqueue
+Following delivery/purge jobs. Those bodies now compile only with SQLite;
+the device keeps received asset facts, synchronized column values, its own
+Following copy and all argument validation. Native device/server code is
+unchanged. The authoritative Feed duplicate lookup is likewise server-only.
+
+Same build: asset ledger and private-column separation measures **1,963,959 B
+raw / 568,043 B gzip**, saving **3,482 B** from 571,525. Adding Following work
+separation measures **1,960,083 B raw / 566,391 B gzip**, a further **1,652 B**.
+The combined stage saves **5,134 B gzip**. No meter, runtime ceiling, owned
+source slot, bounded Following, wire or stored format changes.

@@ -1,3 +1,33 @@
    Compiling snapback4-core v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-core)
    Compiling snapback4-lang v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-lang)
    Compiling snapback4-device v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 38.18s
+     Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-b66bd8407d3ba7b8)
+
+running 24 tests
+test expiry_memory ... ok
+test member_horizon_never_persists_excluded_note_or_attribution_in_view ... ok
+test metadata_witness_memory ... ok
+test covered_memory ... ok
+test held_member_source_predicts_past_other_member_horizon_memory ... ok
+test device_index_preparation_preserves_projection_and_legacy_work_schema ... ok
+test member_horizon_memory ... ok
+test private_member_source_prediction_memory ... ok
+test source_horizon_memory ... ok
+test member_horizon_prefix_memory ... ok
+test covered_cut_memory ... ok
+test held_member_source_predicts_past_other_member_horizon_sqlite ... ok
+test member_horizon_sqlite ... ok
+test covered_sqlite ... ok
+test expiry_sqlite ... ok
+test metadata_witness_sqlite ... ok
+test private_member_source_prediction_sqlite ... ok
+test large_live_count_queues_and_settles_memory ... ok
+test source_horizon_sqlite ... ok
+test member_horizon_prefix_sqlite ... ok
+test covered_cut_sqlite ... ok
+test large_live_count_queues_and_settles_sqlite ... ok
+test uncovered_memory ... ok
+test uncovered_sqlite ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s

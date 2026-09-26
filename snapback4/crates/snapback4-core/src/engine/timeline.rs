@@ -176,6 +176,12 @@ impl Runner<'_> {
         self.timeline_enqueue(t, "delivery", actor, Value::Null, field(event, "id")?, Value::Null, 0, None)
     }
 
+    // @ref LLP 3000.016#2.1 — own copies are predicted locally; background
+    // delivery/purge work is server-owned even when a device changes a source.
+    #[cfg(not(feature = "sqlite"))]
+    fn timeline_enqueue(&mut self, _t: &Timeline, _kind: &str, _actor: Value, _reader: Value, _event: Value, _epoch: Value, _remaining: usize, _cursor: Option<Vec<u8>>) -> Result<(), RuntimeError> { Ok(()) }
+
+    #[cfg(feature = "sqlite")]
     fn timeline_enqueue(&mut self, t: &Timeline, kind: &str, actor: Value, reader: Value, event: Value, epoch: Value, remaining: usize, cursor: Option<Vec<u8>>) -> Result<(), RuntimeError> {
         if self.device { return Ok(()); }
         let key = [Value::String(kind.into()), actor.clone(), reader.clone(), event.clone(), epoch.clone()];
@@ -225,6 +231,7 @@ impl Runner<'_> {
         // whole mutation. Evaluation errors still abort the prediction.
         if self.device && !self.evaluate_read_rule(&t.table(suffix), &row)? { return Ok(TimelineInsert::Skipped); }
         self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table(suffix)]))?;
+        #[cfg(feature = "sqlite")]
         if suffix == "Feed" && !self.device
             && self.timeline_get(&t.table(suffix), "byReaderEvent", key.to_vec())?.is_some() { return Ok(TimelineInsert::Skipped); }
         self.insert(&t.table(suffix), row.timeline_input(&TimelineInput(())))?;

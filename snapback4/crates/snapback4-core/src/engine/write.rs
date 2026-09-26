@@ -4,10 +4,13 @@
 
 use super::runner::Runner;
 use super::validate::validate_row;
+#[cfg(feature = "sqlite")]
 use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
-use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
+use crate::schema::{Constraint, Effect, Table, materialize_optional_fields};
+#[cfg(feature = "sqlite")]
+use crate::schema::ColumnType;
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{Value, Supplied, canonical_json};
@@ -390,6 +393,13 @@ impl Runner<'_> {
     /// writer's own and of the column's kind and size. The system principal
     /// may name an asset that was never uploaded: a fixture's placeholder,
     /// metadata only, never served.
+    // Web stores hold received asset facts, never the authoritative upload ledger.
+    #[cfg(not(feature = "sqlite"))]
+    fn with_asset_facts(&mut self, _table_name: &str, row: Value, _old: Option<&Value>, _hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
+        Ok(row)
+    }
+
+    #[cfg(feature = "sqlite")]
     fn with_asset_facts(&mut self, table_name: &str, row: Value, old: Option<&Value>, hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
         if !self.tx.holds_assets() {
             // A device: the row keeps the asset value as sent; the server
@@ -444,6 +454,7 @@ impl Runner<'_> {
     /// One asset, one home: the column that now names an upload claims it
     /// for this row; the one it no longer names releases it, and the bytes
     /// are served no more. Part of every physical row change.
+    #[cfg(feature = "sqlite")]
     fn place_assets(&mut self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         if !self.tx.holds_assets() {
             return Ok(());
@@ -794,6 +805,7 @@ impl Runner<'_> {
                 None
             } else { new };
             if old.is_some() || new.is_some() {
+                #[cfg(feature = "sqlite")]
                 self.place_assets(table_name, table, old, new)?;
                 self.maintain(table_name, old, new)?;
                 if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }

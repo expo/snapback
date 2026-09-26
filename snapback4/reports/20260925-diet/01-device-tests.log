@@ -49,4 +49,3 @@ test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_b
 test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
 
 test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
-
