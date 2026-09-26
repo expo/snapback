@@ -29,3 +29,30 @@ fix that names scalar slots. A shape the compiler accepts must be servable.
 Regression test: a list of two images, uploaded and stored, fetched by an
 authorized recipient; then an update that removes one element, after which
 that element is no longer served.
+
+
+## Resolution — 2026-09-26
+
+Implemented direction 1: bounded asset lists retain the accepted language form.
+Each element receives the row/column home and current row read authority;
+identity-based reconciliation retains homes on reorder, releases removed
+members and releases all members on deletion. Upload admission, authoritative
+fact stamping and `once` traversal now recognize list elements. Optional and
+nested lists, and video lists, use the same path. Existing refusal codes apply.
+
+Ledger reservations charge the scalar allowance times the declared cap before
+target lookup, independent of actual list length. No product ceiling increased.
+HTTP regressions cover the reported scalar-admitted case and a list-only schema,
+authorization, removal, delete, reorder and per-element once; core regressions
+cover facts, ownership, kind, size, home conflicts, rollback and fixed metering.
+The compiled media card, LLP 3000 §7 and append-only journal record the contract.
+
+Qualification: `== 0 failure(s) in 3832 s` (exit 0). `./ref-check --verbose` passed. Wasm measured
+1,972,811 bytes raw / 569,966 bytes gzip, one byte smaller than base; web code
+is byte-identical. The ratchet is measured + 1,000 = 570,966 bytes. Full evidence
+is in `snapback4/target/image-list-assets/`; the final report is
+`/Users/ccheever/projects/snapback-sb5-program/image-list-assets.final.md`.
+
+Previously unplaced stored IDs are not automatically backfilled. The separate
+device offline-list-retention gap is tracked in
+`issues/20260926-snapback4-list-asset-offline-cache.md`.
