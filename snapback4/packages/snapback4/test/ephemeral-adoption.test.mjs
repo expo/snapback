@@ -153,3 +153,26 @@ for (const tier of ['online', 'wasm']) test(`${tier}: a durable mounted watch di
   await defaultFetch(`${url}/m/setTyping`, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify({ args: { room: 'r' } }) });
   await until(() => watch.getSnapshot().data?.length === 1, 'newly ephemeral watch');
 });
+
+test('online capability discovery cannot swallow a generation invalidation for durable watches', async t => {
+  let generation = 1, changes = 0, release;
+  const changed = new Promise(resolve => { release = resolve; });
+  const client = createClient({ url: 'http://capability.test', persona: 'bob', fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/schema') return Response.json({ generation: 2, schema: {
+      tables: { typing: { ephemeral: { life_ms: 4000 } }, notes: {} }, operations: { list: {} },
+    }, programs: [] });
+    if (path === '/changes') {
+      const n = ++changes;
+      if (n === 2) await changed;
+      if (n > 3) return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+      return Response.json({ seq: 0, generation, tables: [] }, n === 2 ? { headers: { 'X-Snapback-Ephemeral': '1' } } : undefined);
+    }
+    return Response.json({ data: [generation], seq: 0, complete: true, tables: ['notes'] });
+  } });
+  t.after(async () => { release(); await client.close(); });
+  const watch = client.observe(api.list, {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.[0] === 1 && changes === 2);
+  generation = 2; release();
+  await until(() => watch.getSnapshot().data?.[0] === 2, 'generation invalidates the durable watch after capability discovery');
+});

@@ -169,7 +169,8 @@ export function createClient(options: ClientOptions): Client {
     if (closed || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
     backend = next;
     ephemeralAdvertised = Object.values(next.schema.tables).some(table => table.ephemeral);
-    generation = next.generation;
+    // Only accepting the poll advances generation: discovery must not swallow
+    // its invalidation of already mounted durable watches.
     for (const watch of watches.values()) watchEphemeral(watch);
     return true;
   }

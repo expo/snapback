@@ -62003,3 +62003,12 @@ Repeated the publisher-notification mutation after capability discovery changed:
 watch tests again fail both tiers (1862.084 / 1851.154 ms; 2 pass / 2 fail), and
 the acceptance trial fails at 1855.893 ms (0 pass / 1 fail). Restored the exact
 publisher source and rebuilt before the final full-suite run.
+
+A final capability/generation regression confirmed that assigning the poll's
+observed generation while loading schema could swallow a pending generation
+invalidation for a durable watch. Only accepting the poll now advances that
+watermark. The new test fails before the change and passes after (1/1). This
+TypeScript-only fix and its package typecheck/build completed while the final
+suite was still in its Rust phase, before any client test started; no Rust
+semantic input changed. The suite's client phase therefore uses the corrected
+build, with its typecheck/build also recorded separately.
