@@ -358,8 +358,9 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
 }
 
 const REQUEST_WORKERS: usize = 32;
-// Reserve half of the existing short-request budget for reads and discovery.
-const MUTATION_WORKERS: usize = REQUEST_WORKERS / 2;
+// Mutations have their own budget: queued behind an adoption, they cannot take
+// the slots reads and discovery need, and neither class loses capacity.
+const MUTATION_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
 const REGISTRY_WORKERS: usize = 4;
@@ -379,7 +380,7 @@ impl RequestAdmission {
         match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS - MUTATION_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
