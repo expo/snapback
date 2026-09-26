@@ -600,7 +600,7 @@ export function createClient(options: ClientOptions): Client {
         if (!(watch.keep && "data" in watch.snapshot && (result.transportOffline || "loading" in result.read))) scheduleExpiry(watch, result.nextExpiry);
         return true;
       } });
-      if (resetVersion !== watch.resetVersion) { watch.dirty = true; return; }
+      if (watch.keep && resetVersion !== watch.resetVersion) { watch.dirty = credentials; return; }
       const { tables, retryExhausted } = result;
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
@@ -619,7 +619,7 @@ export function createClient(options: ClientOptions): Client {
       watch.inFlight = false;
       const dirty = watch.dirty;
       watch.dirty = false;
-      if (dirty && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
+      if (dirty && credentials && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
         void refresh(watch);
       }
     }

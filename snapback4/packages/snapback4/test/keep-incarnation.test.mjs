@@ -1,4 +1,5 @@
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -149,4 +150,22 @@ test("online keep: live viewer discovery resets active and idle answers and retr
   await until(() => reads >= before + 3, "both remount and active replacement reads were scheduled");
   holding = false; gate.resolve();
   await until(() => active.getSnapshot().data === "bob" && remount.getSnapshot().data === "bob");
+});
+
+// A microtask retry loop cannot let an in-process timeout run; bound it outside.
+test("signed-out observations settle without a reset retry loop", () => {
+  const source = `
+    import assert from "node:assert/strict";
+    import { createClient } from ${JSON.stringify(new URL("../dist/client.js", import.meta.url).href)};
+    const client = createClient({ url: "http://signed-out.test", fetch: async () => { throw Error("no request expected"); } });
+    const stops = [];
+    for (const keep of [false, true]) {
+      const watch = client.observe({ kind: "query", name: "secret" }, {}, { keep });
+      assert.equal(watch.getSnapshot().denied?.code, "E_AUTH");
+      stops.push(watch.subscribe(() => assert.equal(watch.getSnapshot().denied?.code, "E_AUTH")));
+    }
+    setTimeout(async () => { for (const stop of stops) stop(); await client.close(); }, 0);
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], { encoding: "utf8", timeout: 5000 });
+  assert.equal(result.status, 0, result.error?.message ?? result.stderr);
 });
