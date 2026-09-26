@@ -1,5 +1,5 @@
 //! Server-memory table admission, shared with the compiler and generation loader.
-// @ref LLP 3000.017#2.1-declaration — memory may not decide a durable invariant.
+// @ref LLP 3000.017#2.1 — memory may not decide a durable invariant.
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

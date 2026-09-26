@@ -1,5 +1,5 @@
 //! One process's short-lived rows and commit epoch, shared by every reader.
-// @ref LLP 3000.017#4.3-engine — no SQLite writer, log, replay record or durable receipt.
+// @ref LLP 3000.017#4.3 — no SQLite writer, log, replay record or durable receipt.
 mod layered;
 #[cfg(test)]
 mod wake_tests;
@@ -328,7 +328,7 @@ impl Hub {
     }
     /// Install before serving. Called under the hub lock after each commit or
     /// rebind; the callback may take the wake mutex, never the hub or engine.
-    // @ref LLP 3000.017#3.3-change-notification — publish before releasing the hub.
+    // @ref LLP 3000.017#3.3 — publish before releasing the hub.
     pub fn set_publisher(&self, publisher: impl Fn(Snapshot) + Send + Sync + 'static) -> Result<(), RuntimeError> {
         let mut hub = self.lock()?;
         hub.publisher = Some(Arc::new(publisher));

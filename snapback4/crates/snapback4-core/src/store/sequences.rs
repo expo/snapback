@@ -1,5 +1,5 @@
 //! Sequence custody starts with activation/allocation, never a legacy open.
-// @ref LLP 3000.017#3.6-what-does-not-change-and-what-the-lock-claims-are — preserve published capability fences.
+// @ref LLP 3000.017#3.6 — preserve published capability fences.
 use super::*;
 
 impl Tx<'_> {

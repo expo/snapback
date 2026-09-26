@@ -283,7 +283,7 @@ impl Runner<'_> {
         }
         let mut new = new;
         self.schema.tables[table_name].recompute_deadline(&mut new)?;
-        // @ref LLP 3000.017#2.2-ephemeral-mutations — extending life re-admits the new image.
+        // @ref LLP 3000.017#2.2 — extending life re-admits the new image.
         if self.schema.tables[table_name].stamp_ephemeral(&mut new, self.context.now.unwrap_or(0))?
             && !self.check_rule(table_name, Effect::Insert, None, &new)? {
             return Err(if readable { RuntimeError::Rule { table: table_name.into(), effect: Effect::Update } } else { self.no_write_target() });

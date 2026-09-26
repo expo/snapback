@@ -54,7 +54,7 @@ pub struct UniqueRefusal {
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
-    // @ref LLP 3000.017#2.4-the-client — absent facts retain legacy schema bytes.
+    // @ref LLP 3000.017#2.4 — absent facts retain legacy schema bytes.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ephemeral: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

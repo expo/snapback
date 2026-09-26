@@ -256,7 +256,7 @@ impl Binder<'_> {
                     out.push(Stmt::Let { name: self.temp("discarded"), value });
                     return Ok(());
                 }
-                // @ref LLP 3000.017#2.2-ephemeral-mutations — a bare signal write
+                // @ref LLP 3000.017#2.2 — a bare signal write
                 // returns nothing; explicit return still yields its value.
                 if let A::Write { table, .. } = value
                     && self.schema.table(table).is_some_and(|t| t.ephemeral.is_some())

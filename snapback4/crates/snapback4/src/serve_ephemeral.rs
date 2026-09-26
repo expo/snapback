@@ -41,7 +41,7 @@ impl Rate {
     }
 }
 impl Shared {
-    // @ref LLP 3000.017#3.3-change-notification — lock order engine → hub → wake.
+    // @ref LLP 3000.017#3.3 — lock order engine → hub → wake.
     pub(super) fn install_ephemeral_wake(self: &Arc<Self>) {
         let owner = Arc::downgrade(self);
         self.ephemeral.set_publisher(move |snapshot| {

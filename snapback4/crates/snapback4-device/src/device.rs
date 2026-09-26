@@ -950,7 +950,7 @@ impl<S: DeviceStore> Device<S> {
     /// A caller-supplied id may already have executed beyond the local receipt
     /// window. Its prediction refusal cannot decide the server's replay outcome.
     pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
-        // @ref LLP 3000.017#4.5-device — memory writes never enter durable admission or replay.
+        // @ref LLP 3000.017#4.5 — memory writes never enter durable admission or replay.
         if self.schema.operations.get(&entry.op).is_some_and(|f| f.ephemeral) {
             return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "ephemeral writes cannot enter the device outbox; call the online ephemeral lane".into() });
         }

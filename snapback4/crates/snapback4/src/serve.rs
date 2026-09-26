@@ -594,7 +594,7 @@ pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
      Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
 }
 
-// @ref LLP 3000.017#3.3-change-notification — advertise only on ephemeral backends; durable-only HTTP bytes stay unchanged.
+// @ref LLP 3000.017#3.3 — advertise only on ephemeral backends; durable-only HTTP bytes stay unchanged.
 // The online tier can discover /schema facts through its ordinary traffic.
 pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
     if lock(&shared.wake).eph.tables.is_empty() { return Vec::new(); }

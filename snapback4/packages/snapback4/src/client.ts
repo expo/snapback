@@ -109,7 +109,7 @@ export function mintId(now = Date.now()): string {
 
 export function createClient(options: ClientOptions): Client {
   const clock = serverClock(options.fetch ?? defaultFetch);
-  // @ref LLP 3000.017#3.3-change-notification — ordinary responses discover schema capability without changing durable traffic.
+  // @ref LLP 3000.017#3.3 — ordinary responses discover schema capability without changing durable traffic.
   const transport = clock.wrap(options.fetch ?? defaultFetch);
   const doFetch: typeof fetch = async (...args) => {
     const response = await transport(...args);

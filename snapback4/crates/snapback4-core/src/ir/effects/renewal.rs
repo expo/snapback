@@ -1,5 +1,5 @@
 //! A deliberately small proof, separate from exhaustive effect discovery.
-// @ref LLP 3000.017#2.2-ephemeral-mutations — fixed keys alone do not prove renewal.
+// @ref LLP 3000.017#2.2 — fixed keys alone do not prove renewal.
 use super::*;
 
 pub(super) fn prove(program: &Program, schema: &crate::schema::Schema) -> bool {

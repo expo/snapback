@@ -1,5 +1,5 @@
 //! Exhaustive effects, including expression blocks and inlined helpers.
-// @ref LLP 3000.017#2.2-ephemeral-mutations — write_tables is not an admission boundary.
+// @ref LLP 3000.017#2.2 — write_tables is not an admission boundary.
 use super::*;
 use std::collections::BTreeSet;
 mod renewal;
