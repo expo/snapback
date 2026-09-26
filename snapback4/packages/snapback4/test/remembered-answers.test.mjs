@@ -75,12 +75,24 @@ test("a composed read's refusal removes no answer a later read remembered", asyn
   const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
   assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
   assert.equal(answers.get(key)?.read.data, "later", "the composed read began first, so its refusal at the same cut is older");
-  // Composition's own cleanup is ordered too: a later read's answer, remembered while
+  // Composition clears nothing before its reply: a later read's answer, remembered while
   // the composed read observed its device, stays.
   const early = new RememberedAnswers();
   const observed = reading(early, { call: async () => { early.view().set(key, answer("meanwhile"), 7); return retained; }, reply: () => refused(6) });
   await evaluateLocal(observed, { kind: "query", name: "read" }, {}, 0, 0);
   assert.equal(early.get(key)?.read.data, "meanwhile", "a composed read does not erase a later read's answer");
+});
+
+test("an earlier read's answer at a higher cut, landing while a composed read is out, is remembered", async () => {
+  // Grok, round 14: a cleanup before the composed read's reply named no cut, took the
+  // order's place, and turned this earlier read's newer answer away.
+  const answers = new RememberedAnswers();
+  const key = `read:${JSON.stringify({})}`;
+  const earlier = answers.view();
+  const env = reading(answers, { call: async () => retained, reply: () => { earlier.set(key, answer("cut 100"), 100); return refused(40); } });
+  const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
+  assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
+  assert.equal(answers.get(key)?.read.data, "cut 100", "the answer read at cut 100 is newer than the composed read's refusal at cut 40");
 });
 
 test("a composed read's refusal at a later cut removes an older answer a later read remembered", async () => {

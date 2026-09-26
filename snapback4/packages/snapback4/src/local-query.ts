@@ -188,8 +188,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
     const retainedRows = !!first.outcome.unknown && hasRetainedRows(first.outcome.retainedRows);
-    // A composed read remembers no whole answer, in the same order as every reply.
-    if (composed || retainedRows) { remember = false; env.serverAnswers.delete(key); }
+    // @ref LLP 3000.018#3.2 — a composed read remembers no whole answer, and clears nothing before
+    // its reply: only that reply names the server's cut, and so takes its place in the order.
+    if (composed || retainedRows) remember = false;
     if (!withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
