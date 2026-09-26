@@ -62023,3 +62023,24 @@ additional runs of both the real adoption and the no-swallowed-invalidation case
 pass (6/6). Existing assertions are unchanged. The full run's one client failure
 is retained as diagnostic evidence; the complete suite is rerun from this fixed
 checkpoint with no source edits during qualification.
+
+
+Final fix-round-1 qualification (2026-09-26): from 101169dc3, with implementation
+source fixed throughout, `bash scripts/test.sh` completed with the literal
+summary `== 0 failure(s) in 725 s` (exit 0). Pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache were used. Rust totals: 3,568 passed, 0 failed,
+19 ignored. Node totals across fixture/client/model workers: 2,130 tests,
+2,125 passed, 0 failed, 5 existing optional skips; models passed 78/78. The
+published-0.2.33 capability fences and capability-free byte/store control pass.
+The full run measured wasm at 2,013,198 B raw / 578,797 B gzip, below the unchanged
+579,833 B ratchet. No durable fixture output was regenerated.
+
+The required post-suite standalone acceptance test also passes (1/1): five
+isolated ephemeral trials first appeared in 32.279–35.068 ms, disappeared
+3845.801–3875.979 ms after the last call, and sent two requests each. The separate
+durable phase sent 45 requests each. Every ephemeral trial proved its first
+sight followed a typing-naming /changes answer with seq unchanged. The final
+report, intentionally uncommitted at EPH-REPORT-FIX1.md, records each review fix,
+all deviations/choices, exact suite counts, both failed notification mutants,
+base-archive reproductions and the five trial rows. Evidence is retained in
+snapback4/target/eph-fix1-evidence/. No requested implementation item remains.
