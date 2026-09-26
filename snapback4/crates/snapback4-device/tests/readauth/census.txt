@@ -185,6 +185,9 @@ card/maintains/3:unlikePost | never
 card/maintains/3:unlikeReply | never
 card/maintains/5:like | never
 card/maintains/6:refresh | never
+card/maintains/7:send | eligible
+card/maintains/7:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/maintains/7:send | unread/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/native/1:checkin | never
 card/native/1:createRoom | eligible
 card/native/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

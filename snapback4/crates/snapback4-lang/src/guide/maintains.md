@@ -626,24 +626,36 @@ by the parent reference; `check` prints this key, fanout and writer recount boun
 ```quarry
 table conversations:
   title: text <=100
+  timer: int ?
   read <- allow
+  sync public last 500 by .id
 table members:
   conversationId: conversations
   principal: principal
   readUpTo: int default 0
+  immutable conversationId, principal
   unique conversationId, principal
   cap 100 by conversationId
   read <- .principal = viewer
   update <- .principal = viewer
+  sync to .principal last 500 by .id
 table messages:
   conversationId: conversations
-  ordinal: int
+  ordinal: sequence by conversationId
   senderId: principal
   tombstone: bool default false
-  read <- allow
+  expiresAt: time ?
+  expire at .expiresAt
+  read <- exists members[.conversationId, viewer]
+  insert <- .senderId = viewer and exists members[.conversationId, viewer]
+  sync to members[.conversationId] last 500 by .ordinal
 view unread: count messages by members m
   where .conversationId = m.conversationId and .ordinal > m.readUpTo
     and .senderId != m.principal and not .tombstone
+mutation send(conversationId: conversations):
+  conversation = conversations[conversationId] ! else NOT_FOUND
+  return insert messages { conversationId, senderId: viewer,
+    expiresAt: now + conversation.timer if conversation.timer != null else null }
 query myUnread(member: members):
   return unread[member]
 ```
@@ -658,8 +670,8 @@ deltas for every held, current member even if other members are outside its
 horizon; retained members are not updated by prediction.
 
 This is LLP 3000.015's unread expression. If members also have a `joinedAt`
-position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
-lane uses integer positions until `sequence by conversationId` is available.
+position, add `and .ordinal > m.joinedAt` to exclude pre-join history. The
+engine assigns the sequence position at commit, shared per conversation.
 Own sends and tombstones are excluded explicitly. A source already expired at
 its commit clock is retired in that transaction, before adding a contribution;
 it will not be subtracted later. Marks, background recounts, server reads,
@@ -673,15 +685,30 @@ without publishing redundant recount commits or changing watermarks. Each
 private chunk counts against the maintenance allowance and releases the
 engine lock before the next chunk. The server
 certification scan can traverse the whole live group on its internal ledger.
-Reads reserve one examined unit and one step for certification; its work runs
-on the internal authorization ledger, equally for queries and count-dependent
+Reads reserve one examined unit and one step for certification; its walk is not metered, equally for queries and count-dependent
 writers. Completed and pending reads keep the same reservation.
 Schema adoption atomically rebuilds a count when its member table, predicate
 inputs or expiry interpretation changes, including a default on a legacy absent
 expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only
 contributions present in that basis, so a sweep after a mark cannot subtract
-an expired input twice. Devices compute from covered live rows. Without that
-coverage they report pending/incomplete.
+an expired input twice.
+
+The device scans only `.ordinal > m.readUpTo`, still testing sender, tombstone
+and expiry. Its `last 500` window certifies the badge exactly when the encoded
+lower bound lies at or above this conversation's acquired floor key, and the
+scan finishes within the read allowance. This works offline and after a cold
+reload; expiry removes contributions at their deadline without a sync. Deleting
+or expiring the floor row never moves that saved floor. With two lower bounds
+on ordinal it uses the greatest; any null candidate requires the whole group.
+
+If the unread range extends below the floor, `value` is the number of current,
+authorized, live matching rows examined locally, with `recountPending: true`
+and `complete: false`. Show it as `L+`; online, the client asks the server for
+its exact count. Retained history never contributes. This bound describes the
+evaluated replica, including its usual optimistic writes, not settled server
+truth. A covered scan cut by the meter also returns its pending partial, but
+asks nothing. Without a range the device still requires the whole group.
+Non-expiring pending views retain their last settled value, not a lower bound.
 
 Every member-row reader must be able to read the whole counted parent group.
 Admission proves this for a public source, the same parent-only `exists` grant
@@ -702,7 +729,7 @@ alone would still expose hidden cardinality through that traffic.
 A defensive unreadable-group image remains zero/pending, not a certified count.
 Private-view scans must pin their audience or use a member key.
 
-For an admitted member reader, an equal current live basis produces the same
+On the server, for an admitted member reader, an equal current live basis produces the same
 certified count, completeness, count-dependent writer result, reserved meter,
 snapshots and recount traffic. This includes an expired prefix inserted before
 the member and a large live suffix inserted afterward, read before any mark.
@@ -720,7 +747,7 @@ and any meter cut remain charged. Large declarations can exceed the reservation
 even when a stored value is empty; see the shared caller accounting law in `guide rules`.
 
 A small mark change scans the changed interval in the generated parent/ordinal
-index and updates the count in that transaction. Expiring sources instead
+index and updates the count in that transaction. On the server, expiring sources
 seek the live expiry ranges and establish a fresh count basis. A newly readable member whose
 old image was unreadable uses a recount from the readable new image, so the old
 private mark cannot select its background work.

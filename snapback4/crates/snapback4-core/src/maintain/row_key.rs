@@ -31,40 +31,7 @@ impl RowKey {
             .collect()
     }
     pub fn matches(&self, source: &Value, member: &Value) -> bool {
-        fn operand<'a>(o: &'a Operand, source: &'a Value, member: &'a Value) -> &'a Value {
-            match o {
-                Operand::Literal(v) => v,
-                Operand::Field(f) => f
-                    .strip_prefix("$row.")
-                    .map_or_else(|| source.field(f), |f| member.field(f))
-                    .unwrap_or(&Value::Null),
-            }
-        }
-        fn evaluate(p: &Predicate, source: &Value, member: &Value) -> bool {
-            match p {
-                Predicate::Bool(v) => *v,
-                Predicate::Field(f) => source.field(f) == Ok(&Value::Bool(true)),
-                Predicate::Not(p) => !evaluate(p, source, member),
-                Predicate::And(a, b) => evaluate(a, source, member) && evaluate(b, source, member),
-                Predicate::Or(a, b) => evaluate(a, source, member) || evaluate(b, source, member),
-                Predicate::Compare { op, left, right } => {
-                    let (a, b) = (
-                        operand(left, source, member),
-                        operand(right, source, member),
-                    );
-                    match op.as_str() {
-                        "=" => a == b,
-                        "!=" => a != b,
-                        "<" => a.total_cmp(b).is_lt(),
-                        "<=" => !a.total_cmp(b).is_gt(),
-                        ">" => a.total_cmp(b).is_gt(),
-                        ">=" => !a.total_cmp(b).is_lt(),
-                        _ => false,
-                    }
-                }
-            }
-        }
-        evaluate(&self.predicate, source, member)
+        self.predicate.matches_member(source, Some(member))
     }
 
     pub fn comparisons(&self) -> Vec<(String, String)> {
@@ -336,35 +303,66 @@ impl RowKey {
         }
         Ok(())
     }
-    /// A safe conjunctive comparison narrows a live recount before residual filtering.
-    pub fn live_range(&self, member: &Value) -> (String, crate::rows::Bounds) {
-        fn find(p: &Predicate, k: &RowKey, u: &Value) -> Option<(String, crate::rows::Bounds)> {
+    // @ref LLP 3000.020#3.1 — only normalized lower bounds on the horizon's first free column certify a suffix.
+    pub fn device_range<'a>(&'a self, source: &'a Table) -> Option<RowRange<'a>> {
+        use crate::schema::Audience;
+        let sync = source.sync.as_ref()?;
+        let horizon = sync.horizon.as_ref()?;
+        let width = match &sync.audience {
+            Audience::Public => 0,
+            Audience::Column(_) => 1,
+            Audience::Target { prefix, .. } => prefix.len(),
+        };
+        let column = source.indexes[&horizon.by].components.get(width)?.column()?;
+        if column == &self.source_key { return None; }
+        fn collect<'a>(p: &'a Predicate, column: &str, out: &mut Vec<(&'a str, bool)>) {
             match p {
-                Predicate::And(a, b) => find(a, k, u).or_else(|| find(b, k, u)),
+                Predicate::And(a, b) => { collect(a, column, out); collect(b, column, out); }
                 Predicate::Compare {
                     op,
                     left: Operand::Field(a),
                     right: Operand::Field(b),
-                } if !a.starts_with("$row.") && a != &k.source_key => {
-                    let f = b.strip_prefix("$row.")?;
-                    let value = u.field(f).ok()?.clone();
-                    if value == Value::Null {
-                        return None;
+                } => {
+                    let (source, member) = match op.as_str() {
+                        ">" | ">=" => (a, b),
+                        "<" | "<=" => (b, a),
+                        _ => return,
+                    };
+                    if source == column && let Some(field) = member.strip_prefix("$row.") {
+                        out.push((field, op.len() == 1));
                     }
-                    let mut bounds = crate::rows::Bounds::default();
-                    match op.as_str() {
-                        ">" => bounds.gt = Some(value),
-                        ">=" => bounds.gte = Some(value),
-                        "<" => bounds.lt = Some(value),
-                        "<=" => bounds.lte = Some(value),
-                        _ => return None,
-                    }
-                    Some((k.range_index(a), bounds))
                 }
-                _ => None,
+                _ => {}
             }
         }
-        find(&self.predicate, self, member)
-            .unwrap_or((self.source_index(), crate::rows::Bounds::default()))
+        let mut lower = Vec::new();
+        collect(&self.predicate, column, &mut lower);
+        (!lower.is_empty()).then_some(RowRange { column, lower })
+    }
+}
+
+/// A read-time plan over existing indexes; not persisted in schemas or recount cursors.
+pub struct RowRange<'a> {
+    pub column: &'a str,
+    pub lower: Vec<(&'a str, bool)>,
+}
+impl RowRange<'_> {
+    pub fn bounds(&self, member: &Value) -> Option<crate::rows::Bounds> {
+        let mut value = &Value::Null;
+        let mut strict = false;
+        for (field, candidate_strict) in &self.lower {
+            let candidate = member.field(field).ok()?;
+            // Any null candidate disables the range, rather than falling through.
+            if *candidate == Value::Null { return None; }
+            match candidate.total_cmp(value) {
+                std::cmp::Ordering::Greater => { value = candidate; strict = *candidate_strict; }
+                std::cmp::Ordering::Equal => strict |= candidate_strict,
+                std::cmp::Ordering::Less => {}
+            }
+        }
+        if *value == Value::Null { return None; }
+        let mut bounds = crate::rows::Bounds::default();
+        *(if strict { &mut bounds.gt } else { &mut bounds.gte }) = Some(value.clone());
+        Some(bounds)
     }
 }

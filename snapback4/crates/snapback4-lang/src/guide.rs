@@ -272,7 +272,7 @@ runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
 Disappearing messages are one field on
-insert; there is no purge job to write. A maintained `view` over an expiring table
+insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
 reads its physical total minus unswept expired contributions under the read
 meter through an internal group/expiry/source-id index. Live rows add no server
 read work. Devices still recompute live source contributions under their meter;
@@ -293,8 +293,9 @@ count index could bound a live threshold scan, but that read form is not built;
 it would have to refuse on devices, whose snapshots deliver live values rather
 than physical upper bounds. Signed sums have no such upper bound.
 A partial device counts only held live
-sources and says `complete: false`. A meter cut returns the contribution
-examined so far, also incomplete. A zero sum keeps its group while sources
+sources and says `complete: false`. A meter cut of an ordinary aggregate returns `data: null, complete: false`.
+An expiring row-keyed range read instead returns its pending row with the
+current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another.
 
 ## Operations

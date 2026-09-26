@@ -188,6 +188,11 @@ pub(super) fn predicate(source: &TableInfo, expr: &Expr) -> Fallible<Predicate> 
             coerce(&mut a, &bt, left)?; coerce(&mut b, &at, right)?;
             if matches!(a, Operand::Literal(Value::Id(_))) && bt.required().is_identity() { at = bt.required(); }
             if matches!(b, Operand::Literal(Value::Id(_))) && at.required().is_identity() { bt = at.required(); }
+            // @ref LLP 3000.020#3.1 — row-key comparisons preserve total ordering with null below every value.
+            if matches!((&a, &b), (Operand::Field(a), Operand::Field(b))
+                if a.starts_with("$row.") != b.starts_with("$row.")) {
+                at = at.required(); bt = bt.required();
+            }
             let scalar = |ty: &Ty| matches!(ty.required(), Ty::Null | Ty::Bool | Ty::Int | Ty::Decimal { .. } | Ty::Money { .. } | Ty::Time | Ty::Text(_) | Ty::Enum(_) | Ty::Id | Ty::Ref(_) | Ty::Principal);
             if !scalar(&at) || !scalar(&bt) || !at.comparable(&bt) || (!matches!(op.as_str(), "=" | "!=") && (at.is_optional() || bt.is_optional() || matches!(at, Ty::Null) || matches!(bt, Ty::Null))) {
                 return Err(refusal(expr.site(), format!("maintain comparison needs compatible scalar types; got {} and {}", at.name(), bt.name()), "compare like scalar types; ordered comparisons require non-optional operands"));
