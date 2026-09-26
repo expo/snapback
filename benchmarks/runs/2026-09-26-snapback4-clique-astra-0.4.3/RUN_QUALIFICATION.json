@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-26T12:05:02.946363+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.3",
+      "integrity": "sha512-TL8Rdvy+0MdX1gfC9uwcHslurA24LByojGZzTcKpaDg/j9WtcebblKi882p2ntt6UqdktavXxjOh4YL3MXjP8A=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.3",
+      "integrity": "sha512-nih2ZocJ6/v79meRgcYNEBuGI/cPgQyxVMPrysCFjNifSgDZDkXurhirFFGOCHnVW6qICAyC/KeprUBqi7OaWg=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.3",
+      "integrity": "sha512-750mT12iPlfM+0LZCIrHnm2lnEeea9zVpK+ZBLjjdbk4hlwHSU921u1x5BM2kEA5MDNBtc4NmoMO0cqkqVNcZg=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "Ephemeral tables (LLP 3000.017): typing and scoped presence as `ephemeral <life>` tables whose writes never enter the durable outbox. Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal21 (only this launcher's docstring and runPurpose differ).",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-09-26T12:05:02.946814+00:00"
+  },
+  "load": "5:05  up 21:12, 35 users, load averages: 14.99 27.63 41.89",
+  "node": "v24.18.0",
+  "host": "Charlies-MacBook-Pro-M5Max-Black.local"
+}
