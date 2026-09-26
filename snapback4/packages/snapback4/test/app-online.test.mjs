@@ -69,6 +69,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
     if (source === "mutate") assert.deepEqual(first, outcome);
     else {
       assert.equal(first.state, "pending");
+      assert.deepEqual((await client.pendingWrites()).map(write => [write.id, write.state]), [[id, "queued"]], "custody without dispatch remains listed");
       if (source === "lookup") { available = outcome; assert.deepEqual(await client.write(id), outcome); }
       else {
         callback(outcome);
@@ -76,6 +77,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
       }
     }
     assert.deepEqual(notifications, [outcome], "a known outcome notifies even when its receipt cannot be saved");
+    assert.deepEqual(await client.pendingWrites(), [], "known terminal custody leaves the list even while receipt persistence fails");
     const receipt = state === "sent" ? { state, id, seq: 3, replayed: true }
       : { state, id, why: { code: "E_INPUT", family: "input", message: "write refused: E_INPUT" } };
     available = undefined; // The lower client's bounded receipt history may evict this id.

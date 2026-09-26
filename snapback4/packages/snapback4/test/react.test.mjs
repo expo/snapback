@@ -91,7 +91,8 @@ test("React hooks and reference-app lifetimes", async (t) => {
     });
     await server.listen();
     browser = await chromium.launch({ executablePath, headless: true });
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(server.resolvedUrls.local[0]);
@@ -105,6 +106,30 @@ test("React hooks and reference-app lifetimes", async (t) => {
         assert.equal(result, null);
       });
     }
+    await t.test("shared online journal invalidates pending hooks across browser tabs", async () => {
+      const peer = await page.context().newPage();
+      try {
+        await peer.goto(server.resolvedUrls.local[0]);
+        await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
+        await page.evaluate(async () => { localStorage.clear(); window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.mount(); });
+        await peer.evaluate(async () => { window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.submit(); });
+        await page.waitForFunction(() => window.pendingPeer.snapshot()[0]?.state === "sent");
+        await page.evaluate(async () => { await window.pendingPeer.unmount(); await window.pendingPeer.mount(); });
+        await page.waitForFunction(() => window.pendingPeer.snapshot()[0]?.state === "sent");
+        await peer.evaluate(() => window.pendingPeer.settle());
+        await page.waitForFunction(() => window.pendingPeer.snapshot().length === 0);
+        assert.deepEqual(await page.evaluate(() => window.pendingPeer.client.pendingWrites()), []);
+        await page.evaluate(() => window.pendingPeer.pause());
+        const notices = await page.evaluate(() => window.pendingPeer.notices());
+        await peer.evaluate(() => window.pendingPeer.submit());
+        await page.waitForTimeout(50);
+        assert.equal(await page.evaluate(() => window.pendingPeer.notices()), notices, "paused custody detaches shared invalidations");
+      } finally {
+        await page.evaluate(() => window.pendingPeer?.close());
+        await peer.evaluate(() => window.pendingPeer?.close());
+        await peer.close();
+      }
+    });
     assert.deepEqual(errors, []);
   } finally {
     await browser?.close();
@@ -1291,6 +1316,60 @@ cases["web room loading keeps the same input and legacy intents disclose missing
   await mount(h(Composer, { view, conversationId: "c" }), client);
   check(host.textContent.includes("text not kept") && host.textContent.includes("Outcome unknown"), "legacy journal opens without a body");
   await unmount();
+};
+// Real custody plus a controlled wire; both pages share browser storage.
+window.openPendingPeer = async () => {
+  const store = { get: async key => localStorage.getItem(key), set: async (key, value) => localStorage.setItem(key, value), remove: async key => localStorage.removeItem(key) };
+  let gate, latest = [], notices = 0;
+  const raw = createClient({ url: "https://pending-shared.invalid", persona: "alice", fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/probe") return Response.json({ ok: true, store_id: "shared", seq: 0 });
+    if (path === "/changes") return new Promise(() => {});
+    if (path === "/m/write") { gate = deferred(); return gate.promise; }
+    throw Error(path);
+  } });
+  const custody = await onlineCustody(raw, "https://pending-shared.invalid", store, error => { throw error; }, false);
+  custody.client.onPendingWrites(() => notices++);
+  function List() { latest = usePendingWrites(); return h("div", null, latest.map(w => w.state).join(",")); }
+  return {
+    client: custody.client, snapshot: () => latest, notices: () => notices,
+    mount: () => mount(h(List), custody.client), unmount,
+    async submit() {
+      gate = undefined;
+      const write = await custody.client.mutate(mutation, { body: "shared intent" }, { waitSeconds: 0 });
+      for (let n = 0; n < 100 && !gate; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      check(gate, "the admitted write dispatched"); return write;
+    },
+    async settle() {
+      gate.resolve(Response.json({ state: "sent", seq: 0 }));
+      for (let n = 0; n < 100 && (await custody.client.pendingWrites()).length; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      equal(await custody.client.pendingWrites(), [], "B settled its journal entry");
+    },
+    pause: custody.pause,
+    async close() { await unmount(); await custody.client.close(); },
+  };
+};
+cases["shared online journal updates A's hook on B's admission and settlement after remount"] = async () => {
+  localStorage.clear();
+  const a = await window.openPendingPeer(), b = await window.openPendingPeer();
+  async function wait(checkState) {
+    for (let n = 0; n < 100 && !checkState(); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+    check(checkState(), "A hook follows shared custody");
+  }
+  try {
+    await a.mount();
+    await act(async () => { await b.submit(); });
+    await wait(() => a.snapshot()[0]?.state === "sent");
+    await a.unmount(); await a.mount();
+    await wait(() => a.snapshot()[0]?.state === "sent");
+    await act(async () => { await b.settle(); });
+    await wait(() => a.snapshot().length === 0);
+    equal(await a.client.pendingWrites(), [], "A direct read agrees with its hook");
+    await act(async () => { a.pause(); });
+    const before = a.notices();
+    await b.submit();
+    equal(a.notices(), before, "paused custody receives no journal invalidation");
+  } finally { await a.close(); await b.close(); }
 };
 window.reactCases = cases;
 `;

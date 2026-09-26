@@ -6,6 +6,7 @@ import { inheritClose } from "./closing-responses.ts";
 import { mintId } from "./client.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
+import { journalChanges } from "./journal-changes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
@@ -37,8 +38,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const after = JSON.stringify(journal);
       // Reading an existing intent/receipt needs no new custody. A redundant
       // save must not turn that known outcome into an admission refusal.
-      if (after !== before) await store.set(key, after);
-      pending.notify();
+      if (after !== before) { await store.set(key, after); journalEvents.notify(); }
       return value;
     });
     writes = result;
@@ -88,6 +88,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     }
   });
   const initial = await locked(key, read);
+  const journalEvents = journalChanges(key, pending.notify);
   const restoredIds = new Set(initial.pending.map(intent => intent.id));
   ownDispatch(raw, {
     observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
@@ -206,18 +207,15 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     },
     onWrite(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     // @ref LLP 3000.019#3.3 — restored online intent is visible before replay;
-    // the journal supplies order and the raw queue supplies in-flight status.
+    // the shared journal supplies both order and dispatch status.
     async pendingWrites() {
       if (!active || raw.viewer() !== viewer) return [];
       const journal = await locked(key, read);
-      const live = new Map((await raw.pendingWrites?.() ?? []).map(entry => [entry.id, entry]));
       if (!active || raw.viewer() !== viewer) return [];
       return journal.pending.filter(intent => !unpersisted.has(intent.id)).map(intent => {
-        const entry = live.get(intent.id);
         return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
-          ...(entry && entry.state !== "queued" ? { state: entry.state, ...(entry.reason ? { reason: entry.reason } : {}) }
-            : intent.holdReason ? { state: "held" as const, reason: intent.holdReason }
-              : { state: intent.dispatched ? "sent" as const : "queued" as const }),
+          ...(intent.holdReason ? { state: "held" as const, reason: intent.holdReason }
+            : { state: intent.dispatched ? "sent" as const : "queued" as const }),
         };
       });
     },
@@ -227,7 +225,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
   inheritClose(client, raw);
-  function pause() { active = false; pending.notify(); pending.clear(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); }
+  function pause() { active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
