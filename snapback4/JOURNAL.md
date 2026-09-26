@@ -59128,3 +59128,29 @@ Two new mutants, `settlement-overlay` (round 14's defect) and `custody-lookup`,
 fail that case. The three earlier mutants still fail theirs. The affected files
 pass 91 of 91 and adoption 12 of 12. TypeScript only. Report:
 `reports/20260926-lane-v-r15.md`.
+
+## 2026-09-26 — `guide receipts`: sent, delivered and read in one query
+
+The Grok comparative on 0.4.1 charged receipts as three mechanisms where
+Convex needed one query ("who has this ordinal?"). A new `receipts` card gives
+the recipe. It uses two watermarks on each member's own row (`deliveredAt`,
+`readAt`) and one helper, `receipt(m)`, which the history query returns with
+every message. The recipient set is membership at send time. A member who
+joined later is not a recipient, and a member who leaves drops out of messages
+they had not reached. The client reports the newest fetched message's `at`, not
+`now`, so a message committed after its last fetch stays `sent`.
+
+Evidence:
+
+- The card's block compiles clean, and `check` reports every operation as
+  constant cost.
+- A new engine test, `receipts_card_ticks_follow_the_recipient_set`, runs the
+  card through sent → delivered → read, a leave, and a later join.
+- A probe on the online, native and web tiers saw the sender's live history
+  move within about 10 ms of each acknowledgement.
+- Guide tests pass 84 of 84.
+
+The language card, the operations doc's keyword line and the README's
+reference map list the card. Aliases: receipt, delivered, read receipts, ticks,
+watermark. The operations doc's alias example now says `sql` → from-sql; it
+had said personas.

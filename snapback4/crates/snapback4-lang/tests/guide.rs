@@ -243,6 +243,47 @@ fn w10b_typing_card_compiles_and_expires_at_the_deadline() {
     assert!(engine.query("typingNow", query(5500)).unwrap().data.as_array().unwrap().is_empty());
 }
 
+/// The receipts card runs: ticks move only when every recipient at send time
+/// has reached a state, a member who leaves drops out, and a later member is
+/// not a recipient of an earlier message.
+#[test]
+fn receipts_card_ticks_follow_the_recipient_set() {
+    let source = quarry(card("receipts").unwrap()).into_iter().next().expect("receipts needs its worked recipe");
+    let bound = clean("receipts", &in_context(&source));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let member = |row: &str, principal: &str| ("members".to_owned(), snapback4_core::value::object([("id", id(row)), ("conversation", id("c")), ("principal", id(principal)), ("joinedAt", Value::Int(100))]));
+    engine.seed([
+        ("conversations".into(), snapback4_core::value::object([("id", id("c")), ("creatorId", id("alice"))])),
+        member("ma", "alice"), member("mb", "bob"), member("mc", "carol"),
+    ]).unwrap();
+    let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
+    let receipts = |engine: &mut Engine, now: i64| -> Vec<String> {
+        let page = engine.query("history", at("alice", now, &[("conversation", id("c"))])).unwrap();
+        page.data.as_array().unwrap().iter().map(|m| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") }).collect()
+    };
+    let conversation = || ("conversation", id("c"));
+    sent(&engine.mutate("send", None, at("alice", 1_000, &[conversation(), ("text", text("m1"))]).with_ids(["m1".into()])).unwrap());
+    assert_eq!(receipts(&mut engine, 1_001), ["sent"]);
+    sent(&engine.mutate("delivered", None, at("bob", 1_100, &[conversation(), ("through", Value::Int(1_000))])).unwrap());
+    assert_eq!(receipts(&mut engine, 1_101), ["sent"], "carol has not fetched m1");
+    sent(&engine.mutate("delivered", None, at("carol", 1_200, &[conversation(), ("through", Value::Int(1_000))])).unwrap());
+    assert_eq!(receipts(&mut engine, 1_201), ["delivered"]);
+    sent(&engine.mutate("seen", None, at("bob", 1_300, &[conversation(), ("through", Value::Int(1_000))])).unwrap());
+    assert_eq!(receipts(&mut engine, 1_301), ["delivered"], "carol has not read m1");
+    sent(&engine.mutate("leave", None, at("carol", 1_400, &[conversation()])).unwrap());
+    assert_eq!(receipts(&mut engine, 1_401), ["read"], "a member who leaves drops out");
+    sent(&engine.mutate("add", None, at("alice", 2_000, &[conversation(), ("principal", id("dave"))]).with_ids(["md".into()])).unwrap());
+    sent(&engine.mutate("send", None, at("alice", 3_000, &[conversation(), ("text", text("m2"))]).with_ids(["m2".into()])).unwrap());
+    // The page is newest first: m2, then m1.
+    assert_eq!(receipts(&mut engine, 3_001), ["sent", "read"], "dave is a recipient of m2 only");
+    sent(&engine.mutate("seen", None, at("bob", 3_100, &[conversation(), ("through", Value::Int(3_000))])).unwrap());
+    assert_eq!(receipts(&mut engine, 3_101), ["sent", "read"], "dave has not fetched m2");
+    sent(&engine.mutate("seen", None, at("dave", 3_200, &[conversation(), ("through", Value::Int(3_000))])).unwrap());
+    assert_eq!(receipts(&mut engine, 3_201), ["read", "read"]);
+    sent(&engine.mutate("delivered", None, at("bob", 3_300, &[conversation(), ("through", Value::Int(1_000))])).unwrap());
+    assert_eq!(receipts(&mut engine, 3_301), ["read", "read"], "watermarks only move forward");
+}
+
 fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())])
 }

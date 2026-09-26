@@ -1630,8 +1630,8 @@ step.
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
   assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
-  presence, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words resolve too:
-  `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → personas, `push` → effects.
+  presence, receipts, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
+  resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.
 
