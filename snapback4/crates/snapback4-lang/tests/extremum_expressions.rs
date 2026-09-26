@@ -187,3 +187,17 @@ fn null_source_rows_still_evaluate_the_projection() {
     assert!(result.complete);
     assert_eq!(result.data, object([("high", Value::Int(0)), ("low", Value::Int(-3))]));
 }
+
+#[test]
+fn non_scalar_row_projections_are_type_errors() {
+    for aggregate in ["min", "max"] {
+        for projection in ["{ n: .n }", "[.n]"] {
+            let source = format!("query q():\n  return {aggregate}([{{ n: 1 }}], {projection})\n");
+            let b = compile(&[("schema.q".into(), source.clone())]);
+            let diagnostic = b.diagnostics.iter().find(|d| d.code == "E_QUARRY_TYPE")
+                .unwrap_or_else(|| panic!("{source}: {:?}", b.diagnostics));
+            assert_eq!(diagnostic.site.line, 2);
+            assert!(diagnostic.rewrite.contains(".column + 1"), "{diagnostic:?}");
+        }
+    }
+}
