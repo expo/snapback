@@ -200,6 +200,8 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         }
         // In-memory test stores have no detached SQLite connection.
         Err(_) => {
+            #[cfg(test)]
+            test_work(&shared.mutation_wait);
             let mut engine = lock(&shared.engine);
             mutation_authority(&request, shared, &engine, &principal)
                 .and_then(|()| intent_store(&engine, &payload))

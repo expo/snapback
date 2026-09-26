@@ -33,7 +33,10 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
     assert_eq!(pending["complete"],false);
     assert_eq!(body(&host.request("POST", "/q/who", persona, "{}"))["data"],"dev:alice");
     resume.send(()).unwrap();
-    assert!(failed.join().unwrap().to_string().contains("authorized"));
+    let error = failed.join().unwrap();
+    assert!(error.to_string().contains("authorized"));
+    let status = body(&host.request("GET", "/dev/status", "", ""));
+    assert_eq!(status["adoption"], error.to_string(), "{status}");
     assert_eq!(*lock(&host.shared.generation),old_generation);
     assert_eq!(lock(&host.shared.engine).seq().unwrap(),old_seq);
     assert_eq!(body(&host.request("POST", "/q/item", persona, r#"{"args":{"id":"before"}}"#))["data"]["n"],1);
@@ -43,8 +46,7 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
     let candidate = snapback4_lang::compile(&[("schema.q".into(),format!("{}{}",reads::SOURCE,reads::VIEWS))]);
     {
         let mut engine = lock(&host.shared.engine);
-        lock(&host.shared.readers).begin_adoption(&candidate);
-        let next = engine.adopt(candidate.schema.clone(),candidate.programs.iter().map(|p|p.program.clone())).unwrap();
+        let (next, _) = adoption::adopt_candidate(&host.shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap();
         lock(&host.shared.readers).replace(&engine);
         *lock(&host.shared.bound) = candidate;
         *lock(&host.shared.generation) = next;
@@ -52,4 +54,5 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
     let complete = body(&host.request("POST", "/q/total", persona, "{}"));
     assert_eq!(complete["data"],1,"{complete}");
     assert_eq!(complete["complete"],true);
+    assert!(body(&host.request("GET", "/dev/status", "", ""))["adoption"].is_null());
 }

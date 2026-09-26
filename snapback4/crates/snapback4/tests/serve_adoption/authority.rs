@@ -3,10 +3,12 @@ use super::*;
 #[test]
 fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
     for revoke in [false, true] {
-        for (replay, has_id, lock_number, ephemeral) in [(true, true, 1, false), (false, false, 1, false), (false, true, 2, false), (false, false, 1, true)] {
+        for (replay, has_id, lock_number, ephemeral, memory) in [(true, true, 1, false, false), (false, false, 1, false, false), (false, true, 2, false, false), (false, false, 1, true, false), (false, false, 2, true, true)] {
             let dir = ReaderTestDirectory::new();
             let source = format!("{}table typing:\n  owner: principal\n  unique owner\n  read <- allow\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  ephemeral 4s\nmutation typeNow(id: id):\n  upsert typing[owner = viewer] {{}}\n", reads::SOURCE);
-            let host = Host::with_store(false, snapback4_core::Store::open(&dir.0.join("auth.db")).unwrap(), &source);
+            let store = if memory { snapback4_core::Store::memory().unwrap() }
+                else { snapback4_core::Store::open(&dir.0.join("auth.db")).unwrap() };
+            let host = Host::with_store(false, store, &source);
             let session = body(&host.request("POST", "/auth/guest", "", "{}"));
             let headers = format!("Authorization: Bearer {}\r\n", session["session"]["token"].as_str().unwrap());
             let mut payload = json!({"args":{"id":"queued"}});
@@ -26,7 +28,8 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
                 exchange(address, &format!("POST /m/{op} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}Content-Length: {}\r\n\r\n{payload}",payload.len()))
             });
             wait_until(|| gate.entered.load(Ordering::Acquire) == 1);
-            // principal_of succeeded (and, for lock 2, replay found no receipt).
+            // principal_of succeeded. Lock 2 follows durable replay or the
+            // ephemeral memory checkout; expire authority in that exact gap.
             // Take the writer in that exact gap, let the request queue, then
             // adopt and expire/revoke its previously authenticated bearer.
             let mut engine = lock(&host.shared.engine);

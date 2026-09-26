@@ -125,6 +125,8 @@ pub(super) fn adopt_candidate(
     if let Err(error) = &adopted {
         lock(&shared.readers).finish_adoption();
         lock(&shared.adoption).refused(error, engine.generation());
+    } else if let Some(line) = lock(&shared.adoption).recovered() {
+        eprintln!("{line}");
     }
     adopted
 }
@@ -181,7 +183,6 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 match adopted {
                     Ok((next, reopened)) => {
                         seen_generation = next;
-                        if let Some(line) = lock(&shared.adoption).recovered() { eprintln!("{line}"); }
                         crate::lifecycle::generation(next);
 
                         if reopened || rebuilt.is_some() {
