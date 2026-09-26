@@ -177,9 +177,9 @@ pub struct Live {
     clock: Arc<Mutex<crate::dev_clock::Clock>>,
     /// How many held polls follow each principal (LLP 3000.017 §3.2).
     followers: Mutex<BTreeMap<String, u32>>,
-    /// (viewer, principal) → until when that viewer's poll may follow the
-    /// principal: renewed by each of the viewer's query reads (§3.5).
-    grants: Mutex<BTreeMap<(String, String), i64>>,
+    /// Follow tokens a query issued: an opaque handle for the presence it read,
+    /// bound to its viewer, never the bits themselves (LLP 3000.017 §3.5).
+    tokens: Mutex<BTreeMap<String, FollowToken>>,
     /// Moves, under the change lock, whenever a followed presence may have changed.
     generation: AtomicU64,
 }
@@ -195,10 +195,15 @@ pub(crate) fn wake_presence(shared: &Shared) {
     shared.committed.notify_all();
 }
 
-/// How long one query read lets its viewer follow a principal (LLP 3000.017 §3.5).
-pub(crate) const FOLLOW_GRANT: Duration = Duration::from_secs(600);
-/// At most this many live grants; beyond it a read grants nothing new.
-const GRANT_LIMIT: usize = 100_000;
+/// What one follow token stands for: its viewer, the connected bit each
+/// principal had when the query read it, and when the token lapses.
+#[derive(Debug)]
+struct FollowToken { viewer: String, bits: BTreeMap<String, bool>, until: i64 }
+
+/// How long a follow token lives (LLP 3000.017 §3.5).
+pub(crate) const FOLLOW_TOKEN: Duration = Duration::from_secs(600);
+/// At most this many live tokens; beyond it a read issues none.
+const TOKEN_LIMIT: usize = 100_000;
 
 /// A held poll's followed principals, counted while it waits.
 pub(crate) struct Following<'a> {
@@ -220,7 +225,7 @@ impl Drop for Following<'_> {
 
 impl Live {
     // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
-    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), grants: Mutex::new(BTreeMap::new()), generation: AtomicU64::new(0) } }
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), tokens: Mutex::new(BTreeMap::new()), generation: AtomicU64::new(0) } }
 
     /// Counts a poll's followed principals until the guard drops.
     pub(crate) fn following(&self, follow: &[(String, bool)]) -> Following<'_> {
@@ -239,26 +244,25 @@ impl Live {
     /// The presence generation a poll compares across its checks and its wait.
     pub(crate) fn generation(&self) -> u64 { self.generation.load(Ordering::SeqCst) }
 
-    /// A query the viewer ran read these principals' presence; its polls may
-    /// follow them until the grant lapses. A poll never grants itself.
-    pub(crate) fn grant<'a>(&self, viewer: &str, principals: impl IntoIterator<Item = &'a String>) {
+    /// Issues an opaque token for the presence a query read, bound to its
+    /// viewer. The bits stay here; the client sees only the token.
+    pub(crate) fn issue(&self, viewer: &str, bits: &BTreeMap<String, bool>) -> Option<String> {
         let now = lock(&self.clock).presence_now();
-        let until = now.saturating_add(FOLLOW_GRANT.as_millis() as i64);
-        let mut grants = lock(&self.grants);
-        for principal in principals {
-            let key = (viewer.to_owned(), principal.clone());
-            if grants.len() >= GRANT_LIMIT && !grants.contains_key(&key) {
-                grants.retain(|_, at| *at > now);
-                if grants.len() >= GRANT_LIMIT { continue; }
-            }
-            grants.insert(key, until);
+        let mut tokens = lock(&self.tokens);
+        if tokens.len() >= TOKEN_LIMIT {
+            tokens.retain(|_, token| token.until > now);
+            if tokens.len() >= TOKEN_LIMIT { return None; }
         }
+        let id = snapback4_core::ids::mint(now, &mut 0).ok()?;
+        tokens.insert(id.clone(), FollowToken { viewer: viewer.to_owned(), bits: bits.clone(), until: now.saturating_add(FOLLOW_TOKEN.as_millis() as i64) });
+        Some(id)
     }
 
-    /// Whether this viewer's queries read the principal's presence recently.
-    pub(crate) fn granted(&self, viewer: &str, principal: &str) -> bool {
+    /// The presence a live token of this viewer stands for; nothing for a
+    /// lapsed, unknown or foreign token.
+    pub(crate) fn token(&self, viewer: &str, id: &str) -> Option<BTreeMap<String, bool>> {
         let now = lock(&self.clock).presence_now();
-        lock(&self.grants).get(&(viewer.to_owned(), principal.to_owned())).is_some_and(|at| *at > now)
+        lock(&self.tokens).get(id).filter(|token| token.viewer == viewer && token.until > now).map(|token| token.bits.clone())
     }
 
     /// Whether this poll brought the principal online: nothing was open and
@@ -1117,8 +1121,8 @@ fn handle(mut request: Request, shared: &Shared) {
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
-                        // @ref LLP 3000.017#3.5 — only presence this viewer's own query read may be followed.
-                        shared.presence.grant(&viewer, outcome.presence.keys());
+                        // @ref LLP 3000.017#3.5 — the presence a query read leaves as an opaque token bound to its viewer.
+                        let follow = if outcome.presence.is_empty() { None } else { shared.presence.issue(&viewer, &outcome.presence) };
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             complete: bool,
@@ -1135,9 +1139,9 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter: Option<Json>,
                             #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
                             row_provenance: Option<wire::Plain<'a>>,
-                            // @ref LLP 3000.017#3.1 — the presence this answer read, for the client to follow.
-                            #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-                            presence: &'a BTreeMap<String, bool>,
+                            // @ref LLP 3000.017#3.5 — a token for the presence this answer read, never the bits.
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            presence: Option<String>,
                         }
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
@@ -1148,12 +1152,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
-                            if !outcome.presence.is_empty() { reply["presence"] = json!(outcome.presence); }
+                            if let Some(token) = &follow { reply["presence"] = json!(token); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, presence: &outcome.presence });
+                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, presence: follow });
                         }
                     }
                     Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),

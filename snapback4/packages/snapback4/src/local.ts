@@ -50,7 +50,7 @@ import {
 
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
-import { PresenceFollow, presenceRenewal, sameFollow } from "./presence-follow.ts";
+import { followTokens, presenceRenewal, sameFollow } from "./presence-follow.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -818,7 +818,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture) return false;
-      sentFollow = presenceBits.follow(watches.values());
+      sentFollow = followTokens(watches.values());
       const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, sentFollow);
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
@@ -830,10 +830,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
-      if (json.presence) {
-        presenceBits.observe(json.presence);
-        rerunPresence(Object.keys(json.presence));
-      }
+      if (json.presence?.length) rerunPresence(json.presence);
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {
         seq = Math.max(seq, json.seq);
@@ -913,20 +910,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   // @ref LLP 3000.017#3.2 — server-answered watches follow the presence they read.
-  const presenceBits = new PresenceFollow();
-  let sentFollow: ReadonlyMap<string, boolean> = new Map();
+  let sentFollow: readonly string[] = [];
   const renewal = presenceRenewal(() => watches.values(), (watch) => void rerun(watch as Watch));
-  function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
-    watch.presence = new Set(Object.keys(presence ?? {}));
+  function followAnswer(watch: Watch, presence: string | undefined) {
+    watch.presence = new Set(presence ? [presence] : []);
     renewal.update();
-    rerunPresence(presenceBits.observe(presence), watch);
-    // A held poll sent before this answer does not follow its principals yet.
-    if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
+    // A held poll sent before this answer does not follow its token yet.
+    if (!sameFollow(followTokens(watches.values()), sentFollow)) changes.restart();
   }
-  function rerunPresence(principals: Iterable<string>, except?: Watch) {
-    const moved = new Set(principals);
+  function rerunPresence(tokens: Iterable<string>) {
+    const moved = new Set(tokens);
     if (!moved.size) return;
-    for (const other of watches.values()) if (other !== except && [...other.presence].some((p) => moved.has(p))) void rerun(other);
+    for (const watch of watches.values()) if ([...watch.presence].some((token) => moved.has(token))) void rerun(watch);
   }
 
   function rerunTables(tables: Set<string>) {

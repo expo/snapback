@@ -840,7 +840,7 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get(), presence: std::mem::take(&mut runner.presence_read) };
+                let outcome = QueryOutcome { unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get(), presence: std::mem::take(&mut runner.presence_read).into_iter().map(|(principal, open)| (principal, open > 0)).collect() };
                 drop(runner);
                 tx.rollback()?;
                 return Ok(outcome);
@@ -868,7 +868,7 @@ impl Engine {
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
             next_expiry: runner.next_expiry.get(),
-            presence: std::mem::take(&mut runner.presence_read),
+            presence: std::mem::take(&mut runner.presence_read).into_iter().map(|(principal, open)| (principal, open > 0)).collect(),
         };
         drop(runner);
         tx.rollback()?;

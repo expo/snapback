@@ -18,7 +18,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
-import { PresenceFollow, presenceRenewal, sameFollow } from "./presence-follow.ts";
+import { followTokens, presenceRenewal, sameFollow } from "./presence-follow.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -43,7 +43,7 @@ interface Watch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
-  /** Principals whose `connected[p]` the last answer read. */
+  /** The follow token of the last answer that read presence. */
   presence: Set<string>;
   subscribers: Set<() => void>;
   inFlight: boolean;
@@ -395,7 +395,7 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; presence?: Record<string, boolean> | undefined }> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; presence?: string | undefined }> {
     const epoch = queryEpoch;
     if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
@@ -407,7 +407,7 @@ export function createClient(options: ClientOptions): Client {
     if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    const presence = json.presence as Record<string, boolean> | undefined;
+    const presence = typeof json.presence === "string" ? json.presence : undefined;
     if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, presence };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
@@ -498,20 +498,18 @@ export function createClient(options: ClientOptions): Client {
   }
 
   // @ref LLP 3000.017#3.2 — live watches follow the presence they read.
-  const presenceBits = new PresenceFollow();
-  let sentFollow: ReadonlyMap<string, boolean> = new Map();
+  let sentFollow: readonly string[] = [];
   const renewal = presenceRenewal(() => watches.values(), (watch) => void refresh(watch as Watch));
-  function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
-    watch.presence = new Set(Object.keys(presence ?? {}));
+  function followAnswer(watch: Watch, presence: string | undefined) {
+    watch.presence = new Set(presence ? [presence] : []);
     renewal.update();
-    rerunPresence(presenceBits.observe(presence), watch);
-    // A held poll sent before this answer does not follow its principals yet.
-    if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
+    // A held poll sent before this answer does not follow its token yet.
+    if (!sameFollow(followTokens(watches.values()), sentFollow)) changes.restart();
   }
-  function rerunPresence(principals: Iterable<string>, except?: Watch) {
-    const moved = new Set(principals);
+  function rerunPresence(tokens: Iterable<string>) {
+    const moved = new Set(tokens);
     if (!moved.size) return;
-    for (const other of watches.values()) if (other !== except && [...other.presence].some((p) => moved.has(p))) void refresh(other);
+    for (const watch of watches.values()) if ([...watch.presence].some((token) => moved.has(token))) void refresh(watch);
   }
   const changes = changeFeed(doFetch, base, aborter.signal, () => { if (!closed && credentials) setLink("offline"); }, () => { if (!closed && credentials && link === "offline") void probe(); });
 
@@ -529,7 +527,7 @@ export function createClient(options: ClientOptions): Client {
         if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
-        sentFollow = presenceBits.follow(watches.values());
+        sentFollow = followTokens(watches.values());
         const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, sentFollow);
         if (closed || storeRefusal) break;
         observeStore(json as unknown as Record<string, unknown>, floor);
@@ -541,10 +539,7 @@ export function createClient(options: ClientOptions): Client {
         generation = json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) queryEpoch++;
-        if (json.presence) {
-          presenceBits.observe(json.presence);
-          rerunPresence(Object.keys(json.presence));
-        }
+        if (json.presence?.length) rerunPresence(json.presence);
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);

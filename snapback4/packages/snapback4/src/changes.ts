@@ -5,7 +5,7 @@ import type { Refusal } from "./contract.ts";
 
 const SILENCE_MS = 4000;
 const HEARTBEAT_SECONDS = 2;
-interface Change { serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal; presence?: Record<string, boolean> }
+interface Change { serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal; presence?: string[] }
 
 /** Ends a held poll so its client polls again at once, following a changed
  * set of principals (LLP 3000.017 §3.2). A caller treats it as a restart,
@@ -29,7 +29,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     }
   };
   lifetime.addEventListener("abort", close, { once: true });
-  const poll = async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string, follow?: ReadonlyMap<string, boolean>) => {
+  const poll = async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string, follow?: readonly string[]) => {
     const controller = new AbortController();
     active.add(controller);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -84,7 +84,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
 }
 
 // @ref LLP 3000.017#3.2 — a held poll carries the presence its client's live watches follow.
-function followQuery(follow?: ReadonlyMap<string, boolean>): string {
-  if (!follow?.size) return "";
-  return `&follow=${[...follow].map(([principal, bit]) => `${encodeURIComponent(principal)}:${bit ? 1 : 0}`).join(",")}`;
+function followQuery(follow?: readonly string[]): string {
+  if (!follow?.length) return "";
+  return `&follow=${follow.map(encodeURIComponent).join(",")}`;
 }
