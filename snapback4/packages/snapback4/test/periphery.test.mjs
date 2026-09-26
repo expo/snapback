@@ -542,6 +542,12 @@ test("Expo starter selects web, native and online app devices with explicit sess
     const nativeDevice = {}, webDevice = {}, webStore = {};
     let options;
     const context = { exports: {}, process: { env: {} }, require: name => {
+      if (name === "./intents") {
+        const child = { exports: {} };
+        const helper = ts.transpileModule(read(join(dir, "src/intents.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+        vm.runInNewContext(helper, child); return child.exports;
+      }
+      if (name === "./intent-store") return { intentStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } };
       if (name === "react-native") return { Platform: { OS: platform } };
       if (name === "snapback4/app") return { createApp: value => { options = value; return value; } };
       if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };

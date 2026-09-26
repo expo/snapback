@@ -41,7 +41,8 @@ See `guide prediction` for authorization on each device read.
 
 Writes that do not predict show pending with `usePendingWrite(op)` from
 `snapback4/react`: `run(args)` submits, `pending` covers submission through
-terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
+terminal `sent` or `failed`, and `last` is the Write. `run(args, { waitSeconds: 0 })`
+returns at custody; disable submission only with `inFlight`, never `pending`. Keep its mutation id in
 view state; `usePendingWrite(op, savedId)` resumes observation after reload
 without submitting again. `client.write(id)` reads the kept outcome (undefined
 for an unknown id or an evicted id that has left the outbox); `onWrite` reports

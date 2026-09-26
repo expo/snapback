@@ -144,7 +144,11 @@ test("online custody refuses unstored admission and retains committed writes whe
   t.after(() => app.close());
   await app.ready; await app.auth.guest();
   failIntent = true;
-  await assert.rejects(app.mutate(add, { body: "never dispatched" }), /storage/);
+  for (const waitSeconds of [undefined, 0]) {
+    const refused = await app.mutate(add, { body: "never dispatched" }, { waitSeconds });
+    assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_STORE");
+    assert.match(refused.why.message, /storage/);
+  }
   assert.equal(sends, 0);
   failIntent = false; failReceipt = true;
   const write = await app.mutate(add, { body: "committed" });
@@ -192,7 +196,11 @@ for (const action of ["logout", "logoutEverywhere"]) test(`${action} clears cred
     : Response.json({ ok: true }) });
   t.after(() => app.close());
   await app.ready; await app.auth.guest();
-  await assert.rejects(app.mutate(add, { body: "not sent" }), /outbox store/);
+  for (const waitSeconds of [undefined, 0]) {
+    const refused = await app.mutate(add, { body: "not sent" }, { waitSeconds });
+    assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_STORE");
+    assert.match(refused.why.message, /outbox store/);
+  }
   failDelete = true;
   assert.equal((await app.auth[action]()).ok, false);
   assert.equal(app.auth.state, action === "logoutEverywhere" ? "signed-in" : "signed-out");

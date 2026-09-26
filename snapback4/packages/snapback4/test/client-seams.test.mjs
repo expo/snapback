@@ -1013,3 +1013,113 @@ mutation fill(start: int, count: int):
     t.diagnostic(changed[1]);
   }
 });
+
+
+for (const tier of ["native", "web", "online", "app-online"]) test(`CCP admission boundary: ${tier}`, { timeout: 30_000 }, async t => {
+  const f = await fixture(t), events = [], requests = [], holds = [];
+  let hold = true;
+  const transport = async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/m/record") {
+      requests.push(JSON.parse(init.body));
+      if (hold) await new Promise(resolve => holds.push(resolve));
+    }
+    return response;
+  };
+  t.after(() => { hold = false; for (const release of holds) release(); });
+  const store = memorySessionStore();
+  let app;
+  const options = { url: f.url, fetch: transport };
+  const client = tier === "app-online" ? (app = createApp({ ...options, sessionStore: store }),
+    await app.ready, await app.auth.guest(), app.client)
+    : tier === "online" ? createClient({ ...options, persona: "alice" })
+    : await createLocalClient({ ...options, persona: "alice", device: tier === "web" ? f.web : f.device });
+  f.clients.push(app ?? client); client.onWrite(write => events.push(write));
+  // Ensure the online path, rather than an offline fast return, is exercised.
+  await client.query({ kind: "query", name: "receipts" }, {});
+  assert.equal(client.link(), "online");
+  const start = performance.now();
+  const admitted = await client.mutate(mutation("record"), { n: 901 }, { waitSeconds: 0 });
+  const elapsed = performance.now() - start;
+  t.diagnostic(`${tier}: waitSeconds=0 returned ${admitted.state} in ${elapsed.toFixed(3)} ms`);
+  assert.equal(admitted.state, "pending"); assert.ok(elapsed < 1000);
+  assert.equal((await client.write(admitted.id)).state, "pending");
+  await until(() => holds.length === 1);
+  if (app) {
+    await app.close();
+    hold = false;
+    const reopened = createApp({ ...options, sessionStore: store }); f.clients.push(reopened);
+    await reopened.ready;
+    const reopenedEvents = []; reopened.client.onWrite(write => reopenedEvents.push(write));
+    await until(async () => (await reopened.client.write(admitted.id))?.state === "sent");
+    holds.shift()();
+    assert.ok(requests.length >= 2); assert.ok(requests.every(request => request.id === admitted.id));
+    assert.equal((await reopened.client.query({ kind: "query", name: "receipts" }, {})).data.length, 1);
+    assert.equal(reopenedEvents.filter(write => write.id === admitted.id).length, 1);
+    const receipt = await reopened.client.write(admitted.id);
+    assert.equal(receipt.replayed, true); assert.equal("result" in receipt, false);
+    // Use a fresh runtime for the unchanged foreground default probe below.
+    await reopened.close();
+  } else {
+    holds.shift()();
+    await until(() => events.some(write => write.id === admitted.id && write.state === "sent"));
+    assert.equal((await client.write(admitted.id)).state, "sent");
+    assert.equal(events.filter(write => write.id === admitted.id).length, 1);
+  }
+  const defaultApp = app ? createApp({ ...options, sessionStore: store }) : undefined;
+  if (defaultApp) { f.clients.push(defaultApp); await defaultApp.ready; }
+  const subject = defaultApp?.client ?? client;
+  hold = true; let done = false;
+  const before = performance.now();
+  const original = subject.mutate(mutation("record"), { n: 902 }).then(write => { done = true; return write; });
+  await until(() => holds.length === 1); await sleep(150); assert.equal(done, false);
+  if (tier === "native" || tier === "web") {
+    assert.equal((await original).state, "pending");
+    t.diagnostic(`${tier}: default returned pending in ${(performance.now() - before).toFixed(3)} ms`);
+    assert.ok(performance.now() - before >= 3900);
+    holds.shift()();
+  } else {
+    holds.shift()(); assert.equal((await original).state, "sent");
+    t.diagnostic(`${tier}: default waited for release, returned sent in ${(performance.now() - before).toFixed(3)} ms`);
+  }
+  await until(async () => (await subject.query({ kind: "query", name: "receipts" }, {})).data?.length >= 2);
+  const boundedStart = performance.now();
+  const bounded = await subject.mutate(mutation("record"), { n: 904 }, { waitSeconds: 1.9 });
+  assert.equal(bounded.state, "pending");
+  const boundedMs = performance.now() - boundedStart;
+  assert.ok(boundedMs >= 950 && boundedMs < 2500, String(boundedMs));
+  t.diagnostic(`${tier}: waitSeconds=1.9 returned pending in ${boundedMs.toFixed(3)} ms`);
+  await until(() => holds.length === 1); holds.shift()();
+  await until(async () => (await subject.write(bounded.id))?.state === "sent");
+  const refused = await subject.mutate(mutation("record"), { n: 903 }, { id: "bad", waitSeconds: 0 });
+  assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_WRITE_ID");
+  hold = false;
+});
+
+for (const tier of ["native", "web"]) for (const fault of ["reject", "deny"]) test(`CCP zero-wait ${tier} admit ${fault} fails before dispatch`, async t => {
+  const f = await fixture(t), opener = tier === "native" ? f.device : f.web;
+  let admissions = 0, dispatches = 0;
+  const device = { async open(...args) {
+    const core = await opener.open(...args);
+    return { ...core, async call(request, committed) {
+      if (request.op === "admit") {
+        admissions++;
+        if (fault === "reject") throw Error("admission store unavailable");
+        return { denied: { code: "E_STORE", family: "store", message: "admission denied" } };
+      }
+      return core.call(request, committed);
+    } };
+  } };
+  const client = await createLocalClient({ url: f.url, persona: "alice", device, fetch: (input, init) => {
+    if (new URL(input).pathname.startsWith("/m/")) dispatches++;
+    return fetch(input, init);
+  } });
+  f.clients.push(client);
+  await client.query({ kind: "query", name: "receipts" }, {});
+  const outcome = await client.mutate(mutation("record"), { n: 42 }, { waitSeconds: 0 });
+  assert.equal(admissions, 1, "the refusal reaches the device admission boundary");
+  assert.equal(outcome.state, "failed"); assert.equal(outcome.why.code, "E_STORE");
+  await sleep(30);
+  assert.equal(dispatches, 0, "zero wait cannot dispatch an unadmitted write");
+  t.diagnostic(`${tier} ${fault}: ${admissions} admission, ${dispatches} dispatches, outcome=${outcome.state}`);
+});
