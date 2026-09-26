@@ -1430,3 +1430,76 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
 
 #[path = "../tests/serve_changes/mod.rs"]
 mod review_changes;
+
+const PRESENCE: &str = "use personas alice, bob\nuse identity\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\n";
+
+/// A raw held poll on its own thread: how long it took, and its response.
+fn held_poll(address: SocketAddr, persona: &str, query: &str) -> thread::JoinHandle<(Duration, String)> {
+    let request = format!("GET /changes?{query} HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: {persona}\r\nConnection: close\r\n\r\n");
+    thread::spawn(move || {
+        let started = Instant::now();
+        let mut stream = TcpStream::connect(address).unwrap();
+        stream.write_all(request.as_bytes()).unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        (started.elapsed(), response)
+    })
+}
+
+/// LLP 3000.017 §3.1–3.2: a query names the presence it read, and a held
+/// poll that follows it answers when that presence moves.
+#[test]
+fn a_held_poll_follows_the_presence_its_queries_read() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    let online = |host: &Host| body(&host.request("POST", "/q/online", alice, r#"{"args":{"p":"dev:bob"}}"#));
+    let read = online(&host);
+    assert_eq!(read["data"]["online"], json!(false));
+    assert_eq!(read["presence"], json!({ "dev:bob": false }), "a query names the presence it read");
+    let head = lock(&host.shared.engine).seq().unwrap();
+
+    // Bob is away: a poll that follows bob:0 waits, and his first poll wakes it.
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=25&follow=dev%3Abob:0"));
+    wait_until(|| host.shared.presence.followed("dev:bob"));
+    assert!(!waiting.is_finished(), "nothing moved yet");
+    let (_, bob) = held_poll(host.address, "bob", &format!("since={head}&wait=0")).join().unwrap();
+    assert_eq!(status(&bob), 200);
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed < Duration::from_secs(5), "bob came online, answered after {elapsed:?}");
+    let answer = body(&answer);
+    assert_eq!(answer["presence"], json!({ "dev:bob": true }));
+    assert_eq!(answer["seq"], json!(head), "presence moved; the store did not");
+    assert_eq!(online(&host)["presence"], json!({ "dev:bob": true }));
+
+    // A bit that already differs answers at once.
+    let started = Instant::now();
+    let stale = body(&host.request("GET", &format!("/changes?since={head}&wait=25&follow=dev%3Abob:0"), alice, ""));
+    assert!(started.elapsed() < Duration::from_secs(1));
+    assert_eq!(stale["presence"], json!({ "dev:bob": true }));
+
+    // Bob's poll ended; his grace keeps him connected. A poll that agrees
+    // waits, and the end of the grace answers it with the bit off.
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=25&follow=dev%3Abob:1"));
+    wait_until(|| host.shared.presence.followed("dev:bob"));
+    assert!(!waiting.is_finished(), "bob is inside his grace");
+    assert_eq!(status(&host.request("POST", "/dev/clock/advance", alice, r#"{"duration":"36s"}"#)), 200);
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed < Duration::from_secs(5), "the grace ended, answered after {elapsed:?}");
+    assert_eq!(body(&answer)["presence"], json!({ "dev:bob": false }));
+    assert_eq!(online(&host)["presence"], json!({ "dev:bob": false }));
+
+    // A poll that follows nothing answers exactly as before.
+    let plain = body(&host.request("GET", &format!("/changes?since={head}&wait=0"), alice, ""));
+    assert!(plain.get("presence").is_none(), "{plain}");
+    assert!(!host.shared.presence.followed("dev:bob"), "followers are counted only while their polls wait");
+}
+
+#[test]
+fn follow_parses_principal_bits_and_stops_at_the_limit() {
+    use super::changes::{FOLLOW_LIMIT, followed};
+    let parsed = followed(Some(&"dev:bob:1,alice:0,bad,:1,carol:2,dev:dave:0".to_owned()));
+    assert_eq!(parsed, [("dev:bob".to_owned(), true), ("alice".to_owned(), false), ("dev:dave".to_owned(), false)]);
+    let many = (0..FOLLOW_LIMIT + 10).map(|n| format!("p{n}:0")).collect::<Vec<_>>().join(",");
+    assert_eq!(followed(Some(&many)).len(), FOLLOW_LIMIT);
+    assert!(followed(None).is_empty());
+}

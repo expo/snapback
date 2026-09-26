@@ -10,7 +10,7 @@ const HEARTBEAT: Duration = Duration::from_secs(2);
 pub(crate) const FOLLOW_LIMIT: usize = 64;
 
 /// `follow=<principal>:<bit>,…`: the connected bits the client's watches last saw.
-fn followed(list: Option<&String>) -> Vec<(String, bool)> {
+pub(crate) fn followed(list: Option<&String>) -> Vec<(String, bool)> {
     let Some(list) = list else { return Vec::new() };
     list.split(',').filter_map(|item| {
         let (principal, bit) = item.rsplit_once(':')?;
