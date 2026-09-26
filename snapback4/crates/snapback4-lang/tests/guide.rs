@@ -1242,3 +1242,6 @@ fn following_cards_pin_examinations() {
 }
 #[path = "guide/familiar.rs"]
 mod familiar;
+
+#[path = "guide/client.rs"]
+mod client;

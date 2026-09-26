@@ -23,6 +23,7 @@ const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
   setTyping: Ephemeral<{ room: string }, null>;
   stopTyping: Ephemeral<{ room: string }, null>;
   typingIn: Query<{ room: string }, { principal: string }[]>;
@@ -76,7 +77,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);

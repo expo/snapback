@@ -61900,3 +61900,30 @@ isolation reruns were needed: there were no timing failures. The final report
 is EPH-REPORT-E3.md at the worktree root and remains uncommitted. E3's requested
 work is complete; no push, stash, merge, rebase, publication or other-worktree
 edit was performed. Lead review/publication/calibration phases remain separate.
+
+### 2026-09-26 — CCP L2: client patterns on the published path
+
+LLP 3000.008.002.000 lane L2, under the lead's R1–R7 brief (which overrides
+its still-unrevised Draft): added `guide client` and the react/hooks/composer/
+receipts/unread aliases; kept typing on ephemeral. Corrected the reads fence,
+submission gating, first-page loading, initial profile routing and one-view
+asset ownership in the README, CLIENT-AND-OPERATIONS and guide cards. The
+README stays at 300 lines; the new card has 129. No SDK, compiler binder,
+starters, contract, routing rules, device code or budgets changed.
+
+Smallest-design choices: `client` is a keyword rather than a redundant alias
+(the registry forbids aliases shadowing keywords). Receipt membership joins
+and messages share engine sequence ordinals. The creator can independently
+read a membership candidate, allowing its sequence allocation; new grants
+require either a created room or an existing member plus room ownership.
+The engine test executes the published receipt block through late joins,
+removal, rejoin, self-leave, older acknowledgements and an outsider's attempt.
+An empty remaining recipient set has no outstanding requirement (state 2).
+The short viewer opens only from a user event, latches terminal closure,
+keeps its deadline through loading, and revokes a late response after unmount;
+its host keys it by backend/account/message/asset above the list. The routing
+example stores only the initial route, never a protected profile answer.
+Existing guide fact fixtures changed with the corrected facts. The existing
+README TypeScript harness also compiles both new React examples. No new gate
+or runtime abstraction was added; lane L1 supplies waitSeconds behavior and
+the saved-intent starter reference. Final qualification is appended below.
