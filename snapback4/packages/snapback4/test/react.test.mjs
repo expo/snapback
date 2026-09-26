@@ -229,36 +229,36 @@ function receiptsClient(history, member) {
 function Receipts({ visible }) { useReceipts("c1", visible); return null; }
 const acked = client => [...new Set(client.acks)];
 const cases = {
-  async "the receipts card acknowledges an unbroken fetched run, paging through ready gaps"() {
+  async "the receipts card delivers an unbroken fetched run, paging through ready gaps, and sees what is on screen"() {
     const history = new Map([[null, ready(ordinals(60, 41), "p2")], ["p2", ready(ordinals(40, 21), "p3")], ["p3", ready(ordinals(20, 1))]]);
-    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, readOrdinal: 0 }));
+    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: false }), client);
     equal(acked(client), ["delivered:60"], "ready later pages keep paging until the run reaches the newest message");
     const member = active(client).find(record => !("c" in record.args));
     client.acks.length = 0;
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, readOrdinal: 0 })));
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, seenOrdinal: 0 })));
     equal(client.acks, [], "a delivered run is not sent again");
     await render(h(Receipts, { visible: true }), client);
-    equal(acked(client), ["seen:60"], "on screen the same run is seen");
+    equal(acked(client), ["seen:60"], "on screen the newest message is seen");
     client.acks.length = 0;
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, readOrdinal: 60 })));
-    equal(client.acks, [], "a seen run is not sent again");
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, seenOrdinal: 60 })));
+    equal(client.acks, [], "a seen message is not sent again");
     await unmount();
   },
-  async "the receipts card starts at the join, skips pending rows and waits for a gap it cannot fetch"() {
+  async "the receipts card starts at the join, skips pending rows and records a view before its gap is fetched"() {
     const joined = receiptsClient(new Map([[null, ready([{ ordinal: 104, pending: true }, ...ordinals(103, 85)], "older")], ["older", { loading: true }]]),
-      ready({ joinedOrdinal: 100, deliveredOrdinal: 0, readOrdinal: 0 }));
+      ready({ joinedOrdinal: 100, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: true }), joined);
-    equal(acked(joined), ["seen:103"], "a new member acknowledges from the join, and never a pending row");
+    equal(acked(joined), ["delivered:103", "seen:103"], "a new member acknowledges from the join, and never a pending row");
     check(active(joined).filter(record => "c" in record.args).length === 1, "no page older than the join is loaded");
     await unmount();
     const returning = receiptsClient(new Map([[null, ready(ordinals(30, 11), "p2")], ["p2", { loading: true }]]),
-      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, readOrdinal: 0 }));
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: true }), returning);
-    equal(returning.acks, [], "a gap the client cannot fetch holds every acknowledgement back");
+    equal(acked(returning), ["seen:30"], "a gap the client cannot fetch holds delivery back, not the view");
     const older = active(returning).find(record => record.args.c === "p2");
     await act(async () => older.set(ready(ordinals(10, 1))));
-    equal(acked(returning), ["seen:30"], "once the gap is fetched the run reaches the newest message");
+    equal(acked(returning), ["seen:30", "delivered:30"], "once the gap is fetched the run reaches the newest message");
     await unmount();
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {

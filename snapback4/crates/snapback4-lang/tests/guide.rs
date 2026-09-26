@@ -253,11 +253,12 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let member = |row: &str, chat: &str, principal: &str| ("members".to_owned(), snapback4_core::value::object([("id", id(row)), ("conversation", id(chat)), ("principal", id(principal)), ("joinedOrdinal", Value::Int(0))]));
     let chat = |row: &str| ("conversations".to_owned(), snapback4_core::value::object([("id", id(row)), ("creatorId", id("alice")), ("lastOrdinal", Value::Int(0))]));
-    engine.seed([chat("c"), chat("solo"), chat("pair"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob")]).unwrap();
+    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob")]).unwrap();
     let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
+    let receipt = |m: &Value| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") };
     let receipts = |engine: &mut Engine, conversation: &str| -> Vec<String> {
         let page = engine.query("history", at("alice", 9_000, &[("conversation", id(conversation))])).unwrap();
-        page.data.as_array().unwrap().iter().map(|m| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") }).collect()
+        page.data.as_array().unwrap().iter().map(receipt).collect()
     };
     let c = || ("conversation", id("c"));
     let through = |n: i64| ("through", Value::Int(n));
@@ -271,8 +272,8 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent"], "carol has not fetched m1");
     sent(&engine.mutate("delivered", None, at("carol", 1_200, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "a watermark names what was fetched, not what exists");
-    sent(&engine.mutate("seen", None, at("bob", 1_400, &[c(), through(1)])).unwrap());
-    assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "carol has not read m1");
+    sent(&engine.mutate("seen", None, at("bob", 1_400, &[c(), through(2)])).unwrap());
+    assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "bob has not fetched m2, and carol has not seen m1");
     sent(&engine.mutate("leave", None, at("carol", 1_500, &[c()])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "read"], "a member who leaves drops out");
     // Dave joins in the same millisecond as m3's send, after it commits: m3's
@@ -284,8 +285,12 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_100, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "no watermark past the last message");
     assert_eq!(failed(&engine.mutate("seen", None, at("bob", 2_110, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "seen is bounded too");
     sent(&engine.mutate("seen", None, at("bob", 2_200, &[c(), through(4)])).unwrap());
+    assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"], "a view without the fetch reads nothing");
+    sent(&engine.mutate("delivered", None, at("bob", 2_250, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "read", "read", "read"], "dave is a recipient of m4 only");
-    sent(&engine.mutate("seen", None, at("dave", 2_300, &[c(), through(4)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("dave", 2_300, &[c(), through(4)])).unwrap());
+    assert_eq!(receipts(&mut engine, "c"), ["delivered", "read", "read", "read"]);
+    sent(&engine.mutate("seen", None, at("dave", 2_350, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     // A rejoin starts after the messages already sent.
     sent(&engine.mutate("add", None, at("alice", 2_400, &[c(), ("principal", id("carol"))]).with_ids(["mc2".into()])).unwrap());
@@ -293,10 +298,11 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("delivered", None, at("bob", 2_500, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "watermarks only move forward");
     sent(&engine.mutate("seen", None, at("bob", 2_550, &[c(), through(1)])).unwrap());
-    assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "a stale seen does not lower the read watermark");
+    assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "a stale seen does not lower the seen watermark");
     // A receipt never moves back: once every recipient leaves, the requirement is met.
     let pair = || ("conversation", id("pair"));
     sent(&engine.mutate("send", None, at("alice", 2_600, &[pair(), ("text", text("p1"))]).with_ids(["p1".into()])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_650, &[pair(), through(1)])).unwrap());
     sent(&engine.mutate("seen", None, at("bob", 2_700, &[pair(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "pair"), ["read"]);
     sent(&engine.mutate("leave", None, at("bob", 2_800, &[pair()])).unwrap());
@@ -306,6 +312,28 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // A message with no recipients stays sent.
     sent(&engine.mutate("send", None, at("alice", 3_000, &[("conversation", id("solo")), ("text", text("alone"))]).with_ids(["s1".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "solo"), ["sent"]);
+    // Past the 500 synced messages a receipt still comes from the watermarks
+    // alone, however old the message.
+    let long = || ("conversation", id("long"));
+    for n in 1..=501 {
+        let row = format!("l{n}");
+        sent(&engine.mutate("send", None, at("alice", 4_000 + n, &[long(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    }
+    let everything = |engine: &mut Engine| -> Vec<String> {
+        let (mut all, mut cursor) = (Vec::new(), Value::Null);
+        loop {
+            let page = engine.query("history", at("alice", 9_000, &[long(), ("c", cursor)])).unwrap();
+            all.extend(page.data.as_array().unwrap().iter().map(receipt));
+            match page.next { Some(next) => cursor = Value::String(next), None => return all }
+        }
+    };
+    let all = everything(&mut engine);
+    assert!(all.len() == 501 && all.iter().all(|r| r == "sent"), "nothing fetched is delivered: {all:?}");
+    sent(&engine.mutate("seen", None, at("bob", 5_000, &[long(), through(501)])).unwrap());
+    assert!(everything(&mut engine).iter().all(|r| r == "sent"), "an offline view reads nothing yet");
+    sent(&engine.mutate("delivered", None, at("bob", 5_100, &[long(), through(500)])).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((all[0].as_str(), all[1..].iter().all(|r| r == "read")), ("sent", true), "the fetched run turns read under the recorded view");
 }
 
 fn compile(source: &str) -> snapback4_lang::Bound {

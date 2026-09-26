@@ -1,8 +1,8 @@
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member's client moves two ordinal watermarks on its own membership row, and
-one helper turns them into every message's receipt: `sent`, `delivered` or
-`read`, live in the history query.
+Each member's client moves two ordinal watermarks on its own membership row:
+what it fetched and what it showed. One helper turns them into every message's
+receipt, `sent`, `delivered` or `read`, live in the history query.
 
 ```quarry
 table conversations:
@@ -20,7 +20,7 @@ table members:
   principal: principal
   joinedOrdinal: int
   deliveredOrdinal: int default 0
-  readOrdinal: int default 0
+  seenOrdinal: int default 0
   unique conversation, principal
   cap 50 by conversation
   immutable conversation, principal, joinedOrdinal
@@ -51,7 +51,7 @@ fn receipt(m: messages):
       remaining = remaining + 1
       if member.deliveredOrdinal < m.ordinal:
         return 'sent'
-      if member.readOrdinal < m.ordinal:
+      if member.seenOrdinal < m.ordinal:
         state = 'delivered'
   return state if remaining > 0 or m.recipients > 0 else 'sent'
 
@@ -96,8 +96,8 @@ mutation seen(conversation: conversations, through: int):
   me = members[conversation, viewer] ! else NOT_MEMBER
   chat = conversations[conversation] ! else NOT_FOUND
   require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
-  if through > me.readOrdinal:
-    update members[me] { deliveredOrdinal: through if through > me.deliveredOrdinal else me.deliveredOrdinal, readOrdinal: through }
+  if through > me.seenOrdinal:
+    update members[me] { seenOrdinal: through }
   return null
 ```
 
@@ -110,20 +110,22 @@ sent. A message records how many recipients it had. Once all of them leave, the
 requirement is met; a message sent to nobody stays `sent`. So a receipt only
 ever moves forward.
 
-A watermark claims every message through an ordinal, so a client acknowledges
-only an unbroken run of messages it fetched after its delivered watermark (or
-its join): `delivered` while the conversation is in the background, and `seen`
-while it is on screen. Where a page leaves a gap, the client loads older pages
-first, which fetches them. A gap it cannot fetch yet, such as older messages
-beyond an offline device's window, holds acknowledgements back until it can:
-a receipt never claims a message its client did not fetch. Both are the
-member's own report. The recipe bounds them by the last message, not by what a
-client really consumed. Each message costs one scan of at most 50 member rows;
-`check --cost` prints the certificate.
+The two watermarks prove different things. `delivered` claims every message
+through an ordinal, so the client sends it only for an unbroken run of messages
+it fetched after its delivered watermark (or its join), and loads older pages to
+close a gap. `seen` records the newest message on screen, online or offline,
+gap or not. A message is `read` for a recipient once both watermarks reach it. So a
+receipt never claims a message the client did not fetch, and a view is never
+lost. A member returning offline after more than the 500 synced messages
+records `seen` at once. The older messages stay `sent` until their client
+fetches the gap online, and then turn `read`. Both watermarks are the member's
+own report, bounded by the last message. Each message costs one scan of at
+most 50 member rows; `check --cost` prints the certificate.
 
-The client acknowledges from complete pages, offline too, since both mutations
-predict and queue. A predicted row carries `pending: true` and its ordinal is
-not yet the server's, so it is never acknowledged:
+Run the hook for a conversation in the background (`visible: false`) as well as
+on screen, so `delivered` follows fetching. Both mutations predict and queue
+offline. A predicted row carries `pending: true` and its ordinal is not yet the
+server's, so it is never acknowledged:
 
 ```ts
 import { useEffect } from "react";
@@ -133,19 +135,22 @@ function useReceipts(conversation: string, visible: boolean) {
   const client = useClient();
   const page = usePage(api.history, { conversation });
   const me = useQuery(api.membership, { conversation });
+  const mine = "data" in me ? me.data : null;
   const settled = new Set(page.items.filter(m => !m.pending).map(m => m.ordinal));
-  const ready = "data" in page.read && page.read.complete && "data" in me && me.data !== null;
+  const newest = settled.size ? Math.max(...settled) : null;
   // An unbroken run of fetched messages after the delivered watermark or the join.
-  const floor = ready ? Math.max(me.data.deliveredOrdinal, me.data.joinedOrdinal) : null;
+  const floor = mine && Math.max(mine.deliveredOrdinal, mine.joinedOrdinal);
   let through = floor;
   while (through !== null && settled.has(through + 1)) through++;
-  const newest = settled.size ? Math.max(...settled) : null;
   const gap = through !== null && newest !== null && through < newest;
   useEffect(() => { if (gap && page.hasMore) page.loadMore(); }, [gap, page.hasMore, page.items.length, page.loadMore]);
-  const mark = ready ? (visible ? me.data.readOrdinal : me.data.deliveredOrdinal) : null;
   useEffect(() => {
-    if (through !== null && mark !== null && through > mark) void client.mutate(visible ? api.seen : api.delivered, { conversation, through });
-  }, [client, conversation, through, mark, visible]);
+    if (floor !== null && through !== null && through > floor) void client.mutate(api.delivered, { conversation, through });
+  }, [client, conversation, floor, through]);
+  const shown = mine && Math.max(mine.seenOrdinal, mine.joinedOrdinal);
+  useEffect(() => {
+    if (visible && shown !== null && newest !== null && newest > shown) void client.mutate(api.seen, { conversation, through: newest });
+  }, [client, conversation, visible, shown, newest]);
   return page;
 }
 ```
