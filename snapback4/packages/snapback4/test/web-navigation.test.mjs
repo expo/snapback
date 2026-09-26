@@ -316,15 +316,20 @@ for (const blockedCleanup of [false, true]) test(`first pagehide dispatch surviv
   } finally { stall = false; release?.(); }
 });
 
-for (const fault of ["failed marker capture", "denied begin_send", "throwing begin_send"]) test(`first pagehide dispatch with ${fault} starts no keepalive and reopens queued`, async t => {
+for (const fault of ["failed marker capture", "denied begin_send", "throwing begin_send"])
+for (const cleanup of (fault === "failed marker capture" ? ["available"] : ["available", "remove throws", "remove and overwrite throw"]))
+test(`first pagehide dispatch with ${fault} starts no keepalive and reopens queued (cleanup ${cleanup})`, async t => {
   const f = await fixture(t, { stallExitBody: true, applyExit: false });
-  let storage = new Map(), captures = 0, exitCalls = 0;
+  let storage = new Map(), captures = 0, exitCalls = 0, cleanupFails = cleanup !== "available";
   const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
     get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
-    getItem: key => storage.get(key) ?? null, removeItem: key => storage.delete(key),
+    getItem: key => storage.get(key) ?? null,
+    removeItem(key) { if (cleanupFails) throw Error("cleanup unavailable"); storage.delete(key); },
     setItem(key, value) {
-      if (key.includes(":exit:")) {
+      if (JSON.parse(value).cancelled) {
+        if (cleanupFails && cleanup === "remove and overwrite throw") throw Error("overwrite unavailable");
+      } else if (key.includes(":exit:")) {
         captures++;
         if (fault === "failed marker capture") throw new DOMException("storage full", "QuotaExceededError");
       }
@@ -354,8 +359,19 @@ for (const fault of ["failed marker capture", "denied begin_send", "throwing beg
   assert.equal(captures, 1, "exit capture was attempted before begin_send");
   assert.equal(exitCalls, fault === "failed marker capture" ? 0 : 1);
   assert.equal(f.requests.length, 0, "failed exit dispatch must prevent keepalive");
-  assert.equal([...storage.keys()].some(k => k.includes(":exit:")), false, "a denied or throwing begin_send cancels its captured marker");
-  // Copy immediately, before a living page has a chance to heal by draining.
+  assert.deepEqual(f.ordinaryRequests, [], "ordinary transport never started either");
+  const marker = [...storage.values()].find(value => JSON.parse(value).key.includes(":exit:"));
+  if (cleanup === "available") assert.equal(marker, undefined, "cancellation removes the captured marker");
+  else if (cleanup === "remove throws") assert.deepEqual(JSON.parse(marker), { key: JSON.parse(marker).key, cancelled: true });
+  else {
+    assert.equal(JSON.parse(marker).id, admitted.id, "both failures leave the original marker");
+    await call({ op: "queued" });
+    assert.ok((await f.persist.load(name)).some(c => c.s === "j" && c.k === `exit:${admitted.id}` && c.v === marker),
+      "the next commit acknowledges the staged cancellation without calling begin_send");
+    assert.equal(exitCalls, 1);
+  }
+  // Copy before a living page drains, unless both cancellation writes failed:
+  // that case can recover only after the independent durable acknowledgement.
   const copy = memoryPersistence();
   for (const [key, entries] of f.persist.stores) copy.stores.set(key, new Map(structuredClone([...entries])));
   const options = { url: f.url, persona: "alice", device: webDevice({ wasm, persist: copy }),
@@ -364,7 +380,9 @@ for (const fault of ["failed marker capture", "denied begin_send", "throwing beg
   const opened = await prepareClient(options, () => createLocalClient(options));
   try { assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]); }
   finally { await opened.client.close(); storage = originalStorage; }
+  cleanupFails = false;
   await call({ op: "queued" }); // A living hidden page drains any accidental VM mutation or staged acknowledgement.
+  await call({ op: "queued" }); // Retire an acknowledgement after its synchronous marker is removed.
   assert.deepEqual(await f.persist.load(name), before, "failed dispatch cannot change outbox, send revision or staged exit acknowledgements on a later drain");
   assert.deepEqual((await f.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]);
 });

@@ -146,7 +146,19 @@ export class AdmissionJournal {
   }
 
   cancelExit(id: string): void {
-    remove(`${prefix(this.name)}exit:${id}`);
+    const key = `${prefix(this.name)}exit:${id}`;
+    remove(key);
+    if (!absent(key)) {
+      // A refused dispatch is not send evidence. If both stores fail, keep
+      // the staged acknowledgement for the next ordinary commit to retire it.
+      try {
+        const store = storage();
+        if (!store) return;
+        const cancelled = JSON.stringify({ key, cancelled: true });
+        store.setItem(key, cancelled);
+        if (store.getItem(key) !== cancelled) return;
+      } catch { return; }
+    }
     this.stagedExits.delete(`exit:${id}`);
   }
 
