@@ -136,7 +136,8 @@ The native/opaque fallback therefore does not repair this case. Round 0's
   verdict is substituted.
 - `reports/20260926-lane-k-answers-stay.md`: this round-1 record, including
   the counterexample, experiment and verification.
-- `JOURNAL.md`: one round-1 entry to be appended with the final suite result.
+- `JOURNAL.md`: one dated round-1 entry with the counterexample, measurements
+  and final suite result.
 
 No production client or engine change is made in round 1. The original seven
 `answer-withdrawal.test.mjs` guards remain unchanged. No new syntax,
@@ -249,6 +250,20 @@ behavior was relaxed. The orientation skill was read from the installed
   **53 passed, 0 failed, 0 skipped**, including all 14 withdrawal guards,
   existing delayed-response publication fences and the round-0 pagination case.
 - The bounded retention mutant: **7 expected failures / 7 tests**; restored.
-- Required final `scripts/test.sh`: pending at this checkpoint. Its exact
-  summary, failure classifications and wasm measurement will be recorded
-  below after its single run.
+- Whole guide in the full suite: **85 passed, 0 failed, 0 ignored**.
+- Wasm in the full suite: **2,021,689 B raw / 581,094 B gzip**, unchanged
+  from round 0 (delta **0 B**), below the unchanged **582,094 B** budget.
+- Required final `scripts/test.sh`, run **once**, unmodified:
+  **`== 0 failure(s) in 1067 s`**, exit **0**. **No failures** to classify
+  as introduced, baseline or environmental. Rust: 3,572 passed, 0 failed,
+  19 ignored. Main client batch: 2,148 tests, 2,138 passed, 0 failed,
+  10 existing skips; the separate client shards also passed. Models:
+  78 passed, 0 failed, 0 skipped. All seven new guards passed in this run.
+  Node 24.13.1, Bun 1.3.14, `CARGO_BUILD_JOBS=8`,
+  `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`.
+  Full output: `target/lane-k-round1-evidence/test-sh.log`; exit status:
+  `target/lane-k-round1-evidence/test-sh.exit`.
+
+The tests and counterexample were committed as `9b587ae59`; the final
+qualification and journal are recorded in the following documentation commit.
+No push or publication.

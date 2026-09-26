@@ -63125,3 +63125,39 @@ exit 0. No failures to classify. The new cases also passed in that full run.
 No change to authorization, publication fences, remembered server-answer
 ordering, the engine or its meters, the client contract, or package versions.
 No new Quarry forms or diagnostics. No outbox work (part 4), push, or publish.
+
+## 2026-09-26 — Lane K round 1: an owner field is also read authority
+
+Stopped LLP 3000.019 §3.3 parts 1–2 under the revised brief's explicit
+counterexample clause. Revision 3 names the tables of read-rule probes as
+its authority set. A table with `read <- .owner = viewer` has no such probes,
+but transferring a row from Bob to Alice immediately revokes Bob's read.
+On wasm and process devices an ordinary `apply` touches only `secrets`
+(and deletes Bob's old image), or `admit` predicts `secrets/private`.
+No named reset, viewer, credential or store change occurs, and the real
+device already returns null while the client replacement query is held.
+Retaining the old snapshot would still display `private answer`.
+
+Added seven guards in `answer-row-authority.test.mjs`: applied and predicted
+ownership transfer and remount after transfer on both devices, plus an online
+remount after consuming the transfer's change notification. They check the
+actual schema's `Eq(Field(owner), Viewer)` rule and non-native query program.
+A bounded generated-build mutation kept published answers with their revision
+fence and seeded remounts from a 30-second cache. All seven guards failed by
+exposing the former owner's answer. The generated files were restored; no
+retention implementation was committed. The original seven membership guards
+and round-0 `usePage` behavior are unchanged. The round-1 report is appended
+to `reports/20260926-lane-k-answers-stay.md`; tests/report commit `9b587ae59`.
+The supervisor's authority definition still needs to cover protected-row
+inputs; this lane did not invent a replacement design.
+
+Measured: targeted disclosure, publication/authority and Chromium React run
+53 passed, 0 failed, 0 skipped; the full guide 85 passed. The required
+`scripts/test.sh` ran once, unmodified: **`== 0 failure(s) in 1067 s`**, exit 0.
+No failures to classify. Rust: 3,572 passed, 0 failed, 19 ignored; main client
+batch: 2,138 passed, 0 failed, 10 existing skips; separate client shards passed;
+models: 78 passed, 0 failed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B
+from round 0, under the unchanged 582,094 B budget. Node 24.13.1 and Bun 1.3.14;
+eight Cargo build jobs, dev/test debug info disabled. Evidence remains locally
+under `target/lane-k-round1-evidence/`. No production client, engine, meter,
+contract, syntax, diagnostic or version changes; no push or publication.
