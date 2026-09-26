@@ -12,7 +12,10 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     // Retiring the last materialization exposes the retained public source
     // partition note; this test intentionally preserves those source tables.
-    assert!(b.notes.iter().all(|n| n.code == "N_NO_HORIZON"), "{:?}", b.notes); b
+    // @ref LLP 3000.019#3.1 — retained-source pages expose their window-order mismatch.
+    assert!(b.notes.iter().all(|n| n.code == "N_NO_HORIZON" ||
+        (n.code == "N_SYNC_ORDER" && n.message.contains("reads posts") &&
+            (n.message.starts_with("query home ") || n.message.starts_with("query cards ")))), "{:?}", b.notes); b
 }
 fn engine(source: &str) -> Engine {
     let b = compile(source); Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
