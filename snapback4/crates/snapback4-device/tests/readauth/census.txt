@@ -83,14 +83,8 @@ card/feeds/3:remove | never
 card/feeds/3:setLike | never
 card/from-sql/1:saveAccount | accounts/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/from-sql/1:saveAccount | eligible
-card/from-sql/2:add | eligible
-card/from-sql/2:add | entries/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-card/from-sql/2:add | entryCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-card/from-sql/2:add | entryTotals/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-card/from-sql/2:remove | eligible
-card/from-sql/2:remove | entries/update | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-card/from-sql/2:remove | entryCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-card/from-sql/2:remove | entryTotals/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/from-sql/2:add | never
+card/from-sql/2:remove | never
 card/from-sql/3:createRoom | never
 card/from-sql/3:setReminder | never
 card/indexes/2:checkin | never
