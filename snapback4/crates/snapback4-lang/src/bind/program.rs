@@ -90,8 +90,9 @@ pub struct Binder<'a> {
     loops: u32,
     in_prelude: bool,
     record_ownership: bool,
-    /// The feed table of the timeline read being expanded, while it is.
-    expanding_feed: Option<String>,
+    /// The feed table and source site of the timeline read being expanded, while
+    /// it is: the generated scan carries that read's own site.
+    expanding_feed: Option<(String, Site)>,
     timeline_scans: std::collections::BTreeSet<String>,
     notes: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
@@ -280,7 +281,7 @@ impl<'a> Binder<'a> {
                 super::feed_view::read(timeline, plan, read)?
             } else { super::timeline::read(timeline, read)? };
             // @ref LLP 3000.013#14.4 — the scale certificate trusts only the scan this expansion generates.
-            let outer = self.expanding_feed.replace(timeline.table("Feed"));
+            let outer = self.expanding_feed.replace((timeline.table("Feed"), read.site.clone()));
             let bound = self.expr(&expanded, out);
             self.expanding_feed = outer;
             return bound;
@@ -390,7 +391,8 @@ impl<'a> Binder<'a> {
         let domain = if pins.is_empty() { read.table.clone() } else { format!("{} where {pins}", read.table) };
         self.sources.insert(format!("domain/{scan_site}"), (read.site.clone(), domain));
         if filter.is_some() && let Some(text) = filter_text { self.filters.insert(scan_site.clone(), text); }
-        if self.expanding_feed.as_deref() == Some(read.table.as_str()) { self.timeline_scans.insert(scan_site.clone()); }
+        // Only the generated scan itself, never an authored scan bound inside its keys, cursor or helpers.
+        if self.expanding_feed.as_ref().is_some_and(|(feed, site)| *feed == read.table && *site == read.site) { self.timeline_scans.insert(scan_site.clone()); }
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         // Authored spelling serves diagnostics; inferred-index residency sites
         // keep canonical bytes. Explicit-index search alternatives retain their

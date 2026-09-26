@@ -59469,3 +59469,16 @@ cleanup catches up (…)`. Beside real growth, it reads `also, until background
 cleanup catches up, …`. The README and `guide bounds` describe three classes,
 and apply `backlog` only when cleanup explains all of an operation's variable
 work.
+
+## 2026-09-26 — Scale certificate round 2: the record names one scan
+
+Both families found that round 1's record was ambient: it marked every scan of
+the feed table bound while a timeline read expanded, including an authored scan
+inside a helper in the read's own cursor or key. Such a read was certified
+`backlog` although live reposts it skips survive cleanup. The binder now
+records a scan only if it is the feed table read at the timeline read's own
+source site, which only the generated scan is. Astra also found that a
+condition's cleanup promise ignored unconditional growth; every variant now
+takes at least the class of the work that runs in all of them. The summary
+test now pins all three counts, and a test pins the guide's and README's
+three-class wording.

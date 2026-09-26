@@ -122,6 +122,10 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
     // @ref LLP 3000.013#14.4 — skips that background cleanup removes are a backlog, not growth with the corpus.
     a.result.class = if a.result.growth_sites.is_empty() { Class::Constant }
         else if a.result.growth_sites.iter().all(|g| g.backlog) { Class::Backlog } else { Class::Grows };
+    // Unconditional work runs in every variant, so no variant is better than it.
+    let unconditional = a.result.growth_sites.iter().filter(|g| g.when.is_none())
+        .map(|g| if g.backlog { Class::Backlog } else { Class::Grows }).max().unwrap_or(Class::Constant);
+    for variant in &mut a.result.variants { variant.class = variant.class.max(unconditional); }
     // Do not clip structural allowances to ceilings: the runtime records
     // the charge that crosses a ceiling, and a query may try later sites.
     a.result

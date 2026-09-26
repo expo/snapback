@@ -62,4 +62,11 @@ fn a_variant_whose_only_extra_work_is_cleanup_says_so_inside_a_growing_certifica
     }
     assert!(line.contains("when status and assignee are both absent: grows with t skipped by its per-row read rule"), "{line}");
     assert!(line.contains("when status and assignee are both absent: also, until background cleanup catches up, expired t rows"), "{line}");
+    // Unconditional growth runs in every variant: none of them is only a cleanup backlog then.
+    let grown = source.replace("  return t where", "  extra = t first 2 by .at after c\n  return t where");
+    let b = snapback4_lang::compile(&[("schema.q".into(), grown.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let c = analyze(&b.schema, &b.programs[0].program);
+    assert!(c.variants.len() == 4 && c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    assert!(!c.line().contains("constant once background cleanup catches up") && !c.line().contains(": constant"), "{}", c.line());
 }

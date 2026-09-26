@@ -78,7 +78,7 @@ fn clique_operation_classes() {
     let certificate = |name: &str| analyze_bound(&b.schema, b.programs.iter().find(|p| p.program.name == name).unwrap());
     let certificates: Vec<_> = b.programs.iter().map(|p| analyze_bound(&b.schema, p)).collect();
     let summary = scale::summary(&certificates);
-    assert!(summary.contains("; 1 constant once background cleanup catches up (following); 1 grow with data (trending)"), "{summary}");
+    assert_eq!(summary, "scale: 12 of 14 operations are constant; 1 constant once background cleanup catches up (following); 1 grow with data (trending) — `check --cost` gives the certificate");
     // Without the binder's record of its own expansion there is no proof: the read grows.
     let following = &b.programs.iter().find(|p| p.program.name == "following").unwrap().program;
     assert_eq!(analyze(&b.schema, following).class, Class::Grows);
@@ -106,16 +106,43 @@ table feedBroadcast:
   online only
 query broadcasts(c: cursor ?):
   return feedBroadcast after c last 20 by byAt where not .hidden
+query recentFeed(c: cursor ?):
+  return feedFeed[viewer] after c last 20 by byReaderPage where .at > now - 1h
+fn pickCursor(c: cursor ?):
+  p = feedFeed[viewer] last 20 by byReaderPage where not .repost
+  return c
+query probeCursor(c: cursor ?):
+  return feed[viewer] after pickCursor(c) last 20
+fn shift(c: cursor ?):
+  row = first(feedFeed[viewer] after c last 1 by byReaderPage where not .repost)
+  return c if row = null else c
+query viaCursor(c: cursor ?):
+  return feed[viewer] after shift(c) last 20
 "#);
     let b = bound(&source);
     let certificate = |name: &str| analyze_bound(&b.schema, b.programs.iter().find(|p| p.program.name == name).unwrap());
     assert_eq!(certificate("following").class, Class::Backlog);
-    for name in ["onlyOriginals", "spelledOut", "broadcasts"] {
+    // An authored scan bound inside a timeline read's own cursor is authored too.
+    for name in ["onlyOriginals", "spelledOut", "broadcasts", "recentFeed", "probeCursor", "viaCursor"] {
         let c = certificate(name);
         assert_eq!(c.class, Class::Grows, "{name}: {}", c.line());
-        assert!(c.growth_sites.iter().all(|g| !g.backlog), "{name}: {:?}", c.growth_sites);
+        if !["probeCursor", "viaCursor"].contains(&name) { assert!(c.growth_sites.iter().all(|g| !g.backlog), "{name}: {:?}", c.growth_sites); }
     }
     assert!(certificate("onlyOriginals").line().contains("skipped by `not .repost`"), "{}", certificate("onlyOriginals").line());
+    // The timeline's own scan beside the helper's is still the only cleanup site.
+    let via = certificate("viaCursor");
+    assert_eq!(via.growth_sites.iter().filter(|g| g.backlog).count(), 1, "{:?}", via.growth_sites);
+}
+
+#[test]
+fn the_guide_and_readme_describe_three_classes() {
+    let flat = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let bounds = flat(guide::card("bounds").unwrap());
+    assert!(bounds.contains("An operation says `class: backlog` only when cleanup explains all of its variable work"), "{bounds}");
+    assert!(bounds.contains("with `backlog: true` on a site that background cleanup removes"), "{bounds}");
+    assert!(bounds.contains("A scan of the owned feed table with a filter of your own grows"), "{bounds}");
+    let readme = flat(include_str!("../../../packages/snapback4/README.md"));
+    assert!(readme.contains("**constant**") && readme.contains("**constant once background cleanup catches up**") && readme.contains("**grows with**"), "the README names three classes");
 }
 
 const READS: &str = r#"
