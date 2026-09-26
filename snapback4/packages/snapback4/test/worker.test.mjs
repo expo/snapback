@@ -62,6 +62,12 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
   const directory = mkdtempSync(join(tmpdir(), "sb4-worker-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
+  const initialized = spawnSync(binary, ["test", "--residency"], { cwd: directory, encoding: "utf8" });
+  assert.equal(initialized.status, 0, initialized.stderr);
+    const minted = spawnSync(binary, ["token", "--service", "pusher", "--days", "1"], { cwd: directory, encoding: "utf8" });
+    assert.equal(minted.status, 0, minted.stderr);
+    const serviceToken = minted.stdout.trim();
+    assert.match(serviceToken, /^[A-Za-z0-9_-]{40,}$/);
   // Not --fresh: the CLI mints the token into the same store file.
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
@@ -73,10 +79,6 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
     const deadline = Date.now() + 10_000;
     while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
     assert.ok(url, log || "server did not listen");
-    const minted = spawnSync(binary, ["token", "--service", "pusher", "--days", "1"], { cwd: directory, encoding: "utf8" });
-    assert.equal(minted.status, 0, minted.stderr);
-    const serviceToken = minted.stdout.trim();
-    assert.match(serviceToken, /^[A-Za-z0-9_-]{40,}$/);
     // A user token is not a worker's seat.
     const asUser = await fetch(`${url}/effects/claim`, { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: "{}" });
     assert.equal(asUser.status, 401);
@@ -184,6 +186,14 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
     symlinkSync(join(root, "packages/snapback4"), join(directory, "node_modules/snapback4"));
     writeFileSync(join(directory, `snapback/worker.${worker.ext ?? "ts"}`), worker.text);
   }
+  const initialized = spawnSync(binary, ["test", "--residency"], { cwd: directory, encoding: "utf8" });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  const minted = spawnSync(binary, ["token", "--service", "worker"], { cwd: directory, encoding: "utf8" });
+  assert.equal(minted.status, 0, minted.stderr);
+  const token = minted.stdout.trim();
+  const otherToken = spawnSync(binary, ["token", "--service", "other"], { cwd: directory, encoding: "utf8" });
+  const nextToken = spawnSync(binary, ["token", "--service", "worker"], { cwd: directory, encoding: "utf8" });
+  assert.equal(otherToken.status, 0, otherToken.stderr); assert.equal(nextToken.status, 0, nextToken.stderr);
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch", ...flags], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", stdout = "", stderr = "", url;
@@ -199,15 +209,12 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
   };
   t.after(async () => { stop.abort(); await Promise.all(workers.map(w => w.done)); for (const client of clients) await client.close(); await stopServer(); rmSync(directory, { recursive: true, force: true }); });
   await until(() => { if (child.exitCode != null) throw Error(safeLog()); return url; });
-  const minted = spawnSync(binary, ["token", "--service", "worker"], { cwd: directory, encoding: "utf8" });
-  assert.equal(minted.status, 0, minted.stderr);
-  const token = minted.stdout.trim();
   const headers = credential => ({ "content-type": "application/json", ...(typeof credential === "string" ? { authorization: `Bearer ${credential}` } : { "x-snapback-persona": "alice" }) });
   const post = async (path, body, credential, lease) => {
     const response = await fetch(`${url}${path}`, { method: "POST", headers: { ...headers(credential), ...(lease ? { "x-snapback-action-lease": lease } : {}) }, body: JSON.stringify(body) });
     return { status: response.status, ...await response.json() };
   };
-  return { url, directory, child, token, stop, workers, clients, post, log: safeLog, stdout: () => stdout, stderr: () => stderr, stopServer, launch(options) { const w = runWorker({ url, token, wait: 1, signal: stop.signal, ...options }); workers.push(w); return w; } };
+  return { url, directory, child, token, otherToken, nextToken, stop, workers, clients, post, log: safeLog, stdout: () => stdout, stderr: () => stderr, stopServer, launch(options) { const w = runWorker({ url, token, wait: 1, signal: stop.signal, ...options }); workers.push(w); return w; } };
 }
 
 // @ref LLP 3000.011.005.000#4 — provider acceptance and local settlement are separate; a lost outcome reconciles or parks.
@@ -422,7 +429,7 @@ test("actions retry a throwing handler and reauthenticate a waiting caller and w
   await revokeSessions(f.url, f.token, caller.principal);
   assert.equal((await waiting).status, 401);
   // A second live token can revoke the service that is holding an empty poll.
-  const other = spawnSync(binary, ["token", "--service", "other"], { cwd: f.directory, encoding: "utf8" });
+  const other = f.otherToken;
   assert.equal(other.status, 0);
   const claim = f.post("/actions/claim", { action: "nothing", wait: 3 }, f.token);
   await sleep(100);
@@ -529,7 +536,7 @@ test("a lost action settlement retries its lease; a non-JSON result fails once",
 for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect lease on the wire reports ${state}`, { timeout: 30_000 }, async t => {
   const f = await actionFixture(t, { source: `${actionSource}\nmutation notify():\n  emit notify { message: 'hello' }\n` });
   const info = t.mock.method(console, "info", () => {}), errors = [];
-  const other = spawnSync(binary, ["token", "--service", "other"], { cwd: f.directory, encoding: "utf8" });
+  const other = f.otherToken;
   assert.equal(other.status, 0, other.stderr);
   const otherToken = other.stdout.trim();
   const expire = async effect => {
@@ -720,6 +727,8 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   const release = join(directory, "release");
   const deploy = spawnSync(binary, ["deploy", release], { cwd: directory, encoding: "utf8" });
   assert.equal(deploy.status, 0, deploy.stderr);
+  const minted = spawnSync(binary, ["token", "--release", release, "--service", "caller"], { cwd: directory, encoding: "utf8" });
+  assert.equal(minted.status, 0, minted.stderr);
   const child = spawn(binary, ["serve", release, "--port", "0", "--worker", entry], { cwd: directory, env: { ...process.env, A1_PARENT_ONLY: "must-not-reach-worker" }, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit"); let log = "", url;
   for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
@@ -732,8 +741,6 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   // macOS synthesizes this variable inside the child; it is not inherited.
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
   assert.ok(starts()[0].keys.every(key => allowed.has(key)), JSON.stringify(starts()[0].keys));
-  const minted = spawnSync(binary, ["token", "--release", release, "--service", "caller"], { cwd: directory, encoding: "utf8" });
-  assert.equal(minted.status, 0, minted.stderr);
   const client = createClient({ url, session: { principal: "service:caller", kind: "service", token: minted.stdout.trim(), expiresAt: Date.now() + 86400000 } });
   t.after(() => client.close());
   assert.equal((await client.act(action("echo"), { message: "first" })).result.message, "first");
@@ -778,7 +785,7 @@ test("HTTP service-seat admission binds the service family and refuses work afte
   assert.equal((await f.post("/a/gated?wait=0", { id: "service-admission", args: {} }, f.token)).result, "service-result");
   assert.equal((await f.post("/a/gated?wait=0", { id: "service-revoked", args: {} }, f.token)).state, "pending");
   assert.equal((await f.post("/auth/logout", {}, f.token)).status, 200);
-  const next = spawnSync(binary, ["token", "--service", "worker"], { cwd: f.directory, encoding: "utf8" });
+  const next = f.nextToken;
   assert.equal(next.status, 0, next.stderr);
   const token = next.stdout.trim();
   assert.deepEqual((await f.post("/actions/claim", { action: "gated" }, token)).requests, []);

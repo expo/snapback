@@ -108,6 +108,11 @@ export function fixture(t, schema, source) {
   };
   async function start({ env = {}, bind = "127.0.0.1", port: requestedPort = 0 } = {}) {
     const readyBefore = lines(join(directory, "ready.jsonl")).length;
+    const initialized = command(["test", "--residency"]);
+    assert.equal(initialized.status, 0, safe(initialized.stderr));
+    const minted = command(["token", "--service", "route-test-driver"]);
+    assert.equal(minted.status, 0, safe(minted.stderr));
+    const token = minted.stdout.trim();
     const args = ["dev", "--port", String(requestedPort), "--no-watch", ...(bind === "127.0.0.1" ? [] : ["--bind", bind, "--i-understand-cleartext"])];
     const child = spawn(binary, args, {cwd:directory, stdio:["ignore", "pipe", "pipe"], env:{...process.env, SNAPBACK_NODE:process.execPath, HOOK_KEY:KEY, ...env}});
     let log = "", port, exited = false, error;
@@ -126,9 +131,7 @@ export function fixture(t, schema, source) {
     hosts.push(host);
     await until(() => { if (error) throw error; if (exited) throw Error(host.log() || "host exited before listening"); return port; }, "route host listening", host.log);
     await until(() => lines(join(directory, "ready.jsonl")).length > readyBefore, "generated server entry ready", host.log);
-    const minted = command(["token", "--service", "route-test-driver"]);
-    assert.equal(minted.status, 0, safe(minted.stderr));
-    const token = minted.stdout.trim(), url = `http://127.0.0.1:${port}`;
+    const url = `http://127.0.0.1:${port}`;
     const send = async (path, body = Buffer.alloc(0), { headers = {}, method = "POST", origin = url, signal, timeoutMs = 15_000 } = {}) => {
       const response = await fetch(origin + path, {method, headers, ...(method === "POST" ? {body} : {}), signal:signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)});
       const bytes = Buffer.from(await response.arrayBuffer()); let json;

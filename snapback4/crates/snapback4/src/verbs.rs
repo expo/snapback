@@ -461,6 +461,10 @@ pub fn run(options: &Options) -> i32 {
         Some(principal) => principal.clone(),
         None => persona_principal("alice"),
     };
+    let _owner = match crate::store_owner::command(&project.store_path()) {
+        Ok(owner) => owner,
+        Err(error) => { eprintln!("{error}"); return 2; }
+    };
     let mut engine = match run_admission::open(&project, &bound, &source, op, now) {
         Ok(engine) => engine,
         Err(error) => {
@@ -847,6 +851,12 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
+    let _owner = if options.flags.contains_key("fixture") { None } else {
+        match crate::store_owner::command(&project.store_path()) {
+            Ok(owner) => Some(owner),
+            Err(error) => { eprintln!("{error}"); return 1; }
+        }
+    };
     let mut engine = match test_fixture::engine(&project, &bound, options) {
         Ok(engine) => engine,
         Err(error) => { eprintln!("{error}"); return 1; }
@@ -972,6 +982,12 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
+    let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
+        .unwrap_or_else(|| project_or_exit().store_path());
+    let _owner = match crate::store_owner::command(&path) {
+        Ok(owner) => owner,
+        Err(error) => { eprintln!("{error}"); return 2; }
+    };
     let (store_path, store) = match options.flags.get("release") {
         Some(dir) => {
             let path = Path::new(dir).join("store.sqlite");

@@ -144,17 +144,68 @@ fn source_edit_while_waiting_refuses_original_intent() {
 }
 
 #[test]
-fn independent_clis_each_admit_their_job_once_after_owner_exit() {
+fn competing_cli_refuses_before_admission_then_can_retry_after_owner_exit() {
     let p = Project::new(); p.initialize();
     let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut first = Running::start(&p, "first", &["run", "backfill", "--json"]);
+    first.waiting();
     let mut second = Running::start(&p, "second", &["run", "backfill", "--json"]);
-    first.waiting(); second.waiting(); assert_eq!(p.jobs(), 0);
+    let (b, _) = second.finish();
+    assert!(!b.success()); assert!(second.logs().contains("E_STORE_BUSY"));
+    assert_eq!(p.jobs(), 0);
     drop(conn); // Owner exits without committing; SQLite rolls its lock back.
-    let (a, ar) = first.finish(); let (b, br) = second.finish();
-    assert!(a.success() && b.success(), "{}\n{}", first.logs(), second.logs());
+    let (a, ar) = first.finish();
+    let retry = p.run(&["run", "backfill", "--json"]);
+    assert!(a.success() && retry.status.success(), "{}\n{retry:?}", first.logs());
+    let br: serde_json::Value = serde_json::from_slice(&retry.stdout).unwrap();
     assert_ne!(ar["id"], br["id"]); assert_eq!(p.jobs(), 2);
     assert_eq!(p.rows()["data"][0]["n"], 2);
+}
+
+#[test]
+fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
+    for watch in [false, true] {
+        let p = Project::new(); p.initialize();
+        let args = if watch { vec!["dev", "--port", "0"] } else { vec!["dev", "--port", "0", "--no-watch"] };
+        let host = Running::start(&p, "host", &args);
+        wait(|| host.logs().contains("snapback4 dev: http://"));
+        let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
+        let generation = p.generation();
+        for args in [vec!["run", "backfill"], vec!["run", "put"], vec!["run", "rows"], vec!["test"], vec!["token", "--service", "any"]] {
+            let before = Instant::now();
+            let out = p.run(&args);
+            let error = String::from_utf8(out.stderr).unwrap();
+            assert!(!out.status.success(), "{args:?}");
+            assert!(error.contains("E_STORE_BUSY") && error.contains(&address) && error.contains("serve.lock") && error.contains("rerun"), "{error}");
+            assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
+        }
+        assert_eq!(p.jobs(), 0); assert_eq!(p.generation(), generation);
+        // The dev inspector still understands the lock's first-line legacy port.
+        assert!(p.run(&["doctor", "--json"]).status.success());
+        drop(host);
+        // The leftover lock file and address alone must never refuse work.
+        let out = p.run(&["run", "backfill", "--json"]);
+        assert!(out.status.success(), "{out:?}"); assert_eq!(p.jobs(), 1);
+    }
+}
+
+#[test]
+fn cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock() {
+    let p = Project::new(); p.initialize();
+    let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let mut cli = Running::start(&p, "cli-owner", &["run", "backfill", "--json"]);
+    cli.waiting();
+    let out = p.run(&["dev", "--port", "0", "--no-watch"]);
+    assert!(!out.status.success()); assert!(String::from_utf8_lossy(&out.stderr).contains("E_STORE_BUSY"));
+    #[cfg(unix)] {
+        let alias = Project::new();
+        fs::create_dir_all(alias.0.join(".snapback4")).unwrap();
+        std::os::unix::fs::symlink(p.store(), alias.store()).unwrap();
+        let out = alias.run(&["run", "backfill"]);
+        assert!(!out.status.success()); assert!(String::from_utf8_lossy(&out.stderr).contains("E_STORE_BUSY"));
+    }
+    drop(conn);
+    assert!(cli.finish().0.success()); assert_eq!(p.jobs(), 1);
 }
 
 #[test]

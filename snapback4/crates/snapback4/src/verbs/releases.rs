@@ -12,15 +12,7 @@ fn directory(options: &Options) -> Result<PathBuf, String> {
 /// while it is held, so a successful deploy or rollback cannot leave a live
 /// process advertising old IR over a store that has moved generations.
 pub(crate) fn deployment_lock(dir: &Path) -> Result<File, String> {
-    std::fs::create_dir_all(dir).map_err(|e| format!("cannot create deployment directory: {e}"))?;
-    let file = std::fs::OpenOptions::new().create(true).read(true).write(true).open(dir.join("serve.lock")).map_err(|e| format!("cannot open deployment lock: {e}"))?;
-    file.try_lock().map_err(|error| match error {
-        std::fs::TryLockError::WouldBlock => {
-            "this store is live; stop its `snapback4 dev` or `snapback4 serve` process before starting another host, deploy or rollback".into()
-        }
-        std::fs::TryLockError::Error(error) => format!("cannot lock deployment: {error}"),
-    })?;
-    Ok(file)
+    crate::store_owner::acquire(dir)
 }
 fn current(dir: &Path) -> Result<Option<u64>, String> {
     let database = dir.join("store.sqlite");

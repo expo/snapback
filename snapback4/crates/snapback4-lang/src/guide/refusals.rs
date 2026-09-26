@@ -127,6 +127,11 @@ backend and programs together. If checked source still fails on an existing
 store, preserve that store and the diagnostic for investigation; deleting
 application data is not a schema repair.
 
+E_STORE_BUSY at serve.lock means a live host or another CLI owns this store.
+Stop the named host (the message includes its address), run the command once,
+then restart it; for another CLI, wait for it to finish. No work was admitted.
+The presence of an old lock file alone does not refuse work.
+
 E_STORE means the database operation failed, such as a SQLite writer lock
 held by another process. For example, starting a second writer during
 adoption may prevent the first host from committing. Inspect the underlying

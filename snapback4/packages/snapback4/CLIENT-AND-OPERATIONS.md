@@ -804,7 +804,7 @@ local fallback keeps its previous answer's counters only until the fetch settles
 reads have no meter. Loopback `dev` includes the field by default; `meter: true`
 and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms. `serve` ignores the header and never
 returns meters. They can reflect hidden work, so they are development-only.
-For local-store inspection, `snapback4 run <op> '<json args>' --as <principal id>
+With the dev host stopped, `snapback4 run <op> '<json args>' --as <principal id>
 --json` prints the same engine counters under `metered`, using their Rust names
 (`rule_probes`, `heap_bytes`, etc.). `--as alice` resolves a declared persona to
 `dev:alice`; any other value is a literal principal id, such as `user:...` from
@@ -1638,13 +1638,17 @@ step.
   [--json]`** runs one operation against the local store (defaults to `dev:alice`; declared personas get the
   `dev:` prefix and other principal ids are used verbatim) and prints the result, the meter and, for a
   mutation, the partition events; a job runs whole as the system (`--as` is ignored) and prints its run.
-  Before admission, store opening and schema adoption retry only SQLite BUSY/LOCKED for up to 15 seconds,
+  Before opening SQLite, it takes the host's lifetime lock. A live dev/serve host or another CLI writer
+  refuses `E_STORE_BUSY` with the store site and server address. Stop the host, run once, then restart it.
+  The same rule covers `token`, `test` without a fixture, `deploy` and `rollback`; HTTP `/seed` already
+  runs through the dev host. Read-only inspection and fixture tests remain available beside the server.
+  Without a competing lifetime owner, opening/adoption retries SQLite BUSY/LOCKED for up to 15 seconds,
   reporting the operation and elapsed wait. `E_RUN_BUSY` stops without admitting the operation; other store
   errors keep their meaning. The deadline bounds contention retries; it cannot cancel an atomic activation
   already running or limit job execution time. A completed activation can persist even when the operation
   remains unadmitted after a timeout or source edit. Source changes during the wait refuse
-  `E_RUN_SOURCE_CHANGED` before admission; check the source and invoke the intended operation again. Watching
-  dev reopens after external CLI adoption; `--no-watch` must restart. If a writer outlasts the deadline,
+  `E_RUN_SOURCE_CHANGED` before admission; check the source and invoke the intended operation again.
+  If an external SQLite writer outlasts the deadline,
   inspect `doctor` and the adoption log, wait for the writer or stop your dev host, run once, then restart
   dev. There is no retry after job or mutation admission. After an interrupted invocation, inspect its work
   before starting another one: a new job command creates a new run ID. `--now 1789352669447` pins the

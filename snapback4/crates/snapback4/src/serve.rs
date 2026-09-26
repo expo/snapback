@@ -279,6 +279,14 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
+    let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
+    if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
+    if matches!(mode, Mode::Release { .. }) {
+        // The release caller already owns the lifetime lock before source selection.
+        let path = crate::store_owner::directory(&project.store_path())?.join("serve.lock");
+        let mut file = std::fs::OpenOptions::new().write(true).open(path).map_err(|e| e.to_string())?;
+        crate::store_owner::announce(&mut file, address)?;
+    }
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
     let mut engine = match &mode {
@@ -318,11 +326,6 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
-    // Discover the live dev inspector through the existing lifetime lock file.
-    if let Some(file) = &mut host_lock {
-        file.set_len(0).map_err(|e| e.to_string())?;
-        write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
-    }
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
     let mut worker = match &mode {
         Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,

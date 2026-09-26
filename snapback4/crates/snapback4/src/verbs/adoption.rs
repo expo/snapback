@@ -38,7 +38,8 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
 /// store identity check prevents a stale port from inspecting another project.
 pub(super) fn host(project: &Project, store_id: &str) -> Option<serde_json::Value> {
     use std::{io::{Read, Write}, net::{Ipv4Addr, TcpStream}, time::Duration};
-    let port: u16 = std::fs::read_to_string(project.data_dir().join("serve.lock")).ok()?.trim().parse().ok()?;
+    let dir = crate::store_owner::directory(&project.store_path()).ok()?;
+    let port: u16 = std::fs::read_to_string(dir.join("serve.lock")).ok()?.lines().next()?.trim().parse().ok()?;
     let mut stream = TcpStream::connect_timeout(&(Ipv4Addr::LOCALHOST, port).into(), Duration::from_millis(200)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(1))).ok()?;

@@ -156,6 +156,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_STEP_PARKED", &["Supply a `reconcile` callback to `ctx.step`", "there is no resume command for parked work in this slice"]),
     ("E_STEP_RESULT", &["External work may already have succeeded", "reconcile with the provider's stable key before replacement", "does not authorize an automatic repeat of the external request"]),
     ("E_STEP_UNKNOWN", &["Use `await ctx.step('mail', input, send)`", "Keep settlement under the same invocation and name"]),
+    ("E_STORE_BUSY", &["Stop the named host (the message includes its address), run the command once, then restart it", "No work was admitted"]),
     ("E_STORE", &["release an unintended competing writer or repair disk access, then retry the same request", "Keep an uncertain mutation's original ID"]),
     ("E_STORE_REPLACED", &["Close it and create a new client, reconciling old intents before submitting new writes", "after retiring its pending intents"]),
     ("E_STORE_RESTORE", &["For a confirmed restore, stop the client and use a fresh device store and outbox for that restored backend", "retry and adoption do not repair a regressed store identity", "a missing or invalid head is a retryable failure that neither adopts nor clears the evidence"]),

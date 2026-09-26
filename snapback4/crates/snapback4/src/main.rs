@@ -18,6 +18,7 @@ mod column_cost;
 mod scale;
 mod presentation;
 mod sync_wire;
+mod store_owner;
 
 use snapback4_lang::guide;
 use std::process::ExitCode;

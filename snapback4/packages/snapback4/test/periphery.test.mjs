@@ -42,6 +42,14 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
   } else {
     writeFileSync(join(dir, "snapback/worker.mjs"), 'console.log("worker stdout witness"); console.error("worker stderr witness"); setInterval(() => {}, 1000);\n');
   }
+  if (mode === "dev") run("test", "--residency");
+  const releaseFlags = mode === "serve" ? ["--release", release] : [];
+  const tokens = [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]
+    .map(flags => ({ flags, minted: run("token", "--service", "worker", ...releaseFlags, ...flags) }));
+  const invalid = invoke("token", "--service", "bad name", ...releaseFlags);
+  assert.equal(invalid.status, 1);
+  assert.equal(invalid.stdout, "");
+  assert.match(invalid.stderr, /^token:/);
   const args = mode === "serve" ? ["serve", release, "--port", "0"] : ["dev", "--port", "0"];
   const child = spawn(binary, args, { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
@@ -70,9 +78,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
       assert.equal(response.status, 200, await response.clone().text());
       return response.json();
     };
-    for (const flags of [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]) {
-      const releaseFlags = mode === "serve" ? ["--release", release] : [];
-      const minted = run("token", "--service", "worker", ...releaseFlags, ...flags);
+    for (const { flags, minted } of tokens) {
       const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
       assert.ok(match, "stdout must contain only the base64url token and one newline");
       const token = match[1];
@@ -89,10 +95,11 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
       assert.equal((await post("/q/who", session.token, { args: {} })).data, "member:captured");
       t.diagnostic(`token ${mode} ${flags.join(" ") || "default"}: stdout ${Buffer.byteLength(minted.stdout)} B; redeemed session queried as ${session.principal}`);
     }
-    const refused = invoke("token", "--service", "bad name", ...(mode === "serve" ? ["--release", release] : []));
-    assert.equal(refused.status, 1);
+    const refused = invoke("token", "--service", "worker", ...releaseFlags);
+    assert.equal(refused.status, 2);
     assert.equal(refused.stdout, "");
-    assert.match(refused.stderr, /^token:/);
+    assert.match(refused.stderr, /E_STORE_BUSY/);
+    assert.ok(refused.stderr.includes(url));
     assert.ok(withoutToken() === `${url}\n`, (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
