@@ -37,7 +37,7 @@ function fixture(t, tier) {
       case 'set_meta': f.meta.set(request.key, request.value); return { ok: null };
       case 'backend': return { ok: backend };
       case 'state': return { ok: { generation: 1, watermark: 0 } };
-      case 'sync_state': return { ok: { receipt_outcomes: true, acquired: true, backend_required: false, store_id: 'clock', watermark: 0,
+      case 'sync_state': return { ok: { receipt_outcomes: true, outbox_status: true, acquired: true, backend_required: false, store_id: 'clock', watermark: 0,
         generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [] } };
       case 'next_submission': return { ok: 1 };
       case 'queued': return { ok: [] };

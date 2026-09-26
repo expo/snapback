@@ -168,7 +168,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         device = undefined;
         previous?.free();
       };
-      const settle = async (extra: Change[] = [], committedReply?: () => void): Promise<void> => {
+      const settle = async (extra: Change[] = [], committedReply?: () => void, outboxStatusOnly = false): Promise<void> => {
         const changes = [...JSON.parse(device!.drain()) as Change[], ...journal.cleanup(committed), ...extra];
         let issuedFloor: number | undefined;
         for (const change of changes) if (change.s === "o" && change.v !== null) {
@@ -180,13 +180,15 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         committedReply?.();
         // Every outbox commit, including deferred journal replay, reaches the
         // live clock before the serialized chain can stamp another admission.
-        if (issuedFloor !== undefined) for (const notify of outboxListeners) notify(issuedFloor);
+        // @ref LLP 3000.019#3.3 — presentation updates must not wake delivery:
+        // a held marker would otherwise immediately retry its own held head.
+        if (!outboxStatusOnly && issuedFloor !== undefined) for (const notify of outboxListeners) notify(issuedFloor);
         if (changes.length) {
           remember(changes);
           journal.cleanup(committed);
           // An unawaited mutate may finish admission after pagehide. Recheck
           // the suspended page only once its outbox transaction has committed.
-          if (changes.some(change => change.s === "o")) publishCommitted();
+          if (!outboxStatusOnly && changes.some(change => change.s === "o")) publishCommitted();
         }
       };
       const restore = async (backend?: DeviceOpening | null): Promise<void> => {
@@ -226,10 +228,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
             // Invalidate any sync already in flight, including a bfcache page's
             // snapshot. The synchronous VM call precedes the oldest write's send;
             // its metadata is persisted in order behind any current IDB save.
-            const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send" })));
+            const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send", id })));
             if (started.denied) return false;
             // A failed save discards the device like a failed call; the next call reopens it.
-            chain = chain.then(async () => { if (device) await settle(); }).catch(() => discard());
+            chain = chain.then(async () => { if (device) await settle([], undefined, true); }).catch(() => discard());
             return true;
           };
           const dispatch = () => {
@@ -308,9 +310,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                     if (!qualified) {
                       // Legacy custody still needs a same-id POST. Invalidate
                       // any in-flight sync before allowing that replay.
-                      const started = JSON.parse(device!.call(JSON.stringify({ op: "begin_send" })));
+                      const started = JSON.parse(device!.call(JSON.stringify({ op: "begin_send", id: request.id })));
                       if (started.denied) return started;
-                      await settle();
+                      await settle([], undefined, true);
                     }
                     return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true }, qualified } };
                   }
@@ -328,7 +330,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
                 try {
-                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
+                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply), request.op === "begin_send" || request.op === "hold_write");
                 } catch (error) {
                   if (!admission || !writeRefusal(reply)) throw error;
                   // The refusal is known even when both cancellation stores fail.

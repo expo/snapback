@@ -29,7 +29,7 @@ function page(t) {
   }
   return { window, document };
 }
-async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
+async function fixture(t, { stallExitBody = false, applyExit = true, holdExit = false } = {}) {
   const events = page(t);
   const server = await devServer({ seed });
   const clients = [];
@@ -47,7 +47,8 @@ async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
     if (init?.keepalive) {
       requests.push({ input, init });
       const send = async () => {
-        const response = applyExit ? await fetch(input, init) : new Response("{}");
+        const response = holdExit ? Response.json({ denied: { code: "E_BUSY", family: "store", message: "retry later", retryable: true } }, { status: 409 })
+          : applyExit ? await fetch(input, init) : new Response("{}");
         if (applyExit) responses.push(await response.clone().json());
         if (!stallExitBody) return response;
         await response.arrayBuffer();
@@ -188,6 +189,25 @@ test("pagehide sends committed writes synchronously and reopen is deduped by the
   console.log("navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay");
 });
 
+test("pagehide dispatch and retryable hold invalidate the pending-write list", async t => {
+  const f = await fixture(t, { holdExit: true });
+  const write = await f.client.mutate(send, { conversationId: "c1", body: "held on exit" });
+  await tick(); // Release the ordinary offline attempt's settlement ownership.
+  let notices = 0;
+  f.client.onPendingWrites(() => notices++);
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(f.requests.length, 1);
+  assert.ok(notices > 0, "exit dispatch must notify mounted pending-write hooks");
+  await until(async () => (await f.client.pendingWrites())[0]?.state === "held");
+  const list = await f.client.pendingWrites();
+  assert.equal(list[0].id, write.id); assert.equal(list[0].reason, "E_BUSY");
+  assert.equal((await f.rows()).length, 0);
+  assert.equal((await f.client.write(write.id)).state, "pending");
+  await f.client.close();
+  const saved = [...f.persist.stores.values()].flatMap(s => [...s.values()]).filter(c => c.s === "o").map(c => JSON.parse(c.v));
+  assert.equal(saved.find(entry => entry.id === write.id).dispatch, "E_BUSY");
+});
+
 test("hidden flushes, visible does not, and close removes page hooks", async t => {
   const f = await fixture(t);
   await f.client.mutate(send, { conversationId: "c1", body: "hidden" });
@@ -210,7 +230,8 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   const save = f.persist.save.bind(f.persist);
   let release, saving = false;
   f.persist.save = async (name, changes) => {
-    if (changes.some(c => c.s === "o")) {
+    // Stall admission only. Dispatch now also updates that durable entry.
+    if (!saving && changes.some(c => c.s === "o")) {
       saving = true; await new Promise(resolve => { release = resolve; });
     }
     await save(name, changes);

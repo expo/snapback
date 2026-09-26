@@ -12,6 +12,7 @@ export interface Queued {
   replay_candidate?: boolean;
   sent_seq?: number | null;
   observed_seq?: number | null;
+  dispatch?: string | null;
   receipt_store?: { id?: string | null; success_seq?: number | null };
   viewer?: string;
   now?: number;

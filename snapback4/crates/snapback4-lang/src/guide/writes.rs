@@ -87,6 +87,22 @@ A Write queued without a row before acquisition carries
 says `queued without a row: local data does not justify prediction`.
 Predicted rows carry pending; a pending Write has no predicted result.
 
+`await client.pendingWrites()` lists admitted, unsettled writes oldest first:
+`{ id, op, args, state, reason?, predicted }`. `op` is the mutation name and
+`predicted` names its rows as `table/id`; a write without a prediction still
+appears. `state` is `queued` before dispatch, `sent` after dispatch starts with
+an unknown outcome, or `held` after a retryable refusal, with its code in
+`reason`. A dispatch interrupted before delivery can still be `sent`.
+This list's `sent` is not the terminal `Write.sent` receipt. A settled write
+leaves the list and still reaches `onWrite`. `onPendingWrites(notify)` asks
+you to read the list again when it changes; unsubscribe when finished.
+In React, `usePendingWrites()` lists all writes, and `usePendingWrites(api.send)`
+filters by mutation and types its `args`. Neither hook submits a write.
+Local devices and `createApp` restore the list from existing custody on reopen;
+the raw online client's queue is in memory only. Closed or signed-out clients
+list no writes. Older outbox records without dispatch metadata start as queued
+unless a retained sequence already proves dispatch.
+
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
 hidden sends only the oldest unconfirmed write with keepalive, including a retry
 of that same head if an ordinary send is in flight when the page exits.

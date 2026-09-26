@@ -5,6 +5,7 @@ import type { Client, Write } from "./contract.ts";
 export interface DispatchOwner {
   observe(store: string): void;
   before(id: string, store: string | undefined): Promise<Write | undefined>;
+  held?(id: string, reason: string): Promise<void>;
 }
 export interface DispatchState { store?: string; owner?: DispatchOwner; identify?: () => Promise<void> }
 const clients = new WeakMap<Client, DispatchState>();

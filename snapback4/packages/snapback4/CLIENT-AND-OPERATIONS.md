@@ -934,6 +934,29 @@ A queued write's eventual `onWrite` event and `useMutation.last` preserve the sa
 fresh-or-replayed outcome; `useMutation.run()` returns the outcome of its call.
 Pending writes have no predicted result: their predicted rows carry `pending`.
 
+`await client.pendingWrites()` lists admitted, unsettled writes in submission
+order, even when they have no predicted row. Each entry is
+`{ id, op, args, state, reason?, predicted }`: `op` is the mutation name,
+`args` is the submitted JSON, and `predicted` lists `table/id` names.
+`queued` means dispatch has not begun; `sent` means dispatch began but the
+outcome is unknown, including an interrupted send; `held` means a retryable
+refusal holds the queue, with its code in `reason`. This `sent` is not a receipt.
+Settlement removes the entry and still emits `onWrite`. Subscribe with
+`client.onPendingWrites(notify)` and read again on notification; call the
+returned function to unsubscribe. Local and `createApp` custody survives
+reload; the raw `createClient` queue is in memory only. Closed and signed-out
+handles return `[]`. Legacy entries without dispatch metadata start queued
+unless retained sequence evidence proves dispatch.
+
+```tsx
+import { usePendingWrites } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function PendingSends() {
+  const sends = usePendingWrites(api.send); // omit the operation to list all writes
+  return <>{sends.map(write => <p key={write.id}>{write.args.body}: {write.state}</p>)}</>;
+}
+```
+
 Writes that do not predict show pending with `usePendingWrite(op)`. Its
 `pending` flag starts at `run(args)` and stays true until `sent` or `failed`,
 including the interval before admission returns an id. `last` is the Write;

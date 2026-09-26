@@ -9,6 +9,8 @@ import { mockSignals } from "./mock-ephemeral.ts";
 import { ServerClock } from "./clock.ts";
 import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { WriteHistory } from "./writes.ts";
+import { pendingChanges } from "./pending-writes.ts";
+import type { PendingWrite } from "./contract.ts";
 
 export type Row = Record<string, unknown> & { id: string; pending?: boolean };
 export type Tables = Record<string, Map<string, Row>>;
@@ -67,9 +69,12 @@ export function createMockClient(options: MockOptions): MockClient {
   const linkListeners = new Set<(link: Link) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = new WriteHistory();
+  const pending = new Map<string, PendingWrite>();
+  const pendingEvents = pendingChanges();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
+    pending.delete(write.id); pendingEvents.notify();
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -153,6 +158,9 @@ export function createMockClient(options: MockOptions): MockClient {
       for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
       bump();
       history.remember({ state: "pending", id });
+      pending.set(id, { id, op: op.name, args: JSON.parse(JSON.stringify(args)),
+        state: link === "offline" ? "queued" : "sent", predicted: outcome.map(id => `${table}/${id}`) });
+      pendingEvents.notify();
       if (link === "offline") {
         // Durable admission without a server: the write stays pending until the link returns.
         return await new Promise<Write<R>>((resolve) => {
@@ -166,6 +174,8 @@ export function createMockClient(options: MockOptions): MockClient {
       });
     }),
     async write(id) { const receipt = await history.read(id); return link === "signed-out" ? undefined : receipt; },
+    async pendingWrites() { return link === "signed-out" ? [] : JSON.parse(JSON.stringify([...pending.values()])); },
+    onPendingWrites: pendingEvents.subscribe,
     acquired: false,
     onAcquired: () => () => {},
     async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
@@ -186,9 +196,11 @@ export function createMockClient(options: MockOptions): MockClient {
     async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
     async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
     async signOut() { client.setLink("signed-out"); await client.close(); },
-    async close() { signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
+    async close() { pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;
+      if (next === "online") for (const [id, entry] of pending) pending.set(id, { ...entry, state: "sent" });
+      pendingEvents.notify();
       signals.linkChanged();
       for (const l of linkListeners) l(next);
       const nextViewer = next === "signed-out" ? null : options.viewer;

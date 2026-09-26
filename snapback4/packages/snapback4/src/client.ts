@@ -16,6 +16,7 @@ import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
+import { pendingChanges } from "./pending-writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
@@ -154,10 +155,14 @@ export function createClient(options: ClientOptions): Client {
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = new WriteHistory();
   const mutationIds = new MutationIds();
+  const pendingEvents = pendingChanges();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
     mutationIds.finish(write.id);
+    const entry = pending.find(entry => entry.id === write.id);
+    if (entry) entry.done = true;
+    pendingEvents.notify();
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -186,7 +191,7 @@ export function createClient(options: ClientOptions): Client {
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
 
-  const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
+  const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; state: "queued" | "sent" | "held"; reason?: string; done?: boolean; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
   let sending: (typeof pending)[number] | null = null;
 
   const failUnsentWrites = (why: Refusal) => {
@@ -217,6 +222,7 @@ export function createClient(options: ClientOptions): Client {
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
+    pendingEvents.notify();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
@@ -418,6 +424,11 @@ export function createClient(options: ClientOptions): Client {
     try { encoded = JSON.stringify(body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
+      // @ref LLP 3000.019#3.3 — the list follows dispatch, never receipt state.
+      if (path.startsWith("/m/")) {
+        const entry = pending.find(entry => entry.id === (body as { id: string }).id);
+        if (entry) { entry.state = "sent"; delete entry.reason; pendingEvents.notify(); }
+      }
       const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
       const json = (await response.json()) as Record<string, unknown>;
       // Late bodies are consumed without adoption. A parsed effect response
@@ -429,7 +440,12 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
       if (storeRefusal) return { ok: false };
-      if (response.status >= 500) { if (!quiet) setLink("offline"); return { ok: false }; }
+      if (response.status >= 500) {
+        const why = (json.why ?? json.denied) as Refusal | undefined;
+        const entry = path.startsWith("/m/") ? pending.find(entry => entry.id === (body as { id: string }).id) : undefined;
+        if (entry && why?.retryable) await hold(entry, why.code);
+        if (!quiet) setLink("offline"); return { ok: false };
+      }
       if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
         if (attempt === 3) return { ok: false };
@@ -653,12 +669,21 @@ export function createClient(options: ClientOptions): Client {
     polling = false;
   }
 
+  async function hold(entry: (typeof pending)[number], reason: string) {
+    entry.state = "held"; entry.reason = reason;
+    pendingEvents.notify();
+    await dispatch.owner?.held?.(entry.id, reason);
+  }
   async function send(entry: (typeof pending)[number]): Promise<boolean> {
     const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args }, entry.response);
     if (storeRefusal) return true;
     if (!result.ok) return false;
     const json = result.json;
-    if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
+    const refusal = (json.why ?? json.denied) as Refusal | undefined;
+    if (refusal?.retryable) {
+      await hold(entry, refusal.code);
+      return false;
+    }
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
       minimumReadSeq = Math.max(minimumReadSeq, at);
@@ -704,7 +729,9 @@ export function createClient(options: ClientOptions): Client {
         pending.shift();
       }
     };
-    const result = run();
+    // A pending-list subscriber may submit another write at dispatch. Install
+    // the flush owner before notifying it, so the same head is not sent twice.
+    const result = Promise.resolve().then(run);
     flushing = result;
     void result.finally(() => { if (flushing === result) flushing = null; }).catch(() => {});
     return result;
@@ -790,8 +817,9 @@ export function createClient(options: ClientOptions): Client {
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });
-        const entry = { id, op: op as Mutation<unknown, unknown>, args, response: closingResponses.request(), resolve: settle };
+        const entry: (typeof pending)[number] = { id, op: op as Mutation<unknown, unknown>, args, state: "queued", response: closingResponses.request(), resolve: settle };
         pending.push(entry);
+        pendingEvents.notify();
         history.remember(write);
         const attempt = flush();
         if (link !== "online") return write;
@@ -801,6 +829,13 @@ export function createClient(options: ClientOptions): Client {
       });
     }),
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
+    async pendingWrites() {
+      return closed || !credentials || storeRefusal ? [] : pending.filter(entry => !entry.done).map(entry => ({
+        id: entry.id, op: entry.op.name, args: JSON.parse(JSON.stringify(entry.args)), state: entry.state,
+        ...(entry.reason ? { reason: entry.reason } : {}), predicted: [],
+      }));
+    },
+    onPendingWrites: pendingEvents.subscribe,
     acquired: false,
     onAcquired: () => () => {},
     async upload(bytes) {
@@ -896,6 +931,7 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      pendingEvents.notify(); pendingEvents.clear();
       stopClock();
       closingResponses.begin();
       stopRefresh(ended());

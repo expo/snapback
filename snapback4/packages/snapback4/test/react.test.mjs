@@ -116,7 +116,7 @@ const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapba
 const harness = `
 import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
+import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
@@ -1093,5 +1093,46 @@ cases["web composer fences old account callbacks and preserves saved write ident
   check(otherBackend.read().intents.length === 0, "references do not cross backends");
   await unmount();
 };
+cases["pending-write lists filter, update, fence old reads, and release StrictMode subscriptions"] = async () => {
+  const listeners = new Set(), reads = [];
+  let values = [], current;
+  const client = controlled();
+  client.onPendingWrites = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+  client.pendingWrites = () => { const read = deferred(); reads.push(read); return read.promise; };
+  function List({ op }) { current = usePendingWrites(op); return h("div", null, current.map(w => w.id + ":" + w.state).join(",")); }
+  await mount(h(List, { op: mutation }), client);
+  equal(listeners.size, 1, "StrictMode leaves one listener");
+  const queued = { id: "one", op: "write", args: { text: "typed" }, state: "queued", predicted: [] };
+  await act(async () => { for (const read of reads.splice(0)) read.resolve([queued]); });
+  equal(current, [queued], "initial queue is visible without a predicted row");
+  await act(async () => { for (const notify of listeners) notify(); });
+  const older = reads.pop();
+  await act(async () => { for (const notify of listeners) notify(); });
+  const sent = { ...queued, state: "sent" };
+  await act(async () => { reads.pop().resolve([sent, { ...queued, id: "other", op: "edit" }]); });
+  equal(current, [sent], "filter retains only this operation");
+  await act(async () => { older.resolve([queued]); });
+  equal(current, [sent], "overtaken list cannot regress dispatch");
+  const held = { ...sent, state: "held", reason: "E_BUSY" };
+  await act(async () => { for (const notify of listeners) notify(); });
+  await act(async () => { reads.pop().resolve([held]); });
+  equal(current, [held], "retryable hold is visible");
+  await render(h(List), client);
+  await act(async () => { reads.pop().resolve([held, { ...queued, id: "other", op: "edit" }]); });
+  equal(current.length, 2, "omitting the filter lists every mutation");
+  await act(async () => { for (const notify of listeners) notify(); });
+  await act(async () => { reads.pop().resolve([]); });
+  equal(current, [], "settlement removes writes");
+  await act(async () => { for (const notify of listeners) notify(); });
+  const detached = reads.pop();
+  await unmount();
+  equal(listeners.size, 0, "unmount releases listeners");
+  await act(async () => detached.resolve([held]));
+  await mount(h(List), client);
+  equal(current, [], "remount cannot publish the old lifetime");
+  await act(async () => { for (const read of reads.splice(0)) read.resolve([]); });
+  await unmount();
+};
+
 window.reactCases = cases;
 `;

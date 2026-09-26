@@ -21,8 +21,10 @@ import { evaluateLocal } from "./local-query.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
+import { localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
@@ -105,9 +107,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   let history!: WriteHistory;
   const mutationIds = new MutationIds();
+  const pending = pendingChanges();
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     mutationIds.finish(write.id);
+    pending.notify();
     if (history.firstEmission(write.id)) {
       for (const listener of writeListeners) listener(write);
     }
@@ -167,7 +171,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const state = await call({ op: "state" });
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
-  stopOutbox = core.onOutbox?.(time => { clock.raiseIssued(time ?? 0); flushRecovered?.(); });
+  stopOutbox = core.onOutbox?.(time => { clock.raiseIssued(time ?? 0); pending.notify(); flushRecovered?.(); });
   await clock.attach(core);
   if (session && session.expiresAt <= clock.issuedDeviceNow()) {
     await forgetSession(base, sessions);
@@ -175,57 +179,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   media = new MediaCache(core, principal, retention, clock.issuedDeviceNow);
   await media.open();
-  // The app's native module (LLP 3000.005 §9): fetched once per digest and
-  // installed on the device, which keeps it; offline, the device answers
-  // native reads with the module it kept, or says it has none.
-  let nativeReady = false;
-  let nativeInstall: { generation: number; promise: Promise<boolean> } | null = null;
-  const installNativeAttempt = async (signal?: AbortSignal): Promise<boolean> => {
-    const state = await call({ op: "state" });
-    if (state.denied) return false;
-    const have = state.ok as { native?: string | null } | undefined;
-    let wanted = backend?.native?.digest;
-    if (!wanted) {
-      if (!backend?.programs.some((program) => program.native)) return true;
-      // A backend restored by the device predates the server-only native
-      // descriptor. Its loaded cache is usable; a rejected cache is repaired
-      // from `/schema` once the link returns.
-      if (typeof have?.native === "string" && have.native.length > 0) return true;
-      if (link !== "online") return false;
-      try {
-        const refreshed = await loadBackend(doFetch, base, requestCredentials().headers, signal);
-        if (Number(refreshed.generation ?? 0) !== generation) return false;
-        backend = refreshed;
-        wanted = refreshed.native?.digest;
-      } catch {
-        return false;
-      }
-    }
-    if (!wanted) return false;
-    if (have?.native === wanted) return true;
-    const targetGeneration = generation;
-    try {
-      const request = requestCredentials();
-      const response = await doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) });
-      if (!response.ok) return false;
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      let hex = "";
-      for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
-      const installed = await call({ op: "install_native", wasm: hex, digest: wanted, generation: targetGeneration });
-      return !installed.denied && !closed && generation === targetGeneration && backend?.native?.digest === wanted;
-    } catch {
-      return false;
-    }
-  };
-  const installNative = (signal?: AbortSignal): Promise<boolean> => {
-    if (nativeInstall?.generation === generation) return nativeInstall.promise;
-    const attempt = installNativeAttempt(signal);
-    const installing = { generation, promise: attempt };
-    nativeInstall = installing;
-    void attempt.finally(() => { if (nativeInstall === installing) nativeInstall = null; }).catch(() => {});
-    return attempt;
-  };
-  nativeReady = await installNative();
+  const installNative = nativeInstaller(() => ({ backend, generation, link, closed }), next => { backend = next; }, call, doFetch, base, requestCredentials);
+  let nativeReady = await installNative();
   let networkTail: Promise<unknown> = Promise.resolve();
   function network<T>(body: () => Promise<T>): Promise<T> {
     const result = networkTail.then(body);
@@ -354,6 +309,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const committed = (result: { ok?: unknown; denied?: Refusal }) => {
       if (observed) return;
       observed = true;
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
       if (!result.denied && request.op === "apply") {
@@ -383,6 +339,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    if (next === "signed-out") pending.notify();
     ephemeral.linkChanged();
     if (next !== "online") {
       identityChecked = false;
@@ -550,6 +507,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const reply = await postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status));
       if (!reply || (eph && !ephemeralReads.current(eph))) return { ok: false };
       const { response, json } = reply;
+      const why = (json.denied ?? json.why) as Refusal | undefined;
+      if (path.startsWith("/m/") && why?.retryable && !closed && !sessionDead && request.revision === credentialRevision) {
+        await call({ op: "hold_write", id: (body as { id: string }).id, reason: why.code });
+      }
       // I12: delivered mutation/action outcomes still belong to their callers
       // after close. Reads continue to require the live view at delivery.
       if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
@@ -1076,7 +1037,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         do {
           flushAgain = false;
           await flushOnce();
-        } while (flushAgain && link === "online" && !closed);
+        // A later admission cannot bypass the head's retryable hold/backoff.
+        } while (flushAgain && !retry && link === "online" && !closed);
       } catch { retryFlush(); }
     })();
     flushing = run;
@@ -1299,6 +1261,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       });
     }),
     write(id) { return lookupWrite(history, queued, id, unavailable, () => acquired); },
+    pendingWrites: () => localPendingWrites(queued, history, unavailable, () => acquired),
+    onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     async upload(bytes) {
@@ -1409,6 +1373,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true;
+      pending.notify(); pending.clear();
       closingResponses.begin();
       stopRefresh();
       stopHost?.();
@@ -1469,11 +1434,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         emitWrite(write);
         for (const watch of watches.values()) void rerun(watch);
       },
-    }));
+    }), async (entry, why) => {
+      if (!closed && !sessionDead && !settling.has(entry.id)) await call({ op: "hold_write", id: entry.id, reason: why.code });
+    });
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+      exitDone = sendOnExit(entries, request.headers, () => {
+        const started = (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend();
+        if (started) pending.notify();
+        return started;
+      });
     });
   }
   flushRecovered = () => { void flush(); };

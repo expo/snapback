@@ -2,13 +2,14 @@
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
+import { PendingWrites } from "./react-pending-writes.ts";
 
 const ClientContext = createContext<Client | null>(null);
 
@@ -300,6 +301,15 @@ export function useMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>) {
 export function usePendingWrite<A, R>(op: Mutation<A, R>, id?: string) {
   const write = useTrackedMutation(op, id);
   return { ...write, pending: write.inFlight || write.last?.state === "pending" };
+}
+
+/** Admitted writes, oldest first, optionally restricted to one mutation.
+ * Starts with [] while reading the first snapshot. */
+// @ref LLP 3000.019#3.3 — render queued intent without inventing a predicted row.
+export function usePendingWrites<A = unknown, R = unknown>(op?: Mutation<A, R>): readonly PendingWrite<A>[] {
+  const client = useClient();
+  const source = useMemo(() => new PendingWrites(client, op?.name), [client, op?.name]);
+  return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getServerSnapshot) as readonly PendingWrite<A>[];
 }
 
 /** Durable acquisition, independent of whether the link is currently online. */
