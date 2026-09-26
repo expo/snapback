@@ -46,6 +46,8 @@ test('web receipt upgrades preserve original binding and corrected shared custod
   if (mutant === 'shared-correction') replace('web.ts', 'if (unknownOutcome(prior)) kept[index] = write;', '/* mutant: keep the first unknown outcome forever */');
   if (mutant === 'sent-correction') replace('web.ts', 'if (unknownOutcome(prior)) kept[index] = write;', 'if (unknownOutcome(prior) && write.state === "failed" && write.why.code === "NOT_ADMIN") kept[index] = write;');
   if (mutant === 'lookup-correction') replace('web.ts', 'if (prior && unknownOutcome(write) && !unknownOutcome(prior)) continue;', '/* mutant: local history always wins */');
+  if (mutant === 'settlement-overlay') replace('web.ts', 'request.lookup === true ? lookupReceipts(shared, local) : localFirst(shared, local)', 'lookupReceipts(shared, local)');
+  if (mutant === 'custody-lookup') replace('local.ts', '(entry ? history.read(id) : history.lookup(id))', 'history.lookup(id)');
   const witness = await launch({ sourceDir, sourceOverrides,
     seed: [{ table: 'counters', row: { id: 'audit', admin: false, total: 0 } }], entrySource: `
 import { mintId } from '${join(root, 'packages/snapback4/src/client.ts')}';
@@ -250,6 +252,48 @@ window.hide = () => {
       assert.equal(seen.authored.why.code, 'NOT_FOUND');
       t.diagnostic('local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND');
     } finally { await page.evaluate(async () => { await client.close(); await persist.remove(base + ':receipts'); }); }
+  });
+  await check('a shared correction never hides this device\'s qualified or pending custody', async () => {
+    // Settlement reads this device's receipts first. A qualified success
+    // repairs the local replacement refusal to sent and keeps it; a legacy
+    // sequence without a qualified outcome stays pending. Neither is answered
+    // from the shared window.
+    await witness.reload(); await page.waitForFunction(() => !!window.boot);
+    await page.evaluate(options => boot(options), { url });
+    const own = await page.evaluate(() => store);
+    const binding = await page.evaluate(async () => (await core.call({ op: 'sync_state', capture: false })).ok.store_id);
+    const ids = await page.evaluate(() => ({ qualified: mintId(), qualifiedOverSent: mintId(), legacy: mintId(), unsent: mintId() }));
+    const outbox = (id, seq, fields) => ({ s: 'o', k: id, v: JSON.stringify({ id, seq, op: 'removeMember', args: {}, viewer: 'dev:alice', now: Date.now(),
+      new_ids: [], predicted: [], predictable: false, ...fields }) });
+    const local = Object.values(ids).map(id => failed(id, 'E_STORE_REPLACED'));
+    const shared = [failed(ids.qualified, 'NOT_ADMIN'), { state: 'sent', id: ids.qualifiedOverSent, seq: 99 }, failed(ids.legacy, 'NOT_ADMIN'), failed(ids.unsent, 'NOT_ADMIN')];
+    try {
+      await page.evaluate(async ({ changes, local, shared }) => {
+        await client.close();
+        await persist.save(store, [...changes, { s: 'm', k: 'client:write-history', v: JSON.stringify(local) }]);
+        await persist.save(base + ':receipts', [{ s: 'm', k: 'client:write-history', v: JSON.stringify(shared) }]);
+      }, { local, shared, changes: [
+        outbox(ids.qualified, 1, { sent_seq: 7, receipt_store: { id: binding, success_seq: 7 } }),
+        outbox(ids.qualifiedOverSent, 2, { sent_seq: 8, receipt_store: { id: binding, success_seq: 8 } }),
+        outbox(ids.legacy, 3, { observed_seq: 9, receipt_store: { id: binding } }),
+        // A guard, not a reachable state: custody here always outranks the window.
+        outbox(ids.unsent, 4, { receipt_store: { id: binding } }),
+      ] });
+      await page.evaluate(options => boot(options), { url, offline: true });
+      assert.equal(await page.evaluate(() => store), own, 'the device reopened its own store and outbox');
+      const seen = await page.evaluate(async ids => Object.fromEntries(await Promise.all(Object.entries(ids).map(async ([key, id]) => [key, await client.write(id)]))), ids);
+      assert.deepEqual([seen.qualified.state, seen.qualified.seq], ['sent', 7], JSON.stringify(seen.qualified));
+      assert.deepEqual([seen.qualifiedOverSent.state, seen.qualifiedOverSent.seq], ['sent', 8], JSON.stringify(seen.qualifiedOverSent));
+      assert.equal(seen.legacy.state, 'pending', JSON.stringify(seen.legacy));
+      assert.equal(seen.unsent.why?.code, 'E_STORE_REPLACED', JSON.stringify(seen.unsent));
+      const kept = await page.evaluate(async () => JSON.parse(await persist.read(store, 'm', 'client:write-history')));
+      const byId = Object.fromEntries(kept.map(write => [write.id, write]));
+      assert.deepEqual([byId[ids.qualified].state, byId[ids.qualified].seq], ['sent', 7], 'the qualified success replaced the local refusal on disk');
+      assert.deepEqual([byId[ids.qualifiedOverSent].state, byId[ids.qualifiedOverSent].seq], ['sent', 8]);
+      assert.equal(byId[ids.legacy].why.code, 'E_STORE_REPLACED', 'the legacy refusal waits for replay, not for a sibling');
+      assert.ok((await page.evaluate(async () => (await core.call({ op: 'queued' })).ok.map(entry => entry.id))).includes(ids.legacy), 'the legacy intent keeps its custody');
+      t.diagnostic('qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept');
+    } finally { await page.evaluate(async () => { await client.close(); await persist.remove(base + ':receipts'); await persist.remove(store); }); }
   });
   assert.deepEqual(errors, []);
 });

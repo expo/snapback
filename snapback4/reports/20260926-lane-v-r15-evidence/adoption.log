@@ -1,0 +1,26 @@
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (3108.066892ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (1766.01432ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (1095.670024ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1505.075064ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1296.723521ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+✔ W4R1 B1: a matching orphan installs the destination backend before recovery (493.771105ms)
+✔ W4R1 B2: empty orphan cannot fail open or hide a healthy orphan (158.503294ms)
+✔ W4R1 B2: missing identity orphan cannot fail open or hide a healthy orphan (163.8999ms)
+✔ W4R1 B2: broken backend orphan cannot fail open or hide a healthy orphan (155.941205ms)
+✔ W4R1 C: an orphan journal does not settle against its stale authored condition (132.34634ms)
+✔ custom persistence rejects an inexact orphan claim before opening (86.552274ms)
+W4R1 queued + orphan: applications=3; order=123; sends=3; duplicates=0
+✔ W4R1 missing: queued primary precedes two orphan journals with one application each (1138.81591ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8887.06416
