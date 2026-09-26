@@ -48,7 +48,10 @@ fn check_rows(device: &mut Device) -> Json {
         assert_eq!(measured["tables"][name], json!({"rows":rows.len(), "bytes":bytes}), "{name}");
     }
     assert_eq!(measured["totalBytesKind"], "sqlite-pages");
-    assert!(measured["totalBytes"].as_u64().unwrap() > 0);
+    let conn = device.store().conn();
+    let pages: i64 = conn.query_row("PRAGMA page_count", [], |r| r.get(0)).unwrap();
+    let page_size: i64 = conn.query_row("PRAGMA page_size", [], |r| r.get(0)).unwrap();
+    assert_eq!(measured["totalBytes"], pages * page_size);
     assert!(measured.get("wasmHeapBytes").is_none());
     measured
 }
@@ -75,6 +78,18 @@ fn sqlite_residency_tracks_unicode_rollback_clear_and_other_owners() {
     let cleared = call(&mut other, json!({"op":"clear_rows"}));
     assert!(cleared.get("denied").is_none(), "{cleared}");
     assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 0);
+    // A second owner adopts a different catalog; the first must not report
+    // counters through its obsolete schema even when both handles remain open.
+    let mut next = other.backend();
+    next.generation += 1;
+    let table = next.schema.tables.remove("messages").unwrap();
+    next.schema.tables.insert("widgets".into(), table);
+    other.adopt(next).unwrap();
+    let stale = call(&mut device, json!({"op":"residency"}));
+    assert_eq!(stale["denied"]["code"], "E_GENERATION", "{stale}");
+    let current = check_rows(&mut other);
+    assert!(current["tables"].get("widgets").is_some());
+    assert!(current["tables"].get("messages").is_none());
     drop(device); drop(other);
     check_rows(&mut Device::open(&path, None).unwrap());
 }

@@ -57,8 +57,10 @@ pub(crate) fn install(conn: &Connection) -> Result<(), RuntimeError> {
     Ok(tx.commit()?)
 }
 
-pub(crate) fn read(conn: &Connection, schema: &Schema) -> Result<Value, RuntimeError> {
-    let tx = conn.unchecked_transaction()?;
+pub(crate) fn read(store: &mut snapback4_core::Store, schema: &Schema) -> Result<Value, RuntimeError> {
+    // The catalog and counters must belong to the handle's adopted generation.
+    let snapshot = store.read_transaction()?;
+    let tx = snapshot.conn();
     let mut meter = Meter::new(Ceilings::default(), Cut::Abort);
     meter.at("client.residency");
     let mut tables = serde_json::Map::new();
@@ -74,3 +76,7 @@ pub(crate) fn read(conn: &Connection, schema: &Schema) -> Result<Value, RuntimeE
     let page_size: i64 = tx.query_row("PRAGMA page_size", [], |r| r.get(0))?;
     Ok(json!({ "tables": tables, "totalBytes": pages * page_size, "totalBytesKind": "sqlite-pages" }))
 }
+
+#[cfg(test)]
+#[path = "sqlite_residency_tests.rs"]
+mod tests;

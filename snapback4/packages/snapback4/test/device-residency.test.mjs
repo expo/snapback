@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { DatabaseSync } from "node:sqlite";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 import { createLocalClient } from "../dist/local.js";
 import { createClient } from "../dist/client.js";
@@ -111,8 +112,23 @@ test("public client residency reads the native process store offline", async t =
   assert.equal(report.tables.messages.rows, 1);
   assert.ok(report.tables.messages.bytes >= Buffer.byteLength("é🦀"));
   assert.equal(report.totalBytesKind, "sqlite-pages");
-  assert.ok(report.totalBytes >= Object.values(report.tables).reduce((sum, table) => sum + table.bytes, 0));
+  const db = new DatabaseSync(join(dir, "native-residency.sqlite"), { readOnly: true });
+  try {
+    assert.equal(report.totalBytes, db.prepare("PRAGMA page_count").get().page_count * db.prepare("PRAGMA page_size").get().page_size);
+  } finally { db.close(); }
   assert.equal(report.wasmHeapBytes, undefined);
+  const other = await processDevice({ dir, binary: fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url)) })
+    .open("native-residency", backend);
+  t.after(() => other.close());
+  const next = structuredClone(backend);
+  next.generation += 1;
+  next.schema.tables.widgets = next.schema.tables.messages;
+  delete next.schema.tables.messages;
+  ok(await other.call({ op: "adopt", backend: next }));
+  await assert.rejects(client.residency(), error => error.code === "E_GENERATION");
+  const current = ok(await other.call({ op: "residency" }));
+  assert.deepEqual(current.tables.widgets, { rows: 0, bytes: 0 });
+  assert.equal(current.tables.messages, undefined);
   const exited = once(child, "close");
   child.kill("SIGKILL");
   await exited;

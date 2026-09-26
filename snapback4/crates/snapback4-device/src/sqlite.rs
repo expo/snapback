@@ -33,8 +33,8 @@ impl DeviceStore for Store {
         self.install_device_checked_with(schema, metadata, reset, expected, |tx| crate::device::reset_for_install(tx, metadata, reset))
     }
     fn witness_count(&self, table: &str) -> Result<u64, RuntimeError> { self.count(table) }
-    fn residency(&self, schema: &Schema) -> Result<serde_json::Value, RuntimeError> {
-        crate::sqlite_residency::read(self.conn(), schema)
+    fn residency(&mut self, schema: &Schema) -> Result<serde_json::Value, RuntimeError> {
+        crate::sqlite_residency::read(self, schema)
     }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Store::meta(self, key)

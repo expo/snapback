@@ -30,7 +30,7 @@ pub trait DeviceStore {
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
     /// Web residency is measured by its persistence host, outside the wasm.
     #[cfg(feature = "native")]
-    fn residency(&self, _schema: &Schema) -> Result<serde_json::Value, RuntimeError> {
+    fn residency(&mut self, _schema: &Schema) -> Result<serde_json::Value, RuntimeError> {
         Err(RuntimeError::Input("residency needs a native SQLite device or the web persistence host".into()))
     }
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
