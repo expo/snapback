@@ -59226,3 +59226,22 @@ The engine test adds three cases:
 Two new mutants each fail it: counting only remaining recipients, and an
 unbounded `seen`. The three-tier probe still moves sent → delivered → read
 within about 10 ms of each acknowledgement.
+
+## 2026-09-26 — Receipts card round 18: a view is owed like a run
+
+Astra's round-17 review accepted the documented capacity-and-remount limit and
+found one more loss. A `seen` report that the client could not keep
+(`E_ADMISSION`: nothing entered the outbox) was never sent again, and hiding
+the conversation forgot it. The hook now owes a view as it owes a run. It keeps
+the newest ordinal viewed for this client, viewer and conversation, sends it
+once per state of the member's row, and sends again with the next answer after
+an unkept report, whether or not the conversation is still on screen. A view the
+member's row shows, or a predicted row that already carries it, settles it. The
+card's prose says the rest after a remount waits for catching up, which needs
+the server.
+
+New React cases: an arriving message on a conversation read through 20 is seen
+at 21 though the watermark has not moved (Astra's surviving dependency
+mutation), an unkept view goes again after hiding and with the next answer, a
+kept view is not resent, and another conversation owes no view of the first.
+All nine mutants of the change fail the tests.

@@ -169,9 +169,12 @@ Three things keep every fetched message moving:
 - **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
   its report still succeeds; the hook owes it until a merge or catching up
   frees room. After a remount, what the pages and the page ahead still hold is
-  reported again, and catching up delivers the rest.
+  reported again; the rest waits for catching up, which needs the server.
 
-`seen` records the newest message on screen, online or offline. A message is
+`seen` records the newest message on screen, online or offline. The hook owes
+a view as it owes a run, until the member's row shows it; a view the client
+could not keep goes again with the next answer, even once the conversation is
+hidden. A message is
 `read` for a recipient once it is delivered and `seen` reaches it. Every
 watermark is the member's own report, bounded by the last message. Each
 message's receipt costs one scan of at most 50 member rows and a run lookup for
@@ -234,13 +237,21 @@ function useReceipts(conversation: string, visible: boolean) {
   const lowest = runsOf([], held)[0];
   const short = floor !== null && lowest !== undefined && lowest[0] > floor + 1;
   useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
-  // A view needs no watermark first: seen only moves forward.
+  // A view is owed like a run, in the same scope, until the member's row shows it, hidden or not.
+  const viewed = useMemo(() => ({ through: 0, tried: null as string | null }), [client, viewer, conversation]);
   const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
   const newest = settled.length ? Math.max(...settled) : 0;
   const shown = member ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;
   useEffect(() => {
-    if (visible && newest > 0 && (shown === null || newest > shown)) void client.mutate(api.seen, { conversation, through: newest });
-  }, [client, conversation, visible, shown, newest]);
+    // A view needs no watermark first: seen only moves forward.
+    if (visible && newest > viewed.through) viewed.through = newest;
+    const through = viewed.through, mark = JSON.stringify([shown, through]);
+    if (through === 0 || (shown !== null && through <= shown) || viewed.tried === mark) return;
+    viewed.tried = mark;
+    void client.mutate(api.seen, { conversation, through }).then(write => {
+      if (write.state === "failed" && write.why.code === "E_ADMISSION" && viewed.tried === mark) viewed.tried = null;
+    });
+  }, [client, conversation, viewed, visible, shown, newest, progress]); // eslint-disable-line react-hooks/exhaustive-deps
   return page;
 }
 ```

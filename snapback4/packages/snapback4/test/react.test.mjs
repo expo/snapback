@@ -390,6 +390,36 @@ const cases = {
     await act(async () => stream(early).set(progressOf(0, 0, ascending(1, 20))));
     equal(acked(early), ["seen:20", "delivered:1-20"], "the fetch is acknowledged once the watermarks arrive");
     await unmount();
+    // On screen and read through 20, an arriving message is seen though the watermark has not moved.
+    const reading = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 20, []));
+    await mount(h(Receipts, { visible: true }), reading);
+    equal(reading.acks, [], "a conversation read through its newest message sends nothing");
+    await act(async () => active(reading).find(record => record.args.c === null).set(ready(ordinals(21, 1))));
+    equal(reading.acks, ["delivered:21-21", "seen:21"], "an arriving message on screen is delivered and seen");
+    await unmount();
+    // A view the client could not keep is owed, hidden too, until the member's row shows it.
+    const refused = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, []));
+    let refusals = 2;
+    refused.mutate = (op, args) => {
+      refused.calls.push({ op: op.name, ...args });
+      refused.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
+      if (op.name === "seen" && refusals-- > 0) return Promise.resolve({ state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } });
+      return Promise.resolve(sent("ack"));
+    };
+    const views = () => refused.acks.filter(ack => ack === "seen:20").length;
+    await mount(h(Receipts, { visible: true }), refused);
+    equal(views(), 1, "the view is sent once");
+    await render(h(Receipts, { visible: false }), refused);
+    equal(views(), 2, "an unkept view goes again when the hook runs next");
+    await act(async () => stream(refused).set(progressOf(20, 0, [])));
+    equal(views(), 3, "and again with the next answer, though the conversation is hidden");
+    await act(async () => stream(refused).set(progressOf(20, 0, [])));
+    equal(views(), 3, "a kept view is not sent again");
+    await act(async () => stream(refused).set(progressOf(20, 20, [])));
+    await render(h(Receipts, { visible: false, conversation: "c2" }), refused);
+    await act(async () => stream(refused).set(progressOf(20, 0, [])));
+    check(!refused.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no view of the first: " + JSON.stringify(refused.calls));
+    await unmount();
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
     let offset = 90000000, revision = 0;
