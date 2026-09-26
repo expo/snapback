@@ -84,6 +84,11 @@ when nothing intervenes. Deletes and inserts are never coalesced. A row
 expires between `0.75 × life` and `life` after the last call, plus delivery;
 for a 5 s bound use `ephemeral 4s` or less.
 
+A bare ephemeral write returns `null`. Use explicit `return` when you need
+a result; that operation never coalesces. `renews` requires exactly one final
+upsert or update, with argument/viewer/literal/`now` keys and patch values,
+preceded only by guards or their local values. Counters and toggles do not renew.
+
 For "who has this room open", keep a viewing heartbeat while mounted:
 
 ```tsx

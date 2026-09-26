@@ -344,7 +344,8 @@ fn minimum_written_life_sets_renewal_and_helpers_extend_read_closure() {
     );
     let b = clean(&source);
     assert_eq!(b.schema.operations["together"].renew_ms, Some(250));
-    assert!(b.schema.operations["together"].renews);
+    // Revision 3 requires exactly one write, even across different tables.
+    assert!(!b.schema.operations["together"].renews);
     assert_eq!(
         b.schema.operations["wrapped"].ephemeral_reads,
         vec!["typing"]
@@ -404,4 +405,47 @@ fn a_clock_controlled_key_assignment_is_not_a_renewal() {
     let b = clean(&format!("{TABLES}\nmutation signal(roomId: rooms, otherRoom: rooms):\n  key = roomId\n  if now > 1000:\n    key = otherRoom\n  upsert typing[key, viewer] {{}}\n"));
     assert!(b.schema.operations["signal"].ephemeral);
     assert!(!b.schema.operations["signal"].renews);
+}
+
+#[test]
+fn renewal_requires_one_write_without_read_derived_values_or_a_result() {
+    let tables = r#"
+table signals:
+  owner: principal
+  n: int default 0
+  enabled: bool default false
+  at: time default now
+  unique owner
+  read <- allow
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  ephemeral 4s
+"#;
+    for (body, renews) in [
+        ("upsert signals[owner = viewer] { n, enabled: true, at: now }", true),
+        ("require n > 0 else BAD\n  update signals[owner = viewer] { n }", true),
+        ("ok = exists signals[owner = viewer]\n  require ok else MISSING\n  update signals[owner = viewer] { n }", true),
+        ("old = signals[owner = viewer] ! else MISSING\n  upsert signals[owner = viewer] { n: old.n + 1 }", false),
+        ("old = signals[owner = viewer] ! else MISSING\n  update signals[owner = viewer] { enabled: not old.enabled }", false),
+        ("return upsert signals[owner = viewer] { n }", false),
+        ("upsert signals[owner = viewer] { n }\n  return n", false),
+        ("upsert signals[owner = viewer] { n }\n  upsert signals[owner = viewer] { n }", false),
+        ("copy = n\n  upsert signals[owner = viewer] { n: copy }", false),
+        ("unused = n\n  upsert signals[owner = viewer] { n }", false),
+        ("if n > 0:\n    upsert signals[owner = viewer] { n }", false),
+        ("update signals[owner = viewer] { n } if .n = 0", false),
+    ] {
+        let b = clean(&format!("{tables}\nmutation op(n: int):\n  {body}\n"));
+        assert!(b.schema.operations["op"].ephemeral);
+        assert_eq!(b.schema.operations["op"].renews, renews, "{body}");
+        if renews {
+            assert!(snapback4_lang::emit::typescript(&b).contains("Ephemeral<{ n: number }, null>"));
+        }
+    }
+    let card = snapback4_lang::guide::card("ephemeral").unwrap();
+    let source = card.split("```quarry\n").nth(1).unwrap().split("```").next().unwrap();
+    let b = clean(source);
+    for op in ["setTyping", "markViewing"] {
+        assert!(b.schema.operations[op].renews, "{op}");
+    }
 }

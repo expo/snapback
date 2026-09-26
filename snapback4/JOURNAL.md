@@ -61783,3 +61783,41 @@ admission. The affected core ephemeral target passes all 15 tests. This final
 follow-up changes only that test and this journal; implementation source and
 the measured artifact are unchanged from the full suite. The exact full-run
 summary/counts and this affected rerun are retained with EPH-REPORT-E1.md.
+
+
+### 2026-09-26 — E2 TypeScript client handoff (verbatim)
+
+Implemented LLP 3000.017's TypeScript client and revision-3 N2/N4. Both online and wasm clients route ephemeral operations before durable admission, through one bounded memory-only lane with renewal-only coalescing. Ephemeral watch interest reissues held polls; request revisions retire delayed old incarnations; incomplete answers refresh every second. Real CLI coverage includes hidden-row reclamation without sequence/epoch changes and five 45-keystroke acceptance trials. The final full-suite trials first displayed typing in 4.3–12.9 ms, removed it 3.86–3.89 s after the last call, and sent 2 ephemeral requests versus 45 durable-control requests per burst. Mock fixtures explicitly declare lifetimes; app session checks remain inside the ordered sender's scoped transport. README stays at 300 lines. E2 leaves E1's compiler/engine/cards and journal untouched; inherited qualification failures and evidence are recorded in EPH-REPORT-E2.md.
+
+### 2026-09-26 — E3 integration: revision-3 renewal proof
+
+Integrated E1 c0c3bfa23, E2 0dd8f566a and main 0badac987 on
+sb4/eph-integrate. Initial Cargo, wasm, package build and typecheck pass.
+The keyword list now lives in CLIENT-AND-OPERATIONS.md, concatenated with
+README by the guide test; add ephemeral there and link the integrated card
+from README's existing row without exceeding its 300-line budget.
+
+Revision-3 N1 replaces key-only provenance with a small structural proof:
+exactly one final update/upsert, no returned value, argument/viewer/literal/now
+keys and patches, with only require guards and guard-only lets before it.
+The exhaustive effect visitor still walks every statement, expression, loop
+and inlined helper for admission/read closure. The new proof deliberately
+under-classifies conditional writes, helper/block expressions, opaque builtins,
+unused locals and even argument aliases used by writes; they still execute
+once per call. Point reads may feed guards, but not writes. This conservative
+choice avoids a second purity/alias-analysis system, consistent with §2.2.
+
+Bare writes to ephemeral tables now return null rather than an implicit row;
+explicit return retains its value and disables renewal. This is needed to
+keep the RFC's bare setTyping/markViewing recipes renewals while enforcing
+its no-result condition. Durable bare-write lowering is unchanged. The E1
+multi-write renewal assertion changes from true to false as explicitly required
+by revision 3; no existing durable expected bytes are changed. Negative tests
+cover the viewer-keyed increment, toggle, returned write/value, multiple writes,
+local-derived patches and conditional writes; the card's two heartbeats remain
+renews. Language tests: 15 passed; guide tests: 84 passed.
+
+The merged-main fixture inventory has two new durable row-view fixtures beyond
+E1's frozen 26. Capture their bytes from an isolated archive of 0badac987, retain
+the original frozen file unchanged, and add a separate supplemental baseline.
+This is an integration fixture addition, not a reason to weaken byte checks.

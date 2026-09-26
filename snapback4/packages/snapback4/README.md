@@ -289,7 +289,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
 | Following: `view following` / Global: planned view / Trending: predicate read / search | `guide feeds` / `guide search` |
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
-| Typing / scoped presence | [Ephemeral writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes) |
+| Typing / scoped presence | `guide ephemeral` / [Ephemeral writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes) |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
 | Full client, auth / complete React list | [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
