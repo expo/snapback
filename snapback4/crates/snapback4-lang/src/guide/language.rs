@@ -23,16 +23,6 @@ mutation addNote(body: text):
 `query` returns the newest page; pass its `next` back as `c`.
 `mutation` inserts atomically, using the default time.
 
-Short-lived server memory uses the ordinary table grammar (`guide ephemeral`):
-
-```quarry
-table typing:
-  principal: principal
-  read <- allow
-  insert <- .principal = viewer
-  ephemeral 4s
-```
-
 ## Limits
 
 - Use Quarry spellings such as `count(x)` and `first 20`: E_QUARRY_UNSUPPORTED.
@@ -782,5 +772,15 @@ query unread(chat: id):
   return unreadCounts[chat, viewer]
 query inbox(c: cursor ?):
   return unreadCounts where .principal = viewer first 20 after c
+```
+
+Short-lived server memory uses the ordinary table grammar (`guide ephemeral`):
+
+```quarry
+table typing:
+  principal: principal
+  read <- allow
+  insert <- .principal = viewer
+  ephemeral 4s
 ```
 "##;

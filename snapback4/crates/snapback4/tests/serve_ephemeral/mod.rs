@@ -76,6 +76,9 @@ fn poll_url(h: &Host, interest: &str) -> String {
     )
 }
 fn blocked(h: &Host, url: String) -> (JoinHandle<String>, mpsc::Receiver<()>) {
+    blocked_as(h, url, BOB.to_owned())
+}
+fn blocked_as(h: &Host, url: String, headers: String) -> (JoinHandle<String>, mpsc::Receiver<()>) {
     let (notify, wait) = mpsc::channel();
     *lock(&h.shared.poll_wait) = Some(Arc::new(move || {
         let _ = notify.send(());
@@ -84,7 +87,7 @@ fn blocked(h: &Host, url: String) -> (JoinHandle<String>, mpsc::Receiver<()>) {
     let poll = thread::spawn(move || {
         exchange(
             address,
-            &format!("GET {url} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{BOB}\r\n"),
+            &format!("GET {url} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}\r\n"),
         )
     });
     wait.recv_timeout(Duration::from_secs(2))
@@ -318,6 +321,31 @@ fn ephemeral_wake_finishes_with_the_serving_engine_locked() {
 }
 
 #[test]
+fn revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock() {
+    let (h, dir) = host(true);
+    let session = body(&h.request("POST", "/auth/guest", "", "{}"));
+    let token = session["session"]["token"].as_str().unwrap();
+    let mut reader = lock(&h.shared.engine).reader().unwrap();
+    let (poll, _) = blocked_as(&h, poll_url(&h, "typing"), format!("Authorization: Bearer {token}\r\n"));
+    let mut engine = lock(&h.shared.engine);
+    snapback4_core::identity::logout_session(engine.store_mut(), token, || h.shared.now()).unwrap();
+    reader.mutate_ephemeral("setTyping", Context::new("dev:alice", [
+        ("roomId".into(), Value::Id("r".into())),
+        ("payload".into(), Value::String(String::new())),
+    ].into()).at(h.shared.now())).unwrap();
+    h.shared.publish_ephemeral();
+    let (done, result) = mpsc::channel();
+    thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
+    let reply = result.recv_timeout(Duration::from_millis(250));
+    drop(engine);
+    let reply = reply.expect("bearer recheck must not take the engine on an ephemeral-only wake");
+    assert_eq!(status(&reply), 401, "{reply}");
+    assert_eq!(body(&reply)["denied"]["code"], "E_AUTH", "{reply}");
+    drop(h);
+    std::fs::remove_dir_all(dir.unwrap()).unwrap();
+}
+
+#[test]
 fn every_ephemeral_refusal_uses_failed_http_200() {
     let (h, dir) = host(true);
     for (headers, input, code) in [
@@ -341,6 +369,25 @@ fn every_ephemeral_refusal_uses_failed_http_200() {
         assert_eq!(reply["state"], "failed");
         assert_eq!(reply["why"]["code"], code, "{reply}");
         assert!(reply.get("seq").is_none());
+    }
+    drop(h);
+    std::fs::remove_dir_all(dir.unwrap()).unwrap();
+}
+
+#[test]
+fn admission_rechecks_classification_when_adoption_passes_the_early_route_check() {
+    let (h, dir) = host(true);
+    // Simulate an early classifier that saw the previous durable operation.
+    // Both the replay and idless execution boundary must use the engine's fact.
+    lock(&h.shared.bound).schema.operations.get_mut("setTyping").unwrap().ephemeral = false;
+    for input in [
+        r#"{"id":"formerly-durable","args":{"roomId":"r","payload":""}}"#,
+        r#"{"args":{"roomId":"r","payload":""}}"#,
+    ] {
+        let reply = body(&h.request("POST", "/m/setTyping", ALICE, input));
+        assert_eq!(reply["state"], "sent", "{reply}");
+        assert!(reply.get("seq").is_none());
+        assert!(reply["ephemeral"]["epoch"].is_number());
     }
     drop(h);
     std::fs::remove_dir_all(dir.unwrap()).unwrap();

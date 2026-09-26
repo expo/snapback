@@ -83,7 +83,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     // wakes must not reacquire the serving engine merely to finish a poll.
     let authenticated = if let Some(reader)=reader.as_ref() {
         if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|h.value.as_str().strip_prefix("Bearer ")) {
-            match snapback4_core::identity::resolve(reader.store(),token.trim(),shared.now()) {
+            match snapback4_core::identity::resolve_read_only(reader.store(),token.trim(),shared.now()) {
                 Ok(Some(_))=>Ok(()),Ok(None)=>Err(snapback4_core::Refusal::new("E_AUTH","auth","this session is not live; sign in again").guide("personas")),Err(e)=>Err(e.refusal()),
             }
         } else {Ok(())}

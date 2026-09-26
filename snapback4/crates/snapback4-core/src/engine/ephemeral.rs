@@ -39,7 +39,10 @@ impl Snapshot {
                 .front()
                 .is_some_and(|(first, _)| epoch.saturating_add(1) < *first)
         {
-            return self.tables.iter().filter(|t| allowed(t)).cloned().collect();
+            return match interest {
+                Some(tables) => tables.iter().cloned().collect(),
+                None => self.tables.clone(),
+            };
         }
         self.ring
             .iter()

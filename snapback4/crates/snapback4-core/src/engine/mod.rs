@@ -955,6 +955,7 @@ impl Engine {
     /// Compare wire identity before decoding against a possibly newer schema.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
+        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) { return Ok(None); }
         crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }

@@ -965,6 +965,12 @@ fn handle(mut request: Request, shared: &Shared) {
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
                 let (replay, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    // Adoption may have changed the operation after the early
+                    // route check. Classify again under the executing owner.
+                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                        drop(engine);
+                        return ephemeral::serve(request, shared, &op, &body);
+                    }
                     let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
                     (replay, response_head(&mut engine))
                 };
@@ -1087,6 +1093,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                        drop(engine);
+                        return ephemeral::serve(request, shared, &op, &body);
+                    }
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     (outcome, response_head(&mut engine))
                 };

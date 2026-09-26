@@ -387,3 +387,21 @@ fn seed_and_load_refuse_ephemeral_tables() {
 mod generation;
 #[path = "ephemeral/layered.rs"]
 mod layered;
+
+#[test]
+fn expired_points_skip_rules_and_durable_queries_do_not_lock_the_hub() {
+    // A non-uniform witness cannot be decided from the public lookup key.
+    // The meter may reserve probes; corrupting this test's durable witness
+    // proves the expired row never actually evaluates the read rule.
+    let source = SOURCE.replace("table typing:", "table typing:\n  lookupRoom: rooms default 'r'").replace("read <- exists members[.roomId, viewer]", "read <- exists members[.lookupRoom, viewer]");
+    let mut e = engine(&source);
+    seed(&mut e);
+    e.mutate_ephemeral("setTyping", ctx("alice", 1000, &args("r"))).unwrap();
+    e.store().conn().execute("UPDATE r SET data = 'invalid witness' WHERE t = (SELECT num FROM _catalog WHERE name = 'members')", []).unwrap();
+    assert!(e.query("typingOne", ctx("bob", 4999, &[("roomId", id("r")), ("who", id("alice"))])).is_err());
+    let expired = e.query("typingOne", ctx("bob", 5000, &[("roomId", id("r")), ("who", id("alice"))])).unwrap();
+    assert_eq!(expired.data, Value::Null);
+    let hub = e.ephemeral_hub();
+    let _held = hub.lock().unwrap();
+    assert!(e.query("durable", ctx("bob", 5001, &[])).unwrap().ephemeral.is_none());
+}

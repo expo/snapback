@@ -10,12 +10,14 @@ pub struct Effects {
     pub renews: bool,
     pub emit: bool,
     stable: BTreeSet<String>,
+    control_stable: bool,
 }
 impl Effects {
     pub fn of(program: &Program) -> Self {
         let mut effects = Self {
             renews: true,
             stable: program.args.keys().cloned().collect(),
+            control_stable: true,
             ..Self::default()
         };
         effects.statements(&program.body);
@@ -48,7 +50,7 @@ impl Effects {
                 Stmt::Const { name, value }
                 | Stmt::Let { name, value }
                 | Stmt::Assign { name, value } => {
-                    let stable = self.stable(value);
+                    let stable = self.control_stable && self.stable(value);
                     self.expression(value);
                     if stable {
                         self.stable.insert(name.clone());
@@ -73,6 +75,8 @@ impl Effects {
                     then_body,
                     else_body,
                 } => {
+                    let control = self.control_stable;
+                    self.control_stable &= self.stable(condition);
                     self.expression(condition);
                     let before = self.stable.clone();
                     self.statements(then_body);
@@ -80,6 +84,7 @@ impl Effects {
                     self.stable = before;
                     self.statements(else_body);
                     self.stable.retain(|v| then.contains(v));
+                    self.control_stable = control;
                 }
                 Stmt::For {
                     binding,
@@ -88,6 +93,8 @@ impl Effects {
                 } => {
                     self.domain(domain);
                     self.stable.remove(binding);
+                    let control = self.control_stable;
+                    self.control_stable = false;
                     // Later iterations see assignments from the preceding one.
                     // Shrink to a fixed point before trusting renewal keys.
                     loop {
@@ -98,6 +105,7 @@ impl Effects {
                             break;
                         }
                     }
+                    self.control_stable = control;
                 }
                 Stmt::Insert { table, row } | Stmt::InsertIfAbsent { table, row, .. } => {
                     self.write(table, None);
@@ -117,14 +125,17 @@ impl Effects {
                     target,
                     patch,
                     condition,
+                    result,
                     ..
                 } => {
                     self.target(target, true);
                     self.expression(patch);
                     if let Some(c) = condition {
+                        self.stable.remove(&c.old);
                         self.statements(&c.setup);
                         self.expression(&c.value);
                     }
+                    if let Some(name) = result { self.stable.remove(name); }
                 }
                 Stmt::Delete { table, key } => {
                     self.write(table, None);
@@ -191,7 +202,11 @@ impl Effects {
                 self.statements(body);
                 self.expression(value);
             }
-            Expr::Array(xs) | Expr::Builtin { args: xs, .. } => {
+            Expr::Builtin { builtin, args } => {
+                for arg in args { self.expression(arg); }
+                if let Builtin::Divmod { remainder_sink } = builtin { self.stable.remove(remainder_sink); }
+            }
+            Expr::Array(xs) => {
                 for x in xs {
                     self.expression(x);
                 }

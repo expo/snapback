@@ -385,3 +385,23 @@ fn renewal_keys_account_for_later_loop_iterations() {
     };
     assert!(!effects::Effects::of(&program).renews);
 }
+
+#[test]
+fn renewal_keys_do_not_retain_stability_after_write_results_or_divmod_sinks() {
+    use snapback4_core::{ir::*, Value};
+    let target=Read { table:"typing".into(), index:"byId".into(), key:vec![Expr::Variable("key".into())], site:"probe".into(), provenance:KeyProvenance::Arg };
+    for setup in [
+        Stmt::WriteTarget { target, patch:Expr::Object(Default::default()), upsert:true, condition:None, result:Some("key".into()) },
+        Stmt::Let { name:"q".into(), value:Expr::Builtin { builtin:Builtin::Divmod { remainder_sink:"key".into() }, args:vec![Expr::Input(Input::Now),Expr::Literal(Value::Int(3))] } },
+    ] {
+        let p=Program { name:"probe".into(),kind:ProgramKind::Mutation,args:[("key".into(),ArgType::Id)].into(),read_time_granularity_ms:None,returned_shapes:Default::default(),native:false,body:vec![setup,Stmt::Upsert {table:"typing".into(),key:Expr::Variable("key".into()),row:Expr::Object(Default::default())}] };
+        assert!(!effects::Effects::of(&p).renews);
+    }
+}
+
+#[test]
+fn a_clock_controlled_key_assignment_is_not_a_renewal() {
+    let b = clean(&format!("{TABLES}\nmutation signal(roomId: rooms, otherRoom: rooms):\n  key = roomId\n  if now > 1000:\n    key = otherRoom\n  upsert typing[key, viewer] {{}}\n"));
+    assert!(b.schema.operations["signal"].ephemeral);
+    assert!(!b.schema.operations["signal"].renews);
+}

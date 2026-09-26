@@ -61645,3 +61645,58 @@ raw / 578,833 B gzip. Final ratchet is measured + 1,000 = 579,833 B. This is
 +5,195 raw / +1,870 gzip against the base host build; the first E1 measurement
 above preceded that final compiler/admission check. React snippet typechecking
 against the real Read union and current hooks passes.
+
+E1 final boundary audit added a second operation-classification check under the
+serving engine at both replay and idless execution boundaries. Adoption can pass
+the earlier route check; a newly ephemeral operation must still use the memory
+reply and bypass an old durable receipt. Core replay also returns no receipt for
+an ephemeral operation. A deterministic HTTP test simulates the older advertised
+fact. An additional core test pins expiry before membership probes and a durable
+query completing while the hub mutex is held.
+
+The same final audit makes ring-gap invalidation echo every requested interest
+name (including a table removed by adoption), rather than intersecting with the
+current schema first, and clears renewal-key provenance when a write result or
+`divmod` remainder sink rebinds a variable. These are conservative effect facts,
+not changes to durable execution. Regression tests pin both boundaries.
+
+The full suite found two further pins of the RFC-replaced guide recipe: the
+both-store device guide example and the read-authorization authoring census.
+The former now verifies server renewal/expiry and unknown local reads; the latter
+removes the retired durable typing write, adds the four never-predicted ephemeral
+writes, and shifts the later reads-card block label. No other corpus outcome is
+changed. The language card's added standalone declaration is appended so existing
+block identities stay stable. The reported read-authorization failure was this
+census drift, not a product authorization or timing defect.
+
+### 2026-09-25 — E1 final-suite corrections
+
+The first E1 full suite also caught an introduced streaming-bearer regression:
+the detached poll reader used `identity::resolve`, which attempts expired-session
+cleanup on a missing credential. That made a revoked bearer report E_STORE from
+the read-only SQLite connection. `resolve_read_only` shares the complete live
+authority walk and omits only cleanup; ordinary writer-backed resolution is
+unchanged. The original streaming client test now passes, and a new HTTP test
+revokes a bearer, holds the engine mutex, wakes the poll with an ephemeral write,
+and observes E_AUTH from its detached reader. All 11 ephemeral HTTP tests pass.
+
+The device guide test asserts the actual shared contract: `unknown: true` and
+no complete local answer. SQLite refuses before acquisition; the memory device
+can return an incomplete empty speculative result. Both remain unknown and hold
+no typing rows. The replacement recipe now passes on both stores.
+
+Renewal provenance is deliberately conservative: arguments, viewer, literals,
+and structural field/arithmetic expressions are stable; opaque builtins and
+locals assigned in loops are not certified. Locals assigned under a clock- or
+row-dependent branch are also not certified, even when each branch assigns an
+argument. This can under-classify a safe renewal, but never grants coalescing to
+a key with an unproved dependency. A regression test covers the clock branch;
+all 14 language tests and the frozen durable-byte fixture pass.
+
+The RFC's in-memory `--fresh` reader fallback is retained. Disk-backed polls
+finish ephemeral-only wakes without the serving engine mutex, including bearer
+rechecks. In-memory stores have no independent connection, so their final bearer
+liveness check retains the existing engine fallback too. This is a narrow
+exception to the blanket no-engine-on-unchanged-sequence wording in §3.3, chosen
+to preserve revocation rather than cache authority across a held poll. Production
+disk stores have the lock property; both modes preserve authentication.
