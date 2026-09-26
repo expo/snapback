@@ -64851,3 +64851,63 @@ or redesigned; added the review's missing timer-clamping evidence. No engine,
 authorization, meter, outbox, public API/syntax, version or budget change.
 No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
 no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.
+
+
+## 2026-09-26 — 0.4.4 lane EK: typing keeps its answer through unrelated member writes
+
+Paired the ephemeral card's `typingIn` React read and separately observed
+`typingInMyRooms` with `{ keep: true }`, with the expiry and revocation
+tradeoff stated beside the recipe. Recorded the choice after revision 4's
+keep text in LLP 3000.019 §3.3 and revised its metadata. Closed and moved
+`issues/20260926-snapback4-ephemeral-watch-loading-flicker.md`; its original
+automatic-retention direction is explicitly superseded. The default still
+withdraws the answer because a `members` commit may revoke the viewer.
+No client change was needed: lane K's opt-in and displayed-expiry fences
+already handle this case.
+
+Added `packages/snapback4/test/ephemeral-keep.test.mjs`: online, wasm and
+process clients observe real ephemeral typing whose rule probes durable
+membership, while a peer commits twenty member-row updates at 100 ms
+intervals. Every kept publication retains the peer; the default publishes
+loading and the peer again. Then replacement replies are held across
+expiry, and their old bodies are released after withdrawal to prove they
+cannot resurrect the row. In the full suite, online/wasm/process respectively
+published loading 12/74/98 times without keep, kept the row in all 33/163/198
+publications during the burst, and withdrew it 4,373.0/4,382.2/4,185.5 ms
+after the last typing call. No renewal or explicit stop supplies expiry.
+
+Corrected `ephemeral-watches.test.mjs` to measure request starts, after
+capability/incarnation discovery, rather than response-body arrivals. A
+900 ms delayed second reply reproduces the old assertion's failure: the
+old measurement reports 100.3 ms online and 94.2 ms wasm between arrivals,
+while requests remain about 1 s apart. The fixture makes the hidden prefix
+reachable at the third request's dispatch, removing a test-runner race in
+the short interval after the delayed reply. It still checks unchanged
+sequence/ephemeral epoch, no extra sync, and no refresh after complete.
+The final fixture passed 20/20 runs on each tier (40 cases), with four test
+processes plus eight CPU workers sharing the same eight cores: request
+intervals 999.2–1,002.6 ms, arrival gaps 87.2–111.2 ms. The load workers were
+terminated by their recorded processes. The restored old assertion failed
+2/2 deliberately; its temporary probe file was removed.
+
+Affected run: 9/9. Whole guide: 86/86; no tested fixture pins the changed
+React/prose text, so no fixture needed regeneration or hand editing. No
+new diagnostic code or source file over 1,500 lines. Reference audit passed.
+Ran the required scripts/test.sh once, unmodified, with eight Cargo build
+jobs and dev/test debug info disabled on Node 24.13.1 / Bun 1.3.14:
+`== 1 failure(s) in 1433 s` (exit 1), only `wasm build`. This is baseline:
+2,025,652 B raw / 582,552 B gzip, 458 B over the unchanged 582,094 B budget;
+all device/core/Cargo/wasm-build inputs match starting commit cfa35e161,
+so this lane's size delta is 0 B. Reproduce with
+`cd snapback4 && bash scripts/build-wasm.sh`. No introduced or environmental
+suite failures. Rust: 3,662 passed, 19 ignored; main client batch: 2,380
+passed, 10 existing skips, all seven separate shards passed; final models:
+78/78. Restored the suite-generated native fixture lockfile change.
+
+No design departure, runtime change, authorization/disclosure/meter change,
+new syntax, version or budget increase. No calibration rerun, push or
+publication. Evidence and the repeatable load driver remain in
+`target/lane-ek-evidence/` (full-suite.log, full-suite.exit, affected.log,
+guide.log, wasm.log, cadence-load.py, cadence-load.json, per-run logs,
+arrival-probe.log and ref-check.log). The supervisor owns integration and
+the two blind reviews; this entry claims neither.
