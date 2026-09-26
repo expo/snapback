@@ -63667,3 +63667,47 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+
+## 2026-09-26 — 0.4.4 P2 round 2: shaped-list bounds and unheld projection proof
+
+Read both complete round-1 reviews and merged the requested main commit
+`992cec75c` first (`58823c9cb`). Only this journal conflicted; both complete
+append histories were retained, with no lines removed from either parent.
+All 146 targeted tests passed on the merged tree before the round-2 edits.
+
+Fixed Grok's shaped-page certificate finding in `scale/collections.rs` only.
+A list initialized as `[]` now counts pushes from bounded page, derived-array,
+literal-range and list-argument loops. Nested iterations multiply, pushes add,
+and an initialization inside a loop starts afresh. Aliases retain the bound;
+reassignments and open push domains retain the step-ceiling fallback. Grok's
+exact shaped page and its unshaped twin both return 9 and both certify and
+execute five examinations. The separate `scale.rs` control-flow walk is
+untouched. Pricing and its regressions are committed as `77be1ca12`.
+
+Added memory and SQLite tests for a projection point-reading online-only
+`secrets`, while the aggregate source is fully held. Min, max and defaults
+withhold null/incomplete before and after reopen; a fully synced control
+returns 9/complete. This is test coverage of the existing runtime, committed
+as `28a789307`. Actually skipping `unknown_fact` with the aggregate row bound
+fails both new tests at 0/complete. Restoring old collection pricing fails
+at 1,000,003 versus 5; removing assignment invalidation fails the reassigned
+alias's fallback assertion. All mutations were restored, and all 151 affected
+tests passed, including the complete 86-test guide and frozen compatibility.
+
+Ran `scripts/test.sh` exactly once with the implementation fixed throughout:
+**`== 0 failure(s) in 3224 s`**, exit 0. No ours, baseline or environmental
+failure; no repair or repeat run. Rust phase: 3,600 passed, 19 existing ignores
+(the docs-budget stage separately reran one guide assertion). Fixture wrappers:
+9/9. Ordinary clients: 2,215 passed, 10 existing skips. Models: 78/78, retaining
+both 5,000-sequence session runs and the 3,000-interleaving online run. All
+builds, typechecks, docs budget and release guard passed.
+
+The suite's wasm rebuild is **2,024,130 B raw / 581,998 B gzip**, identical to
+round 1, with **96 B headroom** under the unchanged **582,094 B** budget.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt; Node 24.13.1, Bun 1.3.14.
+No design deviation or open round-2 problem. Did not push, publish, raise a
+budget or meter, change device runtime code, or rewrite prior journal entries.
+The round-2 section of `reports/20260926-p2-extremum-expressions.md` records the
+files, examples, mutation evidence and logs. Only that report and this entry
+were added after qualification.

@@ -403,3 +403,176 @@ live in `args[1]`, not recursively inside `Builtin`. Old column encodings and
 one-row seeks stay intact. No budget or runtime ceiling was raised; no
 publication, push, authorization/disclosure relaxation, or second interpreter.
 The largest changed source file remains 1,410 lines. `git diff --check` passes.
+
+## Round 2 — 2026-09-26
+
+Read the lane prompt, this report, and both complete round-1 blind reviews
+(Astra READY; Grok READY WITH CHANGES). Accepted Grok's shaped-page pricing
+finding and device mutation gap, and covered Astra's nonblocking mutable-list
+test gap. This section is the current qualification; earlier rounds remain
+historical records.
+
+### Integration and scope
+
+Fetched origin and merged the specifically requested main commit `992cec75c`
+before changing the implementation. Merge commit: `58823c9cb`. The sole conflict
+was `JOURNAL.md`; both histories were retained verbatim. Relative to its two
+parents, the merge adds 483 and 94 journal lines respectively and removes none.
+The merged tree passed **146 targeted tests** before the round-2 changes.
+
+The scoped `llp-orient` context remains LLP 3000 §4 (the independent fence),
+LLP 3000.019 §3.2 (expression extrema), LLP 3000.013 §5.1 and §14.4 (coverage,
+meters and scale classes), and LLP 3000.001's device coverage frames. Read the
+current language card as well as the governing design. The ordinary column
+encoding/seek, source authorization, scalar completeness, and fixed wasm
+budget remain unchanged. No new design document or approval was needed.
+
+### File-by-file changes
+
+Paths are relative to `snapback4/`.
+
+- `crates/snapback4/src/scale/collections.rs`: extend the existing collection
+  census to bound a list initialized as `[]` by its pushes. A page's `take`,
+  derived-array maximum, literal range, or list-argument maximum bounds each
+  enclosing loop. Nested bounds multiply; multiple pushes and separate loops
+  add, using saturating arithmetic. Count repetitions since the list's own
+  initialization, so a list initialized inside an outer loop starts afresh.
+  Immutable aliases retain the bound. Any reassignment, open push domain,
+  escaping initialization scope, or pushed nonempty initial list retains the
+  step-ceiling fallback. Implicit repeated expression work is conservative.
+  The change is local to this file: `scale.rs`, including its control-flow
+  walk, is untouched.
+- `crates/snapback4/tests/scale_extremum_expressions.rs`: three regressions
+  compile and execute ten query forms and compare the certificate with actual
+  examined work. Grok's exact shaped page and its unshaped twin each certify
+  **Constant / 5 examinations**, execute five examinations, and return **9**.
+  The other cases exercise derived shapes, bounded list arguments, nested and
+  sequential loops, two pushes per iteration, per-iteration list initialization,
+  aliases, reassignment, nonempty append, and an open range.
+- `crates/snapback4-device/tests/extremum_expressions.rs`: two regressions,
+  memory and SQLite, require a point read of online-only `secrets` inside
+  `min`/`max` to withhold the result: `null`, `complete: false`, with no meter
+  cut. They exercise `?? 0` inside the projection and `?? -1` outside the
+  aggregate, before and after reopen. The same device's column extremum stays
+  complete, proving the source is held. A fully synced `secrets` control agrees
+  with the server at 9.
+- `JOURNAL.md`: one appended, dated round-2 entry.
+- `reports/20260926-p2-extremum-expressions.md`: this round-2 report.
+
+Implementation commits: `77be1ca12` (pricing) and `28a789307` (device tests).
+Every round-2 commit, including the merge and report, carries the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer.
+
+### Forms and regression evidence
+
+No new Quarry spelling is introduced; earlier supported forms remain intact.
+The newly qualified cases include:
+
+```quarry
+rows = t where .target = 'g' first 2 by .id { n, target }
+return min(rows, secrets[.target].n ?? 0)
+```
+
+The unshaped twin omits `{ n, target }`. Both now receive the same allowance
+of five examinations, instead of 1,000,003 for the shaped form.
+
+```quarry
+rows = []
+for i in range(0, 2):
+  for j in range(0, 3):
+    rows = rows + [i]
+    rows = rows + [j]
+copy = rows
+return max(copy, secrets['g'].n ?? 0)
+```
+
+This executes and certifies 12 projection reads. A list-argument loop with
+maximum four and two pushes prices eight; a two-item derived shape prices two;
+sequential loops of two and three price five. Reinitializing a three-item list
+inside two outer iterations prices six, rather than multiplying twice.
+
+```quarry
+rows = []
+rows = [1, 2]
+copy = rows
+return max(copy, secrets['g'].n ?? 0)
+```
+
+This retains the 1,000,000-step fallback for projection work. Appending to a
+nonempty list and pushing from `range(0, n)` retain it too, including aliases;
+the tests assert that the certificates never underprice actual reads.
+
+For `return min(t, secrets[.target].n ?? 0)`, a device holding `t` but lacking
+online-only `secrets` returns null and incomplete. With both tables synced,
+server and device return 9 and complete. Max and an outer default are covered.
+
+The five added tests are:
+
+1. `shaped_page_prices_the_same_five_examinations_as_its_unshaped_twin`.
+2. `bounded_pushes_multiply_nested_iterations_and_count_each_push`.
+3. `reassigned_and_open_pushed_lists_keep_the_step_ceiling_even_through_aliases`.
+4. `expression_extrema_memory_unheld_projection_is_unavailable`.
+5. `expression_extrema_sqlite_unheld_projection_is_unavailable`.
+
+Actual mutation trials, each restored before qualification:
+
+| Mutation | Assertion failure (exit 101) |
+| --- | --- |
+| Restore round-1 collection pricing | Shaped page: 1,000,003 instead of 5 examinations. |
+| Skip `unknown_fact` in the ordinary point read when the aggregate's `$filter` row is bound | Both new device tests return `Int(0), complete: true` instead of null/incomplete. |
+| Remove assignment invalidation from the collection census | Reassigned-list alias prices zero rather than the 1,000,000 fallback. |
+
+The restored affected run passes **151 tests**: existing scale 20, expression
+scale 9, language extrema 11, language components 8, device extrema 6, device
+components 10, durable fixture compatibility 1, and the complete guide 86.
+The round-1 frozen-fixture repair remains intact. No existing assertion, fixture
+snapshot, sample count, skip or meter was weakened.
+
+### Wasm and final qualification
+
+The single full-suite rebuild measures **2,024,130 B raw / 581,998 B gzip**,
+identical to round 1. Against the unchanged **582,094 B** gzip budget, headroom
+is **96 B**, with **zero bytes over**. Round 2 changes no wasm runtime code.
+Toolchain: Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt, Node 24.13.1,
+Bun 1.3.14. `bun install --frozen-lockfile` succeeded without changes.
+
+Qualification implementation checkpoint: `28a789307`. The full suite was run
+exactly once, with the implementation fixed throughout:
+
+```sh
+env -u FORCE_COLOR CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 \
+  CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 \
+  SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 \
+  bash scripts/test.sh
+```
+
+Exact `scripts/test.sh` result, **exit 0**:
+
+```text
+== 0 failure(s) in 3224 s
+```
+
+**Failures: none — ours, baseline, or environmental.** No repair or second
+full run was needed. The Rust phase passed **3,600 tests**, with **19 existing
+ignores**; the docs-budget phase also reran one passing guide assertion.
+Fixture wrappers passed **9/9**. Ordinary clients passed **2,215**, with zero
+failures and **10 existing skips**. All **78 model checks** passed, including
+the two 5,000-sequence session models and the 3,000-interleaving online model.
+Workspace/wasm/package builds, all typechecks, docs budget, release guard,
+and chat schema checks passed. `git diff --check` passes.
+
+### Deviations and open problems
+
+No open round-2 problem or surviving named review mutation. All round-0 and
+round-1 regression tests remain green. No known failure needs a reproduction.
+
+No scope or design deviation in round 2. No push or publication, budget increase,
+runtime meter change, authorization/disclosure relaxation, or change to the
+separately maintained scale control-flow walk. No source file approaches the
+1,500-line limit in this delta; the largest round-2 source file has 177 lines.
+The report and journal are the only post-qualification edits.
+
+Logs: `/tmp/lane-p2-r2-merged-tests.log`,
+`/tmp/lane-p2-r2-regressions.log`, `/tmp/lane-p2-r2-final-affected.log`,
+`/tmp/lane-p2-r2-mutant-shaped.log`, `/tmp/lane-p2-r2-mutant-unheld.log`,
+`/tmp/lane-p2-r2-mutant-reassigned.log`, and `/tmp/lane-p2-r2-suite.log`.
