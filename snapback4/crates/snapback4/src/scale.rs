@@ -287,12 +287,13 @@ fn steps(branch: &[Stmt], name: &str) -> bool {
     matches!(branch.last(), Some(Stmt::Assign { name: target, .. }) if target == name)
 }
 
-/// A value the interpreter computes from literals alone: a literal, or `+`, `-` and
-/// `*` of integers within Quarry's range (`engine::runner::binary`); an overflow,
-/// which fails the call, stays unknown.
+/// A value the interpreter computes from literals alone: a literal, or unary `-`,
+/// `+`, `-` and `*` of integers within Quarry's range (`engine::runner`); an
+/// overflow, which fails the call, stays unknown.
 fn literal(expr: &Expr) -> Option<Value> {
     match expr {
         Expr::Literal(value) => Some(value.clone()),
+        Expr::Unary { op: UnaryOp::Neg, value } => match literal(value)? { Value::Int(n) => Value::int(-i128::from(n)).ok(), _ => None },
         Expr::Binary { op: op @ (BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul), left, right } => {
             let (Value::Int(a), Value::Int(b)) = (literal(left)?, literal(right)?) else { return None };
             let (a, b) = (i128::from(a), i128::from(b));

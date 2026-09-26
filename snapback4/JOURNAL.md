@@ -63705,3 +63705,10 @@ a false `constant`, also inside a helper's block, a merge lane's setup and a
 where its arm ends, and `steps()` only recognizes the final assignment. Two
 regressions pin the self-negation, one with a planner-variant scan. A passing
 `2 * 3 = 6` kills the survivor that read `*` as `+`.
+
+Grok's review of round 2 found the same High, and two more things. Unary minus
+now folds (`require -1 > 0` never passes). An `or` with a true side holds
+whatever the other side is, so its arm runs in both presence states. Tests
+pin `true or assignee != null` and `assignee != null or true`. The first
+lowers so the presence test never enters the `Test` at all. The second is
+the one that kills the mutation taking the other side's facts.
