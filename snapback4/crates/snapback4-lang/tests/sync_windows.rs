@@ -180,6 +180,39 @@ fn online_only_is_not_a_query_modifier_in_the_current_language() {
 }
 
 #[test]
+fn invalid_horizons_return_e_sync_without_advice_or_panics() {
+    let source = r#"
+table members:
+  house: int
+  room: int
+  principal: principal
+  unique house, room, principal
+  cap 50 by house, room
+  read <- exists members[.house, .room, viewer]
+  sync
+
+table messages:
+  house: int
+  room: int
+  at: time
+  by bad: at
+  read <- exists members[.house, .room, viewer]
+  sync to members[.house, .room] last 10 by bad
+
+query thread(c: cursor ?):
+  return messages where .house = 1 and .room = 2 first 2 by .at after c
+"#;
+    // Short, wrong-prefix and zero-length horizons all belong to E_SYNC.
+    for source in [source.to_string(), source.replace("by bad: at", "by bad: room, house, at, id"),
+        source.replace("by bad: at", "by bad: house, room, at, id").replace("last 10", "last 0")] {
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert!(!bound.diagnostics.is_empty());
+        assert!(bound.diagnostics.iter().all(|d| d.code == "E_SYNC" && d.site.file == "schema.q" && d.site.line > 0), "{:?}", bound.diagnostics);
+        assert!(!bound.notes.iter().any(|n| n.code == "N_SYNC_ORDER"), "{:?}", bound.notes);
+    }
+}
+
+#[test]
 fn legacy_implicit_id_index_gets_a_repair_that_selects_the_window_index() {
     let source = SOURCE.replace("  at: time", "  by byLegacy: conversationId, at, ordinal\n  at: time").replace(" after c", "");
     let bound = bind(&source);

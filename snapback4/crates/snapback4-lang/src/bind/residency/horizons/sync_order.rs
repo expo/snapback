@@ -20,7 +20,13 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             let Some(window) = &sync.horizon else { continue; };
             if scan.index == window.by && scan.order == ir::Order::Desc { continue; }
             let Some(index) = table.index(&window.by).filter(|index| index.is_plain()) else { continue; };
-            let prefix = match &sync.audience { Audience::Public => 0, Audience::Column(_) => 1, Audience::Target { prefix, .. } => prefix.len() };
+            let audience_columns = match &sync.audience { Audience::Public => Vec::new(), Audience::Column(column) => vec![column.clone()], Audience::Target { prefix, .. } => prefix.clone() };
+            let prefix = audience_columns.len();
+            // Schema validation has already refused an invalid horizon. This
+            // advisory pass still runs, so do not index or advise from it.
+            let index_columns = index.columns();
+            let Some(index_prefix) = index_columns.get(..prefix) else { continue; };
+            if index_prefix != audience_columns.as_slice() || window.last == 0 { continue; }
             let columns = ordered_columns(index, prefix);
             let window_order = columns.join(", ");
             let query_order = ordered_columns(query_index, scan.prefix.len()).join(", ");
@@ -36,11 +42,13 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             // A lane has only part of a merge's predicate/cursor/projection.
             // Never present that fragment as a replacement for the authored read.
             let mut rewrite = format!("The window uses {window_order}, newest first{}; preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context", describe(&window.by, index));
-            let audience_columns = index.columns()[..prefix].to_vec();
             let rule_pins = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
             let cursor_index = index.uses_column("id") || index.unique
                 && index.columns().iter().all(|column| table.columns.get(column).is_some_and(|ty| !ty.is_optional()));
             if scan.merge_site.is_none()
+                // A page needs an unpinned component; a point replacement
+                // would change the query's result type.
+                && prefix < index_columns.len()
                 && rule_pins.iter().all(|column| audience_columns.contains(column))
                 && (scan.after.is_none() || cursor_index)
                 && let Some(source) = bound.page_sources.get(&scan.site)

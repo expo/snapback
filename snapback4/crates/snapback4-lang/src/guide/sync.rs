@@ -91,6 +91,8 @@ the page covers the whole group, or the query already reads newest first on
 the same ordered columns. A cursorless partial page in another order gets
 words: changing its order could select different rows. After changing the
 order, restart pagination; the full traversal keeps the same rows.
+A window index fully pinned by its audience also gets words: its point read
+would change the page's result type.
 A range can move to a filter only with the same meaning;
 outer-row endpoints, generated membership lanes and merges get words naming
 the window order and index instead of a paste-ready replacement. This also

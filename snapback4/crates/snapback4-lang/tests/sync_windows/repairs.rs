@@ -306,6 +306,43 @@ fn advice_falls_back_if_an_index_or_cap_cannot_preserve_continuation() {
 }
 
 #[test]
+fn fully_pinned_window_gets_an_exact_page_or_words() {
+    let source = r#"
+table messages:
+  owner: principal
+  at: time
+  unique byOwner: owner
+  by byOther: owner, at, id
+  read <- .owner = viewer
+  sync to .owner last 100 by byOwner
+
+query thread(c: cursor ?):
+  return messages[viewer] first 2 by byOther after c
+"#;
+    let run = |source: &str| {
+        let b = bind(source);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed([("a", "alice"), ("b", "bob")].map(|(name, owner)| ("messages".into(), object([
+            ("id", id(name)), ("owner", id(owner)), ("at", Value::Int(10)),
+        ])))).unwrap();
+        e.query("thread", Context::new("alice", [("c".into(), Value::Null)].into())).unwrap()
+    };
+    let before = run(source);
+    assert!(before.complete);
+    assert_eq!(ids(before.data.as_array().unwrap()), ["a"]);
+    let bound = bind(source);
+    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
+    if bound.notes[0].rewrite.contains('`') {
+        // Apply whatever the diagnostic prints, including its declarations;
+        // the old repair fails here with E_QUARRY_TYPE (every key pinned).
+        let repaired = apply_repair(source, "messages[viewer] first 2 by byOther after c");
+        let after = run(&repaired);
+        assert!(after.complete);
+        assert_eq!(before.data, after.data);
+    } else { words_only(source); }
+}
+
+#[test]
 fn outer_threshold_stays_outer_and_never_becomes_a_candidate_filter() {
     let source = r#"
 table messages:
