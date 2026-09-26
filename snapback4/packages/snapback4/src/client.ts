@@ -164,16 +164,20 @@ export function createClient(options: ClientOptions): Client {
   const watches = new Map<string, Watch>();
   const ephemeralReads = new EphemeralReads(aborter.signal);
   let backend: BackendJson | undefined;
-  let backendLoaded = false, ephemeralAdvertised = false;
+  let backendLoaded = false, ephemeralAdvertised = false, schemaLoading = false;
   const ephemeralTables = (op: Query<unknown, unknown>) => backend
     ? backend.schema.operations?.[op.name]?.ephemeralReads ?? [] : op.ephemeralReads ?? [];
   const hasEphemeral = () => backend ? Object.values(backend.schema.tables).some(table => table.ephemeral)
     : ephemeralAdvertised || [...watches.values()].some(watch => ephemeralTables(watch.op).length);
   async function refreshBackend(minimumGeneration: number | undefined) {
+    if (refreshing) await refreshing;
+    if (closed || storeRefusal || !credentials || !watches.size) return false;
     const revision = credentialRevision;
     const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal });
-    const next = await response.json() as BackendJson;
-    if (closed || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
+    const next = await response.json() as BackendJson & { denied?: Refusal };
+    if (closed || storeRefusal || !watches.size) return false;
+    if (await obsoleteRefusal(next.denied, revision)) return false;
+    if (!credentials || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
     if (minimumGeneration !== undefined && (!Number.isSafeInteger(next.generation) || next.generation < minimumGeneration)) return false;
     const firstBackend = !backend;
     // @ref LLP 3000.017#3.3 — capability installation retires pre-discovery answers, including in-flight reads.
@@ -193,14 +197,33 @@ export function createClient(options: ClientOptions): Client {
   async function loadBackend(minimumGeneration = generation) {
     // Discovery failures and the adoption publication window retry here, so a
     // held /changes request cannot postpone installation for its whole wait.
-    let backoff = 25;
-    while (!closed && !storeRefusal && credentials && watches.size > 0) {
-      try { backendLoaded = await refreshBackend(minimumGeneration); } catch { backendLoaded = false; }
-      if (backendLoaded) return true;
-      await waitForCaller(new Promise(resolve => setTimeout(resolve, backoff)), aborter.signal);
-      backoff = Math.min(backoff * 2, 500);
+    // Until the interests are known, query polling keeps durable changes live.
+    // These answers cannot claim freshness while /changes is suspended.
+    schemaLoading = true;
+    queryEpoch++;
+    for (const watch of watches.values()) {
+      watch.reset("data" in watch.snapshot ? { ...watch.snapshot, fresh: false } : { loading: true });
+      scheduleExpiry(watch, null); notify(watch);
+      void refresh(watch);
     }
-    return false;
+    const fallback = setInterval(() => {
+      if (closed || storeRefusal || !credentials || !watches.size) { clearInterval(fallback); return; }
+      for (const watch of watches.values()) void refresh(watch);
+    }, 500);
+    try {
+      let backoff = 25;
+      while (!closed && !storeRefusal && credentials && watches.size > 0) {
+        try { backendLoaded = await waitForCaller(refreshBackend(minimumGeneration), aborter.signal) === true; } catch { backendLoaded = false; }
+        if (backendLoaded) return true;
+        await waitForCaller(new Promise(resolve => setTimeout(resolve, backoff)), aborter.signal);
+        backoff = Math.min(backoff * 2, 500);
+      }
+      return false;
+    } finally {
+      clearInterval(fallback);
+      schemaLoading = false;
+      if (backendLoaded && !closed && !storeRefusal && credentials) for (const watch of watches.values()) void refresh(watch);
+    }
   }
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
@@ -487,7 +510,7 @@ export function createClient(options: ClientOptions): Client {
     if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    return { ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
   }
 
   const currentRead = (result: QueryResult<unknown>, watch?: Watch) => result.epoch === queryEpoch && result.seq >= minimumReadSeq
@@ -648,15 +671,16 @@ export function createClient(options: ClientOptions): Client {
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
           queryEpoch++;
+          for (const watch of watches.values()) {
+            watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch);
+          }
           if ((backend || ephemeralAdvertised) && !await loadBackend(json.generation)) continue;
         }
         generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
-          if (changedGeneration) for (const watch of watches.values()) watch.reset({ loading: true });
           for (const watch of watches.values()) {
-            if (changedGeneration) notify(watch);
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
