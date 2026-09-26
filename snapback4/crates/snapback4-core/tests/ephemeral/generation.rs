@@ -126,6 +126,7 @@ fn ring_filters_interests_and_overflow_covers_the_interest() {
 #[test]
 fn ring_gap_invalidates_every_requested_name_including_a_removed_table() {
     let snapshot = snapback4_core::engine::ephemeral::Snapshot {
+        identity: "store".into(), generation: 1,
         version: snapback4_core::schema::ephemeral::Version { epoch: 300, incarnation: "current".into() },
         ring: [(300, vec!["typing".into()])].into(), tables: vec!["typing".into()],
     };

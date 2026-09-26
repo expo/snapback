@@ -61966,3 +61966,10 @@ attempt to seed a serve host through the dev door, corrected to a core commit
 and the production notification helper. Neither is a claimed inherited defect.
 The maintenance lease sweep retains its notification through the helper even
 when custody changes do not advance the row-log sequence.
+
+The first full-suite artifact build found one manually constructed core Snapshot
+fixture missing the newly required identity/generation fields. Added them without
+changing its expected invalidations, and strengthened both paused-publisher tests
+to compare identity/generation as well as version/ring. All 15 core ephemeral
+tests and both paused-commit tests pass. This was an introduced test-compilation
+omission, not a pre-existing failure; the final full suite is rerun after it.

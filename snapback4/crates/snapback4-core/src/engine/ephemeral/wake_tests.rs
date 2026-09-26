@@ -94,6 +94,9 @@ fn paused_publish(adopt: bool) {
     let engine = competitor.join().unwrap();
     let final_hub = hub.snapshot().unwrap();
     let final_wake = wake.lock().unwrap().clone().unwrap();
+    assert_eq!(final_wake.identity, final_hub.identity);
+    assert_eq!(final_wake.generation, engine.generation());
+    assert_eq!(final_wake.generation, final_hub.generation);
     assert_eq!(final_wake.version, final_hub.version);
     assert_eq!(final_wake.ring, final_hub.ring);
     let versions = published.lock().unwrap();
