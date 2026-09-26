@@ -106,3 +106,7 @@ Combined **1,340 B gzip saved**. No new representation, format or algorithm. Mat
 ## Candidate 3: one predicate walker
 
 571,850 → **571,669 B gzip** (1,976,372 → **1,975,906 B raw**): **181 B gzip saved**. Shared evaluation takes an optional member for comparison operands. Bare boolean fields still refer to the source; null fallback, operator interpretation, short-circuit order and step pricing remain unchanged. Serialization is untouched.
+
+## Candidate 5: text and dependency audit
+
+571,669 → **571,525 B gzip** (1,975,906 → **1,975,265 B raw**): **144 B gzip saved**. `07-dependencies.txt` is the normal web graph: no lang crate. `07-includes.txt` and `07-test-gates.txt` record fixture includes and their test gates. No test/fixture/guide/explanation symbols survive. Shared RuntimeError still contained action/route classification and the structural-admission rewrite despite their producers being excluded; match-arm cfgs now follow those producers. Already-serialized server refusals use Refusal, not RuntimeError, and are unchanged. All emitted web error rewrites remain.

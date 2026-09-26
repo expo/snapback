@@ -61701,3 +61701,13 @@ boolean fields, missing-as-null behavior, short circuiting, comparisons and
 predicate step charges retain their existing semantics. Same build:
 **1,975,906 B raw / 571,669 B gzip**, **181 B gzip saved** from 571,850.
 No predicate, schema or wire serialization changes.
+
+## 2026-09-25 — device diet: server-only diagnostic branches
+
+The normal web dependency graph contains no `snapback4-lang`; every core/device
+fixture include is inside a test-gated module, and the symbol census contains
+no test, fixture, guide-card or diagnostic-explanation module. Runtime action
+and route classification/guide branches now share their producers' SQLite
+gate; the structural-fanout rewrite shares the existing web admission gate.
+Device runtime diagnostics and received serialized refusal envelopes stay
+intact. Same build: **1,975,265 B raw / 571,525 B gzip**, **144 B gzip saved**.

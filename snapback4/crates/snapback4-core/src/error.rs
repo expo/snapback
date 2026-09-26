@@ -196,7 +196,9 @@ impl RuntimeError {
         match self {
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", .. } => "input",
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
@@ -250,12 +252,15 @@ impl RuntimeError {
                 refusal.message = format!("the program refused with {code}");
                 refusal.guide = Some("programs".into());
             }
+            #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
             Self::Structural { code: "E_STRUCTURAL_FANOUT", message } => {
                 refusal.message = message.clone();
                 refusal.rewrite = Some("iterate the original capped group, read the page in a query, or use a job sweep; `snapback4 check` locates the source and names the bound".into());
                 refusal.guide = Some("programs".into());
             }
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => refusal.guide = Some("routes".into()),
             Self::Structural { code: "E_STORE_RESTORE" | "E_SCHEMA_CAPABILITY", .. } => refusal.guide = Some("sync".into()),
             Self::Structural { code, message } if code.starts_with("E_TIMELINE_") => {
