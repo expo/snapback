@@ -1,3 +1,5 @@
+import { armReadExpiry, correctReadExpiries, type ReadDeadlines } from "./read-expiry.ts";
+import { bindWatchPeek, endLingering, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
@@ -31,7 +33,7 @@ import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
 import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
-import type { Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
@@ -239,7 +241,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
     if (closed || (!revised && Math.abs(shift) < 10)) return;
-    for (const watch of watches.values()) void rerun(watch);
+    sweepExpiries();
     void media?.reconcile().catch(() => {});
     scheduleRefresh();
   });
@@ -263,6 +265,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     identityChecked = false;
     seq = 0;
     lastSyncAt = 0;
+    endLingering(watches.values());
     answers.clear(watches.values());
     // Finish invalidating every answer before invoking application callbacks.
     const deliver = () => {
@@ -274,8 +277,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     if (delivery) delivery.push(deliver); else deliver();
   }
-  function invalidateAnswers(delivery: (() => void)[] = []) {
-    answers.clear(watches.values());
+  function invalidateAnswers(delivery: (() => void)[], operation: string) {
+    answers.committed(watches.values(), operation);
     delivery.push(() => { for (const watch of watches.values()) { notify(watch); void rerun(watch); } });
     return delivery;
   }
@@ -314,7 +317,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       observed = true;
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery, String(request.op));
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
         delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
@@ -387,6 +390,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     endingSession = work;
     void work.catch(() => { if (endingSession === work) endingSession = undefined; });
     if (!sessionDead) {
+      endLingering(watches.values());
       sessionDead = true; holds.clear();
       session = null;
       rotating = false;
@@ -428,6 +432,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const expectedPrincipal = session.principal;
     rotating = true;
     credentialRevision += 1;
+    endLingering(watches.values());
+    for (const watch of watches.values()) if (watch.keep) watch.reset({ loading: true });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
     let retired = false;
@@ -487,6 +493,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return refreshed;
     })();
     refreshing = work;
+    for (const watch of watches.values()) if (watch.keep) notify(watch);
     void work.finally(() => {
       rotating = false;
       if (refreshing === work) refreshing = null;
@@ -896,8 +903,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
-      if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }
-      void rerun(watch);
+      if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+      return () => {
+        if (watches.get(watch.key) !== watch) return;
+        if (reset) notify(watch);
+        void rerun(watch);
+      };
     });
   }
 
@@ -911,30 +922,25 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
-    if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-    watch.expiryTimer = null;
-    if ((nextExpiry == null && serverExpiry == null) || closed) return;
-    const delay = Math.min(nextExpiry == null ? Infinity : clock.deviceDelay(nextExpiry), serverExpiry == null ? Infinity : clock.serverDelay(serverExpiry), 2_147_483_647);
-    watch.expiryTimer = setTimeout(() => {
-      watch.expiryTimer = null;
-      if (watches.get(watch.key) !== watch) return;
-      const localDue = nextExpiry != null && clock.deviceDelay(nextExpiry) === 0;
-      const serverDue = serverExpiry != null && clock.serverDelay(serverExpiry) === 0;
-      if (!localDue && !serverDue) { scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup); return; }
-      // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before
-      // asynchronous recovery, including an already-running replacement.
-      const denied = unavailable();
-      if (denied || !localWakeup || serverDue) {
-        watch.reset(denied ? { denied } : { loading: true });
-        notify(watch);
-      } else {
-        // A remembered page survives its local wakeup. Its server deadline
-        // must still withdraw it if the local reobservation is slow.
-        scheduleExpiry(watch, null, serverExpiry, localWakeup);
-      }
-      void rerun(watch);
-    }, delay);
-    (watch.expiryTimer as { unref?: () => void }).unref?.();
+    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
+    armReadExpiry(watch, deadlines, clock,
+      () => !closed && watches.get(watch.key) === watch, sweepExpiries);
+  }
+
+  function sweepExpiries() {
+    correctReadExpiries(watches.values(), clock, withdrawExpiry,
+      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
+      watch => { if (watches.get(watch.key) === watch) void rerun(watch); });
+  }
+
+  function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
+    // @ref LLP 3000.018#3.2 — fence every displayed expiry, preserving newer memory and its cuts.
+    if (serverDue) answers.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
+    // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before asynchronous recovery.
+    const denied = unavailable(), reset = denied || !d.localWakeup || serverDue;
+    if (reset) watch.reset(denied ? { denied } : { loading: true });
+    else scheduleExpiry(watch, null, d.server, d.localWakeup); // A local wakeup preserves the server deadline.
+    return () => { if (reset && watches.get(watch.key) === watch) notify(watch); };
   }
 
   function armPresence(watch: Watch) {
@@ -961,7 +967,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.tables = tables;
-        scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+        if (!(watch.keep && "data" in watch.snapshot && "loading" in read)) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
         const denied = unavailable();
         watch.publish(denied ? { denied } : read);
         notify(watch);
@@ -974,14 +980,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   async function rerun(watch: Watch) {
     if (closed) return;
+    if (watch.keep) { watch.reload(); notify(watch); }
     if (watch.running) {
       watch.dirty = true;
       return;
     }
     watch.running = true;
+    const resetVersion = watch.resetVersion;
     try {
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
-      if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
+      if (revision !== incarnation || authority !== answers.revision || (watch.keep && resetVersion !== watch.resetVersion)) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       ephemeralReads.incomplete(watch, "data" in read && !read.complete);
@@ -990,7 +998,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
       if (served) watch.presenceEvery = after;
       armPresence(watch);
-      scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+      if (!(watch.keep && "data" in watch.snapshot && "loading" in read)) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
       if (watch.snapshot !== read) {
         const denied = unavailable(); // Rule 1: immediately before notifying observers.
         watch.publish(denied ? { denied } : read);
@@ -1173,44 +1181,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if ((result.incarnation === incarnation && result.authority === answers.revision) || closed) return result.read;
       }
     },
-    observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
-      const key = `${op.name}:${JSON.stringify(args)}`;
-      let watch = watches.get(key);
-      if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
-        watches.set(key, watch);
-        watchEphemeral(watch);
-        void rerun(watch);
-      }
-      const own = watch;
-      const mine = new Set<() => void>();
-      return {
-        getSnapshot: () => own.read(unavailable()) as Read<R>,
-        subscribe(notifyMe) {
-          mine.add(notifyMe);
-          own.subscribers.add(notifyMe);
-          if (watches.get(own.key) !== own) {
-            watches.set(own.key, own);
-            watchEphemeral(own);
-            void rerun(own);
-          }
-          return () => {
-            mine.delete(notifyMe);
-            own.subscribers.delete(notifyMe);
-          };
-        },
-        close() {
-          for (const s of mine) own.subscribers.delete(s);
-          if (own.subscribers.size === 0) {
-            watches.delete(own.key);
-            ephemeralReads.remove(own);
-            if (own.expiryTimer) clearTimeout(own.expiryTimer);
-            own.expiryTimer = null;
-            if (own.presenceRefresh) clearTimeout(own.presenceRefresh);
-            own.presenceRefresh = null;
-          }
-        },
-      };
+    observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      const keep = options?.keep === true;
+      const key = `${keep ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`;
+      return observeWatch(watches, key,
+        () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation }),
+        watch => { watchEphemeral(watch); void rerun(watch); },
+        watch => ephemeralReads.remove(watch), unavailable, false);
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
@@ -1381,6 +1358,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closing) return closing;
       closed = true; holds.clear();
       pending.notify(); pending.clear();
+      endLingering(watches.values());
       closingResponses.begin();
       stopRefresh();
       stopHost?.();
@@ -1471,6 +1449,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     scheduleRefresh();
   };
   progress.bind(client);
+  bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) await start();

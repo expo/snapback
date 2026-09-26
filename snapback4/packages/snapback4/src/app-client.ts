@@ -1,9 +1,11 @@
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
-import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
+import type { ObserveOptions, Client, Observed, Query, Read, Refusal } from "./contract.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
+import { peekObservation, registerObservationPeek } from "./observe-watch.ts";
+import { answerIdentity } from "./read-observation.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
@@ -11,6 +13,7 @@ import { mintId } from "./client.ts";
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
   let active = true;
   const valid = () => active && validScope();
+  const approved = new WeakSet<object>();
   const cleanups = new Set<() => void>(), invalidations = new Set<() => void>();
   const notify = (listener: () => void) => { try { listener(); } catch (error) { console.error("snapback4 client listener:", error); } };
   const refusal = async (): Promise<Refusal | undefined> => {
@@ -50,9 +53,10 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const read = await raw.query(op, args);
       return valid() ? read : { denied: why() };
     },
-    observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
-      let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
-      let snapshot: Read<R> = { loading: true };
+    observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false, opening = true;
+      const loading: Read<R> = { loading: true };
+      let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
       let refused: Read<R> | undefined;
       const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
@@ -60,22 +64,37 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const detach = () => { stop?.(); source?.close(); source = undefined; stop = undefined; };
       cleanups.add(detach); invalidations.add(emit);
       const refresh = async () => {
+        // @ref LLP 3000.019#3.3 — withdrawal cannot wait for storage; only data publication needs authority.
+        const read = source?.getSnapshot();
+        if (!closed && read && ("loading" in read || "denied" in read)) {
+          snapshot = valid() ? read : denied();
+          emit();
+          return;
+        }
+        if (!closed && read && "data" in snapshot) {
+          // The source now owns the replacement's deadline. Retire the superseded
+          // answer before storage can wait past its deadline; staleness keeps identity.
+          snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read : loading) : denied();
+          emit();
+        }
         const refused = await refusal();
         if (closed) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
+        if ("data" in snapshot) approved.add(answerIdentity(snapshot));
         emit();
       };
       void refusal().then(refused => {
         if (closed) return;
+        opening = false;
         if (refused) { snapshot = { denied: refused }; emit(); return; }
         if (valid()) {
-          source = raw.observe(op, args);
+          source = raw.observe(op, args, options);
           stop = source.subscribe(() => { void refresh().catch(() => {}); });
         }
         return refresh();
       }).catch(() => { snapshot = denied(); emit(); });
       return {
-        getSnapshot: () => valid() ? snapshot : denied(),
+        getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading : snapshot) : denied(),
         subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
@@ -144,6 +163,13 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     },
   };
   guardAcquisition(client, raw, valid);
+  // Reuse the live answer this facade authorized, including freshness-only copies.
+  // A new answer still waits for authority; the weak identity retains no answer.
+  registerObservationPeek(client, (op, args, options) => {
+    if (!valid()) return undefined;
+    const read = peekObservation(raw, op, args, options);
+    return read && (!("data" in read) || approved.has(answerIdentity(read))) ? read : undefined;
+  });
   // LocalClient's existing runtime helper also crosses the data boundary.
   const local = raw as Client & { sync?: () => Promise<void> };
   if (local.sync) Object.assign(client, { async sync() { if (!await refusal()) await local.sync!(); } });

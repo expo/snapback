@@ -53,13 +53,34 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
-Online observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
-A local observation may keep its previous answer with `fresh: false` and `since`
+By default, online observations withdraw stale answers, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+By default, a local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
 A ready list read always carries an array; an absent point can still be null.
 `usePage` returns `items: []` while its first page is loading; earlier pages
 remain visible while a later page is unavailable.
+
+For screens that must not unmount on a transient reload, opt in with
+`useQuery(op, args, { keep: true })` or `usePage(op, args, { keep: true })`.
+Both clients keep the last published answer during loading with `fresh: false`
+and its `since`; a new answer or refusal replaces it. A kept answer may still
+show rows a revocation withdrew until the re-read lands. This is an application
+presentation choice, not evidence that the rows remain authorized.
+`client.observe(op, args, { keep: true })` is the same option without React.
+With `keep: true`, a watch lingers for 30 seconds after its last subscriber
+leaves. It keeps its live subscription, expiry timers and place in every reset,
+invalidation, ephemeral adoption and schema installation. A new opted-in
+subscriber with the same operation, arguments, viewer and store incarnation
+joins the watch's current snapshot, with its `fresh` and `since`. After 30 seconds
+without a subscriber it closes. Sign-out, credential or viewer changes, store
+replacement or adoption, and client `close` end a lingering watch at once.
+`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
+schema installation reset lingering watches like active ones before notifying.
+There is no separate store of retired answers. Lingering local watches re-run
+on commits; observation memory and normal background work continue while
+unmounted. Without `keep`, behavior is unchanged.
+
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups. While this device holds a predictable pending write to a table a query reads,

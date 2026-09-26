@@ -35,6 +35,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "test-online-custody", replacement: join(root, "packages/snapback4/src/app-online.ts") },
         { find: "test-online-dispatch", replacement: join(root, "packages/snapback4/src/online-dispatch.ts") },
+        { find: "test-guard-client", replacement: join(root, "packages/snapback4/src/app-client.ts") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
         { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
@@ -164,7 +165,7 @@ const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS
 const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
   .match(/function runsOf[\s\S]*?\nfunction useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
-import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
+import { StrictMode, act, useEffect, useLayoutEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
@@ -172,6 +173,7 @@ import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
 import { onlineCustody } from "test-online-custody";
 import { identifyDispatch } from "test-online-dispatch";
+import { guardClient } from "test-guard-client";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -959,6 +961,64 @@ const cases = {
     } finally { await unmount(); }
   },
 
+  async "keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset"() {
+    let phase = "ready", seq = 0, latest, reading = 0;
+    const held = [];
+    const { client: raw } = await onlineHooks({ url: "http://keep-hooks.test", persona: "alice", sessionStore: memorySessionStore(), fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      if (path === "/probe") return Response.json({ ok: true, store_id: "keep-hooks", seq });
+      if (path === "/m/write") return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: ++seq });
+      if (path === "/q/read") {
+        reading++;
+        if (phase === "held") await new Promise(resolve => held.push(resolve));
+        const { c } = JSON.parse(init.body).args;
+        return Response.json(phase === "denied" ? { denied: { code: "HIDDEN", family: "rule", message: "withdrawn" }, seq }
+          : { data: c === "b" ? ["c"] : c ? ["b"] : ["a"], next: c === "b" ? null : c ? "b" : "a", complete: true, seq });
+      }
+      throw Error(path);
+    } });
+    function Probe({ keep = true }) {
+      latest = { query: useQuery(query, {}, { keep }), page: usePage(query, {}, { keep }) };
+      return latest.query.loading || latest.page.read.loading ? h("span", null, "Loading")
+        : latest.query.denied || latest.page.read.denied ? h("span", null, "Refused") : h("input", { defaultValue: "draft" });
+    }
+    const settle = async condition => {
+      for (let n = 0; n < 200; n++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+        if (condition()) return;
+      }
+      throw Error("kept hooks did not settle: " + JSON.stringify({ phase, latest, held: held.length, reading }));
+    };
+    try {
+      await mount(h(Probe), raw); await settle(() => latest.page.hasMore);
+      const editor = host.querySelector("input"); editor.value = "unsent draft";
+      await act(async () => latest.page.loadMore()); await settle(() => latest.page.items.length === 2);
+      phase = "held";
+      await act(async () => latest.page.loadMore()); await settle(() => held.length > 0);
+      equal(latest.page.items, ["a", "b"], "ready pages stay while a new page loads");
+      check(host.querySelector("input") === editor && editor.value === "unsent draft", "load-more preserves the editor");
+      await act(async () => { await raw.mutate(mutation, {}); });
+      await settle(() => !latest.query.fresh && !latest.page.read.fresh);
+      equal(latest.page.items, ["a", "b"], "a mutation re-read keeps both pages");
+      check(!latest.query.loading && !latest.page.read.loading && Number.isFinite(latest.query.since), "kept metadata reaches both hooks");
+      check(host.querySelector("input") === editor && editor.value === "unsent draft", "re-read preserves the editor and draft");
+      phase = "ready"; await act(async () => held.splice(0).forEach(resolve => resolve()));
+      await settle(() => latest.page.items.length === 3 && latest.query.fresh);
+      phase = "denied"; await act(async () => { await raw.mutate(mutation, {}); });
+      await settle(() => latest.query.denied && latest.page.read.denied);
+      check(!host.querySelector("input"), "a refusal replaces kept data");
+      phase = "ready"; await act(async () => { await raw.mutate(mutation, {}); });
+      await settle(() => latest.page.read.data && latest.query.data);
+      phase = "held"; const before = reading;
+      await render(h(Probe, { keep: false }), raw); await settle(() => reading > before);
+      check(latest.query.loading && latest.page.read.loading, "turning keep off opens default watches");
+      phase = "ready"; await act(async () => held.splice(0).forEach(resolve => resolve()));
+      await render(h(Probe), raw); await settle(() => latest.query.data);
+      await act(async () => { await raw.signOut(); });
+      check(!latest.query.data && !latest.page.read.data, "sign-out clears both hooks");
+    } finally { held.splice(0).forEach(resolve => resolve()); await unmount(); await raw.close(); }
+  },
   async "online observations clear pages during fetches and on unavailable settlement, refusal and close"() {
     let phase = "ready", seq = 0, latest;
     const held = [];
@@ -1043,13 +1103,14 @@ const cases = {
       await unmount(); allClosed(client);
     }
   },
-  async "usePage discards an in-flight suffix and does not claim a ready combined read"() {
+  async "usePage keeps the ready prefix while replacing an in-flight suffix"() {
     const client = controlled(args => args.c == null ? ready(["a", "b"], "b") : { loading: true }); let latest;
     function Probe() { latest = usePage(query, {}); return null; }
     await mount(h(Probe), client);
     await act(async () => { latest.loadMore(); latest.loadMore(); });
     check(active(client).length === 2, "only one next page request at a time");
-    check("loading" in latest.read && !latest.hasMore, "unresolved suffix has no combined freshness claim");
+    equal(latest.read.data, ["a", "b"], "unresolved suffix keeps the ready prefix");
+    check(!latest.hasMore, "unresolved suffix admits no further request");
     const first = active(client)[0], obsolete = active(client)[1];
     await act(async () => first.set(ready(["z", "a"], "a")));
     check(obsolete.closes === 1, "pending old boundary is closed");
@@ -1058,6 +1119,35 @@ const cases = {
     await act(async () => active(client)[1].set(ready(["b", "c"], null, { fresh: false, since: 30 })));
     equal(latest.items, ["z", "a", "b", "c"], "replacement completes the contiguous range");
     check(!latest.read.fresh && latest.read.since === 30 && !latest.hasMore, "last page contributes freshness and end position");
+    await unmount(); allClosed(client);
+  },
+  async "usePage keeps loaded pages while another loads and withdraws them on a first-page reset"() {
+    const client = controlled(() => ({ loading: true })); let latest, mounts = 0;
+    function Content() { useEffect(() => { mounts++; }, []); return h("input", { defaultValue: "draft" }); }
+    function Probe() { latest = usePage(query, {}); return latest.read.loading ? null : h(Content); }
+    await mount(h(Probe), client);
+    check(latest.read.loading && latest.items.length === 0, "the first page starts loading");
+    const first = active(client)[0];
+    await act(async () => first.set(ready(["a"], "a", { fresh: false, since: 30, complete: false, cut: "words" })));
+    const input = host.querySelector("input"), mounted = mounts;
+    input.value = "unsent draft";
+    await act(async () => latest.loadMore());
+    equal(latest.read.data, ["a"], "a pending second page leaves the first ready");
+    check(host.querySelector("input") === input && input.value === "unsent draft" && mounts === mounted, "loading more preserves the mounted editor and draft");
+    const second = active(client)[1];
+    await act(async () => second.set(ready(["b"], "b")));
+    await act(async () => latest.loadMore());
+    equal(latest.read.data, ["a", "b"], "a pending third page keeps both loaded pages");
+    check(!latest.read.fresh && latest.read.since === 30 && !latest.read.complete && latest.read.cut === "words", "the prefix retains its freshness, completeness and cut");
+    const third = active(client)[2];
+    await act(async () => third.set({ denied: { code: "E_RULE", family: "rule", message: "revoked" } }));
+    check(latest.read.denied?.code === "E_RULE", "a later refusal is not hidden by the prefix");
+    await act(async () => first.set({ loading: true }));
+    check(latest.read.loading && latest.items.length === 0 && active(client).length === 1, "a first-page reset immediately discards every old page");
+    await act(async () => third.set(ready(["late"], null)));
+    check(latest.read.loading && latest.items.length === 0, "an old suffix cannot reappear after reset");
+    await act(async () => first.set(ready([], "empty")));
+    equal(latest.read.data, [], "an empty ready prefix also stays ready while the next page loads");
     await unmount(); allClosed(client);
   },
 };
@@ -1102,6 +1192,105 @@ cases["web sign-out reports completion only after durable clearing and offers re
   check(host.textContent.includes("Signed out") && host.textContent.includes("Continue as a guest"), "completion follows successful retry");
   await unmount();
 };
+
+for (const hook of ["useQuery", "usePage"]) for (const guarded of [false, true]) {
+  cases[hook + " lingering remount has data in its first committed render" + (guarded ? " through the app facade" : "")] = async () => {
+    let latest, queries = 0, commits = [];
+    const originalNow = performance.now;
+    let monotonic = originalNow.call(performance);
+    const raw = createClient({ url: "http://first-commit.test", persona: "alice", fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      if (path === "/q/read") { queries++; return Response.json({ data: ["secret"], complete: true, seq: 0 }); }
+      throw Error(path);
+    } });
+    const facade = guarded ? guardClient(raw, async () => true, () => true, () => ({ code: "ENDED", family: "auth", message: "ended" })) : null;
+    const client = facade?.client ?? raw;
+    function Probe() {
+      const value = hook === "useQuery" ? useQuery(query, {}, { keep: true }) : usePage(query, {}, { keep: true }).read;
+      latest = value;
+      useLayoutEffect(() => { commits.push({ read: value, html: host.innerHTML }); });
+      return value.loading ? h("span", null, "Loading") : h("input", { defaultValue: value.data?.[0] });
+    }
+    try {
+      await mount(h(Probe), client);
+      for (let n = 0; n < 200 && !latest.data; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      equal(latest.data, ["secret"], "initial query settled");
+      performance.now = () => monotonic;
+      await unmount();
+      const before = queries, snapshot = latest;
+      commits = [];
+      await mount(h(Probe), client);
+      equal(commits[0]?.read, snapshot, "first layout effect sees the lingering snapshot with unchanged metadata");
+      check(commits[0].html.includes('value="secret"') && !commits[0].html.includes("Loading"), "first committed DOM contains the editor");
+      check(commits.every(commit => !commit.read.loading), "subscription replay never commits loading either");
+      equal(queries, before, "remount joins the same live watch without another read");
+      await unmount();
+      monotonic += 30_000;
+      commits = [];
+      await mount(h(Probe), client);
+      check(commits[0]?.read.loading, "first commit at the exact linger cutoff starts loading, even before its timer fires");
+    } finally { performance.now = originalNow; await unmount(); facade?.fence()(); await raw.close(); }
+  };
+}
+
+for (const hook of ["useQuery", "usePage"]) {
+  cases[hook + " createApp remount first commits the lingering answer during a held re-read"] = async () => {
+    const url = "http://lingering-reread-" + hook + ".test", memory = memorySessionStore();
+    await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 7 * 86400000 }, memory);
+    let latest, queries = 0, commits = [], changed = false, holding = false;
+    const change = deferred(), replacement = deferred();
+    const app = createApp({ url, sessionStore: memory, fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/schema") return Response.json({ schema: { tables: {} }, programs: [] });
+      if (path === "/probe") return Response.json({ ok: true, principal: "alice" });
+      if (path === "/changes") {
+        if (!changed) { changed = true; return change.promise; }
+        return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      }
+      if (path === "/q/read") {
+        queries++;
+        if (holding) await replacement.promise;
+        return Response.json({ data: [holding ? "replacement" : "secret"], complete: true, tables: ["notes"], seq: holding ? 1 : 0 });
+      }
+      throw Error(path);
+    } });
+    const settle = async condition => {
+      for (let n = 0; n < 200; n++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+        if (condition()) return;
+      }
+      throw Error("lingering re-read did not settle: " + JSON.stringify({ latest, queries }));
+    };
+    function Probe() {
+      latest = hook === "useQuery" ? useQuery(query, {}, { keep: true }) : usePage(query, {}, { keep: true }).read;
+      useLayoutEffect(() => { commits.push({ read: latest, html: host.innerHTML }); });
+      return latest.loading ? h("span", null, "Loading") : h("input", { defaultValue: latest.data?.[0] });
+    }
+    try {
+      check((await app.ready).ok, "createApp restored authority");
+      await mount(h(Probe), app.client);
+      await settle(() => latest.data?.[0] === "secret" && latest.fresh);
+      await unmount();
+      holding = true;
+      change.resolve(Response.json({ tables: ["notes"], seq: 1 }));
+      await settle(() => queries >= 2);
+      const before = queries;
+      commits = [];
+      await mount(h(Probe), app.client);
+      equal(commits[0]?.read.data, ["secret"], "first commit keeps the previously authorized answer");
+      check(commits[0].read.fresh === false && Number.isFinite(commits[0].read.since), "first commit carries the new stale metadata");
+      check(commits[0].html.includes('value="secret"') && !commits[0].html.includes("Loading"), "the editor is in the first committed DOM");
+      check(commits.every(commit => !commit.read.loading), "StrictMode subscription replay never flashes loading");
+      equal(queries, before, "joining the running watch adds no duplicate read");
+      replacement.resolve();
+      await settle(() => latest.data?.[0] === "replacement");
+    } finally {
+      change.resolve(Response.json({ tables: [], seq: 1 })); replacement.resolve();
+      await unmount(); await app.close();
+    }
+  };
+}
 
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
   cases[name + " composer preserves edits, immediate failure and offline admission"] = async () => {

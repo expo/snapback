@@ -1,10 +1,20 @@
 import type { Read, Refusal } from "./contract.ts";
+import type { ReadDeadlines } from "./read-expiry.ts";
 
-/** Retention is opt-in for a local device fallback. Resets retire in-flight
+// @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
+const identities = new WeakMap<Read<unknown>, object>();
+export function answerIdentity(read: Read<unknown>): object { return identities.get(read) ?? read; }
+
+/** Default fallback retention and explicit application keep share one publication
+ * fence. Resets retire in-flight
  * publications; online responses must also pass their commit-sequence fence. */
 export class ReadObservation<T> {
+  constructor(readonly keep = false) {}
+
   snapshot: Read<T> = { loading: true };
   kept = false;
+  resetVersion = 0;
+  deadlines: ReadDeadlines | undefined;
   private since: number | undefined;
   private revision = 0;
 
@@ -15,12 +25,8 @@ export class ReadObservation<T> {
 
   async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
     { retain = false, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
-    if (retain && "data" in this.snapshot) {
-      this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: Math.min(this.since, Date.now()) }) };
-      this.kept = true;
-    } else {
-      this.publish({ loading: true });
-    }
+    if ((retain || this.keep) && "data" in this.snapshot) this.stale();
+    else this.publish({ loading: true });
     const revision = this.revision;
     notify();
     try {
@@ -38,6 +44,9 @@ export class ReadObservation<T> {
           result = await run();
           continue;
         }
+        // Acceptance may itself adopt an incarnation and synchronously reset
+        // this observation (or let a peer close it). That retires this fetch.
+        if (revision !== this.revision) return { ...result, read: this.snapshot };
         if (publishResult) {
           this.publish(result.transportOffline ? { loading: true } : result.read);
           notify();
@@ -46,7 +55,7 @@ export class ReadObservation<T> {
       }
     } finally {
       // Composition may still need a device read, or the fetch may throw.
-      // Neither permits the old answer to outlive this fetch.
+      // Without keep, neither permits the old answer to outlive this fetch.
       if (revision === this.revision) {
         this.publish({ loading: true });
         notify();
@@ -54,14 +63,35 @@ export class ReadObservation<T> {
     }
   }
 
+  // @ref LLP 3000.019#3.3 — keep is an application's choice to display a stale answer while loading.
+  reload(): void { this.publish({ loading: true }); }
+
+  private stale(): void {
+    if (!("data" in this.snapshot)) return;
+    const identity = answerIdentity(this.snapshot);
+    this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: Math.min(this.since, Date.now()) }) };
+    identities.set(this.snapshot, identity);
+    this.kept = true;
+  }
+
   publish(read: Read<T>): void {
+    if (this.keep && "loading" in read && "data" in this.snapshot) {
+      this.revision++;
+      this.stale();
+      return;
+    }
+    this.replace(read);
+  }
+
+  private replace(read: Read<T>): void {
     this.revision++;
     if ("data" in read && read.since !== undefined) read = { ...read, since: Math.min(read.since, Date.now()) };
-    this.snapshot = read;
+    this.snapshot = { ...read };
+    identities.set(this.snapshot, {});
     this.kept = false;
     // Freshness age uses wall time even when row deadlines use issued device time.
     this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
   }
 
-  reset(read: Read<T>): void { this.publish(read); }
+  reset(read: Read<T>): void { this.resetVersion++; this.replace(read); }
 }

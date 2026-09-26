@@ -855,7 +855,7 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-Online observations retain nothing and discard responses older than observed commits in the same store.
+Without `keep`, online observations withdraw stale answers. All observations discard responses older than observed commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
 (`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
 queued and in-flight writes without retry; whether those writes executed is unknown.
@@ -893,9 +893,9 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion leaves `loading` until the next invalidation, and closing the last
+exhaustion leaves `loading` (or the opted-in kept answer) until the next invalidation, and closing the last
 observation owner cancels its retries.
-A local observation may keep its previous answer with `fresh: false` and `since`
+Without `keep`, a local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
@@ -1140,6 +1140,46 @@ client refetches at that deadline and needs a connection to evaluate it.
 supplies the query's cursor argument itself, which must be named `c`
 (`c: cursor ?`).
 
+For screens that must not unmount on a transient reload, explicitly opt in:
+
+```tsx
+import { useQuery, usePage } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+function useKeptThread(conversationId: string) {
+  const inbox = useQuery(api.inbox, {}, { keep: true });
+  const thread = usePage(api.thread, { conversationId }, { keep: true });
+  return { inbox, thread };
+}
+```
+
+On the local client (wasm or process device) and the online client, `keep`
+keeps the last published answer while a re-read is loading, marked
+`fresh: false` with its `since`. A new answer or refusal replaces it.
+**A kept answer may still show rows a revocation withdrew until the re-read
+lands.** Use this option only when that display trade-off fits the screen.
+It does not confer read or write authority. Without `keep`, behavior is unchanged;
+`usePage` still keeps loaded pages while an additional page loads.
+
+The same option is available on `client.observe(op, args, { keep: true })`.
+With `keep: true`, a watch lingers for 30 seconds after its last subscriber
+leaves. It stays the live observation it was, with its subscription, expiry
+timers, and place in every reset, invalidation, ephemeral adoption and schema
+installation. A new opted-in subscriber with the same operation, arguments,
+viewer and store incarnation joins that watch and sees its current snapshot,
+with the `fresh` and `since` that snapshot has. After 30 seconds without a
+subscriber, the watch closes. React remounts see that answer in their first
+committed render, including when the lingering answer became stale during a re-read.
+The app facade reuses a live answer it already authorized across freshness changes.
+When the source replaces that answer, the facade withdraws it synchronously; the
+replacement waits for its authority check. Sign-out, credential or viewer changes, store
+replacement or adoption, and client `close` end a lingering watch at once.
+`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
+schema installation reset lingering observations just as they reset active
+ones, before notifying subscribers. There is no separate store of retired
+answers. A lingering local watch re-runs on commits; both clients keep the
+watch's normal reads, timers and change-feed interest running for those 30
+seconds. This costs observation memory and background work while unmounted.
+
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.
 Render loading, continuation, refusal and incomplete answers explicitly:
@@ -1162,7 +1202,7 @@ export function InboxList() {
 }
 ```
 
-Unmounting a screen closes its observations; remounting starts from the client's
+Without `keep`, unmounting a screen closes its observations; remounting starts from the client's
 current answer. Only a local unavailable-read fallback may keep its previous answer
 while the server fetch is pending, marked `fresh: false` with `since`; settlement
 or a local state change clears that retention. Online reads retain no old answer.

@@ -2,6 +2,7 @@ import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import type { BackendJson } from "./backend.ts";
 
+
 export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, nativeReady: boolean): boolean {
   const program = backend.programs.find(program => program.name === op.name);
   if (program?.native) return !nativeReady;
@@ -39,7 +40,7 @@ export type ServerAnswer = {
 /** Where a server's answer or refusal stands: the store cut the server read, if
  * the reply named one, then when the read attempt began. */
 export type AnswerOrder = { seq: number | undefined; ticket: number };
-type Written = AnswerOrder & { highest: number | undefined };
+type Written = AnswerOrder & { highest: number | undefined; barrier?: number };
 
 /** Remembered server answers, which a later recovery may show. A server's
  * answer, or its refusal, replaces what is remembered for its key only if it
@@ -62,8 +63,21 @@ export class RememberedAnswers {
   delete(key: string, order: AnswerOrder): void {
     if (this.admit(key, order)) this.answers.delete(key);
   }
-  /** Local cleanup of an expired answer: the order stands. */
-  forget(key: string): void { this.answers.delete(key); }
+  /** Local expiry fences every read already begun, while preserving its cuts. */
+  forget(key: string): void {
+    this.answers.delete(key);
+    this.fence(key);
+  }
+  /** Displayed expiry fences old bodies even when newer memory survives. */
+  expire(key: string, now: number): void {
+    this.fence(key);
+    const last = this.answers.get(key);
+    if (last?.nextExpiry != null && last.nextExpiry <= now) this.answers.delete(key);
+  }
+  private fence(key: string): void {
+    const slot = this.written.get(key), barrier = ++this.tickets;
+    this.written.set(key, { seq: slot?.seq, highest: slot?.highest, ticket: barrier, barrier });
+  }
   clear(): void { this.answers.clear(); this.written.clear(); }
   get size(): number { return this.answers.size; }
   /** The cache as one read attempt writes it: the server's cut, then the attempt's
@@ -85,28 +99,38 @@ export class RememberedAnswers {
     const slot = this.written.get(key);
     const highest = order.seq === undefined ? slot?.highest : Math.max(order.seq, slot?.highest ?? order.seq);
     const newer = !slot ? true
+      // @ref LLP 3000.019#3.3 — expiry cannot be undone by an older in-flight body, even at a higher cut.
+      : order.ticket < (slot.barrier ?? 0) ? false
       // Below a cut some reply for the key named, kept or not: older, whatever its ticket.
       : order.seq !== undefined && slot.highest !== undefined && order.seq < slot.highest ? false
       // Cuts compare only when both replies name one.
       : order.seq !== undefined && slot.seq !== undefined && order.seq > slot.seq ? true
       : order.ticket >= slot.ticket;
-    this.written.set(key, newer ? { ...order, highest } : { ...slot!, highest });
+    this.written.set(key, newer ? { ...order, highest, ...(slot?.barrier === undefined ? {} : { barrier: slot.barrier }) } : { ...slot!, highest });
     return newer;
   }
 }
 
-/** Every local commit retires retained answers. */
+/** Every local commit fences reads; only explicit keep survives an ordinary reload. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
 
-  clear(watches: Iterable<LocalWatch>): void {
+  // @ref LLP 3000.019#3.3 — ordinary commits can revoke rows; retaining them is explicitly opt-in.
+  committed(watches: Iterable<LocalWatch>, operation: string): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
+  }
+
+  clear(watches: Iterable<LocalWatch>, reset = true): void {
     this.revision++;
     this.serverAnswers.clear();
     for (const watch of watches) {
-      watch.reset({ loading: true });
-      if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-      watch.expiryTimer = null;
+      if (reset) watch.reset({ loading: true }); else watch.reload();
+      if (reset || !watch.keep) {
+        if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+        watch.expiryTimer = null;
+        watch.deadlines = undefined;
+      }
       // A replaced store relearns presence intervals from its next server answer.
       if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
       watch.presenceRefresh = null;

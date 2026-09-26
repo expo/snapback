@@ -43,15 +43,17 @@ export type ReadCut = "meter" | "words" | null;
  * `fresh` is transport truth: the value reflects the server now, as far as the
  * change feed can tell. When it does not, `since` is the wall-clock time (ms) of
  * the newest server state it does reflect, so a screen can say "as of three minutes ago".
- * Online observations withdraw an answer that a change or expiry made stale, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+ * By default online observations withdraw an answer that a change or expiry made stale, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
  * Presence is the exception. No commit announces that `connected[p]` changed, so an answer of a query that
  * may read it is a sample: it keeps the `fresh` it arrived with (true for a server's whole answer, false when
  * a local answer composes retained rows) until a newer answer replaces it. A background re-read about
  * 5 seconds after each reply settles does that while refreshes succeed; failed refreshes or a suspended
  * client leave the sample on screen, with the same flag, and no bound on its age.
- * A local observation may keep its last answer with `fresh: false` and `since`
+ * By default a local observation may keep its last answer with `fresh: false` and `since`
  * only during an unavailable device read's server fallback, ending at fetch
  * settlement or any local commit, reset, adoption, generation, account change or close.
+ * With `keep: true`, loading keeps the last answer with `fresh: false` and its `since`,
+ * until a replacement answer, refusal or reset. This may show revoked rows during the re-read.
  * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
 export type Read<T> =
@@ -174,6 +176,10 @@ export type Action<Args, Result = unknown> = Op<Args, Result> & { readonly kind:
 export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
 
+/** Keep the last published answer while loading, including for 30 s after unmount.
+ * Revoked rows may remain visible until the next answer or refusal. Resets clear it. */
+export interface ObserveOptions { readonly keep?: boolean }
+
 /** A live read: the current value and a way to hear it change. */
 export interface Observed<T> {
   getSnapshot(): Read<T>;
@@ -218,7 +224,7 @@ export interface Client {
   /** Estimated server Unix milliseconds; never goes backward on this device. */
   now(): number;
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
-  observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
+  observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R>;
   /** Retry-safe intents: pass { id } to reuse the original write. A client
    * never admits a known id twice; an evicted receipt requires reopening. */
   mutate<A, R>(op: Ephemeral<A, R>, args: A): Promise<Signal<R>>;

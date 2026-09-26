@@ -5,7 +5,7 @@ interface Interest {
   tables: Set<string>;
   answer?: EphemeralVersion;
   floor?: EphemeralVersion;
-  invalidate(reset: boolean): void;
+  invalidate(reset: boolean): (() => void) | void;
   incomplete?: ReturnType<typeof setInterval>;
 }
 export function ephemeralVersion(value: unknown): EphemeralVersion | undefined {
@@ -48,7 +48,7 @@ export class EphemeralReads {
     return { epoch: (interests.length ? Math.min(...interests.map(interest => interest.answer?.incarnation === this.incarnation ? interest.answer.epoch : this.epoch)) : this.epoch),
       incarnation: this.incarnation, tables: [...new Set(interests.flatMap(interest => [...interest.tables]))].sort() };
   }
-  private adopt(request: EphemeralRequest, version: EphemeralVersion, owner?: object): boolean {
+  private adopt(request: EphemeralRequest, version: EphemeralVersion): boolean {
     if (!this.current(request)) return false;
     if (version.incarnation === this.incarnation) return true;
     this.incarnation = version.incarnation;
@@ -59,18 +59,25 @@ export class EphemeralReads {
     // The accepting response belongs to the new revision. All other request
     // tags keep the retired revision, even if their transport ignores abort.
     request.revision = this.revision; request.signal = this.queries.signal;
-    for (const [key, interest] of this.interests) {
+    // @ref LLP 3000.019#3.3 — reset all affected observations, including the accepting owner,
+    // before any subscriber can close or remount another observation.
+    const delivery: (() => void)[] = [];
+    for (const interest of this.interests.values()) {
       delete interest.answer;
       interest.floor = version;
-      if (key !== owner && interest.tables.size) interest.invalidate(true);
+      if (interest.tables.size) {
+        const notify = interest.invalidate(true);
+        if (notify) delivery.push(notify);
+      }
     }
+    for (const notify of delivery) notify();
     return true;
   }
   accept(request: EphemeralRequest, value: unknown, owner?: object): boolean {
     if (!this.current(request)) return false;
     const version = ephemeralVersion(value);
     if (!version) return true; // Ordinary refusals need not carry an epoch.
-    if (!this.adopt(request, version, owner)) return false;
+    if (!this.adopt(request, version)) return false;
     const interest = owner && this.interests.get(owner);
     if (interest?.floor?.incarnation === version.incarnation && version.epoch < interest.floor.epoch) return false;
     if (interest) { interest.floor = version; interest.answer = version; }
@@ -88,7 +95,7 @@ export class EphemeralReads {
       const tables = new Set((value as EphemeralVersion & { tables?: string[] }).tables ?? []);
       for (const interest of this.interests.values()) if ([...interest.tables].some(table => tables.has(table))) {
         if (interest.floor?.incarnation !== version.incarnation || interest.floor.epoch < version.epoch) interest.floor = version;
-        interest.invalidate(false);
+        interest.invalidate(false)?.();
       }
     }
     return true;
@@ -99,7 +106,7 @@ export class EphemeralReads {
     if (!incomplete) { clearInterval(interest.incomplete); delete interest.incomplete; }
     else if (!interest.incomplete) {
       // Fixed cadence, independent of response contents or their hidden expiry.
-      interest.incomplete = setInterval(() => interest.invalidate(false), 1000);
+      interest.incomplete = setInterval(() => interest.invalidate(false)?.(), 1000);
       (interest.incomplete as { unref?: () => void }).unref?.();
     }
   }

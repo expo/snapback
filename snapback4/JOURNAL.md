@@ -63333,6 +63333,131 @@ authorization, disclosure, durability, metering or budget changes; no query
 execution modifier, automatic union rewrite, package publication or push.
 Report with file-by-file changes, repairs, mutations, reproduction and exact
 qualification: `reports/20260926-p1-sync-windows.md`.
+
+## 2026-09-26 — Lane K: loaded pages stay; commit retention stopped on disclosure evidence
+
+Implemented supplied LLP 3000.019 §3.3 part 3. `usePage` keeps its ready
+prefix while another page loads, including an empty prefix, and carries that
+prefix's completeness, cut and freshness. `hasMore` stays false while that
+request owns the continuation. A first-page reset clears the pages; refusals
+still propagate. The README describes the behavior. Chromium verifies that
+the editor and its unsent draft remain mounted, suffix replacement ignores
+late replies, and resets still withdraw the old pages.
+
+Parts 1–2 stopped under the brief's disclosure rule. Ordinary `apply` carries
+an until-revoked scope tombstone when Alice removes Bob's membership;
+`admit` can predict Bob's own leave. Neither changes the credentials, viewer,
+or store identity, and neither invokes the separately named device resets.
+Holding the replacement read proves that retaining the old answer would keep
+`private answer` visible after its authority was withdrawn. The online change
+notification has the same case. Seven new guards cover applied revocation,
+predicted leave and remount after revocation on wasm/process devices, plus
+the online case. Enabling retention temporarily in generated build files made
+all five live-watch guards fail; rebuilding restored those files. No unsafe
+retention code was committed. A 30-second cache needs the same authority
+invalidation decision, so none was added. The report is
+[`reports/20260926-lane-k-answers-stay.md`](./reports/20260926-lane-k-answers-stay.md).
+
+Measured: targeted Chromium/disclosure run 33 passed, 0 failed, 0 skipped;
+whole guide 85 passed, 0 failed; wasm 2,021,689 B raw / 581,094 B gzip,
+matching the recorded 0.4.3 baseline (delta 0 B), under the unchanged 582,094 B
+budget. Required `scripts/test.sh`, run once on the cold worktree with eight
+Cargo build jobs and dev/test debug info disabled: **`== 0 failure(s) in 1352 s`**,
+exit 0. No failures to classify. The new cases also passed in that full run.
+
+No change to authorization, publication fences, remembered server-answer
+ordering, the engine or its meters, the client contract, or package versions.
+No new Quarry forms or diagnostics. No outbox work (part 4), push, or publish.
+
+## 2026-09-26 — Lane K round 1: an owner field is also read authority
+
+Stopped LLP 3000.019 §3.3 parts 1–2 under the revised brief's explicit
+counterexample clause. Revision 3 names the tables of read-rule probes as
+its authority set. A table with `read <- .owner = viewer` has no such probes,
+but transferring a row from Bob to Alice immediately revokes Bob's read.
+On wasm and process devices an ordinary `apply` touches only `secrets`
+(and deletes Bob's old image), or `admit` predicts `secrets/private`.
+No named reset, viewer, credential or store change occurs, and the real
+device already returns null while the client replacement query is held.
+Retaining the old snapshot would still display `private answer`.
+
+Added seven guards in `answer-row-authority.test.mjs`: applied and predicted
+ownership transfer and remount after transfer on both devices, plus an online
+remount after consuming the transfer's change notification. They check the
+actual schema's `Eq(Field(owner), Viewer)` rule and non-native query program.
+A bounded generated-build mutation kept published answers with their revision
+fence and seeded remounts from a 30-second cache. All seven guards failed by
+exposing the former owner's answer. The generated files were restored; no
+retention implementation was committed. The original seven membership guards
+and round-0 `usePage` behavior are unchanged. The round-1 report is appended
+to `reports/20260926-lane-k-answers-stay.md`; tests/report commit `9b587ae59`.
+The supervisor's authority definition still needs to cover protected-row
+inputs; this lane did not invent a replacement design.
+
+Measured: targeted disclosure, publication/authority and Chromium React run
+53 passed, 0 failed, 0 skipped; the full guide 85 passed. The required
+`scripts/test.sh` ran once, unmodified: **`== 0 failure(s) in 1067 s`**, exit 0.
+No failures to classify. Rust: 3,572 passed, 0 failed, 19 ignored; main client
+batch: 2,138 passed, 0 failed, 10 existing skips; separate client shards passed;
+models: 78 passed, 0 failed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B
+from round 0, under the unchanged 582,094 B budget. Node 24.13.1 and Bun 1.3.14;
+eight Cargo build jobs, dev/test debug info disabled. Evidence remains locally
+under `target/lane-k-round1-evidence/`. No production client, engine, meter,
+contract, syntax, diagnostic or version changes; no push or publication.
+
+## 2026-09-26 — Lane K round 2: applications explicitly keep answers during reload
+
+Implemented the supervisor's LLP 3000.019 §3.3 revision 4 as supplied in the
+round-2 instruction. `useQuery(op, args, { keep: true })`, `usePage(op, args,
+{ keep: true })`, and `client.observe(op, args, { keep: true })` retain the
+last published data with `fresh: false` and its existing freshness age while
+a re-read loads. A new answer or refusal replaces it. Default observations
+keep their withdrawal behavior, and all 14 earlier membership/ownership
+guards remain unchanged. Kept and default watches are separate; an opted-in
+watch retains its last answer for 30 seconds after its last subscriber leaves,
+scoped by operation, arguments, viewer and store incarnation, and immediately
+re-reads on remount. This presentation memory is separate from the ordered
+remembered-server-answer cache. Existing commit/publication fences stand;
+credential/viewer changes, sign-out, store/adoption resets and close discard
+kept memory. Existing expiry and ephemeral resets still withdraw active reads.
+The application facade forwards the option without bypassing its own fence.
+
+The guide, README and client reference state the trade-off: a kept answer can
+still show rows a revocation withdrew until the re-read lands. Real wasm and
+process tests deliberately retain that revoked answer while holding the new
+read, then require its replacement. Added 53 tests across publication/cache
+policy, real-device commits and resets, online notifications/receipts,
+remount expiry, obsolete responses and Chromium hooks. The browser case keeps
+the same input and unsent draft while pages reload. Implementation and evidence
+commits are `93562adc7`, `156952fd5` and `3313ce90d`; the last freezes the test
+clock before retirement to make the exact 30-second boundary deterministic.
+
+Measured: affected run 125 passed, 0 failed; the subsequently extended
+publication/online test file passed 23 tests; whole guide 85 passed; ref-check
+passed. Wasm remains 2,021,689 B raw / 581,094 B gzip (delta 0 B), below the
+unchanged 582,094 B budget. The required, unmodified `scripts/test.sh` ran
+**once**, with eight Cargo build jobs and dev/test debug info disabled:
+**`== 1 failure(s) in 985 s`**, exit **1**, failed group `client tests`.
+Its only failure was introduced here: the new client-reference TypeScript
+example lacked imports and its conversation-id argument. Fixed as a
+self-contained custom hook in `33711234b`; the exact affected example harness
+then passed all 5 tests (28 blocks, 46 public functions). The full script was
+not repeated per the once-only instruction. No baseline/environmental failure
+occurred in it, and no green final full-suite result is claimed.
+
+The full run passed all 53 new retention tests and all 14 unchanged withdrawal
+guards. Rust: 3,572 passed, 0 failed, 19 ignored. Main client batch: 2,190 passed,
+1 failed (the repaired example), 10 existing skips; other client shards passed.
+Models: 78 passed, 0 failed. No known product defect or unresolved affected
+failure remains. Full report and reproduction/repair commands are in
+[`reports/20260926-lane-k-answers-stay.md`](./reports/20260926-lane-k-answers-stay.md),
+round 2; logs are in `target/lane-k-round2-evidence/`.
+
+No interpreter, wire, authorization, meter, version or wasm-budget change;
+no outbox work, push or publication. The supervisor-owned RFC in this checkout
+still has its earlier wording; the explicit revision-4 instruction governed
+this implementation. Previous journal entries are untouched.
+
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
@@ -64464,3 +64589,265 @@ co-author trailer. Full log: /tmp/p1-r4-full-suite.log; final targeted log:
 reports/20260926-p1-sync-windows.md records each fixture, applied repair,
 mutation and qualification result. This entry and that report section are
 the only post-suite edits.
+
+## 2026-09-26 — 0.4.4 lane K, round 3: expiry bounds kept answers
+
+Merged the requested main at `992cec75c` into `sb4-intent/k-answers-stay`,
+preserving both journal histories, custody wait options, known write outcomes,
+starter drafts, and the explicit keep option. Accepted all Astra/Grok findings.
+Kept answers carry device/server deadlines through ordinary commits, failed or
+loading re-reads, and idle memory; expired entries cannot remount, and unexpired
+ones re-arm withdrawal. A shared expiry helper preserves remembered local-wakeup
+provenance and keeps local.ts at 1,481 lines. Ephemeral adoption clears affected
+idle entries before active notifications. Viewer discovery schedules replacement
+reads, including a token-only client's first query and live viewer changes.
+The contradictory default paragraph now starts “Without `keep`”.
+
+Added 27 regression tests: real wasm/process apply/admit/settle at expiry with
+held reads, failed/loading replacements, remounts on both sides of the deadline,
+synchronous idle remount during ephemeral reset, pre-refresh local payloads,
+token discovery and live viewer changes. Eight mutations were killed with 16
+expected assertion failures, including every surviving mutation the reviewers
+named. The extra idle-eviction mutant required capturing the snapshot inside
+the callback. A signed-out retry loop introduced during this round was caught
+by Chromium, fixed before the full run, and given a bounded subprocess test.
+Targeted runs passed 189 after the merge, 111 read regressions, 53 presence and
+memory-ordering cases, and 78 final combined cases. No tests were weakened to
+hide product failures. Report: reports/20260926-lane-k-answers-stay.md, round 3.
+
+No engine, authorization, meter, outbox, version or wasm-budget change. No push,
+publication or delegated agent. The report records exact full-run qualification
+and any failures below.
+
+Required scripts/test.sh ran once, unmodified: `== 2 failure(s) in 1033 s`,
+exit 1 (cargo test; client tests). Ours: the merge omitted main's writes-04
+custody fact and language-19 client-card fact; restored both in a96152221,
+then the entire affected guide suite passed 86/86. Baseline: the online
+incomplete-ephemeral cadence test observed a 15 ms discovery re-read as a
+1 s timer tick. The unchanged affected file passed 4/4 isolated; exact main
+992cec75c reproduces the assertion with only a 100 ms schema-response delay
+(cadence 105.211412 ms). The report records that open test-timing problem and
+its executable reproduction. No production cadence change or test weakening.
+Full-run Rust: 3,572 passed, 1 failed, 19 ignored. Main client batch: 2,253
+passed, 1 failed, 10 existing skips; separate shards passed. Models: 78/78.
+All 27 new regressions passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta
+0 B, 1,000 B below the unchanged 582,094 B budget. Affected repairs are green;
+no second full run and no green final full-suite claim. All commits carry
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-26 — 0.4.4 lane K, round 4: lingering live observations
+
+Implemented the supervisor's LLP 3000.019 §3.3 revision 5. Deleted the separate
+KeptAnswers store, retirement/restoration deadline path, idle ephemeral
+classification and adoption eviction. An opted-in watch now stays in the live
+map for 30 seconds after its last subscriber leaves, with all existing commit,
+expiry, clock, presence and ephemeral subscriptions. A remount joins its current
+snapshot with unchanged fresh/since and no extra read. Scope-ending resets close
+lingering observations immediately. Adoption resets every affected snapshot,
+including the accepting owner, before callbacks or replacement reads; first
+schema installation uses the same two-phase ordering. A post-acceptance revision
+check prevents a callback's reset or close from being overtaken by publication.
+
+The cost is live observation memory and continued background reads while a
+screen is unmounted: local commit re-evaluation, server refetches, held change
+interest and normal presence/incomplete timers for up to 30 seconds. There is
+no second answer lifetime to keep synchronized with these rules. Updated the
+client operations manual, reads guide, README and reads-06 fact. No engine,
+authorization, meter, outbox, version or wasm-budget change; no push, publication
+or delegated agent. Source files remain below 1,500 lines (local.ts: 1,486).
+
+Added 17 regressions for accepting-owner loading replies, peer callbacks that
+close/remount it, first schema installation, split device/server clocks, clock
+rollback and remembered local wakeups. Strengthened existing tests for live
+commit re-evaluation, all resets, permanent scope closure, unchanged remount
+metadata and the 29.999/30-second boundary. Ten independent mutations were
+killed with 37 expected assertion failures; all generated mutations restored.
+Focused suite: 245/245; strengthened scope cases: 35/35; final combined new
+regressions and scope checks: 52/52. Whole guide: 86/86; build/typecheck and
+documentation budget pass. Test-only argument/session fixture errors were
+corrected before qualification. Full result and wasm are recorded below after
+the required single scripts/test.sh run. Detailed report:
+reports/20260926-lane-k-answers-stay.md, round 4.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 1034 s`,
+exit 0. No introduced, baseline or environmental failures; no repair or rerun.
+Rust: 3,573 passed, 0 failed, 19 ignored. Main client batch: 2,270 passed,
+0 failed, 10 existing skips (2,280 tests); all seven separate shards passed.
+Models: 78/78. All 17 new regressions and the earlier timing-sensitive cadence
+case passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B below
+the unchanged 582,094 B budget. Reference audit: 513 LLP docs, 9,444 refs in
+26,815 files, 0 errors, 0 unchecked. Node 24.13.1, Bun 1.3.14; eight Cargo
+build jobs and dev/test debug info disabled. Implementation commits:
+4409e31c7 and d970f4bf2. Exact evidence: target/lane-k-round4-evidence/.
+All commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-26 — 0.4.4 lane K, round 5: expiry stays withdrawn and slow replies publish
+
+Read Astra's complete round-4 NOT READY review and fixed both defects. When a
+local watch's server expiry fires, it synchronously forgets an expired remembered
+answer before subscriber notification. Its highest store-cut ordering record
+stands, and any newer unexpired memory remains available. Clock rollback and
+release of a held device read can no longer resurrect the withdrawn entry.
+Online refresh now checks inFlight and sets dirty before reload, so the one-second
+incomplete-ephemeral cadence does not fence every 1.15-second reply. Existing
+commit, reset, credential and ephemeral publication fences remain intact.
+
+Added nine regressions: active and lingering remembered-answer rollback/release
+on wasm and process (four), preserving newer unexpired memory (two), slow online
+replacement replies for active and lingering watches (two), and highest-cut
+ordering after expiry cleanup (one). Strengthened the linger lifetime test to
+install expiry and presence timers, prove both remain armed through 29.999 s,
+and prove cancellation at close and no later callback. Seven mutations killed,
+13 expected assertion failures, including the formerly surviving expiry-cleanup
+mutation. Before the fixes, all six defect reproductions failed as expected;
+afterward the focused run passed 53/53 and the final affected run passed 187/187.
+Reference audit: 513 LLP docs, 9,446 refs in 26,815 files, 0 errors, 0 unchecked.
+Implementation commits: 0bee969a3, e0e414ce0, 26d7aedf7, all with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 959 s`, exit 0.
+No introduced, baseline or environmental failures; no repair or rerun. Rust:
+3,573 passed, 0 failed, 19 ignored; whole guide 86/86. Main client batch: 2,279
+passed, 0 failed, 10 existing skips (2,289 tests); all seven separate shards
+passed. Models: 78/78. All new regressions and the original timing-sensitive
+cadence case passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B
+below the unchanged 582,094 B budget. Node 24.13.1, Bun 1.3.14; eight Cargo
+build jobs and dev/test debug info disabled. Evidence and exact commands:
+`target/lane-k-round5-evidence/`; detailed report:
+`reports/20260926-lane-k-answers-stay.md`, round 5.
+
+No design deviation or unresolved round-5 product defect. The inherited cadence
+test's startup-discovery assumption and prior reproduction remain recorded in
+round 3; its old assertion is unchanged. No engine, authorization, meter,
+outbox, API/syntax, package-version or wasm-budget change; no delegated agent,
+push or publication. local.ts remains under the source cap at 1,491 lines.
+
+## 2026-09-26 — 0.4.4 lane K, round 6: expiry withdrawal precedes callbacks and storage
+
+Addressed Astra's two round-5 high findings and the surviving rejoin mutation.
+Clock corrections now sample device/server time once and withdraw every due
+snapshot and expired remembered answer before any subscriber is notified.
+Online and both device clients share the two-phase sweep. A subscriber's clock
+rollback cannot save another expired lingering watch; newer unexpired memory,
+highest store-cut ordering and remembered local-wakeup semantics remain intact.
+The app facade now forwards source loading/denied synchronously while data
+publication still waits for asynchronous authority. Production rejoin timer
+cancellation was already correct; its new virtual-timer regression rejoins at
+29 seconds, crosses the old deadline and checks a full new 30-second window
+after the next unsubscribe.
+
+Seven new tests cover callback rollback on online/wasm/process, createApp with
+held sessionStore.get, synchronous loading/denied with data still gated, and
+rejoin timing. Before fixes: six expected failures, one pass. Focused tests:
+54/54; final affected tests: 304/304. Four mutations killed with nine expected
+assertion failures, including deletion of clearTimeout(watch.linger.timer).
+All generated mutations restored. Reference audit: 513 LLP docs, 9,448 refs in
+26,815 files, 0 errors, 0 unchecked. local.ts is 1,492 lines. Implementation
+commits: 4cec3819a, 2f30f5e7e, 4c462c3b9; each carries the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer.
+
+Required scripts/test.sh ran once, unmodified: `== 1 failure(s) in 960 s`,
+exit 1; failed group: client tests. Its sole failure was the unchanged online
+"mounting interest reissues a held poll" notification assertion, measuring
+500.4352399999998 ms against 500 ms. Classification: baseline timing-sensitive
+test; Astra's pre-round-6 review had independently measured the same limit's
+failure at 510.5 ms with an isolated pass. This round's unchanged affected
+file passed 6/6 on rerun; no production fix, test weakening or second full run.
+The full result remains red. Rust: 3,573 passed, 0 failed, 19 ignored; whole
+guide 86/86. Main client batch: 2,285 passed, 1 failed, 10 existing skips
+(2,296 tests); seven separate shards passed. Models: 78/78. All seven new
+regressions and Chromium cases passed. Wasm: 2,021,689 B raw / 581,094 B gzip,
+delta 0 B, 1,000 B below the unchanged 582,094 B budget. Node 24.13.1,
+Bun 1.3.14; eight Cargo build jobs and dev/test debug info disabled.
+
+No requested fix deferred or redesigned. No new answer store, engine,
+authorization, meter, outbox, API/syntax, version or budget change; no delegated
+agent, push or publication. Evidence: target/lane-k-round6-evidence/.
+Detailed report: reports/20260926-lane-k-answers-stay.md, round 6. The baseline
+notification-timing risk and the older distinct cadence-test startup risk remain
+recorded there, with reproduction commands and qualification limits.
+
+## 2026-09-26 — 0.4.4 lane K, round 7: fence expired server bodies and render lingering answers immediately
+
+Read Grok's complete delayed round-5 review and checked it against round 6.
+Both new findings remained. Remembered-answer expiry now preserves the last
+and highest store cuts and advances a ticket barrier: a body begun before
+withdrawal cannot restore memory, even with a higher cut, while a new read can.
+Rejected bodies/refusals still contribute their named cut. Both React hooks
+peek the existing watch before subscription without acquiring it or cancelling
+its timer, and honor the exact 30-second cutoff. The app facade peeks only
+unchanged live snapshots it already authorized; new data still waits for its
+authority check. Round 6's two-phase expiry and synchronous withdrawal remain.
+
+Eighteen new regressions cover held HTTP bodies on wasm/process with active
+and lingering watches, release at the exact expiry deadline, cut/barrier
+ordering, inert peeking, facade authority, and both hooks' first committed DOM
+in Chromium, directly and through the facade. Focused tests passed 108/108;
+final affected tests passed 287/287. Six mutations killed: 20 behavioral
+assertion failures plus two harness parent failures. Both previously surviving
+mutations now fail: delete-only forget (eight tests) and strict-less expiry
+(four). Every mutation was restored. Reference audit: 513 LLP docs, 9,450 refs
+in 26,815 files, zero errors/unchecked. local.ts is 1,493 lines.
+
+Implementation commits: 0b936e0ab and 18927fafb, each with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Updated the client
+reference and reports/20260926-lane-k-answers-stay.md. No design deviation,
+new answer store, public API/syntax, engine/authorization/meter/outbox change,
+version or budget change. No delegated agent, push or publication. Evidence:
+target/lane-k-round7-evidence/. Full-suite qualification follows below.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 966 s`,
+exit 0. No introduced, baseline or environmental failures; no repair or rerun.
+Rust: 3,573 passed, 0 failed, 19 ignored (503 s); whole guide 86/86. Main client
+batch: 2,304 passed, 0 failed, 10 existing skips (2,314 tests); seven separate
+shards passed (client group 194 s). Models: 78/78 (256 s). All 18 new regressions
+and both previously recorded timing-sensitive ephemeral tests passed unchanged.
+Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B below the unchanged
+582,094 B budget. Node 24.13.1, Bun 1.3.14; eight Cargo build jobs and dev/test
+debug info disabled. Exact output and exit are retained in the evidence folder.
+
+
+## 2026-09-26 — 0.4.4 lane K, round 8: expiry sweeps and facade identity complete the four review fixes
+
+Read Astra's rounds 6–7 review and addressed all four findings. Ordinary expiry
+timers now preserve their triggering deadline and use the clock-correction
+sweep: withdraw every due snapshot and expired remembered answer before any
+subscriber can roll time back. Every displayed server expiry advances its
+ordering barrier even when newer unexpired memory survives, preserving seq and
+highest. The facade synchronously withdraws a superseded answer before awaiting
+authority for its replacement. Freshness-only copies retain a stable internal
+answer identity; the facade approves that identity so a lingering re-read
+remounts with its answer in the first commit. New publications and resets get
+new identities and still wait for authority. Weak identity metadata adds no
+answer store or separate lifetime.
+
+Added 13 regressions: timer callback rollback on online/wasm/process; four
+real-device active/lingering cases using real mutations and unchanged server
+query bodies, preserving newer B after expiry, rollback and a released old body;
+ordering-fence coverage; held createApp session storage during replacement;
+freshness identity versus identical-payload publications/resets; Chromium
+useQuery/usePage first-commit remounts through createApp while a lingering
+replacement read is held; long-deadline timer clamping and rearming. Updated
+two facade expectations to the requested synchronous retirement behavior.
+Affected run: 316/316. Five independent mutations killed, with 14 behavioral
+failures plus the Chromium harness parent failure; every mutation restored.
+Reference audit: 513 LLP docs, 9,451 refs in 26,815 files, zero errors/unchecked.
+local.ts is 1,491 lines and the Chromium test is 1,444; no source-limit increase.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 941 s`,
+exit 0. No introduced, baseline or environmental failures; no repair or rerun.
+Rust: 3,573 passed, 0 failed, 19 ignored (485 s); whole guide 86/86. Main client
+batch: 2,317 passed, 0 failed, 10 existing skips (2,327 tests); all seven separate
+shards passed (client group 193 s). Models: 78/78 (250 s), including both
+5,000-sequence session models. All 13 new regressions and earlier timing-sensitive
+ephemeral cases passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B,
+1,000 B below the unchanged 582,094 B budget. Node 24.13.1, Bun 1.3.14;
+eight Cargo build jobs and dev/test debug info disabled.
+
+Implementation commits: 508b6379c, 9b847020f, d654838f6, each with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Updated the client
+reference and reports/20260926-lane-k-answers-stay.md. No requested fix deferred
+or redesigned; added the review's missing timer-clamping evidence. No engine,
+authorization, meter, outbox, public API/syntax, version or budget change.
+No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
+no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.

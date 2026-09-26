@@ -48,6 +48,49 @@ test("a reply below a cut already named is older, through replies without one", 
   assert.equal(lost.get("k").read.data, "cut 9", "and a later cut still wins");
 });
 
+test("forgetting an expired answer preserves its highest store cut", () => {
+  const answers = new RememberedAnswers();
+  answers.view().set("expired", answer("cut 10"), 10);
+  answers.forget("expired");
+  assert.equal(answers.get("expired"), undefined);
+  answers.view().set("expired", answer("late cut 9"), 9);
+  assert.equal(answers.get("expired"), undefined, "expiry must not admit an older reply");
+  answers.view().set("expired", answer("new cut 10"), 10);
+  assert.equal(answers.get("expired")?.read.data, "new cut 10", "a newer read at the highest cut can still replace it");
+});
+
+for (const cut of [undefined, 10, 11]) test(`forget fences a pre-expiry reply at cut ${cut}, including later arrivals`, () => {
+  const answers = new RememberedAnswers();
+  answers.view().set("k", answer("expired"), 10);
+  const held = answers.view();
+  answers.forget("k");
+  held.set("k", answer("withdrawn"), cut);
+  assert.equal(answers.get("k"), undefined, "a later ticket or higher cut cannot cross expiry");
+  const next = answers.view();
+  next.set("k", answer("new"), cut ?? 10);
+  assert.equal(answers.get("k")?.read.data, "new", "a read begun after forget can remember an answer");
+  held.set("k", answer("higher but pre-expiry"), 12);
+  assert.equal(answers.get("k")?.read.data, "new", "accepting a new answer does not erase the barrier");
+  held.delete("k", 13);
+  assert.equal(answers.get("k")?.read.data, "new", "pre-expiry refusals cannot cross the barrier either");
+  next.set("k", answer("below refused cut"), 12);
+  assert.equal(answers.get("k")?.read.data, "new", "even a barrier-rejected refusal contributes its highest cut");
+  held.renew();
+  held.set("k", answer("renewed"), 13);
+  assert.equal(answers.get("k")?.read.data, "renewed");
+});
+
+test("forget fences absent keys too and a rejected answer still names its cut", () => {
+  const answers = new RememberedAnswers(), held = answers.view();
+  answers.forget("k");
+  held.set("k", answer("expired"), 15);
+  assert.equal(answers.get("k"), undefined);
+  answers.view().set("k", answer("old cut"), 14);
+  assert.equal(answers.get("k"), undefined);
+  answers.view().set("k", answer("current"), 15);
+  assert.equal(answers.get("k")?.read.data, "current");
+});
+
 // A read of a device program: the device's observation, then the server's reply.
 function reading(answers, { call, reply }) {
   const program = { name: "read", kind: "Query", args: {}, body: [], runs: "device" };
@@ -201,4 +244,25 @@ test("an expired device answer re-routed to the server takes a new place in the 
   const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
   assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
   assert.equal(answers.get(key), undefined, "the re-routed refusal is newer than the answer remembered while it waited");
+});
+
+test("displayed expiry fences old bodies while preserving unexpired memory and its cuts", () => {
+  const answers = new RememberedAnswers(), initial = answers.view();
+  const newer = { ...answer("B"), nextExpiry: 200 };
+  initial.set("k", newer, 8);
+  const held = answers.view();
+  answers.expire("k", 100);
+  assert.equal(answers.get("k"), newer, "displayed A's expiry does not delete B");
+  held.set("k", answer("old body at higher cut"), 9);
+  held.delete("k", 10);
+  assert.equal(answers.get("k"), newer, "pre-expiry bodies and refusals cannot replace B");
+  const fresh = answers.view();
+  fresh.set("k", answer("below highest"), 9);
+  assert.equal(answers.get("k"), newer, "rejected bodies still contribute their highest cut");
+  fresh.set("k", { ...answer("C"), nextExpiry: 300 }, 10);
+  assert.equal(answers.get("k").read.data, "C", "a post-expiry read can replace B");
+  answers.expire("k", 300);
+  assert.equal(answers.get("k"), undefined, "memory itself expires at the exact deadline");
+  fresh.set("k", answer("old attempt"), 11);
+  assert.equal(answers.get("k"), undefined);
 });

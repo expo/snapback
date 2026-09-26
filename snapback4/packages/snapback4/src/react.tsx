@@ -2,7 +2,7 @@
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
@@ -10,6 +10,7 @@ export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
 import { PendingWrites } from "./react-pending-writes.ts";
+import { peekObservation } from "./observe-watch.ts";
 
 const ClientContext = createContext<Client | null>(null);
 
@@ -75,8 +76,8 @@ class Observation<R> {
   private observed: Observed<R> | null = null;
   private unsubscribe: (() => void) | null = null;
   private subs = new Set<() => void>();
-  constructor(private open: () => Observed<R>) {}
-  getSnapshot = (): Read<R> => this.observed?.getSnapshot() ?? LOADING;
+  constructor(private open: () => Observed<R>, private peek: () => Read<R> | undefined) {}
+  getSnapshot = (): Read<R> => this.observed?.getSnapshot() ?? this.peek() ?? LOADING;
   subscribe = (notify: () => void) => {
     this.subs.add(notify);
     if (!this.observed) {
@@ -102,10 +103,12 @@ class Observation<R> {
 }
 
 /** One live read. Re-renders when the value changes; never throws. */
-export function useQuery<A, R>(op: Query<A, R>, args: A): Read<R> {
+export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> {
   const client = useClient();
   const key = JSON.stringify(args);
-  const observed = useMemo(() => new Observation(() => client.observe(op, args)), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const observed = useMemo(() => new Observation(
+    () => client.observe(op, args, { keep: options?.keep === true }),
+    () => peekObservation(client, op, args, { keep: options?.keep === true })), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
@@ -115,10 +118,11 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
   private requested = 1;
   private subs = new Set<() => void>();
   private cache: { items: R[number][]; hasMore: boolean; read: Read<R> } | null = null;
+  private peeked: Read<R> | undefined;
   private reconciling = false;
-  constructor(private client: Client, private op: Query<A, R>, private args: A) {}
+  constructor(private client: Client, private op: Query<A, R>, private args: A, private options?: ObserveOptions) {}
   private open(c: Cursor | null) {
-    const observed = this.client.observe(this.op, { ...this.args, c });
+    const observed = this.client.observe(this.op, { ...this.args, c }, this.options);
     const page = { cursor: c, observed, unsubscribe: () => {} };
     this.pages.push(page);
     page.unsubscribe = observed.subscribe(() => {
@@ -166,6 +170,10 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
     };
   };
   getSnapshot = () => {
+    const peeked = this.pages.length ? undefined : peekObservation(this.client, this.op, { ...this.args, c: null }, this.options);
+    // An unsubscribed render owns no notifications: recheck the live snapshot
+    // and the linger cutoff on every call, caching only its derived page shape.
+    if (peeked !== this.peeked) { this.peeked = peeked; this.cache = null; }
     if (this.cache) return this.cache;
     const items: R[number][] = [];
     let last: Read<R> = LOADING as Read<R>;
@@ -173,8 +181,12 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
     let cut: import("./contract.ts").ReadCut = null;
     let since: number | undefined;
     let knownSince = true;
-    for (const page of this.pages) {
-      const read = page.observed.getSnapshot();
+    let loadingMore = false;
+    const reads = this.pages.length ? this.pages.map(page => page.observed.getSnapshot()) : peeked ? [peeked] : [];
+    for (const read of reads) {
+      // @ref LLP 3000.019#3.3 — a pending next page keeps the ready prefix on screen.
+      // Resets of the first page and refusals still replace the combined read.
+      if ("loading" in read && isReady(last)) { loadingMore = true; break; }
       last = read;
       if (!isReady(read)) break;
       if (!Array.isArray(read.data)) { last = LOADING as Read<R>; break; }
@@ -187,7 +199,7 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
         else since = Math.min(since ?? read.since, read.since);
       }
     }
-    const hasMore = isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
+    const hasMore = !loadingMore && isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
     const read: Read<R> = isReady(last)
       ? { data: items as unknown as R, complete, cut, fresh, ...(knownSince && since != null ? { since } : {}), ...(last.next !== undefined ? { next: last.next } : {}) }
       : last;
@@ -201,10 +213,10 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
   };
 }
 
-export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">) {
+export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
   const client = useClient();
   const key = JSON.stringify(args);
-  const pages = useMemo(() => new Pages(client, op, args as A), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pages = useMemo(() => new Pages(client, op, args as A, { keep: options?.keep === true }), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
 }
