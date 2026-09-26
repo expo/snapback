@@ -61900,3 +61900,45 @@ isolation reruns were needed: there were no timing failures. The final report
 is EPH-REPORT-E3.md at the worktree root and remains uncommitted. E3's requested
 work is complete; no push, stash, merge, rebase, publication or other-worktree
 edit was performed. Lead review/publication/calibration phases remain separate.
+
+### 2026-09-26 — CCP L1: mutation admission and starter intent ownership
+
+Implemented the lead's LLP 3000.008.002.000 lane brief on base 78bbe7b349.
+`MutateOptions.waitSeconds` now floors/clamps like actions in local device,
+raw online, journaled online and mock clients. Zero returns after custody;
+default device waits remain four seconds, and omitted online waits remain
+request-bound. Online journal dispatch continues with guarded rejection
+handling, retained durable intent and existing terminal persistence/events.
+No prediction routing, receipt history, hook latest-call semantics, contract,
+wasm device source or other lane's docs/compiler files changed.
+
+The Expo starter saves each send's ID, room, operation and text before dispatch,
+scoped to backend and principal. Each saved reference has its own receipt hook;
+reopen only observes, never resends. Pending includes its reason, refusal keeps
+text with Edit/Dismiss, unknown stays unknown, and sent references retire.
+Metro platform modules use localStorage on web and expo-sqlite/kv-store on
+native/Expo Go. The SDK's own online journal also contains message arguments:
+its `.writes` keys go to that store, with copy-before-delete migration from
+legacy SecureStore custody; credentials stay in SecureStore. This is a small
+scope choice needed to avoid the same text-size limit below the UI journal.
+
+Both composers submit with zero wait and guard one admission synchronously.
+They remove a still-present submitted prefix, including original whitespace,
+and preserve appended text; a replaced draft stays as edited. Expo preserves
+the header/composer and selected route through read gaps, renders only current
+read rows, distinguishes initial Loading from Updating, displays denial and
+incompleteness, and uses a dash for an unavailable count. The reference app's
+ordinary signed-in tree follows useAuth; its witness/persona door is retained.
+Navigation remains read-only. The new modules are embedded in init outputs;
+each starter stays independent.
+
+Focused evidence: native/web/raw online/app online zero-wait returns measured
+3.562/5.253/0.742/0.659 ms, respectively. Native/web defaults were
+4001.939/4001.741 ms; online defaults waited for release at 172.494/172.720 ms.
+All four positive waits (1.9 floored to 1) returned in 1000.639–1004.623 ms.
+Four live-host tier probes passed, including same-ID online close/reopen and
+one authoritative row. React probes cover early release, saved IDs, three
+sends/reopen, older refusal after newer send, unknown receipts, account fences,
+storage failure, appended typing and protected-row removal during loading.
+The simulator witness cannot be run in this lane; final blocking-suite and
+browser-witness results will be appended below and in CCP-REPORT-L1.md.
