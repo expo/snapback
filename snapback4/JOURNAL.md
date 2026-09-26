@@ -63691,3 +63691,17 @@ Not taken: a dead assignment still keeps a copy from being an alias. `copies()`
 reads the whole program without the walk's reachability, so it over-charges
 only. Making it reachability-aware means walking copies inside `body()`. That is
 larger than the finding.
+
+## 2026-09-26 — Scale certificate precision round 3: a step reads its recorded test
+
+Astra's review of round 2 found a High that round 2 itself introduced. Round
+2 made a reachable assignment record its value's test. But the `and`/`or`
+step still evaluated its assignment's value again after the arm, against a
+map that already held the new test. A self-referential step (`known = true;
+if known: known = not known`) was negated twice. `if not known` then
+certified its scan as never running, although every call reaches it. That was
+a false `constant`, also inside a helper's block, a merge lane's setup and a
+`WriteTarget` condition. The step now takes the test its assignment recorded
+where its arm ends, and `steps()` only recognizes the final assignment. Two
+regressions pin the self-negation, one with a planner-variant scan. A passing
+`2 * 3 = 6` kills the survivor that read `*` as `+`.

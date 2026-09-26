@@ -282,9 +282,9 @@ impl Test {
     }
 }
 
-/// The value a branch gives `name` last, as the step of an `and` or `or` does.
-fn step<'a>(branch: &'a [Stmt], name: &str) -> Option<&'a Expr> {
-    match branch.last() { Some(Stmt::Assign { name: target, value }) if target == name => Some(value), _ => None }
+/// Whether a branch ends by assigning `name`, as the step of an `and` or `or` does.
+fn steps(branch: &[Stmt], name: &str) -> bool {
+    matches!(branch.last(), Some(Stmt::Assign { name: target, .. }) if target == name)
 }
 
 /// A value the interpreter computes from literals alone: a literal, or `+`, `-` and
@@ -521,10 +521,10 @@ impl Analysis<'_> {
                         // An arm that runs and falls through keeps its test's facts and its own.
                         if let (Some(facts), Some(end)) = (facts, end) { stays.push([facts, end].concat()); }
                         // `x and y` binds `b = x; if b: b = y`, and `x or y` binds `b = x; if b: else: b = y`;
-                        // the step's value is read where its arm ends.
-                        if let Expr::Variable(name) = condition && other.is_empty()
-                            && let (Some(assigned), Some(before)) = (step(branch, name), incoming.get(name)) {
-                            let (before, after) = (Box::new(before.clone()), Box::new(self.test(assigned)));
+                        // the step's value is the test its assignment recorded, where its arm ends.
+                        if let Expr::Variable(name) = condition && other.is_empty() && steps(branch, name)
+                            && let Some(before) = incoming.get(name) {
+                            let (before, after) = (Box::new(before.clone()), Box::new(self.tests.get(name).cloned().unwrap_or(Test::Unknown)));
                             combined = Some((name.clone(), if holds { Test::And(before, after) } else { Test::Or(before, after) }));
                         }
                     }

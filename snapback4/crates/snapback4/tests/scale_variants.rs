@@ -384,7 +384,7 @@ fn a_refusal_leaves_where_its_test_fails() {
         assert_eq!((c.class, c.growth_sites.len()), (Class::Constant, 0), "{refusal}: {}", c.line());
     }
     for passing in ["require 2 > 1 else STOP", "require 1 <= 1 else STOP", "require not false else STOP", "require 1 < 2 and 2 >= 2 else STOP",
-        "require 1 != 2 else STOP", "require null != 1 else STOP", "require 1 + 1 = 2 else STOP", "require 3 - 1 = 2 else STOP"] {
+        "require 1 != 2 else STOP", "require null != 1 else STOP", "require 1 + 1 = 2 else STOP", "require 3 - 1 = 2 else STOP", "require 2 * 3 = 6 else STOP"] {
         let source = format!("{EXPIRING}query q(assignee: principal ?):\n  {passing}\n  return t first 3 by .at\n");
         assert_eq!(certificate(&source).class, Class::Grows, "{passing}");
     }
@@ -491,6 +491,12 @@ fn each_branch_starts_from_the_tests_before_it() {
     let either = format!("{EXPIRING}query q(flag: bool, assignee: principal ?):\n  known = assignee != null\n  if flag:\n    known = true\n  if known:\n    {PINNED}\n  return []\n");
     let c = certificate(&either);
     assert_eq!(c.class, Class::Grows, "{}", c.line());
+    // Astra, scale precision round 2: a step whose value reads the binding itself is read once, where
+    // its arm ends: `known` is false after the `if`, so the scan runs in every call.
+    let negated = certificate(&format!("{EXPIRING}query q():\n  known = true\n  if known:\n    known = not known\n  if not known:\n    return t where .at != 0 first 2 by .at\n  return []\n"));
+    assert_eq!(negated.class, Class::Grows, "{}", negated.line());
+    let pinned = certificate(&format!("{EXPIRING}query q(assignee: principal ?):\n  known = true\n  if known:\n    known = not known\n  if not known:\n    {PINNED}\n  return []\n"));
+    assert_eq!(classes(&pinned), vec![("assignee is present".to_owned(), Class::Backlog), ("assignee is absent".to_owned(), Class::Grows)], "{}", pinned.line());
     // Grok, scale precision round 1: a straight-line reassignment holds the test it was given.
     let reassigned = certificate(&format!("{EXPIRING}query q(assignee: principal ?):\n  known = false\n  known = assignee != null\n  if known:\n    {PINNED}\n  return t first 2 by .at\n"));
     assert_eq!(classes(&reassigned), vec![("assignee is present".to_owned(), Class::Backlog), ("assignee is absent".to_owned(), Class::Grows)], "{}", reassigned.line());
