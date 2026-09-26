@@ -64970,3 +64970,57 @@ No introduced or environmental full-suite failure. The final reference audit
 has zero errors. Evidence is under `target/lane-ad-evidence/r1-test-sh.log`;
 the report records commands, exact counts and all seven killed mutations.
 No push or publication.
+
+### 2026-09-26 — Lane AD round 2: final adoption corrections
+
+Read the lane prompt, report and both full round-1 reviews. Writer-dependent
+handlers now default to their separate 32-slot admission budget; detached reads
+retain 32 slots, sharing their admission policy with authentication. The earlier
+round-1 entry's 16 + 16 describes the superseded lane implementation;
+supervisor commit d15d5110a established the actual separate 32 + 32 budgets.
+Saturation now covers 32 guests and effect done/failed/step-done requests as well
+as mutations, with query/sync responses while every admitted writer still waits.
+
+SQLite INSERT/UPDATE triggers invalidate a matching key proof when a physical
+key exceeds 2,048 bytes, including direct SQL. Legacy stores missing either
+guard rescan before reuse. Regression cases leave the proof untouched, corrupt
+keys by insert/update with and without guards, and require E_INDEX_KEY_BYTES
+with atomic rollback. The fixture rebuild inserts twelve keys; six alternating
+12,000-insert replay samples measure medians of 18.529296 ms without triggers
+and 24.527470 ms with them: about 499.8 ns extra per insert, or 6.0 µs for M8.
+
+The failure test now invokes the watcher's extracted production adoption/error
+path, without calling cleanup itself. Removing its finish_adoption call fails
+with a pending query instead of E_OP. Ephemeral writes recheck bearer authority
+under checkout and fallback guards; expiry/revocation join the six durable
+cases, and removing the checkout check returns sent and fails the new assertion.
+Both mutation experiments were restored. Concurrent sync tests alternate inserts
+on both sides of the cursor and assert its actual descending traversal.
+
+Scale adoption is 6,433 ms, with a 511 µs detached query proved inside the held
+transaction. The HTTP witness is 6,653 ms adoption / 6,655 ms changes wait;
+query and sync take 4.512 / 8.641 ms. All 1,447,966 rows, 9,077,137 indexes,
+1,973,177 log images and 316,734 commits still match the retained legacy store.
+The one-second target remains unmet. LLP 3000.019 §3.6 records the supervisor's
+0.4.4 ruling: /changes ships as the documented, ticketed limitation; bounded
+adoption is follow-up. No chunking, budget increase, syntax or diagnostic change.
+
+Affected checks: core adoption 6/6, canonical CLI 120 passed / 2 intentional
+ignores, final adoption subset 13 passed / 2 ignores, concurrent sync 32 inner
+cases, rows/legacy keys 8/8, device keys 3/3, device legacy upgrade 5/5, guide
+86/86. Two preliminary test-authoring mistakes (guest fixture lacked identity;
+cursor assertion assumed ascending traversal) were fixed. No remaining affected
+failure. The report contains file-by-file changes, reproductions and raw-log
+paths under ignored target/lane-ad-evidence/r2-*.
+
+The single final scripts/test.sh run ends exactly `== 1 failure(s) in 972 s`,
+exit 1, listing only `wasm build`. This is baseline: 2,025,652 B raw / 582,551 B
+gzip, identical to round 1 (delta 0 B), 457 B above the unchanged 582,094 B cap.
+No introduced or environmental full-suite failure. Rust tests/doctests pass
+3,676 with 22 ignored (510 s); client main batch 2,377 with 10 skipped and seven
+shards 56 passed (195 s); models 78/78 (254 s). Both native and wasm Following
+unfollow/repost cases pass. Build, typechecks, docs budget, release guard and
+fixture wrapper checks pass. Final reference audit: 513 LLPs / 9,503 refs /
+zero errors or unchecked. The generated native fixture lockfile was restored.
+Implementation commits are 39b76c1b6, 888931efb and bb9b8bce5; the evidence
+commit completes this entry. No push or publication.

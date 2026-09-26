@@ -6,6 +6,7 @@ On the corrected calibration #22 source populations, M7→M8 adoption falls from
 **167,083 ms to 9,601 ms** (17.4×) in round 0. Its detached-query timer reported
 less than 1 ms but did not prove the read overlapped the transaction. Round 1
 measures **6,884 ms adoption and a 531 µs query inside the held transaction**.
+Round 2 measures **6,433 ms adoption and a 511 µs query inside the transaction**.
 Every physical row/index, log image and commit record compares exactly. The
 approximately one-second end-to-end target is **not met**.
 
@@ -15,8 +16,9 @@ answer `loading: true, complete: false, data: null`. Generation guards remain in
 force. Writes wait and execute once after publication; this is not an interleaved
 chunked rebuild. `/changes` still waits because admitting a connection records a
 durable presence reconnect. The full brief's all-reads availability claim is
-therefore **not complete**. No authorization, disclosure, meter, log or durability
-rule was relaxed to make it appear complete.
+therefore **not complete**. The round-2 supervisor ruling accepts this documented,
+ticketed `/changes` limitation for 0.4.4 and leaves bounded adoption to follow-up.
+No authorization, disclosure, meter, log or durability rule was relaxed.
 
 ## Governing context
 
@@ -570,3 +572,216 @@ authority and HTTP regressions), `98f3c9fd2` (documentation and raw-log removal)
 The final evidence commit completes this report and the same dated journal
 entry. Every commit carries the requested Co-Authored-By trailer. No push or
 publication.
+
+
+## Round 2 — 2026-09-26 (final round)
+
+Read the lane prompt and both full round-1 reviews. Implemented only the five
+requested corrections. The governing context remains LLP 3000.019 §3.6 (P10),
+LLP 3000.000's atomic activation, LLP 3000.015's authorization and pending-read
+constraints, and LLP 3000.017's ephemeral mutation envelope. The supervisor
+accepts `/changes` waiting out adoption for 0.4.4; §3.6 now records that ruling
+in one sentence and retains the existing follow-up ticket. No chunking, new
+syntax, raised budget, push or publication.
+
+### Files and behavior
+
+Paths below are relative to `snapback4/`, except the LLP.
+
+- `crates/snapback4/src/serve.rs`: admission defaults to the separate 32-slot
+  writer class; only detached reads, metadata handlers and OPTIONS use the
+  32-slot short class. The same `detached_request` predicate selects bearer
+  authentication's reader, avoiding a list of writer routes to maintain. This
+  covers all listed auth, effect settlement, upload and seed handlers, plus
+  writer-dependent asset/effect GETs. Existing Wait/Route/Registry/Verifier
+  budgets remain separate. The supervisor's 32 + 32 replaces the historical
+  journal's 16 + 16; the report and LLP now give the actual budgets.
+- `crates/snapback4/tests/serve_adoption/saturation.rs`: queues 32 requests and
+  four overflow attempts separately for `/m/noop`, `/auth/guest`, effect done,
+  failed, and step done. Each case proves admitted requests remain blocked on
+  the writer while query/sync answer within two seconds. Overflow attempts
+  get EOF; admitted requests finish after release. Effect cases use a live
+  service credential and a nonexistent effect, then receive `E_EFFECT_UNKNOWN`
+  after the writer resumes, proving they reached settlement's engine access.
+- `crates/snapback4-core/src/store/activation.rs`: SQLite AFTER INSERT and
+  AFTER UPDATE OF k triggers delete `index_keys_validated` if a physical key
+  exceeds 2,048 bytes. Direct SQL cannot preserve the proof across such edits.
+  Missing either guard invalidates the predecessor proof, installs guards,
+  and requires the exhaustive scan in the activation transaction. Ordinary
+  valid inserts only evaluate the trigger predicate; no metadata write.
+- `crates/snapback4-core/src/store/adoption_tests.rs`: a regression leaves
+  the matching proof untouched while inserting/updating a 3,000-byte key.
+  Adoption refuses `E_INDEX_KEY_BYTES` and preserves rows, indexes, log,
+  commits, generation and sequence. Four cases cover INSERT/UPDATE with
+  guards and a legacy store missing both guards. Existing stale-proof and
+  full-path equivalence tests remain intact.
+- `crates/snapback4-core/tests/adoption_scale.rs`: opt-in trigger-cost
+  instrumentation captures the keys actually inserted by the fixture's M8
+  rebuild, then replays them with identical prepared INSERTs and alternating
+  trigger-on/off samples, rolling back each sample. Normal scale runs do not
+  enable the capture trigger or replay.
+- `crates/snapback4/src/serve_adoption.rs`: extracted `adopt_candidate` from
+  the watcher, preserving adoption, generation-reopen and rejection handling.
+  `tests/serve_adoption/failure.rs` invokes that production path. It never
+  calls `finish_adoption`; a rejected candidate must return `E_OP` instead
+  of remaining pending, retain the old generation, and allow later adoption.
+- `crates/snapback4/src/serve_ephemeral.rs`: re-resolves mutation authority
+  under checkout's writer guard before `mutate_ephemeral`; its in-memory
+  fallback also rechecks. `tests/serve_adoption/authority.rs` adds expiry
+  and revocation for ephemeral writes beside the six durable cases, asserting
+  the existing failed/E_AUTH envelope, unchanged ephemeral version, no new
+  durable commit and no new durable row.
+- `crates/snapback4/tests/serve_sync/concurrent.rs`: the 32 cases now alternate
+  `aa-concurrent` and `zz-concurrent`, assert the first snapshot row actually
+  is `z-before`, and prove continuation omits the insertion before that
+  cursor while catch-up delivers it. The concrete fixture traverses byId
+  descending: `zz` is before its cursor, `aa` after. This is now asserted,
+  rather than inferred from the former comment.
+- `../llp/3000.019-what-the-builder-still-wrote.rfc.md`: records the supervisor
+  ruling, actual budgets, trigger invalidation and production failure/authority
+  corrections; Revised updated. `JOURNAL.md`: one appended dated round-2 entry.
+  This report records implementation and final evidence; raw logs remain ignored.
+
+### Forms and regressions
+
+No new Quarry form or diagnostic. The six view forms above still compile and
+run. For example, `view originalTotals: count posts where .parent = null by
+.author` adopts at scale. The HTTP fixture's `view totals: count items by .owner`
+and query returning `totals[viewer]` remain pending during adoption, complete
+once published. The ephemeral fixture runs `mutation typeNow(id: id)` with
+`upsert typing[owner = viewer] {}` against a four-second ephemeral table; a
+bearer expired/revoked while queued now receives `state: failed`, `why.code:
+E_AUTH`. Saturated `POST /auth/guest` or `POST /effects/missing/done` leaves
+`POST /q/who` and `POST /sync` available.
+
+Affected verification, before the full suite:
+
+- Core adoption **6/6**, including the four physical-edit subcases and
+  full-path row/index/log/sequence equivalence.
+- Canonical CLI **120 passed, 2 intentional ignores**. Final adoption subset
+  **13 passed, 2 ignored**, after restoring mutation experiments; the ignored
+  scale helper was run explicitly and the crash child is exercised by its test.
+- Detached concurrent sync **32/32 inner cases**. Core rows/legacy keys **8/8**;
+  device key-bound **3/3**; device legacy upgrade **5/5**; whole guide **86/86**.
+- Removing production `finish_adoption()` makes the rejected-query assertion
+  fail with `loading: true` instead of `E_OP` (`r2-failure-cleanup-mutant.log`).
+  Removing the ephemeral checkout recheck makes the expired request return
+  `state: sent` and mutate typing (`r2-ephemeral-authority-mutant.log`). Both
+  deliberate mutants were restored before final verification.
+- Two preliminary test-authoring failures were mine and fixed: the guest
+  saturation fixture initially omitted `use identity`, and the new cursor
+  assertion initially treated ascending order as the snapshot traversal.
+  The fixture now enables identity and asserts the actual descending cursor.
+  Neither was a product failure. No affected check has an unresolved failure.
+- Frozen Bun installation passed on Node 24.13.1 / Bun 1.3.14. Rust/Cargo 1.97.0;
+  eight build jobs, dev/test debug information disabled, opt-level 1 tests.
+- Reference audit: **513 LLP docs, 9,503 refs, 0 errors, 0 unchecked** before
+  the report/journal additions. No changed source exceeds 1,500 lines.
+
+### Measurements
+
+Same prepared M7 fixture: **1,447,960 rows / 9,077,125 indexes**. The ordinary
+scale run has no trigger-cost capture instrumentation:
+
+| Phase | Round-2 time |
+|---|---:|
+| Key proof/guard check | 0.126 ms |
+| Remaining preflight | 1,815.659 ms |
+| Projection/index work | 477.635 ms |
+| Capture (included in derived work) | 780.767 ms |
+| Derived work | 1,491.457 ms |
+| Validation | 481.631 ms |
+| Metadata | 1.798 ms |
+| Commit/checkpoint | 2,163.745 ms |
+| Whole adoption | **6,433 ms** |
+| Detached query, proved inside transaction | **511 µs** |
+| Injected transaction hold | 536 µs |
+
+Per-view folds: dailyLikes 13.557 ms / 5,008 visits; dailyPosts 234.179 ms /
+50,228; originalTotals 228.116 ms / 50,228; receivedLikes 13.039 ms / 5,008;
+receivedReplies 218.062 ms / 50,228; receivedReposts 3.042 ms / 1,004.
+
+The actual HTTP witness reports **6,653 ms adoption / 6,655 ms `/changes` wait**,
+with query **4.512 ms** and sync **8.641 ms** while adoption is held. The
+approximately one-second target remains unmet. No constant adoption bound is
+claimed. The existing `/changes` ticket retains its crash/durability constraint.
+
+**Trigger cost:** M8 inserts twelve index keys (the optimization preserves
+unrelated indexes). Replaying those twelve keys 1,000 times per sample, with
+identical deletion work in both variants and six alternating samples each,
+gives medians **18.529296 ms off / 24.527470 ms on per 12,000 inserts**:
+**499.8 ns extra per insert**, approximately **6.0 µs** for this rebuild's
+actual twelve inserts. This isolates trigger cost; it is not a second
+end-to-end adoption timing or a claim about every workload.
+
+Streaming comparison to the retained legacy M8 store still matches every
+**1,447,966 rows, 9,077,137 indexes, 1,973,177 log entries, and 316,734 commits**,
+with the same four digests as round 1 (`r2-scale-equivalence.log`).
+
+Reproduce the normal scale and HTTP witness with the round-1 commands above.
+Add `SNAPBACK4_ADOPTION_KEY_GUARD_COST=1` only for the trigger-cost run. Raw
+round-2 evidence is under `target/lane-ad-evidence/r2-*.log` (CLI, core,
+rows, device keys/upgrade, guide, two mutants, scale, scale HTTP, scale
+comparison and trigger cost).
+
+### Deviations and open reproductions
+
+No deviation from the round-2 scope. SQLite triggers implement option (a);
+no chunking was added. Writer-dependent long polls retain their dedicated
+Wait/Route/Registry/Verifier classes so they cannot occupy detached-read slots.
+
+The two known release qualifications remain: adoption exceeds the one-second
+target (run the scale command), and `/changes` waits for durable reconnect
+admission (run the HTTP scale command). The latter ships under the supervisor's
+explicit ruling and existing ticket. Historical `--fresh` force-kill cleanup
+and synthetic-fixture limits above remain unchanged. The final suite below
+records the wasm budget status and any new failure separately.
+
+Implementation commits: `39b76c1b6` (writer admission), `888931efb` (physical
+key proof and measurement), `bb9b8bce5` (failure cleanup, ephemeral authority,
+explicit cursor coverage). Each carries `Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>`. Documentation/evidence is committed separately.
+
+
+### Round-2 final full-suite result
+
+Ran `scripts/test.sh` exactly once after the fixes, affected checks, restored
+mutation experiments and scale runs. From `snapback4/`:
+
+```sh
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+bash scripts/test.sh > target/lane-ad-evidence/r2-test-sh.log 2>&1
+```
+
+Exact final summary, **exit status 1**:
+
+```text
+== 1 failure(s) in 972 s
+   wasm build
+```
+
+Every full-suite failure: **baseline — wasm build**, and no others. Artifact:
+**2,025,652 B raw / 582,551 B gzip**, against the unchanged **582,094 B** cap,
+**457 B over**. This is byte-for-byte the round-1 size (**round-2 delta: 0 B**).
+Reproduce with `bash scripts/build-wasm.sh` on the stated toolchain. No budget
+increase or clean-full-suite claim. **No introduced or environmental failure.**
+
+- Rust workspace tests/doctests: **3,676 passed, 0 failed, 22 ignored**; **510 s**.
+  CLI **120 passed, 2 ignored**. Whole guide **86/86**.
+- Client main batch: **2,377 passed, 10 skipped**; seven shards **56 passed**;
+  **195 s** total. Native and wasm unfollow/repost cases both passed against
+  the rebuilt server (3,196.712 ms and 5,173.587 ms respectively).
+- Client models: **78/78**, **254 s**, including both 5,000-sequence session
+  models. Fixture wrapper tests **9/9**.
+- Cargo build, docs budget, release guard, package typecheck/build, chat
+  check/typecheck and Expo typecheck all passed.
+
+The final reference audit reports **513 LLP docs, 9,503 refs in 26,971 files,
+0 errors, 0 unchecked** (`r2-ref-check-final.log`). `git diff --check` passes;
+the largest changed source is `serve.rs`, **1,345 lines**. The suite-generated
+native fixture Cargo.lock version change was restored. Only the report and one
+appended journal entry accompany the three implementation commits; all commits
+carry the requested co-author trailer. Full log and exit status remain in
+ignored `target/lane-ad-evidence/r2-test-sh.log` and `r2-test-sh.exit`.
+No push or publication.
