@@ -61777,3 +61777,19 @@ stored/wire/schema formats, guide contracts, `written by`, `sequence by`,
 row views, bounded Following, event slots, read-through and publication
 procedure remain unchanged. Work is committed on the diet branch only;
 no push or publication.
+
+## 2026-09-26 — device diet qualification: separate fixture launch from execution
+
+Isolation alone did not remove this host's pre-main delay. Fresh abort probes
+eventually emitted the required panic and SIGABRT records after 35.5 s and
+87.0 s; explicit signing also varied between 6.1 s and 35.1 s. Retain the
+original compiler settings and test bodies. The test-only process-launch
+allowance is now 120 s instead of 30 s; the lifecycle readiness/exit bound
+after main stays 15 s. The Expo Swift fixture emits an unbuffered main marker,
+so its Node harness likewise allows 120 s for OS launch and preserves its
+15-second execution deadline. Compilation still has its 40-second bound;
+the outer test timeout covers those three phases. All seven media assertions
+and every lifecycle assertion remain. No Snapback runtime ceiling, product
+timeout, format or feature contract changes. This fixture-only correction
+does not enter the device wasm. Failed and successful qualification attempts
+remain in `reports/20260925-diet/`.

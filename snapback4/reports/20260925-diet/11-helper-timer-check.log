@@ -1,0 +1,3 @@
+PASS retained 15-second post-main execution deadline: 15203 ms, SIGKILL
+PASS missing main marker refuses a zero exit
+PASS failed process launch is reported
