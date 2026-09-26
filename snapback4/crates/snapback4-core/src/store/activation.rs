@@ -65,9 +65,18 @@ impl Store {
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+        // @ref LLP 3000.019#3.6 — reuse an admitted key bound, never assume a legacy store was checked.
+        // Ordinary writes cannot grow an oversized key. Every activation key
+        // below is checked too. Bind the proof to the predecessor so an older
+        // binary's adoption invalidates it; device installation always scans.
+        let key_proof = before.1.as_ref().map(|hash| format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES));
+        let validated: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key = 'index_keys_validated'", [], |r|r.get(0)).optional()?;
+        let keys_validated = programs.is_some() && key_proof.is_some() && validated == key_proof;
+        #[cfg(test)]
+        let keys_validated = keys_validated && !self.full_adoption;
         // One bounded result, no row images. Fresh stores have no schema;
         // an explicit device reset discards the old entries in this transaction.
-        if before.0.is_some() && !reset {
+        if before.0.is_some() && !reset && !keys_validated {
             let violation: Option<(String, i64)> = sql.query_row(
                 "SELECT c.name, COUNT(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE length(i.k) > ?1 GROUP BY i.ti ORDER BY i.ti LIMIT 1",
                 [crate::rows::MAX_INDEX_KEY_BYTES as i64], |row| Ok((row.get(0)?, row.get(1)?))
@@ -77,6 +86,7 @@ impl Store {
                 return Err(crate::rows::index_key_refusal(table, index, count as u64));
             }
         }
+        report.phase("key validation", &mut phase);
         let schema_hash = schema.hash();
         let activation_hash = programs.map(|programs| digest(&(schema, programs)));
         let schema_changed = before.0.as_deref() != Some(&schema_hash);
@@ -169,7 +179,7 @@ impl Store {
                             crate::rows::adoption::charge(contribution_meter, crate::rows::adoption::contribution_bytes(&row, table))?;
                         }
                         for key in index_keys(index, &row, id) {
-                            if contribution.is_some() && key.len() > crate::rows::MAX_INDEX_KEY_BYTES {
+                            if key.len() > crate::rows::MAX_INDEX_KEY_BYTES {
                                 return Err(crate::rows::index_key_refusal(name, index_name, 1));
                             }
                             if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
@@ -199,7 +209,9 @@ impl Store {
         if schema_changed {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let plan = &plans[name];
-                if plan.project || schema.maintain_for(name).is_some_and(|m| previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))) {
+                // @ref LLP 3000.019#3.6 — physical reuse cannot exempt rebuilt rows from unchanged invariants.
+                let rebuilt = schema.maintain_for(name).is_some_and(|m| previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)));
+                if plan.project || rebuilt {
                 walk(&tx, catalog[name], |_, mut row| {
                     materialize_optional_fields(&mut row, table);
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
@@ -208,10 +220,10 @@ impl Store {
                     Ok(())
                 })?;
                 }
-                for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || plan.indexes.contains(*name))) {
+                for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))) {
                     validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
                 }
-                for constraint in table.constraints.iter().filter(|_| plan.project) {
+                for constraint in table.constraints.iter().filter(|_| plan.project || rebuilt) {
                     if let Constraint::Cap { by, max } = constraint {
                         let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
                         validate_groups(&tx, name, index_name, by.len(), u64::from(*max), false)?;
@@ -233,6 +245,11 @@ impl Store {
         let previous = tx.tx.query_row("SELECT value FROM _meta WHERE key = 'generation'", [], |row| row.get::<_, String>(0)).optional()?.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
         let generation = if programs.is_some() && changed { previous.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { previous.max(1) };
         tx.set_meta("schema_hash", &schema_hash)?;
+        if let Some(hash) = &activation_hash {
+            tx.set_meta("index_keys_validated", &format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES))?;
+        } else {
+            tx.tx.execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
+        }
         if let (Some(hash), Some(programs)) = (&activation_hash, programs) {
             tx.set_meta("activation_hash", hash)?;
             tx.set_meta("generation", &generation.to_string())?;

@@ -114,6 +114,12 @@ impl Runner<'_> {
         for (name, table) in &self.schema.tables.clone() {
             let paths: Vec<_> = table.recorded.keys().filter(|path| previous.and_then(|s| s.table(name)).is_none_or(|old| !old.recorded.contains_key(*path))).cloned().collect();
             if paths.is_empty() { continue; }
+            // @ref LLP 3000.019#3.6 — capture changes only these fields; keep unrelated physical keys.
+            // Projection already installed the candidate's defaults/indexes.
+            // Persist every historical capture, including null, but generate
+            // old/new keys only for indexes depending on a newly stamped path.
+            let mut captured_table = table.clone();
+            captured_table.indexes.retain(|_, index| paths.iter().any(|path| index.uses_column(path)));
             let mut bounds = Bounds::default();
             loop {
                 let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, name, "byId", &[], &bounds, Dir::Asc, 256))?;
@@ -122,7 +128,7 @@ impl Runner<'_> {
                     bounds.after = crate::key::decode(&key);
                     let row = self.capture_recorded(table, old.clone(), &paths)?;
                     super::validate::validate_row(self.schema, name, &crate::schema::row_image(&row, table))?;
-                    let entries = self.tx.put(name, table, &row, Some(&old))?;
+                    let entries = self.tx.put(name, &captured_table, &row, Some(&old))?;
                     self.meter.charge(MeterKind::IndexEntries, entries)?;
                 }
             }

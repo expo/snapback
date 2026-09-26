@@ -2,7 +2,7 @@
 //! the blocking suite: SNAPBACK4_ADOPTION_SCALE=1 cargo test -p snapback4-core
 //! --test adoption_scale -- --ignored --nocapture. The database is reusable.
 use snapback4_core::{Context, Engine, Store, Value, value::object};
-use std::{path::PathBuf, sync::{Arc, Mutex, mpsc}, time::Instant};
+use std::{path::PathBuf, sync::{Arc, Mutex, mpsc, atomic::{AtomicBool, Ordering}}, time::{Duration, Instant}};
 
 const NOW: i64 = 1_790_000_000_000;
 const SOURCE: &str = include_str!("../../../../benchmarks/runs/2026-09-26-snapback4-clique-astra-0.4.3/astra/source/snapback/schema.q");
@@ -90,23 +90,50 @@ fn m7_to_m8() {
     let counts:(i64,i64)=engine.store().conn().query_row("SELECT (SELECT count(*) FROM r), (SELECT count(*) FROM i)",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
     eprintln!("fixture rows={} indexes={}",counts.0,counts.1);
     let mut detached = std::env::var("SNAPBACK4_ADOPTION_DETACHED").ok().map(|_|engine.reader().unwrap());
+    let hold_inside = detached.is_some();
+    let inside = Arc::new(AtomicBool::new(false));
+    let building = inside.clone();
     let shared=Arc::new(Mutex::new(engine));
     let (send,recv)=mpsc::channel();
+    let (resume,resumed)=mpsc::channel();
     let owner=shared.clone();
     let adoption=std::thread::spawn(move||{
         let b=bound(true);
-        let mut e=owner.lock().unwrap(); send.send(()).unwrap();
+        let mut e=owner.lock().unwrap();
+        let once=AtomicBool::new(false);
+        e.store().conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+            // The identity SELECT has already pinned this BEGIN IMMEDIATE
+            // transaction. Hold its first index read until the query finishes.
+            if matches!(ctx.action,rusqlite::hooks::AuthAction::Read {table_name:"i",..})
+                && !once.swap(true,Ordering::SeqCst) {
+                building.store(true,Ordering::SeqCst);
+                send.send(()).unwrap();
+                if hold_inside {
+                    let pause=Instant::now();
+                    resumed.recv_timeout(Duration::from_secs(10)).unwrap();
+                    eprintln!("injected_hold_us={}",pause.elapsed().as_micros());
+                }
+                building.store(false,Ordering::SeqCst);
+            }
+            rusqlite::hooks::Authorization::Allow
+        })).unwrap();
         let started=Instant::now();
         e.adopt_at(b.schema,b.programs.into_iter().map(|p|p.program),NOW).unwrap();
         eprintln!("adoption_ms={} report={:#?}",started.elapsed().as_millis(),e.store().adoption_report);
     });
-    recv.recv().unwrap();
+    recv.recv_timeout(Duration::from_secs(30)).unwrap();
     let started=Instant::now();
     let mut held = if detached.is_none() {Some(shared.lock().unwrap())} else {None};
     let e=match detached.as_mut() {Some(reader)=>reader,None=>held.as_deref_mut().unwrap()};
     let result=e.query_at("myProfile",Context::new("u0000",Default::default()).at(NOW)).0.unwrap();
     assert!(result.complete);
-    eprintln!("read_wait_ms={}",started.elapsed().as_millis());
+    let waited=started.elapsed();
+    if hold_inside {
+        assert!(inside.load(Ordering::SeqCst),"query must finish inside adoption's transaction");
+        assert!(waited<Duration::from_secs(2),"detached query waited {waited:?}");
+        resume.send(()).unwrap();
+    }
+    eprintln!("read_wait_us={} inside_transaction={hold_inside}",waited.as_micros());
     drop(detached);
     // End a mutex loan before joining its writer.
     drop(held); adoption.join().unwrap();
