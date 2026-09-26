@@ -56,10 +56,12 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("react", "client"), ("hooks", "client"),
+    ("composer", "client"), ("receipts", "client"), ("unread", "client"),
     ("typing", "ephemeral"),
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
@@ -347,6 +349,7 @@ blob URL; `useAsset(id)` in React) or `client.assetSource(id)` (a URI and
 headers for native views) fetches `GET /assets/<id>` under the viewer's
 credentials, and a row that is deleted, whose column is cleared, that
 expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN.
+For one-view React photos, own the handle above the list (`guide client`).
 `once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and
 the uploader is counted after placement; before placement the uploader may
 preview. A Range request against a once asset is refused before consuming a
@@ -361,6 +364,7 @@ retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership."##,
+        "client" => include_str!("guide/client.md"),
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,

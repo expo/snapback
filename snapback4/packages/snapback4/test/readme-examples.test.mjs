@@ -23,6 +23,7 @@ const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
   setTyping: Ephemeral<{ room: string }, null>;
   stopTyping: Ephemeral<{ room: string }, null>;
   typingIn: Query<{ room: string }, { principal: string }[]>;
@@ -76,7 +77,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -200,4 +201,24 @@ test("W10b typing guidance hides a short-lived server answer before the next ans
     assert.deepEqual(Array.from(filter(rows), row => row.principal), []);
     assert.equal(rows.length, 1, "no replacement answer or server removal arrived");
   }
+});
+
+// Execute the published route owner: it retains route identity, never read data.
+test("profile route is chosen once per account and survives later loading", async () => {
+  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function initialProfileRoute[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  const choose = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\ninitialProfileRoute;`, { api: { myProfile: {} } });
+  let calls = 0;
+  let answer = { loading: true };
+  const route = choose({ query: async () => { calls++; return answer; } });
+  assert.equal(await route(), "loading");
+  answer = { denied: { message: "unavailable" } };
+  assert.equal(await route(), "error");
+  answer = { data: { handle: "alice" } };
+  assert.equal(await route(), "app");
+  answer = { loading: true };
+  assert.equal(await route(), "app");
+  assert.equal(calls, 3, "the chosen route never re-reads or retains the protected profile");
+  const otherAccount = choose({ query: async () => ({ data: null }) });
+  assert.equal(await otherAccount(), "profile", "another account starts with its own decision");
 });
