@@ -2,7 +2,9 @@ use super::*;
 use crate::{Context, meter::{Ceilings, Cut, Meter}, rows::{MemoryRows, Rows}};
 
 fn fixture() -> (crate::Schema, MemoryRows, Value) {
-    let source = include_str!("../../../../snapback4-device/tests/unread_range/schema.q");
+    fixture_source(include_str!("../../../../snapback4-device/tests/unread_range/schema.q"))
+}
+fn fixture_source(source: &str) -> (crate::Schema, MemoryRows, Value) {
     let b = snapback4_lang::compile(&[("range.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let schema: crate::Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap();
@@ -62,11 +64,14 @@ impl Rows for CoveredRows {
 
 #[test]
 fn exhausted_provisional_rule_admission_keeps_a_covered_range_unknown() {
-    let (schema, rows, member) = fixture();
+    // This badge counts own sends, so an admitted provisional insert is a match.
+    let source = include_str!("../../../../snapback4-device/tests/unread_range/schema.q")
+        .replace(".senderId != m.principal and ", "");
+    let (schema, rows, member) = fixture_source(&source);
     let rows = CoveredRows(rows);
     for (id, ordinal, until) in [("settled", 1, Value::Null), ("pending", 2, Value::Null), ("expired", 3, Value::Int(1))] {
         let row = object([("id", Value::Id(id.into())), ("conversationId", Value::Id("c".into())),
-            ("ordinal", Value::Int(ordinal)), ("at", Value::Int(ordinal)), ("senderId", Value::Id("alice".into())),
+            ("ordinal", Value::Int(ordinal)), ("at", Value::Int(ordinal)), ("senderId", Value::Id("bob".into())),
             ("tombstone", Value::Bool(false)), ("until", until)]);
         rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
     }
