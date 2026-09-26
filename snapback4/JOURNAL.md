@@ -61641,3 +61641,14 @@ Full-interface erasure saved no gzip; additionally sharing generic
 prepaid-scan bookkeeping increased gzip by 194 B and was discarded. The
 42 device library tests pass. Final blocking qualification and the lowered
 ratchet follow after the remaining candidates.
+
+## 2026-09-25 — device diet: compile out server row-view bookkeeping
+
+The SQLite feature now owns row-view recount work writes, basis reads/writes,
+and cursor-prefix subtraction. Devices retain the existing fixed reservations,
+coverage checks and live recount/prediction paths; native server behavior is
+unchanged. Same build: **1,985,947 B raw / 574,735 B gzip**, down **2,027 B gzip**
+from 576,762. This attributes the runtime server branches separately from
+schema preparation, which is still present for the next candidate. Recount
+chunks, adoption rebuilds and Postgres seeks were already excluded, as the
+baseline symbols confirm. No runtime ceiling or serialized form changes.

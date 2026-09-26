@@ -79,3 +79,7 @@ Post-bindgen symbol-bearing wasm; shallow raw bytes, excluding custom metadata. 
 | Plus shared prepaid-scan entry/exit (discarded) | 1,988,815 | 576,956 | 265 |
 
 The narrow interface shares the real/recording applicator, history, boundaries and media metadata helpers. It allocates nothing and preserves call order and storage operations. Full DeviceTx retained unused vtable methods. The additional authorization refactor saved raw bytes but inflated gzip by 194, so it was reverted. The large sort census is mostly distinct element types and closure comparators. Erasing it wholesale would require changing containers/collection algorithms in runtime paths; the prior LLP 3000.002 S2 investigation documents the complexity/performance risk and remains shelved. Three bounded generic probes are complete; no such algorithm change is retained.
+
+## Candidate 2: compile-time server row-view boundary
+
+576,762 → **574,735 B gzip** (1,991,416 → **1,985,947 B raw**): **2,027 B gzip saved**. Server work deletion/updating, basis timestamps and cursor-prefix subtraction now require the SQLite feature. The bounded writer scan, public reservations and covered device recount remain. Native devices still compile the server feature but keep their runtime device checks; server execution is unchanged. The separate work-schema preparation candidate remains present at this stage.
