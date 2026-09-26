@@ -24,9 +24,9 @@ export function assetRetention(options?: AssetRetention): AssetRetention {
   }
   return { keep, maxBytes };
 }
-interface Home { table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string }
-interface Entry { id: string; home: Home; bytes: number; used: number }
-const identity = (home: Home) => JSON.stringify([home.table, home.row, home.column, home.generation]);
+interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string }
+interface Entry { confirmed?: true; id: string; home: Home; bytes: number; used: number }
+const identity = (home: Home) => JSON.stringify([home.store_id, home.table, home.row, home.column, home.generation]);
 const absent = (): AssetRead => ({ denied: { code: "E_OFFLINE", family: "link", message: "no retained ordinary media is available offline", retryable: true } });
 
 export class MediaCache {
@@ -60,8 +60,9 @@ export class MediaCache {
     }
     await this.reconcile();
   }
-  private async home(id: string): Promise<Home | null> {
-    return await this.call({ op: "asset_home", id, viewer: this.viewer, now: this.now() }) as Home | null;
+  private async home(id: string, home: Pick<Home, "store_id" | "table" | "row" | "column">): Promise<Home | null> {
+    if (typeof home.store_id !== "string" || !home.store_id) return null;
+    return await this.call({ op: "asset_home", id, home, viewer: this.viewer, now: this.now() }) as Home | null;
   }
   private async save() {
     await this.call({ op: "set_meta", key: "media:manifest", value: JSON.stringify([...this.entries.values()]) });
@@ -86,7 +87,7 @@ export class MediaCache {
   private async check() {
     let changed = false;
     for (const entry of this.entries.values()) {
-      const home = this.options.keep === "viewed" ? await this.home(entry.id) : null;
+      const home = this.options.keep === "viewed" && entry.confirmed ? await this.home(entry.id, entry.home) : null;
       if (!home || identity(home) !== identity(entry.home) || (home.expiresAt != null && home.expiresAt <= this.now())) {
         await this.drop(entry.id);
         changed = true;
@@ -136,11 +137,17 @@ export class MediaCache {
     if (response.status !== 200 || response.headers.get("accept-ranges") !== "bytes" || this.options.keep !== "viewed" || blob.size > this.options.maxBytes) return Promise.resolve();
     return this.serial(async () => {
       if (this.stopped) return;
-      const home = await this.home(id);
+      // @ref LLP 3000.019#3.5 — copied facts and synced references prove no placement.
+      let receipt: Pick<Home, "store_id" | "table" | "row" | "column"> | undefined;
+      try {
+        const value = JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home") ?? ""));
+        if (value && typeof value.store_id === "string" && value.store_id && [value.table, value.row, value.column].every(v => typeof v === "string")) receipt = value;
+      } catch { /* Older servers and upload previews have no retainable home. */ }
+      const home = receipt ? await this.home(id, receipt) : null;
       if (!home) { await this.drop(id); await this.save(); return; }
       const bytes = new Uint8Array(await blobArrayBuffer(blob));
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-      const entry = { id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };
+      const entry: Entry = { confirmed: true, id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };
       // Keep the manifest first so an interrupted byte write is removed on reopen.
       this.entries.set(id, entry);
       await this.save();

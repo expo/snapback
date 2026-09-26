@@ -838,7 +838,7 @@ impl<S: DeviceStore> Device<S> {
                     if staged.acquired {
                         media::remember(&tx, table_name, table, &staged.row, self.generation)?;
                     } else {
-                        media::forget(&tx, table, &staged.row)?;
+                        media::forget(&tx, table_name, table, &staged.row)?;
                     }
                 }
                 if rows.len() < 500 {
@@ -1164,7 +1164,7 @@ fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, gro
         let rows = tx.scan(table_name, &index, group, &Bounds::default(), Dir::Asc, 500)?;
         let count = rows.len();
         for (row, _) in rows {
-            media::forget(tx, table, &row)?;
+            media::forget(tx, table_name, table, &row)?;
             tx.delete(table_name, table, &row)?;
         }
         if count < 500 {

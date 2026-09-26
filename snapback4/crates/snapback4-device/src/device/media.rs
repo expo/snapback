@@ -2,10 +2,11 @@
 use super::*;
 use snapback4_core::ir::{ArgType, Expr, KeyProvenance, ProgramKind, Read, Stmt};
 use snapback4_core::schema::ColumnType;
+use snapback4_core::assets::asset_id;
 use serde_json::{Value as Json, json};
 
 fn upload_key(viewer: &str, id: &str) -> String { format!("device:upload:{}", json!([viewer, id])) }
-fn home_key(id: &str) -> String { format!("device:media:{id}") }
+fn row_key(table: &str, row: &str) -> String { format!("device:media-row:{}", json!([table, row])) }
 
 // @ref LLP 3000.007#8 — prediction uses the uploader's server facts, never argument facts
 pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args: &Json) -> Result<BTreeMap<String, Value>, RuntimeError> {
@@ -29,31 +30,36 @@ pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args:
 
 fn media_type(kind: &ColumnType) -> Option<bool> {
     match kind {
-        ColumnType::Optional(inner) => media_type(inner),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => media_type(inner),
         ColumnType::Image { once, .. } => Some(*once),
         ColumnType::Video { .. } => Some(false),
         _ => None,
     }
 }
 
-/// Index only confirmed stream images, never predicted placements. Stale entries
-/// are harmless: every access checks the current row, generation and lifetime.
+// @ref LLP 3000.019#3.5 — mirror the landed server's optional/list membership without copying cells.
+// The authorized row read has already admitted the complete value under its meter.
+fn element<'a>(kind: &ColumnType, value: Option<&'a Value>, id: &str) -> Option<&'a Value> {
+    match (kind, value) {
+        (ColumnType::Optional(inner), value) => element(inner, value, id),
+        (ColumnType::List { of, .. }, Some(Value::Array(items))) => items.iter().find_map(|v| element(of, Some(v), id)),
+        (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(value)) if asset_id(Some(value)) == Some(id) => Some(value),
+        _ => None,
+    }
+}
+
+/// Record acquisition of a row, never placement of the ids it references.
+// @ref LLP 3000.019#3.5 — only a successful download supplies media's ledger home.
 pub(super) fn remember(tx: &dyn crate::store::StreamTx, table_name: &str, table: &Table, row: &Value, generation: u64) -> Result<(), RuntimeError> {
-    if table.sync.is_none() { return Ok(()); }
-    for (column, kind) in &table.columns {
-        if media_type(kind).is_none() { continue; }
-        let Some(id) = row.field(column).ok().and_then(|v| v.field("id").ok()).and_then(|v| v.as_str().ok()) else { continue };
-        tx.set_meta(&home_key(id), &encoded(&json!({ "table": table_name, "row": row.field("id")?.as_str()?, "column": column, "generation": generation }))?)?;
+    if table.sync.is_some() && table.columns.values().any(|kind| media_type(kind).is_some()) {
+        tx.set_meta(&row_key(table_name, row.field("id")?.as_str()?), &generation.to_string())?;
     }
     Ok(())
 }
 
-pub(super) fn forget(tx: &dyn crate::store::StreamTx, table: &Table, row: &Value) -> Result<(), RuntimeError> {
-    for (column, kind) in &table.columns {
-        if media_type(kind).is_none() { continue; }
-        if let Some(id) = row.field(column).ok().and_then(|v| v.field("id").ok()).and_then(|v| v.as_str().ok()) {
-            tx.delete_meta(&[&home_key(id)])?;
-        }
+pub(super) fn forget(tx: &dyn crate::store::StreamTx, name: &str, table: &Table, row: &Value) -> Result<(), RuntimeError> {
+    if table.columns.values().any(|kind| media_type(kind).is_some()) {
+        tx.delete_meta(&[&row_key(name, row.field("id")?.as_str()?)])?;
     }
     Ok(())
 }
@@ -67,7 +73,7 @@ pub(super) fn leave(tx: &dyn crate::store::StreamTx, name: &str, table: &Table, 
     loop {
         let rows = tx.scan(name, "byId", &[], &bounds, Dir::Asc, 500)?;
         for (row, _) in &rows {
-            if columns.iter().zip(group).all(|(column, value)| row.field(column).ok() == Some(value)) { forget(tx, table, row)?; }
+            if columns.iter().zip(group).all(|(column, value)| row.field(column).ok() == Some(value)) { forget(tx, name, table, row)?; }
             bounds.after = Some(vec![row.field("id")?.clone()]);
         }
         if rows.len() < 500 { return Ok(()); }
@@ -91,12 +97,14 @@ impl<S: DeviceStore> Device<S> {
     }
 
     // @ref LLP 3000.007#8 — retained media follows its current home, including offline expiry
-    pub fn asset_home(&mut self, id: &str, viewer: &str, now: i64) -> Result<Json, RuntimeError> {
+    pub fn asset_home(&mut self, id: &str, viewer: &str, now: i64, home: &Json) -> Result<Json, RuntimeError> {
         let tx = self.store.read_transaction()?;
-        let Some(held) = tx.meta(&home_key(id))? else { return Ok(Json::Null) };
-        let home: Json = decoded(&held)?;
-        if home["generation"].as_u64() != Some(self.generation) { return Ok(Json::Null); }
+        // The host passes the authenticated download receipt, never a row-inferred home.
+        // @ref LLP 3000.019#3.5 — identical coordinates in another store grant no custody.
+        let Some(store_id) = home["store_id"].as_str().filter(|id| !id.is_empty()) else { return Ok(Json::Null) };
+        if tx.meta(STORE_ID)?.as_deref() != Some(store_id) { return Ok(Json::Null); }
         let (Some(name), Some(row), Some(column)) = (home["table"].as_str(), home["row"].as_str(), home["column"].as_str()) else { return Ok(Json::Null) };
+        if tx.meta(&row_key(name, row))?.as_deref() != Some(self.generation.to_string().as_str()) { return Ok(Json::Null); }
         let Some(table) = self.schema.table(name) else { return Ok(Json::Null) };
         if table.sync.is_none() || table.columns.get(column).and_then(media_type) != Some(false) { return Ok(Json::Null); }
         let program = Program { name: "device asset home".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
@@ -107,9 +115,9 @@ impl<S: DeviceStore> Device<S> {
         let read = local::query(&tx, &schema, &program, Context::new(viewer, BTreeMap::new()).at(now), Ceilings::default());
         let Ok(read) = read else { return Ok(Json::Null) };
         if read.data.field("pending").ok() == Some(&Value::Bool(true)) { return Ok(Json::Null); }
-        let Some(asset) = read.data.field(column).ok() else { return Ok(Json::Null) };
-        if asset.field("id").ok().and_then(|v| v.as_str().ok()) != Some(id) { return Ok(Json::Null); }
-        let mut home = home;
+        let Some(asset) = element(&table.columns[column], read.data.field(column).ok(), id) else { return Ok(Json::Null) };
+        let mut home = home.clone();
+        home["generation"] = json!(self.generation);
         home["expiresAt"] = json!(read.next_expiry);
         home["type"] = json!(asset.field("type").ok().and_then(|v| v.as_str().ok()));
         tx.rollback()?;

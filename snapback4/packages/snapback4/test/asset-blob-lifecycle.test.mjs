@@ -55,7 +55,7 @@ function installUrls(t) {
   return { created, revoked };
 }
 function response(blob, ranges = "bytes") {
-  return { ok: true, status: 200, headers: new Headers({ "accept-ranges": ranges }), blob: async () => blob };
+  return { ok: true, status: 200, headers: new Headers({ "accept-ranges": ranges, "x-snapback-asset-home": encodeURIComponent(JSON.stringify(home(blob.type))) }), blob: async () => blob };
 }
 function fetchBlob(blob, viewed, ranges) {
   return fetchAsset("https://assets.invalid", {}, async () => response(blob, ranges), "photo", viewed);
@@ -67,8 +67,8 @@ async function deviceFiles(t) {
   const read = async path => { try { return await readFile(path); } catch (e) { if (e.code === "ENOENT") return null; throw e; } };
   function openCore() {
     return {
-      async call({ op, key, value, id }) {
-        if (op === "asset_home") return { ok: homes.get(id) ?? null };
+      async call({ op, key, value, id, home: receipt }) {
+        if (op === "asset_home") return { ok: receipt?.store_id === homes.get(id)?.store_id ? homes.get(id) : null };
         assert.equal(key, "media:manifest");
         if (op === "meta") return { ok: (await read(join(directory, "manifest")))?.toString() ?? null };
         assert.equal(op, "set_meta");
@@ -92,7 +92,7 @@ async function deviceFiles(t) {
   t.after(async () => { for (const cache of caches) await cache.close(); await rm(directory, { recursive: true, force: true }); });
   return { homes, writes, open, bytesPath, manifest: async () => JSON.parse(await readFile(join(directory, "manifest"), "utf8")) };
 }
-const home = type => ({ table: "messages", row: "message", column: "photo", generation: 1, expiresAt: null, type });
+const home = type => ({ store_id: "media-store", table: "messages", row: "message", column: "photo", generation: 1, expiresAt: null, type });
 
 for (const type of ["image/png", "video/mp4"]) test(`native ${type} bytes survive a fresh cache opener; response ownership ends after copying`, async t => {
   const readers = installReader(t), urls = installUrls(t), files = await deviceFiles(t);
@@ -336,4 +336,50 @@ test("upload keeps caller-owned Blobs open on both success and failure", async (
   assert.equal(blob.closes, 0);
   assert.equal((await uploadAsset("https://assets.invalid", {}, async () => { throw new Error("offline"); }, blob)).ok, false);
   assert.equal(blob.closes, 0);
+});
+
+// @ref LLP 3000.019#3.5 — old inferred homes and receipt-less downloads confer no authority.
+test("retention drops old inferred homes and refuses downloads without a valid home receipt", async t => {
+  installReader(t); installUrls(t);
+  const files = await deviceFiles(t);
+  files.homes.set("photo", home("image/png"));
+  const { core, cache } = await files.open();
+  for (const receipt of [null, "bad-json", "%GG", encodeURIComponent(JSON.stringify({ table: "messages", row: "message" })), ...[undefined, "", 7].map(store_id => encodeURIComponent(JSON.stringify({ store_id, table: "messages", row: "message", column: "photo" })))]) {
+    const blob = nativeBlob([1, 2]);
+    const reply = response(blob);
+    if (receipt === null) reply.headers.delete("x-snapback-asset-home");
+    else reply.headers.set("x-snapback-asset-home", receipt);
+    assert.equal(await cache.viewed("photo", blob, reply), undefined);
+    assert.equal((await cache.read("photo")).denied.code, "E_OFFLINE");
+    blob.close();
+  }
+  assert.deepEqual(files.writes, []);
+  (await fetchBlob(nativeBlob([1, 2]), (blob, reply) => cache.viewed("photo", blob, reply))).revoke();
+  await cache.close();
+  const manifest = await files.manifest();
+  delete manifest[0].confirmed;
+  await core.call({ op: "set_meta", key: "media:manifest", value: JSON.stringify(manifest) });
+  const reopened = await files.open();
+  assert.equal((await reopened.cache.read("photo")).denied.code, "E_OFFLINE");
+  assert.deepEqual(await files.manifest(), []);
+  await assert.rejects(readFile(files.bytesPath("photo")), { code: "ENOENT" });
+});
+
+for (const trigger of ["read", "reconcile", "reopen", "unbound reopen"]) test(`retained receipt store binding is revalidated on ${trigger}`, async t => {
+  installReader(t); installUrls(t);
+  const files = await deviceFiles(t);
+  files.homes.set("photo", home("image/png"));
+  let { core, cache } = await files.open();
+  (await fetchBlob(nativeBlob([1, 2]), (blob, reply) => cache.viewed("photo", blob, reply))).revoke();
+  const manifest = await files.manifest();
+  assert.equal(manifest[0].home.store_id, "media-store");
+  if (trigger === "unbound reopen") {
+    delete manifest[0].home.store_id;
+    await core.call({ op: "set_meta", key: "media:manifest", value: JSON.stringify(manifest) });
+  } else files.homes.set("photo", { ...home("image/png"), store_id: "replacement" });
+  if (trigger.includes("reopen")) { await cache.close(); ({ cache } = await files.open()); }
+  if (trigger === "reconcile") await cache.reconcile();
+  assert.equal((await cache.read("photo")).denied.code, "E_OFFLINE");
+  assert.deepEqual(await files.manifest(), []);
+  await assert.rejects(readFile(files.bytesPath("photo")), { code: "ENOENT" });
 });

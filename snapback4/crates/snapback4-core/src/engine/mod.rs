@@ -286,6 +286,10 @@ pub struct MutationOutcome {
 #[cfg(feature = "sqlite")]
 #[derive(Clone, Debug)]
 pub struct AssetGrant {
+    /// Store identity captured in the same transaction as the placement grant.
+    pub store_id: String,
+    /// Ledger-confirmed placement; upload previews have no home.
+    pub home: Option<(String, String, String)>,
     pub path: std::path::PathBuf,
     pub content_type: String,
     pub bytes: u64,
@@ -688,7 +692,9 @@ impl Engine {
         if asset.released_at.is_some() {
             return Err(unknown());
         }
-        let grant = |once: bool| AssetGrant { path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
+        // @ref LLP 3000.019#3.5 — a delayed download cannot confer custody in a replacement store.
+        let store_id = tx.meta("store_id")?.ok_or_else(unknown)?;
+        let grant = |once: bool| AssetGrant { store_id: store_id.clone(), home: asset.home.clone(), path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
         let Some((table_name, row_id, column)) = &asset.home else {
             if asset.owner == principal {
                 tx.rollback()?;
