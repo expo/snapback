@@ -162,18 +162,38 @@ export function createClient(options: ClientOptions): Client {
     ? backend.schema.operations?.[op.name]?.ephemeralReads ?? [] : op.ephemeralReads ?? [];
   const hasEphemeral = () => backend ? Object.values(backend.schema.tables).some(table => table.ephemeral)
     : ephemeralAdvertised || [...watches.values()].some(watch => ephemeralTables(watch.op).length);
-  async function refreshBackend() {
+  async function refreshBackend(minimumGeneration: number | undefined) {
     const revision = credentialRevision;
     const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal });
     const next = await response.json() as BackendJson;
     if (closed || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
+    if (minimumGeneration !== undefined && (!Number.isSafeInteger(next.generation) || next.generation < minimumGeneration)) return false;
+    const firstBackend = !backend;
+    // @ref LLP 3000.017#3.3 — capability installation retires pre-discovery answers, including in-flight reads.
+    if (firstBackend) queryEpoch++;
     backend = next;
     ephemeralAdvertised = Object.values(next.schema.tables).some(table => table.ephemeral);
-    // Seed the first known generation, but only the poll advances it afterward:
-    // discovery must not swallow invalidation of already mounted durable watches.
-    generation ??= next.generation;
     for (const watch of watches.values()) watchEphemeral(watch);
+    if (firstBackend) for (const watch of watches.values()) {
+      watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch);
+      void refresh(watch);
+    }
+    // Seeding is safe only after existing answers have been retired. Later
+    // generations still belong to the poll's invalidation path.
+    generation ??= next.generation;
     return true;
+  }
+  async function loadBackend(minimumGeneration = generation) {
+    // Discovery failures and the adoption publication window retry here, so a
+    // held /changes request cannot postpone installation for its whole wait.
+    let backoff = 25;
+    while (!closed && !storeRefusal && credentials && watches.size > 0) {
+      try { backendLoaded = await refreshBackend(minimumGeneration); } catch { backendLoaded = false; }
+      if (backendLoaded) return true;
+      await waitForCaller(new Promise(resolve => setTimeout(resolve, backoff)), aborter.signal);
+      backoff = Math.min(backoff * 2, 500);
+    }
+    return false;
   }
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
@@ -562,10 +582,7 @@ export function createClient(options: ClientOptions): Client {
         if (!closed && credentials && link === "offline") await probe();
         continue;
       }
-      if (!backendLoaded && ephemeralAdvertised) {
-        try { await refreshBackend(); } catch { /* Generated facts cover older servers. */ }
-        backendLoaded = true;
-      }
+      if (!backendLoaded && ephemeralAdvertised && !await loadBackend()) continue;
       const eph = ephemeralReads.pollRequest();
       try {
         if (refreshing) await refreshing;
@@ -585,7 +602,7 @@ export function createClient(options: ClientOptions): Client {
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
           queryEpoch++;
-          if ((backend || ephemeralAdvertised) && !await refreshBackend() && backend) throw new Error("schema: adoption facts unavailable");
+          if ((backend || ephemeralAdvertised) && !await loadBackend(json.generation)) continue;
         }
         generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {

@@ -62044,3 +62044,31 @@ report, intentionally uncommitted at EPH-REPORT-FIX1.md, records each review fix
 all deviations/choices, exact suite counts, both failed notification mutants,
 base-archive reproductions and the five trial rows. Evidence is retained in
 snapback4/target/eph-fix1-evidence/. No requested implementation item remains.
+
+### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
+
+Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
+online backend installation advances the query epoch, discards mounted answers
+and expiry timers, and reruns watches before seeding generation. Both an already
+published durable answer and a late in-flight answer are covered. Discovery is
+complete only after a successful installation. Failed requests and schema facts
+older than the poll's generation retry before another long poll can hold them
+up. The local choice where the RFC is silent is 25/50/100/200/400 ms exponential
+backoff capped at 500 ms, continuing while the client has credentials and mounted
+watches; close aborts the wait. Stale facts never replace operation interests.
+The scratch candidate's initial reset was retained, with seeding ordered after
+the reset; its retry-on-next-poll alone was insufficient for bounded recovery.
+Tx::rollback_to clears the lazy sequence-table existence cache after successful
+rollback, so rolled-back DDL can be allocated again in the same transaction.
+
+Added ephemeral-capability.test.mjs and the sequence_by savepoint regression.
+With production sources still at 1c5dc4fd0, all four new client cases failed
+(0 pass / 4 fail): Astra's real-server differential kept 1 through three
+generation-2 polls while a direct read returned 2, one injected schema 503 never
+recovered, a stale-schema mock failed to catch up, and a held old query was not
+retired. The savepoint regression failed with `no such table: _sequences`
+(0 passed / 1 failed). After the fixes, the affected client suite passes 32/32
+and the affected core suite passes 32/32 (15 ephemeral + 17 sequence_by).
+Typecheck and package build pass. No existing expectation, fixture, wire form,
+or budget changed; the durable-only byte and zero-extra-schema tests pass
+unchanged. Evidence is in target/eph-fix2-evidence/. Full qualification follows.
