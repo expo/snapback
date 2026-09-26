@@ -1,0 +1,40 @@
+(node:737691) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✖ shared-only lookup recovers absent history and opener remembers those ids without settling them (1357.140827ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (2103.322044ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2193.126958
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ shared-only lookup recovers absent history and opener remembers those ids without settling them (1357.140827ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'pending',
+  +   undefined
+  -   'sent',
+  -   7
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:334:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:317:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'pending', undefined ],
+    expected: [ 'sent', 7 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,32 @@
+(node:737720) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1865.627623ms)
+  ✔ legacy binding survives adopted B on keepalive transport (1953.637765ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1856.197433ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (405.985919ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1338.882793ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (replacement local history) (1400.329084ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (absent local history) (1385.117419ms)
+  ✔ shared-only lookup recovers absent history and opener remembers those ids without settling them (1426.609798ms)
+  ✔ shared-only refusal cannot settle legacy custody before bound replay (2824.636545ms)
+  ✔ adoption during lookup recomputes legacy custody (absent local history) (1383.674413ms)
+  ✔ adoption during lookup recomputes legacy custody (replacement local history) (1357.939824ms)
+  ✔ lookup preserves local NOT_FOUND committed between history reads (1415.398616ms)
+  ✔ lookup preserves local sent committed between history reads (1422.764328ms)
+✔ web receipt upgrades preserve original binding and corrected shared custody (20826.408905ms)
+ℹ {"transport":"ordinary","original":"e0ef8c8a63dd67775acf450130ed16b2","adopted":"a81ab3731c8489254ad4b44f2ee7ae1c","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"e0ef8c8a63dd67775acf450130ed16b2","adopted":"158f7ae4971423d3e013cf4b63b4f2cb","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20917.811243

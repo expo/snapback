@@ -905,9 +905,12 @@ recovery order. Verified terminal corrections replace shared `E_STORE_REPLACED`
 in place; authored refusals and retention positions stay unchanged. Every
 opener and `client.write(id)` reads that window alongside its own device's
 256 receipts; reads never copy or refresh it. For an id with no outbox entry on
-this device, whose own receipt is still `E_STORE_REPLACED`, `client.write(id)`
-answers with a verified outcome from the window. Every other local receipt answers
-first, and settlement never reads the window.
+this device, `client.write(id)` recovers absent local history or corrects its own
+`E_STORE_REPLACED` from the window. Every other local receipt answers first.
+Lookup rechecks outbox custody after reading that window; an adopted entry is
+answered from this device's own custody. Settlement reads only local history,
+including when it has no receipt for the id. The opener reads shared ids solely
+to route retries through lookup, without copying or settling their outcomes.
 A different tab winning adoption
 cannot hide the receipt from a reload. Outboxes remain exclusively owned:
 a held Web Lock is never taken; a queued background lock request wakes recovery
