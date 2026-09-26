@@ -189,7 +189,12 @@ export type MutationPromise<R = unknown> = Promise<Write<R>> & {
   readonly why?: Refusal;
 };
 
+export type { Residency } from "./residency.ts";
+
 export interface Client {
+  /** Local storage diagnostics; null on the online tier or mock. Rejects with
+   * a coded error on a closed/signed-out client or a failed device read. */
+  residency(): Promise<import("./residency.ts").Residency | null>;
   /** Estimated server Unix milliseconds; never goes backward on this device. */
   now(): number;
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;

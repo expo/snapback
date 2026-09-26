@@ -1,4 +1,5 @@
 import { indexedDbStore } from "./web-idb.ts";
+import { WebResidency } from "./web-residency.ts";
 import { admissionHost, admissionRefusal, browserAdmission } from "./admission.ts";
 import { admissionAuthorityHost, admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./admission-authority.ts";
 // The device on the web: the same device, as wasm, over memory (the
@@ -87,6 +88,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         return undefined;
       };
       let device: WebDevice | undefined;
+      const residency = new WebResidency();
       let needsRecovery = true;
       // A lock can release during opening; recovery must wait for restore/adoption.
       let opened!: () => void;
@@ -157,6 +159,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         finally { working = false; if (publishPending) publishCommitted(); }
       };
       const remember = (changes: Change[]) => {
+        residency.apply(changes);
         journal.remember(changes);
         for (const change of changes) if (change.s === "o") {
           if (change.v === null) committed.delete(change.k);
@@ -194,6 +197,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved.filter(c => c.s !== "j")));
         journal.load(saved);
         committed.clear();
+        residency.reset([]);
         remember(saved);
         journal.fence(device);
         await settle();
@@ -279,6 +283,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const execute = async (): Promise<Record<string, unknown>> => {
+                if (request.op === "residency") {
+                  return { ok: residency.snapshot((runtime!.initialized as { memory: WebAssembly.Memory }).memory.buffer.byteLength) };
+                }
                 if (request.op === "settle_exit") {
                   const write = request.write as Extract<Write, { state: "failed" }>;
                   const invoke = (input: Record<string, unknown>) => JSON.parse(device!.call(JSON.stringify(input)));

@@ -1,0 +1,72 @@
+mod common;
+use common::*;
+use serde_json::{Value as Json, json};
+use snapback4_device::{call::call, native::Device};
+
+fn report(device: &mut Device) -> Json {
+    let reply = call(device, json!({"op": "residency"}));
+    assert!(reply.get("denied").is_none(), "{reply}");
+    reply["ok"].clone()
+}
+
+fn check_rows(device: &mut Device) -> Json {
+    let measured = report(device);
+    for (name, _) in device.schema().visible_tables() {
+        let rows = device.store().rows(name).unwrap();
+        let bytes: usize = rows.iter().map(|r| snapback4_core::value::canonical_json(r).len()).sum();
+        assert_eq!(measured["tables"][name], json!({"rows":rows.len(), "bytes":bytes}), "{name}");
+    }
+    assert_eq!(measured["totalBytesKind"], "sqlite-pages");
+    assert!(measured["totalBytes"].as_u64().unwrap() > 0);
+    assert!(measured.get("wasmHeapBytes").is_none());
+    measured
+}
+
+#[test]
+fn sqlite_residency_tracks_unicode_rollback_clear_and_other_owners() {
+    let (mut server, backend) = server();
+    let host = Sqlite::new("residency");
+    let path = host.path("store");
+    let mut device = Device::open(&path, Some(backend)).unwrap();
+    assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 0);
+    for (n, page) in snapshot_pages(&mut server, "dev:alice", 100).iter().enumerate() {
+        device.apply(page, n == 0).unwrap();
+    }
+    let before = check_rows(&mut device);
+    assert_eq!(before["tables"]["messages"]["rows"], 120);
+    let mut other = Device::open(&path, None).unwrap();
+    other.store().conn().execute_batch("BEGIN IMMEDIATE; UPDATE r SET data = replace(data, 'General', '🦀é'); SAVEPOINT discard; DELETE FROM r; ROLLBACK TO discard; RELEASE discard; COMMIT;").unwrap();
+    let after = check_rows(&mut device);
+    assert_eq!(after["tables"]["conversations"]["bytes"].as_u64().unwrap() + 1, before["tables"]["conversations"]["bytes"].as_u64().unwrap());
+    assert_eq!(after["tables"], check_rows(&mut other)["tables"]);
+    device.store().conn().execute_batch("BEGIN IMMEDIATE; DELETE FROM r; ROLLBACK").unwrap();
+    assert_eq!(after["tables"], check_rows(&mut device)["tables"]);
+    let cleared = call(&mut other, json!({"op":"clear_rows"}));
+    assert!(cleared.get("denied").is_none(), "{cleared}");
+    assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 0);
+    drop(device); drop(other);
+    check_rows(&mut Device::open(&path, None).unwrap());
+}
+
+#[test]
+fn old_large_store_upgrades_once_and_reports_without_a_partition_scan() {
+    let (_, backend) = server();
+    let host = Sqlite::new("residency-upgrade");
+    let path = host.path("store");
+    let device = Device::open(&path, Some(backend)).unwrap();
+    device.store().conn().execute_batch("DROP TRIGGER _device_residency_insert; DROP TRIGGER _device_residency_delete; DROP TRIGGER _device_residency_update; DROP TABLE _device_residency;").unwrap();
+    let tx = device.store().conn().unchecked_transaction().unwrap();
+    let t: i64 = tx.query_row("SELECT num FROM _catalog WHERE name = 'messages'", [], |r| r.get(0)).unwrap();
+    for n in 0..20_000 {
+        tx.execute("INSERT INTO r VALUES (?1, ?2, ?3)", rusqlite::params![t, n.to_string(), "{\"Object\":{\"body\":{\"String\":\"é🦀\"}}}"]).unwrap();
+    }
+    tx.commit().unwrap(); drop(device);
+    let mut device = Device::open(&path, None).unwrap();
+    // No row images are decoded and the report is independent of row count.
+    let expected = report(&mut device);
+    assert_eq!(expected["tables"]["messages"]["rows"], 20_000);
+    let size = "{\"Object\":{\"body\":{\"String\":\"é🦀\"}}}".len() * 20_000;
+    assert_eq!(expected["tables"]["messages"]["bytes"], size);
+    drop(device);
+    assert_eq!(report(&mut Device::open(&path, None).unwrap())["tables"], expected["tables"]);
+}

@@ -105,6 +105,7 @@ export function createMockClient(options: MockOptions): MockClient {
   }
 
   const client: MockClient = {
+    async residency() { return null; },
     now: new ServerClock().issuedDeviceNow,
     async act(op, args, options_) {
       const id = options_?.id ?? mockId();

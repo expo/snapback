@@ -69,6 +69,9 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
     };
     answer((|| -> Result<Json, RuntimeError> {
         Ok(match op.as_str() {
+            // @ref LLP 3000.019#3.4 — local physical counts, never server data or query authority.
+            #[cfg(feature = "native")]
+            "residency" => device.store().residency(device.schema())?,
             // @ref LLP 3000.011.005.000#2 — native smoke records counts, never row contents.
             #[cfg(not(target_arch = "wasm32"))]
             "witness_state" => {

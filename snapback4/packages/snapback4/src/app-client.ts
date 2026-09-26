@@ -4,6 +4,7 @@ import { browserAdmission, failedAdmission } from "./admission.ts";
 import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
+import { residencyError } from "./residency.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
@@ -30,6 +31,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   }
   const client: Client = {
     ...raw,
+    async residency() {
+      const denied = await refusal();
+      if (denied) throw residencyError(denied);
+      const result = await raw.residency();
+      const after = await refusal();
+      if (after) throw residencyError(after);
+      return result;
+    },
     get acquired() { return valid() && raw.acquired; },
     viewer: () => valid() ? raw.viewer() : null,
     session: () => valid() ? raw.session() : null,
