@@ -21,7 +21,7 @@ import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
-import { changeFeed } from "./changes.ts";
+import { changeFeed, FOLLOW_RESTART } from "./changes.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
@@ -50,7 +50,7 @@ import {
 
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
-import { PresenceFollow } from "./presence-follow.ts";
+import { PresenceFollow, sameFollow } from "./presence-follow.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -818,7 +818,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture) return false;
-      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, presenceBits.follow(watches.values()));
+      sentFollow = presenceBits.follow(watches.values());
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, sentFollow);
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
@@ -842,7 +843,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
       }
       return changed;
-    } catch {
+    } catch (error) {
+      // A changed follow list restarts the poll at once; the link is fine.
+      if (error === FOLLOW_RESTART) return false;
       if (closed) return false;
       setLink("offline");
       await new Promise((r) => setTimeout(r, 1000));
@@ -911,9 +914,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // @ref LLP 3000.017#3.2 — server-answered watches follow the presence they read.
   const presenceBits = new PresenceFollow();
+  let sentFollow: ReadonlyMap<string, boolean> = new Map();
   function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
     watch.presence = new Set(Object.keys(presence ?? {}));
     rerunPresence(presenceBits.observe(presence), watch);
+    // A held poll sent before this answer does not follow its principals yet.
+    if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
   }
   function rerunPresence(principals: Iterable<string>, except?: Watch) {
     const moved = new Set(principals);

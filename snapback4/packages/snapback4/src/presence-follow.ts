@@ -32,3 +32,8 @@ export class PresenceFollow {
     return followed;
   }
 }
+
+/** Whether two follow lists carry the same principals and bits. */
+export function sameFollow(a: ReadonlyMap<string, boolean>, b: ReadonlyMap<string, boolean>): boolean {
+  return a.size === b.size && [...a].every(([principal, bit]) => b.get(principal) === bit);
+}

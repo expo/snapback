@@ -10,7 +10,7 @@ import { deferStart, trackRotation } from "./client-start.ts";
 // Every word a screen reads is on the card (contract.ts).
 
 import { ReadObservation } from "./read-observation.ts";
-import { changeFeed } from "./changes.ts";
+import { changeFeed, FOLLOW_RESTART } from "./changes.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
@@ -18,7 +18,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
-import { PresenceFollow } from "./presence-follow.ts";
+import { PresenceFollow, sameFollow } from "./presence-follow.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -499,9 +499,12 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000.017#3.2 — live watches follow the presence they read.
   const presenceBits = new PresenceFollow();
+  let sentFollow: ReadonlyMap<string, boolean> = new Map();
   function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
     watch.presence = new Set(Object.keys(presence ?? {}));
     rerunPresence(presenceBits.observe(presence), watch);
+    // A held poll sent before this answer does not follow its principals yet.
+    if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
   }
   function rerunPresence(principals: Iterable<string>, except?: Watch) {
     const moved = new Set(principals);
@@ -524,7 +527,8 @@ export function createClient(options: ClientOptions): Client {
         if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, presenceBits.follow(watches.values()));
+        sentFollow = presenceBits.follow(watches.values());
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, sentFollow);
         if (closed || storeRefusal) break;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
@@ -548,7 +552,8 @@ export function createClient(options: ClientOptions): Client {
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
-      } catch {
+      } catch (error) {
+        if (error === FOLLOW_RESTART) continue;
         if (closed || storeRefusal) break;
         if (credentials) setLink("offline");
         await new Promise((r) => setTimeout(r, 1000));
