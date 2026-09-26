@@ -10,15 +10,15 @@ const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/sync-wind
 fn scenario<H: Host>(host: &mut H) {
     let source = SOURCE.replace("last 10000 by .at, .ordinal", "last 3 by byWindow")
         .replace("  at: time", "  by byDay: conversationId, day(at), id\n  by byWindow: conversationId, at, ordinal, id\n  at: time")
-        .replace("  immutable conversationId", "  immutable conversationId\n  update <- exists members[.conversationId, viewer]") + r#"
+        .replace("  immutable conversationId", "  immutable conversationId\n  update <- exists members[.conversationId, viewer]\n  delete <- exists members[.conversationId, viewer]") + r#"
 mutation move(messageId: messages, ordinal: int):
   update messages[messageId] { ordinal }
+mutation remove(messageId: messages):
+  delete messages[messageId]
 query one(messageId: messages):
   return messages[messageId]
 query calendar(conversationId: conversations, c: cursor ?):
   return messages[conversationId] last 2 by byDay after c
-query repairedCalendar(conversationId: conversations, c: cursor ?):
-  return messages[conversationId] last 2 by byWindow after c
 query suffix(conversationId: conversations, c: cursor ?):
   return messages[conversationId] last 20 by byWindow after c
 query ascending(conversationId: conversations, c: cursor ?):
@@ -29,7 +29,11 @@ query otherOrder(conversationId: conversations, c: cursor ?):
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
     let calendar_note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER" && n.message.starts_with("query calendar ")).unwrap();
     assert!(calendar_note.rewrite.contains("last 2 by byWindow"));
-    assert!(!bound.notes.iter().any(|n| n.code == "N_SYNC_ORDER" && n.message.starts_with("query repairedCalendar ")));
+    let repair = calendar_note.rewrite.split('`').nth(1).unwrap();
+    let source = format!("{source}\nquery repairedCalendar(conversationId: conversations, c: cursor ?):\n  return {repair}\n");
+    let fixed = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
+    assert_eq!(fixed.notes.len(), bound.notes.len(), "the applied repair adds no note");
     let (mut engine, backend) = compile(&source);
     let message = |name: &str, room: &str, at, ordinal| ("messages".into(), object([
         ("id", id(name)), ("conversationId", id(room)), ("at", Value::Int(at)), ("ordinal", Value::Int(ordinal)),
@@ -100,6 +104,18 @@ query otherOrder(conversationId: conversations, c: cursor ?):
         assert!(!held.iter().any(|row| row.field("id").unwrap() == &id(name)), "drop below-floor {name}");
     }
     assert!(held.iter().any(|row| row.field("id").unwrap() == &id("y")), "keep larger id on the full tie");
+    // Remove the floor row through the real stream, then stream the exact
+    // same key back while it is unheld. Updating a held floor row would take
+    // accept's held shortcut and would not distinguish >= from >.
+    let watermark = device.store().meta("device:watermark").unwrap().unwrap().parse().unwrap();
+    let result = engine.mutate("remove", None, context("dev:alice", &[("messageId", id("x"))]).at(1000)).unwrap();
+    assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{result:?}");
+    device.apply(&stream_page(&mut engine, "dev:alice", watermark), false).unwrap();
+    assert!(!device.store().raw_rows("messages").iter().any(|row| row.field("id").unwrap() == &id("x")));
+    let watermark = device.store().meta("device:watermark").unwrap().unwrap().parse().unwrap();
+    engine.seed([message("x", "c1", 100, 2)]).unwrap();
+    device.apply(&stream_page(&mut engine, "dev:alice", watermark), false).unwrap();
+    assert!(device.store().raw_rows("messages").iter().any(|row| row.field("id").unwrap() == &id("x")), "an unheld streamed key equal to the floor must be admitted");
     // A held row moving down stays point-readable, but leaves the suffix.
     // A previously unheld row moving up must enter the suffix.
     for (name, ordinal) in [("b", 1), ("z", 6)] {
