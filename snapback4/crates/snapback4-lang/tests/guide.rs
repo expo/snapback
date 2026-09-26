@@ -292,6 +292,8 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     sent(&engine.mutate("delivered", None, at("bob", 2_500, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "watermarks only move forward");
+    sent(&engine.mutate("seen", None, at("bob", 2_550, &[c(), through(1)])).unwrap());
+    assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "a stale seen does not lower the read watermark");
     // A receipt never moves back: once every recipient leaves, the requirement is met.
     let pair = || ("conversation", id("pair"));
     sent(&engine.mutate("send", None, at("alice", 2_600, &[pair(), ("text", text("p1"))]).with_ids(["p1".into()])).unwrap());

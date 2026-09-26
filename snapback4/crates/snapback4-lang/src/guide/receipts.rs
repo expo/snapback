@@ -111,12 +111,15 @@ requirement is met; a message sent to nobody stays `sent`. So a receipt only
 ever moves forward.
 
 A watermark claims every message through an ordinal, so a client acknowledges
-only an unbroken run of messages it fetched after its delivered watermark:
-`delivered` while the conversation is in the background, and `seen` while it is
-on screen. Where a page leaves a gap, the client loads older pages first, which
-fetches them. Both are the member's own report. The recipe bounds them by the
-last message, not by what a client really consumed. Each message costs one
-scan of at most 50 member rows; `check --cost` prints the certificate.
+only an unbroken run of messages it fetched after its delivered watermark (or
+its join): `delivered` while the conversation is in the background, and `seen`
+while it is on screen. Where a page leaves a gap, the client loads older pages
+first, which fetches them. A gap it cannot fetch yet, such as older messages
+beyond an offline device's window, holds acknowledgements back until it can:
+a receipt never claims a message its client did not fetch. Both are the
+member's own report. The recipe bounds them by the last message, not by what a
+client really consumed. Each message costs one scan of at most 50 member rows;
+`check --cost` prints the certificate.
 
 The client acknowledges from complete pages, offline too, since both mutations
 predict and queue. A predicted row carries `pending: true` and its ordinal is
@@ -132,13 +135,13 @@ function useReceipts(conversation: string, visible: boolean) {
   const me = useQuery(api.membership, { conversation });
   const settled = new Set(page.items.filter(m => !m.pending).map(m => m.ordinal));
   const ready = "data" in page.read && page.read.complete && "data" in me && me.data !== null;
-  // An unbroken run of fetched messages after the delivered watermark.
-  const floor = ready ? me.data.deliveredOrdinal : null;
+  // An unbroken run of fetched messages after the delivered watermark or the join.
+  const floor = ready ? Math.max(me.data.deliveredOrdinal, me.data.joinedOrdinal) : null;
   let through = floor;
   while (through !== null && settled.has(through + 1)) through++;
   const newest = settled.size ? Math.max(...settled) : null;
   const gap = through !== null && newest !== null && through < newest;
-  useEffect(() => { if (gap && page.hasMore) page.loadMore(); }, [gap, page.hasMore]);
+  useEffect(() => { if (gap && page.hasMore) page.loadMore(); }, [gap, page.hasMore, page.items.length, page.loadMore]);
   const mark = ready ? (visible ? me.data.readOrdinal : me.data.deliveredOrdinal) : null;
   useEffect(() => {
     if (through !== null && mark !== null && through > mark) void client.mutate(visible ? api.seen : api.delivered, { conversation, through });
