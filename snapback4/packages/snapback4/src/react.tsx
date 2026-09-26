@@ -2,7 +2,7 @@
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
@@ -210,9 +210,17 @@ export function usePage<A extends { c?: Cursor | null }, R extends readonly unkn
 
 /** A write. `run` never throws; `last` is the most recent outcome, including
  * queued settlement. A sent replay has `replayed: true` and no result. */
-function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string) {
+interface MutationHook<A, Outcome> {
+  run(args: A): Promise<Outcome>;
+  last: Outcome | undefined;
+  inFlight: boolean;
+}
+function useTrackedMutation<A, R>(op: Ephemeral<A, R>): MutationHook<A, Signal<R>>;
+function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string): MutationHook<A, Write<R>>;
+function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: string): MutationHook<A, Write<R> | Signal<R>>;
+function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: string) {
   const client = useClient();
-  const [last, setLast] = useState<Write<R> | undefined>(undefined);
+  const [last, setLast] = useState<Write<R> | Signal<R> | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
   const lifetime = useRef({ active: true, pending: 0, next: 0, latest: 0, ids: new Map<string, number>(), early: new Map<string, Exclude<Write, { state: "pending" }>>() });
   useEffect(() => {
@@ -224,7 +232,7 @@ function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string) {
     const owner = lifetime.current;
     if (id) owner.ids.set(id, owner.latest);
     let restored = false;
-    const unsubscribe = client.onWrite((write) => {
+    const unsubscribe = op.ephemeral ? () => {} : client.onWrite((write) => {
       const run = owner.ids.get(write.id);
       if (run == null) {
         // Settlement can win the same turn in which mutate returns pending.
@@ -246,21 +254,21 @@ function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string) {
     }).catch(() => { /* No receipt is not a failed mutation. Keep the subscribed outcome. */ });
     return () => { owner.active = false; unsubscribe(); };
   }, [client, op, id]);
-  const run = useCallback(async (args: A): Promise<Write<R>> => {
+  const run = useCallback(async (args: A): Promise<Write<R> | Signal<R>> => {
     const owner = lifetime.current;
     const serial = ++owner.next;
     owner.latest = serial;
     owner.pending++;
     if (owner.active) setInFlight(true);
-    let outcome: Write<R>;
-    try { outcome = await client.mutate(op, args); }
+    let outcome: Write<R> | Signal<R>;
+    try { outcome = op.ephemeral ? await client.mutate(op, args) : await client.mutate(op, args); }
     catch (error) {
       // A foreign Client can throw without exposing its minted id. Do not
       // invent an operation identity or claim that this is safe to retry.
       outcome = { state: "failed", id: "", why: { code: "E_CLIENT", family: "client", message: `The client did not return a write outcome; whether it was admitted is unknown. ${error instanceof Error ? error.message : String(error)}` } };
     }
     let visible = outcome;
-    if (outcome.id) {
+    if (!op.ephemeral && outcome.id) {
       owner.ids.set(outcome.id, serial);
       const early = owner.early.get(outcome.id);
       if (early) {
@@ -280,7 +288,9 @@ function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string) {
 }
 
 /** A write's latest outcome and in-flight calls, including terminal settlement. */
-export function useMutation<A, R>(op: Mutation<A, R>) {
+export function useMutation<A, R>(op: Ephemeral<A, R>): MutationHook<A, Signal<R>>;
+export function useMutation<A, R>(op: Mutation<A, R>): MutationHook<A, Write<R>>;
+export function useMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>) {
   return useTrackedMutation(op);
 }
 

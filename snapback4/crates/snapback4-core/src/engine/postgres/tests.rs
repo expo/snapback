@@ -46,6 +46,28 @@ fn gets(table: &str) -> Vec<PrefetchRequest> {
     (0..8).map(|i| PrefetchRequest::Get { table: table.into(), id: format!("r{i}") }).collect()
 }
 
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn key_only_endpoints_seek_both_directions_without_payload_decode() {
+    use crate::rows::{Bounds, Dir};
+    let mut engine = engine();
+    let table = engine.schema.tables["items"].clone();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    for (id, key) in [("null", Value::Null), ("early", Value::String("a".into())), ("late", Value::String("z".into()))] {
+        tx.put("items", &table, &row(id, key), None).unwrap();
+    }
+    tx.execute("UPDATE r SET data = 'invalid payload' WHERE t = 'items'", &[]).unwrap();
+    for (bounds, dir, expected) in [
+        (Bounds { lte: Some(Value::Null), ..Default::default() }, Dir::Asc, Value::Null),
+        (Bounds { gt: Some(Value::Null), ..Default::default() }, Dir::Asc, Value::String("a".into())),
+        (Bounds { gt: Some(Value::Null), ..Default::default() }, Dir::Desc, Value::String("z".into())),
+    ] {
+        let key = tx.index_head("items", "byKey", &[], &bounds, dir).unwrap().unwrap();
+        assert_eq!(key[0], expected);
+    }
+    tx.rollback().unwrap();
+}
+
 fn authority_engine() -> PostgresEngine {
     let schema = Schema::default();
     let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database"), postgres::NoTls).unwrap();
@@ -308,4 +330,97 @@ fn query_availability_propagates_heap_abort_without_confusing_null_or_lists() {
     let nullable = engine.query("nullable", Context::new("dev:alice", BTreeMap::new())).unwrap();
     assert!(!nullable.unavailable);
     assert_eq!(nullable.data, Value::Null);
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES"]
+fn sequence_by_is_transactional_shared_and_durable() {
+    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/sequence-by.q").into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    for mode in [WriteMode::Serialized,WriteMode::Serializable] {
+        let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+        let name=format!("sb4_eval_sequences_{:x}",crate::ids::seed());
+        let mut e=PostgresEngine::create(Client::connect(&url,postgres::NoTls).unwrap(),&name,serde_json::from_str(&serde_json::to_string(&b.schema).unwrap()).unwrap(),b.programs.iter().map(|p|serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap())).unwrap();
+        e.mode=mode;
+        let context=|body:&str| Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into())),("body".into(),Value::String(body.into()))])).at(1000);
+        let sent=|out:MutationOutcome| match out.state {WriteState::Sent{result,..}=>result,other=>panic!("{other:?}")};
+        assert_eq!(sent(e.mutate("send",Some("first"),context("first")).unwrap()).field("ordinal"),Ok(&Value::Int(1)));
+        let join=Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into())),("who".into(),Value::Id("bob".into()))])).at(1000);
+        assert_eq!(sent(e.mutate("join",None,join.clone()).unwrap()).field("joinedAt"),Ok(&Value::Int(2)));
+        assert_eq!(sent(e.mutate("join",None,join).unwrap()),Value::Null);
+        assert!(matches!(e.mutate("fail",None,Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into()))])).at(1000)).unwrap().state,WriteState::Failed{..}));
+        assert_eq!(sent(e.mutate("send",None,context("third")).unwrap()).field("ordinal"),Ok(&Value::Int(3)));
+        // Ordinary import cannot forge an ordinal; its failed transaction leaves the counter alone.
+        let bad=object([("id",Value::Id("bad".into())),("conversationId",Value::Id("c".into())),("body",Value::String("bad".into())),("ordinal",Value::Int(999))]);
+        assert_eq!(e.load([("messages".into(),bad)]).unwrap_err().code(),"E_SEQUENCE_SUPPLIED");
+        {let tx=e.store.transaction(Some(mode)).unwrap();tx.set_sequence("conversations","c",800).unwrap();tx.rollback().unwrap();}
+        drop(e);
+        let mut e=PostgresEngine::open(Client::connect(&url,postgres::NoTls).unwrap(),&name).unwrap();e.mode=mode;
+        assert_eq!(sent(e.mutate("send",None,context("fourth")).unwrap()).field("ordinal"),Ok(&Value::Int(4)));
+        {let tx=e.store.transaction(Some(mode)).unwrap();tx.execute("DELETE FROM r",&[]).unwrap();tx.execute("DELETE FROM i",&[]).unwrap();tx.execute("DELETE FROM _sequences",&[]).unwrap();tx.commit().unwrap();}
+        assert_eq!(sent(e.mutate("send",None,context("reset")).unwrap()).field("ordinal"),Ok(&Value::Int(1)));
+        let barrier=std::sync::Arc::new(std::sync::Barrier::new(4));
+        let handles:Vec<_>=(0..4).map(|n| {
+            let (url,name,barrier)=(url.clone(),name.clone(),barrier.clone());
+            std::thread::spawn(move || {
+                let mut worker=PostgresEngine::open(Client::connect(&url,postgres::NoTls).unwrap(),&name).unwrap();
+                worker.set_write_mode(mode);barrier.wait();
+                let context=Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into())),("body".into(),Value::String(format!("concurrent-{n}")))])).at(1000);
+                let WriteState::Sent{result,..}=worker.mutate("send",None,context).unwrap().state else{panic!("concurrent sequence refused")};
+                result.field("ordinal").unwrap().as_int().unwrap()
+            })
+        }).collect();
+        let mut ordinals:Vec<_>=handles.into_iter().map(|t|t.join().unwrap()).collect();ordinals.sort();assert_eq!(ordinals,[2,3,4,5]);
+        assert_eq!(e.load([("missing".into(),object([("id",Value::Id("x".into()))]))]).unwrap_err().code(),"E_SCHEMA");
+    }
+}
+
+#[test]
+fn private_scans_bypass_postgres_payload_factor() {
+    use crate::{rows::{Bounds, Dir, MemoryRows}, schema::Table};
+    struct Priced(MemoryRows);
+    impl Rows for Priced {
+        fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.0.get(t,id)}
+        fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.0.lookup(t,n,i,k)}
+        fn scan(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.0.scan(t,n,p,b,d,l)}
+        fn scan_metered(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize, scope: &crate::engine::Authorization,m:&mut crate::engine::InternalMeter<'_>)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+            let rows=self.0.scan(t,n,p,b,d,l)?;
+            let bytes=rows.iter().map(|(r,k)|serde_json::to_vec(r).unwrap().len() as u64+k.len() as u64).sum();
+            store::payload_heap(bytes,l,scope).charge(m,scope)?;
+            Ok(rows)
+        }
+        fn count_prefix(&self,t:&str,n:&str,p:&[Value],l:u64)->Result<u64,RuntimeError>{self.0.count_prefix(t,n,p,l)}
+        fn put(&self,t:&str,d:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError>{self.0.put(t,d,r,o)}
+        fn delete(&self,t:&str,d:&Table,r:&Value)->Result<u64,RuntimeError>{self.0.delete(t,d,r)}
+    }
+    let bound=snapback4_lang::compile(&[("schema.q".into(),"table records:\n  owner: principal\n  secret: text <=1000000 default '' written by .owner\n  public\n  online only\n".into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let mut schema:Schema=serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let mut receipts=Vec::new();
+    for bytes in [0,1_000_000] {
+        let rows=Priced(MemoryRows::new());
+        let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(bytes)})).unwrap();
+        rows.put("records",&schema.tables["records"],&row,None).unwrap();
+        let mut runner=Runner::new(&rows,&schema,Context::new("alice",BTreeMap::new()),Meter::new(Ceilings::default(),Cut::Abort),1);
+        let fetched=runner.scan_disclosed("records","byId",&[],&Bounds::default(),Dir::Asc,1).unwrap();
+        assert_eq!(fetched.len(),1);
+        receipts.push(runner.meter.used);
+    }
+    assert_eq!(receipts[0],receipts[1]);
+    // A non-private table still uses the real Postgres 256x preflight.
+    schema.tables.get_mut("records").unwrap().written_by.get_mut("secret").unwrap().audience=true;
+    let rows=Priced(MemoryRows::new());
+    let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(1_000_000)})).unwrap();
+    rows.put("records",&schema.tables["records"],&row,None).unwrap();
+    let mut runner=Runner::new(&rows,&schema,Context::new("alice",BTreeMap::new()),Meter::new(Ceilings::default(),Cut::Abort),1);
+    assert!(matches!(runner.scan_disclosed("records","byId",&[],&Bounds::default(),Dir::Asc,1),Err(RuntimeError::Bound{..})));
+}
+
+#[test]
+fn row_keyed_views_need_the_sqlite_background_runner() {
+    let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let schema: Schema = serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let error=supported(&schema,&BTreeMap::new()).unwrap_err();
+    assert_eq!(error.code(),"E_VIEW_KEY");assert!(error.to_string().contains("background recount"));
 }

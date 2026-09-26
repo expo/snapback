@@ -1,0 +1,282 @@
+{
+  "astra-supabase/scripts/mutations.sql:1:12": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:42": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:72": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:79": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:93": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:98": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:99": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:121": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:129": {
+    "class": "refused",
+    "explanation": "This statement reads, writes or returns a JSONB-typed value; the finite \u00a73 surface supplies neither that type nor a registered JSON dispatch/result rewrite."
+  },
+  "astra-supabase/scripts/mutations.sql:1:27": {
+    "class": "rewritten",
+    "explanation": "Use IS NOT DISTINCT FROM for target_id = who; who is required and the preceding target_id IS NULL disjunct preserves the null case exactly.",
+    "rewrite": "\u00a73.7 null-safe equality",
+    "ambiguity": [
+      "A-REWRITE-SET"
+    ],
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 A_Expr (=)"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:44": {
+    "class": "rewritten",
+    "explanation": "Use IS NOT DISTINCT FROM for target_id = who; who is required and the preceding target_id IS NULL disjunct preserves the null case exactly.",
+    "rewrite": "\u00a73.7 null-safe equality",
+    "ambiguity": [
+      "A-REWRITE-SET"
+    ],
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 A_Expr (=)"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:49": {
+    "class": "rewritten",
+    "explanation": "Use pair IS NOT DISTINCT FROM pair_key: pair_key is non-null after the earlier target check and concatenation, so a null pair still cannot match.",
+    "rewrite": "\u00a73.7 null-safe equality",
+    "ambiguity": [
+      "A-REWRITE-SET"
+    ],
+    "nodes": [
+      "PLpgSQL_stmt_execsql.sqlstmt \u2192 SelectStmt.whereClause.A_Expr"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:73": {
+    "class": "refused",
+    "explanation": "The streamed count is nullable on meter cut under \u00a73.5 and is compared without an explicit non-null guard; no partial total may authorize this mutation.",
+    "ambiguity": [
+      "A-NULL"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:104": {
+    "class": "admitted",
+    "explanation": "msgtype is initialized by COALESCE with a required literal; its scalar comparison/constant-list membership is non-null.",
+    "ambiguity": [
+      "A-IN-LIST"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:106": {
+    "class": "admitted",
+    "explanation": "msgtype is initialized by COALESCE with a required literal; its scalar comparison/constant-list membership is non-null.",
+    "ambiguity": [
+      "A-IN-LIST"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:110": {
+    "class": "admitted",
+    "explanation": "msgtype is initialized by COALESCE with a required literal; its scalar comparison/constant-list membership is non-null.",
+    "ambiguity": [
+      "A-IN-LIST"
+    ]
+  },
+  "astra-supabase/scripts/mutations.sql:1:107": {
+    "class": "rewritten",
+    "explanation": "Use null-safe equality for id = media_id; id is required, so null media_id still matches no row, preserving the point-read result.",
+    "rewrite": "\u00a73.7 null-safe equality",
+    "ambiguity": [
+      "A-REWRITE-SET"
+    ],
+    "nodes": [
+      "PLpgSQL_stmt_execsql.sqlstmt \u2192 SelectStmt.whereClause.BoolExpr.args[0].A_Expr"
+    ]
+  },
+  "muse-supabase/db/functions.sql:11:12": {
+    "class": "refused",
+    "explanation": "RETURN COALESCE(NEW, OLD) returns trigger pseudo-records outside the canonical transition; the named counter rewrite fails on permitted retarget/counter updates."
+  },
+  "muse-supabase/db/rpcs.sql:4:2": {
+    "class": "refused",
+    "explanation": "The expiry UPDATE has no equality covering a full unique key; it is the set-based UPDATE explicitly refused by \u00a73.6."
+  },
+  "muse-supabase/db/rpcs.sql:1:12": {
+    "class": "refused",
+    "explanation": "The EXISTS residual orders last_seen against online_cutoff; \u00a73.3 key probes admit equality/null residuals only, and this presence test controls stored push_log rows rather than only a registered emit."
+  },
+  "muse-supabase/db/migrate-m7.sql:23:13": {
+    "class": "refused",
+    "explanation": "The EXISTS residual orders last_seen against online_cutoff; \u00a73.3 key probes admit equality/null residuals only, and this presence test controls stored push_log rows rather than only a registered emit."
+  },
+  "muse-supabase/db/rpcs.sql:5:8": {
+    "class": "refused",
+    "explanation": "This assignment adds SQL time-of-day anchor_t to midnight; \u00a73.7 time means timestamptz, not time-of-day."
+  },
+  "muse-supabase/db/rpcs.sql:5:9": {
+    "class": "refused",
+    "explanation": "The timestamp local comes from nullable/unregistered date/time computation; the ordered comparison lacks a valid explicit non-null narrowing (\u00a73.7).",
+    "ambiguity": [
+      "A-NULL"
+    ]
+  },
+  "muse-supabase/db/rpcs.sql:5:13": {
+    "class": "refused",
+    "explanation": "The timestamp local comes from nullable/unregistered date/time computation; the ordered comparison lacks a valid explicit non-null narrowing (\u00a73.7).",
+    "ambiguity": [
+      "A-NULL"
+    ]
+  },
+  "muse-supabase/db/rpcs.sql:5:16": {
+    "class": "refused",
+    "explanation": "The timestamp local comes from nullable/unregistered date/time computation; the ordered comparison lacks a valid explicit non-null narrowing (\u00a73.7).",
+    "ambiguity": [
+      "A-NULL"
+    ]
+  },
+  "muse-supabase/db/rpcs.sql:5:19": {
+    "class": "refused",
+    "explanation": "The aggregate read compares against nullable computed period bounds and is not uniformly authorized by a pinned audience; preserving definer-wide counts by weakening read rules is unregistered.",
+    "ambiguity": [
+      "A-BODY-CONTEXT",
+      "A-NULL"
+    ]
+  },
+  "muse-supabase/db/rpcs.sql:5:20": {
+    "class": "refused",
+    "explanation": "The aggregate read compares against nullable computed period bounds and is not uniformly authorized by a pinned audience; preserving definer-wide counts by weakening read rules is unregistered.",
+    "ambiguity": [
+      "A-BODY-CONTEXT",
+      "A-NULL"
+    ]
+  },
+  "muse-supabase/db/rpcs.sql:5:22": {
+    "class": "refused",
+    "explanation": "The streamed counts are nullable under \u00a73.5 and nf + npf + unm + unc = 0 lacks a non-null guard (\u00a73.7).",
+    "ambiguity": [
+      "A-NULL"
+    ]
+  },
+  "muse-supabase/db/rpcs.sql:5:18": {
+    "class": "refused",
+    "explanation": "This is a table sweep in a SECURITY DEFINER function, not a procedure job; changing the callable function into a job is not a registered rewrite."
+  },
+  "muse-supabase/db/migrate-m7.sql:10:2": {
+    "class": "refused",
+    "explanation": "expires_at IS NULL OR expires_at > now() uses an ordered nullable operand without explicit non-null narrowing; \u00a73.7 supplies no positive-predicate exemption.",
+    "ambiguity": [
+      "A-NULL-OR"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:15:5": {
+    "class": "refused",
+    "explanation": "Appending an unbounded text reference string to affected lacks the registered bounded initialized id-list spelling (\u00a73.5)."
+  },
+  "muse-supabase/db/migrate-m7.sql:15:6": {
+    "class": "refused",
+    "explanation": "FOREACH syntax is admitted but affected is an unbounded text-reference array with no registered bounded list type; declaration wrappers are not separately counted.",
+    "ambiguity": [
+      "A-BODY-CONTEXT"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:15:7": {
+    "class": "refused",
+    "explanation": "The count predicate orders nullable expires_at under an OR null guard and is not a uniformly admitted audience-pinned aggregate; a point UPDATE alone does not make the nested read admitted.",
+    "ambiguity": [
+      "A-NULL-OR"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:16:6": {
+    "class": "refused",
+    "explanation": "RETURN NULL belongs to a JSONB-valued query; replacing that result type or output contract is not a registered rewrite."
+  },
+  "muse-supabase/db/migrate-m7.sql:16:10": {
+    "class": "refused",
+    "explanation": "The vote-count read is authorized through per-message nested probes; a uniformly pinned admitted read rule is not established (\u00a73.5), and changing definer visibility is not registered.",
+    "ambiguity": [
+      "A-BODY-CONTEXT"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:18:16": {
+    "class": "refused",
+    "explanation": "ON CONFLICT UPDATE adds created_at = now() outside the supplied insert fields and does not consist solely of matching EXCLUDED values (\u00a73.6)."
+  },
+  "muse-supabase/db/rpcs.sql:10:2": {
+    "class": "rewritten",
+    "explanation": "Inline the exact total-key membership probe with the supplied arguments and retain all left_at/role residuals; argument authorization and routine-signature refusals remain separate.",
+    "rewrite": "\u00a77 exact probe-helper inlining",
+    "ambiguity": [
+      "A-PROBE-CLASS"
+    ],
+    "raw_refused": false,
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 FuncCall"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:16:7": {
+    "class": "rewritten",
+    "explanation": "Inline the exact total-key membership probe with the supplied arguments and retain all left_at/role residuals; argument authorization and routine-signature refusals remain separate.",
+    "rewrite": "\u00a77 exact probe-helper inlining",
+    "ambiguity": [
+      "A-PROBE-CLASS"
+    ],
+    "raw_refused": false,
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 FuncCall"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:17:7": {
+    "class": "rewritten",
+    "explanation": "Inline the exact total-key membership probe with the supplied arguments and retain all left_at/role residuals; argument authorization and routine-signature refusals remain separate.",
+    "rewrite": "\u00a77 exact probe-helper inlining",
+    "ambiguity": [
+      "A-PROBE-CLASS"
+    ],
+    "raw_refused": false,
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 FuncCall"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:18:9": {
+    "class": "rewritten",
+    "explanation": "Inline the exact total-key membership probe with the supplied arguments and retain all left_at/role residuals; argument authorization and routine-signature refusals remain separate.",
+    "rewrite": "\u00a77 exact probe-helper inlining",
+    "ambiguity": [
+      "A-PROBE-CLASS"
+    ],
+    "raw_refused": false,
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 FuncCall"
+    ]
+  },
+  "muse-supabase/db/migrate-m7.sql:20:2": {
+    "class": "rewritten",
+    "explanation": "Inline the exact total-key membership probe with the supplied arguments and retain all left_at/role residuals; argument authorization and routine-signature refusals remain separate.",
+    "rewrite": "\u00a77 exact probe-helper inlining",
+    "ambiguity": [
+      "A-PROBE-CLASS"
+    ],
+    "raw_refused": false,
+    "nodes": [
+      "PLpgSQL_stmt_if.cond.PLpgSQL_expr \u2192 FuncCall"
+    ]
+  },
+  "muse-supabase/db/functions.sql:21:2": {
+    "class": "admitted",
+    "explanation": "This SQL body is a scalar single-row read by the conversation id key (\u00a73.5); its disallowed SECURITY DEFINER signature is counted separately."
+  }
+}

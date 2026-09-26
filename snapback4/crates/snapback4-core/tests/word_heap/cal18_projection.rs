@@ -2,7 +2,7 @@
 //! @ref LLP 3000.011.001.001#5 — avoid allocating unused payload before deciding whether capacity improved.
 use super::*;
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, VariantAccess, Visitor};
-use snapback4_core::{Context, Engine, Value, wire};
+use super::snapback4_core::{Context, Engine, Value, wire};
 use std::{collections::BTreeMap, fmt, time::Instant};
 
 const FIELDS: &[&str] = &["id","conversationId","senderId","at","expiresAt","tombstone"];
@@ -70,7 +70,7 @@ fn result(rows: Vec<(Value,Vec<u8>)>) -> (usize,u64) {
     let eligible = rows.iter().filter(|(r,_)|r.field("senderId").unwrap().as_str().unwrap() != own
         && r.field("at").unwrap().as_int().unwrap() > 0 && r.field("tombstone").unwrap() == &Value::Bool(false)
         && r.field("expiresAt").unwrap() == &Value::Null).count();
-    (eligible,rows.iter().map(|(r,_)|r.heap_bytes()).sum())
+    (eligible,rows.iter().map(|(r,_)|fixture_heap(&r)).sum())
 }
 
 #[test]
@@ -82,7 +82,9 @@ fn matched_period_projection_avoids_rust_payload_but_does_not_prove_engine_capac
     let source = include_str!("../../../snapback4-sim/tests/digest_count.q");
     let b = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
-    let mut e = Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let schema = serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let programs: Vec<crate::Program> = b.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    let mut e = Engine::memory(schema, programs).unwrap();
     e.set_ceilings(meter::Ceilings::job());
     let seed: Vec<_> = (0..5000).map(|n|("messages".into(),wire::row_from_json(e.schema().table("messages").unwrap(),&serde_json::json!({
         "id":format!("m{n:011}"),"conversationId":"chat0","senderId":if n%50==0 {"a".repeat(31)} else {"b".repeat(31)},"body":"x".repeat(31),
@@ -139,4 +141,16 @@ fn matched_period_projection_avoids_rust_payload_but_does_not_prove_engine_capac
     println!("CAL18 projection store_payload_allowance={storage_allowance} job_heap_ceiling={}",meter::Ceilings::job().heap_bytes);
     assert!(storage_allowance as u64 > meter::Ceilings::job().heap_bytes);
     tx.rollback().unwrap();
+}
+
+// Test-only sizing of public fixture/expression results; no raw pricing API is
+// available to interpreter callers.
+fn fixture_heap(value: &Value) -> u64 {
+    match value {
+        Value::String(s) | Value::Id(s) => s.capacity() as u64,
+        Value::Bytes(b) => b.capacity() as u64,
+        Value::Array(a) => a.capacity() as u64 * std::mem::size_of::<Value>() as u64 + a.iter().map(fixture_heap).sum::<u64>(),
+        Value::Row(m) | Value::Map(m) => 40 + m.iter().map(|(k,v)| 80 + k.capacity() as u64 + fixture_heap(v)).sum::<u64>(),
+        _ => 0,
+    }
 }

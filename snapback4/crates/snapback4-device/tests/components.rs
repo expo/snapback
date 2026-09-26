@@ -79,7 +79,7 @@ impl Rows for Retained<'_> {
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.0.get(table, id) }
     fn lookup(&self, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.0.lookup(table, name, index, key) }
     fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan(table, index, prefix, bounds, dir, limit) }
-    fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan_metered(t, i, p, b, d, l, meter) }
+    fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan_metered(t, i, p, b, d, l, scope, meter) }
     fn count_prefix(&self, table: &str, index: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.0.count_prefix(table, index, prefix, limit) }
     fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.0.put(name, table, row, old) }
     fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.0.delete(name, table, old) }

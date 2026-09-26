@@ -1,0 +1,16 @@
+{
+  "name": "attempt-1-version-commit",
+  "command": [
+    "git",
+    "commit",
+    "-m",
+    "Snapback 4: align CLI, native, and Expo packages at 0.4.2"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-042/snapback4",
+  "started_at": "2026-09-25T21:16:42.940521+00:00",
+  "pid": 6830,
+  "log": "attempt-1-version-commit.log",
+  "finished_at": "2026-09-25T21:16:43.026566+00:00",
+  "seconds": 0.086,
+  "exit_code": 0
+}

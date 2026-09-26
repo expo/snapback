@@ -1,0 +1,35 @@
+npm warn Ignoring workspaces for specified package(s)
+npm notice
+npm notice 📦  snapback4-expo@0.4.2
+npm notice Tarball Contents
+npm notice 3.1kB README.md
+npm notice 82B expo-module.config.json
+npm notice 4.2kB ios/MediaFiles.swift
+npm notice 1.3kB ios/Snapback4Device.xcframework/Info.plist
+npm notice 61B ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap
+npm notice 2.2kB ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h
+npm notice 6.3MB ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a
+npm notice 61B ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap
+npm notice 2.2kB ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h
+npm notice 6.3MB ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a
+npm notice 1.2kB ios/Snapback4Expo.podspec
+npm notice 3.9kB ios/Snapback4Module.swift
+npm notice 2.1kB ios/WitnessContainer.swift
+npm notice 817B package.json
+npm notice 2.9kB src/index.ts
+npm notice 8.4kB src/smoke.ts
+npm notice 3.0kB src/witness-core.ts
+npm notice 649B src/witness.ts
+npm notice Tarball Details
+npm notice name: snapback4-expo
+npm notice version: 0.4.2
+npm notice filename: snapback4-expo-0.4.2.tgz
+npm notice package size: 5.0 MB
+npm notice unpacked size: 12.6 MB
+npm notice shasum: 7fb2f448d57c0d3ff96bd864d2537c0de50e8426
+npm notice integrity: sha512-JCn0b5xe2u6nf[...]C1dAQWFXVwhiw==
+npm notice total files: 18
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
++ snapback4-expo@0.4.2

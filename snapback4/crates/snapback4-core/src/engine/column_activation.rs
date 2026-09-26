@@ -61,12 +61,12 @@ impl Runner<'_> {
         let owner = m.private.as_ref().expect("private maintain");
         let mut bounds = Bounds::default();
         loop {
-            let page = self.tx.scan(&owner.table, "byId", &[], &bounds, Dir::Asc, 256)?;
+            let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &owner.table, "byId", &[], &bounds, Dir::Asc, 256))?;
             if page.is_empty() { break; }
             for (row, key) in page {
                 bounds.after = crate::key::decode(&key);
                 let group = vec![row.field("id")?.clone()];
-                let total = self.tx.get(&m.target, &maintained_id(&group))?
+                let total = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &m.target, &maintained_id(&group)))?
                     .and_then(|r| r.field("value").ok().cloned()).unwrap_or(Value::Int(0)).as_int()?;
                 // Re-read the current parent in mirror_column: several columns
                 // must compose. Missing zero stays physically absent.

@@ -60,7 +60,7 @@ impl Runner<'_> {
         for name in names {
             self.meter.heap(64)?; // Saved dependency slot, including vector growth.
             let value = self.env.get(&name);
-            if let Some(value) = value { self.meter.heap(value.clone_heap_bytes())?; }
+            if value.is_some() { self.meter.heap(self.environment_value_copy_heap(&name))?; }
             let deps = self.effect_presence.variables.get(&name);
             if let Some(deps) = deps { self.meter.heap(super::presence::bytes(deps) + name.len() as u64 + 64)?; }
             saved.push((name, value.cloned(), deps.cloned()));

@@ -625,13 +625,15 @@ fn w2_hidden_refusal_restores_read_rule_probe_work_too() {
 }
 
 fn exhausted_target_pairs() {
+    // Missing targets burn the logical probe reservation without spending
+    // the independent physical allowance before the target being tested.
     for resource in ["probes", "heap"] {
         for address in ["id", "unique", "upsert"] {
             for guard in ["plain", "immutable", "conditional"] {
                 if address == "upsert" && guard == "conditional" { continue; } // upsert conditions are a compiler-observation exception.
                 let base = SOURCE.replace("secret: text <=80", "secret: text <=4000").replace("read <- .owner = viewer", "read <- exists grants[.id, viewer]")
                     .replace("  sync to .owner last 100 by byOwner\n", "").replace("update <- allow", "update <- exists grants[.id, viewer]");
-                let prelude = if resource == "probes" { "  for i in range(0, 8192):\n    w = work[id = 'work']\n" } else { "  for i in range(0, 2000):\n    p = pad\n" };
+                let prelude = if resource == "probes" { "  for i in range(0, 8192):\n    w = work[id = 'absent']\n" } else { "  for i in range(0, 2000):\n    p = pad\n" };
                 let statement = format!("{} records[{}] {{{}}}{}", if address == "upsert" {"upsert"} else {"update"}, if address == "id" {"id = target"} else {"key = key"},
                     if guard == "immutable" {"frozen: 'wrong'"} else {"amount: 0"}, if guard == "conditional" {" if .amount = 7"} else {""});
                 let source = format!("{base}\ntable grants:\n  record: text <=80\n  principal: principal\n  unique byPair: record, principal\n  read <- allow\ntable work:\n  record: records\n  read <- exists grants[.record, viewer]\nmutation warm(pad: text <=4000, key: text <=80, target: records): server\n{prelude}  return null\nmutation pressure(pad: text <=4000, key: text <=80, target: records): server\n{prelude}  {statement}\n");
@@ -796,7 +798,7 @@ fn w4_created_equality_upsert_reserves_before_lookup() {
     use snapback4_core::ir::{Expr, Program, Stmt};
     for serialized in [false, true] {
         for work in [0, 8192] {
-            let source = format!("table permits:\n  owner: principal\n  enabled: bool\n  unique byOwner: owner\n  insert <- allow\ntable work:\n  read <- exists work[.id]\ntable targets:\n  amount: int\n  read <- deny\n  update <- deny\n  insert <- created permits[owner = viewer, enabled = true]\nmutation pressure(): server\n  insert permits {{owner: viewer, enabled: false}}\n  for i in range(0, {work}):\n    r = work[id = 'work']\n  upsert targets[id = 'target'] {{amount: 0}}\n  return null\nquery one(key: text <=80):\n  return null\n");
+            let source = format!("table permits:\n  owner: principal\n  enabled: bool\n  unique byOwner: owner\n  insert <- allow\ntable work:\n  read <- exists work[.id]\ntable targets:\n  amount: int\n  read <- deny\n  update <- deny\n  insert <- created permits[owner = viewer, enabled = true]\nmutation pressure(): server\n  insert permits {{owner: viewer, enabled: false}}\n  for i in range(0, {work}):\n    r = work[id = 'absent']\n  upsert targets[id = 'target'] {{amount: 0}}\n  return null\nquery one(key: text <=80):\n  return null\n");
             let build = |source: &str| {
                 let b = compile(source);
                 let programs = b.programs.into_iter().map(|p| {

@@ -53,7 +53,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome {
+    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { ephemeral: None,
         unavailable: runner.query_unavailable,
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
@@ -102,6 +102,16 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         runner.check_final_exists()?;
         Ok(value)
     });
+    if matches!(result, Err(RuntimeError::AuthorizationBudget { .. })) {
+        return Err(RuntimeError::Prediction("authorization work allowance exhausted; queued without a prediction".into()));
+    }
+    // @ref LLP 3000.015#2 — a provisional ordinal is not server evidence.
+    // Any refusal after consuming one may change with the server's assignment,
+    // including constraints, postconditions and a selected branch's refusal.
+    // The host rolls back all predicted rows and retains the intent.
+    if runner.provisional_sequence_read && result.is_err() {
+        return Err(RuntimeError::Prediction("a refusal depends on a provisional sequence; queue the write for the server (guide writes)".into()));
+    }
     // Unknown input can select a branch the server will never execute. Its
     // exhaustion cannot refuse the write; a cut with known inputs still can.
     if matches!(&result, Err(RuntimeError::Bound { .. })) && !runner.charged_untaken && runner.missing_fact.is_none() {
@@ -150,7 +160,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
         };
         let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
-        Ok(QueryOutcome {
+        Ok(QueryOutcome { ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon,
             cut: runner.read_cut(),

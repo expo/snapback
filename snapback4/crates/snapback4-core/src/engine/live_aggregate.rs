@@ -14,8 +14,9 @@ impl Runner<'_> {
         row_copy_ceiling(&self.schema.tables[&maintain.target])
             .saturating_mul(17)
             .saturating_add(
+                // The key is the caller's evaluated input, never a stored image.
                 key.iter()
-                    .map(Value::clone_heap_bytes)
+                    .map(|value| match value { Value::String(s) | Value::Id(s) => s.len() as u64, Value::Bytes(b) => b.len() as u64, _ => 0 })
                     .fold(0_u64, u64::saturating_add)
                     .saturating_mul(8),
             )
@@ -38,6 +39,8 @@ impl Runner<'_> {
         let Some(maintain) = self.schema.maintain_for(table_name).cloned() else {
             return Ok(Some(row));
         };
+        // @ref LLP 3000.015#3 — a row-keyed count certifies its live basis on the internal ledger.
+        if maintain.row_key.is_some() { return self.live_row_view(&maintain, row); }
         let source = self
             .schema
             .table(&maintain.source)
@@ -52,6 +55,16 @@ impl Runner<'_> {
                     .saturating_mul(16),
             );
         self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
+    }
+
+    /// A maintained point read reserved its recount scratch up front
+    /// (`aggregate_point_scratch`); recompute without a second reservation.
+    pub(super) fn live_aggregate_prepaid(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
+        self.aggregate_source_dependency(table_name);
+        let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
+        if maintain.row_key.is_some() { return self.live_row_view(&maintain, row); }
+        if !self.schema.tables[&maintain.source].is_expiring() { return Ok(Some(row)); }
+        self.live_aggregate_inner(&maintain, row)
     }
 
     pub(super) fn live_aggregate_inner(
@@ -84,9 +97,8 @@ impl Runner<'_> {
         let mut any = false;
         'sources: loop {
             let limit = 32;
-            let rows = self
-                .tx
-                .scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, limit)?;
+            // Already-authorized source candidates keep their ordinary meter; the token is the storage capability.
+            let rows = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, index, &prefix, &bounds, Dir::Asc, limit))?;
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);

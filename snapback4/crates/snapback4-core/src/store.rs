@@ -21,6 +21,7 @@ mod event_slots;
 mod caps;
 mod authority;
 mod successor;
+mod sequences;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
@@ -50,6 +51,7 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
     page_size: u64,
     catalog: &'a BTreeMap<String, i64>,
@@ -243,7 +245,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -252,7 +254,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -262,7 +264,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
@@ -280,6 +282,9 @@ impl Store {
         Ok(Self { conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
+    pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {
+        self.catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
+    }
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
@@ -438,12 +443,13 @@ impl<'a> Tx<'a> {
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
         let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
-        let rows = statement.query_map(params![t, ti, lo, hi, limit as i64], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?)))?;
-        rows.map(|row| {
-            let (data, k) = row?;
-            Ok((serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, k))
-        })
-        .collect()
+        let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
+            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, row.get(1)?));
+        }
+        Ok(out)
     }
 
     /// How many entries sit under `prefix`, counting at most `limit`.
@@ -459,6 +465,7 @@ impl<'a> Tx<'a> {
     /// that touches only the index entries whose keys changed (a `words`
     /// index has one per token). Returns the number of entries written.
     pub fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
@@ -483,6 +490,7 @@ impl<'a> Tx<'a> {
     }
 
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = old.field("id")?.as_str()?.to_owned();
         self.tx.prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
@@ -813,6 +821,16 @@ mod tests {
 }
 
 impl crate::rows::Rows for Tx<'_> {
+    fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        if !self.has_sequence_table()? { return Ok(0); }
+        Ok(self.conn().query_row("SELECT value FROM _sequences WHERE parent = ?1 AND id = ?2", params![parent, id], |r| r.get(0)).optional()?.unwrap_or(0))
+    }
+    fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        self.ensure_sequence_table()?;
+        self.conn().execute("INSERT INTO _sequences VALUES (?1, ?2, ?3) ON CONFLICT(parent, id) DO UPDATE SET value = excluded.value", params![parent, id, value])?;
+        Ok(())
+    }
+
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         // Opening an old store must not change it before a backend can refuse.
         // @ref LLP 3000.013#5.3 — table and key commit with the emission; existing keys survive reopen.
@@ -829,14 +847,21 @@ impl crate::rows::Rows for Tx<'_> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         Tx::scan(self, table, index_name, prefix, bounds, dir, limit)
     }
-    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo,hi)) = crate::rows::scan_range(prefix,bounds,dir) else { return Ok(None); };
+        let ti = self.num(&format!("{table}.{index}"))?;
+        let key: Option<Vec<u8>> = self.tx.prepare_cached(if dir == Dir::Asc { "SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k LIMIT 1" } else { "SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k DESC LIMIT 1" })?.query_row(params![ti,lo,hi], |row|row.get(0)).optional()?;
+        Ok(key.and_then(|key|crate::key::decode(&key)))
+    }
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
-        meter.heap(heap::range(prefix, bounds) + heap::allocation(table.len() + index_name.len() + 1))?;
+        heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        meter.heap(heap::allocation(table.len() + index_name.len() + 1))?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
         // @ref LLP 3000.007#20.24.1 — stream preflight allowances before stepping to the next row.
-        // Per-execution statement storage and the page cache are shared images outside this payload ledger, as for every store scan; tests/word_heap.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
+        // Per-execution statement storage and the page cache are shared images outside this payload ledger, as for every store scan; engine/word_heap/tests.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
         // Within one preflight execution the first row's resident copy (one
         // page_size buffer per column, two registers) precedes its charge;
         // every later row's copy follows the previous row's charge. Across
@@ -869,8 +894,9 @@ impl crate::rows::Rows for Tx<'_> {
             // until this allowance succeeds. Nominal IDs have no schema max.
             let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
             let key = row.get_ref(1)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
-            meter.heap(heap::stored_row(data) + heap::allocation(key.len()))?;
-            let additional = heap::grow::<(Value, Vec<u8>)>(meter, out.len(), out.capacity())?;
+            heap::stored_row(data,scope).charge(meter, scope)?;
+            meter.heap(heap::allocation(key.len()))?;
+            let additional = meter.grow::<(Value, Vec<u8>)>(out.len(), out.capacity())?;
             if additional != 0 { out.reserve_exact(additional); }
             out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));
         }

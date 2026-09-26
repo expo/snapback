@@ -97,6 +97,7 @@ impl PostgresEngine {
         )?.first() {
             return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
         }
+        client.batch_execute("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
         Self::attach(client, schema, programs)
     }
 
@@ -159,7 +160,7 @@ impl PostgresEngine {
         runner.meter.used = self.precharge;
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
-        let outcome = QueryOutcome {
+        let outcome = QueryOutcome { ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()
@@ -267,7 +268,7 @@ impl PostgresEngine {
                 tx.record_commit(seq, now, &program.name, &viewer, program.kind.word(), &tables, writes)?;
                 partition::append(&tx, seq, &events)?;
                 tx.record_effects(&outbox, seq, now)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_program()?;
@@ -309,6 +310,8 @@ impl PostgresEngine {
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table_name, row) in rows {
+            let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&table_name, row, old.as_ref(), false)?;
             validate::validate_row(&self.schema, &table_name, &row)?;
             let table = self.schema.table(&table_name).expect("validated").clone();
             let id = row.field("id")?.as_str()?.to_owned();
@@ -337,7 +340,7 @@ impl PostgresEngine {
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table, row) in rows {
-            runner.upsert(&table, &row.field("id")?.clone(), row)?;
+            runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&crate::engine::ImportInput(())))?;
             count += 1;
         }
         runner.check_final_exists()?;
@@ -391,6 +394,9 @@ fn retry_transaction(error: &RuntimeError) -> bool {
 }
 
 fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    if schema.tables.values().any(|t| t.ephemeral.is_some()) {
+        return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "Postgres evaluation does not support ephemeral tables; use the SQLite server".into() });
+    }
     refuse_maintained_columns(schema)?;
     schema.validate_column_owners()?;
     for program in programs.values() {
@@ -419,6 +425,7 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
 
 // @ref LLP 3000.007.001#3.11 — this evaluation backend claims no maintained-column parity.
 fn refuse_maintained_columns(schema: &Schema) -> Result<(), RuntimeError> {
+    if schema.maintains.iter().any(|m|m.row_key.is_some()) {return Err(RuntimeError::Structural {code:"E_VIEW_KEY",message:"Postgres evaluation has no background recount runner; use the SQLite engine for row-keyed views (guide maintains)".into()});}
     if schema.tables.iter().all(|(name,table)| table.maintained.keys().all(|field|
         schema.maintains.iter().any(|m| m.private.as_ref().is_some_and(|o| &o.table == name && &o.column == field)
             && schema.table(&m.source).is_some_and(|s| !s.is_expiring() && s.through.as_ref().is_some_and(|t| &t.parent == name && m.by == [t.reference.clone()])))))

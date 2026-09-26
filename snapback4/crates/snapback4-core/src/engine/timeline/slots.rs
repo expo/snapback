@@ -3,10 +3,12 @@
 use super::*;
 
 impl Runner<'_> {
-    pub(crate) fn prepare_event_slots(&mut self, table: &str, old: Option<&Value>, mut row: Value) -> Result<Value, RuntimeError> {
+    /// `copy` is the image's lawful price (LLP 3000.015 §1): the supplied bytes on
+    /// insert, the merge's price on update; never a stored length read here.
+    pub(crate) fn prepare_event_slots(&mut self, table: &str, old: Option<&Value>, mut row: Value, copy: u64) -> Result<Value, RuntimeError> {
         let timelines: Vec<_> = self.schema.timelines.iter().filter(|t| table == t.posts[0] || table == t.reposts[0]).cloned().collect();
         if timelines.is_empty() { return Ok(row); }
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(copy)?;
         for t in timelines {
             let repost = table == t.reposts[0];
             if !t.has_slot(self.schema, repost) { continue; }
@@ -33,7 +35,8 @@ impl Runner<'_> {
                 }
             };
             self.meter.step(1)?;
-            self.meter.heap(80 + slot.len() as u64 + value.heap_bytes())?;
+            // The slot value is engine-minted (a bool or a fresh id), not a stored image.
+            self.meter.heap(80 + slot.len() as u64 + match &value { Value::Id(id) => id.len() as u64, _ => 0 })?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(slot, value); }
         }
         Ok(row)

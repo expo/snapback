@@ -121,7 +121,7 @@ fn authorized_aggregate_shortcut_stops_at_its_own_cut_boundary() {
             ),
             ("guards", object([("id", id("g")), ("parent", id("p"))])),
         ] {
-            seed.insert(table, row).unwrap();
+            seed.insert(table, row.import_input(&crate::engine::ImportInput(()))).unwrap();
         }
         drop(seed);
         for prior in [None, Some(700)] {

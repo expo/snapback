@@ -50,10 +50,10 @@ pub fn rust(bound: &Bound) -> String {
             if field != column {
                 out.push_str(&format!("    #[serde(rename = {})]\n", string_literal(column)));
             }
-            if kind.is_optional() {
+            if kind.is_optional() || table.private_field(column) {
                 out.push_str("    #[serde(default)]\n");
             }
-            out.push_str(&format!("    pub {field}: {},\n", rust_type(kind)));
+            out.push_str(&format!("    pub {field}: {},\n", if table.private_field(column) && !kind.is_optional() { format!("Option<{}>",rust_type(kind)) } else { rust_type(kind) }));
         }
         out.push_str("}\n");
     }
@@ -61,7 +61,7 @@ pub fn rust(bound: &Bound) -> String {
     for (name, table) in schema.visible_tables().filter(|(_,t)| !t.maintained.is_empty()) {
         out.push_str(&format!("\n/// The id-bearing result of a write to `{name}`; read the row for maintained fields.\n#[derive(Clone, Debug, Default, PartialEq, snapback4_native::serde::Serialize, snapback4_native::serde::Deserialize)]\n#[serde(crate = \"snapback4_native::serde\")]\npub struct {} {{\n",write_names[name]));
         let fields = unique_names(table.columns.keys().filter(|n| !table.recorded.contains_key(*n) && !snapback4_core::schema::timeline::is_slot(n) && !table.maintained.contains_key(*n)),field_name);
-        for (column,field) in fields { out.push_str(&format!("    #[serde(rename = {})]\n    pub {field}: {},\n",string_literal(&column),rust_type(&table.columns[&column]))); }
+        for (column,field) in fields { out.push_str(&format!("    #[serde(rename = {})]\n    pub {field}: {},\n",string_literal(&column),if table.private_field(&column) && !table.columns[&column].is_optional() { format!("Option<{}>",rust_type(&table.columns[&column])) } else { rust_type(&table.columns[&column]) })); }
         out.push_str("}\n");
     }
     out

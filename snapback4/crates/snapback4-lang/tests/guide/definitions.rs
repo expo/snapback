@@ -45,7 +45,7 @@ fn why_rule_carries_the_target_visibility_contract() {
         // [rules::update_conditions](rules.rs)
         "An update condition on an unreadable target returns NOT_FOUND even if it would match; on a readable target, a false condition returns E_CONFLICT with a read-rule `current`.",
         // [rules::delete_rule_refusals](rules.rs)
-        "Delete returns NOT_FOUND for a missing id, and E_RULE if an existing row's delete rule refuses, whether that row is readable or hidden.",
+        "Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses.",
         // [rules::admitted_hidden_updates](rules.rs)
         "Reading a hidden row returns null.",
         // [rules::update_rule_refusals / admitted_hidden_updates / missing_update_and_incomplete_upsert](rules.rs)
@@ -112,6 +112,15 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_FIELD_AUTHORITY", "E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours."),
+    ("E_SEQUENCE_PARENT", "E_SEQUENCE_PARENT names a missing, optional or non-reference parent column"),
+    ("E_SEQUENCE_SUPPLIED", "`sequence by` refuses such values with E_SEQUENCE_SUPPLIED, including on updates and upserts."),
+    ("E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the maximum int."),
+    ("E_VIEW_KEY", "Every member-row reader must be able to read the whole counted parent group."),
+
+    ("E_QUARRY_EPHEMERAL", "E_QUARRY_EPHEMERAL refuses a declaration or operation that gives ephemeral rows durable custody"),
+    ("E_EPHEMERAL_FULL", "`E_EPHEMERAL_FULL` is retryable at 1,000 rows or 4 MiB per principal"),
+    ("N_EPHEMERAL_SERVER", "A query reading ephemeral rows runs on the server"),
     ("E_QUARRY_SELF_EQUALITY", "E_QUARRY_SELF_EQUALITY refuses comparisons of a filtered row column with itself"),
     ("E_READ_THROUGH", "read through .ref"),
     ("E_READ_THROUGH_ADOPT", "Reconcile the named table before adoption."),

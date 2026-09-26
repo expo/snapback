@@ -100,7 +100,7 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
                 deadline, deadline_ms, lease: None, outcome: None });
         }
         let guard = TicketGuard { registry: &shared.route_verification, id };
-        shared.committed.notify_all();
+        shared.durable_committed(&lock(&shared.engine));
         let (id, principal) = loop {
             let outcome = lock(&shared.route_verification.tickets).get(&guard.id).and_then(|ticket| ticket.outcome.clone());
             match outcome {
@@ -121,7 +121,7 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         let admitted = lock(&shared.engine).request_session_route(name, &contract, &envelope, context);
         match admitted { Ok((run, _)) => (run, principal), Err(error) => return respond_with_cors(request, if error.refusal().family == "auth" { 401 } else { 503 }, json!({ "denied": error.refusal() }), false) }
     };
-    shared.committed.notify_all();
+    shared.durable_committed(&lock(&shared.engine));
     loop {
         if route.service.is_none() && let Err(why) = self::principal(&request, shared) {
             return respond_with_cors(request, 401, json!({ "denied": why }), false);

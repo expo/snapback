@@ -14,7 +14,8 @@ use std::collections::BTreeMap;
 
 impl Runner<'_> {
     pub(super) fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source).cloned().collect();
+        self.maintain_row_views(source, old, new)?;
+        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source && maintain.row_key.is_none()).cloned().collect();
         for maintain in maintains {
             if self.device && self.schema.tables[&maintain.target].sync.is_none() { continue; }
             let source_bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]);
@@ -96,12 +97,13 @@ impl Runner<'_> {
 
     #[cfg(feature = "sqlite")]
     fn rebuild_maintain_inner(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
+        if maintain.row_key.is_some() { return self.rebuild_row_view(maintain); }
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         let mut bounds = Bounds::default();
         let target_bytes = super::write_target::row_copy_ceiling(&target).saturating_mul(16 + 4 * target.indexes.len() as u64);
         self.meter.heap(target_bytes.saturating_mul(256))?;
         loop {
-            let page = self.tx.scan(&maintain.target, "byId", &[], &bounds, Dir::Asc, 256)?;
+            let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.target, "byId", &[], &bounds, Dir::Asc, 256))?;
             if page.is_empty() { break; }
             for (existing, key) in page {
                 bounds.after = crate::key::decode(&key);
@@ -116,7 +118,7 @@ impl Runner<'_> {
         let mut totals: BTreeMap<String, (Vec<Value>, i128)> = BTreeMap::new();
         bounds = Bounds::default();
         loop {
-            let page = self.tx.scan(&maintain.source, "byId", &[], &bounds, Dir::Asc, 256)?;
+            let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, "byId", &[], &bounds, Dir::Asc, 256))?;
             if page.is_empty() { break; }
             for (mut image, key) in page {
                 bounds.after = crate::key::decode(&key);
@@ -160,7 +162,7 @@ impl Runner<'_> {
             let index = maintain.contribution_index();
             if !source.indexes.contains_key(&index) { return Err(RuntimeError::Schema(format!("maintain {} needs its contribution index", maintain.target))); }
             runner.charge_maintain(MeterKind::Examined, 1)?;
-            let present = runner.tx.count_prefix(&maintain.source, &index, key, 1)? != 0;
+            let present = runner.metered_scan(|runner, allowance| runner.tx.count_prefix(allowance, &maintain.source, &index, key, 1))? != 0;
             // @ref LLP 3000.007#20.9 — a local positive witness keeps zero; absence needs complete, currently held source coverage.
             if !present && runner.device && !runner.aggregate_source_complete(maintain, key)? {
                 runner.unknown_fact(&maintain.source, &index, key, "zero-sum occupancy");
@@ -189,7 +191,7 @@ impl Runner<'_> {
         let id = maintained_id(&key);
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         self.charge_maintain(MeterKind::Examined, 1)?;
-        let existing = self.tx.get(&maintain.target, &id)?;
+        let existing = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &maintain.target, &id))?;
         if self.device && existing.is_none() && !self.upsert_absence_proven(&maintain.target, "byGroup", &key)? {
             self.unknown_fact(&maintain.target, "byGroup", &key, "aggregate base");
             return Err(RuntimeError::Prediction("the affected aggregate value or its absence is not known locally; queued without a predicted row".into()));
@@ -249,7 +251,7 @@ mod timeline_tests {
         let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));
         for suffix in crate::schema::timeline::OWNED_SUFFIXES {
-            let maintain = Maintain { parent_key: None, aliases: Default::default(), target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
+            let maintain = Maintain { row_key: None, parent_key: None, aliases: Default::default(), target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
                 kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None, private: None };
             let result = guard.apply_aggregate(&maintain, vec![Value::Id("reader".into())], 1, None);
             assert_eq!(result.unwrap_err().code(), "E_TIMELINE_OWNED");

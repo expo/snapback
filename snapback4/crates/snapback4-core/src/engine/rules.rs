@@ -122,7 +122,7 @@ fn fields_pinned<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl F
         RuleExpr::Or(_) => all_disjunct(rule, &|part| any_disjunct(rule, &|other| self_probe_absorbs(name, table, part, other)) || fields_pinned(name, table, part, pinned)),
         RuleExpr::And(terms) => terms.iter().all(|part| fields_pinned(name, table, part, pinned)),
         RuleExpr::Not(inner) => fields_pinned(name, table, inner, pinned),
-        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => term(a) && term(b),
+        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) | RuleExpr::Compare(_,a,b) => term(a) && term(b),
         RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term)).all(term),
         RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } => true,
     }
@@ -217,56 +217,154 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
+    /// Exchange the private expiry accumulator; ordinary probes have none.
+    fn replace_expiry(&mut self, _expiry: Option<i64>) -> Option<i64> { None }
+    /// Coverage of the most recent leaf, consumed once by the shared evaluator.
+    fn take_unknown(&mut self) -> bool { false }
+    /// Called only when evaluation loads a field, after short-circuit decisions.
+    fn field(&mut self, _field: &str, _old: bool) {}
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, crate::error::RuntimeError>;
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum Verdict { Readable, Denied, #[default] Unknown }
+
+impl Verdict {
+    fn not(self) -> Self {
+        match self { Self::Readable => Self::Denied, Self::Denied => Self::Readable, Self::Unknown => Self::Unknown }
+    }
+    fn combine(self, other: Self, conjunction: bool) -> Self {
+        let decisive = if conjunction { Self::Denied } else { Self::Readable };
+        if self == decisive || other == decisive { decisive }
+        else if self == Self::Unknown || other == Self::Unknown { Self::Unknown }
+        else { decisive.not() }
+    }
+}
+
 /// Evaluate a rule over a row image (and its old image, for update rules).
 pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
+    evaluate_verdict(rule, viewer, old, next, created_allowed, probe).map(|verdict| verdict == Verdict::Readable)
+}
+
+pub(super) fn evaluate_verdict(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<Verdict, crate::error::RuntimeError> {
+    let prior = probe.replace_expiry(None);
+    let result = timeline(rule, viewer, old, next, created_allowed, probe);
+    probe.replace_expiry(match &result {
+        Ok(answer) if answer.value == Verdict::Readable => earliest(prior, answer.changes.first().map(|(time, _)| *time)),
+        _ => prior,
+    });
+    result.map(|answer| answer.value)
+}
+
+pub(super) fn earliest(a: Option<i64>, b: Option<i64>) -> Option<i64> {
+    match (a, b) { (Some(a), Some(b)) => Some(a.min(b)), (a, b) => a.or(b) }
+}
+
+struct Timeline {
+    value: Verdict,
+    changes: Vec<(i64, Verdict)>,
+    // Proven from rule structure and verdicts, never from witness deadlines.
+    invariant: bool,
+}
+impl Timeline {
+    fn constant(value: Verdict) -> Self { Self { value, changes: Vec::new(), invariant: true } }
+    fn combine(self, other: Self, conjunction: bool) -> Self {
+        let (mut left, mut right) = (self.value, other.value);
+        let mut result = Self::constant(left.combine(right, conjunction));
+        let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
+        result.invariant = (self.invariant && left == decisive)
+            || (other.invariant && right == decisive) || (self.invariant && other.invariant);
+        let (mut a, mut b) = (self.changes.into_iter().peekable(), other.changes.into_iter().peekable());
+        let mut previous = result.value;
+        while let Some(time) = earliest(a.peek().map(|(t, _)| *t), b.peek().map(|(t, _)| *t)) {
+            // All rows expiring at the same instant disappear together. This
+            // preserves correlations, including A or not A and A and not A.
+            if a.peek().is_some_and(|(t, _)| *t == time) { left = a.next().unwrap().1; }
+            if b.peek().is_some_and(|(t, _)| *t == time) { right = b.next().unwrap().1; }
+            let value = left.combine(right, conjunction);
+            if value != previous { result.changes.push((time, value)); previous = value; }
+        }
+        result
+    }
+}
+
+// @ref LLP 3000.015#2 — next_expiry is the first expiry boundary that changes
+// the complete bound rule's verdict, not a branch or first witness lifetime.
+// Probe leaves are evaluated once at the current clock, within their original
+// allowance. Combining their timelines performs no further storage reads.
+fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<Timeline, crate::error::RuntimeError> {
+    match rule {
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => {
+            let conjunction = matches!(rule, RuleExpr::And(_));
+            let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
+            let mut answer = Timeline::constant(decisive.not());
+            for term in terms {
+                answer = answer.combine(timeline(term, viewer, old, next, created_allowed, probe)?, conjunction);
+                // Whole-rule expiry needs the remaining alternatives unless
+                // structure/verdicts alone prove them irrelevant. An exists
+                // with a permanent witness visits exactly the same branches
+                // as one with a finite witness, under the same physical bound.
+                if answer.value == decisive && answer.invariant { break; }
+            }
+            Ok(answer)
+        }
+        RuleExpr::Not(inner) => {
+            let mut answer = timeline(inner, viewer, old, next, created_allowed, probe)?;
+            answer.value = answer.value.not();
+            for (_, value) in &mut answer.changes { *value = value.not(); }
+            Ok(answer)
+        }
+        _ => {
+            let value = evaluate_leaf(rule, viewer, old, next, created_allowed, probe)?;
+            let expiry = probe.replace_expiry(None);
+            let mut answer = Timeline::constant(if probe.take_unknown() { Verdict::Unknown } else if value { Verdict::Readable } else { Verdict::Denied });
+            // An absent witness stays absent as rows expire. Positive probes
+            // (including created facts with extra tests) need their alternatives
+            // in both lifetime worlds; the observed deadline cannot decide this.
+            answer.invariant = rule_probes(rule) == 0 || answer.value == Verdict::Denied;
+            if answer.value == Verdict::Readable && let Some(time) = expiry { answer.changes.push((time, Verdict::Denied)); }
+            Ok(answer)
+        }
+    }
+}
+
+fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
         RuleExpr::Deny => Ok(false),
-        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next)? == term(right, viewer, old, next)?),
-        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next)? != term(right, viewer, old, next)?),
-        RuleExpr::And(rules) => {
-            for rule in rules {
-                if !evaluate(rule, viewer, old, next, created_allowed, probe)? {
-                    return Ok(false);
-                }
-            }
-            Ok(true)
+        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next, probe)? == term(right, viewer, old, next, probe)?),
+        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next, probe)? != term(right, viewer, old, next, probe)?),
+        RuleExpr::Compare(op,left,right) => {
+            let left = term(left, viewer, old, next, probe)?;
+            let right = term(right, viewer, old, next, probe)?;
+            let (Value::Int(a),Value::Int(b)) = (left,right) else { return Ok(false); };
+            Ok(match op { crate::ir::BinaryOp::Gte => a >= b, crate::ir::BinaryOp::Gt => a > b,
+                crate::ir::BinaryOp::Lte => a <= b, crate::ir::BinaryOp::Lt => a < b, _ => false })
         }
-        RuleExpr::Or(rules) => {
-            for rule in rules {
-                if evaluate(rule, viewer, old, next, created_allowed, probe)? {
-                    return Ok(true);
-                }
-            }
-            Ok(false)
-        }
-        RuleExpr::Not(rule) => Ok(!evaluate(rule, viewer, old, next, created_allowed, probe)?),
+        RuleExpr::And(_) | RuleExpr::Or(_) | RuleExpr::Not(_) => unreachable!("compound rule"),
         RuleExpr::Exists { table, index, key, equalities, .. } => {
-            let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
-            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
             probe.exists(table, index, &key, &equalities)
         }
         RuleExpr::Created { table, index, key, equalities, .. } => {
             if !created_allowed {
                 return Err(crate::error::RuntimeError::Schema("created probes are valid only in insert rules".into()));
             }
-            let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
+            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
             if !probe.created(table, index, &key) { return Ok(false); }
             if equalities.is_empty() { return Ok(true); }
-            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
             probe.exists(table, index, &key, &equalities)
         }
     }
 }
 
-fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value) -> Result<Value, crate::error::RuntimeError> {
+fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe) -> Result<Value, crate::error::RuntimeError> {
     Ok(match term {
-        RuleTerm::Field(field) | RuleTerm::NextField(field) => next.field(field).cloned().unwrap_or(Value::Null),
-        RuleTerm::OldField(field) => old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null),
+        RuleTerm::Field(field) | RuleTerm::NextField(field) => { probe.field(field, false); next.field(field).cloned().unwrap_or(Value::Null) },
+        RuleTerm::OldField(field) => { probe.field(field, true); old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null) },
         RuleTerm::Viewer => Value::Id(viewer.to_owned()),
         RuleTerm::Literal(value) => value.clone(),
     })
@@ -280,7 +378,7 @@ pub(super) fn rule_probes(rule: &RuleExpr) -> u64 {
         RuleExpr::Created { equalities, .. } => u64::from(!equalities.is_empty()),
         RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
         RuleExpr::Not(inner) => rule_probes(inner),
-        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) => 0,
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) | RuleExpr::Compare(..) => 0,
     }
 }
 
@@ -292,5 +390,40 @@ pub fn probe_sites(rule: &RuleExpr, out: &mut Vec<(String, String)>) {
         RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().for_each(|item| probe_sites(item, out)),
         RuleExpr::Not(inner) => probe_sites(inner, out),
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod lifetime_tests {
+    use super::*;
+    struct Witness { present: bool, until: Option<i64>, expiry: Option<i64>, visited: Vec<String> }
+    impl Probe for Witness {
+        fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.expiry, expiry) }
+        fn exists(&mut self, table: &str, _: &str, _: &[Value], _: &[(String,Value)]) -> Result<bool, crate::RuntimeError> {
+            self.visited.push(table.into());
+            if table == "early" { self.expiry = self.until; Ok(self.present) } else { Ok(true) }
+        }
+        fn created(&mut self, _: &str, _: &str, _: &[Value]) -> bool { true }
+    }
+    #[test]
+    fn branch_selection_uses_verdicts_and_structure_including_created_tests() {
+        let exists = |name: &str| RuleExpr::Exists { table: name.into(), index: "byId".into(), key: vec![], provenance: crate::ir::KeyProvenance::Const, equalities: vec![] };
+        let created = RuleExpr::Created { table: "early".into(), index: "byId".into(), key: vec![], provenance: crate::ir::KeyProvenance::Const,
+            equalities: vec![("kind".into(), RuleTerm::Literal(Value::Int(1)))] };
+        for early in [exists("early"), created] {
+            for until in [None, Some(2000)] {
+                for (rule, present, verdict, visits) in [
+                    (RuleExpr::Or(vec![early.clone(), exists("stable")]), true, true, vec!["early", "stable"]),
+                    (RuleExpr::And(vec![early.clone(), exists("stable")]), false, false, vec!["early"]),
+                    (RuleExpr::Or(vec![RuleExpr::Allow, early.clone()]), true, true, vec![]),
+                    (RuleExpr::And(vec![RuleExpr::Deny, early.clone()]), true, false, vec![]),
+                ] {
+                    let mut probe = Witness { present, until, expiry: None, visited: vec![] };
+                    assert_eq!(evaluate(&rule, "alice", None, &Value::Null, true, &mut probe).unwrap(), verdict);
+                    assert_eq!(probe.visited, visits);
+                    assert_eq!(probe.expiry, None, "stable authority or denial exports no deadline");
+                }
+            }
+        }
     }
 }

@@ -1,4 +1,7 @@
-//! Candidate preparation returns a provisional deadline alongside its image.
+//! The page candidate contract: a provisional deadline travels with its image
+//! and is emitted only by the page. The scan loop inlines this under the
+//! sealed projection boundary (`AuthorizedRow`, LLP 3000.015 §1); the
+//! read_verdict tests exercise the contract itself.
 use super::{expiry::Pending, runner::Runner};
 use crate::{error::RuntimeError, schema::Effect, value::Value};
 

@@ -6,6 +6,8 @@
 #[cfg(feature = "sqlite")]
 pub mod effects;
 #[cfg(feature = "sqlite")]
+pub mod ephemeral;
+#[cfg(feature = "sqlite")]
 mod effect_steps;
 #[cfg(feature = "sqlite")]
 pub mod actions;
@@ -27,12 +29,18 @@ mod read_only;
 mod pages;
 pub use pages::expression_page_site;
 mod shaping;
+#[cfg(feature = "sqlite")]
+pub(crate) struct ImportInput(());
 pub use pages::returned_page_sites;
 pub mod read;
-mod extrema;
+pub(crate) use runner::extrema;
 mod read_auth;
 mod aggregate_expiry;
+pub(crate) mod authorized_scan;
+pub use authorized_scan::{Authorization, InternalLedger, InternalMeter};
+pub(crate) mod authorized_point;
 mod read_point;
+#[cfg(all(test, feature = "sqlite"))]
 mod read_candidate;
 mod provenance;
 mod expiry;
@@ -40,12 +48,18 @@ pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
+mod field_authority;
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod field_authority_tests;
 mod maintains;
+pub mod row_views;
 mod live_aggregate;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
-mod through;
+mod sequences;
+pub(crate) mod through;
 mod through_read;
 #[cfg(feature = "sqlite")]
 pub mod through_activation;
@@ -54,7 +68,7 @@ pub(crate) mod columns;
 mod column_activation;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
-mod write_target;
+use write::target as write_target;
 pub(crate) use write_target::row_copy_ceiling;
 mod receipt;
 #[cfg(test)]
@@ -138,6 +152,7 @@ pub struct Context {
     pub presence: Option<std::sync::Arc<dyn Presence>>,
 }
 
+
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
         Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
@@ -220,6 +235,8 @@ pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ephemeral: Option<crate::schema::ephemeral::Version>,
     pub data: Value,
     /// Evaluation stopped before producing a value. `data` is only an internal
     /// placeholder; client transports publish loading, never a ready null.
@@ -257,6 +274,7 @@ pub struct MutationOutcome {
     pub state: WriteState,
     pub metered: Metered,
     pub tables: Vec<String>,
+    /// Source/ordinary events only; private row-keyed recipient changes are not observable.
     pub events: usize,
     /// Whether this call applied the write, or found it already applied.
     pub replayed: bool,
@@ -275,6 +293,7 @@ pub struct AssetGrant {
 
 #[cfg(feature = "sqlite")]
 pub struct Engine {
+    ephemeral: std::sync::Arc<ephemeral::Hub>,
     store: Store,
     schema: Schema,
     programs: BTreeMap<String, Program>,
@@ -303,6 +322,7 @@ impl Engine {
     /// Activate using the owning host's clock for parent liveness and captures.
     pub fn new_at(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
+        schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
@@ -311,13 +331,14 @@ impl Engine {
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, None, now)?;
         let dev_effects = store.meta("release")?.is_none();
-        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        store.exclude_ephemeral(&schema);
+        Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
-        Ok(Self { store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
+        Ok(Self { ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
             ceilings: self.ceilings, entropy: 0, generation: self.generation, dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
@@ -334,11 +355,13 @@ impl Engine {
     /// checked convenience copy, never an independent authority.
     pub fn new_release(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
+        schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms())?;
-        Ok(Self { store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        store.exclude_ephemeral(&schema);
+        Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Attach to an already activated semantic generation without installing
@@ -357,6 +380,7 @@ impl Engine {
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         crate::schema::timeline::check_version(&schema)?;
         timeline::check_no_rebuilds(&tx, &schema)?;
+        schema.check_row_view_audiences()?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
@@ -371,7 +395,8 @@ impl Engine {
             && store.meta("live_sum_candidates")?.as_deref() == Some("1")
             && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { generation }
             else { Self::activate(&mut store, &schema, &programs, None, now)? };
-        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        store.exclude_ephemeral(&schema);
+        Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -477,6 +502,7 @@ impl Engine {
 
     pub fn adopt_at(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<u64, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
+        schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
@@ -487,11 +513,15 @@ impl Engine {
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
+        self.ephemeral.clear_and_rebind(self.store.meta("store_id")?.unwrap_or_default(), generation, &self.schema)?;
         Ok(generation)
     }
 
     fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64) -> Result<u64, RuntimeError> {
         schema.validate_column_owners()?;
+        for program in programs.values() {
+            crate::schema::ephemeral::admit_program(schema, program)?;
+        }
         for program in programs.values() {
             for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
         }
@@ -672,7 +702,9 @@ impl Engine {
         let mut image = row.clone();
         materialize_optional_fields(&mut image, table);
         let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
-        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?;
+        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?
+            && (runner.context.is_system() || !table.written_by.get(column).is_some_and(|authority| !authority.audience
+                && image.field(&authority.owner).ok() != Some(&Value::Id(principal.into()))));
         drop(runner);
         if !allowed {
             tx.rollback()?;
@@ -762,7 +794,7 @@ impl Engine {
     /// Stop between row removals; a short sweep can still leave due rows.
     pub fn sweep_expired_for(&mut self, now: i64, limit: usize, budget: std::time::Duration) -> Result<u64, RuntimeError> {
         let started = std::time::Instant::now();
-        let expiring: Vec<(String, String)> = self.schema.through_order().into_iter().rev().filter_map(|name| self.schema.tables[&name].expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
+        let expiring: Vec<(String, String)> = self.schema.through_order().into_iter().rev().filter(|name| self.schema.tables[name].ephemeral.is_none()).filter_map(|name| self.schema.tables[&name].expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
         if expiring.is_empty() {
             return Ok(0);
         }
@@ -839,6 +871,14 @@ impl Engine {
         let tx = self.store.read_transaction()?;
         let seq = tx.next_seq()? - 1;
         *cut = Some(seq);
+        let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
+        let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
+        if let Some(hub) = &mut hub {
+            hub.bind(&tx.meta("store_id")?.unwrap_or_default(), self.generation, &self.schema)?;
+        }
+        let version = hub.as_ref().map(|h| h.version());
+        let layered = hub.as_ref().map(|h| ephemeral::Layered::new(&tx, &h.rows, &self.schema, false));
+        let rows: &dyn crate::rows::Rows = layered.as_ref().map_or(&tx as &dyn crate::rows::Rows, |l| l);
         if program.native {
             // A native read (LLP 3000.005 §9): the module over this viewer's
             // rules under the read meter; the same call a device makes over
@@ -848,12 +888,13 @@ impl Engine {
                 let module = self.native.as_deref().ok_or_else(|| RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read but no module is installed; `snapback4 check` builds it") })?;
                 let args = context.args.clone();
                 let now = context.now.unwrap_or(0);
-                let runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+                let runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
+                drop(layered); drop(hub);
                 tx.rollback()?;
                 return Ok(outcome);
             }
@@ -862,13 +903,13 @@ impl Engine {
                 return Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this server was built without the wasm host") }.into());
             }
         }
-        let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+        let mut runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
-        let outcome = QueryOutcome {
+        let outcome = QueryOutcome { ephemeral: version,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
@@ -882,6 +923,7 @@ impl Engine {
             next_expiry: runner.next_expiry.get(),
         };
         drop(runner);
+        drop(layered); drop(hub);
         tx.rollback()?;
         Ok(outcome)
     }
@@ -929,6 +971,7 @@ impl Engine {
     /// Compare wire identity before decoding against a possibly newer schema.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
+        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) { return Ok(None); }
         crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }
@@ -940,6 +983,14 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
+        // Signals bypass the replay table even when their correlation id was used before.
+        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
+            return match self.mutate_ephemeral(name, context) {
+                Ok(out) => Ok(MutationOutcome { state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
+                Err(error) if error.is_refusal() => Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
+                Err(error) => Err(error),
+            };
+        }
         context.generation = self.generation;
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) } else { serde_json::Value::Null };
         if let Some(op) = op
@@ -1022,7 +1073,7 @@ impl Engine {
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
                 effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;
@@ -1068,16 +1119,32 @@ impl Engine {
         let rows: Box<dyn Iterator<Item = (String, Value)> + '_> = if targets.is_empty() { Box::new(rows.into_iter()) } else {
             let rows: Vec<_> = rows.into_iter().collect();
             // A capture sees the imported target's eventual image, including
-            // fields retained by patches and defaults on fresh inserts.
-            for (name, row) in rows.iter().filter(|(name, _)| targets.contains(name.as_str())) {
-                let table = &self.schema.tables[name];
+            // fields retained by patches, defaults and assigned ordinals.
+            // Preview every allocation in input order (counters cross tables),
+            // then undo the preview; ordinary writes allocate in that same
+            // transaction and still own all validation, events and rollback.
+            tx.savepoint("seed_sequences")?;
+            let mut staging = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+            for (name, row) in &rows {
+                self.schema.refuse_ephemeral_import(name)?;
+                let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
+                sequences::refuse_fields(table, name, row)?;
                 let id = row.field("id")?.as_str()?.to_owned();
                 let old = match imports.get(&(name.clone(), id.clone())) { Some(row) => Some(row.clone()), None => tx.get(name, &id)? }.filter(|row| !table.expired(row, now));
                 let mut fields = old.as_ref().map(|row| row.as_object().cloned()).transpose()?.unwrap_or_default();
                 fields.extend(row.as_object()?.clone());
                 if old.is_none() { for (field, default) in &table.defaults { fields.entry(field.clone()).or_insert_with(|| default.value(now, crate::SYSTEM_PRINCIPAL)); } }
-                imports.insert((name.clone(), id), Value::Row(fields.into()));
+                let mut image = Value::Row(fields.into());
+                if old.is_none() {
+                    let (assigned, full) = staging.sequence_fields(name, image.import_input(&ImportInput(())))?;
+                    if full { return Err(sequences::exhausted()); }
+                    staging.commit_sequences(name, &assigned)?;
+                    image = assigned;
+                }
+                imports.insert((name.clone(), id), image);
             }
+            drop(staging);
+            tx.rollback_to("seed_sequences")?;
             Box::new(rows.into_iter())
         };
         let seq = tx.next_seq()?;
@@ -1085,8 +1152,9 @@ impl Engine {
         runner.import_targets = Some(&imports);
         let mut count = 0;
         for (table, row) in rows {
+            self.schema.refuse_ephemeral_import(&table)?;
             timeline::check_import(&self.schema, &table)?;
-            runner.upsert(&table, &row.field("id")?.clone(), row)?;
+            runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
             count += 1;
         }
         let events = runner.events.take();
@@ -1103,6 +1171,7 @@ impl Engine {
     /// Delete a row as the system principal: constraints, aggregates and
     /// partition events apply. Returns the number of rows removed (0 or 1).
     pub fn seed_delete(&mut self, table: &str, id: &str) -> Result<u64, RuntimeError> {
+        self.schema.refuse_ephemeral_import(table)?;
         timeline::check_import(&self.schema, table)?;
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
@@ -1148,13 +1217,15 @@ impl Engine {
         let mut imported = BTreeMap::new();
         let mut count = 0;
         for (name, row) in rows {
+            self.schema.refuse_ephemeral_import(&name)?;
             timeline::check_import(&self.schema, &name)?;
             let table = self.schema.table(&name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
             self.schema.refuse_private(&name)?;
             let row = columns::write_result(table, row);
             if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
-            validate::validate_row(&self.schema, &name, &row)?;
             let old = tx.get(&name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&name, row, old.as_ref(), false)?;
+            validate::validate_row(&self.schema, &name, &row)?;
             // Importing an existing source cannot erase its contribution history.
             let mut row = row;
             if mode == LoadMode::Import && let (Some(old), Value::Row(fields) | Value::Map(fields)) = (&old, &mut row) {
@@ -1200,8 +1271,11 @@ impl Engine {
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table_name, mut row) in rows {
+            self.schema.refuse_ephemeral_import(&table_name)?;
             if let Some(table) = self.schema.table(&table_name) { table.recompute_deadline(&mut row)?; }
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
+            let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&table_name, row, old.as_ref(), mode == LoadMode::Restore)?;
             validate::validate_row(&self.schema, &table_name, &row)?;
             if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
             let table = self.schema.table(&table_name).expect("validated").clone();
@@ -1290,3 +1364,6 @@ impl Engine {
         self.store.seq()
     }
 }
+
+#[cfg(feature = "sqlite")]
+pub use row_views::ViewChunk;

@@ -17,10 +17,7 @@ fn engine_work<T>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine,
     let result = run(&mut engine, budget);
     // Publish from this guard: a second ordinary admission would both delay
     // notification and mistake maintenance for a newly arrived request.
-    if let Ok(seq) = engine.seq() {
-        let mut current = lock(&shared.seq);
-        if seq > *current { *current = seq; shared.committed.notify_all(); }
-    }
+    shared.publish_engine(&engine);
     result
 }
 
@@ -34,7 +31,14 @@ fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bo
 // @ref LLP 3000#7-decisions-during-execution — lifetimes are swept into the partition log; missed schedule boundaries fire once.
 fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
+    shared.ephemeral.sweep(shared.now())?;
     work.delivery_chunks = delivery(shared, drain)?;
+    loop {
+        if phase(shared, engine_work(shared, |engine, budget| engine.run_view_chunk_for(shared.now(), budget)), drain, "view recount")?.is_none() {break;}
+        work.chunks += 1;
+        if !drain && work.chunks >= 500 {break;}
+        std::thread::yield_now();
+    }
     loop {
         let swept = phase(shared, engine_work(shared, |engine, budget| engine.sweep_expired_for(shared.now(), 2_000, budget)), drain, "the expiry sweep")?;
         work.expired += swept;
@@ -70,7 +74,7 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
         loop {
             let actions = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_actions_for(shared.now(), budget)), drain, "the action lease sweep")?;
             let effects = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_effects_for(shared.now(), budget)), drain, "the effect lease sweep")?;
-            if actions + effects > 0 { shared.committed.notify_all(); }
+            if actions + effects > 0 { shared.durable_committed(&lock(&shared.engine)); }
             if effects > 0 { eprintln!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
             if !drain || actions + effects == 0 { break; }
         }
@@ -101,6 +105,7 @@ pub(super) fn maintain(shared: Arc<Shared>) {
     let mut last_tick = std::time::Instant::now();
     loop {
         if crate::lifecycle::stopping() { return; }
+        if let Err(error) = shared.ephemeral.sweep(shared.now()) { eprintln!("snapback4: ephemeral sweep: {error}"); }
         let observed = *lock(&shared.seq);
         {
             let _maintenance = lock(&shared.maintenance);

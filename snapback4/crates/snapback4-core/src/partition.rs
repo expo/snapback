@@ -125,6 +125,19 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
     }
 }
 
+/// The mutation receipt cannot reveal extra private owner deliveries. Count
+/// one logical change per private table/row, regardless of recipient fanout.
+#[cfg(feature = "sqlite")]
+pub(crate) fn disclosed_event_count(schema: &Schema, events: &[Event]) -> usize {
+    let mut private = BTreeSet::new();
+    events.iter().filter(|event| {
+        if schema.maintain_for(&event.table).is_some_and(|m|m.row_key.is_some()) { return false; }
+        if schema.tables[&event.table].written_by.values().any(|a| !a.audience) {
+            private.insert((&event.table, &event.id))
+        } else { true }
+    }).count()
+}
+
 #[cfg(feature = "sqlite")]
 mod pending;
 #[cfg(feature = "sqlite")]
@@ -137,10 +150,9 @@ mod born_tests;
 #[cfg(feature = "sqlite")]
 mod log_events {
     use super::*;
-    pub(super) fn put(events: &mut PendingEvents, table: &str, id: &str, new: &Value, after: &BTreeSet<String>) {
-        let image = new.clone();
+    pub(super) fn put(events: &mut PendingEvents, table: &str, definition: &Table, id: &str, new: &Value, after: &BTreeSet<String>) {
         for partition in after {
-            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(image.clone()) });
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(definition.project_fields(new.clone(), partition.strip_prefix("p:")).into_value()) });
         }
     }
     pub(super) fn del(events: &mut PendingEvents, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
@@ -182,8 +194,30 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         runner.born_rows.insert(key.clone(), earlier);
     }
     if let Some(sync) = &table.sync {
-        let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
-        let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        let mut before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
+        let mut after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        // @ref LLP 3000.015#1 — reserve all potential owner deliveries before
+        // inspecting witnesses; neither short circuits nor recipient counts
+        // may move the writer's meter or E_BOUND boundary.
+        let ordinary_steps = (before.len() + after.len()) as u64;
+        let owner_slots = table.written_by.values().filter(|a| !a.audience).count() as u64
+            * (u64::from(old.is_some()) + u64::from(new.is_some()));
+        runner.prepay_field_delivery(&table.rules.read, owner_slots, origin == Origin::Maintained)?;
+        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, ordinary_steps)?; }
+        else { runner.meter.charge(MeterKind::Steps, ordinary_steps)?; }
+        // Shared images omit private fields; each owner's own partition also
+        // carries an image only when that owner may read the row. Use the old
+        // image for revocations, so losing read authority still withdraws it.
+        // Evaluate for the recipient explicitly: the writer may be the system.
+        for (row, recipients) in [(old, &mut before), (new, &mut after)] {
+            if let Some(row) = row {
+                for owner in table.field_owners(row) {
+                    if runner.field_owner_can_read(&table.rules.read, &owner, row)? {
+                        recipients.insert(partition_of(&owner));
+                    }
+                }
+            }
+        }
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         #[cfg(feature = "sqlite")]
         let id = if LOG { id.to_owned() } else { String::new() };
@@ -200,17 +234,15 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 // re-read it as absent and send its id as a `del`).
                 let live = new.filter(|new| !runner.context.now.is_some_and(|now| table.expired(new, now)));
                 if let Some(new) = live {
-                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                    log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
             } else {
                 if let Some(new) = new {
-                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                    log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
                 log_events::del(&mut runner.events, table_name, &id, &before, &after);
             }
         }
-        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
-        else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
     }
     #[cfg(feature = "sqlite")]
     if let Some(key) = &row_key && new.is_none() {
@@ -272,7 +304,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                     None => {
                         let mut bounds = Bounds::default();
                         loop {
-                            let rows = runner.tx.scan(table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)?;
+                            let rows = runner.metered_scan(|runner, allowance| runner.tx.scan(allowance, table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32))?;
                             let count = rows.len();
                             for (candidate, stored) in rows {
                                 let candidate = row_image(&candidate, table);
@@ -305,7 +337,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !key_has_row(runner, table_name, &bound.group_index, &probe, |other| other != own)? {
+                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, |other| other != own))? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
@@ -331,8 +363,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let mut probe = group.clone();
                 probe.push(row.field(&bound.principal)?.clone());
                 let own = row.field("id")?.as_str()?;
-                let runner_now: &Runner<'_> = runner;
-                let predecessor = key_has_row(runner_now, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned())))?;
+                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = runner.events.grant_count(&key);
                     runner.born_grants.insert(key, earlier);
@@ -349,10 +380,10 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
 /// satisfies `wanted`, scanning the unique group index in batches until one
 /// does. Log bookkeeping on the log-bearing host: not metered.
 #[cfg(feature = "sqlite")]
-fn key_has_row(runner: &Runner<'_>, table_name: &str, index: &str, probe: &[Value], wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
+fn key_has_row(runner: &Runner<'_>, allowance: &crate::engine::authorized_scan::Authorization, table_name: &str, index: &str, probe: &[Value], wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
     let mut bounds = Bounds::default();
     loop {
-        let rows = runner.tx.scan(table_name, index, probe, &bounds, Dir::Asc, 32)?;
+        let rows = runner.tx.scan(allowance, table_name, index, probe, &bounds, Dir::Asc, 32)?;
         for (other, stored) in &rows {
             if wanted(other.field("id")?.as_str()?) {
                 return Ok(true);
@@ -505,11 +536,11 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                 at.taken += 1;
-                let partition = match &sync.audience {
+                let partition = if table.field_owners(&row).contains(principal) { partition_of(principal) } else { match &sync.audience {
                     Audience::Public => PUBLIC.to_owned(),
                     Audience::Column(_) => partition_of(principal),
                     Audience::Target { .. } => group_partition(table_name, group),
-                };
+                }};
                 events.push(Event { partition, table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
             }
             if scanned.is_some() { at.after = scanned; }
@@ -556,6 +587,23 @@ pub fn snapshot(tx: &dyn PartitionRows, schema: &Schema, principal: &str, now: i
 /// keys and whether the group is done.
 #[cfg(feature = "sqlite")]
 fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>) -> Result<(Vec<(Value, Vec<u8>)>, bool, Option<Vec<Value>>, usize), RuntimeError> {
+    // Select through U's horizon, then fetch only the projected count image.
+    // The horizon's order columns stay on U; they never become view payload.
+    if let Some((schema, principal)) = viewer
+        && let Some(m) = schema.maintain_for(table_name).filter(|m| m.row_key.is_some()) {
+        let k = m.row_key.as_ref().unwrap();
+        let member = &schema.tables[&k.table];
+        if let Some(member_sync) = member.sync.as_ref().filter(|s| s.horizon.is_some()) {
+            let (members, exhausted, continuation, work) = group_rows_from(tx, &k.table, member, member_sync, group, after, taken, room, now, viewer)?;
+            let mut rows = Vec::new();
+            let mut aggregate = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
+            for (member, key) in members {
+                if let Some(row) = tx.get(table_name, member.field("id")?.as_str()?)?
+                    && let Some(row) = aggregate.live_aggregate(table_name, row)? { rows.push((row, key)); }
+            }
+            return Ok((rows, exhausted, continuation, work));
+        }
+    }
     let (index_name, remaining, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
         None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Desc),
@@ -568,7 +616,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut live = Vec::new();
     let mut exhausted = false;
     let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
-    let mut aggregate = viewer.map(|(schema, _)| Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
+    let mut aggregate = viewer.map(|(schema, principal)| Runner::new(tx, schema, if schema.maintain_for(table_name).is_some_and(|m|m.row_key.is_some()) { crate::Context::new(principal, BTreeMap::new()).at(now) } else { crate::Context::system().at(now) }, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
     // One extra readable row decides pagination, never selection past N.
     // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — filtered kinds spend page room even when
     // they produce no rows; the continuation records the last examined key.
@@ -579,11 +627,15 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut examined = 0;
     loop {
         let batch = target.saturating_sub(if filtered { examined } else { live.len() }).min(256).max(1);
-        let rows = tx.scan(table_name, &index_name, group, &bounds, dir, batch)?;
+        let principal = viewer.map(|(_,p)|p).unwrap_or(crate::SYSTEM_PRINCIPAL);
+        // Delivery owns a separate, unbounded internal ledger. Projection is
+        // not a caller-price capability; its reader validates each live row.
+        let rows = tx.scan(table_name,&index_name,group,&bounds,dir,batch)?
+            .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)),k)).collect::<Vec<_>>();
         let count = rows.len();
         examined += count;
         for (row, key) in rows {
-            let mut row = row_image(&row, table).into_owned();
+            let mut row = row.into_value();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
             // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — the horizonless owned walk keeps fully synced kinds only.
@@ -595,6 +647,9 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             if let Some(reader) = &mut reader {
                 if !reader.check_rule(table_name, crate::schema::Effect::Read, None, &row)? { continue; }
             }
+            // Transport retains recorded attribution for device aggregates;
+            // only authored private fields are stripped from sync images.
+            let row = table.project_fields(row, viewer.map(|(_, principal)| principal)).into_value();
             live.push((row, key));
             if live.len() == target { break; }
         }
@@ -883,12 +938,43 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     // its images: never re-fetch them or probe their read rule a second time.
     let mut reader = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now),
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
+    let mut aggregate = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now),
+        crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
     for mut event in page {
         if event.kind != "join" {
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)) {
+                if let Some(row) = reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
+                    if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
+                        event.kind = "put".into();
+                        event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
+                    }
+                }
+                out.push(event);
+                continue;
+            }
             if event.kind == "put" {
-                event.data = if schema.table(&event.table).is_some() { reader.fetch(&event.table, &event.id)? } else { None };
+                event.data = if schema.table(&event.table).is_some() { reader.metered_scan(|reader, allowance| reader.fetch(allowance, &event.table, &event.id))? } else { None };
+                if let Some(row) = &event.data
+                    && let Some(m) = schema.maintain_for(&event.table).filter(|m| m.row_key.is_some()) {
+                    let member = reader.row_view_member_image(m, row)?;
+                    let mut live = member.is_some();
+                    let k = m.row_key.as_ref().unwrap();
+                    let table = &schema.tables[&k.table];
+                    if let Some(member) = member
+                        && let Some(sync) = table.sync.as_ref().filter(|s| s.horizon.is_some()) {
+                        let group = match &sync.audience {
+                            Audience::Public => vec![],
+                            Audience::Column(c) => vec![member.field(c)?.clone()],
+                            Audience::Target { prefix, .. } => prefix.iter().map(|c| member.field(c).cloned()).collect::<Result<Vec<_>, _>>()?,
+                        };
+                        let (selected, _, _, _) = group_rows_from(tx, &k.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
+                        live = selected.iter().any(|(u, _)| u.field("id") == row.field("member"));
+                    }
+                    event.data = if live { aggregate.live_aggregate(&event.table, row.clone())? } else { None };
+                }
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
+                    event.data = event.data.take().map(|row| schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
                 } else { event.kind = "del".into(); }
             }
             out.push(event);

@@ -13,6 +13,9 @@ pub(crate) use activation::{check_activation, check_no_rebuilds};
 use crate::{RuntimeError, Value};
 use crate::{ir::{self, Expr, IndexKeyExpr, KeyProvenance, Read, Scan}, schema::timeline::Timeline, value::object};
 
+// Engine-created timeline values use only declared public mappings and inputs.
+pub(crate) struct TimelineInput(());
+
 pub(super) fn refusal(code: &'static str, message: impl Into<String>) -> RuntimeError {
     RuntimeError::Structural { code, message: message.into() }
 }
@@ -93,7 +96,7 @@ impl Runner<'_> {
                     let event = object([("id", Value::Id(id.clone())), ("postId", Value::Id(id)),
                         ("actorId", Value::Id(actor.clone())), ("authorId", Value::Id(actor)),
                         ("repost", Value::Bool(false)), ("at", field(new, &t.posts[2])?)]);
-                    if !self.device || t.fully_synced(self.schema, false) { self.insert(&t.table("Posts"), event.clone())?; }
+                    if !self.device || t.fully_synced(self.schema, false) { self.insert(&t.table("Posts"), event.clone().timeline_input(&TimelineInput(())))?; }
                     self.timeline_deliver(t, &event)?;
                 } else if let Some(old) = old {
                     let was_removed = !t.posts[3].is_empty() && field(old, &t.posts[3])? == Value::Bool(true);
@@ -127,7 +130,7 @@ impl Runner<'_> {
                     let event = object([("id", Value::Id(id)), ("postId", field(&post, "id")?),
                         ("actorId", Value::Id(actor)), ("authorId", field(&post, &t.posts[1])?),
                         ("repost", Value::Bool(true)), ("at", field(row, &t.reposts[3])?)]);
-                    if !self.device || t.fully_synced(self.schema, true) { self.insert(&t.table("Posts"), event.clone())?; }
+                    if !self.device || t.fully_synced(self.schema, true) { self.insert(&t.table("Posts"), event.clone().timeline_input(&TimelineInput(())))?; }
                     self.timeline_deliver(t, &event)?;
                 }
                 (Some(row), None) => {
@@ -181,10 +184,10 @@ impl Runner<'_> {
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
             ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table("Work")]))?;
         // Resetting an existing natural-key task is safe and costs the same one
         // write as insertion. No task existence is disclosed to the application.
-        self.upsert(&t.table("Work"), &id, row)
+        self.upsert(&t.table("Work"), &id, row.timeline_input(&TimelineInput(())))
     }
 
     fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
@@ -221,10 +224,10 @@ impl Runner<'_> {
         // F3's foreign owned rows alone are skipped instead of queuing the
         // whole mutation. Evaluation errors still abort the prediction.
         if self.device && !self.evaluate_read_rule(&t.table(suffix), &row)? { return Ok(TimelineInsert::Skipped); }
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table(suffix)]))?;
         if suffix == "Feed" && !self.device
             && self.timeline_get(&t.table(suffix), "byReaderEvent", key.to_vec())?.is_some() { return Ok(TimelineInsert::Skipped); }
-        self.insert(&t.table(suffix), row)?;
+        self.insert(&t.table(suffix), row.timeline_input(&TimelineInput(())))?;
         Ok(TimelineInsert::Written)
     }
 

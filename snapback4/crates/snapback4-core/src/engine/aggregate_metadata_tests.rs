@@ -41,8 +41,7 @@ fn seed(rows: &MemoryRows, schema: &Schema, child: Option<i64>, gate: Option<i64
             ("id", id("p")),
             ("owner", id("alice")),
             ("until", Value::Null),
-        ]),
-    )
+        ]).import_input(&crate::engine::ImportInput(())))
     .unwrap();
     if let Some(until) = child {
         r.insert(
@@ -52,8 +51,7 @@ fn seed(rows: &MemoryRows, schema: &Schema, child: Option<i64>, gate: Option<i64
                 ("parent", id("p")),
                 ("body", Value::String("hello".into())),
                 ("until", Value::Int(until)),
-            ]),
-        )
+            ]).import_input(&crate::engine::ImportInput(())))
         .unwrap();
     }
     if let Some(until) = gate {
@@ -63,8 +61,7 @@ fn seed(rows: &MemoryRows, schema: &Schema, child: Option<i64>, gate: Option<i64
                 ("id", id("g")),
                 ("parent", id("p")),
                 ("until", Value::Int(until)),
-            ]),
-        )
+            ]).import_input(&crate::engine::ImportInput(())))
         .unwrap();
     }
 }
@@ -116,7 +113,7 @@ fn memory_aggregate_point_and_raw_probe_dependencies_are_constant() {
             // No rule_dependencies call: probe_witness itself owns the source dependency.
             let mut r = reader(&rows, &schema);
             assert_eq!(
-                r.probe_witness("totals", index, &[id("p")], &[], false)
+                r.authorized_scan(&[], |r, scope| r.probe_witness(scope, "totals", index, &[id("p")], &[], false))
                     .unwrap(),
                 (child == Some(300), true)
             );
@@ -191,13 +188,12 @@ fn memory_inherited_only_aggregate_dependencies() {
                     ("id", id("r")),
                     ("owner", id("alice")),
                     ("until", Value::Int(deadline)),
-                ]),
-            )
+                ]).import_input(&crate::engine::ImportInput(())))
             .unwrap();
-            seed.insert("middles", object([("id", id("m")), ("root", id("r"))]))
+            seed.insert("middles", object([("id", id("m")), ("root", id("r"))]).import_input(&crate::engine::ImportInput(())))
                 .unwrap();
             if occupied {
-                seed.insert("children", object([("id", id("c")), ("middle", id("m"))]))
+                seed.insert("children", object([("id", id("c")), ("middle", id("m"))]).import_input(&crate::engine::ImportInput(())))
                     .unwrap();
             }
             drop(seed);
@@ -213,7 +209,7 @@ fn memory_inherited_only_aggregate_dependencies() {
             );
             let mut r = reader(&rows, &schema);
             assert_eq!(
-                r.probe_witness("totals", index, &[id("m")], &[], false)
+                r.authorized_scan(&[], |r, scope| r.probe_witness(scope, "totals", index, &[id("m")], &[], false))
                     .unwrap(),
                 (occupied && deadline > 200, true)
             );

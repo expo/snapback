@@ -38,7 +38,7 @@ fn retiring_expired_siblings_scans_their_key_once() {
     let ids: Vec<String> = (0..n).map(|i| format!("m{i:03}")).collect();
     for id in &ids {
         let row = object([("id", Value::Id(id.clone())), ("group", Value::String("g".into())), ("person", Value::Id("dev:alice".into())), ("until", Value::Int(100))]);
-        runner.insert("members", row).unwrap();
+        runner.insert("members", row.import_input(&super::ImportInput(()))).unwrap();
     }
     let work = runner.retire_expired_births().unwrap();
     assert!(work.examined <= 2 * n, "{work:?}");
@@ -60,7 +60,7 @@ fn retired_birth_releases_table_and_group_occupancy_in_memory_rows() {
     };
     {
         let mut runner = Runner::new(&rows, &schema, Context::system().at(100), Meter::new(Ceilings::default(), Cut::Abort), 0);
-        runner.insert("items", row("born", Value::Int(0))).unwrap();
+        runner.insert("items", row("born", Value::Int(0)).import_input(&super::ImportInput(()))).unwrap();
         check(1); // Capacity is physical, even before this birth is retired.
         runner.retire_expired_births().unwrap();
         assert!(runner.events.take().is_empty());
@@ -68,7 +68,7 @@ fn retired_birth_releases_table_and_group_occupancy_in_memory_rows() {
     check(0);
     assert!(rows.get("items", "born").unwrap().is_none());
     let mut next = Runner::new(&rows, &schema, Context::system().at(100), Meter::new(Ceilings::default(), Cut::Abort), 0);
-    next.insert("items", row("live", Value::Null)).unwrap();
+    next.insert("items", row("live", Value::Null).import_input(&super::ImportInput(()))).unwrap();
     next.retire_expired_births().unwrap();
     check(1);
     assert!(rows.get("items", "live").unwrap().is_some());

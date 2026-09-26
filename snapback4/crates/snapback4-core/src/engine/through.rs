@@ -5,8 +5,12 @@ use crate::{
     error::{MeterKind, RuntimeError},
     rows::{Bounds, Dir},
     schema::{Effect, Table, through::*},
-    value::Value,
+    value::{Supplied, Value},
 };
+
+/// Minted only here: the stamped image re-enters the supplied-input channel
+/// under reserve_capture's declared allowance.
+pub(crate) struct CaptureInput(());
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ParentVerdict {
@@ -50,12 +54,13 @@ impl Runner<'_> {
     pub(super) fn capture_insert(
         &mut self,
         name: &str,
-        mut row: Value,
-    ) -> Result<Value, RuntimeError> {
+        row: Supplied,
+    ) -> Result<Supplied, RuntimeError> {
         let table = self.schema.tables[name].clone();
         let Some(through) = &table.through else {
             return Ok(row);
         };
+        let mut row = row.into_value();
         let denied = || RuntimeError::Rule {
             table: name.into(),
             effect: Effect::Insert,
@@ -66,11 +71,16 @@ impl Runner<'_> {
             .and_then(|v| v.as_str().ok())
             .ok_or_else(denied)?;
         let parent = &self.schema.tables[&through.parent];
-        let found = self.tx.get(&through.parent, id)?.filter(|r| !self.expired(parent, r));
+        // @ref LLP 3000.015#2 — the parent lookup is authorization work under the
+        // request's physical allowance; reserve_capture prepaid its logical charges.
+        let found = self.authorized_scan(&[], |runner, scope| runner.tx.get(scope, &through.parent, id))?.filter(|r| !self.expired(parent, r));
         if self.device {
             let covered = if let Some(found) = &found {
-                self.is_provisional(&through.parent, found)? || self.device_work(|runner| runner.tx.recording_covered(
-                    &through.parent, found, &runner.context.viewer, runner.context.now.unwrap_or(0), &mut runner.meter))?
+                self.is_provisional(&through.parent, found)? || self.device_work(|runner| {
+                    let viewer = runner.context.viewer.clone();
+                    let now = runner.context.now.unwrap_or(0);
+                    runner.authorized_scan(&[], |runner, scope| runner.tx.recording_covered(&through.parent, found, &viewer, now, scope, &mut runner.meter))
+                })?
             } else { false };
             if !covered { return Err(RuntimeError::Prediction(format!("read through .{} needs a live, covered {} parent; queued without a row", through.reference, through.parent))); }
         }
@@ -79,18 +89,14 @@ impl Runner<'_> {
         table.recompute_deadline(&mut row)?;
         if !self.context.is_system() {
             let viewer = self.context.viewer.clone();
-            if !rules::evaluate(
-                &table.rules.read,
-                &viewer,
-                None,
-                &row,
-                false,
-                &mut super::read::PrefixProbe { runner: self },
-            )? {
+            let readable = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[], |runner, allowance| {
+                rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut super::read::PrefixProbe { runner, allowance })
+            })?;
+            if !readable {
                 return Err(denied());
             }
         }
-        Ok(row)
+        Ok(row.capture_input(&CaptureInput(())))
     }
 
     pub(super) fn physical_children(
@@ -105,24 +111,15 @@ impl Runner<'_> {
             .collect();
         // Reserve the complete schema-fixed probe set before its first seek.
         // Never short-circuit on an occupied table, including at low ceilings.
-        self.meter.charge(MeterKind::Examined, children.len() as u64)?;
-        self.meter.step(children.len() as u64)?;
-        self.meter.heap(children.iter().map(|name| super::write_target::row_copy_ceiling(&self.schema.tables[name])).fold(0_u64, u64::saturating_add))?;
-        let mut occupied = false;
-        for name in children {
-            occupied |= !self
-                .tx
-                .scan(
-                    &name,
-                    CHILDREN,
-                    &[id.clone()],
-                    &Bounds::default(),
-                    Dir::Asc,
-                    1,
-                )?
-                .is_empty();
-        }
-        Ok(occupied)
+        // @ref LLP 3000.015#2 — the seeks draw from the request's physical allowance; occupancy never selects the logical charge.
+        let heap = children.iter().map(|name| super::write_target::row_copy_ceiling(&self.schema.tables[name])).fold(0_u64, u64::saturating_add);
+        self.authorized_scan(&[(MeterKind::Examined, children.len() as u64), (MeterKind::Steps, children.len() as u64), (MeterKind::HeapBytes, heap)], |runner, scope| {
+            let mut occupied = false;
+            for name in &children {
+                occupied |= !runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds::default(), Dir::Asc, 1)?.is_empty();
+            }
+            Ok(occupied)
+        })
     }
 
     // A deadline suffix skips an arbitrary expired backlog in one seek.
@@ -140,62 +137,30 @@ impl Runner<'_> {
             let occupied = self.device_work(|runner| runner.current_children(parent, id, &children))?;
             return if occupied { Err(self.parent_has_children(parent)) } else { Ok(()) };
         }
-        self.meter
-            .charge(MeterKind::Examined, children.len() as u64 * 3)?;
-        self.meter.step(children.len() as u64 * 3)?;
-        self.meter.heap(
-            children
-                .iter()
-                .map(|n| {
-                    super::write_target::row_copy_ceiling(&self.schema.tables[n]).saturating_mul(3)
-                })
-                .fold(0_u64, u64::saturating_add),
-        )?;
-        for name in children {
-            let never = self.tx.scan(
-                &name,
-                CHILDREN,
-                &[id.clone(), Value::Null],
-                &Bounds::default(),
-                Dir::Asc,
-                1,
-            )?;
-            let now = self
-                .context
-                .now
-                .ok_or_else(|| RuntimeError::Input("delete clock is not pinned".into()))?;
-            let finite = self.tx.scan(
-                &name,
-                CHILDREN,
-                &[id.clone()],
-                &Bounds {
-                    gt: Some(Value::Int(now)),
-                    ..Default::default()
-                },
-                Dir::Asc,
-                1,
-            )?;
-            if !never.is_empty() || !finite.is_empty() {
-                return Err(self.parent_has_children(parent));
+        let now = self
+            .context
+            .now
+            .ok_or_else(|| RuntimeError::Input("delete clock is not pinned".into()))?;
+        let heap = children
+            .iter()
+            .map(|n| super::write_target::row_copy_ceiling(&self.schema.tables[n]).saturating_mul(3))
+            .fold(0_u64, u64::saturating_add);
+        // @ref LLP 3000.015#2 — three schema-fixed seeks per child table, each drawn from the request's physical allowance.
+        self.authorized_scan(&[(MeterKind::Examined, children.len() as u64 * 3), (MeterKind::Steps, children.len() as u64 * 3), (MeterKind::HeapBytes, heap)], |runner, scope| {
+            for name in &children {
+                let never = runner.tx.scan(scope, name, CHILDREN, &[id.clone(), Value::Null], &Bounds::default(), Dir::Asc, 1)?;
+                let finite = runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds { gt: Some(Value::Int(now)), ..Default::default() }, Dir::Asc, 1)?;
+                if !never.is_empty() || !finite.is_empty() {
+                    return Err(runner.parent_has_children(parent));
+                }
+                // §3.3 forbids physical removal even when §6's live probe is empty.
+                // The author's implementation ruling keeps this case fail-closed.
+                if !runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds::default(), Dir::Asc, 1)?.is_empty() {
+                    return Err(runner.parent_has_children(parent));
+                }
             }
-            // §3.3 forbids physical removal even when §6's live probe is empty.
-            // The author's implementation ruling keeps this case fail-closed.
-            if !self
-                .tx
-                .scan(
-                    &name,
-                    CHILDREN,
-                    &[id.clone()],
-                    &Bounds::default(),
-                    Dir::Asc,
-                    1,
-                )?
-                .is_empty()
-            {
-                return Err(self.parent_has_children(parent));
-            }
-        }
-        Ok(())
+            Ok(())
+        })
     }
 
     fn parent_has_children(&self, parent: &str) -> RuntimeError {
@@ -212,7 +177,9 @@ impl Runner<'_> {
         let uncertain = || RuntimeError::Prediction("parent deletion needs complete matching current child coverage; queued without a row".into());
         self.meter.charge(MeterKind::Examined, 1)?;
         self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[parent]))?;
-        let parent_row = self.tx.get(parent, id.as_str()?)?.ok_or_else(uncertain)?;
+        // Device-only work over held state: the token counts it on the device's separate physical allowance.
+        let parent_id = id.as_str()?.to_owned();
+        let parent_row = self.authorized_scan(&[], |runner, scope| runner.tx.get(scope, parent, &parent_id))?.ok_or_else(uncertain)?;
         for name in children {
             let table = self.schema.tables[name].clone();
             let through = table.through.as_ref().unwrap();
@@ -227,7 +194,7 @@ impl Runner<'_> {
                 let scratch = self.meter.mark();
                 self.meter.charge(MeterKind::Examined, 1)?;
                 self.meter.step(through.fields.len() as u64 + 1)?;
-                let page = self.tx.scan_metered(name, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut self.meter)?;
+                let page = self.authorized_scan(&[], |runner, scope| runner.tx.scan_metered(scope, name, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut runner.meter))?;
                 let Some((row, key)) = page.into_iter().next() else { break };
                 if !self.tx.retained_row(name, &row)? {
                     if self.expired(&table, &row)

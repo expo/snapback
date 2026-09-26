@@ -3,6 +3,8 @@
 //! canonical JSON; one digest. The conformance corpus under `corpus/` is
 //! written against this exact serialization.
 
+mod supplied;
+pub(crate) use supplied::Supplied;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
@@ -202,27 +204,35 @@ impl Value {
     /// Approximate heap footprint, charged by the meter (LLP 2000.000 §6).
     /// Bytes copied by `Clone`: row/map images already share an Arc, while
     /// strings, bytes and array slots are owned copies (with tight capacity).
-    pub fn clone_heap_bytes(&self) -> u64 {
+    fn clone_heap(&self) -> u64 {
         match self {
             Self::String(s) | Self::Id(s) => s.len() as u64,
             Self::Bytes(bytes) => bytes.len() as u64,
-            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap_bytes).sum::<u64>(),
+            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap).sum::<u64>(),
             _ => 0,
         }
     }
 
-    pub fn heap_bytes(&self) -> u64 {
+    /// Raw storage has an opaque price; the caller ledger cannot accept it.
+    pub fn clone_heap_bytes(&self, _: &crate::engine::Authorization) -> InternalPrice { InternalPrice(self.clone_heap()) }
+    pub fn retained_internal(&self, _: &crate::engine::Authorization) -> InternalPrice { InternalPrice(self.retained_heap()) }
+    pub fn scalar_heap(&self, _: &crate::engine::Authorization) -> InternalPrice { InternalPrice(scalar_copy(self)) }
+    pub(crate) fn expression_copy(&self, _: crate::engine::runner::ExpressionAccess) -> u64 { self.clone_heap() }
+    pub(crate) fn expression_heap(&self, _: crate::engine::runner::ExpressionAccess) -> u64 { self.retained_heap() }
+
+
+    fn retained_heap(&self) -> u64 {
         match self {
             Value::String(s) | Value::Id(s) => s.capacity() as u64,
             Value::Bytes(b) => b.capacity() as u64,
             Value::Array(a) => {
                 a.capacity() as u64 * std::mem::size_of::<Value>() as u64
-                    + a.iter().map(Value::heap_bytes).sum::<u64>()
+                    + a.iter().map(Value::retained_heap).sum::<u64>()
             }
             Value::Row(m) | Value::Map(m) => {
                 40 + m
                     .iter()
-                    .map(|(k, v)| 80 + k.capacity() as u64 + v.heap_bytes())
+                    .map(|(k, v)| 80 + k.capacity() as u64 + v.retained_heap())
                     .sum::<u64>()
             }
             _ => 0,
@@ -387,5 +397,45 @@ pub fn validate_identities(value: &Value) -> Result<(), ValueError> {
         Value::Array(v) => v.iter().try_for_each(validate_identities),
         Value::Row(m) | Value::Map(m) => m.values().try_for_each(validate_identities),
         _ => Ok(()),
+    }
+}
+
+#[path = "value/disclosed.rs"]
+mod disclosed;
+pub use disclosed::Disclosed;
+
+/// Raw prices never escape into a caller meter. This cache-owned ledger can
+/// admit a retained raw image, but exports neither a price nor its counter.
+#[cfg(feature = "postgres")]
+pub(crate) struct InternalLedger { used: u64, limit: u64 }
+#[cfg(feature = "postgres")]
+impl InternalLedger {
+    pub(crate) fn new(limit: u64) -> Self { Self { used: 0, limit } }
+    pub(crate) fn retain(&mut self, value: Option<&Value>, fixed: u64) -> bool {
+        self.used = self.used.saturating_add(fixed).saturating_add(value.map_or(0, Value::retained_heap));
+        self.used <= self.limit
+    }
+}
+
+/// A raw-storage price has no conversion to caller-ledger bytes.
+pub struct InternalPrice(u64);
+impl InternalPrice {
+    pub(crate) fn zero() -> Self { Self(0) }
+    pub(crate) fn plus(self, other: Self) -> Self { Self(self.0.saturating_add(other.0)) }
+    pub fn fixed(self, bytes: u64) -> Self { Self(self.0.saturating_add(bytes)) }
+    pub fn times(self, factor: u64) -> Self { Self(self.0.saturating_mul(factor)) }
+    pub(crate) fn fits(&self, meter: &crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> bool { meter.room(crate::error::MeterKind::HeapBytes, self.0) }
+    pub fn from_storage(bytes: u64, _: &crate::engine::Authorization) -> Self { Self(bytes) } }
+impl InternalPrice {
+    pub fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> { meter.heap(self.0) }
+}
+
+fn scalar_copy(value: &Value) -> u64 {
+    use crate::rows::word_heap as h;
+    match value {
+        Value::String(s) | Value::Id(s) => h::text(s),
+        Value::Bytes(b) => h::allocation(b.len()),
+        Value::Array(a) => h::slots::<Value>(a.len()) + a.iter().map(scalar_copy).sum::<u64>(),
+        _ => 0,
     }
 }

@@ -32,11 +32,12 @@ bootstraps, or proofs applies there, and none of Snapback 2's checks do either.
 
 **Working on Snapback 5?** It lives in [`snapback5/`](./snapback5/README.md)
 behind its own fence: read [`snapback5/AGENTS.md`](./snapback5/AGENTS.md),
-[LLP 4001](./llp/4001-snapback5-sql-front-end.rfc.md) (the current bet),
-[LLP 4000](./llp/4000-snapback5.rfc.md) (the first bet, Shelved, with its reviews),
+[LLP 4001](./llp/4001-snapback5-sql-front-end.rfc.md) and
+[LLP 4000](./llp/4000-snapback5.rfc.md) (both bets are Shelved, with their records and reviews),
 [LLP 3000.015](./llp/3000.015-shared-baseline-for-snapback5.spec.md) and
-[`snapback5/JOURNAL.md`](./snapback5/JOURNAL.md). It builds over the
-`snapback4-*` crates as a sibling treatment, with Snapback 4 as the control;
+[`snapback5/JOURNAL.md`](./snapback5/JOURNAL.md). The directory holds their
+stubs, reports and tools; there is no live Snapback 5 bet. LLP 3000.015's
+additions live in Snapback 4, which was the shared engine and control;
 its LLPs are numbered 4000 and up. Nothing below this line about gates,
 inventories, bootstraps or proofs applies there. Snapback 4's gates do not
 apply inside that fence except the inherited wasm budget.

@@ -26,12 +26,14 @@ fn fill_slot(tx: &Tx<'_>, schema: &Schema, t: &Timeline, repost: bool, now: i64)
     let events = t.table("Posts");
     let definition = &schema.tables[&events];
     let index = &definition.indexes["byActorPost"];
-    let scratch = |row: &Value| row.heap_bytes().saturating_mul(4)
+    // @ref LLP 3000.015#1 — activation is system-owned work; its scratch is the
+    // source's declared copy ceiling, never a stored image's length.
+    let scratch = crate::engine::row_copy_ceiling(&schema.tables[source]).saturating_mul(4)
         .saturating_add(crate::engine::row_copy_ceiling(definition).saturating_mul(8)).saturating_add(8192);
-    super::activation_walk::walk_metered(tx, tx.num(source)?, Work { examined: 2, steps: 1, index_entries: 0 }, scratch,
+    super::activation_walk::walk_metered(tx, tx.num(source)?, Work { examined: 2, steps: 1, index_entries: 0 }, |_| crate::value::InternalPrice::zero(),
         |id, mut row, meter| {
             meter.at(&format!("adopt {source}.{slot}"));
-            meter.heap(scratch(&row))?;
+            meter.heap(scratch)?;
             meter.charge(MeterKind::Examined, 1)?;
             meter.step(1)?;
             let actor = row.field(if repost { &t.reposts[1] } else { &t.posts[1] })?.clone();

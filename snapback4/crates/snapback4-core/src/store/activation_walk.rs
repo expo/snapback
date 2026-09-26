@@ -3,11 +3,11 @@ use super::*;
 use crate::{error::MeterKind, meter::{Ceilings, Cut, Meter}, rows::{adoption, word_heap as heap}};
 
 pub(super) fn walk(tx: &Tx<'_>, table: i64, mut visit: impl FnMut(&str, Value) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
-    walk_metered(tx, table, adoption::Work::DECODE, |_| 0, |id, row, _| visit(id, row))
+    walk_metered(tx, table, adoption::Work::DECODE, |_| crate::value::InternalPrice::zero(), |id, row, _| visit(id, row))
 }
 
 // @ref LLP 3000.007#20.24.1 — reserve stored bytes before fetching or decoding; page scratch stays live until consumed.
-pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratch: impl Fn(&Value) -> u64,
+pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratch: impl Fn(&Value) -> crate::value::InternalPrice,
     mut visit: impl FnMut(&str, Value, &mut Meter) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
     const PAGE: usize = 256;
     let mut after: Option<String> = None;
@@ -70,7 +70,7 @@ pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratc
             // Decode plus copy-on-write projection, optional materialization
             // and validation scratch. Contribution keys reserve more through
             // this same meter, on top of the still-resident complete page.
-            meter.heap(adoption::decode_bytes(data))?;
+            adoption::charge(&mut meter, adoption::decode_bytes(data))?;
             let row = serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?;
             visit(id, row, &mut meter)?;
             meter.release_heap(row_mark);
@@ -116,8 +116,10 @@ mod tests {
         }
         let mut calls = 0;
         let mut first_heap = None;
-        walk_metered(&tx, 1, adoption::Work::DECODE, |_| 0, |_, row, meter| {
-            let decode = adoption::decode_bytes(&canonical_json(&row));
+        walk_metered(&tx, 1, adoption::Work::DECODE, |_| crate::value::InternalPrice::zero(), |_, row, meter| {
+            let mut decoder = Meter::new(Ceilings::unbounded(), Cut::Abort);
+            adoption::charge(&mut decoder, adoption::decode_bytes(&canonical_json(&row)))?;
+            let decode = decoder.used.heap_bytes;
             // Independent lower bound: Rust-owned images and both native
             // payload copies coexist with decode. This excludes headers/slots,
             // so it does not just repeat the walker's allocation formula.
@@ -138,14 +140,14 @@ mod tests {
         let mut store = fixture(5, 1280 << 10);
         let tx = store.transaction().unwrap();
         let work = adoption::Work { examined: 2, steps: 1, index_entries: 1 };
-        let scratch = |row: &Value| row.heap_bytes() * 4 + 4096;
+        let scratch = |row: &Value| adoption::contribution_bytes(row, &crate::schema::public_table(Default::default(), Default::default()));
         let mut observed = Vec::new();
         walk_metered(&tx, 1, work, scratch, |_, row, meter| {
             observed.push(meter.used.examined);
             assert_eq!((meter.used.steps, meter.used.index_entries), (0, 0), "rejected attempts perform no contribution work");
             meter.charge(MeterKind::Examined, 1)?;
             meter.step(1)?;
-            meter.heap(scratch(&row))?;
+            adoption::charge(meter, scratch(&row))?;
             meter.charge(MeterKind::IndexEntries, 1)?;
             assert!(meter.heap_peak <= Ceilings::job().heap_bytes);
             Ok(())
@@ -167,7 +169,7 @@ mod tests {
             let mut store = fixture(256, 0);
             let tx = store.transaction().unwrap();
             let (mut page, mut offset, mut calls) = (0, 0u64, 0);
-            walk_metered(&tx, 1, work, |_| 0, |_, _, meter| {
+            walk_metered(&tx, 1, work, |_| crate::value::InternalPrice::zero(), |_, _, meter| {
                 assert_eq!(meter.used.examined, sizes[page] + offset * work.examined + 1,
                     "the entire admission pass and every earlier callback remain charged");
                 assert_eq!(meter.used.steps, offset * work.steps);
@@ -197,7 +199,7 @@ mod tests {
                 let mut store = fixture(count, 0);
                 let tx = store.transaction().unwrap();
                 let mut calls = 0;
-                let result = walk_metered(&tx, 1, work, |_| 0, |_, _, _| { calls += 1; Ok(()) });
+                let result = walk_metered(&tx, 1, work, |_| crate::value::InternalPrice::zero(), |_, _, _| { calls += 1; Ok(()) });
                 assert_eq!(calls, 0, "no callback can start with an impossible page budget");
                 if count == 0 { result.unwrap(); }
                 else { assert!(matches!(result, Err(RuntimeError::Bound { kind: got, .. }) if got == kind), "{result:?}"); }

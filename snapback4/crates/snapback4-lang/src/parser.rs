@@ -169,7 +169,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -231,6 +231,20 @@ impl Parser {
                 }
                 let retain = self.parse_retention()?;
                 table.retain = Some(retain);
+                Ok(())
+            }
+            "ephemeral" => {
+                let site = self.take("ephemeral")?.site;
+                let refuse = || Diagnostic::new(&site, "E_QUARRY_EPHEMERAL", "ephemeral requires one life between 1 second and 60 seconds inclusive", "use one ephemeral 4s line").guide("ephemeral");
+                if table.ephemeral.is_some() { return Err(refuse()); }
+                let amount = self.peek().value.parse::<u64>().map_err(|_| refuse())?;
+                self.position += 1;
+                let unit = self.peek().value.clone();
+                let unit = views::duration_unit(&unit).ok_or_else(refuse)? as u64;
+                self.position += 1;
+                let life_ms = amount.checked_mul(unit).filter(|ms| (1000..=60000).contains(ms)).ok_or_else(refuse)?;
+                self.end_line(&site)?;
+                table.ephemeral = Some(EphemeralDecl { life_ms, site });
                 Ok(())
             }
             "expire" => {
@@ -423,6 +437,16 @@ impl Parser {
     fn parse_column(&mut self) -> Fallible<ColumnDecl> {
         let name = self.word()?;
         self.take(":")?;
+        if self.at("sequence") && self.peek_at(1).value == "by" {
+            self.take("sequence")?;
+            self.take("by")?;
+            let parent = if self.at_kind(Kind::Word) { self.word()?.value } else {
+                return Err(crate::diag::Diagnostic::new(&name.site, "E_SEQUENCE_PARENT", "sequence by needs a parent reference column", "ordinal: sequence by conversationId; declare conversationId: conversations").guide("types"));
+            };
+            self.newline()?;
+            return Ok(ColumnDecl { written_by: None, readable_by_audience: false, sequence: Some(parent), maintained: None, name: name.value,
+                type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
+        }
         let aggregate = (self.peek_at(2).kind == Kind::Word
             && ((self.at("count") && matches!(self.peek_at(2).value.as_str(), "by" | "where"))
                 || (self.at("sum") && self.peek_at(2).value == "of")))
@@ -434,16 +458,30 @@ impl Parser {
             let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
-            return Ok(ColumnDecl { maintained: Some(ColumnAggregate { source, of, filter, by }),
+            return Ok(ColumnDecl { sequence: None, written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
                 name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let type_ = self.parse_type(true)?;
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
-        let default = if self.maybe("default") { Some(self.expression(0, &[])?) } else { None };
+        let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable"])?) } else { None };
+        let mut written_by = None;
+        let mut readable_by_audience = false;
+        let authority_error = || crate::diag::Diagnostic::new(&name.site, "E_FIELD_AUTHORITY",
+            "expected one `written by .principal` followed by optional `readable by audience`",
+            format!("{}: int default 0 written by .principal", name.value)).guide("rules");
+        if self.maybe("written") {
+            if !self.maybe("by") || !self.maybe(".") || !self.at_kind(Kind::Word) { return Err(authority_error()); }
+            written_by = Some(self.word()?.value);
+        }
+        if self.maybe("readable") {
+            if written_by.is_none() || !self.maybe("by") || !self.maybe("audience") { return Err(authority_error()); }
+            readable_by_audience = true;
+        }
+        if self.at("written") || self.at("readable") { return Err(authority_error()); }
         self.newline()?;
-        Ok(ColumnDecl { maintained: None, name: name.value, type_, default, site: name.site })
+        Ok(ColumnDecl { sequence: None, written_by, readable_by_audience, maintained: None, name: name.value, type_, default, site: name.site })
     }
 
     fn parse_index(&mut self, unique: bool) -> Fallible<IndexDecl> {
@@ -532,14 +570,21 @@ impl Parser {
             self.maybe(".");
             column = Some(self.word()?.value);
         }
-        let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
+        let mut filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
         self.take("by")?;
+        let row_key = if self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
+            Some((self.word()?.value, self.word()?.value))
+        } else { None };
         let mut keys = Vec::new();
-        loop {
+        while row_key.is_none() {
             let mut key = self.expression(0, &[",", "<newline>"])?;
             views::unfocal_key(&mut key);
             keys.push(key);
             if !self.maybe(",") { break; }
+        }
+        if row_key.is_some() {
+            if self.maybe("where") { filter = Some(self.filtered_predicate(&source, &[], true)?); }
+            keys.push(Expr::Name { name: "member".into(), site: site.clone() });
         }
         let by = keys.iter().map(|key| match key {
             Expr::Name { name, .. } | Expr::Call { name, .. } => name.clone(),
@@ -558,6 +603,10 @@ impl Parser {
             }
             let result: Fallible<()> = (|| {
                 let effect = self.word()?;
+                if effect.value == "where" && row_key.is_some() {
+                    filter = Some(self.filtered_predicate(&source, &[], true)?);
+                    return self.newline();
+                }
                 if effect.value == "online" {
                     self.take("only")?;
                     if online_only { return Err(syntax_with(&effect.site, "duplicate online only", "keep one online only line")); }
@@ -597,7 +646,7 @@ impl Parser {
             }
         }
         if block { self.take_kind(Kind::Dedent)?; }
-        Ok(MaintainDecl { filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
+        Ok(MaintainDecl { row_key, filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
     }
 
     fn maintain_duration(&mut self, offset: bool) -> Fallible<Expr> {

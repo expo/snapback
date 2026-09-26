@@ -18,7 +18,7 @@ pub(crate) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<()
 }
 
 pub(crate) fn public_image(table: &Table, mut row: Value) -> Value {
-    if table.recorded.is_empty() && table.through.is_none() && !table.columns.keys().any(|f| crate::schema::timeline::is_slot(f)) { return row; }
+    if table.ephemeral.is_none() && table.recorded.is_empty() && table.through.is_none() && !table.columns.keys().any(|f| crate::schema::timeline::is_slot(f)) { return row; }
     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| !table.engine_field(field) && !crate::schema::timeline::is_slot(field)); }
     row
 }
@@ -34,9 +34,9 @@ impl Runner<'_> {
         row.as_object()?;
         // A source image can share its map with a literal or stored image;
         // stamping fields may copy it. Account for that copy and each read.
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(super::write_target::row_copy_ceiling(table))?;
         let source_image = crate::schema::row_image(&row, table).into_owned();
-        self.meter.heap(source_image.heap_bytes())?;
+        self.meter.heap(super::write_target::row_copy_ceiling(table))?;
         for path in paths {
             let field = &table.recorded[path];
             let target = &self.schema.tables[&field.table];
@@ -49,22 +49,24 @@ impl Runner<'_> {
                     let imported = self.import_targets.and_then(|rows| rows.get(&(field.table.clone(), id.clone()))).cloned();
                     #[cfg(not(feature = "sqlite"))]
                     let imported: Option<Value> = None;
-                    match imported { Some(row) => Some(row), None => self.tx.get(&field.table, id)? }
+                    match imported { Some(row) => Some(row), None => self.lookup_stored(&field.table, "byId", target.index("byId").expect("id index"), &[Value::Id(id.clone())], false)? }
                 },
                 _ => None,
             };
             let live = found.as_ref().filter(|value| !self.expired(target, value));
             if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
                 && (target.sync.is_none() || !live.zip(self.context.now).map(|(value, now)| {
-                    self.device_work(|runner| runner.tx.recording_covered(&field.table, value, &runner.context.viewer, now, &mut runner.meter))
+                    self.device_work(|runner| runner.authorized_scratch(0,&[],|runner,scope| runner.tx.recording_covered(&field.table, value, &runner.context.viewer, now, scope, &mut runner.meter)))
                 }).transpose()?.unwrap_or(false)) {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }
             // Unknown coverage queues before a target-size resource refusal.
-            // Covered/server reads still account for the full allocated image.
-            if let Some(value) = &found { self.meter.heap(value.heap_bytes())?; }
-            let value = live.map(|value| crate::schema::row_image(value, target).field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
-            self.meter.heap(80 + path.len() as u64 + value.heap_bytes())?;
+            // @ref LLP 3000.015#1 — a public capture cannot price a private sibling.
+            if found.is_some() {
+                self.meter.heap(super::write_target::row_copy_ceiling(target))?;
+            }
+            let value = live.map(|value| self.disclosed_row(target,value.clone()).into_value().field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
+            self.meter.heap(80 + path.len() as u64 + super::write_target::column_copy_ceiling(&target.columns[&field.column]))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }
         }
         Ok(row)
@@ -114,7 +116,7 @@ impl Runner<'_> {
             if paths.is_empty() { continue; }
             let mut bounds = Bounds::default();
             loop {
-                let page = self.tx.scan(name, "byId", &[], &bounds, Dir::Asc, 256)?;
+                let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, name, "byId", &[], &bounds, Dir::Asc, 256))?;
                 if page.is_empty() { break; }
                 for (old, key) in page {
                     bounds.after = crate::key::decode(&key);
@@ -199,7 +201,7 @@ mod tests {
         tx.put("likes",&schema.tables["likes"],&row,None).unwrap();
         let stored=tx.get("likes","l").unwrap().unwrap();
         match &mut replacement {Value::Row(fields) | Value::Map(fields) => {assert!(fields.remove("postId.authorId").is_some());}, _ => panic!("object")};
-        let err = runner.replace_authorized("likes",row,replacement,false,&object([] as [(&str,Value);0])).unwrap_err();
+        let err = runner.replace_authorized("likes",row,replacement,false,&object([] as [(&str,Value);0]),0).unwrap_err();
         assert_eq!(err.refusal().code,"NOT_FOUND");
         for hidden in ["capture","alice","postId.authorId"] {assert!(!err.to_string().contains(hidden));}
         assert_eq!(tx.get("likes","l").unwrap(),Some(stored));
@@ -240,10 +242,12 @@ mod tests {
 
     struct Target { row: Value, covered: bool, calls: std::cell::Cell<usize> }
     impl crate::rows::Rows for Target {
-        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _: &mut Meter) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
+        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _scope: &crate::engine::Authorization, _: &mut crate::engine::InternalMeter<'_>) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
         fn get(&self, _: &str, _: &str) -> Result<Option<Value>,RuntimeError> {Ok(Some(self.row.clone()))}
         fn lookup(&self, _: &str, _: &str, _: &crate::schema::Index, _: &[Value]) -> Result<Option<Value>,RuntimeError> {unreachable!()}
-        fn scan(&self, _: &str, _: &str, _: &[Value], _: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {unreachable!()}
+        fn scan(&self, _: &str, _: &str, _: &[Value], bounds: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {
+            Ok(if bounds.after.is_some() { vec![] } else { vec![(self.row.clone(),crate::key::encode(&[self.row.field("id")?.clone()]))] })
+        }
         fn count_prefix(&self, _: &str, _: &str, _: &[Value], _: u64) -> Result<u64,RuntimeError> {unreachable!()}
         fn put(&self, _: &str, _: &Table, _: &Value, _: Option<&Value>) -> Result<u64,RuntimeError> {unreachable!()}
         fn delete(&self, _: &str, _: &Table, _: &Value) -> Result<u64,RuntimeError> {unreachable!()}

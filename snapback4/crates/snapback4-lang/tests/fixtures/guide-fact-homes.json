@@ -45,7 +45,7 @@
     "id": "reads-07",
     "card": "reads",
     "home": "E_RULE",
-    "text": "A read denied by a table's rule answers as an empty page, not a refusal,\nand a client cannot tell it apart from an empty readable page \u2014 by design,\nso that a hidden row cannot be probed. For access UI, use a membership query\nthe viewer may read, such as a conversation lookup readable by its members:\na member gets the conversation even when its message page is empty.\nAn explicit `require \u2026 else CODE` still refuses with the program's code."
+    "text": "A read denied by a table's rule answers as an empty page, not a refusal,\nand a client cannot tell it apart from an empty readable page — by design,\nso that a hidden row cannot be probed. For access UI, use a membership query\nthe viewer may read, such as a conversation lookup readable by its members:\na member gets the conversation even when its message page is empty.\nAn explicit `require … else CODE` still refuses with the program's code."
   },
   {
     "id": "reads-08",
@@ -81,7 +81,7 @@
     "id": "reads-13",
     "card": "reads",
     "home": "Details",
-    "text": "For example, this typing indicator lasts 4,500 ms after the last keystroke.\nRender `typingNow`'s ready held rows directly. For a server answer, use the\nrender-deadline filter above.\nThis is an application table, separate from the server's `connected[p]`."
+    "text": "For typing and viewing indicators, use an ephemeral table (`guide ephemeral`,\nalso `guide typing`). Keep its server query separate from the device-held\nchats list. The expiring-rows recipe above is for durable disappearing messages."
   },
   {
     "id": "reads-14",
@@ -141,7 +141,7 @@
     "id": "reads-23",
     "card": "reads",
     "home": "N_SPARSE_FILTER",
-    "text": "Finite ranked windows use inclusive UTC buckets from the lower through the\nupper bound. Exact endpoints still filter rows. An `in` predicate over a list\nor a read's column opens one ruled scan per distinct non-null value; a null\nvalue adds one authorized null-filtered scan for a nullable column. Unknown\nor cut discovery cannot certify the page. Use `check --cost` to inspect these\nplans. Unknown widths print `lanes \u2264 meter`; the author writes no lane list."
+    "text": "Finite ranked windows use inclusive UTC buckets from the lower through the\nupper bound. Exact endpoints still filter rows. An `in` predicate over a list\nor a read's column opens one ruled scan per distinct non-null value; a null\nvalue adds one authorized null-filtered scan for a nullable column. Unknown\nor cut discovery cannot certify the page. Use `check --cost` to inspect these\nplans. Unknown widths print `lanes ≤ meter`; the author writes no lane list."
   },
   {
     "id": "reads-24",
@@ -195,7 +195,7 @@
     "id": "reads-32",
     "card": "reads",
     "home": "Details",
-    "text": "To inspect a real account's server work under loopback `dev`, use the online\nclient `createClient({ url, session })` (or a bearer `token`); meters are available by default.\nSuccessful `query` and `observe` answers include `Read.meter`:\n`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }`.\n`Read.meter.cut` keeps the precise reason even for a non-uniform server read;\nit is `meter`, `words` or null, with `meter` winning when both limits cut.\nThese are the engine's counters for that answer, not latency or process memory;\n`probes` is rule_probes and `heapBytes` is charged heap work. A local fallback\nkeeps its previous answer\u2019s counters only until the fetch settles. Local device reads\nhave no meter; use the online client to inspect the server for the same account.\n`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.\nLoopback dev includes the field without either; `serve` ignores the header and never returns\nmeters. The counters can reflect hidden work and are development-only.\n`snapback4 run <op> '<json args>' --as <principal id> --json` also prints\nthe engine's `metered` counters against `.snapback4/store.sqlite`.\nA declared persona such as `alice` resolves to `dev:alice`; any other `--as`\nvalue is used verbatim (including `user:...`, `member:42` and `dev:alice`).\nThe default is `dev:alice`. Jobs still run as the system."
+    "text": "To inspect a real account's server work under loopback `dev`, use the online\nclient `createClient({ url, session })` (or a bearer `token`); meters are available by default.\nSuccessful `query` and `observe` answers include `Read.meter`:\n`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }`.\n`Read.meter.cut` keeps the precise reason even for a non-uniform server read;\nit is `meter`, `words` or null, with `meter` winning when both limits cut.\nThese are the engine's counters for that answer, not latency or process memory;\n`probes` is rule_probes and `heapBytes` is charged heap work. A local fallback\nkeeps its previous answer’s counters only until the fetch settles. Local device reads\nhave no meter; use the online client to inspect the server for the same account.\n`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.\nLoopback dev includes the field without either; `serve` ignores the header and never returns\nmeters. The counters can reflect hidden work and are development-only.\n`snapback4 run <op> '<json args>' --as <principal id> --json` also prints\nthe engine's `metered` counters against `.snapback4/store.sqlite`.\nA declared persona such as `alice` resolves to `dev:alice`; any other `--as`\nvalue is used verbatim (including `user:...`, `member:42` and `dev:alice`).\nThe default is `dev:alice`. Jobs still run as the system."
   },
   {
     "id": "reads-33",
@@ -237,7 +237,7 @@
     "id": "writes-02",
     "card": "writes",
     "home": "E_WRITE_ID",
-    "text": "For replay adapters and retry-safe intents, pass a `mintId()` you stored with\nthe intent or fixture; arbitrary fixture strings still need an application ledger.\nPass it as `{ id }`; a retry returns the original outcome and never applies twice:\n`client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:\n26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with\nthe first digit 0\u20137; malformed ids return local `failed` with `E_WRITE_ID`.\nMint once and keep the id with the intent. It identifies the write, not a row;\nprediction still mints separate row ids through `new_ids`.\nA retry of a pending write on the same client returns the same Write object;\na settled retry returns its retained receipt, without historical result values.\nOnline, web and native clients share this rule; a recovered queued write is\nreused before prediction or admission. Already-open owners of one device store\ncompare and admit under its transaction: equal input reuses the original entry\nand row ids, and conflicting input changes nothing, even during a send. `client.write(id)` and\n`usePendingWrite(op, id)` observe that same id."
+    "text": "For replay adapters and retry-safe intents, pass a `mintId()` you stored with\nthe intent or fixture; arbitrary fixture strings still need an application ledger.\nPass it as `{ id }`; a retry returns the original outcome and never applies twice:\n`client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:\n26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with\nthe first digit 0–7; malformed ids return local `failed` with `E_WRITE_ID`.\nMint once and keep the id with the intent. It identifies the write, not a row;\nprediction still mints separate row ids through `new_ids`.\nA retry of a pending write on the same client returns the same Write object;\na settled retry returns its retained receipt, without historical result values.\nOnline, web and native clients share this rule; a recovered queued write is\nreused before prediction or admission. Already-open owners of one device store\ncompare and admit under its transaction: equal input reuses the original entry\nand row ids, and conflicting input changes nothing, even during a send. `client.write(id)` and\n`usePendingWrite(op, id)` observe that same id."
   },
   {
     "id": "writes-03",
@@ -345,7 +345,7 @@
     "id": "writes-17-4",
     "card": "writes",
     "home": "E_INPUT",
-    "text": "A reference column checks the id's shape, not that\nits target exists: when a mutation needs a visible target, guard first \u2014\n`require exists prompts[promptId] else PROMPT_NOT_FOUND` \u2014 a metered point\nread that is false for an absent or hidden row; deleting a target neither\ndeletes nor refuses the rows that reference it, so a lifecycle is the\napplication's, in its mutations and rules."
+    "text": "A reference column checks the id's shape, not that\nits target exists: when a mutation needs a visible target, guard first —\n`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point\nread that is false for an absent or hidden row; deleting a target neither\ndeletes nor refuses the rows that reference it, so a lifecycle is the\napplication's, in its mutations and rules."
   },
   {
     "id": "writes-18",
@@ -549,7 +549,7 @@
     "id": "language-15",
     "card": "language",
     "home": "E_QUARRY_UNSUPPORTED",
-    "text": "- `while` and recursion \u2192 `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.\n- Floats \u2192 integer minor units in `decimal S` and `money CUR S`, or a native job.\n- A typed map with dynamic keys \u2192 `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.\nBefore editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project."
+    "text": "- `while` and recursion → `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.\n- Floats → integer minor units in `decimal S` and `money CUR S`, or a native job.\n- A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.\nBefore editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project."
   },
   {
     "id": "language-16",
@@ -561,7 +561,7 @@
     "id": "language-17",
     "card": "language",
     "home": "E_QUARRY_UNSUPPORTED",
-    "text": "- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` \u2192 `a if cond else b`; `a?.b` \u2192 `a.b`; `len(x)` \u2192 `count(x)`; `elif` \u2192 `else if`; `proc` \u2192 `fn`; `//` and `#` \u2192 `--`; `==` \u2192 `=`."
+    "text": "- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`."
   },
   {
     "id": "language-18",
@@ -573,7 +573,7 @@
     "id": "language-19",
     "card": "language",
     "home": "Details",
-    "text": "Cards: `snapback4 guide <keyword>` \u2014 app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,\nassets, reads, shapes, writes, programs, jobs, native, feeds, search,\neffects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why\n<CODE>` explains a refusal."
+    "text": "Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,\nassets, reads, shapes, writes, programs, jobs, native, feeds, search,\neffects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why\n<CODE>` explains a refusal."
   },
   {
     "id": "language-20",
@@ -669,7 +669,7 @@
     "id": "shapes-07-2",
     "card": "shapes",
     "home": "E_SHAPE_EXCEEDS_METER",
-    "text": "The rule applies only to a query's top-level returned shape expression,\n`return <base> { ... }`: the base is an inline scan or merge, or a variable\nwith exactly one definition, that definition a read, no reassignment and no\nother use anywhere in the program. The binder marks that lowered loop; only\nthat loop drops a row whose shape the meter starved and every later row.\n`next` reaches the unfinished row first. A preceding fully computed row\nsupplies its exclusive position; otherwise the first unfinished rule-visible\nrow supplies an inclusive position \u2014 provided the page's own materialization was\nnot cut: a drain-cut merge with no fully computed emission, an opening cut or a\nword-limit cut retains no continuation. Following an inclusive cursor that again\nstarves the same first row's returned shape refuses with E_SHAPE_EXCEEDS_METER\ninstead of returning an empty page with the same `next`: the message names the\nread site and ceiling (8,192 examined rows); bound it (`first N`/`last N`) or\nmove it out of the returned shape. A shaped collector that is not the returned\nexpression keeps today's behavior: its empty or partial shape stays on the page,\nwith the existing continuation ownership and position, without trimming or rewind.\nThis includes assigned shapes, records, conditionals, helpers, aliases and\ncollector payloads; some such compositions have no continuation owner.\nThe answer stays `complete: false` on a meter cut, with `cut: 'meter'` on\ndevices and uniform server reads; non-uniform server reads keep `cut: null`.\nA nested page's cut still makes the answer incomplete.\nA collector building a returned value makes the query incomplete if it exits\nwith rows still unconsumed, even on a short final page.\nEvery page with more rows needs its own returned\ncursor owner; another field's page cannot cover a lost sibling or auxiliary\npage. A fully consumed, exhausted scan is complete without an owner, including\nan exact-bound scan returned as `count(rows)` (subject to the meter, rules and\ndevice horizon). An auxiliary loop over an intact returned page does not change\nits completeness, even if that loop breaks. Repeating a page read never clears\nan earlier loss. If an owned page site executes repeatedly, only its final\nexecution supplies `next`; a continuation lost by an earlier execution still\nmakes the query incomplete."
+    "text": "The rule applies only to a query's top-level returned shape expression,\n`return <base> { ... }`: the base is an inline scan or merge, or a variable\nwith exactly one definition, that definition a read, no reassignment and no\nother use anywhere in the program. The binder marks that lowered loop; only\nthat loop drops a row whose shape the meter starved and every later row.\n`next` reaches the unfinished row first. A preceding fully computed row\nsupplies its exclusive position; otherwise the first unfinished rule-visible\nrow supplies an inclusive position — provided the page's own materialization was\nnot cut: a drain-cut merge with no fully computed emission, an opening cut or a\nword-limit cut retains no continuation. Following an inclusive cursor that again\nstarves the same first row's returned shape refuses with E_SHAPE_EXCEEDS_METER\ninstead of returning an empty page with the same `next`: the message names the\nread site and ceiling (8,192 examined rows); bound it (`first N`/`last N`) or\nmove it out of the returned shape. A shaped collector that is not the returned\nexpression keeps today's behavior: its empty or partial shape stays on the page,\nwith the existing continuation ownership and position, without trimming or rewind.\nThis includes assigned shapes, records, conditionals, helpers, aliases and\ncollector payloads; some such compositions have no continuation owner.\nThe answer stays `complete: false` on a meter cut, with `cut: 'meter'` on\ndevices and uniform server reads; non-uniform server reads keep `cut: null`.\nA nested page's cut still makes the answer incomplete.\nA collector building a returned value makes the query incomplete if it exits\nwith rows still unconsumed, even on a short final page.\nEvery page with more rows needs its own returned\ncursor owner; another field's page cannot cover a lost sibling or auxiliary\npage. A fully consumed, exhausted scan is complete without an owner, including\nan exact-bound scan returned as `count(rows)` (subject to the meter, rules and\ndevice horizon). An auxiliary loop over an intact returned page does not change\nits completeness, even if that loop breaks. Repeating a page read never clears\nan earlier loss. If an owned page site executes repeatedly, only its final\nexecution supplies `next`; a continuation lost by an earlier execution still\nmakes the query incomplete."
   },
   {
     "id": "shapes-08",
@@ -723,7 +723,7 @@
     "id": "types-04-2",
     "card": "types",
     "home": "E_INPUT",
-    "text": "- **Types:** `principal`, `id`, `<table>` (a reference to that table's\n  id), `int` (within \u00b1(2^53 \u2212 1); there are no floats), `time`\n  (milliseconds), `bool`, `decimal <scale>`, `money <CUR> [scale]` (both\n  hold integer minor units), `text`, `text <=N`, `text M..N`, each with optional\n  `format handle|url`, `enum('a', 'b')`, `json <=N`, `bytes <=N`,\n  `[type] <=N` (a bounded list), `image <=N [once]` and `video <=N` (an\n  upload the row holds \u2014 `guide assets`); `?` after a type makes the column\n  optional (null when absent). `default <literal | now | viewer>` fills an\n  omitted insert column on the writing host; an explicit value wins.\n  A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.\n  An enum fits `text <=N` when every variant has at most N characters and\n  contains no control characters except tab, LF and CR: a\n  static, total widening with no runtime conversion. If any variant exceeds\n  N, use the enum type on the helper parameter instead."
+    "text": "- **Types:** `principal`, `id`, `<table>` (a reference to that table's\n  id), `int` (within ±(2^53 − 1); there are no floats), `time`\n  (milliseconds), `bool`, `decimal <scale>`, `money <CUR> [scale]` (both\n  hold integer minor units), `text`, `text <=N`, `text M..N`, each with optional\n  `format handle|url`, `enum('a', 'b')`, `json <=N`, `bytes <=N`,\n  `[type] <=N` (a bounded list), `image <=N [once]` and `video <=N` (an\n  upload the row holds — `guide assets`); `?` after a type makes the column\n  optional (null when absent). `default <literal | now | viewer>` fills an\n  omitted insert column on the writing host; an explicit value wins.\n  A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.\n  An enum fits `text <=N` when every variant has at most N characters and\n  contains no control characters except tab, LF and CR: a\n  static, total widening with no runtime conversion. If any variant exceeds\n  N, use the enum type on the helper parameter instead."
   },
   {
     "id": "types-04-3",
@@ -759,7 +759,7 @@
     "id": "types-04-8",
     "card": "types",
     "home": "E_CONSTRAINT",
-    "text": "- **Expire:** `expire at .expiresAt` (a `time ?` column; its sweep index is generated). A row past that time is\n  absent to every reader on every host from that moment, before any rule;\n  the server sweeps on a one-second tick, at most 2,000 rows per pass, and\n  the deletion streams to each device holding it. Backlog or downtime can\n  delay physical deletion. A `cap` on an expiring table uses a maintained\n  physical count: unswept expired rows still occupy capacity. Unique checks\n  skip expired collisions at the same full key under the examined meter;\n  secondary-key predecessors remain until the sweep, so replacement at a full\n  cap refuses until that sweep frees room. The refusal names the sweep timing.\n  A row inserted already expired by a program is retired at its commit's end,\n  releasing its cap occupancy without a later deletion event. Reviving it\n  within that commit preserves it. Seeds and loads keep expired rows for sweep.\n  Devices queue occupancy-increasing writes on expiring capped tables without\n  predicted rows: even a complete live snapshot omits unswept expired rows.\n  Unrelated live or expired rows are never scanned for a write's constraints."
+    "text": "- **Expire:** `expire at .expiresAt` (a `time ?` column; its sweep index is generated). A row past that time is\n  absent to every reader on every host from that moment, before any rule;\n  the server sweeps on a one-second tick, at most 2,000 rows per pass, and\n  the deletion streams to each device holding it. Backlog or downtime can\n  delay physical deletion. A `cap` counts live rows. Its maintained physical\n  count proves room when below the cap; otherwise a bounded authorization\n  walk checks live occupancy. Unique checks skip expired collisions at the\n  same full key. These candidates use the internal ledger described in\n  `guide rules`; exhausting the shared physical allowance refuses with E_RULE.\n  Secondary-key predecessors remain until the sweep.\n  A row inserted already expired by a program is retired at its commit's end,\n  releasing its cap occupancy without a later deletion event. Reviving it\n  within that commit preserves it. Seeds and loads keep expired rows for sweep.\n  Devices queue occupancy-increasing writes on expiring capped tables without\n  predicted rows: even a complete live snapshot omits unswept expired rows.\n  Unique checks never scan unrelated keys; a saturated cap may inspect its group."
   },
   {
     "id": "types-04-9",
@@ -783,7 +783,7 @@
     "id": "types-06",
     "card": "types",
     "home": "E_OVERFLOW",
-    "text": "E_OVERFLOW means integer arithmetic left the value model's range of\n\u22129,007,199,254,740,991 through 9,007,199,254,740,991. For example,\n`9007199254740991 + 1` cannot be represented. Bound the inputs and\nintermediate arithmetic before adding or multiplying. Decimal and money\ncolumns store integer minor units in that same range; they do not provide\nlarger integers. For an overflowing aggregate, reduce its contributions or\nsplit the grouping; the refusal names the view and value column without\nrevealing a hidden computed sum, and the failed write rolls back."
+    "text": "E_OVERFLOW means integer arithmetic left the value model's range of\n−9,007,199,254,740,991 through 9,007,199,254,740,991. For example,\n`9007199254740991 + 1` cannot be represented. Bound the inputs and\nintermediate arithmetic before adding or multiplying. Decimal and money\ncolumns store integer minor units in that same range; they do not provide\nlarger integers. For an overflowing aggregate, reduce its contributions or\nsplit the grouping; the refusal names the view and value column without\nrevealing a hidden computed sum, and the failed write rolls back."
   },
   {
     "id": "types-07",

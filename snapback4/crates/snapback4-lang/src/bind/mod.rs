@@ -3,8 +3,10 @@
 
 pub mod catalog;
 mod columns;
+mod ephemeral;
 mod defaults;
 mod maintains;
+mod row_views;
 mod through;
 pub mod program;
 pub mod schema;
@@ -52,10 +54,13 @@ pub struct Bound {
 
 pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    ephemeral::declarations(&documents, &mut diagnostics);
     helper_names::normalize(&mut documents, &mut diagnostics);
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
     let feeds = feed_view::expand(&mut documents, &mut diagnostics);
+    // Following expansion adds its durable timeline inputs. Recheck before lowering.
+    if !feeds.is_empty() { ephemeral::declarations(&documents, &mut diagnostics); }
     let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
@@ -67,6 +72,13 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
+    // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
+    for issue in snapback4_core::schema::field_authority::validate(&schema) {
+        if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
+            diagnostics.push(crate::diag::Diagnostic::new(&catalog.site_for(&issue.path), "E_FIELD_AUTHORITY", issue.message,
+                "declare readable by audience before using a private field in a timeline mapping or predicate").guide("rules"));
+        }
+    }
     // Timeline ownership is resolved after the ordinary schema checks.
     for issue in snapback4_core::schema::columns::timeline_issues(&schema) {
         diagnostics.push(columns::refusal(&catalog.site_for(&issue.path), issue.message));
@@ -130,6 +142,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
             }
         }
     }
+    ephemeral::programs(&catalog, &mut schema, &programs, &mut diagnostics);
     // @ref LLP 3000.007#20 — predicts asserts the existing eligibility decision; it never changes residency.
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
@@ -165,6 +178,11 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     }
     for doc in &catalog.documents {
         for decl in &doc.schedules {
+            let target = decl.target.strip_prefix("schema.").unwrap_or(&decl.target);
+            if schema.operations.get(target).is_some_and(|f| f.ephemeral) {
+                diagnostics.push(Diagnostic::new(&decl.site, "E_QUARRY_EPHEMERAL", "schedule cannot call an ephemeral mutation", "call the ephemeral mutation from the client").guide("ephemeral"));
+                continue;
+            }
             match bind_schedule(decl, &programs) {
                 Ok(schedule) => schema.schedules.push(schedule),
                 Err(diagnostic) => diagnostics.push(diagnostic),
@@ -174,6 +192,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
     schema.action_specs.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name && bound.program.kind == snapback4_core::ir::ProgramKind::Action));
     let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).chain(catalog.planner_notes.clone()).collect();
+    notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));

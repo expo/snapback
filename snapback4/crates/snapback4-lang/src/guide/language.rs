@@ -94,6 +94,7 @@ table members:
 
 table messages:
   roomId: rooms
+  ordinal: sequence by roomId         -- engine-assigned; provisional while the row is pending
   authorId: principal
   body: text <=4000 ?
   search body
@@ -108,7 +109,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
-  expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count unswept rows
+  expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count live rows
   sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
 table receipts:
@@ -505,6 +506,13 @@ query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?
   return intentIssues where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .at after c
 ```
 
+A maintained count can use another table's row as its key:
+`view unread: count messages by members m where .conversationId = m.conversationId
+and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule;
+a large mark change reports `complete: false` while its recount settles.
+The complete, compiled Clique recipe is on `guide maintains`.
+
+
 One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
 programs and schedules, in any order; more `.q` files beside it are modules
 (their operations are `<module>.<name>`) sharing one namespace. Schedules use that
@@ -563,7 +571,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 ## Left out on purpose, and the idiom
 
-Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
+Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal. Also see from-sql (aliases sql, convex, rosetta).
@@ -645,6 +653,24 @@ mutation timelineRemove(postId: timelineCards):
   update timelineCards[postId] { removed: true }
 query timelineHome(c: cursor ?):
   return timeline last 20 by .at after c { *, post: timelineCards[.post] }
+```
+
+## Field authority
+
+Column modifiers give one field an owner and choose its read visibility.
+See `guide rules` for Clique's membership and `markRead` recipe.
+
+```quarry
+table marks:
+  principal: principal
+  readUpTo: int default 0 written by .principal
+  sharedMark: int default 0 written by .principal readable by audience
+  public 'shared membership rows with private read marks'
+  insert <- .principal = viewer
+  update (old, next) <- next.readUpTo >= old.readUpTo
+  sync public last 100 by .id
+mutation markRead(memberId: marks, readUpTo: int) predicts:
+  update marks[memberId] { readUpTo }
 ```
 
 ## Older spellings that still compile
@@ -746,5 +772,15 @@ query unread(chat: id):
   return unreadCounts[chat, viewer]
 query inbox(c: cursor ?):
   return unreadCounts where .principal = viewer first 20 after c
+```
+
+Short-lived server memory uses the ordinary table grammar (`guide ephemeral`):
+
+```quarry
+table typing:
+  principal: principal
+  read <- allow
+  insert <- .principal = viewer
+  ephemeral 4s
 ```
 "##;

@@ -17,44 +17,41 @@ fn queued(op: &str, write_id: &str, args: serde_json::Value, now: i64) -> Queued
 fn agree<H: Host>(host: &mut H, cold: bool) {
     for cap in ["  cap 1", "  cap 1 by conversationId"] {
         for op in ["add", "quiet", "put", "putId"] {
-            let source = constraints::source(cap);
-            let (mut server, backend) = common::compile(&source);
-            let deadline = snapback4_core::now_ms() + if cold { -60_000 } else { 60_000 };
-            let old = constraints::row(&server, "old", 1, 1, json!(deadline));
-            server.load([old]).unwrap();
-            let name = format!("expiry-{op}-{cold}-{}", cap.len());
-            let mut device = host.open(&name, Some(backend)).unwrap();
-            for (i, page) in common::snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
-            let now = deadline + 120_000;
-            let read_args = json!({"conversationId":"chat", "ordinal":1});
-            assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data, Value::Null);
             for ordinal in [1, 2] {
+                let (mut server, backend) = common::compile(&constraints::source(cap));
+                let deadline = snapback4_core::now_ms() + if cold { -60_000 } else { 60_000 };
+                let old = constraints::row(&server, "old", 1, 1, json!(deadline));
+                server.load([old]).unwrap();
+                let name = format!("expiry-{op}-{cold}-{ordinal}-{}", cap.len());
+                let mut device = host.open(&name, Some(backend)).unwrap();
+                for (i, page) in common::snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+                let now = deadline + 120_000;
+                assert_eq!(device.query("message", "alice", &json!({"conversationId":"chat", "ordinal":1}), now).unwrap().data, Value::Null);
+                let read_args = json!({"conversationId":"chat", "ordinal":ordinal});
                 let args = json!({"messageId":"new", "ordinal":ordinal, "at":20, "expiresAt":null});
-                let write_id = format!("refused-{ordinal}");
-                let entry = device.admit(queued(op, &write_id, args, now)).unwrap();
+                let entry = device.admit(queued(op, "accepted", args, now)).unwrap();
                 assert!(!entry.predictable && entry.predicted.is_empty(), "{} cold={cold}: {entry:?}", host.label());
-                assert_eq!(device.query("message", "alice", &json!({"conversationId":"chat", "ordinal":ordinal}), now).unwrap().data, Value::Null);
+                assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data, Value::Null);
                 host.close(&name, device);
                 device = host.open(&name, None).unwrap();
                 assert_eq!(device.queued().unwrap(), vec![entry]);
-                let outcome = server.mutate(op, Some(&write_id), Context::new("alice", constraints::args("new", ordinal, 20)).at(now).with_ids(["new".into()])).unwrap();
-                assert!(matches!(outcome.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{outcome:?}");
-                device.settle(&write_id, None).unwrap();
+                // B2 counts live rows: the server can admit through this short
+                // expired range, while a device still queues conservatively.
+                let out = server.mutate(op, Some("accepted"), Context::new("alice", constraints::args("new", ordinal, 20)).at(now).with_ids(["new".into()])).unwrap();
+                let WriteState::Sent { seq, .. } = out.state else { panic!("{out:?}") };
+                device.settle("accepted", Some(seq)).unwrap();
+                let from = device.state().unwrap().0;
+                device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
                 assert!(device.queued().unwrap().is_empty());
+                assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data.field("at"), Ok(&Value::Int(20)));
+                assert_eq!(server.sweep_expired(now, 2_000).unwrap(), 1);
+                let from = device.state().unwrap().0;
+                device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
+                assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data.field("at"), Ok(&Value::Int(20)));
+                let full = server.mutate("add", Some("full"), Context::new("alice", constraints::args("other", 3, 20)).at(now)).unwrap();
+                assert!(matches!(full.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{full:?}");
+                host.close(&name, device);
             }
-            let from = device.state().unwrap().0;
-            assert_eq!(server.sweep_expired(now, 2_000).unwrap(), 1);
-            device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
-            let args = json!({"messageId":"new", "ordinal":1, "at":20, "expiresAt":null});
-            let entry = device.admit(queued(op, "accepted", args, now)).unwrap();
-            assert!(!entry.predictable && entry.predicted.is_empty(), "even a new live snapshot cannot prove physical occupancy");
-            let out = server.mutate(op, Some("accepted"), Context::new("alice", constraints::args("new", 1, 20)).at(now).with_ids(["new".into()])).unwrap();
-            let WriteState::Sent { seq, .. } = out.state else { panic!("{out:?}") };
-            device.settle("accepted", Some(seq)).unwrap();
-            let from = device.state().unwrap().0;
-            device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
-            assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data.field("at"), Ok(&Value::Int(20)));
-            host.close(&name, device);
         }
     }
 }
@@ -122,8 +119,11 @@ fn sweep_in_transit<H: Host>(host: &mut H, cold: bool) {
                     device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
                     assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data.field("at"), Ok(&Value::Int(20)));
                 } else {
-                    assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{out:?}");
-                    device.settle("send", None).unwrap();
+                    let WriteState::Sent { seq, .. } = out.state else { panic!("{out:?}") };
+                    device.settle("send", Some(seq)).unwrap();
+                    let from = device.state().unwrap().0;
+                    device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
+                    assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data.field("at"), Ok(&Value::Int(20)));
                 }
                 assert!(device.queued().unwrap().is_empty());
                 host.close(&name, device);

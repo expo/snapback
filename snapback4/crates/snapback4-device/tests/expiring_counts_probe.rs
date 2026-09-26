@@ -12,13 +12,14 @@ impl Counted<'_> {
     }
 }
 impl Rows for Counted<'_> {
+    fn index_head(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir)->Result<Option<Vec<Value>>,RuntimeError>{self.rows.index_head(t,n,k,b,d)}
     fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.rows.get(t,id)}
     fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.rows.lookup(t,n,i,k)}
     fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
         let rows=self.rows.scan(t,n,k,b,d,l)?; self.observed(t,&rows); Ok(rows)
     }
-    fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
-        let rows=self.rows.scan_metered(t,n,k,b,d,l,m)?; self.observed(t,&rows); Ok(rows)
+    fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,scope:&snapback4_core::engine::Authorization,m:&mut snapback4_core::engine::InternalMeter<'_>)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+        let rows=self.rows.scan_metered(t,n,k,b,d,l,scope,m)?; self.observed(t,&rows); Ok(rows)
     }
     fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,RuntimeError>{self.rows.count_prefix(t,n,k,l)}
     fn put(&self,t:&str,s:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError>{self.rows.put(t,s,r,o)}
@@ -56,7 +57,7 @@ fn probe<S: DeviceStore>(mut store: S) {
                     result
                 };
                 assert_eq!(result!=Value::Null,live.is_some(),"backlog={backlog} device={device}");
-                assert_eq!(counted.fetched.get(),usize::from(live.is_some()),"physical backlog work, not just reported examination counts");
+                assert_eq!(counted.fetched.get(),usize::from(device && live.is_some()),"server uses key metadata; device fetches only the live basis");
                 assert!(counted.scans.get()<=1);
             }
             tx.rollback().unwrap();

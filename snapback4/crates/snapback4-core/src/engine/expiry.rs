@@ -54,6 +54,35 @@ impl Expiry {
             self.note(at);
         }
     }
+
+    pub(super) fn note_option(&self, at: Option<i64>) {
+        if let Some(at) = at {
+            self.note(at);
+        }
+    }
+
+    // @ref LLP 3000.015#2 — the complete-rule evaluator isolates each witness
+    // leaf's deadline and restores the frame with the whole rule's boundary.
+    // Outside an emitting read the frame is detached: a raw write check owns
+    // no deadline and observes none, exactly as `note` above.
+    pub(super) fn replace(&self, deadline: Option<i64>) -> Option<i64> {
+        let mut frame = self.0.get();
+        if frame.depth == 0 {
+            return None;
+        }
+        let prior = frame.deadline;
+        frame.deadline = deadline;
+        self.0.set(frame);
+        prior
+    }
+}
+
+impl Pending {
+    /// The deferred boundary itself, for a caller that records it durably
+    /// (a recount work record) instead of emitting it into an answer.
+    pub(super) fn deadline(self) -> Option<i64> {
+        self.0
+    }
 }
 
 /// Every exit discards by default, including `?`, `continue`, and `break`.

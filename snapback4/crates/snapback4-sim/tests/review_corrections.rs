@@ -318,10 +318,12 @@ fn expired_rows_are_absent_to_reads_but_conservatively_occupy_caps_until_swept()
     let outcome=e.mutate("source",Some("refuse"),ctx().with_ids(["source".into()])).unwrap();
     assert!(matches!(outcome.state,WriteState::Failed{ref why,..} if why.code=="E_CONSTRAINT"));
     let outcome=e.mutate("add",Some("at-cap"),ctx().with_ids(["new".into()])).unwrap();
-    assert!(matches!(outcome.state,WriteState::Failed{ref why,..} if why.code=="E_CONSTRAINT"));
+    // The integrated B2 cap law counts live rows. Physical occupancy is an
+    // upper bound only; an expired occupant can be passed within the walk limit.
+    assert!(matches!(outcome.state,WriteState::Sent{..}),"{outcome:?}");
     assert_eq!(e.sweep_expired(1000,100).unwrap(),1);
     let outcome=e.mutate("add",Some("add"),ctx().with_ids(["new".into()])).unwrap();
-    assert!(matches!(outcome.state,WriteState::Sent{..}),"{outcome:?}");
+    assert!(matches!(outcome.state,WriteState::Failed{ref why,..} if why.code=="E_CONSTRAINT"));
     assert_eq!(e.query("one",ctx()).unwrap().data.field("id").unwrap(),&Value::Id("new".into()));
     assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(1));
     assert_eq!(e.sweep_expired(1000,100).unwrap(),0);

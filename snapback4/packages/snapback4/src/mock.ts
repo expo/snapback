@@ -1,3 +1,5 @@
+import { routeMutations } from "./ephemeral.ts";
+import { mockSignals } from "./mock-ephemeral.ts";
 // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no
 // interpreter, no transport: operations are plain functions over in-memory
 // tables, commits settle after a virtual delay, and the link is a switch the
@@ -21,6 +23,8 @@ function isPage(value: unknown): value is Page<unknown> {
 }
 
 export interface MockOps {
+  /** Ephemeral handlers return their result (or a Refusal); use Map.set to renew a row. */
+  readonly signals?: Record<string, (tables: Tables, args: never, viewer: Principal | null, mint: () => string) => unknown>;
   readonly actions?: Record<string, (args: never, viewer: Principal | null, id: string) => unknown>;
   readonly queries: Record<string, (tables: Tables, args: never, viewer: Principal | null) => unknown>;
   /** Returns the ids of rows it created or changed, or a Refusal. */
@@ -36,6 +40,8 @@ export interface MockClient extends Client {
 
 export interface MockOptions {
   readonly viewer: Principal | null;
+  /** Per-table life in milliseconds, mirroring the Quarry declarations. */
+  readonly ephemeral?: Readonly<Record<string, number>>;
   readonly tables: Tables;
   readonly ops: MockOps;
   readonly link?: Link;
@@ -51,7 +57,7 @@ export function mockId(): string {
 
 export function createMockClient(options: MockOptions): MockClient {
   const actions = new Map<string, Promise<Act>>();
-  const tables = options.tables;
+  const tables = options.ephemeral ? { ...options.tables } : options.tables;
   let link: Link = options.link ?? "online";
   let viewer = options.viewer;
   let seq = 0;
@@ -72,7 +78,11 @@ export function createMockClient(options: MockOptions): MockClient {
   const bump = () => { version += 1; for (const l of listeners) l(); };
   const isRefusal = (v: unknown): v is Refusal => typeof v === "object" && v !== null && "code" in v && "family" in v;
 
+  const signals = mockSignals(options, tables, () => viewer, () => link, mockId, bump);
+
   const evaluate = <A, R>(op: Query<A, R>, args: A): Read<R> => {
+    signals.sweep();
+    if (op.ephemeralReads?.length && link !== "online") return { loading: true };
     const fn = options.ops.queries[op.name];
     if (!fn) return { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } };
     if (link === "signed-out") return { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } };
@@ -129,7 +139,7 @@ export function createMockClient(options: MockOptions): MockClient {
         close() { listeners.delete(listener); subs.clear(); },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
+    mutate: routeMutations(signals.mutate, async function<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
       const fn = options.ops.mutations[op.name];
       const id = mockId();
       if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
@@ -154,7 +164,7 @@ export function createMockClient(options: MockOptions): MockClient {
         const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
         setTimeout(() => { settleOne(entry); bump(); }, delay);
       });
-    },
+    }),
     async write(id) { const receipt = await history.read(id); return link === "signed-out" ? undefined : receipt; },
     acquired: false,
     onAcquired: () => () => {},
@@ -176,9 +186,10 @@ export function createMockClient(options: MockOptions): MockClient {
     async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
     async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
     async signOut() { client.setLink("signed-out"); await client.close(); },
-    async close() { listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
+    async close() { signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;
+      signals.linkChanged();
       for (const l of linkListeners) l(next);
       const nextViewer = next === "signed-out" ? null : options.viewer;
       if (viewer !== nextViewer) {

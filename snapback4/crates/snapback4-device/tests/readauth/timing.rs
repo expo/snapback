@@ -112,14 +112,10 @@ fn probes<S:DeviceStore>(mut store:S) {
     let (_,b)=compile(super::regressions::SOURCE);
     store.install(&b.schema,&Default::default(),false).unwrap();
     let program=|name:&str| b.programs.iter().find(|p|p.name==name).unwrap();
-    // Insertion now reserves room for a possible collision's read rule even
-    // when no collision exists. This is separate from query authorization.
     let tx=store.transaction().unwrap();
-    let refused=local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap_err();
-    assert!(matches!(refused,RuntimeError::Bound{kind:snapback4_core::error::MeterKind::RuleProbes,..}));
-    tx.rollback().unwrap();
-    let tx=store.transaction().unwrap();
-    local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
+    // Five unique-key authorization reservations precede occupant lookup,
+    // even for a miss. No output-read authorization is added.
+    local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:5,..Default::default()}).unwrap();
     for name in ["point","scan","merged","page","total","probe"] {
         for budget in [0,1] {
             let out=local::query(&Overlay(&tx),&b.schema,program(name),context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100),Ceilings{rule_probes:budget,..Default::default()});
@@ -136,10 +132,11 @@ fn probes<S:DeviceStore>(mut store:S) {
             }
         }
     }
-    // Delivered control pays no read-rule probes, even at a zero ceiling.
-    let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap();
+    // Delivered and provisional point reads reserve the same declared witness
+    // count; trusting delivery avoids physical re-evaluation, not admission.
+    let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
     assert!(out.complete && out.data!=Value::Null);
-    assert_eq!(out.metered.rule_probes,0);
+    assert_eq!(out.metered.rule_probes,1);
     tx.rollback().unwrap();
 }
 #[test] fn reading_probe_meter_memory(){probes(snapback4_device::memory::MemoryStore::new());}

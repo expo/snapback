@@ -203,6 +203,139 @@ a constraint across all guests.
 ## Server-arrival order within a conversation
 
 `at` has millisecond ties; client-minted ids order creation, not arrival at
+the server. Declare an engine sequence. A client-supplied integer can pin
+the history forever by writing the largest value; `sequence by` refuses
+such values with E_SEQUENCE_SUPPLIED, including on updates and upserts.
+
+```quarry
+table conversations:
+  creator: principal
+  public 'shared conversation'
+  insert <- .creator = viewer
+  online only
+
+table members:
+  conversationId: conversations
+  principal: principal
+  joinedAt: sequence by conversationId
+  unique conversationId, principal
+  public 'shared conversation membership'
+  insert <- exists conversations[id = .conversationId, creator = viewer]
+  online only
+
+table messages:
+  conversationId: conversations
+  ordinal: sequence by conversationId
+  body: text <=200
+  public 'shared message history'
+  insert <- exists members[.conversationId, viewer]
+  online only
+
+mutation createConversation():
+  c = insert conversations { creator: viewer }
+  insert members { conversationId: c.id, principal: viewer }
+  return c
+
+mutation addMember(conversationId: conversations, principal: principal):
+  insert members { conversationId, principal } if absent
+
+mutation send(conversationId: conversations, body: text <=200):
+  return insert messages { conversationId, body }
+
+query history(conversationId: conversations, c: cursor ?):
+  return messages where .conversationId = conversationId after c last 50 by .ordinal
+```
+
+Clique's `messages.ordinal` and `members.joinedAt` draw from one counter
+per conversation, starting at 1. Allocation is dense across the participating
+columns, rather than within messages alone: membership insertion takes the
+next position too. Each successful insertion takes a position; deletion does
+not reuse it. A rolled-back transaction, an `if absent` no-op, or retry of the
+same write id consumes no position. An `if absent` retry on a unique key without
+a sequence column still returns null at counter exhaustion. Bulk seeds capture
+engine-assigned ordinals in maintained reference paths even when the referring
+row comes first. Different conversations have independent counters. Multiple
+sequence columns in one inserted row allocate in column-name
+order. Sequence inserts require read authority established independently of
+the assigned ordinal. A blind or insert-only principal whose new row is
+unreadable gets generic E_RULE (NOT_FOUND for an upsert insert arm). An
+independent insert denial runs before hidden read-witness lookups; a deferred
+allocation denial normalizes its authorization work, including at meter
+boundaries. A read rule that depends on the ordinal cannot authorize insertion.
+For a self-readable candidate, a sequence-key upsert returns the same NOT_FOUND
+and logical meters whether the target is absent or unreadable and refused;
+an owned target keeps its ordinary update diagnostic. A directly supplied
+ordinal in an insert or patch is E_SEQUENCE_SUPPLIED before lookup.
+A successful readable insert exposes its assigned ordinal, which reflects the
+shared counter. A hidden grant may establish read authority and permit success;
+an independently denied insert cannot use it as a witness oracle.
+`nextExpiry` is the earliest instant at which removing every row expiring then
+changes the complete bound rule's current verdict, considering all matching
+witness alternatives within the rule's allowance.
+A later matching grant, permanent ownership or a correlated `A or not A`
+branch prevents an irrelevant earlier deadline; denied rows publish none.
+
+
+Two limits are accepted: (a) a cap group containing an unreadable occupant returns
+generic E_RULE before cap constraint text. Compared with an empty group, this
+can disclose “someone unreadable is here”, but no occupant identity, ordinal,
+count or values. Ignoring those occupants would let a caller bypass the cap.
+One request's authorization work shares a single 8,192-row physical allowance,
+including nested witnesses, expired rows and maintained-source walks, and
+exhaustion fails closed with generic E_RULE without hidden-dependent logical
+charges.
+(b) A caller's row behind at least the separate 8,192-candidate walk bound
+of unreadable siblings is unreachable by paging in that direction. The page
+is empty with no cursor, identically in every world beyond that bound.
+The generated harness compares hidden siblings, witnesses and counter history
+across refusals, logical meters, expiry deadlines, pages/cursors, sync images and watermarks, and
+device prediction, admission, reopened outboxes and settlement. It separately
+checks successful assignments and these limits; it does not promise identical
+outcomes when the caller's actual authority changes. Authorization-dependent scans follow the shared caller accounting law in `guide rules`. This applies to cap
+checks on insertion and upsert, unique collisions, counter reads, rule witnesses,
+and pages with simple or compound read rules. Every effect prepays its whole
+rule before its first witness, so short-circuiting compound write rules cannot
+change the caller's probe allowance or budget refusal. Within the walk bound,
+hidden candidates cannot change logical meters, budget refusals, returned rows or cursors by changing their
+payload or position. For `first 1 by .ordinal` and `last 1 by .ordinal`, a denied
+sibling before or after the readable row adds no examined charge or visible cut.
+The same page protection applies to ordinary integer columns. Private scans
+prepay their allowance once per page and share the request's physical walk ceiling, also during word discovery; the logical meter does not expose
+how many denied candidates were traversed. A device still queues if its separate
+prediction work allowance is exhausted. `check --json` includes the same sequence-counter
+descriptions as text `check` under `sequences`.
+Ordinals and their parent reference are immutable; listing the ordinal
+in `immutable` is accepted and redundant.
+
+`first N by .ordinal` and `last N by .ordinal` give a total order within a
+conversation. Pass the returned `next` cursor to continue as for any int column.
+These public, online-only examples use membership to authorize writes;
+private chats also need membership read rules and their sync declarations.
+A predicted insert in a synced table takes a provisional value above every
+held value for that parent, including other pending inserts. Its row carries
+`pending: true`; the Write remains `pending` until the server settles it.
+The settled image replaces the provisional ordinal and reorders local pages.
+Two offline inserts keep their outbox order when they reach the server.
+If no provisional value fits above the device's held integers, the write queues
+without prediction; the server decides whether its counter has room.
+A refusal after actually reading a provisional ordinal also queues without a
+predicted row, including a rule, `require`, `check`, unique constraint or
+`after insert` postcondition: the server's assigned value may satisfy it.
+An indexed read consumes provisional ordinals when settlement could move a
+pending row into or out of the selected range, including an empty result,
+an upsert's sequence-key target, or an `after insert` lookup at a literal
+ordinal. These dependent refusals keep their intent in the durable outbox
+until the server accepts or refuses it.
+A unique lookup that finds no collision, or a cap that passes, does not make
+an unrelated later refusal provisional. A short-circuited rule arm does not
+read its ordinal. Provisional ordinals in
+write results, point rereads and pages carry `pending: true`.
+
+### The application-counter spelling, which still compiles
+
+Before `sequence by`, the ordinal was an application counter. This older
+spelling still compiles; prefer the engine sequence above, which refuses a
+client-supplied position. `at` has millisecond ties; client-minted ids order creation, not arrival at
 the server. Keep a per-conversation ordinal in the same mutation as the
 message insert. Transactions serialize the increment, so committed ordinals
 order accepted writes within that conversation; they do not order groups.
@@ -257,5 +390,22 @@ mutation id on retry neither increments again nor inserts twice. This short
 shared-history example is online-only and only members can advance its counter;
 private conversations also need membership read rules. If you sync and predict it, a local ordinal is provisional until the
 server commits and reconciles concurrent sends.
+
+## Writing a member's read mark
+
+Declare `readUpTo: int default 0 written by .principal` on the membership
+row. `markRead` patches just that field; it needs no row update grant, but a
+named `update (old, next) <- next.readUpTo >= old.readUpTo` still refuses a
+backwards mark. See `guide rules` for the complete Clique membership recipe.
+Other fields in the same patch require the row's update rule. Inserts by
+another principal omit readUpTo, including when its intended value is 0.
+
+The default projection is private. Append `readable by audience` for Clique's
+shared receipts. Ownership is unchanged by that visibility choice. The owner
+sees the settled mark on every device; a held-row mark write predicts offline,
+then settles through the ordinary write receipt and partition stream.
+E_FIELD_AUTHORITY names the owner column: omit the supplied field or write as
+that principal. It also refuses malformed owner declarations and private fields
+used in indexes or aggregate inputs; see the rewrite on `guide rules`.
 
 "##;

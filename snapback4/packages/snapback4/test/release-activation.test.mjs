@@ -540,3 +540,79 @@ test("release serving repairs dangling legacy links and refuses an unexpected re
   assert.equal(readFileSync(link, "utf8"), "unexpected owned file");
   assert.deepEqual(state(join(deployment, "store.sqlite")), before);
 });
+
+for (const authority of ["owner", "failed branch", "second witness", "multiple witnesses", "correlated branches"]) {
+  test(`release nextExpiry excludes irrelevant hidden grants: ${authority}`, { timeout: 15000 }, async t => {
+    const { deployment, schema, run } = fixture(t);
+    const witness = "exists grants[parent = .parent, who = viewer, kind = 'admin']";
+    const rule = authority === "owner" ? `${witness} or .owner = viewer`
+      : authority === "failed branch" ? `(${witness} and .owner != viewer) or .owner = viewer`
+      : authority === "multiple witnesses" ? witness
+      : authority === "correlated branches" ? `${witness} or not ${witness}`
+      : `${witness} or exists otherGrants[parent = .parent, who = viewer]`;
+    writeFileSync(schema, `use identity guests
+table parents:
+  public
+  online only
+table grants:
+  parent: parents
+  who: principal
+  kind: text <=20
+  until: time ?
+  expire at .until
+  ${authority === "multiple witnesses" ? "by byParentWho: parent, who" : "unique parent, who"}
+  read <- deny
+  insert <- allow
+  update <- allow
+  online only
+table otherGrants:
+  parent: parents
+  who: principal
+  until: time ?
+  expire at .until
+  unique parent, who
+  read <- deny
+  insert <- allow
+  online only
+table messages:
+  parent: parents
+  owner: principal default viewer
+  ordinal: sequence by parent
+  read <- ${rule}
+  insert <- allow
+  online only
+mutation prepare(until: time, stable: time):
+  insert grants { id: 'hidden', parent: 'p', who: viewer, kind: 'guest', until }
+  insert otherGrants { id: 'stable', parent: 'p', who: viewer, until: stable }
+  ${authority === "multiple witnesses" ? "insert grants { id: 'later', parent: 'p', who: viewer, kind: 'admin', until: stable }" : ""}
+  insert messages { id: 'own', parent: 'p' }
+mutation change(until: time, kind: text <=20):
+  update grants['hidden'] { until, kind }
+query one():
+  return messages['own']
+query page():
+  return messages where .parent = 'p' first 2 by .ordinal
+query reverse():
+  return messages where .parent = 'p' last 2 by .ordinal
+`);
+    run("deploy", deployment);
+    await serve(deployment, async (url, headers) => {
+      const post = async (path, args) => (await fetch(url + path, { method: "POST", headers, body: JSON.stringify({ args }) })).json();
+      const early = Date.now() + 3600000, stable = early + 28800000;
+      assert.equal((await post("/m/prepare", { until: early, stable })).state, "sent");
+      const before = await Promise.all(["one", "page", "reverse"].map(name => post(`/q/${name}`, {})));
+      for (const kind of ["guest", "admin"]) {
+        assert.equal((await post("/m/change", { until: early + 3600000, kind })).state, "sent");
+        const after = await Promise.all(["one", "page", "reverse"].map(name => post(`/q/${name}`, {})));
+        for (let n = 0; n < after.length; n++) {
+          assert.equal(after[n].denied, undefined);
+          assert.equal(after[n].meter, undefined, "exercise the release response, without dev meters");
+          assert.equal(after[n].nextExpiry, ["second witness", "multiple witnesses"].includes(authority) ? stable : null);
+          const { seq: priorSeq, ...prior } = before[n];
+          const { seq: laterSeq, ...later } = after[n];
+          assert.deepEqual(later, prior, "only the public mutation's commit sequence changes");
+        }
+      }
+    });
+  });
+}

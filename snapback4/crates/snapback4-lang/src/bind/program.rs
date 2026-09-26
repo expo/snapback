@@ -801,11 +801,12 @@ impl<'a> Binder<'a> {
             for field in fields {
                 match field {
                     ShapeField::Spread { site } => {
-                        for (name, ty) in self.row_fields(&row_ty, site)? {
-                            // Keep the existing re-shaping behavior: explicit
-                            // computed fields win over a RowShape's wildcard.
+                        for (name, _) in self.row_fields(&row_ty, site)? {
                             if matches!(row_ty, Ty::RowShape(_)) && fields.iter().any(|field| matches!(field, ShapeField::Field { name: explicit, .. } if explicit == &name)) { continue; }
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, setup::Body::default(), out);
+                            // @ref LLP 3000.015#1 — wildcard selection has the same
+                            // optional private-field semantics as explicit selection.
+                            let (value, ty) = self.member(ir::var(row_var), row_ty.clone(), &name, site)?;
+                            add(self, name, value, ty, setup::Body::default(), out);
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
@@ -880,6 +881,15 @@ impl<'a> Binder<'a> {
         if info.maintained.is_some() {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
         }
+        for field in fields {
+            if info.decl.columns.iter().any(|c| c.name == field.name && c.sequence.is_some()) {
+                return Err(Diagnostic::new(&field.site, "E_SEQUENCE_SUPPLIED", format!("{table}.{} is assigned by the engine", field.name),
+                    format!("omit {} from the {} payload", field.name, op.word())).guide("writes"));
+            }
+            if super::columns::fields(info).any(|name|name == field.name) {
+                return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
+            }
+        }
         // Writes share table-level residency facts, but every source occurrence
         // (including an expanded helper) belongs in a changed-prediction note.
         let write_name = format!("{} {table}", op.word());
@@ -892,10 +902,10 @@ impl<'a> Binder<'a> {
                 if *if_absent {
                     let result = self.temp("absent");
                     out.push(Stmt::InsertIfAbsent { table: table.clone(), row: ir::var(&tmp), result: result.clone() });
-                    return Ok(valued.then(|| (ir::var(&result), row_ty.optional())));
+                    return Ok(valued.then(|| (self.project_insert(info, ir::var(&result)), row_ty.optional())));
                 }
                 out.push(Stmt::Insert { table: table.clone(), row: ir::var(&tmp) });
-                Ok(valued.then(|| (ir::var(&tmp), row_ty)))
+                Ok(valued.then(|| (self.project_insert(info, ir::var(&tmp)), row_ty)))
             }
             WriteOp::Update | WriteOp::Upsert => {
                 // @ref LLP 3000.007#17 — upsert's insert arm has no old row on which to decide a condition.
@@ -1042,6 +1052,11 @@ impl<'a> Binder<'a> {
         // Materialize the same defaults in the insert expression so its returned row is the written image.
         for column in &info.decl.columns {
             if !given.contains(&column.name) && let Some(default) = &column.default {
+                if column.written_by.is_some() {
+                    // Preserve omission until the engine checks supplied-field authority.
+                    given.insert(column.name.clone());
+                    continue;
+                }
                 let default = super::defaults::column(column, default)?;
                 let value = match default {
                     snapback4_core::schema::ColumnDefault::Literal(value) => Expr::Literal(value),
@@ -1052,11 +1067,17 @@ impl<'a> Binder<'a> {
                 given.insert(column.name.clone());
             }
         }
-        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
+        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !info.decl.columns.iter().any(|c| c.name == **name && c.sequence.is_some()) && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
         if !missing.is_empty() {
             return Err(type_error(site, format!("insert into {} omits required column{} {}", info.decl.name, if missing.len() == 1 { "" } else { "s" }, missing.join(", ")), format!("insert {} {{ {} }}", info.decl.name, given.iter().cloned().chain(missing.iter().map(|m| format!("{m}: <{}>", info.columns.get(*m).map(print::scalar_type).unwrap_or_default()))).collect::<Vec<_>>().join(", "))));
         }
         Ok((Expr::Object(exprs.into_iter().collect()), self.write_result_type(info)))
+    }
+
+    fn project_insert(&self, info: &TableInfo, row: Expr) -> Expr {
+        if info.decl.columns.iter().any(|column| column.written_by.is_some()) {
+            Expr::Builtin { builtin: Builtin::ProjectFields { table: info.decl.name.clone() }, args: vec![row] }
+        } else { row }
     }
 
     fn write_result_type(&self, info: &TableInfo) -> Ty {

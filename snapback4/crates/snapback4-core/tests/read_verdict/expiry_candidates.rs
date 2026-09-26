@@ -48,7 +48,7 @@ fn fixture(deadline: i64) -> (Schema, MemoryRows) {
         ),
         ("guards", object([("id", id("g")), ("owner", id("alice"))])),
     ] {
-        seed.insert(table, row).unwrap();
+        seed.insert(table, row.import_input(&crate::engine::ImportInput(()))).unwrap();
     }
     drop(seed);
     (schema, rows)

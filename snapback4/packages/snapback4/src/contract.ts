@@ -131,8 +131,20 @@ export interface Op<Args, Result> {
   readonly __args?: Args;
   readonly __result?: Result;
 }
-export type Query<Args, Result> = Op<Args, Result> & { readonly kind: "query" };
-export type Mutation<Args, Result> = Op<Args, Result> & { readonly kind: "mutation" };
+export type Query<Args, Result> = Op<Args, Result> & { readonly kind: "query"; readonly ephemeralReads?: readonly string[] };
+// @ref LLP 3000.017#24-the-client — disjoint mutations keep durable custody out of the ephemeral lane.
+export type Mutation<Args, Result> = Op<Args, Result> & { readonly kind: "mutation"; readonly ephemeral?: false };
+export type Ephemeral<Args, Result> = Op<Args, Result> & {
+  readonly kind: "mutation";
+  readonly ephemeral: true;
+  readonly renews?: true;
+  /** One quarter of the shortest declared table life, in milliseconds. */
+  readonly renewMs: number;
+};
+/** An online-only signal has no durable sequence, pending state or replay. */
+export type Signal<R = unknown> =
+  | { readonly state: "sent"; readonly id: string; readonly result: R }
+  | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 export type Action<Args, Result = unknown> = Op<Args, Result> & { readonly kind: "action" };
 export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
@@ -184,6 +196,7 @@ export interface Client {
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   /** Retry-safe intents: pass { id } to reuse the original write. A client
    * never admits a known id twice; an evicted receipt requires reopening. */
+  mutate<A, R>(op: Ephemeral<A, R>, args: A): Promise<Signal<R>>;
   mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): MutationPromise<R>;
   /** Recover a write by mutation id. Unknown ids return undefined. Local
    * clients keep terminal receipts with their store, without historical results. */

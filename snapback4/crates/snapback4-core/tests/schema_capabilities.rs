@@ -70,6 +70,26 @@ fn legacy_recorded_fixture_decodes_and_emits_only_capabilities() {
 }
 
 #[test]
+fn legacy_recorded_marker_cannot_substitute_for_sequence_capability() {
+    let original = include_str!("../../snapback4-lang/tests/fixtures/recorded-attribution.q");
+    for sequences in [false, true] {
+        let source = if sequences { original.replace("  postId: posts", "  postId: posts\n  ordinal: sequence by postId") } else { original.into() };
+        let schema = compile(&source);
+        let mut wire = serde_json::to_value(&schema).unwrap();
+        assert_eq!(serde_json::from_value::<Schema>(wire.clone()).unwrap(), schema);
+        for table in wire["tables"].as_object_mut().unwrap().values_mut() {
+            let recorded = table.get("recorded").is_some_and(|r| !r.as_object().unwrap().is_empty());
+            let constraints = table["constraints"].as_array_mut().unwrap();
+            constraints.retain(|c| c.get("Capabilities").is_none());
+            if recorded { constraints.push(json!("Recorded")); }
+        }
+        let decoded = serde_json::from_value::<Schema>(wire);
+        if sequences { assert!(decoded.unwrap_err().to_string().starts_with("E_SCHEMA_CAPABILITY:")); }
+        else { assert_eq!(decoded.unwrap(), schema); }
+    }
+}
+
+#[test]
 fn unknown_missing_and_duplicate_capabilities_refuse_decode() {
     for schema in [
         compile(include_str!("../../snapback4-lang/tests/fixtures/timeline-capability.q")),

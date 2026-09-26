@@ -1,0 +1,73 @@
+{
+  "rfc_commit": "da443e4d44",
+  "freeze_sha256": "57823308b0f0e0b3e117fab97d8208be49903bf6206c7ae89b944e2f7ba04055",
+  "rfc_sha256": "d76a593c165809971ca9de1459af52fd25e0018ce99edeb2c1b89ea337d80dbc",
+  "rubric_verbatim_in_rfc": true,
+  "pglast": "v7.10",
+  "postgres": [
+    17,
+    4
+  ],
+  "files": [
+    {
+      "path": "pretest1/rubric-section7.md",
+      "expected": "ed4b3f6136e8049d7132c11838a539caffa530aacecb6034d03bb9cfdc1fa7b5",
+      "actual": "ed4b3f6136e8049d7132c11838a539caffa530aacecb6034d03bb9cfdc1fa7b5",
+      "match": true
+    },
+    {
+      "path": "astra-supabase/schema.sql",
+      "expected": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756",
+      "actual": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756",
+      "match": true
+    },
+    {
+      "path": "astra-supabase/scripts/mutations.sql",
+      "expected": "a84963b377a2335249e27affa592c2102eb9f93ff715bde2087a5c67d6f11a93",
+      "actual": "a84963b377a2335249e27affa592c2102eb9f93ff715bde2087a5c67d6f11a93",
+      "match": true
+    },
+    {
+      "path": "astra-supabase/scripts/m7-migration.sql",
+      "expected": "a5c0fd41ac8563e4736af3f6d7063e83ab72cb81c85202e0bcaf845b6efff3c6",
+      "actual": "a5c0fd41ac8563e4736af3f6d7063e83ab72cb81c85202e0bcaf845b6efff3c6",
+      "match": true
+    },
+    {
+      "path": "grok-supabase/server/schema.sql",
+      "expected": "b23cece193f6159b6e4cba11dda22d4e6b5ebf645fa21d03b9897b7502cf9757",
+      "actual": "b23cece193f6159b6e4cba11dda22d4e6b5ebf645fa21d03b9897b7502cf9757",
+      "match": true
+    },
+    {
+      "path": "muse-supabase/db/schema.sql",
+      "expected": "0d79ea2989a573195048a2f7ce622b0eab4b9d8f7314fefaaf8a87c51c3c66ec",
+      "actual": "0d79ea2989a573195048a2f7ce622b0eab4b9d8f7314fefaaf8a87c51c3c66ec",
+      "match": true
+    },
+    {
+      "path": "muse-supabase/db/rls.sql",
+      "expected": "9a377ea01ca41d62c2b94e6a350fbb4af811afba4b2755d14d6200d5cb9f3a09",
+      "actual": "9a377ea01ca41d62c2b94e6a350fbb4af811afba4b2755d14d6200d5cb9f3a09",
+      "match": true
+    },
+    {
+      "path": "muse-supabase/db/functions.sql",
+      "expected": "5695413ce5821ad53c8a69127d8b8d67e36e2257bdcd5e3fc780c64dc73cdf06",
+      "actual": "5695413ce5821ad53c8a69127d8b8d67e36e2257bdcd5e3fc780c64dc73cdf06",
+      "match": true
+    },
+    {
+      "path": "muse-supabase/db/rpcs.sql",
+      "expected": "627307bfcf8e6d0a3e3d09bb860c8bcc54073f2b49e13811e12df1e131f51423",
+      "actual": "627307bfcf8e6d0a3e3d09bb860c8bcc54073f2b49e13811e12df1e131f51423",
+      "match": true
+    },
+    {
+      "path": "muse-supabase/db/migrate-m7.sql",
+      "expected": "d49fad12aff4ce16af3f6a6e784ec37c9e30a60bfb258aa95f606fb3d4290034",
+      "actual": "d49fad12aff4ce16af3f6a6e784ec37c9e30a60bfb258aa95f606fb3d4290034",
+      "match": true
+    }
+  ]
+}

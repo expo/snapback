@@ -64,7 +64,7 @@ fn reduced_on<S: snapback4_device::store::DeviceStore>(mut store: S) {
         ("heap", Ceilings { heap_bytes: 10_000, ..Default::default() }),
     ] {
         let context = Context::new("dev:alice", [("q".into(), Value::String("kx".into())), ("c".into(), Value::Null)].into()).at(100_000);
-        assert_cut(case, &local::query(&tx, &backend.schema, program, context, ceilings).unwrap());
+        assert_cut(if case == "opening-examined" { "opening-internal-examined" } else { case }, &local::query(&tx, &backend.schema, program, context, ceilings).unwrap());
     }
     for bytes in [8, 1_000_000] {
         let mut programs = backend.programs.clone();
@@ -155,7 +155,7 @@ fn search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots() {
 
 fn expired_boundary_on<H: Host>(mut host: H) {
     const PRELUDE: u64 = 16_384 - 46;
-    let source = expired_source().replace("  return messages['room']", &format!("  for i in range(0, {PRELUDE}):\n    unused = messages matching 'absent' first 1 by byWords\n  return messages['room']"));
+    let source = expired_source().replace("  return messages['room']", &format!("  for i in range(0, {}):\n    unused = messages matching 'absent' first 1 by byWords\n  for j in range(0, {}):\n    unused = messages['room'] matching 'absent' first 1 by byRoomWords\n  return messages['room']", PRELUDE / 33, PRELUDE % 33));
     let mut worlds = Vec::new();
     let mut wires = Vec::new();
     for extra in [false, true] {
@@ -203,7 +203,7 @@ fn search_45_words_memory_walks_20_20_5() { regression_45(Memory::new()); }
 fn search_45_words_sqlite_walks_20_20_5() { regression_45(Sqlite::new("word-regression45")); }
 
 fn admitted_nonuniform_on<S: snapback4_device::store::DeviceStore>(mut store: S) {
-    use snapback4_core::{Context, Value, rows::Rows, engine::{local, ReadCut}};
+    use snapback4_core::{Context, Value, rows::Rows, engine::local};
     use snapback4_device::store::DeviceTx;
     let (_, backend) = compile(ROUND3);
     store.install(&backend.schema, &Default::default(), false).unwrap();
@@ -217,12 +217,12 @@ fn admitted_nonuniform_on<S: snapback4_device::store::DeviceStore>(mut store: S)
         let program = backend.programs.iter().find(|p| p.name == "matching").unwrap();
         let page = local::query(&tx, &backend.schema, program, Context::new("dev:alice", [("c".into(), Value::Null)].into()), Default::default()).unwrap();
         assert_eq!(ids(&page), ["shown"]);
-        assert_eq!(page.word_cut_at.is_some(), population != 0);
-        assert_eq!(page.cut, if population == 0 { None } else { Some(ReadCut::Words) });
+        assert!(page.word_cut_at.is_none());
+        assert!(page.cut.is_none());
         worlds.push(page);
     }
-    // read_cut suppresses a non-uniform reason on the server only. Deliberately
-    // compare data/completeness/continuation, not the device's public cut field.
+    // Hidden-only words do not consume discovery lanes or any public meter.
+    assert_eq!(worlds[0], worlds[1]);
     assert_eq!((&worlds[0].data, worlds[0].complete, &worlds[0].next), (&worlds[1].data, worlds[1].complete, &worlds[1].next));
     assert!(!worlds[0].complete && worlds[0].next.is_none());
     tx.rollback().unwrap();

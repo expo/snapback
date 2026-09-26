@@ -16,8 +16,7 @@ NOT_FOUND carries no row, index, column or branch detail. A missing update
 target or an incomplete upsert insert patch returns NOT_FOUND. An update
 condition on an unreadable target returns NOT_FOUND even if it would match; on a
 readable target, a false condition returns E_CONFLICT with a read-rule
-`current`. Delete returns NOT_FOUND for a missing id, and E_RULE if an existing
-row's delete rule refuses, whether that row is readable or hidden. Reading a
+`current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a
 hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an
 update or upsert-patch does not prove absence.
 

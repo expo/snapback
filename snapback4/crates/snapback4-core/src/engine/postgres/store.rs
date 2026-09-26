@@ -14,6 +14,11 @@ use std::{
     collections::BTreeMap,
 };
 
+// Shared with the adapter-contract unit test: exercise the actual preflight factor.
+pub(super) fn payload_heap(bytes: u64, limit: usize, scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
+    crate::value::InternalPrice::from_storage(bytes.saturating_mul(256) + crate::rows::word_heap::vec_growth::<(Value, Vec<u8>)>(limit),scope)
+}
+
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
@@ -24,6 +29,7 @@ CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k
 CREATE TABLE _commits (seq BIGINT PRIMARY KEY, at BIGINT NOT NULL, program TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL, touched TEXT NOT NULL, writes BIGINT NOT NULL);
 CREATE TABLE _log (partition TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL REFERENCES _commits(seq), ord BIGINT NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(partition,seq,ord));
 CREATE TABLE _ops (principal TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL, outcome TEXT NOT NULL, name TEXT NOT NULL, args_digest TEXT NOT NULL, at BIGINT NOT NULL, PRIMARY KEY(principal,id));
+CREATE TABLE _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));
 CREATE TABLE _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key));
 CREATE TABLE _outbox (id TEXT PRIMARY KEY, seq BIGINT NOT NULL REFERENCES _commits(seq), effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts BIGINT NOT NULL, at BIGINT NOT NULL);
 CREATE TABLE _principal_generations (principal TEXT COLLATE \"C\" PRIMARY KEY, generation BIGINT NOT NULL);
@@ -239,6 +245,14 @@ impl Tx<'_> {
 }
 
 impl Rows for Tx<'_> {
+    fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        Ok(self.query("SELECT value FROM _sequences WHERE parent = $1 AND id = $2", &[&parent, &id])?.first().map_or(0, |r| r.get(0)))
+    }
+    fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
+        Ok(())
+    }
+
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         Ok(!self.query("INSERT INTO _effect_keys(effect, key) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING effect", &[&effect, &key])?.is_empty())
     }
@@ -289,19 +303,31 @@ impl Rows for Tx<'_> {
             .collect()
     }
 
-    fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(None); };
+        let sql = if dir == Dir::Asc {
+            "SELECT k FROM i WHERE t = $1 AND ix = $2 AND k >= $3 AND k < $4 ORDER BY k ASC LIMIT 1"
+        } else {
+            "SELECT k FROM i WHERE t = $1 AND ix = $2 AND k >= $3 AND k < $4 ORDER BY k DESC LIMIT 1"
+        };
+        Ok(self.query(sql, &[&table, &index, &lo, &hi])?.first().and_then(|r| crate::key::decode(r.get::<_, &[u8]>(0))))
+    }
+
+    fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
         // Queries use repeatable-read; serialized writes hold the head lock.
         // The same bounded range cannot grow between this scalar size preflight
         // and its fetch. Reserve network/decoder scratch before the driver owns it.
-        meter.heap(2 * heap::range(prefix, bounds) + 4096)?;
+        heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        meter.heap(4096)?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         let sql = match dir {
             Dir::Asc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5) AS picked",
             Dir::Desc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5) AS picked",
         };
         let bytes = self.query(sql, &[&table, &name, &lo, &hi, &(limit.min(i64::MAX as usize) as i64)])?[0].get::<_, i64>(0) as u64;
-        meter.heap(bytes.saturating_mul(256) + heap::vec_growth::<(Value, Vec<u8>)>(limit))?;
+        payload_heap(bytes, limit, scope).charge(meter,scope)?;
         self.scan(table, name, prefix, bounds, dir, limit)
     }
 

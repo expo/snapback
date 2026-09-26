@@ -106,13 +106,18 @@ fn w13c_rule_exists_keeps_one_probe_across_expired_siblings() {
     println!("rule exists serialization: {bytes}");
     for live in [false, true] {
         let mut observations = Vec::new();
-        for expired in [0, 9000] {
+        for expired in [0, 8000, 9000] {
             let mut engine = engine(source);
             let mut seed = (0..expired).map(|n| ("permits".into(), snapback4_core::value::object([("id", id(&format!("e{n:05}"))), ("room", Value::String("g".into())), ("until", Value::Int(1))]))).collect::<Vec<_>>();
             if live { seed.push(("permits".into(), snapback4_core::value::object([("id", id("live")), ("room", Value::String("g".into())), ("until", Value::Null)]))); }
             seed.push(("targets".into(), snapback4_core::value::object([("id", id("target")), ("room", Value::String("g".into()))])));
             engine.seed(seed).unwrap();
-            let answer = engine.query("check", Context::new("dev:alice", args(&[])).at(100)).unwrap();
+            let result = engine.query("check", Context::new("dev:alice", args(&[])).at(100));
+            if expired >= 8192 {
+                assert_eq!(result.unwrap_err().code, "E_RULE", "nested witnesses share the request allowance");
+                continue;
+            }
+            let answer = result.unwrap();
             assert_eq!(answer.metered.rule_probes, 1);
             assert_eq!(answer.metered.examined, u64::from(live));
             assert_eq!(answer.data.as_array().unwrap().len(), usize::from(live));

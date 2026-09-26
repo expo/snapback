@@ -1,6 +1,14 @@
 //! Point reads own authorization and provisional expiry until their answer emits.
+// @ref LLP 3000.015#1 — the ordinary point read is `authorized_point`: row and
+// field authorization precede result pricing, under the request's one physical
+// allowance. 0.4.2's inherited-aggregate, parent-key and event-slot branches
+// (LLP 3000.014 §5, LLP 3000.016 §2.2) sit above that boundary and share it.
 use super::{runner::Runner, rules, read::PrefixProbe};
-use crate::{error::{RuntimeError, MeterKind}, ir::Read, schema::materialize_optional_fields, value::Value};
+use crate::{error::{RuntimeError, MeterKind}, ir::Read, value::Value};
+use std::collections::BTreeMap;
+
+fn unavailable_aggregate() -> Value { crate::value::object([("value", Value::Null)]) }
+
 impl Runner<'_> {
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
@@ -19,15 +27,21 @@ impl Runner<'_> {
 
     fn get_inner(&mut self, read: &Read, emitted: &mut bool) -> Result<Value, RuntimeError> {
         let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
+        self.observe_sequence_selection(&read.table, &read.index, &key)?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         self.read_tables.insert(read.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
-        let Some(maintain) = self.schema.maintain_for(&read.table) else { return self.get_prepared(read, &key, emitted); };
+        let Some(maintain) = self.schema.maintain_for(&read.table) else {
+            let (value, price) = self.get_prepared(read, &key, emitted)?;
+            self.meter.heap(price)?;
+            return Ok(value);
+        };
         if let Some(message) = maintain.expiring_read_refusal(self.schema) {
             return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
         }
+        // @ref LLP 3000.014#5-what-derives-from-the-capture — a point hit, miss or denial reserves the same reusable row scratch before discovering occupancy.
         let scratch = self.aggregate_point_scratch(maintain, &key);
         self.meter.heap(scratch)?;
         let result = (|| {
@@ -35,15 +49,17 @@ impl Runner<'_> {
             self.meter.require_uncapped()?;
             self.get_prepared(read, &key, emitted)
         })();
-        // Transfer only the returned image to retained ownership. Keep the
+        // Transfer only the sealed result to retained ownership. Keep the
         // high-water mark, work counters and any cut when releasing scratch.
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(scratch);
-        let value = result?;
-        self.meter.heap(value.clone_heap_bytes())?;
+        let (value, price) = result?;
+        self.meter.heap(price)?;
         Ok(value)
     }
 
-    fn get_prepared(&mut self, read: &Read, key: &[Value], emitted: &mut bool) -> Result<Value, RuntimeError> {
+    /// The answer and the sealed price of its retained image, charged by the caller
+    /// once its scratch is released.
+    fn get_prepared(&mut self, read: &Read, key: &[Value], emitted: &mut bool) -> Result<(Value, u64), RuntimeError> {
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         let maintained = self.schema.maintain_for(&read.table);
@@ -56,11 +72,11 @@ impl Runner<'_> {
                 let parent_id = key.get(at).ok_or_else(|| RuntimeError::Input("read through aggregate needs its full parent key".into()))?;
                 match self.parent_verdict(&m.source,parent,parent_id)? {
                     super::through::ParentVerdict::Readable => true,
-                    super::through::ParentVerdict::Unknown => { self.unknown_fact(&read.table,&read.index,&key,&read.site); false },
+                    super::through::ParentVerdict::Unknown => { self.unknown_fact(&read.table,&read.index,key,&read.site); false },
                     _ => false,
                 }
             } else {
-                let mut fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
+                let mut fields: BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
                 let group_fields = m.group_fields();
                 if group_fields.iter().all(|f| fields.contains_key(f)) {
                     let group: Vec<_> = group_fields.iter().map(|f| fields[f].clone()).collect();
@@ -70,122 +86,91 @@ impl Runner<'_> {
                 self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))?;
                 let viewer = self.context.viewer.clone();
                 if self.device { self.authorize_read(&read.table, &row, true)? }
-                else { self.context.is_system() || rules::evaluate(&table.rules.read,&viewer,None,&row,false,&mut PrefixProbe {runner:self})? }
+                else if self.context.is_system() { true }
+                else {
+                    // The key rule's probes were charged above, possibly to a cut; its
+                    // witnesses still run under the request's physical allowance and
+                    // the cut stops the read before any aggregate state is fetched.
+                    self.prepaid_witnesses(|runner, allowance| rules::evaluate(&table.rules.read,&viewer,None,&row,false,&mut PrefixProbe { runner, allowance }))?
+                }
             }))();
-            if !visible? || self.read_capped() { return Ok(crate::value::object([("value",Value::Null)])); }
+            if !visible? || self.read_capped() { return Ok((unavailable_aggregate(), 0)); }
             key_admitted = true;
             if self.device && (table.residency.online_only || (m.parent_key.is_none() && !self.captured_aggregate_coverage(m, index, key)?)) {
                 self.unknown_fact(&read.table, &read.index, key, &read.site);
-                return Ok(crate::value::object([("value", Value::Null)]));
+                return Ok((unavailable_aggregate(), 0));
             }
             if self.device && m.parent_key.is_some() {
-                if self.beyond_horizon { return Ok(crate::value::object([("value",Value::Null)])); }
+                if self.beyond_horizon { return Ok((unavailable_aggregate(), 0)); }
                 // The parent-key view is derived locally from fully held children;
                 // its generated table need not have an invertible sync audience.
-                let fields = index.columns().into_iter().zip(key.iter().cloned()).collect::<std::collections::BTreeMap<_,_>>();
+                let fields = index.columns().into_iter().zip(key.iter().cloned()).collect::<BTreeMap<_,_>>();
                 let row = self.live_aggregate_inner(m, Value::Row(fields.into()))?.unwrap_or(Value::Null);
                 *emitted = true;
-                return Ok(row);
+                // Key-authorized and computed from the caller's key and the disclosed total: sealed without a lookup.
+                let sealed = self.authorized_synthetic(table, row);
+                let price = sealed.heap_bytes() + sealed.projection_heap() + sealed.materialization_heap();
+                return Ok((sealed.into_value(), price));
             }
         }
-        if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
+        if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok((Value::Null, 0)); }
         if self.device && table.sync.is_none() {
-            self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.unknown_fact(&read.table, &read.index, key, &read.site);
             self.components.note(|frame| frame.speculative = true);
             self.withhold_unheld_card(&read.table);
         }
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
-            return Ok(Value::Null);
+            return Ok((Value::Null, 0));
         }
         // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
         let trusted = key_admitted || self.context.is_system() || self.trust_synced_read(table);
-        // Prediction keeps the server's reservation even for delivered rows.
-        // Only the additional physical authority work uses the device allowance.
-        let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
-        if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
-        // Hidden and absent cost one examined row and the same static probe
-        // allowance, including probes that a rule would short-circuit.
+        // @ref LLP 3000.015#2 — prediction keeps the server's reservation even for
+        // delivered rows; a key-admitted aggregate has already paid its rule.
+        let prepaid = !self.context.is_system() && !key_admitted;
+        if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok((Value::Null, 0)); }
+        // @ref LLP 3000.014#5-what-derives-from-the-capture — a non-expiring inherited total is already live; a missing group authorizes its logical zero.
         let stored_authorization = inherited.is_some_and(|m| !self.schema.tables[&m.source].is_expiring()) && !key_admitted;
-        let mark = self.meter.mark();
         let tables_mark = self.read_tables.clone();
-        let found = self.live_lookup(&read.table, &read.index, index, &key)?;
-        if found.is_none() { self.event_read_unknown(&read.table, &read.index, &key, &read.site); }
-        if self.device && found.as_ref().is_some_and(|row| !crate::schema::timeline::holds_event(self.schema, &read.table, row)) {
-            self.event_read_unknown(&read.table, &read.index, &key, &read.site);
-            return Ok(Value::Null);
-        }
-        // @ref LLP 3000.016#2.2 — withhold missing cards before an examination cut can conceal their coverage.
-        if found.is_none() && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
-            self.unknown_fact(&read.table, &read.index, &key, &read.site);
-            self.components.note(|frame| frame.speculative = true);
-            self.withhold_unheld_card(&read.table);
-        }
-        // An expiring lookup already charged its live candidate while
-        // passing expired siblings. A miss still costs one point read.
-        if maintained.is_none() && (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
-            return Ok(Value::Null);
-        }
-        let mut group_exists = found.is_some();
-        let mut row = if stored_authorization {
-            // Only non-expiring sources reach this path: the stored total
-            // is already live. A missing group authorizes its logical zero.
-            let live = found;
-            group_exists = live.is_some();
-            match live {
-                Some(row) => row,
-                None => {
-                    // The same reservation owns a live row or a logical zero.
-                    let mut fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
-                    let m = maintained.expect("maintained aggregate");
-                    if !m.by.iter().all(|field| fields.contains_key(field)) { return Ok(crate::value::object([("value", Value::Null)])); }
-                    let group: Vec<_> = m.by.iter().map(|field| fields[field].clone()).collect();
-                    fields.insert("id".into(), Value::Id(crate::schema::maintained_id(&group)));
-                    fields.insert("value".into(), Value::Int(0));
-                    Value::Row(fields.into())
-                }
+        let mut absent = false;
+        let found = self.authorized_point(read, index, key, prepaid, trusted, maintained.is_some(), &mut absent)?;
+        let Some(row) = found else {
+            if absent && stored_authorization {
+                // The same reservation owns a live row or a logical zero.
+                let mut fields: BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
+                let m = maintained.expect("maintained aggregate");
+                if !m.by.iter().all(|field| fields.contains_key(field)) { return Ok((unavailable_aggregate(), 0)); }
+                let group: Vec<_> = m.by.iter().map(|field| fields[field].clone()).collect();
+                fields.insert("id".into(), Value::Id(crate::schema::maintained_id(&group)));
+                fields.insert("value".into(), Value::Int(0));
+                let zero = Value::Row(fields.into());
+                // The rule was prepaid above; its witnesses run on the restoring scope.
+                let authorized = self.authorized_scratch(0, &[], |runner, _| runner.authorize_image(&read.table, zero))?;
+                if self.read_capped() { return Ok((Value::Null, 0)); }
+                return Ok(match authorized {
+                    Some(row) => { self.next_expiry.inherit(row.expiry()); *emitted = true; (Value::Null, 0) }
+                    None => { self.read_tables = tables_mark; (unavailable_aggregate(), 0) }
+                });
             }
-        } else if let Some(row) = found { row } else {
-            *emitted = key_admitted; // An authorized missing aggregate emits its logical zero.
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
-            return Ok(Value::Null);
-        };
-        if self.expired(table, &row) {
-            return Ok(Value::Null);
-        }
-        materialize_optional_fields(&mut row, table);
-        let provisional = self.is_provisional(&read.table, &row)?;
-        let viewer = self.context.viewer.clone();
-        let allowed = if provisional && !self.context.is_system() {
-            self.authorize_read(&read.table, &row, prepaid)?
-        } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
-        // A failed authorization owns its charges and its cut. Hidden-candidate
-        // rollback must never erase exhaustion or convert it into coverage.
-        if self.read_capped() { return Ok(Value::Null); }
-        if allowed {
-            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if self.device && self.retained_row(&read.table, &row)? {
-                self.components.note(|frame| frame.retained = true);
-                // Ordinary retained point reads keep their established component
-                // composition. The row-level fallback belongs to read-through.
-                if table.through.is_some() && self.context.row_provenance && let Value::Row(fields) = &mut row { fields.mark_retained(); }
+            if absent {
+                // An authorized missing aggregate emits its logical zero: null here,
+                // which the compiled read coerces to 0 (LLP 3000.007 §20.21).
+                *emitted = key_admitted;
+                return Ok((Value::Null, 0));
             }
-            self.note_expiry(table, &row);
-            let value = if stored_authorization { if group_exists { row } else { Value::Null } }
-                else if let Some(m) = maintained.filter(|m| self.schema.tables[&m.source].is_expiring()) {
-                    self.live_aggregate_inner(m, row)?.unwrap_or(Value::Null)
-                } else { row };
-            *emitted = true;
-            Ok(if matches!(self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_))) { value }
-                else { super::recorded::public_image(table, value) })
-        } else {
             self.read_tables = tables_mark;
-            if !provisional {
-                self.meter.restore(mark);
-                if maintained.is_none() { self.read_charge(MeterKind::Examined, 1)?; }
-            }
-            Ok(if inherited.is_some() { crate::value::object([("value", Value::Null)]) } else { Value::Null })
+            return Ok((if inherited.is_some() { unavailable_aggregate() } else { Value::Null }, 0));
+        };
+        let price = row.heap_bytes() + row.projection_heap() + row.materialization_heap();
+        let mut value = row.into_value();
+        // @ref LLP 3000.014#5 — retained history stays marked through projections; ordinary retained
+        // point reads keep their established component composition (the row-level fallback is read-through's).
+        if self.device && table.through.is_some() && self.context.row_provenance && self.retained_row(&read.table, &value)? {
+            if let Value::Row(fields) = &mut value { fields.mark_retained(); }
         }
+        let value = self.sequence_read_result(&read.table, value)?;
+        *emitted = true;
+        Ok((if matches!(self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_))) { value }
+            else { super::recorded::public_image(table, value) }, price))
     }
-
 }

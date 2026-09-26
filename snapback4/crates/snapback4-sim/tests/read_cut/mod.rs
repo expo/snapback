@@ -7,16 +7,17 @@ fn args(values: &[(&str, &str)]) -> BTreeMap<String, Value> {
 }
 
 #[test]
-fn calibration_uniform_words_continue_and_nonuniform_empty_cut_differs_from_no_matches() {
+fn calibration_uniform_words_continue_and_hidden_prefix_has_a_walk_bound() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), fixture::SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed(fixture::seed(54_990, 44_100).into_iter().filter(|(table, row)| table != "messages" || row.field("roomId").unwrap().as_str().unwrap() != "words")).unwrap();
     let cut = engine.query("all", Context::new("dev:alice", args(&[("q", "coffee")]))).unwrap();
-    assert!(cut.data.as_array().unwrap().is_empty() && !cut.complete && cut.next.is_none());
+    assert!(cut.data.as_array().unwrap().is_empty(), "44,100 unreadable candidates exceed the private walk bound");
+    assert!(!cut.complete && cut.next.is_none());
     println!("W8a calibration: messages=99090 hidden_ahead=44100 rows=0 examined={} complete={} next={:?}", cut.metered.examined, cut.complete, cut.next);
     assert_eq!(serde_json::to_value(&cut).unwrap()["cut"], serde_json::Value::Null);
-    assert!(cut.capped_at.is_some(), "development retains the precise cut");
+    assert!(cut.capped_at.is_none(), "the physical walk stop must not expose a logical meter cut");
     let scoped = engine.query("scoped", Context::new("dev:alice", args(&[("roomId", "readable"), ("q", "coffee")]))).unwrap();
     assert!(scoped.complete && scoped.data.as_array().unwrap().len() == 10);
     assert_eq!(serde_json::to_value(scoped).unwrap()["cut"], serde_json::Value::Null);

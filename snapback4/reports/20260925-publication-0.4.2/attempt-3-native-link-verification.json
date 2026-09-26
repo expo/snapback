@@ -1,0 +1,12 @@
+{
+  "step": "native-link-verification",
+  "command": [
+    "python3",
+    "/Users/ccheever/sb4-intent-pub/helpers-042/native-link.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-042/snapback4",
+  "start": 1790378950.9463522,
+  "end": 1790378951.201796,
+  "seconds": 0.255,
+  "exit": 0
+}

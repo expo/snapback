@@ -56,7 +56,8 @@ pub fn admitted_aggregate_emission_expiry(mut factory: impl FnMut(&str) -> Box<d
                     Some(MeterKind::Examined)
                 );
                 assert_eq!(o.metered.examined, limit.examined + 1);
-                assert_eq!(o.metered.rule_probes, 2);
+                // A non-uniform page reserves (take + 1) x rule probes before its first candidate (LLP 3000.015 s2).
+                assert_eq!(o.metered.rule_probes, if op == "point" { 2 } else { 22 });
                 assert_eq!(o.next_expiry, (op == "afterClock").then_some(700), "{o:?}");
                 replies.push(o);
             } else {
@@ -172,8 +173,11 @@ pub fn partial_page_keeps_emitted_expiry(mut factory: impl FnMut(&str) -> Box<dy
         let mut e = factory(&aggregate());
         group(&mut *e, "alice", 300);
         group(&mut *e, "bob", second_deadline);
+        // The page prepays its whole rule-probe reservation (LLP 3000.015 s2), so the
+        // cut that stops it between the first and second group is the examined meter:
+        // the page unit, the first group's recount, then the second candidate.
         let limit = Ceilings {
-            rule_probes: 3,
+            examined: 2,
             ..Ceilings::default()
         };
         let context = ctx("service:allowed", 200, &[]);
@@ -183,11 +187,11 @@ pub fn partial_page_keeps_emitted_expiry(mut factory: impl FnMut(&str) -> Box<dy
             assert_eq!(rows[0].field("owner"), Ok(&id("alice")));
             assert_eq!(rows[0].field("value"), Ok(&Value::Int(1)));
             assert!(!o.complete && !o.unavailable, "{o:?}");
-            assert_eq!(o.metered.rule_probes, 4);
+            assert_eq!(o.metered.rule_probes, 22);
             assert_eq!(o.metered.examined, 3);
             assert_eq!(
                 o.capped_at.as_ref().map(|cut| cut.0),
-                Some(MeterKind::RuleProbes)
+                Some(MeterKind::Examined)
             );
             assert_eq!(o.next_expiry, Some(300));
             replies.push(o);

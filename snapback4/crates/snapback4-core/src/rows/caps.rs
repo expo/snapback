@@ -3,7 +3,7 @@
 use crate::{schema::{Constraint, Table}, value::Value};
 
 pub fn required(schema: &crate::schema::Schema) -> bool {
-    schema.tables.values().any(|table| table.is_expiring()
+    schema.tables.values().any(|table| table.ephemeral.is_none() && table.is_expiring()
         && table.constraints.iter().any(|constraint| matches!(constraint, Constraint::Cap { .. })))
 }
 

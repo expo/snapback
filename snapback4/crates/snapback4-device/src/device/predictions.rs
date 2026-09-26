@@ -18,6 +18,10 @@ pub(super) fn remember<T: DeviceTx>(tx: &T, table: &str, id: &str) -> Result<(),
     tx.base_remember(table, id, image.as_deref())
 }
 
+pub(super) fn sequence_floor_key(parent: &str, id: &str) -> String {
+    format!("device:sequence-floor:{}", snapback4_core::value::digest(&(parent, id)))
+}
+
 pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<BTreeSet<String>, RuntimeError> {
     let mut touched = BTreeSet::new();
     for (name, id, image) in tx.base_entries()? {
@@ -36,6 +40,7 @@ pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<BTreeSet<S
         }
         touched.insert(name);
     }
+    tx.delete_meta(&["device:sequence-floor:"])?;
     tx.base_clear()?;
     Ok(touched)
 }
@@ -205,7 +210,7 @@ fn echo_matches(page: &StreamPage, captured: Declaration) -> bool {
 pub(super) fn reset<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), RuntimeError> {
     clear_capture(tx)?;
     if !keep_images {
-        tx.delete_meta(&[PUBLISHED])?;
+        tx.delete_meta(&[PUBLISHED, "device:sequence-floor:"])?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
             if success_seq(&entry).is_some() && let Some(seq) = entry.observed_seq.take() {

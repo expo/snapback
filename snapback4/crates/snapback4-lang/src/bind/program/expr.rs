@@ -239,6 +239,9 @@ impl Binder<'_> {
             }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
+                if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && column.written_by.is_some() && !column.readable_by_audience) {
+                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));
+                }
                 if name == "id" {
                     Ty::Ref(table.clone())
                 } else {
@@ -532,9 +535,10 @@ impl Binder<'_> {
                 let (value, ty) = self.expr(&args[0], out)?;
                 let Some((item, max)) = ty.sequence() else { return Err(type_error(site, "group takes a list or page", "group(rows, 'column')")); };
                 let A::Literal { value: Literal::Str(field), .. } = &args[1] else { return Err(type_error(args[1].site(), "group names one field with a text literal", "group(rows, 'column')")); };
-                let (_, key) = self.member(Expr::Literal(Value::Null), item.clone(), field, args[1].site())?;
+                let (selection, key) = self.member(Expr::Literal(Value::Null), item.clone(), field, args[1].site())?;
+                let optional = matches!(selection, Expr::Builtin { builtin: Builtin::OptionalField { .. }, .. });
                 let group = Ty::Object(BTreeMap::from([("key".into(), key), ("items".into(), Ty::List(Box::new(item), max))]));
-                Ok((Expr::Builtin { builtin: Builtin::Group { field: field.clone() }, args: vec![value] }, Ty::List(Box::new(group), max)))
+                Ok((Expr::Builtin { builtin: Builtin::Group { field: field.clone(), optional }, args: vec![value] }, Ty::List(Box::new(group), max)))
             }
             "first" | "last" | "at" => {
                 arity(if name == "at" { 2 } else { 1 }, &format!("{name}(list{})", if name == "at" { ", index" } else { "" }))?;
@@ -688,7 +692,11 @@ impl Binder<'_> {
                         Some(rest) => (rest.to_owned(), Order::Desc),
                         None => (field.clone(), Order::Asc),
                     };
-                    keys.push(SortKey { field, order });
+                    let optional = if let Some((item, _)) = t.sequence() {
+                        self.member(Expr::Literal(Value::Null), item, &field, key.site())
+                            .is_ok_and(|(selection, _)| matches!(selection, Expr::Builtin { builtin: Builtin::OptionalField { .. }, .. }))
+                    } else { false };
+                    keys.push(SortKey { field, order, optional });
                 }
                 if t.loop_max().is_none() {
                     return Err(type_error(args[0].site(), format!("sort takes a bounded list, got {}", t.name()), "sort(rows, 'at')"));

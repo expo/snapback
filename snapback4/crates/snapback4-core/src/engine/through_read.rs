@@ -1,6 +1,6 @@
 //! Parent authorization is shared; device acquisition remains a separate fact.
 // @ref LLP 3000.014#5 — only matching live current captures may borrow a parent verdict.
-use super::{read_auth::Verdict, rules, runner::Runner, through::{ParentVerdict, capture_matches, stamp}};
+use super::{rules::{self, Verdict}, runner::Runner, through::{ParentVerdict, capture_matches, stamp}};
 use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Audience, through::*}, value::Value};
 
 impl Runner<'_> {
@@ -15,7 +15,9 @@ impl Runner<'_> {
         ] {
             if !self.read_charge(kind, amount)? { return Ok(ParentVerdict::Unknown); }
         }
-        let row = self.tx.get(&through.parent, id.as_str()?)?;
+        // @ref LLP 3000.015#2 — the parent fetch draws from the request's physical allowance; its logical charges were reserved above.
+        let parent_id = id.as_str()?.to_owned();
+        let row = self.authorized_scan(&[], |runner, scope| runner.tx.get(scope, &through.parent, &parent_id))?;
         let live = row.as_ref().filter(|row| !self.expired(&parent, row));
         if self.device {
             self.read_tables.insert(child.into());
@@ -25,7 +27,7 @@ impl Runner<'_> {
         let Some(row) = live else {
             let covered = !self.device || match &row {
                 Some(row) => self.tx.current_row(&through.parent, row)?,
-                None => self.authorization_absence_covered(&through.parent, "byId", &[id.clone()])?
+                None => self.authorized_scan(&[], |runner, scope| runner.authorization_absence_covered(scope, &through.parent, "byId", &[id.clone()]))?
                     && self.tx.current_group(&through.parent, "byId", &[id.clone()])?,
             };
             return Ok(if covered { ParentVerdict::Absent } else { ParentVerdict::Unknown });
@@ -82,7 +84,7 @@ impl Runner<'_> {
         let mut bounds = Bounds::default();
         loop {
             let scratch = self.meter.mark();
-            let page = self.tx.scan_metered(child, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut self.meter)?;
+            let page = self.metered_scan(|runner, scope| runner.tx.scan_metered(scope, child, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut runner.meter))?;
             if self.read_capped() { return Ok(false); }
             let Some((row, key)) = page.into_iter().next() else { return Ok(true) };
             if !self.read_charge(MeterKind::Examined, 1)? || !self.read_charge(MeterKind::Steps, through.fields.len() as u64 + 1)? { return Ok(false); }

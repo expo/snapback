@@ -107,7 +107,8 @@ fn pairs(probes: i64) {
                 let WriteState::Failed { why, .. } = &out.state else { panic!("{name}/{world}/{probes}/{expiring}: {out:?}") };
                 assert_eq!(why.code, "E_BOUND", "{name}/{world}/{probes}/{expiring}: {out:?}");
                 assert!(why.message.contains("rule"), "authorization must refuse before lookup or expiry charges: {out:?}");
-                assert_eq!(out.metered.rule_probes, probes as u64, "a reservation checks room without double charging");
+                let attempted = if matches!(name, "insertId" | "insertKey" | "quietId" | "quietKey") { 1 } else { 0 };
+                assert_eq!(out.metered.rule_probes, probes as u64 + attempted, "fixed insert reservation records the attempted charge before any lookup");
                 let whole = serde_json::to_value(&out).unwrap();
                 if let Some(prior) = baseline.replace(whole.clone()) { assert_eq!(whole, prior, "{name}/{world}/{probes}/{expiring}"); }
                 checked += 1;
@@ -139,7 +140,7 @@ fn write_targets_reserve_even_the_read_probes_that_would_short_circuit() {
             let before = e.store().rows("records").unwrap();
             let out = call(&mut e, name, 0);
             assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_BOUND" && why.message.contains("rule")), "{name}/{world}: {out:?}");
-            assert_eq!(out.metered.rule_probes, 0);
+            assert_eq!(out.metered.rule_probes, if matches!(name, "insertId" | "insertKey" | "quietId" | "quietKey") { 2 } else { 0 });
             assert_eq!(e.store().rows("records").unwrap(), before);
             let whole = serde_json::to_value(&out).unwrap();
             if let Some(prior) = baseline.replace(whole.clone()) { assert_eq!(whole, prior, "{name}"); }

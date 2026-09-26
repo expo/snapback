@@ -15,11 +15,14 @@ use std::fmt;
 
 pub mod columns;
 pub mod through;
+pub mod ephemeral;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
 pub mod timeline;
 mod capabilities;
+pub mod field_authority;
+pub use field_authority::FieldAuthority;
 pub use routes::RouteSpec;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -51,6 +54,15 @@ pub struct UniqueRefusal {
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
+    // @ref LLP 3000.017#2.4 — absent facts retain legacy schema bytes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ephemeral: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub renews: bool,
+    #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]
+    pub renew_ms: Option<u64>,
+    #[serde(default, rename = "ephemeralReads", skip_serializing_if = "Vec::is_empty")]
+    pub ephemeral_reads: Vec<String>,
     /// Author-declared device-only query. Incomplete local answers never fall back to the server.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub held: bool,
@@ -208,12 +220,23 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
         RuleExpr::Exists { table: target, index: target_index, key, equalities, .. } if target == table && target_index == index && equalities.is_empty() => {
             key.iter().map(substitute).collect::<Option<Vec<_>>>().is_some_and(|key| key == probe_key)
         }
-        RuleExpr::Deny | RuleExpr::Ne(_, _) | RuleExpr::Not(_) | RuleExpr::Exists { .. } | RuleExpr::Created { .. } => false,
+        RuleExpr::Deny | RuleExpr::Compare(..) | RuleExpr::Ne(_, _) | RuleExpr::Not(_) | RuleExpr::Exists { .. } | RuleExpr::Created { .. } => false,
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ephemeral: Option<ephemeral::Ephemeral>,
+    /// Engine-assigned ordinal → required parent reference column.
+    // @ref LLP 3000.015#2 — one counter per parent row across child tables.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sequences: BTreeMap<String, String>,
+    /// Field authority and visibility, independent of the row update grant.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub written_by: BTreeMap<String, FieldAuthority>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub update_transition: bool,
     /// Lifetime-bound inherited authority. Absent on legacy schemas.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub through: Option<through::Through>,
@@ -560,6 +583,8 @@ pub enum RuleExpr {
     Deny,
     Eq(RuleTerm, RuleTerm),
     Ne(RuleTerm, RuleTerm),
+    /// Ordered comparisons are confined to named update transitions.
+    Compare(crate::ir::BinaryOp, RuleTerm, RuleTerm),
     And(Vec<RuleExpr>),
     Or(Vec<RuleExpr>),
     Not(Box<RuleExpr>),
@@ -595,7 +620,7 @@ impl RuleExpr {
         };
         match self {
             Self::Public { .. } | Self::Allow | Self::Deny => {}
-            Self::Eq(left, right) | Self::Ne(left, right) => {
+            Self::Eq(left, right) | Self::Ne(left, right) | Self::Compare(_, left, right) => {
                 term(left, out);
                 term(right, out);
             }
@@ -656,6 +681,7 @@ impl RuleExpr {
             Self::Allow => "allow".to_owned(),
             Self::Deny => "deny".to_owned(),
             Self::Eq(l, r) => format!("{} = {}", term(l), term(r)),
+            Self::Compare(op,l,r) => format!("{} {} {}", term(l), match op { crate::ir::BinaryOp::Gte => ">=", crate::ir::BinaryOp::Gt => ">", crate::ir::BinaryOp::Lte => "<=", _ => "<" }, term(r)),
             Self::Ne(l, r) => format!("{} != {}", term(l), term(r)),
             Self::And(items) => items.iter().map(|i| i.quarry()).collect::<Vec<_>>().join(" and "),
             Self::Or(items) => items.iter().map(|i| i.quarry()).collect::<Vec<_>>().join(" or "),
@@ -714,6 +740,7 @@ impl TextFormat {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_key: Option<crate::maintain::RowKey>,
     pub parent_key: Option<through::Through>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub aliases: BTreeMap<String,String>,
@@ -754,11 +781,15 @@ impl Auth {
 /// The intrinsic index every table carries.
 pub const BY_ID: &str = "byId";
 
+/// Bounded suffix lookup for sequence prediction, shared by every device store.
+pub fn sequence_index(column: &str) -> String { format!("$sequence:{column}") }
+
 /// A table with public rules, for fixtures and tests.
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
-        through: None,
+        ephemeral: None,
+        sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None,
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
@@ -784,6 +815,8 @@ pub struct SchemaIssue {
 /// maintain has the closed target shape; every `sync` is invertible.
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = columns::validate(schema);
+    issues.extend(ephemeral::validate(schema));
+    issues.extend(field_authority::validate(schema));
     issues.extend(through::validate(schema));
     timeline::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
@@ -798,6 +831,15 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
+        for (column, parent) in &table.sequences {
+            let valid = table.columns.get(column) == Some(&ColumnType::Int)
+                && matches!(table.columns.get(parent), Some(ColumnType::Ref { table }) if schema.tables.contains_key(table))
+                && !table.defaults.contains_key(column) && !table.maintained.contains_key(column)
+                && !table.recorded.contains_key(column)
+                && [column, parent].iter().all(|field| table.constraints.iter().any(|c| matches!(c, Constraint::Immutable { fields } if fields.contains(field))))
+                && table.indexes.get(&sequence_index(column)) == Some(&Index::of(&[parent, column], false));
+            if !valid { issue(&mut issues, format!("{path}.sequences.{column}"), "sequence by requires an int column, a required table reference, immutable ordinal and parent, and its sequence index; compile the declaration (guide types)".into()); }
+        }
         for (field, capture) in &table.recorded {
             let target = schema.table(&capture.table);
             let valid = !table.defaults.contains_key(field) && field == &format!("{}.{}", capture.reference, capture.column)
@@ -972,7 +1014,8 @@ fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, 
     };
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {}
-        RuleExpr::Eq(l, r) | RuleExpr::Ne(l, r) => {
+        RuleExpr::Eq(l, r) | RuleExpr::Ne(l, r) | RuleExpr::Compare(_, l, r) => {
+            if matches!(rule, RuleExpr::Compare(..)) && (!update || !table.update_transition) { issues.push(SchemaIssue { path: path.into(), message: "ordered comparisons require a named update transition".into() }); }
             check_term(l, issues);
             check_term(r, issues);
         }
@@ -1023,6 +1066,10 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain names unknown target table {}", maintain.target));
         return;
     };
+    if let Some(key)=&maintain.row_key {
+        if let Err(message)=key.validate(schema,maintain) {issue(issues,message);}
+        return;
+    }
     // @ref LLP 3000.007#20.9 — stored value order cannot rank live sums between expiry and sweep; enforce at every schema entry point.
     if source.is_expiring() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
         issue(issues, format!("maintain {} cannot order by value because source {} expires", maintain.target, maintain.source));

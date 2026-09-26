@@ -107,7 +107,7 @@ impl Runner<'_> {
                         // Borrow the IR but retain per-lane evaluation of arbitrary
                         // bounds expressions (including their nested read costs).
                         let bounds = self.word_bounds(scan, definition, index, None, true)?;
-                        self.meter.heap(word_heap::slots::<Value>(scope.len() + 1) + scope.iter().map(word_heap::value).sum::<u64>())?;
+                        self.meter.heap(word_heap::slots::<Value>(scope.len() + 1) + scope.iter().map(|v|DisclosedKey(v).heap()).sum::<u64>())?;
                         let mut prefix = Vec::with_capacity(scope.len() + 1);
                         prefix.extend(scope.iter().cloned());
                         prefix.push(Value::String(token));
@@ -123,11 +123,11 @@ impl Runner<'_> {
                         // Keep the previous range/list descriptor allowance. Exact
                         // word accounting must not change ordinary merges' costs.
                         let positions = [&bounds.after, &bounds.at_or_after, &bounds.before].into_iter().flatten().map(|values| {
-                            values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>()
+                            values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>()
                         }).sum::<u64>();
-                        let seeks = [&bounds.gt, &bounds.gte, &bounds.lt, &bounds.lte].into_iter().flatten().map(Value::heap_bytes).sum::<u64>();
+                        let seeks = [&bounds.gt, &bounds.gte, &bounds.lt, &bounds.lte].into_iter().flatten().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>();
                         self.meter.heap(2 * std::mem::size_of::<(std::borrow::Cow<'_, Scan>, Vec<Value>, Bounds, VecDeque<Value>, bool, Option<WordRead>)>() as u64
-                            + prefix.capacity() as u64 * std::mem::size_of::<Value>() as u64 + prefix.iter().map(Value::heap_bytes).sum::<u64>()
+                            + prefix.capacity() as u64 * std::mem::size_of::<Value>() as u64 + prefix.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>()
                             + positions + seeks + bounds.word.as_ref().map_or(0, |word| word.capacity() as u64))?;
                     }
                     lanes.push((scan, prefix, bounds, VecDeque::new(), false, None));
@@ -148,7 +148,7 @@ impl Runner<'_> {
             if let Some(row) = buffer.pop_front() {
                 self.meter.step(1)?;
                 if lane_word.as_ref().is_some_and(|word| word.metered) {
-                    self.charge_word_key(index, prefix_len, suffix_len, &row)?;
+                    self.charge_word_key(&first.table,index, prefix_len, suffix_len, &row)?;
                     let additional = word_heap::grow::<MergeHead>(&mut self.meter, heap.len(), heap.capacity())?;
                     if additional != 0 { heap.reserve_exact(additional); }
                 }
@@ -173,7 +173,7 @@ impl Runner<'_> {
                 }
                 seen.insert(id.to_owned());
                 if page.len() == take { has_more = true; break; }
-                if metered_word { self.meter.heap(word_heap::values(&head.key))?; }
+                if metered_word { self.meter.heap(DisclosedKeys(&head.key).heap())?; }
                 last = Some(head.key.clone());
                 if metered_word { word_heap::push(&mut self.meter, &mut page, head.row)?; }
                 else { page.push(head.row); }
@@ -188,7 +188,7 @@ impl Runner<'_> {
                 if self.read_capped() { drain_cut = true; break; }
             }
             if let Some(row) = buffer.pop_front() {
-                if metered_word { self.charge_word_key(index, prefix_len, suffix_len, &row)?; }
+                if metered_word { self.charge_word_key(&first.table,index, prefix_len, suffix_len, &row)?; }
                 let key = key_of(&row);
                 heap.push(MergeHead { key, row, lane: head.lane, order });
             }
@@ -207,8 +207,9 @@ impl Runner<'_> {
                     let mut max_key = 0;
                     let mut shape_bytes = if shaped { word_heap::vec_growth::<Vec<Value>>(page.len()) } else { 0 };
                     for row in &page {
-                        let payload = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|name| row.field(name).ok()).map(word_heap::value).sum::<u64>()
-                            + if index.components.last().and_then(|c| c.column()).map(String::as_str) != Some("id") { row.field("id").map_or(0, word_heap::value) } else { 0 };
+                        let row = self.project_row(&first.table,row.clone())?;
+                        let payload = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).map(|name|row.scalar_heap(name)).sum::<u64>()
+                            + if index.components.last().and_then(|c| c.column()).map(String::as_str) != Some("id") { row.scalar_heap("id") } else { 0 };
                         let bytes = word_heap::slots::<Value>(suffix_len) + payload;
                         max_key = max_key.max(bytes);
                         if shaped { shape_bytes += word_heap::vec_growth::<Value>(suffix_len) + payload; }
@@ -220,7 +221,7 @@ impl Runner<'_> {
                     }).sum::<u64>();
                     self.meter.heap(shape_bytes + trims + word_heap::insertion::<String, PagePosition>(self.pages.len())
                         + 3 * (word_heap::text(site) + word_heap::text(&first.table) + word_heap::text(&first.index))
-                        + last.as_ref().map_or(0, |key| 2 * word_heap::values(key))
+                        + last.as_ref().map_or(0, |key| 2 * DisclosedKeys(key).heap())
                         + word_heap::cursor_build(table, index, prefix_len, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(&first.index)))?;
                 }
                 self.record_page(site.to_owned(), PagePosition { variant: merge.and_then(|m| m.variant).or_else(|| first.variant), view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;

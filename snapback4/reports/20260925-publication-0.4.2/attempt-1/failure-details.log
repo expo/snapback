@@ -1,0 +1,98 @@
+✖ failing tests:
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:127:25
+✖ published 0.2.33 capability fence: timeline-v2 (2297.1ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      ok: {
+        complete: true,
+        cut: null,
+        data: [
+  ...
+        retained: false,
+  +     speculative: false,
+        tables: [
+          'profiles'
+        ],
+        unknown: false
+      }
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-042/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:202:64)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, speculative: false, tables: [Array], unknown: false } },
+    expected: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:127:25
+✖ published 0.2.33 capability fence: recorded-attribution (482.666125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      ok: {
+        complete: true,
+        cut: null,
+        data: [
+  ...
+        retained: false,
+  +     speculative: false,
+        tables: [
+          'posts'
+        ],
+        unknown: false
+      }
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-042/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:202:64)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, speculative: false, tables: [Array], unknown: false } },
+    expected: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:127:25
+✖ published 0.2.33 capability fence: maintained-column (842.599875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      ok: {
+        complete: true,
+        cut: null,
+        data: [
+  ...
+        retained: false,
+  +     speculative: false,
+        tables: [
+          'posts'
+        ],
+        unknown: false
+      }
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-042/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:202:64)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, speculative: false, tables: [Array], unknown: false } },
+    expected: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+-- FAIL: client tests (1281 s)

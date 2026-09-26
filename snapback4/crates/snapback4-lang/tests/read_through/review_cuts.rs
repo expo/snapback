@@ -62,8 +62,8 @@ pub fn aggregate_page_cut_expiry(mut factory: impl FnMut(&str) -> Box<dyn Backen
                     Some(MeterKind::RuleProbes)
                 );
                 assert_eq!(
-                    o.metered.rule_probes, 2,
-                    "the failed second probe stays charged"
+                    o.metered.rule_probes, 22,
+                    "the page's whole (take + 1) x rule-probe reservation is the cut (LLP 3000.015 s2)"
                 );
                 assert_eq!(o.next_expiry, (op == "afterClock").then_some(700), "{o:?}");
                 replies.push(o);

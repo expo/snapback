@@ -39,6 +39,7 @@ impl Step {
                     format!("keep {column}'s previous type and default, or repair existing values before adopting {column}: {kind}")
                 }
             }
+            ["tables", table, "sequences", _] => format!("keep the previous sequence declaration, or empty {table} before adding or rebinding sequence by; no implicit backfill"),
             ["tables", _, "indexes", index] => format!("make {index} non-unique, or repair duplicate keys before adopting it"),
             ["tables", table, ..] => format!("keep {table}'s current constraints, or repair existing rows before adopting the new constraints"),
             _ => "keep the current schema, or repair existing rows before adopting this change".into(),
@@ -63,6 +64,17 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     }
     for (name, old) in from.visible_tables() {
         let path = format!("tables.{name}");
+        // @ref LLP 3000.017#3.4 — memory changes begin empty.
+        if old.ephemeral.is_some() {
+            if to.tables.get(name) != Some(old) {
+                steps.push(Step { path, change: Change::Additive, message: format!("ephemeral table {name} changes or is removed; its memory rows are cleared") });
+            }
+            continue;
+        }
+        if to.tables.get(name).is_some_and(|t| t.ephemeral.is_some()) {
+            steps.push(Step { path, change: Change::Destructive, message: format!("durable table {name} becomes ephemeral; activation deletes its stored rows and indexes") });
+            continue;
+        }
         let Some(new) = to.tables.get(name) else {
             steps.push(Step { path, change: Change::Destructive, message: format!("table {name} is removed; its rows are lost") });
             continue;
@@ -72,6 +84,13 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
                 steps.push(Step { path: format!("{path}.rules"), change: Change::RuleChange, message: format!("{name}'s aggregate audience changes; every device re-derives its partition") });
             }
             continue;
+        }
+        for (column, reference) in &new.sequences {
+            if old.sequences.get(column) != Some(reference)
+                || old.columns.get(reference) != new.columns.get(reference) {
+                steps.push(Step { path: format!("{path}.sequences.{column}"), change: Change::Narrowing,
+                    message: format!("sequence by for {name}.{column} is added or rebound; adopting it requires an empty table because no historical commit order is available") });
+            }
         }
         for (column, old_kind) in &old.columns {
             let cpath = format!("{path}.columns.{column}");
@@ -111,6 +130,10 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
                 Some(old_definition) if old_definition != definition => steps.push(Step { path: format!("{path}.indexes.{index}"), change: if definition.unique { Change::Narrowing } else { Change::Additive }, message: format!("index {name}.{index} is redefined and rebuilt") }),
                 _ => {}
             }
+        }
+        if old.written_by != new.written_by || old.update_transition != new.update_transition {
+            steps.push(Step { path: format!("{path}.written_by"), change: Change::RuleChange,
+                message: format!("{name}'s field authority or visibility changes; every device re-acquires projected images") });
         }
         if old.rules != new.rules {
             steps.push(Step { path: format!("{path}.rules"), change: Change::RuleChange, message: format!("{name}'s rules change; every device re-derives its partition of {name}") });
@@ -229,10 +252,13 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
 /// declaration text. Optionality can override a formerly effective default.
 // @ref LLP 3000.007.001#3.11 — rebuild on resolved source dependency changes.
 pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
-    from.maintain_for(&maintain.target) != Some(maintain)
+    maintain.row_key.as_ref().is_some_and(|k|from.table(&k.table)!=to.table(&k.table))
+        || from.maintain_for(&maintain.target) != Some(maintain)
         || from.table(&maintain.source).and_then(|t| t.through.as_ref()) != to.table(&maintain.source).and_then(|t| t.through.as_ref())
         || retired_timeline_tables(from, to).contains(&maintain.target)
         || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
+        || to.table(&maintain.source).and_then(|t|t.expire.as_ref()).is_some_and(|field|
+            interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
         || maintain.dependencies().iter().any(|field| interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
 }
 

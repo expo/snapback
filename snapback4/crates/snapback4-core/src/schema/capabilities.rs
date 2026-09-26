@@ -35,10 +35,14 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
+    ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),
+    ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
+    ("sequence-by", |s| s.tables.values().any(|t| !t.sequences.is_empty())),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
     // Source slots alter negative coverage, prediction and application row projection.
@@ -103,7 +107,12 @@ impl<'de> Deserialize<'de> for Schema {
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain
         // exact, including when mixed with a legacy marker.
-        if legacy && carriers == 0 { declared = required.clone(); }
+        if legacy && carriers == 0 {
+            // A legacy marker only covers the capabilities that predate the fence.
+            // New semantics must never inherit permission from this escape hatch.
+            declared = required.iter().filter(|name| matches!(name.as_str(),
+                "maintained-column" | "recorded-attribution" | "timeline" | "timeline-v2")).cloned().collect();
+        }
         if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }

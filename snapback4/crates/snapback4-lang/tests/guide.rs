@@ -227,20 +227,33 @@ fn w10a_effect_and_job_names_are_explained_where_a_module_declares_both() {
 
 #[test]
 fn w10b_typing_card_compiles_and_expires_at_the_deadline() {
-    let reads = card("reads").unwrap();
-    let source = quarry(reads).into_iter().find(|block| block.contains("table typing:")).expect("typing needs a worked expiry example");
-    let bound = clean("typing", &in_context(&source));
+    // LLP 3000.017 replaces the old durable typing recipe and its 4.5 s life.
+    assert!(card("reads").unwrap().contains("guide ephemeral"));
+    assert_eq!(card("typing"), card("ephemeral"));
+    let source = quarry(card("ephemeral").unwrap()).remove(0);
+    let bound = clean("typing", &source);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([
-        ("rooms".into(), snapback4_core::value::object([("id", id("room"))])),
-        ("members".into(), snapback4_core::value::object([("id", id("member")), ("roomId", id("room")), ("principal", id("alice"))])),
+        ("rooms".into(), snapback4_core::value::object([("id", id("room")), ("name", text("Chat"))])),
+        ("members".into(), snapback4_core::value::object([("id", id("a")), ("roomId", id("room")), ("principal", id("alice"))])),
+        ("members".into(), snapback4_core::value::object([("id", id("b")), ("roomId", id("room")), ("principal", id("bob"))])),
     ]).unwrap();
-    sent(&engine.mutate("setTyping", None, Context::new("alice", args(&[("roomId", id("room"))])).at(1000)).unwrap());
-    let query = |now| Context::new("alice", args(&[("roomId", id("room"))])).at(now);
-    let before = engine.query("typingNow", query(5499)).unwrap();
+    let context = |viewer, now| Context::new(viewer, args(&[("roomId", id("room"))])).at(now);
+    sent(&engine.mutate("setTyping", None, context("alice", 1000)).unwrap());
+    let before = engine.query("typingIn", context("bob", 4999)).unwrap();
     assert_eq!(before.data.as_array().unwrap().len(), 1);
-    assert_eq!(before.data.as_array().unwrap()[0].field("expiresAt").unwrap(), &Value::Int(5500));
-    assert!(engine.query("typingNow", query(5500)).unwrap().data.as_array().unwrap().is_empty());
+    assert_eq!(before.next_expiry, Some(5000));
+    sent(&engine.mutate("setTyping", None, context("bob", 1000)).unwrap());
+    let hints = engine.query("typingInMyRooms", Context::new("bob", args(&[("c", Value::Null)])).at(4999)).unwrap();
+    assert_eq!(hints.data.as_array().unwrap()[0].field("typing").unwrap().as_array().unwrap().len(), 1);
+    assert_eq!(hints.data.as_array().unwrap()[0].field("typing").unwrap().as_array().unwrap()[0].field("principal").unwrap(), &id("alice"));
+    assert!(engine.query("typingIn", context("bob", 5000)).unwrap().data.as_array().unwrap().is_empty());
+    sent(&engine.mutate("markViewing", None, context("alice", 6000)).unwrap());
+    assert_eq!(engine.query("viewingIn", context("bob", 6001)).unwrap().data.as_array().unwrap().len(), 1);
+    sent(&engine.mutate("markViewing", None, context("alice", 16000)).unwrap());
+    assert_eq!(engine.query("viewingIn", context("bob", 36000)).unwrap().next_expiry, Some(46000));
+    sent(&engine.mutate("stopViewing", None, context("alice", 36001)).unwrap());
+    assert!(engine.query("viewingIn", context("bob", 36002)).unwrap().data.as_array().unwrap().is_empty());
 }
 
 /// The receipts card runs. Ticks move only when every recipient at send time
@@ -498,7 +511,9 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     let bound = compile(source);
     let list = |items: &[snapback4_lang::Diagnostic]| items.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n");
     assert!(bound.diagnostics.is_empty(), "{label} does not compile:\n{}", list(&bound.diagnostics));
-    assert!(bound.notes.is_empty(), "{label} compiles with notes:\n{}", list(&bound.notes));
+    // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
+    let unexpected: Vec<_> = bound.notes.iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
+    assert!(unexpected.is_empty(), "{label} compiles with notes:\n{}", list(&unexpected));
     bound
 }
 
@@ -771,7 +786,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 7, "paved introduction, familiar forms, and five preserved language blocks");
+    assert_eq!(quarry(LANGUAGE).len(), 9, "paved introduction, familiar forms, five preserved language blocks, field-authority and ephemeral declarations");
 }
 
 #[test]
@@ -1118,23 +1133,23 @@ fn arrival_recipe_orders_ties_and_retries_then_pages() {
         let context = || Context::new("dev:alice", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1000).with_ids([format!("message-{:03}", 52 - i)]);
         let write = format!("write-{i}");
         let first = engine.mutate("send", Some(&write), context()).unwrap();
-        assert_eq!(sent(&first).field("ordinal").unwrap(), &Value::Int(i));
+        assert_eq!(sent(&first).field("ordinal").unwrap(), &Value::Int(i + 1));
         let retry = engine.mutate("send", Some(&write), context()).unwrap();
         assert!(matches!(retry.state, WriteState::Sent { .. }));
     }
     let first = engine.query("history", Context::new("dev:alice", args(&[("conversationId", id("room"))]))).unwrap();
     let Value::Array(rows) = first.data else { panic!("history is a page") };
     assert_eq!(rows.len(), 50);
-    for (i, row) in rows.iter().enumerate() { assert_eq!(row.field("ordinal").unwrap(), &Value::Int(51 - i as i64)); }
+    for (i, row) in rows.iter().enumerate() { assert_eq!(row.field("ordinal").unwrap(), &Value::Int(52 - i as i64)); }
     let next = first.next.expect("51 rows have a second page");
     let second = engine.query("history", Context::new("dev:alice", args(&[("conversationId", id("room")), ("c", text(&next))]))).unwrap();
     let Value::Array(rows) = second.data else { panic!("history is a page") };
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].field("ordinal").unwrap(), &Value::Int(1));
+    assert_eq!(rows[0].field("ordinal").unwrap(), &Value::Int(2));
     let outsider = || Context::new("dev:bob", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1001).with_ids(["bob-message".into()]);
     assert_eq!(failed(&engine.mutate("send", None, outsider()).unwrap()), "E_RULE");
     sent(&engine.mutate("addMember", None, Context::new("dev:alice", args(&[("conversationId", id("room")), ("principal", id("dev:bob"))])).with_ids(["bob-member".into()])).unwrap());
-    assert_eq!(sent(&engine.mutate("send", None, outsider()).unwrap()).field("ordinal").unwrap(), &Value::Int(52));
+    assert_eq!(sent(&engine.mutate("send", None, outsider()).unwrap()).field("ordinal").unwrap(), &Value::Int(54));
 }
 
 #[test]
@@ -1461,5 +1476,12 @@ mod rules;
 #[path = "guide/recovery.rs"]
 mod recovery;
 
+#[test]
+fn following_cards_pin_examinations() {
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {
+        assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
+        assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
+    }
+}
 #[path = "guide/familiar.rs"]
 mod familiar;

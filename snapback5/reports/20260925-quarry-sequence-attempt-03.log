@@ -1,0 +1,18 @@
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/sequence
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/sequence/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/sequence/snapback/schema.q`
+  sequence messages.ordinal: counter per conversations row through .conversationId; immutable, provisional while pending
+check: ok — 2 tables (0 synced), 0 operations, no problems, 6.7 ms
+scale: 0 of 0 operations are constant; 0 grow with data — `check --cost` gives the certificate
+
+[exit 0]

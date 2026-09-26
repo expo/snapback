@@ -615,6 +615,155 @@ and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
 
 
+## A value per member: Clique unread
+
+A row-keyed view keeps one count per row of another table. Its read rule and
+sync audience are the keyed row's. The key is exactly one equality between
+required references to the same parent; other conjuncts compare source fields
+with member fields or are ordinary source-only predicates. Cap the member group
+by the parent reference; `check` prints this key, fanout and writer recount bound.
+
+```quarry
+table conversations:
+  title: text <=100
+  read <- allow
+table members:
+  conversationId: conversations
+  principal: principal
+  readUpTo: int default 0
+  unique conversationId, principal
+  cap 100 by conversationId
+  read <- .principal = viewer
+  update <- .principal = viewer
+table messages:
+  conversationId: conversations
+  ordinal: int
+  senderId: principal
+  tombstone: bool default false
+  read <- allow
+view unread: count messages by members m
+  where .conversationId = m.conversationId and .ordinal > m.readUpTo
+    and .senderId != m.principal and not .tombstone
+query myUnread(member: members):
+  return unread[member]
+```
+
+The view carries only the member's read-rule columns, `id`, `member` (the
+same member id), `value` and `recountPending`. It never copies unrelated
+member columns or engine-recorded attribution keys. Delivery keeps the member
+horizon: snapshots select members within that horizon before fetching their
+view values, and catch-up emits no view put for a member outside it. The
+horizon order columns remain on the member table. A device predicts source
+deltas for every held, current member even if other members are outside its
+horizon; retained members are not updated by prediction.
+
+This is LLP 3000.015's unread expression. If members also have a `joinedAt`
+position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
+lane uses integer positions until `sequence by conversationId` is available.
+Own sends and tombstones are excluded explicitly. A source already expired at
+its commit clock is retired in that transaction, before adding a contribution;
+it will not be subtracted later. Marks, background recounts, server reads,
+snapshots and catch-up certify the live basis using only the null and future
+ranges of the parent/expiry index. Unswept expired inputs are never visited.
+Server reads certify the whole current live range, including counts above the
+writer allowance, using the same policy for stored pending and settled values.
+Historical pending work never selects completeness or count-dependent refusal.
+An expiring stored count is a private cache: bounded durable chunks reconcile it
+without publishing redundant recount commits or changing watermarks. Each
+private chunk counts against the maintenance allowance and releases the
+engine lock before the next chunk. The server
+certification scan can traverse the whole live group on its internal ledger.
+Reads reserve one examined unit and one step for certification; its work runs
+on the internal authorization ledger, equally for queries and count-dependent
+writers. Completed and pending reads keep the same reservation.
+Schema adoption atomically rebuilds a count when its member table, predicate
+inputs or expiry interpretation changes, including a default on a legacy absent
+expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only
+contributions present in that basis, so a sweep after a mark cannot subtract
+an expired input twice. Devices compute from covered live rows. Without that
+coverage they report pending/incomplete.
+
+Every member-row reader must be able to read the whole counted parent group.
+Admission proves this for a public source, the same parent-only `exists` grant
+on source and member, or a non-expiring member whose owner read rule itself
+witnesses the source's unique `exists members[parent, viewer]` membership probe.
+Other combinations refuse with E_VIEW_KEY, including an independently owned
+member with source `read <- .senderId = viewer`, `deny`, or an unrelated
+`exists access` grant. The limit also applies to raw server schemas and device
+open/adoption. Recount work is selected only from an image the writer can read.
+Every member insert/update, including over public sources, needs a readable new
+member image and destination source group. Otherwise E_VIEW_KEY refuses before
+selecting recount work: make the member row readable to its writers before
+marking. An ordinary server mutation retains its caller and adds no authority.
+A blind non-reader cannot use an unchanged private
+parent to select a public group's recount. Deletion needs no source recount.
+Recount commits use global watermarks and `/changes`; filtering the view image
+alone would still expose hidden cardinality through that traffic.
+A defensive unreadable-group image remains zero/pending, not a certified count.
+Private-view scans must pin their audience or use a member key.
+
+For an admitted member reader, an equal current live basis produces the same
+certified count, completeness, count-dependent writer result, reserved meter,
+snapshots and recount traffic. This includes an expired prefix inserted before
+the member and a large live suffix inserted afterward, read before any mark.
+Historical pending state, formerly-live expired rows, tombstones and own sends
+cannot select a different certification policy. Global activity by other
+principals remains observable through the shared sequence/log protocol.
+
+A pure view-existence witness reads only the member's indexed existence and
+expiry metadata under a fixed reservation. It never loads unrelated member
+payloads. Its lifetime reaches `nextExpiry` only through the complete rule's
+verdict: a timeless successful alternative removes the deadline, and a later
+surviving witness extends it. A count read reserves declared decoder scratch, authorizes the member,
+then charges its materialized result; the member's heap is transient and its peak
+and any meter cut remain charged. Large declarations can exceed the reservation
+even when a stored value is empty; see the shared caller accounting law in `guide rules`.
+
+A small mark change scans the changed interval in the generated parent/ordinal
+index and updates the count in that transaction. Expiring sources instead
+seek the live expiry ranges and establish a fresh count basis. A newly readable member whose
+old image was unreadable uses a recount from the readable new image, so the old
+private mark cannot select its background work.
+View refreshes do not depend on whether the hidden delta is zero.
+A larger change commits the
+mark and leaves a non-expiring last settled count **pending** within the same parent:
+reads report `complete: false`. A parent change discards that fallback and
+publishes zero/pending until the new parent settles.
+The server settles a durable recount in chunks of at most 256 source rows;
+source edits and deletes during the recount adjust its already-counted prefix.
+Expiry-index cursors resume only in live ranges; an expiry of a counted
+contributor restarts the recount from the current live basis.
+The writer examines at most 1,024 source rows, further limited by its remaining
+meter. Recounts restart for a changed member predicate and resume after a server
+restart. A single source row too large for a chunk parks that member's recount
+so other members can settle. Changing a member field used by the predicate to a
+different value retries its recount. Any source edit in that member's parent
+group, including shrinking the oversized row, allows one retry chunk even when
+the recount has not yet acquired a cursor.
+A covered device predicts within its certification allowance. Without source
+coverage, a non-expiring count keeps its settled value and queues the mark
+without prediction. An acquired horizon suffix can
+cover the changed interval; a device recount that exceeds its allowance also
+queues without prediction. Expiring sources need covered live input to certify
+an unswept count: an uncovered device reports a pending count until it can
+certify that live input. A device mutation that cannot certify the count,
+including an already settled count above its local allowance, enters the
+outbox without a predicted result; the server decides and settles it.
+Server writers and numeric rule probes still refuse an uncertified value;
+ordinary queries carry incomplete coverage. Indexes/ranking by `value` refuse
+with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
+when its count is zero. `online only` on the view opts
+out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.
+
+The Postgres evaluation adapter has no background recount runner and refuses
+this form with E_VIEW_KEY; use the SQLite server and either device store.
+Member rows reserve `member`, `value` and `recountPending` for the generated
+view. The count form is admitted; row-keyed sums are not yet admitted.
+
+A private `written by` member field may parameterize a row-keyed count only
+when the member's read rule requires that field's owner. Otherwise declare
+`readable by audience` before deriving the count. Row-read authority alone
+does not disclose another owner's private predicate input.
 Read-through limits and repair steps: `why E_READ_THROUGH`,
 `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
 `why E_READ_THROUGH_SCAN`.

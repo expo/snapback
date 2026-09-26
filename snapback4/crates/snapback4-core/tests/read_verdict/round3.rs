@@ -82,7 +82,6 @@ fn r3_nested_conjunction_33_words_preserve_later_row_without_shared_cursor() { n
 #[test]
 fn r3_admitted_word_bound_both_cuts_and_real_meter_ceiling() {
     let (schema, programs) = compiled(include_str!("../../../snapback4-sim/tests/search_merge/round3.q"));
-    let mut failures = Vec::new();
     for cut in [Cut::Cap, Cut::Abort] { for budget in ["ample", "examined", "index_entries"] {
         let mut worlds = Vec::new();
         for population in [0, 33] {
@@ -94,15 +93,13 @@ fn r3_admitted_word_bound_both_cuts_and_real_meter_ceiling() {
             worlds.push(observe(&schema, &programs[0], seed, cut, ceilings));
         }
         println!("R3 admitted cut={cut:?} budget={budget}: W0={} W1={}", worlds[0], worlds[1]);
-        assert_eq!(worlds[0]["data"][0]["id"], "shown");
-        if budget == "ample" {
-            for key in ["data", "next", "complete", "error", "capped_at"] {
-                if worlds[0][key] != worlds[1][key] { failures.push(format!("{cut:?} {key}: W0={} W1={}", worlds[0][key], worlds[1][key])); }
-            }
+        assert_eq!(worlds[0], worlds[1], "hidden words cannot change any logical channel");
+        if budget != "index_entries" {
+            assert_eq!(worlds[0]["data"][0]["id"], "shown");
             assert_eq!(worlds[0]["complete"], false);
             assert!(worlds[0]["next"].is_null());
-        } else if cut == Cut::Abort { assert_eq!(worlds[1]["error"]["code"], "E_BOUND"); }
-        else { assert!(worlds[1]["capped_at"].is_array()); assert_eq!(worlds[1]["data"], json!([])); }
+        } else if cut == Cut::Abort { assert_eq!(worlds[0]["error"]["code"], "E_BOUND"); }
+        else { assert!(worlds[0]["capped_at"].is_array()); assert_eq!(worlds[0]["data"], json!([])); }
+
     }}
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

@@ -182,28 +182,32 @@ impl MemoryStore {
     fn check_contribution_rebuild(&self, schema: &Schema) -> Result<(), RuntimeError> {
         use snapback4_core::{meter::{Meter, Cut, Ceilings}, error::MeterKind, schema::IndexComponent};
         let state = self.state.borrow();
-        let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
+        let mut ledger = snapback4_core::engine::InternalLedger::new(Meter::new(Ceilings::job(), Cut::Abort));
         for (n, ((table_name, id), row)) in state.rows.iter().enumerate() {
-            if n % 32 == 0 { meter = Meter::new(Ceilings::job(), Cut::Abort); }
+            if n % 32 == 0 { ledger = snapback4_core::engine::InternalLedger::new(Meter::new(Ceilings::job(), Cut::Abort)); }
             let Some(table) = schema.table(table_name) else { continue };
+            ledger.run(|meter, scope| {
             for (name, index) in &table.indexes {
                 if let Some(IndexComponent::Contribution(maintain)) = index.components.first() {
                     meter.at(&format!("adopt {table_name}.{name}"));
-                    let heap_before = meter.used.heap_bytes;
-                    meter.charge(MeterKind::Examined, 1)?;
-                    meter.step(maintain.evaluation_steps().saturating_mul(2))?;
-                    meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
-                    // At most one physical contribution per row, even when
-                    // its predicate will exclude it from the rebuilt index.
-                    meter.charge(MeterKind::IndexEntries, 1)?;
-                    for key in stored_index_keys(table, index, row, id) {
-                        if key.len() > snapback4_core::rows::MAX_INDEX_KEY_BYTES {
-                            return Err(snapback4_core::rows::index_key_refusal(table_name, name, 1));
+                    meter.scratch(|meter| {
+                        meter.charge(MeterKind::Examined, 1)?;
+                        meter.step(maintain.evaluation_steps().saturating_mul(2))?;
+                        row.retained_internal(scope).times(4).fixed(4096).charge(meter, scope)?;
+                        // At most one physical contribution per row, even when
+                        // its predicate will exclude it from the rebuilt index.
+                        meter.charge(MeterKind::IndexEntries, 1)?;
+                        for key in stored_index_keys(table, index, row, id) {
+                            if key.len() > snapback4_core::rows::MAX_INDEX_KEY_BYTES {
+                                return Err(snapback4_core::rows::index_key_refusal(table_name, name, 1));
+                            }
                         }
-                    }
-                    meter.used.heap_bytes = heap_before;
+                        Ok::<_, RuntimeError>(())
+                    })?;
                 }
             }
+            Ok::<_, RuntimeError>(())
+            })?;
         }
         Ok(())
     }
@@ -476,9 +480,17 @@ impl Rows for MemoryTx<'_> {
             None => Vec::new(),
         })
     }
-    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo,hi)) = scan_range(prefix,bounds,dir) else { return Ok(None); };
+        let ti = format!("{table}.{index}");
+        let state = self.store.state.borrow();
+        let mut range = state.entries.range((ti.clone(),lo)..(ti,hi));
+        Ok((if dir == Dir::Asc { range.next() } else { range.next_back() }).and_then(|((_,key),_)|key::decode(key)))
+    }
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use snapback4_core::rows::word_heap;
-        meter.heap(word_heap::range(prefix, bounds) + 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+        word_heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        meter.heap(2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
@@ -487,7 +499,7 @@ impl Rows for MemoryTx<'_> {
         let mut out = Vec::new();
         let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
             meter.heap(word_heap::text(table) + word_heap::text(id))?;
-            if let Some(row) = state.rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key)?; }
+            if let Some(row) = state.rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key, scope)?; }
             Ok(())
         };
         match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }

@@ -1,3 +1,4 @@
+import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 // Query publication procedure (LLP 3000.016 §2.2):
 // 1. Check session/incarnation after every await and before publication.
 // 2. Run locally first; a known complete answer wins, regardless of `runs`.
@@ -23,7 +24,7 @@ import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 
-type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -31,6 +32,7 @@ class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
   backend: BackendJson;
+  ephemeralReads: EphemeralReads;
   partitionDenied: Refusal | null;
   credentialRevision: number;
   incarnation: number;
@@ -47,7 +49,7 @@ export interface QueryEnvironment {
   unavailable(): Refusal | null;
   queued(): Promise<Queued[]>;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
-  post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }>;
+  post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }>;
   installNative(signal?: AbortSignal): Promise<boolean>;
   notify(watch: Watch): void;
   offline(): Refusal;
@@ -77,7 +79,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   let possible = program && !program.native ? new Set(staticTables) : null;
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null };
   const key = `${op.name}:${JSON.stringify(args)}`;
-  let remember = true;
+  const ephemeralTables = env.backend.schema.operations?.[op.name]?.ephemeralReads ?? program?.ephemeralReads ?? [];
+  const ephemeral = ephemeralTables.length > 0;
+  let remember = !ephemeral;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
   // The wire omits false provenance, including replies from older devices.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
@@ -112,6 +116,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
   // Withheld queries and composed observations never recover a whole page.
   const recover = async (): Promise<Candidate<R>> => {
+    if (ephemeral) return { result: loading, origin: "local" };
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
     if (stopped) return localCandidate();
@@ -156,7 +161,10 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       while (true) {
         checkpoint();
         const credentials = env.credentialRevision;
-        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }); checkpoint();
+        const eph = ephemeral ? env.ephemeralReads.request() : undefined;
+        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph); checkpoint();
+        // A refetch within the attempt is a new read for the remembered answers (LLP 3000.018 §3.2).
+        if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
         // Rule 5: admission can happen while the transport is in flight.
         const stopped = await blocked(); checkpoint();
         if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
@@ -171,12 +179,12 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
-        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut }, origin: "server" };
+        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
     // procedure publishes the returned candidate after its final checks.
-    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain }) : await fetch(); checkpoint();
+    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain: retain && !ephemeral }) : await fetch(); checkpoint();
     return result;
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
@@ -226,6 +234,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
+    if (ephemeral) return server();
     // Rule 2: run every query locally when possible, even `runs: server`.
     if (env.partitionCurrent && program?.native && !env.nativeReady && env.link === "online") {
       const installed = await env.installNative(env.signal); checkpoint();
@@ -249,6 +258,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (stopped) candidate = localCandidate();
       }
       const { result, origin } = candidate;
+      if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {
+        return { ...loading, ephemeralStale: true };
+      }
       // Rules 1/5: no await between this deadline check and publication.
       const localDue = result.nextExpiry !== null && result.nextExpiry <= env.deviceNow();
       if (origin === "remembered" && localDue) {

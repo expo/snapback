@@ -84,18 +84,18 @@ fn allocating_builtins_charge_the_result_and_keep_their_values() {
         (Builtin::Concat, vec![list.clone(), list.clone()], Value::Array(vec![Value::String("one".into()), Value::String("two".into()), Value::String("one".into()), Value::String("two".into())])),
         (Builtin::Slice, vec![Value::String("a🙂z".into()), Value::Int(1), Value::Int(2)], Value::String("🙂".into())),
         (Builtin::Slice, vec![list.clone(), Value::Int(1), Value::Int(2)], Value::Array(vec![Value::String("two".into())])),
-        (Builtin::Sort { keys: vec![SortKey { field: "n".into(), order: Order::Asc }] }, vec![Value::Array(vec![object([("n", Value::Int(2))]), object([("n", Value::Int(1))])])], sorted),
+        (Builtin::Sort { keys: vec![SortKey { field: "n".into(), order: Order::Asc, optional: false }] }, vec![Value::Array(vec![object([("n", Value::Int(2))]), object([("n", Value::Int(1))])])], sorted),
         (Builtin::MentionTokens, vec![Value::String("@alice, @bob @alice".into())], Value::Array(vec![Value::String("alice".into()), Value::String("bob".into())])),
         (Builtin::Divmod { remainder_sink: "rest".into() }, vec![Value::Int(7), Value::Int(3)], object([("quotient", Value::Int(2)), ("remainder", Value::Int(1)), ("sink", Value::String("rest".into()))])),
     ];
     for (function, args, expected) in cases {
-        let copies: u64 = args.iter().map(Value::clone_heap_bytes).sum();
+        let copies: u64 = args.iter().map(fixture_copy).sum();
         let p = program("read", ProgramKind::Query, vec![Stmt::Return(builtin(function.clone(), args.into_iter().map(Expr::Literal).collect()))]);
         let mut engine = Engine::memory(Schema::default(), [p]).unwrap();
         let result = engine.query("read", context()).unwrap();
         assert!(result.complete, "{function:?}");
         assert_eq!(result.data, expected, "{function:?}");
-        assert!(result.metered.heap_bytes >= copies + result.data.heap_bytes(), "{function:?}: {result:?}");
+        assert!(result.metered.heap_bytes >= copies + fixture_heap(&result.data), "{function:?}: {result:?}");
         engine.set_ceilings(Ceilings { heap_bytes: result.metered.heap_bytes - 1, ..Ceilings::default() });
         let capped = engine.query("read", context()).unwrap();
         assert!(!capped.complete, "{function:?}");
@@ -111,7 +111,7 @@ fn share_charges_its_recipient_workspace() {
     let result = engine.query("read", context()).unwrap();
     assert!(result.complete);
     assert_eq!(result.data, Value::Int(4));
-    assert!(result.metered.heap_bytes >= recipients.clone_heap_bytes() + recipients.heap_bytes());
+    assert!(result.metered.heap_bytes >= fixture_copy(&recipients) + fixture_heap(&recipients));
     engine.set_ceilings(Ceilings { heap_bytes: result.metered.heap_bytes - 1, ..Ceilings::default() });
     assert!(!engine.query("read", context()).unwrap().complete);
 }
@@ -120,7 +120,7 @@ fn share_charges_its_recipient_workspace() {
 fn bindings_and_owned_variable_reads_charge_without_aliasing() {
     let mut row = object([("s", Value::String("x".repeat(4000)))]);
     let shared = row.clone();
-    assert_eq!(row.clone_heap_bytes(), 0);
+    assert_eq!(fixture_copy(&row), 0);
     if let Value::Row(fields) = &mut row { fields.insert("s".into(), Value::Null); }
     assert_ne!(row, shared);
     for value in [Value::String("x".repeat(4000)), Value::Bytes(vec![7; 4000]), Value::Array(vec![shared.clone()]), shared] {
@@ -134,7 +134,7 @@ fn bindings_and_owned_variable_reads_charge_without_aliasing() {
         let result = engine.query("read", context()).unwrap();
         assert!(result.complete);
         assert_eq!(result.data, value);
-        assert!(result.metered.heap_bytes >= 2 * value.heap_bytes() + 3 * value.clone_heap_bytes());
+        assert!(result.metered.heap_bytes >= 2 * fixture_heap(&value) + 3 * fixture_copy(&value));
     }
 }
 
@@ -206,4 +206,25 @@ fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
     assert_eq!(success.metered.heap_bytes, failed.metered.heap_bytes + 64, "step refusal precedes digest allocation");
     assert_eq!(failed.events, 0);
     assert_eq!(cut.query("written", context()).unwrap().data, Value::Bool(false), "the preceding insert rolls back with the mutation");
+}
+
+// Test-only sizing of public fixture/expression results; no raw pricing API is
+// available to interpreter callers.
+fn fixture_heap(value: &Value) -> u64 {
+    match value {
+        Value::String(s) | Value::Id(s) => s.capacity() as u64,
+        Value::Bytes(b) => b.capacity() as u64,
+        Value::Array(a) => a.capacity() as u64 * std::mem::size_of::<Value>() as u64 + a.iter().map(fixture_heap).sum::<u64>(),
+        Value::Row(m) | Value::Map(m) => 40 + m.iter().map(|(k,v)| 80 + k.capacity() as u64 + fixture_heap(v)).sum::<u64>(),
+        _ => 0,
+    }
+}
+
+fn fixture_copy(value: &Value) -> u64 {
+    match value {
+        Value::String(v) | Value::Id(v) => v.len() as u64,
+        Value::Bytes(v) => v.len() as u64,
+        Value::Array(v) => (v.len() * std::mem::size_of::<Value>()) as u64 + v.iter().map(fixture_copy).sum::<u64>(),
+        _ => 0,
+    }
 }

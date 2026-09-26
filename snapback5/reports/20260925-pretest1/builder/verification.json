@@ -1,0 +1,20 @@
+{
+  "deterministic_replay": "PASS",
+  "hashes_verified": 10,
+  "top_level": 354,
+  "units": 1744,
+  "postgres": [
+    17,
+    4
+  ],
+  "pglast": "7.10",
+  "artifact_sha256": {
+    "units.jsonl": "eb8922e4c0b10e28f0ff9e0ac3b52316dc73f99bbf66828d0d318b4089dca14d",
+    "summary.md": "ce6a32ccebc70a98472af94423094c17e4fce775b6ead450dd532affa61dc0cd",
+    "ambiguities.md": "2f7f1317447249063e2410f209484023f7714e472b76508c6e5008fc406af746",
+    "freeze-hashes.json": "d1d95a269fc721bae5dd84337240e86f2c728de845f1e984bab5c3ff3e47b3cd",
+    "parse-receipt.json": "e7a10931deb83a8017c06cf05b270cb048ad4e9fa6a42730adaa128e2dbb77ea",
+    "totals.json": "e74540483b9550297899b2c5c899bb25d945caafcc7e1fb94786e3591fbfa35e"
+  },
+  "LLP_files_changed": false
+}

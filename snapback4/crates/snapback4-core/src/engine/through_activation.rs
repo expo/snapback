@@ -336,7 +336,8 @@ impl super::runner::Runner<'_> {
         let count = rows.len() as u64;
         for (name, row) in rows {
             super::timeline::check_import(self.schema, &name)?;
-            self.upsert(&name, &row.field("id")?.clone(), row)?;
+            // Adoption rewrites are system imports of stored images (LLP 3000.015 §1).
+            self.upsert(&name, &row.field("id")?.clone(), row.import_input(&super::ImportInput(())))?;
         }
         self.check_final_exists()?;
         Ok(count)
@@ -359,18 +360,9 @@ impl super::runner::Runner<'_> {
                 continue;
             };
             while count < limit as u64 {
-                let page = self.tx.scan(
-                    &name,
-                    index,
-                    &[],
-                    &Bounds {
-                        gte: Some(Value::Int(i64::MIN)),
-                        lte: Some(Value::Int(now)),
-                        ..Default::default()
-                    },
-                    Dir::Asc,
-                    (limit - count as usize).min(256),
-                )?;
+                let bounds = Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+                let batch = (limit - count as usize).min(256);
+                let page = self.metered_scan(|runner, scope| runner.tx.scan(scope, &name, index, &[], &bounds, Dir::Asc, batch))?;
                 if page.is_empty() {
                     break;
                 }

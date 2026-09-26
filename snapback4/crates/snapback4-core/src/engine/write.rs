@@ -8,8 +8,9 @@ use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
+use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
-use crate::value::{Value, canonical_json};
+use crate::value::{Value, Supplied, canonical_json};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Origin {
@@ -17,40 +18,113 @@ pub(crate) enum Origin {
     Maintained,
 }
 
+#[path = "write_target.rs"]
+pub(crate) mod target;
+
 impl Runner<'_> {
-    pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn insert(&mut self, table: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.insert_mode(table, row, false).map(|_| ())
     }
 
-    pub(super) fn insert_if_absent(&mut self, table: &str, row: Value) -> Result<bool, RuntimeError> {
+    pub(super) fn insert_if_absent(&mut self, table: &str, row: Supplied) -> Result<bool, RuntimeError> {
         self.insert_mode(table, row, true)
     }
 
-    fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
         if self.device && if_absent && self.schema.tables[table_name].through.is_some() {
             return Err(RuntimeError::Prediction("insert if absent on a read-through child queues without a row".into()));
         }
         self.target_attempt(table_name, |runner| {
-            runner.refuse_engine_owned(table_name, Effect::Insert)?;
-            let table = runner.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-            runner.refuse_recorded(table_name, &row)?;
-            runner.reserve_capture(table)?;
-            // @ref LLP 3000.013#11.1 — reserve once, before the target can select its write arm.
-            // Reserve before collision lookups. Upserts enter insert_attempt
-            // under their existing target-resolution reservation instead.
-            runner.reserve_write_rules(table, &[Effect::Read, Effect::Insert])?;
-            runner.insert_attempt(table_name, row, if_absent)
+            let mark = runner.meter.mark();
+            let result = runner.insert_attempt(table_name, row, if_absent, None).map_err(|error| error.authorization_context(table_name, Effect::Insert));
+            // @ref LLP 3000.015#2 — denied direct allocations hide deferred
+            // read witnesses and counter work just as NOT_FOUND hides targets.
+            if matches!(&result, Err(RuntimeError::Rule { effect: Effect::Insert, .. } | RuntimeError::AuthorizationBudget { .. }))
+                && runner.schema.tables.get(table_name).is_some_and(|table| !table.sequences.is_empty()) {
+                runner.meter.restore(mark);
+            }
+            result
         })
     }
 
-    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_attempt(&mut self, table_name: &str, row: Supplied, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
+        self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
+        let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
+        // A directly supplied field is a payload error before any lookup;
+        // only an upsert's copied address waits for insert authority.
+        if upsert_index.is_none() && supplied_sequence.is_err() { return supplied_sequence.map(|_| false); }
+        let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
-        let table = self.schema.table(table_name).expect("defaults validated the table").clone();
-        let row = self.capture_insert(table_name,row)?;
-        if !self.check_rule(table_name, Effect::Insert, None, &row)? {
+        if self.schema.tables[table_name].ephemeral.is_some() { self.meter.heap(row.heap_bytes())?; }
+        let row = row.ephemeral(&self.schema.tables[table_name], self.context.now.unwrap_or(0))?;
+        // @ref LLP 3000.014#4-the-capture — reserve, then stamp the parent capture before any rule sees the image.
+        self.reserve_capture(&self.schema.tables[table_name])?;
+        let row = self.capture_insert(table_name, row)?;
+        let table = &self.schema.tables[table_name];
+        let independent = !table.sequences.is_empty() && !super::rules::deciding_fields(table_name, table, &table.rules.insert)
+            .iter().any(|field| table.sequences.contains_key(field));
+        // An independent denial must never consult a hidden read witness.
+        let authorized = independent && self.check_rule(table_name, Effect::Insert, None, &row)?;
+        if independent && !authorized {
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+        }
+        if !table.sequences.is_empty() {
+            // Admission reserves the worst case before either read verdict;
+            // restoring a refusal alone cannot hide a boundary abort.
+            // An independent insert rule was already prepaid and evaluated.
+            // Only still-pending checks belong in this preflight allowance.
+            let insert_checks = if authorized { 0 } else { 1 + u64::from(upsert_index.is_some() && supplied_sequence.is_ok()) };
+            self.reserve_sequence_authorization(table, &row, insert_checks)?;
+        }
+        // @ref LLP 3000.015#2 — an unreadable allocation cannot expose counter,
+        // uniqueness or cap state, even to a principal allowed to insert.
+        if !self.sequence_insert_readable(table_name, &row)? {
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+        }
+        if let Err(error) = supplied_sequence {
+            // @ref LLP 3000.007#17 — absent upserts decide insert authority before field diagnostics.
+            // A target key may supply an ordinal even when the patch does not.
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
+                return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+            }
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
+        }
+        if upsert_index.is_some() {
+            self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
+        } else { self.authorize_fields(table_name, &row, &supplied)?; }
+        // The image copy an event slot costs is the writer's own supplied bytes (LLP 3000.015 §1).
+        let image_bytes = row.heap_bytes();
+        let (row, sequence_full) = self.sequence_fields(table_name, row)?;
+        if let Some(index) = upsert_index {
+            if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
+            // Preserve upsert's target preflight before the ordinary insert checks;
+            // only this first authority refusal is an undisclosed target miss.
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+            if sequence_full { return Err(super::sequences::exhausted()); }
+            // Engine event slots are stamped after predecessor/sequence checks,
+            // just as on an ordinary insert; preflight validates authored fields.
+            if let Err(error) = super::validate::validate_before_slots(self.schema, table_name, &row) {
+                return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
+            }
+        }
+        if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
+        // Retry keys independent of engine allocation still identify a no-op
+        // at the ceiling. Never use the clamped authority candidate as a key.
+        if sequence_full && if_absent {
+            let table = self.schema.tables[table_name].clone();
+            for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
+                let key = index_values(index, &row);
+                if key.contains(&Value::Null) { continue; }
+                if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
+                    self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
+                    return Ok(false);
+                }
+            }
+        }
+        if sequence_full { return Err(super::sequences::exhausted()); }
         let row = self.record_insert(table_name, row)?;
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
@@ -61,8 +135,8 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
-                    self.visible_collision(table_name, &existing, Effect::Insert)?;
+                if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
+                    self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
                     return Ok(false);
                 }
             }
@@ -78,16 +152,25 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        let predecessor = self.tx.get(table_name, &id)?;
-        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && self.schema.children(table_name).next().is_some() {
-            // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical children collides like a live birth, without exposing its descendants.
-            if let Some(old) = &predecessor {
-                // Check the old image's authority without treating expiry as
-                // denial. A non-reader never probes the child populations.
-                if !self.check_rule(table_name, Effect::Read, None, old)? {
+        // An upsert has already resolved this exact address (or minted the id)
+        // and reserved both target proofs. Retiring an expired predecessor
+        // uses that same allowance, not a third read-rule reservation.
+        let collision_probes = if upsert_index.is_some() { 0 } else { super::rules::rule_probes(&table.rules.read) };
+        let has_children = self.schema.children(table_name).next().is_some();
+        let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
+            let existing = runner.tx.get(allowance, table_name, &id)?;
+            if let Some(row) = &existing {
+                if !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+                // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical
+                // children collides like a live birth: check the old image's authority under the same
+                // reservation, without treating expiry as denial. A non-reader never probes the children.
+                else if has_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
                     return Err(RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert });
                 }
             }
+            Ok(existing)
+        })?;
+        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && has_children {
             let mark = self.meter.mark();
             if self.physical_children(table_name, &Value::Id(id.clone()))? {
                 // The bounded probes have completed. Their occupancy is not
@@ -99,17 +182,18 @@ impl Runner<'_> {
             }
         }
         if let Some(existing) = &predecessor {
-            if !self.expired(&table, existing) {
-                self.visible_collision(table_name, existing, Effect::Insert)?;
+            if !self.expired(&table, &existing) {
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
-            self.meter.charge(MeterKind::Examined, 1)?;
+            // The expired predecessor is internal authorization work, not a
+            // disclosed examination (LLP 3000.015 §§1–2).
             self.remove(table_name, existing)?;
         }
         // The server's same-id expired replacement preserves occupancy in
         // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
-        let row = self.prepare_event_slots(table_name, None, row)?;
+        self.commit_sequences(table_name, &row)?;
+        let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
         validate_row(self.schema, table_name, &row)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
@@ -117,93 +201,80 @@ impl Runner<'_> {
         Ok(true)
     }
 
-    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.target_attempt(table_name, |runner| runner.update_attempt(table_name, key, patch))
     }
 
-    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, &patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &patch)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
         let id = key.as_str()?;
         self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &patch, false)?;
-        let Some(old) = self.fetch(table_name, id)? else {
+        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
         let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
-        let new = self.merge_patch(&old, &patch)?;
-        self.replace(table_name, old, new, readable, &patch)
+        let (new, copy) = self.merge_patch(table_name, &old, &patch, readable)?;
+        self.replace(table_name, old, new, readable, &patch, copy)
     }
 
-    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.target_attempt(table_name, |runner| runner.upsert_attempt(table_name, key, row))
     }
 
-    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         self.refuse_recorded(table_name, &row)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
         self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &row, true)?;
-        match self.fetch(table_name, id)? {
+        match self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? {
             Some(old) => {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
-                let new = self.merge_patch(&old, &row)?;
-                self.replace(table_name, old, new, readable, &row)
+                let (new, copy) = self.merge_patch(table_name, &old, &row, readable)?;
+                self.replace(table_name, old, new, readable, &row, copy)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
-            None => self.insert_upsert(table_name, "byId", row, 0),
+            None => self.insert_upsert(table_name, "byId", row),
         }
     }
 
-    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value, expired_work: u64) -> Result<(), RuntimeError> {
+    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         if self.schema.tables[table_name].through.is_some() {
-            self.meter.charge(MeterKind::Examined,expired_work)?;
-            return self.insert_attempt(table_name,row,false).map(|_| ()).map_err(|e| match e {
+            // A read-through child's insert arm keeps the hidden-target word for every authority refusal.
+            return self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()).map_err(|e| match e {
                 RuntimeError::Rule {..} | RuntimeError::Input(_) => self.no_write_target(), other => other,
             });
         }
-        // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
-        let row = self.with_defaults(table_name, row)?;
-        if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
-        // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
-        if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
-        self.meter.charge(MeterKind::Examined, expired_work)?;
-        // An incomplete insert patch has the same word as a refused hidden target.
-        if let Err(error) = super::validate::validate_before_slots(self.schema, table_name, &row) {
-            return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
-        }
-        match self.insert_attempt(table_name, row, false).map(|_| ()) {
+        match self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
     }
 
-    fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
-        self.authorize_update(table_name, &old, &new, readable)?;
-        self.replace_authorized(table_name, old, new, readable, patch)
+    fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value, copy: u64) -> Result<(), RuntimeError> {
+        self.authorize_update_fields(table_name, &old, &new, patch, readable)?;
+        self.replace_authorized(table_name, old, new, readable, patch, copy)
     }
 
-    // @ref LLP 3000.007#8 — item 7: pre-write read authority controls details; update authority precedes asset diagnostics.
-    pub(super) fn authorize_update(&mut self, table: &str, old: &Value, new: &Value, readable: bool) -> Result<(), RuntimeError> {
-        if !self.check_rule(table, Effect::Update, Some(old), new)? {
-            return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
-        }
-        Ok(())
-    }
-
-    pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
+    /// `copy` is the merged image's lawful price, charged again for an engine slot copy.
+    pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value, copy: u64) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
+        self.authorize_fields(table_name, &old, patch)?;
         let definition = &self.schema.tables[table_name];
         for path in definition.columns.keys().filter(|field| definition.engine_field(field) && field.as_str() != crate::schema::through::DEADLINE) {
             if old.field(path).ok() != new.field(path).ok() {
@@ -212,11 +283,17 @@ impl Runner<'_> {
         }
         let mut new = new;
         self.schema.tables[table_name].recompute_deadline(&mut new)?;
+        // @ref LLP 3000.017#2.2 — extending life re-admits the new image.
+        if self.schema.tables[table_name].stamp_ephemeral(&mut new, self.context.now.unwrap_or(0))?
+            && !self.check_rule(table_name, Effect::Insert, None, &new)? {
+            return Err(if readable { RuntimeError::Rule { table: table_name.into(), effect: Effect::Update } } else { self.no_write_target() });
+        }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
-        if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
+        if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
-        let new = self.prepare_event_slots(table_name, Some(&old), new)?;
-        validate_row(self.schema, table_name, &new)?;
+        let new = self.prepare_event_slots(table_name, Some(&old), new, copy)?;
+        // A predicting device keeps another owner's omitted private field as an omission.
+        super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str()))?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
         self.charge_source_indexes(&table, Some(&old), Some(&new), entries)?;
@@ -233,14 +310,16 @@ impl Runner<'_> {
         self.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
-        let Some(old) = self.fetch(table_name, id)? else {
+        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
         if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
             return Err(self.no_write_target());
         }
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
-            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
+            return Err(if self.check_rule(table_name, Effect::Read, None, &old)? {
+                RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete }
+            } else { self.no_write_target() });
         }
         self.delete_authorized(table_name, old)
     }
@@ -288,7 +367,7 @@ impl Runner<'_> {
         let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
         self.retiring = Some(Default::default());
         let retired = born.iter().try_for_each(|(table_name, id)| {
-            let Some(row) = self.tx.get(table_name, id)? else { return Ok(()) };
+            let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(()) };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
             if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }
         });
@@ -302,19 +381,12 @@ impl Runner<'_> {
     /// it out, before validation and before the asset facts, so the row the
     /// rules and the constraints see is the complete one.
     // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
-    fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+    pub(super) fn with_defaults(&mut self, table_name: &str, row: Supplied) -> Result<Supplied, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
             return Ok(row);
         }
-        let mut fields = row.as_object()?.clone();
-        for (name, default) in &table.defaults {
-            if !fields.contains_key(name) {
-                let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
-                fields.insert(name.clone(), value);
-            }
-        }
-        let row = Value::Row(fields.into());
+        let row = row.defaults(table,self.context.now.ok_or_else(||RuntimeError::Input("write clock is not pinned".into()))?,&self.context.viewer)?;
         self.meter.heap(row.heap_bytes())?;
         Ok(row)
     }
@@ -430,15 +502,20 @@ impl Runner<'_> {
         let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                // byId can only return this id (already checked on insert).
+                // An unchanged admitted unique key cannot acquire a collision.
+                if name == "byId" { continue; }
                 let key = index_values(index, new);
+                if old.is_some_and(|old| index_values(index, old) == key) { continue; }
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
+                if let Some(existing) = self.collision_lookup(table_name, name, index, &key, Some(&id), effect)
+                    .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
                     && existing.field("id")?.as_str()? != id
                 {
+                    self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
-                    self.visible_collision(table_name, &existing, effect)?;
                     let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
                     if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
                         return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });
@@ -492,14 +569,47 @@ impl Runner<'_> {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
-                    self.meter.charge(MeterKind::IndexEntries, 1)?;
-                    // @ref LLP 3000.013#11.1 — physical occupancy is conservative until sweep; never scan a cap group.
-                    let count = if !table.is_expiring() {
-                        self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
-                    } else {
-                        self.tx.cap_count(table_name, by, &group)?
-                    };
+                    let private_cap = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
+                    let count = self.authorized_scan(&[
+                        (MeterKind::IndexEntries, 1),
+                        (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
+                        (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
+                    ], |runner, allowance| {
+                        if !private_cap && !table.is_expiring() {
+                            return runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1);
+                        }
+                        // Main's transactional occupancy is a cheap upper bound
+                        // on live rows. Below the cap it proves room without a
+                        // walk; at the cap, B2's bounded live scan decides. A
+                        // private sequence cap must still authorize occupants.
+                        if !private_cap {
+                            let physical = runner.tx.cap_count(allowance, table_name, by, &group)?;
+                            if physical < *max as u64 { return Ok(physical); }
+                        }
+                        let mut count = 0;
+                        let mut bounds = Bounds::default();
+                        loop {
+                            // Expired occupants consume physical work, never
+                            // hidden-dependent logical charges. Exhaustion
+                            // cannot establish occupancy and reveals no detail.
+                            let batch = runner.tx.remaining().min(32);
+                            if batch == 0 { return Err(RuntimeError::AuthorizationBudget { table: table_name.into(), effect }); }
+                            let rows = runner.tx.scan(allowance, table_name, &index_name, &group, &bounds, Dir::Asc, batch)?;
+                            let fetched = rows.len();
+                            for (row, key) in rows {
+                                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+                                if !runner.expired(&table, &row) {
+                                    if private_cap { runner.visible_collision(table_name, &row, effect)?; }
+                                    count += 1;
+                                }
+                                if count >= *max as u64 { break; }
+                            }
+                            if count >= *max as u64 || fetched < batch { break; }
+                        }
+                        Ok(count)
+                    })?;
                     if count >= *max as u64 {
+                        self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
                         let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
                         return Err(if table.is_expiring() {
@@ -510,6 +620,18 @@ impl Runner<'_> {
             }
         }
         Ok(())
+    }
+
+    fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
+        let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
+        self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
+            let found = runner.live_lookup(allowance, table, name, index, key)?;
+            if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
+                runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
+                runner.visible_collision(table, row, effect)?;
+            }
+            Ok(found)
+        })
     }
 
     // @ref LLP 3000#7-decisions-during-execution — hidden collisions use the ordinary write-rule refusal
@@ -543,16 +665,21 @@ impl Runner<'_> {
                 let key: Vec<Value> = key
                     .iter()
                     .map(|term| match term {
-                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => row.field(field).cloned().unwrap_or(Value::Null),
+                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
+                            // This inserted image owns a provisional ordinal even if no expression read it.
+                            self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
+                            row.field(field).cloned().unwrap_or(Value::Null)
+                        },
                         crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
                         crate::schema::RuleTerm::Literal(value) => value.clone(),
                         crate::schema::RuleTerm::OldField(_) => Value::Null,
                     })
                     .collect();
                 self.read_tables.insert(target.clone());
+                self.observe_sequence_selection(target, index, &key)?;
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.live_lookup(target, index, target_index, &key)? {
+                let found = match self.lookup_stored(target, index, target_index, &key, true)? {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
@@ -615,8 +742,12 @@ impl Runner<'_> {
         if old.is_some() && new.is_none() { self.timeline_purge_charge(table_name)?; }
         if self.schema.visible(table_name) { self.written_tables.insert(table_name.to_owned()); }
         if origin == Origin::Source {
+            for m in self.schema.maintains.iter().filter(|m|m.row_key.as_ref().is_some_and(|k|k.table == table_name)) {
+                self.written_tables.insert(m.target.clone());
+            }
             for m in self.schema.maintains.iter().filter(|m|m.source == table_name) {
                 if let Some(owner) = &m.private { self.written_tables.insert(owner.table.clone()); }
+                if m.row_key.is_some() { self.written_tables.insert(m.target.clone()); }
             }
         }
         self.rows_written += 1;
@@ -658,9 +789,22 @@ impl Runner<'_> {
         if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; } }
         else if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         if origin == Origin::Source {
-            self.place_assets(table_name, &table, old, new)?;
-            self.maintain(table_name, old, new)?;
-            if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
+            // @ref LLP 3000.015#3 — a source born expired never enters the count basis.
+            // Retire it now, in the same transaction, so a later correction/sweep
+            // cannot subtract a contribution which was never added. Other derived
+            // consumers see the same physical deletion (including an expiring update).
+            let new = if let Some(row) = new.filter(|row| self.expired(&table, row))
+                && self.schema.maintains.iter().any(|m| m.source == table_name && m.row_key.is_some())
+            {
+                let entries = self.tx.delete(table_name, &table, row)?;
+                self.meter.charge(MeterKind::IndexEntries, entries)?;
+                None
+            } else { new };
+            if old.is_some() || new.is_some() {
+                self.place_assets(table_name, &table, old, new)?;
+                self.maintain(table_name, old, new)?;
+                if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
+            }
         }
         Ok(())
     }

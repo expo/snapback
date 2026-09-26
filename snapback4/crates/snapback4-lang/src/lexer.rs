@@ -49,7 +49,7 @@ pub fn lex(file: &str, source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
         // A deeper line that opens a shape continues the line above it:
         //   return memberships[viewer] first 50 by byPrincipalConversation
         //     { conversationId, count: messageCounts[.conversationId] }
-        let continues = grouping == 0 && trimmed.starts_with('{') && leading > *indents.last().unwrap() && tokens.last().is_some_and(|t| t.kind == Kind::Newline);
+        let continues = grouping == 0 && (trimmed.starts_with('{') || trimmed.starts_with("and ") || trimmed.starts_with("or ")) && leading > *indents.last().unwrap() && tokens.last().is_some_and(|t| t.kind == Kind::Newline);
         if continues {
             tokens.pop();
         }

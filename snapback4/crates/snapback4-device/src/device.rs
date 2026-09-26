@@ -235,13 +235,17 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn provisional_sequence_floor(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        Ok(self.tx.meta(&predictions::sequence_floor_key(parent, id))?.and_then(|v| v.parse().ok()).unwrap_or(0))
+    }
+
     fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
         Ok(self.tx.get(table, row.field("id")?.as_str()?)?.is_some_and(|image| image.field("pending") == Ok(&Value::Bool(true))))
     }
 
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
-    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
-        recorded::covered(self, name, row, viewer, now, meter)
+    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<bool, RuntimeError> {
+        recorded::covered(self, name, row, viewer, now, scope, meter)
     }
     fn current_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
         Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Row(row))? == history::CoverageState::Held)
@@ -267,10 +271,13 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         self.tx.scan(table, index_name, prefix, bounds, dir, limit).map(|rows| rows.into_iter().map(|(row, key)| (predictions::without_pending(row), key)).collect())
     }
-    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, meter)?;
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.tx.index_head(table,index,prefix,bounds,dir)
+    }
+    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter)?;
         for (row, _) in &mut rows {
-            meter.heap(snapback4_core::rows::word_heap::object_copy(row))?;
+            self.schema.tables[table].project_fields(row.clone(),None).charge_copy_internal(meter,scope)?;
             *row = predictions::without_pending(std::mem::replace(row, Value::Null));
         }
         Ok(rows)
@@ -290,6 +297,13 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
         self.tx.put(table_name, table, &pending, old)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        for (column, reference) in &table.sequences {
+            let snapback4_core::schema::ColumnType::Ref { table: parent } = &table.columns[reference] else { continue };
+            let id = old.field(reference)?.as_str()?;
+            let key = predictions::sequence_floor_key(parent, id);
+            let floor = self.provisional_sequence_floor(parent, id)?.max(old.field(column)?.as_int()?);
+            self.tx.set_meta(&key, &floor.to_string())?;
+        }
         predictions::remember(self.tx, table_name, old.field("id")?.as_str()?)?;
         self.written.borrow_mut().push(format!("{table_name}/{}", old.field("id")?.as_str()?));
         self.tx.delete(table_name, table, old)
@@ -406,6 +420,7 @@ impl<S: DeviceStore> Device<S> {
             previous.clone().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?
         } else { backend.unwrap() };
         check_version(&backend.schema)?;
+        backend.schema.check_row_view_audiences()?;
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
@@ -518,6 +533,7 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         check_version(&backend.schema)?;
+        backend.schema.check_row_view_audiences()?;
         backend.schema.prepare_contribution_indexes();
         let required = self.store.meta(BACKEND_REQUIRED)?;
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());
@@ -942,6 +958,10 @@ impl<S: DeviceStore> Device<S> {
     /// A caller-supplied id may already have executed beyond the local receipt
     /// window. Its prediction refusal cannot decide the server's replay outcome.
     pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
+        // @ref LLP 3000.017#4.5 — memory writes never enter durable admission or replay.
+        if self.schema.operations.get(&entry.op).is_some_and(|f| f.ephemeral) {
+            return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "ephemeral writes cannot enter the device outbox; call the online ephemeral lane".into() });
+        }
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         store_identity::require_healthy(&tx)?;

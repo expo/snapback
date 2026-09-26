@@ -10,7 +10,7 @@ fn engine(cross: bool, uniform: bool, rows: Vec<(String, snapback4_core::Value)>
 
 fn cut(cross: bool) {
     let mut engine = engine(cross, false, fixture::seed(cross, fixture::CEILING + 1, Some(15)));
-    fixture::check_cut(|cursor| engine.query("feed", fixture::context(cursor)).unwrap());
+    fixture::check_hidden(|cursor| engine.query("feed", fixture::context(cursor)).unwrap());
 }
 
 #[test] fn cross_table_hidden_cut_never_skips() { cut(true); }

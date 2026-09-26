@@ -1,0 +1,79 @@
+{
+  "hashes": [
+    {
+      "path": "pretest1/rubric-section7.md",
+      "sha256": "ed4b3f6136e8049d7132c11838a539caffa530aacecb6034d03bb9cfdc1fa7b5",
+      "both_records_match": true
+    },
+    {
+      "path": "astra-supabase/schema.sql",
+      "sha256": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756",
+      "both_records_match": true
+    },
+    {
+      "path": "astra-supabase/scripts/mutations.sql",
+      "sha256": "a84963b377a2335249e27affa592c2102eb9f93ff715bde2087a5c67d6f11a93",
+      "both_records_match": true
+    },
+    {
+      "path": "astra-supabase/scripts/m7-migration.sql",
+      "sha256": "a5c0fd41ac8563e4736af3f6d7063e83ab72cb81c85202e0bcaf845b6efff3c6",
+      "both_records_match": true
+    },
+    {
+      "path": "grok-supabase/server/schema.sql",
+      "sha256": "b23cece193f6159b6e4cba11dda22d4e6b5ebf645fa21d03b9897b7502cf9757",
+      "both_records_match": true
+    },
+    {
+      "path": "muse-supabase/db/schema.sql",
+      "sha256": "0d79ea2989a573195048a2f7ce622b0eab4b9d8f7314fefaaf8a87c51c3c66ec",
+      "both_records_match": true
+    },
+    {
+      "path": "muse-supabase/db/rls.sql",
+      "sha256": "9a377ea01ca41d62c2b94e6a350fbb4af811afba4b2755d14d6200d5cb9f3a09",
+      "both_records_match": true
+    },
+    {
+      "path": "muse-supabase/db/functions.sql",
+      "sha256": "5695413ce5821ad53c8a69127d8b8d67e36e2257bdcd5e3fc780c64dc73cdf06",
+      "both_records_match": true
+    },
+    {
+      "path": "muse-supabase/db/rpcs.sql",
+      "sha256": "627307bfcf8e6d0a3e3d09bb860c8bcc54073f2b49e13811e12df1e131f51423",
+      "both_records_match": true
+    },
+    {
+      "path": "muse-supabase/db/migrate-m7.sql",
+      "sha256": "d49fad12aff4ce16af3f6a6e784ec37c9e30a60bfb258aa95f606fb3d4290034",
+      "both_records_match": true
+    }
+  ],
+  "resolutions_sha256": "288f3ae3d8ebfa71611801434755ef2fbc77b6ddc00ad56080618191f1360969",
+  "ledger_sha256": {
+    "builder": "eb8922e4c0b10e28f0ff9e0ac3b52316dc73f99bbf66828d0d318b4089dca14d",
+    "blind": "b17a9104aa44c1fef5582646656310ef592bbefbceb85cbe84aa30d8e09b89eb"
+  },
+  "original_counts": {
+    "builder": 1744,
+    "blind": 1293
+  },
+  "builder_only": [
+    "astra-supabase/schema.sql:78:7",
+    "astra-supabase/scripts/mutations.sql:2:11",
+    "grok-supabase/server/schema.sql:43:4",
+    "muse-supabase/db/rpcs.sql:10:5",
+    "muse-supabase/db/migrate-m7.sql:6:3",
+    "muse-supabase/db/migrate-m7.sql:11:15",
+    "muse-supabase/db/migrate-m7.sql:18:19",
+    "muse-supabase/db/migrate-m7.sql:20:5",
+    "muse-supabase/db/migrate-m7.sql:40:3",
+    "muse-supabase/db/migrate-m7.sql:41:3"
+  ],
+  "blind_only": [
+    "astra-supabase/schema.sql:49:0",
+    "astra-supabase/schema.sql:69:0"
+  ]
+}

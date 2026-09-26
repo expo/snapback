@@ -54,12 +54,17 @@ fn nested_ladder<H:Host>(mut h:H,mut store:H::Store) {
     assert!(regressions::enqueue(&mut d,"renew").predictable);
     for p in &programs {
         let (out,unknown,_)=d.query_with_coverage(&p.name,"alice",&json!({}),100);
+        if p.name == "ladder8192" {
+            let out = out.unwrap();
+            assert!(!out.complete && out.cut == Some(snapback4_core::engine::ReadCut::Meter));
+            assert_eq!(out.metered.rule_probes, 8193, "cached points still pay every logical probe");
+            assert!(!unknown);
+            continue;
+        }
         let out=out.unwrap();
         assert!(!unknown,"{}: {out:?}",p.name);
-        // Removing recursive ACLs removes their probe charges too. The
-        // original default-budget ladder now cuts at 8192, not 4095.
-        if p.name=="ladder8192" {assert!(!out.complete && out.cut==Some(snapback4_core::engine::ReadCut::Meter));}
-        else {assert!(out.complete && out.cut.is_none());assert_eq!(out.data.field("id"),Ok(&id("note")));}
+        assert!(out.complete && out.cut.is_none());
+        assert_eq!(out.data.field("id"),Ok(&id("note")));
     }
     store.install(&b.schema,&Default::default(),false).unwrap();
     let tx=store.transaction().unwrap();
@@ -74,7 +79,7 @@ fn nested_ladder<H:Host>(mut h:H,mut store:H::Store) {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,snapback4_core::RuntimeError>{self.0.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&snapback4_core::schema::Index,k:&[Value])->Result<Option<Value>,snapback4_core::RuntimeError>{self.0.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan(t,n,k,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize,m:&mut snapback4_core::meter::Meter)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan_metered(t,n,k,b,d,l,m)}
+        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut snapback4_core::engine::InternalMeter<'_>)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan_metered(t,n,k,b,d,l, scope,m)}
         fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,snapback4_core::RuntimeError>{self.0.count_prefix(t,n,k,l)}
         fn put(&self,t:&str,d:&snapback4_core::schema::Table,r:&Value,o:Option<&Value>)->Result<u64,snapback4_core::RuntimeError>{self.0.put(t,d,r,o)}
         fn delete(&self,t:&str,d:&snapback4_core::schema::Table,r:&Value)->Result<u64,snapback4_core::RuntimeError>{self.0.delete(t,d,r)}
@@ -275,7 +280,7 @@ query note():
 "#;
 
 fn mixed_probe_boundary<H: Host>(mut host: H) {
-    for reads in [8190, 8191, 8192] {
+    for reads in [1, 8188, 8189, 8190, 8191] {
         let (mut engine, backend) = compile(PROBE_BOUNDARY);
         engine.seed([("members".into(), snapback4_core::value::object([
             ("id", id("member")), ("groupId", id("group")), ("principal", id("alice")),
@@ -283,26 +288,32 @@ fn mixed_probe_boundary<H: Host>(mut host: H) {
         let mut device = host.open(&format!("mixed-{reads}"), Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
         let server = engine.mutate("mixed", Some("mixed"), context("alice", &[("work", Value::Int(reads))]).at(100)).unwrap();
-        assert_eq!(server.metered.rule_probes, reads as u64 + 1);
+        assert_eq!(server.metered.rule_probes, reads as u64 + 2);
         let reply = snapback4_device::call::call_text(&mut device, &json!({"op":"admit", "entry":{
             "id":"mixed", "seq":1, "op":"mixed", "args":{"work":reads}, "viewer":"alice", "now":100, "predictable":true
         }}).to_string());
-        if reads < 8192 {
-            assert!(matches!(server.state, WriteState::Sent { .. }), "{server:?}");
-            let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
-            assert!(queued.predictable, "{reads}: {queued:?}");
-            assert_eq!(queued.predicted, ["notes/note"]);
-            assert_eq!(device.queued().unwrap().len(), 1);
-        } else {
+        if reads <= 8190 { assert!(matches!(server.state, WriteState::Sent { .. }), "{server:?}"); }
+        else {
             let WriteState::Failed { why, .. } = server.state else { panic!("{server:?}") };
             assert_eq!(why.code, "E_BOUND");
+        }
+        if reads == 8191 {
             assert_eq!(reply["denied"]["code"], "E_BOUND", "{reply}");
-            assert_eq!(reply["denied"]["message"], why.message);
             assert!(device.queued().unwrap().is_empty());
             assert!(device.store().raw_rows("notes").is_empty());
+            continue;
         }
+        let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
+        assert_eq!(queued.predictable, reads <= 8190, "{reads}: {queued:?}");
+        if queued.predictable { assert_eq!(queued.predicted, ["notes/note"]); }
+        else {
+            assert!(queued.predicted.is_empty(), "physical authority exhaustion queues without prediction");
+            assert!(device.store().raw_rows("notes").is_empty());
+        }
+        assert_eq!(device.queued().unwrap().len(), 1);
     }
 }
+
 #[test] fn mixed_probe_boundary_memory() { mixed_probe_boundary(Memory::new()); }
 #[test] fn mixed_probe_boundary_sqlite() { mixed_probe_boundary(Sqlite::new("mixed-probes")); }
 
@@ -341,14 +352,19 @@ fn expired_authority_witnesses<H: Host>(mut host: H, aggregate: bool) {
         assert_eq!(device.store().raw_rows("notes").is_empty(), !predicts);
         assert_eq!(device.queued().unwrap().len(), 1);
         assert_eq!(device.store().raw_rows("members"), members, "witness reads never sweep");
-        // A zero-read insert still predicts, and its later query keeps the
-        // existing one-probe contract even through all 9,000 expired siblings.
-        if !predicts {
+        // A zero-read insert still predicts. Its later query shares the
+        // request allowance and refuses beyond it, without a physical count.
+        if expired == 9000 && !aggregate {
             let mut entry = queued;
             entry.id = "query-control".into(); entry.seq = 2; entry.predictable = true; entry.args = json!({"work":0});
             assert!(device.admit(entry).unwrap().predictable);
         }
-        let out = device.query("note", "alice", &json!({}), 300).unwrap();
+        let result = device.query("note", "alice", &json!({}), 300);
+        if expired == 9000 && !aggregate {
+            assert_eq!(result.unwrap_err().code, "E_RULE");
+            continue;
+        }
+        let out = result.unwrap();
         assert_eq!(out.data.field("id"), Ok(&id("note")));
         assert!(out.complete && out.cut.is_none(), "{out:?}");
         assert_eq!(out.metered.rule_probes, 1);
@@ -363,15 +379,15 @@ fn expired_authority_witnesses<H: Host>(mut host: H, aggregate: bool) {
 // the interpreter must stop fetching at its remaining device allowance.
 fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
     use std::cell::Cell;
-    use snapback4_core::{RuntimeError, rows::{Bounds, Dir}, schema::{Index, Table}, meter::Meter};
+    use snapback4_core::{RuntimeError, rows::{Bounds, Dir}, schema::{Index, Table}};
     struct Counted<'a> { rows: &'a dyn Rows, fetched: Cell<usize> }
     impl Rows for Counted<'_> {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.rows.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.rows.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.rows.scan(t,n,k,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
-            assert!(l as u64 <= m.ceilings.examined.saturating_sub(m.used.examined));
-            let result=self.rows.scan_metered(t,n,k,b,d,l,m)?;
+        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut snapback4_core::engine::InternalMeter<'_>)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+            assert!(m.examined_room(l));
+            let result=self.rows.scan_metered(t,n,k,b,d,l, scope,m)?;
             self.fetched.set(self.fetched.get()+result.len()); Ok(result)
         }
         fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,RuntimeError>{self.rows.count_prefix(t,n,k,l)}
@@ -404,20 +420,21 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         }
         let counted = Counted { rows: &tx, fetched: Cell::new(0) };
         let program = backend.programs.iter().find(|p| p.name == "mixed").unwrap();
-        for budget in [1, 2, 33, 8192, 9002] {
+        for budget in [1, 2, 3, 33, 8192, 9002, 9003] {
             tx.savepoint("attempt").unwrap(); counted.fetched.set(0);
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
                 Ceilings { examined: budget, ..Ceilings::unbounded() });
-            let needed = if aggregate { 2 } else { 9001 };
-            if budget >= needed { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
-            else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}, budget={budget}: {result:?}"); }
-            assert_eq!(counted.fetched.get(), budget.min(needed) as usize);
+            if aggregate && budget >= 3 {
+                assert!(result.is_ok(), "live contribution seek, budget={budget}: {result:?}");
+            } else {
+                assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}, budget={budget}: {result:?}");
+            }
+            assert!(counted.fetched.get() <= (budget as usize).min(8192), "both physical allowances bind");
+            if budget < 8192 && (!aggregate || budget < 3) { assert_eq!(counted.fetched.get(), budget as usize); }
             tx.rollback_to("attempt").unwrap();
         }
-        // An early live witness with an oversized, unindexed payload must
-        // exhaust allocation before authorizing; a small image still fits.
-        // Use the earliest live deadline at an earlier pinned clock: expiry
-        // ordering puts null after the expired backlog, no longer first by id.
+        // Logical decoder admission depends on the declaration, not the witness
+        // payload. Both small and large worlds cut before device physical work.
         let old = tx.get("members", "m00000").unwrap().unwrap();
         for payload in [Value::Null, Value::String("x".repeat(40000))] {
             tx.savepoint("heap").unwrap();
@@ -426,8 +443,7 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
             tx.put("members", &backend.schema.tables["members"], &row, Some(&old)).unwrap();
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(198),
                 Ceilings { examined: 1 + u64::from(aggregate), heap_bytes: 32768, ..Ceilings::unbounded() });
-            if payload == Value::Null { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
-            else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}: {result:?}"); }
+            assert!(matches!(result, Err(RuntimeError::Bound {kind:snapback4_core::error::MeterKind::HeapBytes,..})), "aggregate={aggregate}: {result:?}");
             tx.rollback_to("heap").unwrap();
         }
         tx.rollback().unwrap();

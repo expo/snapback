@@ -3,6 +3,8 @@
 //! §5.1) in its serialized form, so the conformance corpus loads unchanged;
 //! the held-search descriptor, a receipt-era form, is dropped.
 
+pub mod effects;
+
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -210,6 +212,10 @@ pub enum UnaryOp {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Builtin {
+    /// Compiler-owned projection of a successful insert result.
+    ProjectFields { table: String },
+    /// A private field may be absent from a projected row.
+    OptionalField { field: String },
     Calendar { millis: i64 },
     Len,
     Slice,
@@ -218,7 +224,7 @@ pub enum Builtin {
     Trim,
     Sha256,
     Join,
-    Group { field: String },
+    Group { field: String, #[serde(default, skip_serializing_if = "std::ops::Not::not")] optional: bool },
     First,
     Last,
     At,
@@ -242,7 +248,7 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Extremum { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
@@ -253,6 +259,9 @@ impl Builtin {
 pub struct SortKey {
     pub field: String,
     pub order: Order,
+    /// The declared private field can be omitted by row projection.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional: bool,
 }
 
 /// A point read: one indexed key, all components bound.

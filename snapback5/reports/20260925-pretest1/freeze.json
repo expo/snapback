@@ -1,0 +1,55 @@
+{
+ "frozenAt": "2026-09-25",
+ "rfcCommit": "da443e4d44",
+ "rubric": {
+  "path": "pretest1/rubric-section7.md",
+  "sha256": "ed4b3f6136e8049d7132c11838a539caffa530aacecb6034d03bb9cfdc1fa7b5"
+ },
+ "manifest": [
+  {
+   "path": "astra-supabase/schema.sql",
+   "lines": 92,
+   "sha256": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756"
+  },
+  {
+   "path": "astra-supabase/scripts/mutations.sql",
+   "lines": 95,
+   "sha256": "a84963b377a2335249e27affa592c2102eb9f93ff715bde2087a5c67d6f11a93"
+  },
+  {
+   "path": "astra-supabase/scripts/m7-migration.sql",
+   "lines": 42,
+   "sha256": "a5c0fd41ac8563e4736af3f6d7063e83ab72cb81c85202e0bcaf845b6efff3c6"
+  },
+  {
+   "path": "grok-supabase/server/schema.sql",
+   "lines": 309,
+   "sha256": "b23cece193f6159b6e4cba11dda22d4e6b5ebf645fa21d03b9897b7502cf9757"
+  },
+  {
+   "path": "muse-supabase/db/schema.sql",
+   "lines": 182,
+   "sha256": "0d79ea2989a573195048a2f7ce622b0eab4b9d8f7314fefaaf8a87c51c3c66ec"
+  },
+  {
+   "path": "muse-supabase/db/rls.sql",
+   "lines": 155,
+   "sha256": "9a377ea01ca41d62c2b94e6a350fbb4af811afba4b2755d14d6200d5cb9f3a09"
+  },
+  {
+   "path": "muse-supabase/db/functions.sql",
+   "lines": 121,
+   "sha256": "5695413ce5821ad53c8a69127d8b8d67e36e2257bdcd5e3fc780c64dc73cdf06"
+  },
+  {
+   "path": "muse-supabase/db/rpcs.sql",
+   "lines": 294,
+   "sha256": "627307bfcf8e6d0a3e3d09bb860c8bcc54073f2b49e13811e12df1e131f51423"
+  },
+  {
+   "path": "muse-supabase/db/migrate-m7.sql",
+   "lines": 439,
+   "sha256": "d49fad12aff4ce16af3f6a6e784ec37c9e30a60bfb258aa95f606fb3d4290034"
+  }
+ ]
+}

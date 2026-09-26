@@ -15,7 +15,7 @@ impl Runner<'_> {
         // No clock means expiry is disabled, as for ordinary row reads.
         if self.context.now.is_some() {
             loop {
-                let rows = self.tx.scan(&maintain.source, &index, &group, &bounds, Dir::Asc, 32)?;
+                let rows = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 32))?;
                 let count = rows.len();
                 for (mut candidate, key) in rows {
                     if !self.read_charge(MeterKind::Examined, 1)? { self.meter.require_uncapped()?; }
@@ -31,7 +31,7 @@ impl Runner<'_> {
         // This seek also supplies the next clock invalidation without walking live rows.
         if !self.read_charge(MeterKind::Examined, 1)? { self.meter.require_uncapped()?; }
         let bounds = Bounds { gt: self.context.now.map(|_| Value::Int(now)), ..Bounds::default() };
-        let next = self.tx.scan(&maintain.source, &index, &group, &bounds, Dir::Asc, 1)?;
+        let next = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 1))?;
         let Some((mut candidate, _)) = next.into_iter().next() else { return Ok(None) };
         materialize_optional_fields(&mut candidate, source);
         self.note_expiry(source, &candidate);

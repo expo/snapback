@@ -282,6 +282,9 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
+    pub sequence: Option<String>,
+    pub written_by: Option<String>,
+    pub readable_by_audience: bool,
     pub maintained: Option<ColumnAggregate>,
     pub name: String,
     pub default: Option<Expr>,
@@ -323,6 +326,7 @@ pub struct CapDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub ephemeral: Option<EphemeralDecl>,
     pub search: Vec<String>,
     pub name: String,
     pub columns: Vec<ColumnDecl>,
@@ -341,7 +345,14 @@ pub struct TableDecl {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EphemeralDecl {
+    pub life_ms: u64,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MaintainDecl {
+    pub row_key: Option<(String, String)>,
     pub filter: Option<Expr>,
     pub keys: Vec<Expr>,
     pub indexes: Vec<IndexDecl>,

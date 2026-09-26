@@ -1,0 +1,81 @@
+{
+  "journalAppendOnly": true,
+  "versionCommitMatchesPriorReleaseSixPaths": true,
+  "implementationAndTestsUnchanged": true,
+  "noPublicationStage": true,
+  "noNativeQualificationAttempt": true,
+  "changedTrackedPaths": [
+    "snapback4/JOURNAL.md",
+    "snapback4/native-fixtures/following/Cargo.lock"
+  ],
+  "files": {
+    "REPORT.md": {
+      "bytes": 7488,
+      "sha256": "27565d89a064e397117c6187aabd4ee12ded33f68ec5bf7e1b4d3a93920ce6aa"
+    },
+    "attempt-1-bun-install.json": {
+      "bytes": 368,
+      "sha256": "55498fba742128c15fdc8cb7e1bdeb33239f76d00c2caa5122d49f47f9e06dc4"
+    },
+    "attempt-1-bun-install.log": {
+      "bytes": 92,
+      "sha256": "fb4e046acd221879a94af1ab7b3c750fa4c434bb62d9ea54690edb58b4531b95"
+    },
+    "attempt-1-full-suite.json": {
+      "bytes": 561,
+      "sha256": "c526643e0c6249b44b0b258003469ad442cade4d77296da806be93f30890b9a6"
+    },
+    "attempt-1-full-suite.log": {
+      "bytes": 451050,
+      "sha256": "69657ae998c44c7bf0cfe5311bf6052422a79b0738bec7efdc8d10a9ab0fa253"
+    },
+    "attempt-1-npm-identity.json": {
+      "bytes": 345,
+      "sha256": "ccb05494386c45bcedd771e0d85cd66950ea4065e85f433766050073abf9cbbc"
+    },
+    "attempt-1-npm-identity.log": {
+      "bytes": 9,
+      "sha256": "62e3daf9f0d8cd89b3555d1953c593174c4965a298b71061ad8240fbb060be65"
+    },
+    "attempt-1-version-commit.json": {
+      "bytes": 423,
+      "sha256": "0025ebad452cae4d8018701c0d8b05f2a16e37f923efdd47788ed69eafafb9e1"
+    },
+    "attempt-1-version-commit.log": {
+      "bytes": 146,
+      "sha256": "adcbbfaaf8712c383e627f3f4d28d045409a2e4e307d20574644c214d4c346a3"
+    },
+    "attempt-1-version-frozen-install.json": {
+      "bytes": 390,
+      "sha256": "5dafea9eee8ce749ba51017f74be2a656cdea83dc6d615d9d262a3c779bb4b95"
+    },
+    "attempt-1-version-frozen-install.log": {
+      "bytes": 97,
+      "sha256": "66c08ec43c31c76ef6780762bc7f3943dd99bfac053c1c288122737ed74afc11"
+    },
+    "failure-details.log": {
+      "bytes": 3924,
+      "sha256": "7d62d1af705a17933007ffead657c7192ae4109a53bd76d8b1da12c5bedf4b2e"
+    },
+    "failure-summary.json": {
+      "bytes": 2148,
+      "sha256": "cad6a1219b1b6daa50e695f8715ad6c83e4b65e521a60c3490d99c1a854a75f6"
+    },
+    "journal-entry.md": {
+      "bytes": 2724,
+      "sha256": "b716d6332b46131624f990a72f3ed4b4d3472e8673b79b7e167687f8876906ce"
+    },
+    "qualification-summary.json": {
+      "bytes": 2794,
+      "sha256": "fe3df95795596e8631d2d80f28d31a85cf644e306e4606a3bd7058e0ee5c0e76"
+    },
+    "source.json": {
+      "bytes": 1566,
+      "sha256": "3480916e7b58180241a30bd291f3822ee3f20a37f33aa1865ace5266012862bc"
+    },
+    "suite-generated-fixture-lock.patch": {
+      "bytes": 411,
+      "sha256": "d4ab211dc4493d1bd0860abecc7d9f8bdae9169fa166bc5682ddc5d2e9a57d4e"
+    }
+  }
+}

@@ -77,9 +77,12 @@ impl Tx<'_> {
         if self.batch("SAVEPOINT prefetch").is_err() { return; }
         let fill = (|| -> Result<Cache, RuntimeError> {
             let mut added = Cache::default();
+            let mut ledger = crate::value::InternalLedger::new(available as u64);
             let mut insert = |call: Call, text: Option<&str>| -> Result<(), RuntimeError> {
                 let value: Option<Value> = text.map(decode).transpose()?;
-                let bytes = call.bytes() + value.as_ref().map_or(0, |v| v.heap_bytes() as usize) + std::mem::size_of::<(Call, Option<Value>)>();
+                let fixed = call.bytes() + std::mem::size_of::<(Call, Option<Value>)>();
+                if !ledger.retain(value.as_ref(), fixed as u64) { return Err(RuntimeError::Store("prefetch byte budget".into())); }
+                let bytes = fixed + text.map_or(0, str::len).saturating_mul(DECODE_RESERVE);
                 added.bytes = added.bytes.saturating_add(bytes);
                 if added.bytes > available { return Err(RuntimeError::Store("prefetch byte budget".into())); }
                 added.answers.insert(call, (value, bytes));

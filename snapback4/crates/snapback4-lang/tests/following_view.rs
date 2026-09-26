@@ -13,6 +13,18 @@ fn write(e: &mut Engine, op: &str, who: &str, args: &[(&str, Value)], at: i64) {
     assert!(matches!(out.state, WriteState::Sent { .. }), "{op}: {out:?}");
 }
 fn post(e: &mut Engine, name: &str, at: i64) { write(e, "post", "alice", &[("postId", id(name)), ("parentId", Value::Null)], at); }
+
+#[test]
+fn upsert_insert_stamps_following_event_slot() {
+    let source = format!("{SOURCE}\nmutation put(postId: posts):\n  upsert posts[postId] {{ authorId: viewer, parentId: null, at: now }}\n");
+    let mut e = engine(&source);
+    write(&mut e, "put", "alice", &[("postId", id("p"))], 1000);
+    let slot = e.schema().timelines[0].slot(false);
+    let rows = e.store().rows("posts").unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field(&slot), Ok(&Value::Bool(true)));
+    assert_eq!(e.store().rows("feedPosts").unwrap()[0].field("id"), Ok(&id("p")));
+}
 fn drain(e: &mut Engine) { let mut chunks=0; while e.run_timeline_chunk(5000).unwrap().is_some() { chunks+=1; assert!(chunks<10000); } }
 fn page(e: &mut Engine, op: &str, who: &str, c: Option<String>) -> snapback4_core::QueryOutcome {
     e.query(op, Context::new(who, BTreeMap::from([("c".into(), c.map(Value::String).unwrap_or(Value::Null))]))).unwrap()
