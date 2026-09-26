@@ -174,9 +174,11 @@ impl<'r> Runner<'r> {
 
     // @ref LLP 3000.016#2.2 — withhold missing cards before an examination cut can conceal their coverage.
     // Admission still precedes candidate access (LLP 3000.015 §2): a device point
-    // read that cannot examine a horizon-bounded card is unknown, never a hole.
+    // read that cannot examine a partially held card is unknown, never a hole.
+    // Owned events have no horizon themselves; classify their source kinds
+    // from schema/key metadata even when admission prevented the lookup.
     fn point_cut(&mut self, read: &Read, key: &[Value]) {
-        if self.device && self.schema.tables[&read.table].sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
+        if self.device {
             self.point_miss(read, key);
         }
     }

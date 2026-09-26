@@ -61573,3 +61573,52 @@ codex session could not authenticate.
 - Production binary: 11,960,272 bytes, SHA-256 `4bea81bf…c7e8`.
 
 Report: `reports/20260925-publication-0.4.2/REPORT.md`.
+
+## 2026-09-25 — fix-forward: inherited row-view lifetimes, Following upserts and cut withholding
+
+The post-landing review of the 0.4.2 / LLP 3000.015 merge reproduced three
+correctness/compatibility seams. Fixed on `sb5/land` from `71f77c16ca`:
+
+- **Inherited lifetime:** row-keyed member lifetime/recipient indexes and
+  source range indexes use the effective expiry column. Existence witnesses,
+  count dispatch, recount selection/cursors, device recounts, basis timestamps
+  and private recount scheduling use the same inherited-expiry classification
+  and `deadline()` as ordinary witnesses. A finite member witness contributes
+  its effective deadline to the complete-rule timeline. The two reproduced
+  Quarry programs are fixtures; paired memory/SQLite core tests cover the
+  secret's revocation, live counts and deadlines before/at/after expiry, plus
+  recount followed by physical deletion without double subtraction. Both
+  device stores replay both fixtures, predict the unchanged mark after source
+  expiry and reopen without restoring the expired count.
+- **Following upsert:** insertion preflight uses `validate_before_slots`;
+  full row validation remains after event-slot stamping. The existing Following
+  fixture now proves an authorized upsert into an empty store succeeds and
+  stores its required true slot with the owned event.
+- **Owned-event examination cut:** the device uses the existing missing-read
+  classifier even when the owned table has no horizon. Its source-kind
+  coverage comes from schema/key metadata before any candidate fetch. Zero
+  and one examined unit both withhold the partial-source card as unknown;
+  fully synced negative coverage retains its ordinary behavior.
+
+LLP 3000.015 and LLP 3000.016 clarify these composition rules. The two Grok
+allowance tickets remain open and unchanged; this change does not address
+capture-matching or ordinary aggregate allowance routing.
+
+Wasm measurement: **2,009,397 B raw / 577,221 B gzip / 437,608 B Brotli** on
+Rust 1.97.0 / wasm-bindgen 0.2.127, without wasm-opt. Family and server-code
+absence checks pass. The **578,207 B** ratchet stays fixed, with **986 B**
+headroom; no runtime ceiling changes. `metrics/wasm.jsonl` records the dirty
+source measurement against the base commit, and the suite build agrees.
+
+Qualification completed with **`== 0 failure(s) in 2388 s`** from the full
+blocking suite, using the requested serial client files and the harness's
+`SNAPBACK4_RUST_TEST_PROCESSES=4` scheduling option. All Rust targets passed;
+client files reported 1,998 passes and nine existing skips, and the 78 seeded
+model checks passed. Test counts, timeouts and runtime ceilings were unchanged.
+The first attempt hit a lifecycle child-start timeout (the unchanged isolated
+retry passed); the second overlapped repeated Mac sleep/wake cycles and timed
+out seven client cases. The final full run passed with temporary sleep
+prevention, including every earlier failed case. The assertion was removed
+after qualification. `./ref-check --verbose` and `git diff --check` pass.
+The external `fix-forward-1.final.md` report retains the before/after regression
+logs, both failed suite attempts, the successful suite and the wasm measurement.

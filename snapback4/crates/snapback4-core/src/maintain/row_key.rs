@@ -104,11 +104,12 @@ impl crate::schema::Schema {
         use std::collections::BTreeMap;
         for m in &self.maintains {
             let Some(key) = &m.row_key else { continue };
+            // @ref LLP 3000.014#5 — row views index the same effective lifetime as ordinary read-through witnesses.
             if let Some(t) = self.tables.get_mut(&key.table) {
                 let mut lifetime = vec!["id"];
-                if let Some(expiry) = &t.expire { lifetime.push(expiry); }
+                if let Some(expiry) = t.expiry_column() { lifetime.push(expiry); }
                 t.indexes.insert("$viewLifetime".into(), Index::of(&lifetime, false));
-                if let Some(expiry) = &t.expire {
+                if let Some(expiry) = t.expiry_column() {
                     t.indexes.insert(
                         key.live_member_index(),
                         Index::of(&[&key.member_key, expiry, "id"], false),
@@ -120,7 +121,7 @@ impl crate::schema::Schema {
                 );
             }
             if let Some(t) = self.tables.get_mut(&m.source) {
-                if let Some(expiry) = &t.expire {
+                if let Some(expiry) = t.expiry_column() {
                     t.indexes.insert(
                         key.range_index(expiry),
                         Index::of(&[&key.source_key, expiry, "id"], false),
@@ -195,7 +196,7 @@ impl RowKey {
         }
         let member_read = u.rules.read.device_audience_rule();
         if *member_read == inherited { return true; }
-        if table != &self.table || u.expire.is_some() { return false; }
+        if table != &self.table || u.is_expiring() { return false; }
         let Some(index) = u.indexes.get(index) else { return false; };
         let fields = index.columns();
         if !index.unique || fields.len() != key.len() { return false; }

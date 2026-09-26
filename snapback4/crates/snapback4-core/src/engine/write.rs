@@ -100,7 +100,9 @@ impl Runner<'_> {
             // only this first authority refusal is an undisclosed target miss.
             if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
             if sequence_full { return Err(super::sequences::exhausted()); }
-            if let Err(error) = validate_row(self.schema, table_name, &row) {
+            // Engine event slots are stamped after predecessor/sequence checks,
+            // just as on an ordinary insert; preflight validates authored fields.
+            if let Err(error) = super::validate::validate_before_slots(self.schema, table_name, &row) {
                 return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
             }
         }
