@@ -15,6 +15,7 @@ use std::fmt;
 
 pub mod columns;
 pub mod through;
+pub mod ephemeral;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
@@ -53,6 +54,15 @@ pub struct UniqueRefusal {
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
+    // @ref LLP 3000.017#2.4-the-client — absent facts retain legacy schema bytes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ephemeral: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub renews: bool,
+    #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]
+    pub renew_ms: Option<u64>,
+    #[serde(default, rename = "ephemeralReads", skip_serializing_if = "Vec::is_empty")]
+    pub ephemeral_reads: Vec<String>,
     /// Author-declared device-only query. Incomplete local answers never fall back to the server.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub held: bool,
@@ -216,6 +226,8 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ephemeral: Option<ephemeral::Ephemeral>,
     /// Engine-assigned ordinal → required parent reference column.
     // @ref LLP 3000.015#2 — one counter per parent row across child tables.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -776,6 +788,7 @@ pub fn sequence_index(column: &str) -> String { format!("$sequence:{column}") }
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
+        ephemeral: None,
         sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None,
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
@@ -802,6 +815,7 @@ pub struct SchemaIssue {
 /// maintain has the closed target shape; every `sync` is invertible.
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = columns::validate(schema);
+    issues.extend(ephemeral::validate(schema));
     issues.extend(field_authority::validate(schema));
     issues.extend(through::validate(schema));
     timeline::validate(schema, &mut issues);

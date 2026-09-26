@@ -1,4 +1,7 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_EPHEMERAL", "ephemeral life is 1–60 seconds. Keep durable custody, rules that probe memory, held reads and durable writes out of ephemeral tables. Split mixed mutations and read ephemeral state in its own server query; guide ephemeral."),
+    ("E_EPHEMERAL_FULL", "ephemeral memory is full for this principal or the server. No write applied. Wait for rows to expire or remove your rows, then retry; guide ephemeral."),
+    ("N_EPHEMERAL_SERVER", "this query runs on the server because it reads ephemeral state. Split the ephemeral read into its own query and render it next to the device-held one; guide ephemeral."),
     ("E_QUARRY_SELF_EQUALITY", "a predicate compares a filtered row column with itself. Use an operation argument, or bind the enclosing row in a named key: members[conversation = .conversation]. guide shapes."),
     ("E_READ_THROUGH_SCAN", "an aggregate grouped by a read-through reference is served by its complete parent key. Replace the scan with viewName[parent]. Scanning other groups would disclose their population. guide maintains."),
     ("E_READ_THROUGH_ADOPT", "activation or restore found children with missing or expired parents, disagreeing captures, or no unambiguous old audience correspondence. Reconcile the named table before retrying; nothing is published. guide rules."),

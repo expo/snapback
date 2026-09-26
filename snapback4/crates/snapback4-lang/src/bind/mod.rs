@@ -3,6 +3,7 @@
 
 pub mod catalog;
 mod columns;
+mod ephemeral;
 mod defaults;
 mod maintains;
 mod row_views;
@@ -53,6 +54,7 @@ pub struct Bound {
 
 pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    ephemeral::declarations(&documents, &mut diagnostics);
     helper_names::normalize(&mut documents, &mut diagnostics);
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
@@ -138,6 +140,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
             }
         }
     }
+    ephemeral::programs(&catalog, &mut schema, &programs, &mut diagnostics);
     // @ref LLP 3000.007#20 — predicts asserts the existing eligibility decision; it never changes residency.
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
@@ -182,6 +185,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
     schema.action_specs.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name && bound.program.kind == snapback4_core::ir::ProgramKind::Action));
     let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).chain(catalog.planner_notes.clone()).collect();
+    notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));

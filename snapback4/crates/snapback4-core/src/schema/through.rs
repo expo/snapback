@@ -18,17 +18,17 @@ pub struct Through {
 
 impl Table {
     pub fn engine_field(&self, field: &str) -> bool {
-        self.recorded.contains_key(field)
+        (self.ephemeral.is_some() && field == DEADLINE) || self.recorded.contains_key(field)
             || self.through.as_ref().is_some_and(|t| {
                 t.fields.contains_key(field) || matches!(field, DEADLINE | PARENT_DEADLINE)
             })
     }
     /// One classification for every expiry gate, including inherited deadlines.
     pub fn is_expiring(&self) -> bool {
-        self.expire.is_some() || self.through.as_ref().is_some_and(|t| t.expiring)
+        self.ephemeral.is_some() || self.expire.is_some() || self.through.as_ref().is_some_and(|t| t.expiring)
     }
     pub fn expiry_column(&self) -> Option<&str> {
-        if self.through.is_some() && self.is_expiring() {
+        if self.ephemeral.is_some() || self.through.is_some() && self.is_expiring() {
             Some(DEADLINE)
         } else {
             self.expire.as_deref()
