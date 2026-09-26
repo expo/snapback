@@ -286,7 +286,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Quarry grammar | `guide language` |
 | Complete chat example / offline web starter | `guide app` / [Vite starter](./CLIENT-AND-OPERATIONS.md#offline-web-starter) |
 | Fields / indexes / rules / aggregates | `guide types` / `guide indexes` / `guide rules` / `guide maintains` |
-| Reads / shapes / writes / helpers | `guide reads` / `guide shapes` / `guide writes` / `guide programs` |
+| Reads / shapes / writes / helpers / chat receipts | `guide reads` / `guide shapes` / `guide writes` / `guide programs` / `guide receipts` |
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
 | Following: `view following` / Global: planned view / Trending: predicate read / search | `guide feeds` / `guide search` |
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
