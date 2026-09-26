@@ -225,7 +225,7 @@ fn copies(program: &Program) -> BTreeMap<String, String> {
 /// What the walk knows of a condition: a constant, an argument's presence (its
 /// identity, its author's name, and the presence under which the test holds), or
 /// nothing, combined by `not`, `and` and `or`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum Test {
     Known(bool),
     Present(String, String, bool),
@@ -270,6 +270,9 @@ impl Test {
                     // `a and b` holds, or `a or b` fails: so does each side.
                     a.facts(value, known, out);
                     b.facts(value, known, out);
+                } else if a == b {
+                    // `p or p` holds only where `p` does.
+                    a.facts(value, known, out);
                 } else {
                     // `a and b` fails, or `a or b` holds: a side known to be `true` (`false` for
                     // `or`) leaves the other to decide it.
@@ -288,11 +291,17 @@ fn steps(branch: &[Stmt], name: &str) -> bool {
 }
 
 /// A value the interpreter computes from literals alone: a literal, or unary `-`,
-/// `+`, `-` and `*` of integers within Quarry's range (`engine::runner`); an
-/// overflow, which fails the call, stays unknown.
+/// `+`, `-`, `*`, `/` and `%` of integers within Quarry's range (`engine::runner`);
+/// an overflow or a division by zero, which fails the call, stays unknown.
 fn literal(expr: &Expr) -> Option<Value> {
     match expr {
         Expr::Literal(value) => Some(value.clone()),
+        Expr::Field { base, name } if matches!(base.as_ref(), Expr::Builtin { builtin: Builtin::Divmod { .. }, .. }) => {
+            let Expr::Builtin { args, .. } = base.as_ref() else { unreachable!() };
+            let (Value::Int(a), Value::Int(b)) = (literal(&args[0])?, literal(&args[1])?) else { return None };
+            if b == 0 { return None; }
+            match name.as_str() { "quotient" => Some(Value::Int(a.div_euclid(b))), "remainder" => Some(Value::Int(a.rem_euclid(b))), _ => None }
+        }
         Expr::Unary { op: UnaryOp::Neg, value } => match literal(value)? { Value::Int(n) => Value::int(-i128::from(n)).ok(), _ => None },
         Expr::Binary { op: op @ (BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul), left, right } => {
             let (Value::Int(a), Value::Int(b)) = (literal(left)?, literal(right)?) else { return None };
@@ -326,7 +335,10 @@ impl Analysis<'_> {
         match condition {
             Expr::Literal(Value::Bool(value)) => Test::Known(*value),
             Expr::Variable(name) => self.tests.get(name).cloned().unwrap_or(Test::Unknown),
-            Expr::Unary { op: UnaryOp::Not, value } => Test::Not(test(value)),
+            Expr::Unary { op: UnaryOp::Not, value } => match self.test(value) {
+                Test::Present(identity, name, present) => Test::Present(identity, name, !present),
+                test => Test::Not(Box::new(test)),
+            },
             Expr::Binary { op: BinaryOp::And, left, right } => Test::And(test(left), test(right)),
             Expr::Binary { op: BinaryOp::Or, left, right } => Test::Or(test(left), test(right)),
             Expr::Binary { op, left, right } => match (literal(left), literal(right)) {
@@ -609,9 +621,13 @@ impl Analysis<'_> {
     /// the walk knows no test of it inside or after.
     fn repeated(&mut self, body: &[Stmt], times: u64) {
         let assigned = assigned(body);
-        for name in &assigned { self.tests.remove(name); }
+        let before: Vec<(String, Test)> = assigned.iter().filter_map(|name| self.tests.remove(name).map(|test| (name.clone(), test))).collect();
+        let written = self.written.len();
         self.body(body, times);
+        let reassigned: BTreeSet<&String> = self.written[written..].iter().collect();
         for name in &assigned { self.tests.remove(name); }
+        // A binding the loop only reassigns in code that never runs keeps its test after it.
+        for (name, test) in before { if !reassigned.contains(&name) { self.tests.insert(name, test); } }
     }
 
     /// Statements that never run: walked for their bindings, but no site of theirs counts.

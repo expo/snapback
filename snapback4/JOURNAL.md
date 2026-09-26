@@ -63712,3 +63712,29 @@ whatever the other side is, so its arm runs in both presence states. Tests
 pin `true or assignee != null` and `assignee != null or true`. The first
 lowers so the presence test never enters the `Test` at all. The second is
 the one that kills the mutation taking the other side's facts.
+
+## 2026-09-26 — Scale certificate precision round 4: the last precision Lows
+
+Both families reviewed round 3 READY WITH CHANGES and found no soundness
+defect. Astra ran 3,000 generated queries and 72,000 interpreter calls, and
+compared full certificates with the base for 204 fixture operations and 214
+guide operations: they matched, except for the intended dead-code reductions.
+Round 4 takes the remaining precision Lows, each with a test, and every
+mutation of the new code fails a test.
+
+- **A loop's dead assignment keeps the binding's test.** `repeated()` clears the
+  loop's reassigned bindings on entry and exit. It now restores, after the
+  loop, any binding the reachable walk never reassigned. A reachable
+  reassignment still leaves none, since the loop may have run.
+- **`p or p` states `p`.** A true `or` of equal sides takes that side's facts.
+  `not` of a presence test is now the opposite presence, so
+  `p or not (p = null)` is the same case.
+- **Integer division folds** with the interpreter's Euclidean `/` and `%`.
+- **A copy keeps its own test** when its source is reassigned (Astra's test gap).
+  An unknown side of a true `or` lends the other side nothing (Grok's surviving
+  mutation).
+
+One mutation survives by design. Folding `1 / 0` to `0` instead of unknown
+changes no sound certificate, because a division by zero fails the call either
+way. Declined, as in round 2: a dead assignment still keeps a copy from being an
+alias (`copies()` reads the whole program).
