@@ -117,3 +117,138 @@ expiry behavior, and resets are untouched. Part 4 belongs to another lane.
   the Chromium pagination case passed in this run. This was a cold test
   build, with `CARGO_BUILD_JOBS=8`, `CARGO_PROFILE_DEV_DEBUG=0`, and
   `CARGO_PROFILE_TEST_DEBUG=0`; the script was run once, unmodified.
+
+## Round 1 — 2026-09-26: revision 3 misses authority in the protected row
+
+**Parts 1 and 2 stopped again under the explicit counterexample clause.**
+Revision 3's specified authority tables are the tables the watched tables'
+read-rule `exists`, lookup and witness probes read. That set can be known
+exactly and empty while a normal commit revokes the viewer's read access.
+The native/opaque fallback therefore does not repair this case. Round 0's
+`usePage` implementation remains intact.
+
+### Built, file by file
+
+- `packages/snapback4/test/answer-row-authority.test.mjs`: seven real-client
+  regression guards for ownership transfer. The fixture checks the actual
+  `/schema` representation, real commit footprints and device read results;
+  it holds the replacement read across the assertion. No fake authorization
+  verdict is substituted.
+- `reports/20260926-lane-k-answers-stay.md`: this round-1 record, including
+  the counterexample, experiment and verification.
+- `JOURNAL.md`: one round-1 entry to be appended with the final suite result.
+
+No production client or engine change is made in round 1. The original seven
+`answer-withdrawal.test.mjs` guards remain unchanged. No new syntax,
+diagnostic, contract, version, meter or wasm-budget change is introduced.
+
+### Compiling and running counterexample
+
+These existing forms compile and run on the server and both devices:
+
+```quarry
+use personas alice, bob
+table secrets:
+  owner: principal
+  body: text
+  read <- .owner = viewer
+  update <- allow
+  sync to .owner
+query secret():
+  return secrets['private']
+mutation transfer():
+  update secrets['private'] { owner: 'dev:alice' }
+```
+
+Seed `secrets/private` with `owner: 'dev:bob'` and `body: 'private answer'`.
+Bob observes `secret()`; its read rule in `/schema` is exactly
+`{"Eq":[{"Field":"owner"},"Viewer"]}`. It contains no rule probes. The
+query has an ordinary nonempty Quarry program body and is not native.
+The schema has only the `secrets` table.
+
+1. Run `transfer()` on the server as Bob. The next ordinary `apply` has
+   `touched: ['secrets']` and a `del` event for Bob's old copy. Or call
+   `client.mutate({ kind: 'mutation', name: 'transfer' }, {})` as Bob: its
+   `admit` genuinely predicts `['secrets/private']`.
+2. Neither commit touches a probe table: the authority set specified in
+   revision 3 is empty. Neither triggers `clear_rows`, `adopt`, resetting
+   `observe_store` or `settle_exit`; the viewer, credential and store identity
+   stay the same.
+3. A direct read of the real device now returns `null`. Bob can no longer
+   read the row. Hold the client's replacement query at this boundary.
+4. Revision 3 would keep the former owner's `private answer` visible until
+   that query completes. Advancing the in-flight revision does not remove a
+   snapshot already published. Marking it `fresh: false` does not withdraw
+   its private data.
+
+The cache has the same counterexample: close Bob's watch before the transfer,
+let the client consume that commit, and remount the identical key within
+30 seconds. The empty authority set fails to evict the old answer. On the
+online client, a second watch keeps `/changes` running; the test waits for a
+`secrets` notification at or beyond the transfer's returned sequence before
+remounting the closed key with its new query held.
+
+### Tests and negative experiment
+
+The seven new guards are:
+
+- wasm and process `apply` (two): a committed owner transfer immediately
+  withdraws the old answer, before replacement evaluation;
+- wasm and process `admit` (two): a predicted owner transfer does the same;
+- wasm and process remount (two): a watch closed before the transfer cannot
+  initialize a new observation with the former owner's answer;
+- online remount (one): consuming the transfer notification also invalidates
+  a closed key, before its new HTTP answer arrives.
+
+A bounded negative experiment changed only generated `dist/local.js` and
+`dist/client.js`, modeling revision 3 for this exact empty-authority-set
+fixture. It restored data snapshots after the normal local invalidation
+(which still incremented the revision), saved closed answers for 30 seconds,
+and initialized remounted watches from them with `fresh: false` and `since`.
+There is no intersecting authority commit to evict those entries in this
+fixture. The experiment is not a general implementation or a claim that all
+resets were implemented. **All seven guards failed**, each showing
+`private answer` where loading was required. Generated files were restored
+in `finally`; none of the mutant code is committed. Logs and exact generated
+diffs are kept locally under `target/lane-k-round1-evidence/`.
+
+Reproduce the committed disclosure guards from `snapback4/` after building:
+
+```sh
+node --test packages/snapback4/test/answer-withdrawal.test.mjs \
+  packages/snapback4/test/answer-row-authority.test.mjs
+```
+
+### Deviations and open work
+
+- Parts 1 and 2 remain unimplemented, as directed when a counterexample is
+  found. A non-authority `apply`/`admit`/`settle` retention claim, the
+  30-second cache and expiry claim, and a new all-reset cache qualification
+  are not made. The existing conservative withdrawal behavior remains.
+- The authority definition must cover disclosure dependencies in the
+  protected row, in addition to the tables of its rule probes. Whether to
+  include that table conservatively or distinguish changes to its authority
+  fields is a supervisor design decision. This report does not claim that
+  either alone is a complete classifier for every schema.
+- The checkout's LLP 3000.019 still contains the original §3.3 wording.
+  The latest user message supplies revision 3 and governs this round; the
+  supervisor-owned RFC was not rewritten by this lane.
+- No part-4 outbox work, push or publication was performed.
+
+The governing context was LLP 3000's disclosure invariant, LLP 3000.001
+repair B's commit/publication fencing, LLP 3000.007 §18.2's distinction
+between retained history and revoked data, LLP 3000.018 §3.2's remembered
+answer order, and the current reads/rules/sync guide cards. No governing
+behavior was relaxed. The orientation skill was read from the installed
+`landingA/vendor/llp` copy because this worktree's skill link is broken.
+
+### Round-1 verification
+
+- `bun install --frozen-lockfile` and package build: passed.
+- Targeted disclosure, publication/authority and Chromium React tests:
+  **53 passed, 0 failed, 0 skipped**, including all 14 withdrawal guards,
+  existing delayed-response publication fences and the round-0 pagination case.
+- The bounded retention mutant: **7 expected failures / 7 tests**; restored.
+- Required final `scripts/test.sh`: pending at this checkpoint. Its exact
+  summary, failure classifications and wasm measurement will be recorded
+  below after its single run.
