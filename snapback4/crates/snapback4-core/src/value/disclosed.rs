@@ -152,7 +152,7 @@ impl Disclosed<'_> {
     fn visible(&self, field: &str) -> bool {
         // Captures, deadlines and event slots are stripped by recorded::public_image
         // at emission, so a timeline transition's own reads still see them.
-        if self.public && self.table.recorded.contains_key(field) { return false; }
+        if self.public && (self.table.recorded.contains_key(field) || self.table.ephemeral.is_some() && field == crate::schema::through::DEADLINE) { return false; }
         self.system || !self.table.written_by.get(field).is_some_and(|a| !a.audience
             && !self.viewer.as_ref().is_some_and(|viewer| self.row.field(&a.owner).ok().or_else(|| match self.table.defaults.get(&a.owner) {
                 Some(ColumnDefault::Literal(value)) => Some(value), _ => None,

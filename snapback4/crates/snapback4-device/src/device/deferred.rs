@@ -165,7 +165,7 @@ pub(super) fn acknowledge<T: DeviceTx>(tx: &T, watermark: u64, current: &BTreeMa
         if *seq > watermark { return Err(RuntimeError::Input("deferred acknowledgement is beyond publication".into())); }
         if let Some(data) = tx.outbox_get(id)? {
             let mut q: Queued = decoded(&data)?;
-            predictions::record_receipt(tx, &mut q, *seq, true)?;
+            predictions::record_receipt(tx, &mut q, *seq, true, false)?;
         }
     }
     Ok(())

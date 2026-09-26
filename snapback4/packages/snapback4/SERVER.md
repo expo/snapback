@@ -909,3 +909,56 @@ the verified transaction did not settle as expected. Check its admitting
 session, state and generated transition operations without exposing private
 transaction contents. Do not force a successful state or issue an unbound
 session to bypass failed settlement.
+
+## Ephemeral tables and change polls
+
+`ephemeral 1s` through `ephemeral 60s` tables live in one server process's
+memory. They are empty after restart, adoption, generation change or store
+replacement. `POST /m/<name>` for an ephemeral operation executes against a
+consistent durable read snapshot and the shared memory hub. It makes no
+SQLite commit, replay record or durable sequence increment. A correlation
+`id` is echoed; repeating it executes again. Client-supplied row ids are ignored.
+
+The successful reply is `{ state: "sent", id, result, ephemeral: { epoch,
+incarnation, tables }, store_id, head }`, with no `seq`. Every refusal is
+HTTP 200 `{ state: "failed", id, why, store_id, head }`, including rule,
+generation, rate and capacity refusals. `E_RATE_LIMIT` remains in the `auth`
+family: a separate session bucket allows 20 ephemeral writes per second,
+burst 40, under both `dev` and `serve`. `E_EPHEMERAL_FULL` is retryable:
+one principal may own 1,000 live rows or 4 MiB of declared image/index size;
+the global backstop is 100,000 rows or 512 MiB. Capacity charges schema bounds,
+never private payload lengths. Table caps and ordinary work meters also apply.
+
+A query with generated `ephemeralReads` returns `ephemeral: { epoch,
+incarnation }` along with its normal answer and `nextExpiry`. Its memory
+rows and epoch share the same lock. Deadlines are hidden from row images;
+clients re-read at `nextExpiry`. Expiry reclaims memory without incrementing
+the epoch. `dev clock advance` uses the same clock as ephemeral deadlines.
+
+`GET /changes` accepts three additional parameters:
+
+- `eph=<epoch>`: the client's earliest watched answer in this incarnation.
+- `ephi=<incarnation>`: the memory store incarnation the client observed.
+- `ephTables=<comma-separated names>`: absent means all ephemeral tables;
+  present and empty means no ephemeral table interest.
+
+Clients send all three parameters only when the backend declares an ephemeral
+table, including an empty `ephTables` when no watch reads one. Durable-only
+clients omit all three. Ephemeral backends advertise `X-Snapback-Ephemeral: 1`
+on timed responses and poll heartbeats, exposed to browser JavaScript. This lets
+the online tier discover `/schema` facts without extra durable-only requests;
+a legacy discovery poll is immediately reissued when support is learned.
+Adoption publishes the new store identity, generation
+and ephemeral incarnation together and wakes held polls for the new generation.
+
+The response adds `ephemeral: { epoch, incarnation, tables }` when any of
+those parameters is present. With none, its existing body shape is unchanged.
+A matching write wakes the poll; an unrelated write keeps it waiting without
+resetting its heartbeat or deadline. An ephemeral-only answer waits until
+100 ms after poll entry. An incarnation change wakes every poll; a ring gap
+invalidates every table in the interest set. These versions are independent
+of durable `seq`. Durable invalidation continues unchanged.
+
+Use one serving process: memory rows and epochs are not shared across hosts.
+`data` and `sql` cannot inspect these process-local rows. Seed and load refuse
+them; PostgreSQL does not support ephemeral schemas.

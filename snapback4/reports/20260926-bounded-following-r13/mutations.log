@@ -1,0 +1,5 @@
+reset-remembered-wakeup: rejected
+infer-wakeup-from-null-server-deadline: rejected
+drop-server-cutoff-during-rerun: rejected
+drop-wakeup-provenance-on-rearm: rejected
+allow-expired-memory-after-retry: rejected

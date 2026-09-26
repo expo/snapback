@@ -102,6 +102,8 @@ query total():
   if (mutant === 'acknowledged-refusal') replace('writes.ts', 'const known = await this.read(id, true);', 'const known = await this.read(id, true); if (known?.state === "failed") return known;');
   if (mutant === 'authored-refusal') replace('writes.ts', 'if (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") return known;', '/* mutant: turn a known refusal into success */');
   if (mutant === 'receipt-lookup-save') replace('writes.ts', 'if (known?.state === "failed" && known.why.code === "E_STORE_REPLACED") await this.keep(sent);', '/* mutant: leave the stored replacement refusal behind */');
+  if (mutant === 'final-preflight') replace('local.ts', 'if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }', 'if (known) return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }');
+  if (mutant === 'legacy-success') replace('writes.ts', 'if (!qualified) return known?.state === "sent" || (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") ? known : undefined;', '/* mutant: infer success from an unqualified sequence */');
   // Record the actual retry callback and entry into sync, without changing either.
   const localPath = path('local.ts');
   sourceOverrides[localPath] = (sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8'))
@@ -122,7 +124,7 @@ import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.
 import { mintId } from '${path('client.ts')}';
 Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessionKey, mintId });
 window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kind: 'query', name: 'roster' } };
-window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false, holdOrdinaryResponse = false, holdExitResponse = false }) => {
+window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false, holdOrdinaryResponse = false, holdExitResponse = false, holdSend = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.enqueued = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
   window.backendUrl = backendUrl; window.exitCompleted = []; window.exitBlocked = []; window.outcomes = []; window.receiptBatches = []; window.keptReceipts = []; window.appliedAcks = []; window.pollCount = 0; window.retryTicks = 0; window.syncAttempts = []; window.syncRequests = 0;
@@ -169,6 +171,14 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
     device: { async open(name, backend) {
       const core = await opener.open(name, backend), subscribe = core.onSuspend.bind(core);
       window.core = core;
+      const call = core.call.bind(core);
+      core.call = async (request, committed) => {
+        if (request.op === 'begin_send' && request.id && holdSend) {
+          window.sendPreflightHeld = true;
+          await new Promise(resolve => window.releaseSendPreflight = () => { holdSend = false; resolve(); });
+        }
+        return call(request, committed);
+      };
       core.onSuspend = flush => { window.exitRegistrations++; return subscribe((...args) => { window.exitLocks.push(window.sessionLocks); flush(...args); }); };
       return wrappedDevice ? { ...core, call: (...args) => core.call(...args) } : core;
     } },
@@ -370,16 +380,20 @@ window.abortReceipts = (store, limit = Infinity) => {
   for (const mode of ['accepted', 'refused', 'restore', 'replacement', 'observed-replacement']) await check(`a hide during the startup probe waits for its ${mode} decision`, async () => {
     const { session } = await fresh();
     const observer = await auth('signup', { email: `probe-observer-${mode}@example.com`, password: 'a-test-password-long-enough' });
-    const before = await total(observer);
+    let before = await total(observer);
     await page.evaluate(options => boot(options), { url, session, holdAdmission: mode !== 'observed-replacement', blockMutations: true });
     await page.waitForFunction(() => app.client.acquired);
     const captured = await page.evaluate(() => captureClick());
     if (mode === 'observed-replacement') {
       await until(() => page.evaluate(async ({ store, id }) => !!await indexedDbPersistence().read(store, 'o', id), captured), 'observed fixture admission');
-      await page.evaluate(async ({ store, id, record }) => {
+      const committed = await fetch(url + '/m/removeMember', { method: 'POST', headers: { authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ id: captured.id, args: captured.record.entry.args, newIds: captured.record.entry.new_ids, store_id: captured.record.storeId }) }).then(r => r.json());
+      assert.equal(committed.state, 'sent'); captured.successSeq = committed.seq;
+      before = await total(observer);
+      await page.evaluate(async ({ store, id, record, successSeq }) => {
         await app.close();
         const persist = indexedDbPersistence(), entry = JSON.parse(await persist.read(store, 'o', id));
-        entry.sent_seq = null; entry.observed_seq = 1; entry.receipt_store = { id: record.storeId };
+        entry.sent_seq = null; entry.observed_seq = successSeq; entry.receipt_store = { id: record.storeId, success_seq: successSeq };
         await persist.save(store, [{ s: 'o', k: id, v: JSON.stringify(entry) }]);
       }, captured);
     }
@@ -399,7 +413,7 @@ window.abortReceipts = (store, limit = Infinity) => {
       }), captured);
       assert.equal(recovered.write?.state, mode === 'observed-replacement' ? 'sent' : 'pending');
       assert.equal(JSON.parse(recovered.outbox).id, captured.id);
-      if (mode === 'observed-replacement') assert.equal(JSON.parse(recovered.outbox).observed_seq, 1);
+      if (mode === 'observed-replacement') assert.equal(JSON.parse(recovered.outbox).observed_seq, captured.successSeq);
       if (mode === 'restore') assert.ok(recovered.state.watermark > 0, 'the held probe must contradict a durably acquired head');
       await hide();
       // Drain local work and a browser task while the probe remains held. No
@@ -512,7 +526,7 @@ window.abortReceipts = (store, limit = Infinity) => {
   for (const mode of ['accepted', 'refused', 'restore', 'replacement']) await check(`an empty-outbox open gates new clicks on its ${mode} probe`, async () => {
     const { session } = await fresh();
     const observer = await auth('signup', { email: `empty-${mode}@example.com`, password: 'a-test-password-long-enough' });
-    const before = await total(observer);
+    let before = await total(observer);
     await page.evaluate(options => boot(options), { url, session });
     await page.evaluate(() => app.close());
     await navigate('empty-open=' + mode);
@@ -800,6 +814,84 @@ window.abortReceipts = (store, limit = Infinity) => {
     } finally { await page.evaluate(async () => { window.releaseProbe?.(); await app.close(); }); }
   });
 
+  await check('a legacy refused observation with no history remains pending until same-id replay', async () => {
+    const { session } = await fresh(), before = await total(session);
+    await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([
+      { table: 'members', row: { id: 'admin-' + account, room: 'room', principal: session.principal, admin: false } },
+    ]) });
+    await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, holdOrdinaryResponse: true });
+    const captured = await page.evaluate(() => captureClick());
+    await page.waitForFunction(() => window.OrdinaryBody?.why?.code === 'NOT_ADMIN');
+    const db = new DatabaseSync(join(witness.app, '.snapback4/store.sqlite'));
+    let stored;
+    try { stored = db.prepare('SELECT seq, outcome FROM _ops WHERE principal = ? AND id = ?').get(session.principal, captured.id); }
+    finally { db.close(); }
+    assert.equal(JSON.parse(stored.outcome).why.code, 'NOT_ADMIN');
+    await page.evaluate(store => { abortReceipts(store); releaseOrdinaryResponse(); }, captured.store);
+    assert.equal((await page.evaluate(() => write)).why.code, 'NOT_ADMIN');
+    await page.evaluate(async ({ store, id, seq }) => {
+      await app.close(); window.receiptAbortEnabled = false;
+      const persist = indexedDbPersistence(), entry = JSON.parse(await persist.read(store, 'o', id));
+      entry.observed_seq = seq; delete entry.receipt_store?.success_seq;
+      await persist.save(store, [{ s: 'o', k: id, v: JSON.stringify(entry) }, { s: 'm', k: 'client:write-history', v: null }]);
+    }, { ...captured, ...stored });
+    await navigate('legacy-no-history');
+    await page.evaluate(options => boot(options), { url, holdProbe: true, holdSync: true, holdPoll: true });
+    try {
+      await page.waitForFunction(() => window.probeHeld);
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).state, 'pending');
+      assert.equal((await page.evaluate(id => app.mutate(ops.remove, { room: 'room', principal: 'user:other' }, { id }), captured.id)).state, 'pending');
+      await page.evaluate(() => { app.client.onWrite(write => window.upgradeOutcome = write); releaseProbe(); });
+      await page.waitForFunction(() => window.upgradeOutcome?.state === 'failed');
+      assert.equal((await page.evaluate(() => upgradeOutcome)).why.code, 'NOT_ADMIN');
+      assert.deepEqual(await page.evaluate(() => sent.map(write => [write.id, write.store_id])), [[captured.id, captured.record.storeId]]);
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).why.code, 'NOT_ADMIN');
+      await page.evaluate(async () => { releaseSync(); await app.ready; await app.close(); });
+      await navigate('legacy-no-history-kept');
+      await page.evaluate(options => boot(options), { url, offline: true, holdPoll: true });
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).why.code, 'NOT_ADMIN');
+      assert.equal(await total(session), before);
+    } finally { await page.evaluate(async () => { window.releaseProbe?.(); window.releaseSync?.(); await app.close(); }); }
+  });
+
+  await check('final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification', async () => {
+    const { session } = await fresh(), before = await total(session);
+    await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([
+      { table: 'members', row: { id: 'admin-' + account, room: 'room', principal: session.principal, admin: false } },
+    ]) });
+    await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, holdSend: true });
+    try {
+      const captured = await page.evaluate(() => captureClick());
+      await page.waitForFunction(() => window.sendPreflightHeld);
+      assert.deepEqual(await page.evaluate(() => sent), [], 'initial receipt preflight completed before any send');
+      const refused = await fetch(url + '/m/removeMember', { method: 'POST', headers: { authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ id: captured.id, args: { room: 'room', principal: 'user:other' }, newIds: captured.record.entry.new_ids, store_id: captured.record.storeId }),
+      }).then(response => response.json());
+      assert.equal(refused.why.code, 'NOT_ADMIN');
+      const db = new DatabaseSync(join(witness.app, '.snapback4/store.sqlite'));
+      let seq;
+      try { seq = db.prepare('SELECT seq FROM _ops WHERE principal = ? AND id = ?').get(session.principal, captured.id).seq; }
+      finally { db.close(); }
+      await page.evaluate(async ({ id, seq, refused, storeId }) => {
+        const state = (await core.call({ op: 'state' })).ok;
+        const applied = await core.call({ op: 'apply', first: false, page: { snapshot: false, generation: state.generation,
+          events: [], watermark: Math.max(seq, state.watermark), more: false, store_id: storeId, acknowledged: { [id]: seq } } });
+        if (applied.denied) throw Error(JSON.stringify(applied));
+        const kept = await core.call({ op: 'keep_write', value: JSON.stringify(refused) });
+        if (kept.denied) throw Error(JSON.stringify(kept));
+        releaseSendPreflight();
+      }, { id: captured.id, seq, refused, storeId: captured.record.storeId });
+      const outcome = await page.evaluate(() => write);
+      assert.equal(outcome.state, 'failed'); assert.equal(outcome.why.code, 'NOT_ADMIN');
+      assert.deepEqual(await page.evaluate(() => outcomes.map(write => write.why?.code)), ['NOT_ADMIN']);
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).why.code, 'NOT_ADMIN');
+      assert.deepEqual(await page.evaluate(() => sent), [], 'the intervening decision prevents another POST');
+      assert.equal(await total(session), before);
+    } finally { await page.evaluate(async () => { window.releaseSendPreflight?.(); await app.close(); }); }
+  });
+
   await check('lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen', async () => {
     const { session } = await fresh();
     await page.evaluate(options => boot(options), { url, session, holdPoll: true, blockMutations: true });
@@ -808,7 +900,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     await page.evaluate(async ({ id, store, record }) => {
       await app.close();
       const persist = indexedDbPersistence(), entry = JSON.parse(await persist.read(store, 'o', id));
-      entry.sent_seq = 7; entry.observed_seq = null; entry.receipt_store = { id: record.storeId };
+      entry.sent_seq = 7; entry.observed_seq = null; entry.receipt_store = { id: record.storeId, success_seq: 7 };
       await persist.save(store, [{ s: 'o', k: id, v: JSON.stringify(entry) }, { s: 'm', k: 'client:write-history', v: JSON.stringify([
         { state: 'failed', id, why: { code: 'E_STORE_REPLACED', family: 'store', message: 'unknown outcome' } },
       ]) }]);

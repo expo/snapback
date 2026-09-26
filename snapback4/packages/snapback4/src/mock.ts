@@ -1,3 +1,5 @@
+import { routeMutations } from "./ephemeral.ts";
+import { mockSignals } from "./mock-ephemeral.ts";
 // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no
 // interpreter, no transport: operations are plain functions over in-memory
 // tables, commits settle after a virtual delay, and the link is a switch the
@@ -6,7 +8,7 @@
 
 import { ServerClock } from "./clock.ts";
 import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { WriteHistory } from "./writes.ts";
+import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 
 export type Row = Record<string, unknown> & { id: string; pending?: boolean };
 export type Tables = Record<string, Map<string, Row>>;
@@ -21,6 +23,8 @@ function isPage(value: unknown): value is Page<unknown> {
 }
 
 export interface MockOps {
+  /** Ephemeral handlers return their result (or a Refusal); use Map.set to renew a row. */
+  readonly signals?: Record<string, (tables: Tables, args: never, viewer: Principal | null, mint: () => string) => unknown>;
   readonly actions?: Record<string, (args: never, viewer: Principal | null, id: string) => unknown>;
   readonly queries: Record<string, (tables: Tables, args: never, viewer: Principal | null) => unknown>;
   /** Returns the ids of rows it created or changed, or a Refusal. */
@@ -36,6 +40,8 @@ export interface MockClient extends Client {
 
 export interface MockOptions {
   readonly viewer: Principal | null;
+  /** Per-table life in milliseconds, mirroring the Quarry declarations. */
+  readonly ephemeral?: Readonly<Record<string, number>>;
   readonly tables: Tables;
   readonly ops: MockOps;
   readonly link?: Link;
@@ -51,7 +57,7 @@ export function mockId(): string {
 
 export function createMockClient(options: MockOptions): MockClient {
   const actions = new Map<string, Promise<Act>>();
-  const tables = options.tables;
+  const tables = options.ephemeral ? { ...options.tables } : options.tables;
   let link: Link = options.link ?? "online";
   let viewer = options.viewer;
   let seq = 0;
@@ -61,9 +67,11 @@ export function createMockClient(options: MockOptions): MockClient {
   const linkListeners = new Set<(link: Link) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = new WriteHistory();
+  const ids = new MutationIds();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
+    if (ids.knows(write.id)) ids.finish(write.id);
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -72,7 +80,11 @@ export function createMockClient(options: MockOptions): MockClient {
   const bump = () => { version += 1; for (const l of listeners) l(); };
   const isRefusal = (v: unknown): v is Refusal => typeof v === "object" && v !== null && "code" in v && "family" in v;
 
+  const signals = mockSignals(options, tables, () => viewer, () => link, mockId, bump);
+
   const evaluate = <A, R>(op: Query<A, R>, args: A): Read<R> => {
+    signals.sweep();
+    if (op.ephemeralReads?.length && link !== "online") return { loading: true };
     const fn = options.ops.queries[op.name];
     if (!fn) return { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } };
     if (link === "signed-out") return { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } };
@@ -129,32 +141,40 @@ export function createMockClient(options: MockOptions): MockClient {
         close() { listeners.delete(listener); subs.clear(); },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
+    mutate: routeMutations(signals.mutate, async function<A, R>(op: Mutation<A, R>, args: A, mutateOptions?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const fn = options.ops.mutations[op.name];
-      const id = mockId();
-      if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
-      if (link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
-      const outcome = fn(tables, args as never, viewer, () => id);
-      if (isRefusal(outcome)) {
-        const failed = { state: "failed", id, why: outcome } as const;
-        return emitWrite(failed);
-      }
-      const table = op.name.split(".")[0] ?? "";
-      for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
-      bump();
-      history.remember({ state: "pending", id });
-      if (link === "offline") {
-        // Durable admission without a server: the write stays pending until the link returns.
+      const id = mutateOptions?.id ?? mockId();
+      const submit = async (snapshot: unknown): Promise<Write<R>> => {
+        if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
+        if (link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
+        const outcome = fn(tables, snapshot as never, viewer, () => id);
+        if (isRefusal(outcome)) {
+          const failed = { state: "failed", id, why: outcome } as const;
+          return emitWrite(failed);
+        }
+        const table = op.name.split(".")[0] ?? "";
+        for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
+        bump();
+        history.remember({ state: "pending", id });
+        if (link === "offline") {
+          // Durable admission without a server: the write stays pending until the link returns.
+          return await new Promise<Write<R>>((resolve) => {
+            queue.push({ id, touched: outcome, table, resolve: () => {} });
+            resolve({ state: "pending", id });
+          });
+        }
         return await new Promise<Write<R>>((resolve) => {
-          queue.push({ id, touched: outcome, table, resolve: () => {} });
-          resolve({ state: "pending", id });
+          const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
+          setTimeout(() => { settleOne(entry); bump(); }, delay);
+          const wait = mutationWaitSeconds(mutateOptions?.waitSeconds);
+          if (wait === 0) resolve({ state: "pending", id });
+          else if (wait !== undefined) { const timer = setTimeout(() => resolve({ state: "pending", id }), wait * 1_000);
+            const finish = entry.resolve; entry.resolve = write => { clearTimeout(timer); finish(write); }; }
         });
-      }
-      return await new Promise<Write<R>>((resolve) => {
-        const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
-        setTimeout(() => { settleOne(entry); bump(); }, delay);
-      });
-    },
+      };
+      return mutateOptions?.id === undefined ? submit(args)
+        : ids.run(id, op.name, args, () => client.write(id), snapshot => submit(snapshot));
+    }),
     async write(id) { const receipt = await history.read(id); return link === "signed-out" ? undefined : receipt; },
     acquired: false,
     onAcquired: () => () => {},
@@ -176,9 +196,10 @@ export function createMockClient(options: MockOptions): MockClient {
     async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
     async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
     async signOut() { client.setLink("signed-out"); await client.close(); },
-    async close() { listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
+    async close() { signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;
+      signals.linkChanged();
       for (const l of linkListeners) l(next);
       const nextViewer = next === "signed-out" ? null : options.viewer;
       if (viewer !== nextViewer) {

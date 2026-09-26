@@ -10,12 +10,12 @@
 **Battery gate:** `guide`
 **Failure signature:** `sha256:c3d0ab369f1e0e1b625caaf6d0499f5af6ca5b046848228a88f7fa2e76ff0584`
 **First observed run:** `local.20260925T100530Z.da526005226e`
-**Last observed run:** `local.20260926T040309Z.024d180ac262`
-**Last processed run:** `local.20260926T040309Z.024d180ac262`
+**Last observed run:** `local.20260926T132126Z.a371edf7769a`
+**Last processed run:** `local.20260926T132126Z.a371edf7769a`
 **Detected at revision:** `da526005226e44c135b46f5f962ff76fefc83720`
-**Last observed revision:** `024d180ac262670966806aa6bd050daf38f99f03`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `a371edf7769a3e89328e19e655c458526dbd4cb3`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ node scripts/check-guide.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

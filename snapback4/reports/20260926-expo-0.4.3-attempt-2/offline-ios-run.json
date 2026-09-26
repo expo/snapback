@@ -1,0 +1,144 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Bundle/Application/D3729EB5-EF99-4A16-BD2A-D6E79D6E9679/Snapback4chat.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 2680204,
+      "path": "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-device.log",
+      "sha256": "e310e27e9459fb5f4c3134aa1ee68f8cc3d0b8f798c2f4e2ab09c54aabda5e5e"
+    },
+    "receipts.jsonl": {
+      "bytes": 2342,
+      "path": "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-receipts.jsonl",
+      "sha256": "37b9dace0cf77f9848e486b84fe436db58c9a25278136337269796a4945d4f42"
+    },
+    "screen.mp4": {
+      "bytes": 1188380,
+      "path": "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-screen.mp4",
+      "sha256": "db451f83f9384bd7f3333b1992125ab27df25a86ad70c134d6936780de82edae"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/projects/snapback-pub-043/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "44441",
+      "--no-watch"
+    ],
+    "cwd": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-99jN5v",
+    "origin": "http://127.0.0.1:44441",
+    "port": 44441,
+    "store": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-99jN5v/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.3",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Data/Application/02134FB3-C7A8-4CFF-95D7-D9002B9B3CBA",
+  "endedAt": 1790417228151,
+  "error": null,
+  "events": [
+    {
+      "at": 1790417218184,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790417218922,
+      "pid": 51683,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790417218922,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790417220706,
+      "step": "primed"
+    },
+    {
+      "at": 1790417221751,
+      "pid": 51683,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790417221807,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790417222238,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790417222981,
+      "pid": 51999,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790417222981,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790417225376,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790417225484,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790417225486,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1790417225486,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790417226760,
+      "step": "done"
+    },
+    {
+      "at": 1790417226926,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790417228101,
+      "pid": 51999,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790417228151,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "installed": null,
+  "mode": "application",
+  "outputs": [
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-run.json",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-screen.mp4",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-receipts.jsonl",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-device.log",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-video.log",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-launch.log",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-backend.log",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-backend-stdout.log",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-log-stderr.log",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-prime.png",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-offline.png",
+    "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-restart.png"
+  ],
+  "prime": true,
+  "relaunch": false,
+  "reservation": "/Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3/offline-ios-reserved",
+  "run": "1790417216773-51368",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "segment": "offline",
+  "startedAt": 1790417216774,
+  "timestampUnit": "unix-ms",
+  "udid": "81961F7D-DF85-4A7A-B376-20D9073AC101"
+}

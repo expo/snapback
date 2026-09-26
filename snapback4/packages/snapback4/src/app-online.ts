@@ -1,9 +1,10 @@
+import { routeMutations, failedSignal } from "./ephemeral.ts";
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { inheritClose } from "./closing-responses.ts";
 import { mintId } from "./client.ts";
-import { MutationIds, WriteHistory } from "./writes.ts";
+import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
@@ -25,11 +26,15 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
-  const change = <T>(work: (journal: Journal) => T): Promise<T> => {
+  const change = <T>(work: (journal: Journal) => T, recoverExisting = false): Promise<T> => {
     const result = locked(key, async () => {
       const journal = await read(true);
+      const before = recoverExisting ? JSON.stringify(journal) : undefined;
       const value = work(journal);
-      await store.set(key, JSON.stringify(journal));
+      const after = JSON.stringify(journal);
+      // Reading an existing intent/receipt needs no new custody. A redundant
+      // save must not turn that known outcome into an admission refusal.
+      if (after !== before) await store.set(key, after);
       return value;
     });
     writes = result;
@@ -102,7 +107,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
 
   const client: Client = {
     ...raw,
-    mutate<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
+    mutate: routeMutations((op, args) => {
+      if (storeRefusal || !active || raw.viewer() !== viewer) return Promise.resolve(failedSignal(mintId(), storeRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to write" }));
+      return raw.mutate(op, args);
+    }, function<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const id = options?.id ?? mintId();
       if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
       if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
@@ -122,7 +130,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // Discovery can fence this runtime and retire its queue. Do not add
         // a later admission behind that completed retirement transaction.
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
-        const refusal = await change(journal => {
+        let refusal: Write | undefined;
+        try { refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
             // MutationIds below checks normalized input without replacing its owner.
@@ -135,21 +144,31 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           if (identity) observeJournalStore(journal, identity);
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false });
           return undefined;
-        });
+        }, true); } catch (error) {
+          return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
+        }
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
-        const result = await raw.mutate(op, snapshot as A, { id });
-        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
-        if (terminal(result)) {
-          try { await settle(result); }
-          // Keep the durable intent for replay if receipt storage fails, but
-          // never replace the server-confirmed outcome of this dispatched call.
-          catch (error) { retain(result, error); }
+        const dispatch = async (): Promise<Write<R>> => {
+          const result = await raw.mutate(op, snapshot as A, { ...options, id });
+          if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+          if (terminal(result)) {
+            try { await settle(result); }
+            // Keep the durable intent for replay if receipt storage fails, but
+            // never replace the server-confirmed outcome of this dispatched call.
+            catch (error) { retain(result, error); }
+          }
+          return terminal(result) ? result : { state: "pending", id };
+        };
+        if (mutationWaitSeconds(options?.waitSeconds) === 0) {
+          // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — the committed journal owns recovery after this return.
+          void dispatch().catch(error => { try { report(error); } catch { /* Reporting must not reject a detached continuation. */ } });
+          return { state: "pending", id };
         }
-        return terminal(result) ? result : { state: "pending", id };
+        return dispatch();
       });
-    },
+    }),
     async write(id) {
       if (!active || raw.viewer() !== viewer) return undefined;
       const retained = unpersisted.get(id);

@@ -64,6 +64,17 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     }
     for (name, old) in from.visible_tables() {
         let path = format!("tables.{name}");
+        // @ref LLP 3000.017#3.4 — memory changes begin empty.
+        if old.ephemeral.is_some() {
+            if to.tables.get(name) != Some(old) {
+                steps.push(Step { path, change: Change::Additive, message: format!("ephemeral table {name} changes or is removed; its memory rows are cleared") });
+            }
+            continue;
+        }
+        if to.tables.get(name).is_some_and(|t| t.ephemeral.is_some()) {
+            steps.push(Step { path, change: Change::Destructive, message: format!("durable table {name} becomes ephemeral; activation deletes its stored rows and indexes") });
+            continue;
+        }
         let Some(new) = to.tables.get(name) else {
             steps.push(Step { path, change: Change::Destructive, message: format!("table {name} is removed; its rows are lost") });
             continue;

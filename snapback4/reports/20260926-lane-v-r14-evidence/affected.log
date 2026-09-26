@@ -1,0 +1,53 @@
+(node:4015090) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sequence-only acknowledgement with no history stays unknown (1.204154ms)
+✔ authored refusal NOT_ADMIN wins over a success-qualified acknowledgement (0.175052ms)
+✔ authored refusal NOT_FOUND wins over a success-qualified acknowledgement (0.100119ms)
+✔ authored refusal CONFLICT wins over a success-qualified acknowledgement (0.102003ms)
+✔ an aborted replay receipt retains its original-store proof for persistence retry (0.632007ms)
+✔ memory: legacy observed_seq with empty history replays NOT_ADMIN without executing (3503.186415ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M3DFHTPDQ29VFD5ZHKKS18YJ","replayed":true,"audit":0}
+✔ memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing (3874.303044ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M3DFHYFKACEEP3FNKZ6195GP","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with empty history replays NOT_ADMIN without executing (3107.093161ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M3DFJ1GVQ0DQ08Y4KREK0PK4","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing (3108.829604ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M3DFJ4HY6NFYBSVKYJ1MECRF","replayed":true,"audit":0}
+✔ memory: legacy old-page with empty history replays NOT_ADMIN without executing (3097.700521ms)
+ℹ {"tier":"memory","field":"old-page","prior":"empty","id":"01M3DFJ7JYZR12XND1MFA6W2JX","replayed":true,"audit":0}
+✔ memory: legacy old-page with replacement history replays NOT_ADMIN without executing (3081.738326ms)
+ℹ {"tier":"memory","field":"old-page","prior":"replacement","id":"01M3DFJAKK57JZEDHQJYWR2589","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing (4151.323425ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M3DFJDN64RZDMWWC5Z0HC4TY","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing (4136.009352ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M3DFJHPKSJMEKWSZG1F73D2F","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing (4154.949243ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M3DFJNR392NTN877P7KKGJRX","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing (4159.513255ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M3DFJSSYK67TX478RA6FZV6N","replayed":true,"audit":0}
+✔ sqlite: legacy old-page with empty history replays NOT_ADMIN without executing (4152.611265ms)
+ℹ {"tier":"sqlite","field":"old-page","prior":"empty","id":"01M3DFJXVXD35YZX9QA2KZ4AXC","replayed":true,"audit":0}
+✔ sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing (4149.417413ms)
+ℹ {"tier":"sqlite","field":"old-page","prior":"replacement","id":"01M3DFK1XJCGBSK2E5W4DAPKN5","replayed":true,"audit":0}
+(node:4015091) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (2772.788427ms)
+  ✔ legacy binding survives adopted B on keepalive transport (2621.799117ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1787.698617ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (366.27351ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1340.655138ms)
+✔ web receipt upgrades preserve original binding and corrected shared custody (9825.168628ms)
+ℹ {"transport":"ordinary","original":"fd6ddb208f2d7620a1cc5c35fd316fba","adopted":"84a3e97449eb3ba0b6a812195a74201d","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"fd6ddb208f2d7620a1cc5c35fd316fba","adopted":"b433a5e6082ef9c022f42a0527fe56f2","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44776.272833

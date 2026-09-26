@@ -5,35 +5,38 @@ use snapback4_core::{value::object, wire};
 
 #[test]
 fn w10r1_typing_card_extends_and_expires_on_both_stores() {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("reads").unwrap())
+    // LLP 3000.017 section 2.5 replaces the durable typing recipe: the server
+    // renews it; replicas keep this read unknown instead of holding its rows.
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("ephemeral").unwrap())
         .into_iter().find(|block| block.contains("table typing:")).unwrap();
     on_both(|host| {
         let label = host.label();
         let (mut engine, backend) = compile(&source);
         engine.seed([
-            ("rooms".into(), object([("id", id("room"))])),
-            ("members".into(), object([("id", id("member")), ("roomId", id("room")), ("principal", id("alice"))])),
+            ("rooms".into(), object([("id", id("room")), ("name", Value::String("Chat".into()))])),
+            ("members".into(), object([("id", id("a")), ("roomId", id("room")), ("principal", id("alice"))])),
+            ("members".into(), object([("id", id("b")), ("roomId", id("room")), ("principal", id("bob"))])),
         ]).unwrap();
-        let typing = |now| context("alice", &[("roomId", id("room"))]).at(now);
-        assert!(matches!(engine.mutate("setTyping", None, typing(1000)).unwrap().state, WriteState::Sent { .. }));
+        let typing = |who, now| context(who, &[("roomId", id("room"))]).at(now);
+        assert!(matches!(engine.mutate("setTyping", None, typing("alice", 1000)).unwrap().state, WriteState::Sent { .. }));
         let mut device = host.open("typing", Some(backend)).unwrap();
-        for (n, page) in snapshot_pages_at(&mut engine, "alice", 100, 1000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
-        let first = query(&mut *device, "typingNow", "alice", json!({"roomId":"room"}), 1000);
-        assert_eq!(first["data"], json!([{"principal":"alice", "expiresAt":5500}]));
-        assert_eq!(first["nextExpiry"], 5500);
-        assert_eq!(first["complete"], true);
+        for (n, page) in snapshot_pages_at(&mut engine, "bob", 100, 1000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let first = engine.query("typingIn", typing("bob", 1000)).unwrap();
+        assert_eq!(wire::to_json(&first.data), json!([{"principal":"alice"}]));
+        assert_eq!(first.next_expiry, Some(5000));
         let before = engine.seq().unwrap();
-        assert!(matches!(engine.mutate("setTyping", None, typing(4000)).unwrap().state, WriteState::Sent { .. }));
-        ok(apply(&mut *device, &stream_page_at(&mut engine, "alice", before, 4000), false));
-        for now in [4000, 5500, 8499, 8500] {
-            let local = query(&mut *device, "typingNow", "alice", json!({"roomId":"room"}), now);
-            let server = engine.query("typingNow", typing(now)).unwrap();
-            assert_eq!(local["data"], wire::to_json(&server.data), "{label} at {now}");
-            assert_eq!(rows(&local).len(), usize::from(now < 8500), "{label} at {now}");
-            assert_eq!(local["nextExpiry"], if now < 8500 { json!(8500) } else { json!(null) });
-            assert_eq!(local["complete"], true);
+        assert!(matches!(engine.mutate("setTyping", None, typing("alice", 4000)).unwrap().state, WriteState::Sent { .. }));
+        assert_eq!(engine.seq().unwrap(), before);
+        for now in [4000, 5000, 7999, 8000] {
+            let local = query(&mut *device, "typingIn", "bob", json!({"roomId":"room"}), now);
+            assert_eq!(local["unknown"], true, "{label}: ephemeral reads are unknown locally: {local}");
+            assert_ne!(local["complete"], true, "{label}: no authoritative local ephemeral answer: {local}");
+            if let Some(data) = local.get("data") { assert_eq!(data, &json!([]), "{label}: no replicated typing rows"); }
+            let server = engine.query("typingIn", typing("bob", now)).unwrap();
+            assert_eq!(server.data.as_array().unwrap().len(), usize::from(now < 8000));
+            assert_eq!(server.next_expiry, if now < 8000 { Some(8000) } else { None });
         }
-        println!("W10R1 typing {label}: initial_deadline=5500 extended_deadline=8500 rows_at_old_deadline=1 rows_at_new_deadline=0");
+        println!("E1 typing {label}: device unknown; initial_deadline=5000 renewed_deadline=8000; no durable sequence change");
         device.close();
     });
 }

@@ -79,7 +79,7 @@ fn counterexample<H: Host>(host: &mut H) {
     let page: StreamPage = serde_json::from_value(serde_json::json!({
         "snapshot":false, "events":events, "watermark":stream.watermark,
         "more":stream.more, "generation":engine.generation(),
-        "images_at":alice_seq, "acknowledged":acknowledged, "committed_above":committed_above,
+        "images_at":alice_seq, "acknowledged":acknowledged,"sent":acknowledged, "committed_above":committed_above,
     })).unwrap();
     assert!(page.acknowledged.is_empty());
     assert_eq!(page.committed_above.get("alice-1"), Some(&alice_seq));
@@ -97,6 +97,7 @@ fn counterexample<H: Host>(host: &mut H) {
     let capture = reopened.sync_state().unwrap();
     let mut covering = stream_page(&mut engine, "dev:alice", capture.transfer_watermark);
     covering.acknowledged = engine.acknowledged("dev:alice", &capture.pending_ids, covering.watermark).unwrap();
+    covering.sent = covering.acknowledged.clone();
     reopened.apply(&covering, false).unwrap();
     assert_eq!((value(&mut reopened, "a"), value(&mut reopened, "b")), (0, 2));
     reopened.admit(Queued { id: "alice-2".into(), seq: 0, op: "bumpSelected".into(),

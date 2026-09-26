@@ -225,6 +225,12 @@ pub fn check(options: &Options) -> i32 {
         println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         for line in &sequences { println!("  {line}"); }
+        for (name, _) in bound.schema.visible_tables().filter(|(_, t)| t.ephemeral.is_some()) {
+            println!("  {name}: {}", snapback4_lang::bind::residency::table_line(&bound.schema, name));
+        }
+        for (name, fact) in bound.schema.operations.iter().filter(|(_, f)| f.ephemeral) {
+            println!("{}", snapback4_lang::bind::residency::operation_lines(name, fact));
+        }
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         for line in &field_authority { println!("  {line}"); }
         if details {
@@ -414,6 +420,9 @@ pub fn run(options: &Options) -> i32 {
         Err(error) => { eprintln!("cannot read the source: {error}"); return 2; }
     };
     let bound = compiled_or_exit(source.compile(), options.json);
+    if bound.schema.tables.values().any(|t| t.ephemeral.is_some()) {
+        eprintln!("run: ephemeral rows live only in this process; use dev and client calls to observe them across calls");
+    }
     let Some(program) = bound.programs.iter().find(|p| &p.program.name == op).map(|p| p.program.clone()) else {
         let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
         eprintln!("unknown operation {op}; operations: {}", names.join(", "));
@@ -553,6 +562,11 @@ pub fn data(options: &Options) -> i32 {
         let schema: snapback4_core::schema::Schema = serde_json::from_str(&encoded).map_err(|e| snapback4_core::RuntimeError::Store(e.to_string()))?;
         schema.refuse_private(table)?;
         let definition = schema.table(table).ok_or_else(|| snapback4_core::RuntimeError::Schema(format!("no table {table}")))?;
+        if definition.ephemeral.is_some() {
+            eprintln!("data: skipping {table}: ephemeral rows live only in the serving process's memory");
+            tx.rollback()?;
+            return Ok((Vec::new(), false));
+        }
         let mut rows: Vec<_> = tx.scan(table, "byId", &[], &Default::default(), snapback4_core::rows::Dir::Asc, limit.saturating_add(1))?.into_iter().map(|(row, _)| row).collect();
         let more = rows.len() > limit;
         rows.truncate(limit);

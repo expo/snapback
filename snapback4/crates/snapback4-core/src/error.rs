@@ -299,6 +299,11 @@ impl RuntimeError {
                 refusal.guide = Some("rules".into());
                 refusal.rewrite = Some(message.clone());
             }
+            Self::Structural { code: "E_EPHEMERAL_FULL", .. } => {
+                refusal.retryable = true; refusal.guide = Some("ephemeral".into());
+                refusal.rewrite = Some("wait for expiry or delete your rows, then retry".into());
+            }
+            Self::Structural { code: "E_QUARRY_EPHEMERAL", .. } => { refusal.guide = Some("ephemeral".into()); }
             Self::Structural { code: "E_SHAPE_EXCEEDS_METER", .. } => refusal.guide = Some("reads".into()),
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", message } => {
                 refusal.message = message.clone();

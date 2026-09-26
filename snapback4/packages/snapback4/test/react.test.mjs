@@ -41,6 +41,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: "web-state", replacement: join(root, "apps/chat/src/state.ts") },
         { find: "web-composer", replacement: join(root, "apps/chat/src/Composer.tsx") },
         { find: "web-app", replacement: join(root, "apps/chat/src/App.tsx") },
+        { find: "expo-inbox", replacement: join(root, "apps/chat-expo/src/Inbox.tsx") },
         { find: "expo-thread", replacement: join(root, "apps/chat-expo/src/Thread.tsx") },
         { find: "expo-app", replacement: join(root, "apps/chat-expo/App.tsx") },
       ] },
@@ -48,6 +49,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         name: "controlled-reference-app-dependencies",
         enforce: "pre",
         resolveId(id, importer = "") {
+          if (id === "./intent-store" && importer.includes("/chat-expo/src/")) return join(root, "apps/chat-expo/src/intent-store.web.ts");
           if (id === "react-native") return "\0native-host-views";
           if (id === "snapback4-expo/witness") return "\0witness-launch";
           if (id === "expo-status-bar") return "\0status-bar";
@@ -61,13 +63,14 @@ test("React hooks and reference-app lifetimes", async (t) => {
             export const openClient = (...args) => globalThis.openClient(...args);
             export const createLocalClient = openClient;
             export const persona = undefined;
+            export const url = "http://starter-test";
             export async function openApp(...args) {
               const client = await openClient(...args);
               const snapshot = { state: "signed-in", viewer: client.viewer() };
               return { client, auth: { getSnapshot: () => snapshot, onChange: () => () => {} }, close: () => client.close() };
             }
           `;
-          if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, markRead: { kind: "mutation", name: "markRead" }, room: { kind: "query", name: "room" }, thread: { kind: "query", name: "thread" } };';
+          if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, markRead: { kind: "mutation", name: "markRead" }, room: { kind: "query", name: "room" }, thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" } };';
           if (id === "\0home-views") return "export const Inbox = () => null; export const Thread = () => null;";
           if (id === "\0witness-launch") return "export const witness = () => null;";
           if (id === "\0witness") return "export const runWitness = () => Promise.resolve();";
@@ -77,7 +80,8 @@ test("React hooks and reference-app lifetimes", async (t) => {
             export const View = ({ children }) => h("div", null, children);
             export const SafeAreaView = View;
             export const Text = ({ children }) => h("span", null, children);
-            export const FlatList = () => null;
+            export const FlatList = ({ data, renderItem, ListEmptyComponent, onEndReached }) => h("div", null, data.length ? data.map((item, index) => h("div", { key: index }, renderItem({ item }))) : ListEmptyComponent, onEndReached && h("button", { onClick: onEndReached }, "Load more"));
+            export const Pressable = ({ children, onPress }) => h("button", { onClick: onPress }, children);
             export const TextInput = ({ value, onChangeText, placeholder }) => h("input", { value, onChange: e => onChangeText(e.target.value), placeholder });
             export const Button = ({ title, disabled, onPress }) => h("button", { disabled, onClick: onPress }, title);
             export const StyleSheet = { create: value => value, hairlineWidth: 1 };
@@ -111,8 +115,10 @@ test("React hooks and reference-app lifetimes", async (t) => {
 
 const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
   .match(/function useExpiringRows[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
+const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
+  .match(/function runsOf[\s\S]*?\nfunction useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
-import { StrictMode, act, useState, createElement as h } from "react";
+import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
@@ -122,6 +128,7 @@ import { onlineCustody } from "test-online-custody";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
+import { Inbox as ExpoInbox } from "expo-inbox";
 import { App as WebApp } from "web-app";
 import { App as ExpoApp } from "expo-app";
 
@@ -215,7 +222,270 @@ async function onlineHooks(options) {
 }
 
 ${expiryRecipe}
+const api = { history: { kind: "query", name: "history" }, progress: { kind: "query", name: "progress" }, seen: { kind: "mutation", name: "seen" }, delivered: { kind: "mutation", name: "delivered" } };
+${receiptsRecipe}
+const ordinals = (from, to) => Array.from({ length: from - to + 1 }, (_, n) => ({ ordinal: from - n }));
+const ascending = (from, to) => Array.from({ length: to - from + 1 }, (_, n) => ({ ordinal: from + n }));
+// progress: the member's row, their stored runs (a third element marks a predicted run) and the page ahead.
+const progressOf = (delivered, seen, ahead, runs = [], flags = {}, member = {}) => ready({
+  member: { deliveredOrdinal: delivered, joinedOrdinal: 0, seenOrdinal: seen, ...member },
+  runs: runs.map(([fromOrdinal, throughOrdinal, pending]) => ({ fromOrdinal, throughOrdinal, ...(pending ? { pending: true } : {}) })), ahead }, null, flags);
+function receiptsClient(history, progress) {
+  const client = controlled(args => "c" in args ? history.get(args.c) : progress);
+  client.acks = [];
+  client.calls = [];
+  client.mutate = (op, args) => { client.calls.push({ op: op.name, ...args }); client.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through); return Promise.resolve(sent("ack")); };
+  return client;
+}
+const stream = client => active(client).find(record => !("c" in record.args));
+function Receipts({ visible, conversation = "c1" }) { useReceipts(conversation, visible); return null; }
+const acked = client => [...new Set(client.acks)];
 const cases = {
+  async "the receipts card reports every run it holds, catches up a page at a time, and sees what is on screen"() {
+    const client = receiptsClient(new Map([[null, ready(ordinals(60, 41), "p2")]]), progressOf(0, 0, ascending(1, 60)));
+    await mount(h(Receipts, { visible: false }), client);
+    equal(acked(client), ["delivered:1-60"], "the page ahead and the page on screen form one run");
+    client.acks.length = 0;
+    await act(async () => stream(client).set(progressOf(60, 0, [])));
+    equal(client.acks, [], "a covered run is not sent again");
+    await render(h(Receipts, { visible: true }), client);
+    equal(acked(client), ["seen:60"], "on screen the newest message is seen");
+    client.acks.length = 0;
+    await act(async () => stream(client).set(progressOf(60, 60, [])));
+    equal(client.acks, [], "a seen message is not sent again");
+    await unmount();
+    // Back after 250 messages: the newest are reported at once, and each page caught up moves the next.
+    const back = receiptsClient(new Map([[null, ready(ordinals(250, 231), "p2")]]), progressOf(0, 0, ascending(1, 100)));
+    await mount(h(Receipts, { visible: false }), back);
+    const once = back.acks.filter(ack => ack === "delivered:231-250").length;
+    await act(async () => stream(back).set(progressOf(100, 0, ascending(101, 200), [[231, 250]])));
+    await act(async () => stream(back).set(progressOf(200, 0, ascending(201, 250), [[231, 250]])));
+    await act(async () => stream(back).set(progressOf(250, 0, [])));
+    equal(acked(back), ["delivered:1-100", "delivered:231-250", "delivered:101-200", "delivered:201-250"], "the run above the gap at once, then a page at a time, oldest first");
+    check(back.acks.filter(ack => ack === "delivered:231-250").length === once, "a stored run is not sent again: " + JSON.stringify(back.acks));
+    await unmount();
+  },
+  async "the receipts card owes a run until the server's own rows cover it, and walks the pages it holds"() {
+    const pages = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const waiting = receiptsClient(pages, progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), waiting);
+    const sends = () => waiting.acks.filter(ack => ack === "delivered:161-181").length;
+    check(sends() >= 1, "a run above a stored one is reported: " + JSON.stringify(waiting.acks));
+    // Its page is replaced; the run is still owed when a stored run moves, the prefix unchanged.
+    const first = active(waiting).find(record => record.args.c === null);
+    await act(async () => first.set(ready(ordinals(250, 231), "p2")));
+    let before = sends();
+    await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 160]])));
+    check(sends() === before + 1, "an owed run is reported again when a stored run moves: " + JSON.stringify(waiting.acks));
+    // A predicted run, or a predicted member row, covers nothing.
+    before = sends();
+    await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 160], [161, 181, true]])));
+    await act(async () => stream(waiting).set(progressOf(200, 0, [], [], {}, { pending: true })));
+    await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 160]])));
+    check(sends() >= before + 2, "a predicted cover never settles what is owed: " + JSON.stringify(waiting.acks));
+    before = waiting.acks.length;
+    await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 181], [231, 250]])));
+    check(waiting.acks.length === before, "nothing is sent once the server stores it all: " + JSON.stringify(waiting.acks));
+    await unmount();
+    // Fetched before progress answers, and replaced before it does, a run is still owed.
+    const early = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const loading = receiptsClient(early, { loading: true });
+    await mount(h(Receipts, { visible: false }), loading);
+    await act(async () => active(loading).find(record => record.args.c === null).set(ready(ordinals(250, 231), "p2")));
+    await act(async () => stream(loading).set(progressOf(0, 0, [], [[101, 150]])));
+    for (const ack of ["delivered:161-181", "delivered:231-250"]) check(loading.acks.includes(ack), ack + " owed from before progress: " + JSON.stringify(loading.acks));
+    await unmount();
+    // Disjoint runs arriving at capacity: each is sent once, not again with every newcomer.
+    const arrivals = new Map([[null, ready(ordinals(1000, 991), "p2")], ["p2", { loading: true }]]);
+    const capped = receiptsClient(arrivals, progressOf(0, 0, [], Array.from({ length: 64 }, (_, k) => [2 + 2 * k, 2 + 2 * k])));
+    await mount(h(Receipts, { visible: false }), capped);
+    const top = () => active(capped).find(record => record.args.c === null);
+    for (let k = 1; k < 25; k++) await act(async () => top().set(ready(ordinals(1000 - 20 * k, 991 - 20 * k), "p2")));
+    const calls = capped.acks.filter(ack => ack.startsWith("delivered")).length;
+    check(calls <= 30, "25 disjoint runs take about 25 reports, not one per run per arrival: " + calls);
+    for (let k = 0; k < 25; k++) check(capped.acks.includes("delivered:" + (991 - 20 * k) + "-" + (1000 - 20 * k)), "run " + k + " was reported: " + JSON.stringify(capped.acks.slice(-5)));
+    await unmount();
+    // A report the client could not keep is sent again with the next answer, and only then.
+    const failing = receiptsClient(new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]), progressOf(0, 0, [], [[101, 150]]));
+    let refuse = true;
+    failing.mutate = (op, args) => {
+      failing.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
+      if (refuse) { refuse = false; return Promise.resolve({ state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } }); }
+      return Promise.resolve(sent("ack"));
+    };
+    await mount(h(Receipts, { visible: false }), failing);
+    const once = failing.acks.filter(ack => ack === "delivered:161-181").length;
+    await act(async () => stream(failing).set(progressOf(0, 0, [], [[101, 150]])));
+    check(failing.acks.filter(ack => ack === "delivered:161-181").length === once + 1, "an unkept report goes again with the next answer: " + JSON.stringify(failing.acks));
+    await act(async () => stream(failing).set(progressOf(0, 0, [], [[101, 150]])));
+    check(failing.acks.filter(ack => ack === "delivered:161-181").length === once + 1, "and a kept one does not: " + JSON.stringify(failing.acks));
+    await unmount();
+    // What is owed outlives a remount: a run dropped at capacity goes again once room frees,
+    // though its page is gone and the screen was remounted.
+    const cap = Array.from({ length: 64 }, (_, k) => [2 + 2 * k, 2 + 2 * k]);
+    const held = new Map([[null, ready(ordinals(600, 581), "p2")], ["p2", { loading: true }]]);
+    const again = receiptsClient(held, progressOf(0, 0, [], cap));
+    await mount(h(Receipts, { visible: false }), again);
+    check(again.acks.includes("delivered:581-600"), "the run is reported: " + JSON.stringify(again.acks));
+    held.set(null, ready(ordinals(700, 681), "p2"));
+    await unmount();
+    await mount(h(Receipts, { visible: false }), again);
+    const dropped = again.acks.filter(ack => ack === "delivered:581-600").length;
+    await act(async () => stream(again).set(progressOf(0, 0, [], cap.slice(1))));
+    check(again.acks.filter(ack => ack === "delivered:581-600").length === dropped + 1, "a run owed before a remount goes again once room frees: " + JSON.stringify(again.acks.slice(-4)));
+    await unmount();
+    // While a run is owed, another conversation and another signed-in client owe nothing of it.
+    const scoped = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const one = receiptsClient(scoped, progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), one);
+    check(one.calls.some(call => call.conversation === "c1" && call.from === 161), "the run is owed: " + JSON.stringify(one.calls));
+    scoped.set(null, ready(ordinals(250, 231), "p2"));
+    await render(h(Receipts, { visible: false, conversation: "c2" }), one);
+    check(one.calls.some(call => call.conversation === "c2" && call.from === 231), "the other conversation reports what it holds: " + JSON.stringify(one.calls));
+    check(!one.calls.some(call => call.conversation === "c2" && call.from === 161), "and nothing the first owed: " + JSON.stringify(one.calls));
+    await unmount();
+    // The same conversation on a replaced client owes nothing of the first, even once coverage moves.
+    const kept = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const original = receiptsClient(kept, progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), original);
+    check(original.calls.some(call => call.from === 161), "the run is owed: " + JSON.stringify(original.calls));
+    kept.set(null, ready(ordinals(250, 231), "p2"));
+    const other = receiptsClient(kept, progressOf(0, 0, [], [[101, 150]]));
+    await render(h(Receipts, { visible: false }), other);
+    await act(async () => stream(other).set(progressOf(0, 0, [], [[101, 160]])));
+    check(other.calls.some(call => call.from === 231), "the replacement reports what it holds: " + JSON.stringify(other.calls));
+    check(!other.calls.some(call => call.from === 161), "another client owes nothing of the first: " + JSON.stringify(other.calls));
+    await unmount();
+    // So does the same client under another viewer.
+    const solo = receiptsClient(new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]), progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), solo);
+    await act(async () => active(solo).find(record => record.args.c === null).set(ready(ordinals(250, 231), "p2")));
+    check(solo.calls.some(call => call.from === 161) && solo.calls.some(call => call.from === 231), "both runs are owed: " + JSON.stringify(solo.calls));
+    const mark = solo.calls.length;
+    await act(async () => solo.setViewer("dev:someone-else"));
+    await act(async () => stream(solo).set(progressOf(0, 0, [], [[101, 160]])));
+    check(!solo.calls.slice(mark).some(call => call.from === 161), "another viewer owes nothing of the first: " + JSON.stringify(solo.calls.slice(mark)));
+    await unmount();
+    // Offline past its synced window: the page ahead lies above a gap, so the hook walks the pages it holds.
+    const offline = receiptsClient(new Map([[null, ready(ordinals(600, 581), "p2", { fresh: false, since: 50 })], ["p2", ready(ordinals(580, 561), "p3", { fresh: false, since: 50 })], ["p3", { loading: true }]]),
+      progressOf(0, 0, ascending(101, 200), [], { complete: false, fresh: false, since: 50 }));
+    await mount(h(Receipts, { visible: true }), offline);
+    for (const ack of ["delivered:101-200", "delivered:581-600", "delivered:561-600", "seen:600"]) check(offline.acks.includes(ack), ack + " reported: " + JSON.stringify(offline.acks));
+    check(active(offline).filter(record => "c" in record.args).length === 3, "the walk goes on through the pages held");
+    await unmount();
+    // At capacity, a walk through 25 held pages owes one growing run, not every page's run again.
+    const deep = new Map(Array.from({ length: 25 }, (_, k) => [k === 0 ? null : "p" + k, ready(ordinals(600 - 20 * k, 581 - 20 * k), k === 24 ? null : "p" + (k + 1))]));
+    const full = receiptsClient(deep, progressOf(0, 0, [], Array.from({ length: 64 }, (_, k) => [2 + 2 * k, 2 + 2 * k])));
+    await mount(h(Receipts, { visible: false }), full);
+    check(active(full).filter(record => "c" in record.args).length === 25, "the walk reaches the last page held");
+    const reports = full.acks.filter(ack => ack.startsWith("delivered")).length;
+    check(reports <= 60, "reports stay linear in the pages walked: " + reports);
+    check(full.acks.includes("delivered:101-600"), "the whole walked run is owed as one: " + JSON.stringify(full.acks.slice(-3)));
+    await unmount();
+  },
+  async "the receipts card claims nothing it did not fetch, acknowledges an arriving message, and records a view first"() {
+    const gap = receiptsClient(new Map([[null, ready([...ordinals(6, 5), ...ordinals(3, 1)])]]), progressOf(0, 0, [...ascending(1, 3), ...ascending(5, 6)]));
+    await mount(h(Receipts, { visible: false }), gap);
+    equal(acked(gap), ["delivered:1-3", "delivered:5-6"], "unbroken runs only, never the gap between");
+    await unmount();
+    const pending = receiptsClient(new Map([[null, ready([{ ordinal: 104, pending: true }, ...ordinals(103, 101)])]]), progressOf(100, 100, [...ascending(101, 103), { ordinal: 104, pending: true }]));
+    await mount(h(Receipts, { visible: false }), pending);
+    equal(acked(pending), ["delivered:101-103"], "never a pending row");
+    await unmount();
+    const offline = receiptsClient(new Map([[null, { loading: true }]]), progressOf(0, 0, [...ascending(1, 3), { ordinal: 4, pending: true }, { ordinal: 5 }], [], { complete: false, fresh: false, since: 50 }));
+    await mount(h(Receipts, { visible: false }), offline);
+    equal(acked(offline), ["delivered:1-3", "delivered:5-5"], "a stale, incomplete progress answer is reported, around a pending row");
+    await unmount();
+    const live = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, []));
+    await mount(h(Receipts, { visible: false }), live);
+    equal(live.acks, [], "a caught-up member reports nothing");
+    await act(async () => stream(live).set(progressOf(20, 0, [{ ordinal: 21 }])));
+    equal(acked(live), ["delivered:21-21"], "an arriving message is acknowledged, from above the prefix");
+    await unmount();
+    const early = receiptsClient(new Map([[null, ready([{ ordinal: 21, pending: true }, ...ordinals(20, 1)])]]), { loading: true });
+    await mount(h(Receipts, { visible: true }), early);
+    equal(acked(early), ["seen:20"], "a view on screen is recorded without waiting for the watermarks, and never at a pending row");
+    await render(h(Receipts, { visible: false }), early);
+    await act(async () => stream(early).set(progressOf(0, 0, ascending(1, 20))));
+    equal(acked(early), ["seen:20", "delivered:1-20"], "the fetch is acknowledged once the watermarks arrive");
+    await unmount();
+    // On screen and read through 20, an arriving message is seen though the watermark has not moved.
+    const reading = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 20, []));
+    await mount(h(Receipts, { visible: true }), reading);
+    equal(reading.acks, [], "a conversation read through its newest message sends nothing");
+    await act(async () => active(reading).find(record => record.args.c === null).set(ready(ordinals(21, 1))));
+    equal(reading.acks, ["delivered:21-21", "seen:21"], "an arriving message on screen is delivered and seen");
+    await unmount();
+    // A kept view stays kept across a loading answer, though the member's row is not yet past it (Grok, round 20).
+    const kept = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, []));
+    await mount(h(Receipts, { visible: true }), kept);
+    await act(async () => stream(kept).set({ loading: true }));
+    await act(async () => stream(kept).set(progressOf(20, 0, [])));
+    equal(kept.acks.filter(ack => ack === "seen:20").length, 1, "a kept view is not sent again after a loading answer");
+    await unmount();
+    // A view the client could not keep is owed, hidden too, until the member's row shows it.
+    const refused = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, []));
+    let refusals = 2;
+    refused.mutate = (op, args) => {
+      refused.calls.push({ op: op.name, ...args });
+      refused.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
+      if (op.name === "seen" && refusals-- > 0) return Promise.resolve({ state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } });
+      return Promise.resolve(sent("ack"));
+    };
+    const views = () => refused.acks.filter(ack => ack === "seen:20").length;
+    await mount(h(Receipts, { visible: true }), refused);
+    equal(views(), 1, "the view is sent once");
+    await render(h(Receipts, { visible: false }), refused);
+    equal(views(), 2, "an unkept view goes again when the hook runs next");
+    await act(async () => stream(refused).set(progressOf(20, 0, [])));
+    equal(views(), 3, "and again with the next answer, though the conversation is hidden");
+    await act(async () => stream(refused).set(progressOf(20, 0, [])));
+    equal(views(), 3, "a kept view is not sent again");
+    await act(async () => stream(refused).set(progressOf(20, 20, [])));
+    await render(h(Receipts, { visible: false, conversation: "c2" }), refused);
+    await act(async () => stream(refused).set(progressOf(20, 0, [])));
+    check(!refused.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no view of the first: " + JSON.stringify(refused.calls));
+    await unmount();
+    // What is owed outlives a remount of the screen, for the same signed-in client.
+    const unkept = { state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } };
+    const refusing = (client, refuse) => {
+      client.mutate = (op, args) => {
+        client.calls.push({ op: op.name, viewer: client.viewer(), ...args });
+        client.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
+        return Promise.resolve(refuse(op, args) ? unkept : sent("ack"));
+      };
+      return client;
+    };
+    let remaining = 1;
+    const remounted = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), op => op.name === "seen" && remaining-- > 0);
+    await mount(h(Receipts, { visible: true }), remounted);
+    equal(remounted.acks.filter(ack => ack === "seen:20").length, 1, "the view is sent once");
+    await unmount();
+    await mount(h(Receipts, { visible: false }), remounted);
+    equal(remounted.acks.filter(ack => ack === "seen:20").length, 2, "an unkept view goes again after a remount, hidden");
+    await unmount();
+    // A replaced client owes no view of the first, and nor does another viewer of the same client.
+    const original = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), op => op.name === "seen");
+    await mount(h(Receipts, { visible: true }), original);
+    const replacement = receiptsClient(new Map([[null, ready([])]]), progressOf(20, 0, []));
+    await render(h(Receipts, { visible: false }), replacement);
+    await act(async () => stream(replacement).set(progressOf(20, 0, [])));
+    check(!replacement.calls.some(call => call.op === "seen"), "a replaced client owes no view of the first: " + JSON.stringify(replacement.calls));
+    await unmount();
+    const two = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), (op, args) => op.name === "seen" && args.conversation === "c1");
+    await mount(h(Receipts, { visible: true }), two);
+    await render(h(Receipts, { visible: false, conversation: "c2" }), two);
+    await act(async () => stream(two).set(progressOf(20, 0, [])));
+    check(!two.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no unkept view of the first: " + JSON.stringify(two.calls));
+    await unmount();
+    const shared = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, [])), op => op.name === "seen" && shared.viewer() === "dev:test");
+    await mount(h(Receipts, { visible: true }), shared);
+    await render(h(Receipts, { visible: false }), shared);
+    await act(async () => shared.setViewer("dev:someone-else"));
+    await act(async () => stream(shared).set(progressOf(20, 0, [])));
+    check(!shared.calls.some(call => call.op === "seen" && call.viewer === "dev:someone-else"), "another viewer owes no view of the first: " + JSON.stringify(shared.calls));
+    await unmount();
+  },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
     let offset = 90000000, revision = 0;
     const client = createClient({ url: "https://clock.invalid", persona: "alice", fetch: async (input, init) => {
@@ -398,6 +668,22 @@ const cases = {
     await act(async () => one(client).set(ready({ value: 3 })));
     equal(latest.data, { value: 3 }, "new observation remains live");
     await unmount(); allClosed(client);
+  },
+  async "useMutation passes admission options and saved identity; custody clears inFlight"() {
+    const client = controlled(); let latest, running;
+    function Probe() { latest = useMutation(mutation); return null; }
+    await mount(h(Probe), client);
+    await act(async () => { running = latest.run({ n: 1 }, { waitSeconds: 0 }); });
+    check(latest.inFlight, "admission is in flight");
+    equal(client.writes[0].options, { waitSeconds: 0 }, "option forwarded");
+    await act(async () => { client.writes[0].resolve({ state: "pending", id: "admitted" }); await running; });
+    check(!latest.inFlight && latest.last.state === "pending", "custody releases composer");
+    await act(async () => { client.emitWrite(sent("admitted")); });
+    equal(latest.last.state, "sent", "onWrite settles last");
+    await act(async () => { running = latest.run({ n: 2 }, { id: "saved-id" }); });
+    equal(client.writes[1].options, { id: "saved-id" }, "saved ID forwarded");
+    await act(async () => { client.writes[1].resolve(sent("saved-id")); await running; });
+    await unmount();
   },
   async "useMutation survives replay, rejection, concurrent writes and an obsolete lifetime"() {
     const client = controlled(); let latest;
@@ -775,7 +1061,7 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
     const client = controlled();
     localStorage.clear();
     const view = new ViewState(client, "http://starter-test", client.viewer());
-    await mount(h(Component, { conversationId: "c", view, onBack: () => {} }), client);
+    await mount(h(Component, { conversationId: "c", backend: "http://starter-test", view, onBack: () => {} }), client);
     await edit("draft A"); await submit();
     check(client.writes.length === 1, "draft submitted once");
     await edit("draft B");
@@ -800,6 +1086,78 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
     await unmount(); allClosed(client);
   };
 }
+
+for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
+  cases[name + " submit owns a fresh field and storage failure keeps the draft"] = async () => {
+    localStorage.clear(); const client = controlled();
+    const view = new ViewState(client, "http://starter-test", client.viewer());
+    await mount(h(Component, { backend: "http://starter-test", conversationId: "c", view, onBack: () => {} }), client);
+    await edit("hello");
+    const save = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => { throw Error("disk full"); };
+    try { await submit(); } finally { Storage.prototype.setItem = save; }
+    check(client.writes.length === 0 && host.querySelector("input").value === "hello", "storage failure cannot dispatch or clear");
+    check(localStorage.length === 0, "storage failure saved nothing");
+    check(host.textContent.includes("Not sent: could not save it on this device; your draft is kept."), "storage failure explains that nothing was sent");
+    await submit(); equal(host.querySelector("input").value, "", "clear at submit");
+    await edit(""); await edit("hello again");
+    equal(client.writes[0].options.waitSeconds, 0, "composer returns at custody");
+    await act(async () => client.writes[0].resolve({ state: "pending", id: client.writes[0].options.id }));
+    equal(host.querySelector("input").value, "hello again", "clear-and-retype keeps the whole new draft");
+    await unmount();
+  };
+}
+cases["Expo observes every saved ID across reload, late refusal, unknown receipt and account switch"] = async () => {
+  localStorage.clear(); const client = controlled();
+  const props = { backend: "http://starter-test", conversationId: "c", onBack: () => {} };
+  await mount(h(Thread, props), client);
+  for (const body of ["A text", "B text", "C text"]) {
+    await edit(body); await submit(); const call = client.writes.at(-1);
+    await act(async () => { const write = { state: "pending", id: call.options.id }; client.receipts.set(write.id, write); call.resolve(write); });
+  }
+  const [a, b, c] = client.writes.map(call => call.options.id);
+  const key = 'snapback4-chat:' + JSON.stringify([props.backend, client.viewer()]);
+  equal(JSON.parse(localStorage.getItem(key)).intents.map(i => i.id), [a, b, c], "three saved IDs");
+  await unmount(); await mount(h(Thread, props), client);
+  check(client.writes.length === 3 && host.textContent.match(/Queued on this device/g).length === 3, "reopen observes all three without dispatch");
+  await act(async () => client.emitWrite(sent(b)));
+  await act(async () => client.emitWrite(failed(a)));
+  check(host.textContent.includes("A text") && host.textContent.includes("message refused"), "A refusal after B is visible with its text");
+  check(!JSON.parse(localStorage.getItem(key)).intents.some(i => i.id === b), "sent ID leaves the journal");
+  client.receipts.delete(c);
+  await unmount(); await mount(h(Thread, props), client);
+  check(host.textContent.includes("Outcome unknown — check the conversation before sending again"), "missing receipt stays unknown");
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Edit").click());
+  equal(host.querySelector("input").value, "A text", "edit restores refused text as a new draft");
+  await submit(); check(client.writes[3].options.id !== a, "deliberate edited send is a new intent");
+  const next = controlled(); next.setViewer("dev:other");
+  await render(h(Thread, props), next);
+  await act(async () => client.writes[3].resolve(failed(client.writes[3].options.id)));
+  check(!host.textContent.includes("A text") && !host.textContent.includes("message refused") && !host.textContent.includes("Outcome unknown"), "account switch fences references and late responses");
+  check(next.writes.length === 0, "no other-account resubmission"); await unmount();
+};
+cases["Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete"] = async () => {
+  localStorage.clear();
+  const client = controlled(() => ready([{ id: "m", body: "protected body", authorId: "dev:test", at: 1 }], "older"));
+  await mount(h(Thread, { backend: "http://starter-test", conversationId: "c", onBack: () => {} }), client);
+  await edit("my draft"); const input = host.querySelector("input");
+  await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Load more").click());
+  await act(async () => client.records.at(-1).set({ loading: true }));
+  check(host.textContent.includes("protected body"), "page two loading keeps page one's current rows");
+  await act(async () => { for (const record of client.records.filter(r => r.closes === 0)) record.set({ loading: true }); });
+  check(host.querySelector("input") === input && input.value === "my draft", "same mounted composer and draft");
+  check(host.textContent.includes("Updating…") && !host.textContent.includes("protected body"), "read gap hides all previous rows");
+  await unmount();
+  const inbox = controlled(() => ({ loading: true })); await mount(h(ExpoInbox, { onSelect: () => {} }), inbox);
+  check(host.textContent.includes("Loading…") && !host.textContent.includes("No conversations"), "loading is not empty");
+  const record = inbox.records.at(-1);
+  await act(async () => record.set(ready([{ conversationId: "c", conversation: { title: "Private room" }, count: undefined }], null, { complete: false })));
+  check(host.textContent.includes("may be incomplete") && host.textContent.includes("–"), "incomplete and unavailable count are explicit");
+  await act(async () => record.set({ loading: true }));
+  check(host.textContent.includes("Updating…") && !host.textContent.includes("Private room"), "inbox gap keeps shell without old rows");
+  await act(async () => record.set({ denied: { message: "No access" } }));
+  check(host.textContent.includes("No access"), "denial message"); await unmount();
+};
 cases["web composer fences old account callbacks and preserves saved write identities"] = async () => {
   localStorage.clear();
   const a = controlled(), b = controlled();
@@ -826,6 +1184,71 @@ cases["web composer fences old account callbacks and preserves saved write ident
   check(refused, "a delayed A callback cannot admit another reference");
   const otherBackend = new ViewState(a, "http://different-backend", a.viewer());
   check(otherBackend.read().intents.length === 0, "references do not cross backends");
+  await unmount();
+};
+
+for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
+  cases[name + " receipt labels separate admission, restoration and unknown; late refusal offers text"] = async () => {
+    localStorage.clear(); const client = controlled();
+    const view = new ViewState(client, "http://starter-test", client.viewer());
+    const props = { backend: "http://starter-test", conversationId: "c", view, onBack: () => {} };
+    let lookup = deferred(); client.write = () => lookup.promise;
+    await mount(h(Component, props), client);
+    await edit("saved text"); await submit();
+    check(host.textContent.includes("Saving…") && !host.textContent.includes("Outcome unknown"), "admitting label");
+    check(![...host.querySelectorAll("button")].some(b => b.textContent.startsWith("Dismiss")), "admission cannot be dismissed");
+    await edit("next draft");
+    const id = client.writes[0].options.id;
+    await act(async () => client.writes[0].resolve({ state: "pending", id }));
+    equal(host.querySelector("input").value, "next draft", "typing during admission survives");
+    await unmount(); await mount(h(Component, props), client);
+    check(host.textContent.includes("Checking…") && !host.textContent.includes("Outcome unknown"), "restoring label");
+    check(![...host.querySelectorAll("button")].some(b => b.textContent.startsWith("Dismiss")), "lookup cannot be dismissed");
+    await act(async () => lookup.resolve(undefined));
+    check(host.textContent.includes("Outcome unknown — check the conversation before sending again") && host.textContent.includes("saved text"), "unknown has saved text after lookup");
+    check([...host.querySelectorAll("button")].some(b => b.textContent.startsWith("Dismiss")), "unknown can be dismissed");
+    await act(async () => client.emitWrite(failed(id)));
+    check(host.textContent.includes("saved text") && host.textContent.includes("message refused"), "late refusal has saved text");
+    await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Edit").click());
+    equal(host.querySelector("input").value, "saved text", "Edit fills an empty draft");
+    await edit("new typing");
+    await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Edit").click());
+    equal(host.querySelector("input").value, "new typing saved text", "Edit appends to current typing");
+    await unmount();
+  };
+}
+cases["saved write restoration ends on reject or live outcome and restarts for another id"] = async () => {
+  const client = controlled(), lookups = [];
+  client.write = () => { const d = deferred(); lookups.push(d); return d.promise; };
+  let latest;
+  function Probe({ id }) { latest = usePendingWrite(mutation, id); return null; }
+  await mount(h(Probe, { id: "saved" }), client);
+  check(latest.restoring, "given id restores from mount");
+  await act(async () => client.emitWrite(sent("saved")));
+  check(!latest.restoring && latest.last.state === "sent", "live outcome ends restoration");
+  await act(async () => { for (const lookup of lookups) lookup.resolve(undefined); });
+  check(latest.last.state === "sent", "late lookup cannot replace live outcome");
+  await render(h(Probe, { id: "other" }), client);
+  check(latest.restoring && latest.last === undefined, "new saved id restores separately");
+  await act(async () => lookups.at(-1).reject(Error("read unavailable")));
+  check(!latest.restoring && latest.last === undefined, "rejection is unknown after lookup");
+  await render(h(Probe, {}), client); check(!latest.restoring, "no id never restores");
+  await unmount();
+};
+cases["web room loading keeps the same input and legacy intents disclose missing text"] = async () => {
+  localStorage.clear(); location.hash = "room=c";
+  const client = controlled(() => ready({ conversation: { title: "Private room" }, membership: { id: "member" } }));
+  globalThis.openClient = async () => client;
+  await mount(h(WebApp), client); await act(async () => {});
+  await edit("draft through loading"); const input = host.querySelector("input");
+  await act(async () => { for (const record of active(client)) record.set({ loading: true }); });
+  check(host.querySelector("input") === input && input.value === "draft through loading", "room loading preserves input ownership");
+  check(!host.textContent.includes("Private room"), "protected title is not retained");
+  await unmount(); location.hash = "";
+  const view = new ViewState(client, "http://starter-test", client.viewer());
+  view.remember({ id: "legacy", room: "c", operation: "send" });
+  await mount(h(Composer, { view, conversationId: "c" }), client);
+  check(host.textContent.includes("text not kept") && host.textContent.includes("Outcome unknown"), "legacy journal opens without a body");
   await unmount();
 };
 window.reactCases = cases;

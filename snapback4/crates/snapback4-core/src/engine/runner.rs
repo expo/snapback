@@ -179,6 +179,9 @@ pub struct Runner<'a> {
     /// device): a query's result is not `complete`; the compiled execution
     /// fact excludes a mutation with this site from prediction.
     pub(crate) presence_unknown: bool,
+    /// Principals whose `connected[p]` this run read on a server, with the
+    /// count it saw: read once per run, so every read agrees (LLP 3000.018 §3.1).
+    pub(crate) presence_read: BTreeMap<String, u64>,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
     pub(crate) seq: u64,
@@ -289,6 +292,7 @@ impl<'a> Runner<'a> {
             component_observation: false,
             filter_depth: 0,
             presence_unknown: false,
+            presence_read: BTreeMap::new(),
             seq,
             statement_site: String::new(),
             evaluating_write_condition: false,
@@ -1013,7 +1017,19 @@ impl<'a> Runner<'a> {
                             #[cfg(not(target_arch = "wasm32"))]
                             if !self.device && live > 0 && deadline.is_some() { self.effect_presence.absent = Some(super::presence::Scalar::Count(0)); }
                             Value::int(live as i128).map_err(Into::into)
-                        } else { Value::int(presence.connections(principal) as i128).map_err(Into::into) }
+                        } else {
+                            // @ref LLP 3000.018#3.1 — one run reads each principal once, so every read in an answer agrees; the memo is metered.
+                            let open = match self.presence_read.get(principal) {
+                                Some(open) => *open,
+                                None => {
+                                    self.meter.heap((principal.len() as u64).saturating_add(64))?;
+                                    let open = presence.connections(principal);
+                                    self.presence_read.insert(principal.to_owned(), open);
+                                    open
+                                }
+                            };
+                            Value::int(open as i128).map_err(Into::into)
+                        }
                     },
                     None => {
                         // Nobody here knows: a device reads everyone as

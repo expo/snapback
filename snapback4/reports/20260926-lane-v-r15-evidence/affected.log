@@ -1,0 +1,125 @@
+(node:4157790) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online reconnect requires the authenticated GET /probe contract (4043.459929ms)
+✔ online pending writes emit their terminal outcome exactly once (564.317894ms)
+✔ online auth refusal settles writes that were queued behind the refused request (2.438854ms)
+✔ local pending writes emit once with the kept device identity (69.517426ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (62.534313ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (4026.910523ms)
+✔ local startup releases a device when initialization after the protocol probe fails (1.843252ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (10.975776ms)
+✔ local observations skip idle polls and rerun after a committed page (24.654132ms)
+✔ local generation adoption reruns observations whose dependencies changed (25.831997ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (34.980866ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (3.549178ms)
+✔ local observations rerun when the device-reported visible lifetime expires (204.007147ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (2.979565ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (4.190168ms)
+✔ every local prediction invalidates observations, including unrelated tables (14.423172ms)
+✔ online watches retain their changes watermark; bare tokens clear on refusal (560.42498ms)
+✔ wasm: pending metadata survives repeated profile/vote updates and offline replay (2605.268438ms)
+✔ wasm: no-op and nosync writes retire when the partition stream is empty (92.519333ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (103.630071ms)
+✔ wasm: a sync started before admission finishes before that write can be sent (56.200693ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (85.446174ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (82.999949ms)
+✔ wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (522.40446ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (75.917676ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (473.162656ms)
+✔ wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (72.93023ms)
+✔ wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (76.516093ms)
+✔ native: pending metadata survives repeated profile/vote updates and offline replay (2215.529557ms)
+✔ native: no-op and nosync writes retire when the partition stream is empty (119.256967ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (195.700742ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1114.321498ms)
+✔ native: a sync started before admission finishes before that write can be sent (109.019447ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (133.478676ms)
+✔ native: sync before a lost write reply does not apply an increment twice (140.679787ms)
+✔ native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (391.584197ms)
+✔ native: population growth cannot mint new IDs during prediction replay (114.218838ms)
+✔ native: retry without observers, online-only routing and denied-watch recovery (1364.765177ms)
+✔ native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (112.772239ms)
+✔ native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (113.808002ms)
+✔ close cancels online write callers without aborting committed delivery (48.774594ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (51.321151ms)
+✔ device compatibility rejects old and malformed protocols before online or offline startup (56.976044ms)
+✔ device compatibility closes the core and preserves operational startup errors (1.290214ms)
+✔ device compatibility accepts the current core online and on an offline reopen (107.705888ms)
+✔ online serialization failures retain the minted id without scheduling network retries (1.317284ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (111.501355ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (139.158968ms)
+✔ W13b fallback boundary: cursorless (1002.787885ms)
+✔ W13b fallback boundary: meter (1002.380785ms)
+✔ W13b fallback boundary: words (1002.604901ms)
+✔ W13b fallback boundary: missing fact (1001.568728ms)
+✔ W13b fallback boundary: presence (1003.411499ms)
+✔ W13b fallback boundary: offline missing fact (1004.121974ms)
+✔ W13b fallback boundary: held (1002.989106ms)
+✔ W13b fallback boundary: retained (1002.260024ms)
+✔ W13b fallback boundary: pending predictable write (1002.544499ms)
+(node:4157791) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sequence-only acknowledgement with no history stays unknown (1.18115ms)
+✔ authored refusal NOT_ADMIN wins over a success-qualified acknowledgement (0.168202ms)
+✔ authored refusal NOT_FOUND wins over a success-qualified acknowledgement (0.099349ms)
+✔ authored refusal CONFLICT wins over a success-qualified acknowledgement (0.107621ms)
+✔ an aborted replay receipt retains its original-store proof for persistence retry (0.609644ms)
+✔ memory: legacy observed_seq with empty history replays NOT_ADMIN without executing (3497.234735ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M3DH0BF8ACPXPYMGH4PP2RR6","replayed":true,"audit":0}
+✔ memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing (3112.521196ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M3DH0EGKQKRB44WQPQBMK8PK","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with empty history replays NOT_ADMIN without executing (3110.679636ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M3DH0HHW3JQWMM2CBCRV3TM0","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing (3111.050741ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M3DH0MK2K6Y977GTCZW8YX60","replayed":true,"audit":0}
+✔ memory: legacy old-page with empty history replays NOT_ADMIN without executing (3101.760792ms)
+ℹ {"tier":"memory","field":"old-page","prior":"empty","id":"01M3DH0QKZMZVDT019BBZD0VS9","replayed":true,"audit":0}
+✔ memory: legacy old-page with replacement history replays NOT_ADMIN without executing (3103.173928ms)
+ℹ {"tier":"memory","field":"old-page","prior":"replacement","id":"01M3DH0TN160JT4077DJGVG7QS","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing (4163.549044ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M3DH0XPZPTHF34A6P2C12CE9","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing (4160.638052ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M3DH11S4B558CAP8F0C4ZJV0","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing (4155.01761ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M3DH15V5F9Z2A53DHGSE98TE","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing (4161.152262ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M3DH19X1VJ8E2Q15N2ECP7XB","replayed":true,"audit":0}
+✔ sqlite: legacy old-page with empty history replays NOT_ADMIN without executing (4161.741766ms)
+ℹ {"tier":"sqlite","field":"old-page","prior":"empty","id":"01M3DH1DZ18GGWZERD0ZE103VS","replayed":true,"audit":0}
+✔ sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing (4161.127545ms)
+ℹ {"tier":"sqlite","field":"old-page","prior":"replacement","id":"01M3DH1J14P6MBBR6TG2EQNM68","replayed":true,"audit":0}
+✔ local sign-out completes with logout stalled and a fresh store cannot reopen the old account (22.017241ms)
+✔ sign-out revokes a delayed refresh request without adopting it (4.092633ms)
+✔ sign-out revokes a delayed refresh request ignoring abort without adopting it (2.367628ms)
+✔ sign-out revokes a delayed refresh body ignoring abort without adopting it (2.049551ms)
+✔ sign-out completes locally when refresh never returns (1.819386ms)
+✔ sign-out retains an already-resolved rotation until its adoption microtask (2.085685ms)
+✔ sign-out deletes after an already-started persistent refresh write, never before it (12.692739ms)
+✔ a failed credential deletion rejects sign-out and can be retried (1.919165ms)
+✔ media cleanup cannot postpone durable credential deletion (1.587839ms)
+✔ ordinary close detaches an unread rotation and retires its later successor (12.198187ms)
+(node:4157798) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1940.329313ms)
+  ✔ legacy binding survives adopted B on keepalive transport (2016.115983ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1899.380715ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (409.99994ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1346.677976ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (1410.48216ms)
+✔ web receipt upgrades preserve original binding and corrected shared custody (9841.549016ms)
+ℹ {"transport":"ordinary","original":"e445897bd195bae07297ed26eee8754b","adopted":"d7d84b4ca0b8c7f792291f7670d8c3a7","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"e445897bd195bae07297ed26eee8754b","adopted":"e8e10b4c5f3c90b555a541f955ed63e8","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ tests 91
+ℹ suites 0
+ℹ pass 91
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44118.184546

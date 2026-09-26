@@ -1,0 +1,26 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.3 (/Users/ccheever/projects/snapback-pub-043/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.3 (/Users/ccheever/projects/snapback-pub-043/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.3 (/Users/ccheever/projects/snapback-pub-043/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.3 (/Users/ccheever/projects/snapback-pub-043/snapback4/crates/snapback4)
+warning: field `reassigned` is never read
+   --> crates/snapback4/src/scale.rs:160:5
+    |
+144 | struct Analysis<'a> {
+    |        -------- field in this struct
+...
+160 |     reassigned: BTreeSet<String>,
+    |     ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (bin "snapback4") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.97s

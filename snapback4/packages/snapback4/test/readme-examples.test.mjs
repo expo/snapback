@@ -19,10 +19,14 @@ const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./c
 
 // Each block is a separate module: no ambient client/api/any can hide a broken example.
 // The generated module stands for the app's schema; package imports always reach real source.
-const apiStub = `import type { Query, Mutation, Action, Cursor } from "snapback4/contract";
+const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from "snapback4/contract";
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
+  setTyping: Ephemeral<{ room: string }, null>;
+  stopTyping: Ephemeral<{ room: string }, null>;
+  typingIn: Query<{ room: string }, { principal: string }[]>;
   handleAvailable: Query<{ handle: string }, boolean>;
   myProfile: Query<{}, { id: string; principal: string; handle: string } | null>;
   createProfile: Mutation<{ handle: string }, { id: string; principal: string; handle: string }>;
@@ -73,7 +77,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -197,4 +201,76 @@ test("W10b typing guidance hides a short-lived server answer before the next ans
     assert.deepEqual(Array.from(filter(rows), row => row.principal), []);
     assert.equal(rows.length, 1, "no replacement answer or server removal arrived");
   }
+});
+
+// Hold custody open while exercising the actual published composer's event handlers.
+test("client card composer clears at submit and offers refused text without replacing edits", async () => {
+  const source = read(join(root, "../../crates/snapback4-lang/src/guide/client.md"))
+    .match(/export function Composer[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  for (const [edited, outcome, expected] of [
+    ["", "pending", ""],
+    ["", "failed", "hello"],
+    ["hello again", "pending", "hello again"],
+    ["hello again", "sent", "hello again"],
+    ["replacement", "pending", "replacement"],
+    ["hello again", "failed", "hello again"],
+    ["replacement", "failed", "replacement"],
+  ]) {
+    let draft = "hello", admit, submitted, saved = "", slot = 0;
+    const custody = new Promise(resolve => { admit = resolve; });
+    const send = { inFlight: false, last: undefined, run: (args, options) => {
+      submitted = { args, options }; send.inFlight = true; return custody;
+    } };
+    const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
+      target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
+    })}\nComposer;`, {
+      api: { send: {} }, useMutation: () => send,
+      useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
+      React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
+    });
+    const render = () => { slot = 0; return Composer({ conversationId: "room" }).children; };
+    const [input, button] = render();
+    assert.equal(button.props.disabled, false);
+    button.props.onClick();
+    assert.equal(draft, "", "submit immediately gives the field to the next draft");
+    assert.equal(submitted.args.body, "hello");
+    assert.equal(submitted.options.waitSeconds, 0);
+    assert.equal(render()[1].props.disabled, true);
+    input.props.onChange({ target: { value: edited } });
+    assert.equal(draft, edited, "draft stays editable before custody");
+    send.last = { state: outcome }; admit(send.last);
+    await custody;
+    await new Promise(resolve => setImmediate(resolve)); // Drain the VM realm's async continuation too.
+    send.inFlight = false; send.pending = outcome === "pending";
+    assert.equal(draft, expected, `${outcome}: ${edited}`);
+    assert.equal(render()[1].props.disabled, false, "pending settlement does not disable Send");
+    if (outcome === "failed") {
+      const row = render()[2];
+      assert.equal(row.children[1], "hello", "saved text is offered on refusal");
+      const before = draft;
+      row.children.find(child => child?.props?.onClick && child.children[0] === "Edit").props.onClick();
+      assert.equal(draft, before ? before + " hello" : "hello", "Edit appends without replacing current typing");
+    }
+  }
+});
+
+// Execute the published route owner: it retains route identity, never read data.
+test("profile route is chosen once per account and survives later loading", async () => {
+  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function initialProfileRoute[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  const choose = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\ninitialProfileRoute;`, { api: { myProfile: {} } });
+  let calls = 0;
+  let answer = { loading: true };
+  const route = choose({ query: async () => { calls++; return answer; } });
+  assert.equal(await route(), "loading");
+  answer = { denied: { message: "unavailable" } };
+  assert.equal(await route(), "error");
+  answer = { data: { handle: "alice" } };
+  assert.equal(await route(), "app");
+  answer = { loading: true };
+  assert.equal(await route(), "app");
+  assert.equal(calls, 3, "the chosen route never re-reads or retains the protected profile");
+  const otherAccount = choose({ query: async () => ({ data: null }) });
+  assert.equal(await otherAccount(), "profile", "another account starts with its own decision");
 });

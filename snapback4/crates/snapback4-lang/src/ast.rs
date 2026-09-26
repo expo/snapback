@@ -326,6 +326,7 @@ pub struct CapDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub ephemeral: Option<EphemeralDecl>,
     pub search: Vec<String>,
     pub name: String,
     pub columns: Vec<ColumnDecl>,
@@ -340,6 +341,12 @@ pub struct TableDecl {
     pub public: Option<(String, Site)>,
     pub sync: Option<SyncDecl>,
     pub online_only: bool,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EphemeralDecl {
+    pub life_ms: u64,
     pub site: Site,
 }
 

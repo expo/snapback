@@ -3,7 +3,17 @@
 // a read (which tables an operation touches, which of them sync); the
 // device interprets the programs.
 
-export interface ProgramJson {
+export interface OperationFacts {
+  held?: boolean;
+  runs?: "device" | "server";
+  predicts?: "eligible" | "never";
+  ephemeral?: boolean;
+  renews?: boolean;
+  renewMs?: number;
+  ephemeralReads?: string[];
+}
+
+export interface ProgramJson extends OperationFacts {
   name: string;
   kind: "Query" | "Mutation" | "job" | "action";
   args: Record<string, unknown>;
@@ -16,6 +26,7 @@ export interface ProgramJson {
 }
 
 export interface TableJson {
+  ephemeral?: { life_ms: number };
   columns: Record<string, unknown>;
   indexes: Record<string, { components: ({ Column: string } | { WordPrefixes: unknown })[]; unique: boolean }>;
   sync?: { audience: unknown; horizon?: { last: number; by: string } | null } | null;
@@ -28,7 +39,7 @@ export interface SchemaJson {
   tables: Record<string, TableJson>;
   maintains?: unknown[];
   timelines?: { name: string; posts: [string, ...string[]]; reposts: [string, ...string[]] }[];
-  operations?: Record<string, { held?: boolean; runs?: "device" | "server"; predicts?: "eligible" | "never" }>;
+  operations?: Record<string, OperationFacts>;
 }
 
 /** The app's native module the server serves at `/native.wasm` (LLP

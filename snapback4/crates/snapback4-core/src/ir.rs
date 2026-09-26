@@ -3,6 +3,8 @@
 //! §5.1) in its serialized form, so the conformance corpus loads unchanged;
 //! the held-search descriptor, a receipt-era form, is dropped.
 
+pub mod effects;
+
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

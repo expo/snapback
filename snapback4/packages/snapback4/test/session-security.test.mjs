@@ -90,7 +90,7 @@ test("the local client rotates near expiry and keeps every protected request on 
   const core = {
     async call(request) {
       switch (request.op) {
-        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [] } };
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [] } };
         case "state": return { ok: { watermark: 0, generation: 1, native } };
         case "backend": return { ok: backend };
         case "next_submission": return { ok: 1 };
@@ -186,7 +186,7 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
   const core = {
     async call(request) {
       switch (request.op) {
-        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
         case "state": return { ok: { watermark: 0, generation: 1, native: null } };
         case "backend": return { ok: backend };
         case "next_submission": return { ok: 1 };
@@ -263,7 +263,7 @@ test("an online-only watch retries a stale-token refusal after rotation", async 
   const core = {
     async call(request) {
       switch (request.op) {
-        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [] } };
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [] } };
         case "state": return { ok: { watermark: 0, generation: 1, native: null } };
         case "backend": return { ok: backend };
         case "next_submission": return { ok: 1 };
@@ -343,7 +343,7 @@ test("a current-token sign-out cannot reclassify a stale write refusal", async (
   const core = {
     async call(request) {
       switch (request.op) {
-        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
         case "state": return { ok: { watermark: 0, generation: 1, native: null } };
         case "backend": return { ok: backend };
         case "next_submission": return { ok: 1 };

@@ -1,0 +1,87 @@
+error[E0599]: no method named `native_input` found for enum `value::Value` in the current scope
+   --> crates/snapback4-core/src/engine/native.rs:674:47
+    |
+674 |                 runner.meter.heap(row.clone().native_input(&NativeInput(())).heap_bytes())?;
+    |                                               ^^^^^^^^^^^^
+    |
+   ::: crates/snapback4-core/src/value.rs:21:1
+    |
+ 21 | pub enum Value {
+    | -------------- method `native_input` not found for this enum
+    |
+help: there is a method `capture_input` with a similar name
+    |
+674 -                 runner.meter.heap(row.clone().native_input(&NativeInput(())).heap_bytes())?;
+674 +                 runner.meter.heap(row.clone().capture_input(&NativeInput(())).heap_bytes())?;
+    |
+
+error[E0599]: no method named `native_input` found for enum `value::Value` in the current scope
+   --> crates/snapback4-core/src/engine/native.rs:677:78
+    |
+677 |             let inserted = if op == "insert" { runner.insert(table_name, row.native_input(&NativeInput(())))?; true }
+    |                                                                              ^^^^^^^^^^^^
+    |
+   ::: crates/snapback4-core/src/value.rs:21:1
+    |
+ 21 | pub enum Value {
+    | -------------- method `native_input` not found for this enum
+    |
+help: there is a method `capture_input` with a similar name
+    |
+677 -             let inserted = if op == "insert" { runner.insert(table_name, row.native_input(&NativeInput(())))?; true }
+677 +             let inserted = if op == "insert" { runner.insert(table_name, row.capture_input(&NativeInput(())))?; true }
+    |
+
+error[E0599]: no method named `native_input` found for enum `value::Value` in the current scope
+   --> crates/snapback4-core/src/engine/native.rs:678:64
+    |
+678 |                 else { runner.insert_if_absent(table_name, row.native_input(&NativeInput(())))? };
+    |                                                                ^^^^^^^^^^^^
+    |
+   ::: crates/snapback4-core/src/value.rs:21:1
+    |
+ 21 | pub enum Value {
+    | -------------- method `native_input` not found for this enum
+    |
+help: there is a method `capture_input` with a similar name
+    |
+678 -                 else { runner.insert_if_absent(table_name, row.native_input(&NativeInput(())))? };
+678 +                 else { runner.insert_if_absent(table_name, row.capture_input(&NativeInput(())))? };
+    |
+
+error[E0599]: no method named `native_input` found for enum `value::Value` in the current scope
+   --> crates/snapback4-core/src/engine/native.rs:693:92
+    |
+693 |             runner.update(table_name, &Value::Id(id.to_owned()), Value::Row(fields.into()).native_input(&NativeInput(())))?;
+    |                                                                                            ^^^^^^^^^^^^
+    |
+   ::: crates/snapback4-core/src/value.rs:21:1
+    |
+ 21 | pub enum Value {
+    | -------------- method `native_input` not found for this enum
+    |
+help: there is a method `capture_input` with a similar name
+    |
+693 -             runner.update(table_name, &Value::Id(id.to_owned()), Value::Row(fields.into()).native_input(&NativeInput(())))?;
+693 +             runner.update(table_name, &Value::Id(id.to_owned()), Value::Row(fields.into()).capture_input(&NativeInput(())))?;
+    |
+
+error[E0599]: no method named `native_input` found for enum `value::Value` in the current scope
+   --> crates/snapback4-core/src/engine/native.rs:703:70
+    |
+703 |             runner.upsert(table_name, &Value::Id(id.to_owned()), row.native_input(&NativeInput(())))?;
+    |                                                                      ^^^^^^^^^^^^
+    |
+   ::: crates/snapback4-core/src/value.rs:21:1
+    |
+ 21 | pub enum Value {
+    | -------------- method `native_input` not found for this enum
+    |
+help: there is a method `capture_input` with a similar name
+    |
+703 -             runner.upsert(table_name, &Value::Id(id.to_owned()), row.native_input(&NativeInput(())))?;
+703 +             runner.upsert(table_name, &Value::Id(id.to_owned()), row.capture_input(&NativeInput(())))?;
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `snapback4-core` (lib) due to 5 previous errors

@@ -16,6 +16,8 @@ mod app;
 mod shapes;
 #[path = "guide/presence.rs"]
 mod presence;
+#[path = "guide/receipts.rs"]
+mod receipts;
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
@@ -56,10 +58,13 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("react", "client"), ("hooks", "client"),
+    ("composer", "client"), ("unread", "client"),
+    ("typing", "ephemeral"),
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
@@ -70,6 +75,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
+    ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
@@ -119,6 +125,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
         "language" => LANGUAGE,
+        "ephemeral" => include_str!("guide/ephemeral.md"),
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "witness" => include_str!("guide/witness.md"),
@@ -345,6 +352,7 @@ blob URL; `useAsset(id)` in React) or `client.assetSource(id)` (a URI and
 headers for native views) fetches `GET /assets/<id>` under the viewer's
 credentials, and a row that is deleted, whose column is cleared, that
 expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN.
+For one-view React photos, own the handle above the list (`guide client`).
 `once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and
 the uploader is counted after placement; before placement the uploader may
 preview. A Range request against a once asset is refused before consuming a
@@ -359,6 +367,7 @@ retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership."##,
+        "client" => include_str!("guide/client.md"),
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,
@@ -370,7 +379,8 @@ a readable home row does not grant upload ownership."##,
         "routes" => routes::CARD,
         "effects" => effects::CARD,
         "services" => services::CARD,
-        "presence" => presence::CARD,        "bounds" => bounds::CARD,
+        "presence" => presence::CARD,
+        "receipts" => receipts::CARD,        "bounds" => bounds::CARD,
         "refusals" => refusals::CARD,
         "personas" => personas::CARD,
         _ => return None,

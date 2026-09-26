@@ -37,7 +37,7 @@ function fixture(t, tier) {
       case 'set_meta': f.meta.set(request.key, request.value); return { ok: null };
       case 'backend': return { ok: backend };
       case 'state': return { ok: { generation: 1, watermark: 0 } };
-      case 'sync_state': return { ok: { acquired: true, backend_required: false, store_id: 'clock', watermark: 0,
+      case 'sync_state': return { ok: { receipt_outcomes: true, acquired: true, backend_required: false, store_id: 'clock', watermark: 0,
         generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [] } };
       case 'next_submission': return { ok: 1 };
       case 'queued': return { ok: [] };
@@ -47,7 +47,7 @@ function fixture(t, tier) {
       // observation, never for a missing program or a withheld observation.
       case 'query': f.deviceReads++; return { ok: request.name === 'server'
         ? { data: [], unknown: true, speculative: true, complete: false, tables: [], nextExpiry: null }
-        : f.outcome?.(request) ?? (tier === 'composition'
+        : await f.outcome?.(request) ?? (tier === 'composition'
         ? { data: { remote: [], kept: [] }, complete: false, tables: [], nextExpiry: null, components: { remote: { unknown: true }, kept: { retained: true, complete: true } } }
         : { data: [], complete: false, unknown: true, tables: [], nextExpiry: null }) };
       case 'keep_write': return { ok: null };
@@ -233,4 +233,84 @@ for (const gap of ['deadline', 'correction', 'correction-before-deadline']) test
   cleanup(); clock.sample(1500, wall, wall, 'host:1');
   assert.equal(timers.size, 0);
   assert.equal(updates, 1, 'cleanup retires the subscription');
+});
+
+
+// A remembered local deadline schedules observation; its server deadline
+// independently guards the page even when that observation has not returned.
+for (const [serverDelay, early] of [[null, false], [null, true], [300, false], [600, false]]) test(`remembered wakeup retains data until its own server deadline (${serverDelay}, early=${early})`, async t => {
+  const f = fixture(t, 'fallback'), start = Date.now() + f.offset, localDeadline = start + 300;
+  const serverDeadline = serverDelay === null ? null : start + serverDelay;
+  f.outcome = request => ({ data: false, unknown: true, speculative: true, complete: false, tables: [],
+    nextExpiry: request.now < localDeadline ? localDeadline : null });
+  f.serverOutcome = () => ({ data: true, complete: true, tables: [], nextExpiry: serverDeadline });
+  let release, entered = false;
+  const client = await f.open(); t.after(async () => { release?.(); await close(client, t); });
+  assert.equal((await client.query(read, {})).data, true);
+  f.offline = true; await client.sync();
+  let earlyArm = early;
+  if (early) {
+    const deviceDelay = ServerClock.prototype.deviceDelay;
+    t.mock.method(ServerClock.prototype, 'deviceDelay', function(at) {
+      const delay = deviceDelay.call(this, at);
+      if (earlyArm && at === localDeadline) { earlyArm = false; return 100; }
+      return delay;
+    });
+  }
+  const watch = client.observe(read, {}), publications = [];
+  watch.subscribe(() => publications.push(watch.getSnapshot()));
+  await drain(); const before = watch.getSnapshot();
+  assert.equal(before.data, true); assert.equal(before.fresh, false);
+  const count = publications.length;
+  const held = new Promise(resolve => { release = resolve; });
+  const outcome = f.outcome;
+  f.outcome = async request => { entered = true; await held; return outcome(request); };
+  if (early) {
+    assert.equal(earlyArm, false, 'the first timer was intentionally armed before its real deadline');
+    t.mock.timers.tick(100); await drain();
+    assert.equal(entered, false, 'an early timer re-arms without observing');
+    assert.equal(watch.getSnapshot(), before);
+    t.mock.timers.tick(200);
+  } else t.mock.timers.tick(300);
+  await drain();
+  assert.equal(entered, true, 'the due local timer starts a reobservation');
+  if (serverDelay === 300) {
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, 'simultaneous server expiry must reset');
+  } else {
+    assert.equal(watch.getSnapshot(), before, 'a valid remembered page survives the timer and slow local call');
+    assert.equal(publications.length, count, 'a wakeup does not emit a loading notification');
+    if (serverDelay === 600) {
+      t.mock.timers.tick(300); await drain();
+      assert.deepEqual(watch.getSnapshot(), { loading: true }, 'the server cutoff stays armed during the local call');
+    }
+  }
+  release(); await drain();
+  if (serverDelay === null) {
+    assert.equal(watch.getSnapshot().data, true);
+    assert.ok(publications.every(value => value.data === true));
+  } else assert.deepEqual(watch.getSnapshot(), { loading: true });
+  watch.close();
+});
+
+test('composed data with no server deadline still withdraws at its local row deadline', async t => {
+  const f = fixture(t, 'composition'), deadline = Date.now() + f.offset + 300;
+  f.outcome = request => ({ data: { remote: [], kept: request.now < deadline ? ['private'] : [] },
+    complete: false, unknown: true, speculative: false, tables: [], nextExpiry: request.now < deadline ? deadline : null,
+    components: { remote: { unknown: true }, kept: { retained: true, complete: true } } });
+  f.serverOutcome = () => ({ data: { remote: ['live'], kept: [] }, complete: true, tables: [], nextExpiry: null });
+  let release, entered = false;
+  const client = await f.open(); t.after(async () => { release?.(); await close(client, t); });
+  const watch = client.observe(read, {}), publications = [];
+  watch.subscribe(() => publications.push(watch.getSnapshot()));
+  await drain(); assert.deepEqual(watch.getSnapshot().data, { remote: ['live'], kept: ['private'] });
+  const held = new Promise(resolve => { release = resolve; });
+  const outcome = f.outcome;
+  f.outcome = async request => { entered = true; await held; return outcome(request); };
+  t.mock.timers.tick(300); await drain();
+  assert.equal(entered, true);
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, 'no server deadline does not identify a remembered wakeup');
+  assert.deepEqual(publications.at(-1), { loading: true });
+  release(); await drain();
+  assert.deepEqual(watch.getSnapshot().data, { remote: ['live'], kept: [] });
+  watch.close();
 });

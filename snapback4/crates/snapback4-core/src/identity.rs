@@ -167,10 +167,23 @@ pub(crate) fn action_session(conn: &Connection, principal: &str, now: i64, expir
 /// The principal behind a bearer token, if the session is live.
 pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
     let token_digest = digest(token);
-    let tx = store.authority_transaction()?;
-    let resolved = authority::live_session(&tx, &token_digest, now)?.map(|session| (session.principal, session.kind));
-    tx.rollback()?;
+    let resolved = resolve_digest(store, &token_digest, now)?;
     if resolved.is_none() { store.invalidate_expired_authority_session(&token_digest, now)?; }
+    Ok(resolved)
+}
+
+/// Resolve authority from a detached reader without attempting expired-session
+/// maintenance. Application catalog adoption does not revoke sessions; a store
+/// identity change does. The serving writer retains custody of cleanup.
+// @ref LLP 3000.017#3.3 — ephemeral-only poll wakes finish without the engine mutex.
+pub fn resolve_read_only(store: &Store, token: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+    store.resolve_session_snapshot(&digest(token), now, expected_store_id)
+}
+
+fn resolve_digest(store: &Store, token_digest: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
+    let tx = store.authority_transaction()?;
+    let resolved = authority::live_session(&tx, token_digest, now)?.map(|session| (session.principal, session.kind));
+    tx.rollback()?;
     Ok(resolved)
 }
 

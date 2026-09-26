@@ -21,6 +21,7 @@ mod event_slots;
 mod caps;
 mod authority;
 mod successor;
+mod sequences;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
@@ -50,6 +51,7 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
     page_size: u64,
     catalog: &'a BTreeMap<String, i64>,
@@ -165,7 +167,6 @@ impl Store {
         }
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-             CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY(parent, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
              CREATE TABLE IF NOT EXISTS r (t INTEGER NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY (t, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS i (ti INTEGER NOT NULL, k BLOB NOT NULL, id TEXT NOT NULL, PRIMARY KEY (ti, k)) WITHOUT ROWID;
@@ -244,7 +245,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -253,7 +254,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -263,7 +264,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
@@ -281,6 +282,9 @@ impl Store {
         Ok(Self { conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
+    pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {
+        self.catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
+    }
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
@@ -404,6 +408,8 @@ impl<'a> Tx<'a> {
     /// Roll back the named savepoint and release it in the same operation.
     pub fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
         self.tx.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
+        // Lazy sequence-table creation may have belonged to this savepoint.
+        self.sequence_table.set(None);
         Ok(())
     }
 
@@ -461,6 +467,7 @@ impl<'a> Tx<'a> {
     /// that touches only the index entries whose keys changed (a `words`
     /// index has one per token). Returns the number of entries written.
     pub fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
@@ -485,6 +492,7 @@ impl<'a> Tx<'a> {
     }
 
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = old.field("id")?.as_str()?.to_owned();
         self.tx.prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
@@ -816,9 +824,11 @@ mod tests {
 
 impl crate::rows::Rows for Tx<'_> {
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        if !self.has_sequence_table()? { return Ok(0); }
         Ok(self.conn().query_row("SELECT value FROM _sequences WHERE parent = ?1 AND id = ?2", params![parent, id], |r| r.get(0)).optional()?.unwrap_or(0))
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        self.ensure_sequence_table()?;
         self.conn().execute("INSERT INTO _sequences VALUES (?1, ?2, ?3) ON CONFLICT(parent, id) DO UPDATE SET value = excluded.value", params![parent, id, value])?;
         Ok(())
     }

@@ -103,6 +103,7 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         let mut acknowledged = page_json(&stream_page(&mut a, "alice", 1));
         acknowledged["store_id"] = json!(a_id);
         acknowledged["acknowledged"] = json!({ "known-observed": 3 });
+        acknowledged["sent"] = acknowledged["acknowledged"].clone();
         ok(device.call(json!({ "op": "apply", "page": acknowledged })));
         let known = ok(device.call(json!({ "op": "admit", "entry": { "id": "known-unstreamed", "seq": 5, "op": "add", "args": { "body": "known-unstreamed" }, "viewer": "alice", "now": 1, "predictable": true } })));
         let ctx = context("alice", &[("body", Value::String("known-unstreamed".into()))]).with_ids(serde_json::from_value::<Vec<String>>(known["new_ids"].clone()).unwrap());

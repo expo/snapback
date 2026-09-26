@@ -1,3 +1,4 @@
+import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
 import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
@@ -79,7 +80,11 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
     },
-    mutate(op, args, options) {
+    mutate: routeMutations((op, args) => {
+      // Enter the single bounded lane synchronously. The scoped transport
+      // checks the session epoch before dispatch, inside that ordered lane.
+      return valid() ? raw.mutate(op, args) : Promise.resolve(failedSignal(mintId(), why()));
+    }, (op, args, options) => {
       if (browserAdmission() && admit) {
         const id = options?.id ?? mintId();
         const denied = valid() ? admit() : why();
@@ -103,7 +108,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       }
       return raw.mutate(op, snapshot, { ...options, id });
       })();
-    },
+    }),
     async write(id) {
       if (await refusal()) return undefined;
       return raw.write(id);
