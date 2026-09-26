@@ -63089,3 +63089,49 @@ earlier finding fixed and one gap: nothing showed a kept view staying kept
 across a loading answer, so honoring the kept mark only when the member's row
 is present survived. A case publishes a loading answer and then the same row,
 and requires no second `seen`.
+
+
+## 2026-09-26 — Lane O: show pending writes from existing custody
+
+Implemented LLP 3000.019 §3.3 part 4 on `sb4-intent/o-pending-writes`.
+`client.pendingWrites()` lists ids, operation names, copied arguments,
+queued/sent/held status, optional reasons and predicted row keys, oldest first.
+`onPendingWrites()` and React’s `usePendingWrites(op?)` observe that list.
+The local device stores dispatch status on its existing outbox entry; the raw
+online client exposes its in-memory queue, and createApp’s online client uses
+its existing durable journal. Terminal writes leave the list and still notify
+`onWrite`. Account changes fence both list reads and observers. The native
+installer moved to its own file to keep `local.ts` at 1,482 lines.
+
+The new lifecycle tests cover HTTP 409 and 503 holds, both local hosts and both
+online forms, copied arguments, prediction keys, FIFO, sent/held reloads,
+settlement, reentrant subscribers and account fencing. React and page-exit
+cases cover subscriptions, filtering, stale responses and keepalive holds.
+The device scenario checks legacy decoding, reopen, unchanged intent/order and
+late holds that cannot resurrect a settled entry. All guide tests passed
+(85/85); affected client/React tests passed 107/107 and navigation passed 16/16.
+
+The required complete `scripts/test.sh` run ended exactly:
+`== 1 failure(s) in 1520 s` (exit 1, client tests). Its 937 Rust executions,
+workspace doctests, builds, guide, budgets, fixtures, app typechecks and all
+78 client model cases passed. Nine client failures were ours: eight revealed
+an online flush completion race, and one existing snapshot witness compared
+the newly mutable dispatch status. The flush now releases ownership before
+its completion promise settles; the witness still compares every original
+intent field. The repair run passed 109/109 tests, including all nine failures.
+Post-repair online models passed 35/35, including 5,000 online-session sequences
+and 3,000 raw/createApp interleavings. The full script was not rerun after these
+TypeScript/test-only repairs; unchanged Rust evidence was retained.
+
+Wasm was rebuilt at baseline and lane head: 2,021,689 / 581,094 B raw/gzip
+became 2,023,103 / 581,523 B, a +1,414 / +429 B change. The gzip ceiling remains
+582,094 B with 571 B headroom. No engine meter or wasm budget was raised.
+
+The list is asynchronous; its hook starts empty and retains a previous list
+if storage cannot be read. A pre-0.4.4 outbox record cannot reveal an
+unacknowledged send it never recorded, so it displays queued absent sequence
+evidence. New records preserve sent/held status across reload. No other part
+of §3.3, package version, calibration, Expo binary packaging, push or publication
+was performed. The complete file-by-file report, all nine failure names and
+the legacy reproduction are in
+[the lane report](reports/20260926-lane-o-pending-writes.md).
