@@ -44,9 +44,7 @@ function denial(output, code, family) {
   return reply.denied;
 }
 
-test("createLocalClient receives E_STORE_BUSY from a process device with an exclusively held database", async t => {
-  const { dir, attempts, device } = fixture(t);
-  const path = join(dir, `${storeName}.sqlite`);
+async function holdExclusively(t, path) {
   const holder = spawn("python3", ["-c", `import fcntl, sys
 with open(sys.argv[1], "a+b") as store:
     fcntl.flock(store, fcntl.LOCK_EX)
@@ -57,6 +55,12 @@ with open(sys.argv[1], "a+b") as store:
   t.after(async () => { holder.stdin.end(); await exited; });
   const [ready] = await once(holder.stdout, "data", { signal: AbortSignal.timeout(10000) });
   assert.equal(String(ready).trim(), "locked");
+}
+
+test("createLocalClient receives E_STORE_BUSY from a process device with an exclusively held database", async t => {
+  const { dir, attempts, device } = fixture(t);
+  const path = join(dir, `${storeName}.sqlite`);
+  await holdExclusively(t, path);
   let rejected;
   await assert.rejects(createLocalClient({ url, persona: "alice", device,
     fetch: async () => Response.json(backend) }), error => { rejected = error; return /E_STORE_BUSY/.test(error.message); });
@@ -67,6 +71,19 @@ with open(sys.argv[1], "a+b") as store:
   assert.ok(reply.message.includes(path));
   assert.match(reply.message, /no work was admitted/);
   assert.equal(readFileSync(path).length, 0, "the locked database was not initialized");
+});
+
+test("a process device names a live server's published address in E_STORE_BUSY", async t => {
+  const { dir, attempts, device } = fixture(t);
+  const path = join(dir, `${storeName}.sqlite`);
+  // The record `snapback4 dev` and `serve` publish beside the store once listening.
+  writeFileSync(join(dir, "serve.lock"), "4400\nhttp://127.0.0.1:4400\n");
+  await holdExclusively(t, path);
+  await assert.rejects(createLocalClient({ url, persona: "alice", device,
+    fetch: async () => Response.json(backend) }), /E_STORE_BUSY/);
+  assert.equal(attempts.length, 1);
+  const reply = denial(attempts[0].stdout, "E_STORE_BUSY", "store");
+  assert.ok(reply.message.includes("owned by http://127.0.0.1:4400"), reply.message);
 });
 
 for (const kind of ["malformed JSON", "missing file", "unsupported capability"]) {
