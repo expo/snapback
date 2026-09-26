@@ -1,6 +1,10 @@
 //! @ref LLP 3000.019#3.1 — ordered window intent and actionable device coverage advice.
 use snapback4_lang::{Bound, ast::SyncOrder, compile, parser::parse_document};
 
+#[path = "sync_windows/repairs.rs"]
+mod repairs;
+use repairs::apply_repair;
+
 const SOURCE: &str = include_str!("fixtures/sync-windows.q");
 
 fn bind(source: &str) -> Bound {
@@ -96,7 +100,8 @@ fn builder_mismatch_is_noted_and_both_supported_order_repairs_remove_it() {
     assert_eq!(note.site.to_string(), "schema.q:22:10");
     for text in ["query thread", "by .at, .ordinal, .id, newest first", "window is last 10000 by .at, .id, newest first", "needs the server"] { assert!(note.message.contains(text), "{note}"); }
     assert!(!note.message.contains("$intent:"));
-    assert!(note.rewrite.contains("last 2 by .at, .id"));
+    assert!(note.rewrite.contains("by bySyncWindow: conversationId, at, id"));
+    apply_repair(&mismatch, repairs::PAGE);
     assert_eq!(note.guide, "sync");
     assert!(snapback4_lang::guide::explain_code("N_SYNC_ORDER").unwrap().contains("newest-first"));
     assert_eq!(bound.schema.operations["thread"].runs.as_deref(), Some("device"));
@@ -108,10 +113,12 @@ fn builder_mismatch_is_noted_and_both_supported_order_repairs_remove_it() {
 fn ascending_and_nested_helper_reads_are_located_but_server_queries_and_mutations_are_not_noted() {
     let ascending = SOURCE.replace("last 2 by", "first 2 by");
     let bound = bind(&ascending);
+    apply_repair(&ascending, &repairs::PAGE.replace("last 2", "first 2"));
     assert!(bound.notes.iter().any(|note| note.code == "N_SYNC_ORDER" && note.message.contains("oldest first")));
     let helper = ascending.replace("query thread(", "fn history(") + "\nquery thread(conversationId: conversations, c: cursor ?):\n  return { rows: history(conversationId, c) }\n";
     let bound = bind(&helper);
     assert!(bound.notes.iter().any(|note| note.code == "N_SYNC_ORDER" && note.site.line == 22));
+    apply_repair(&helper, &repairs::PAGE.replace("last 2", "first 2"));
     let server = ascending.replace("return messages where", "parent = conversations[conversationId]\n  return messages where");
     let bound = bind(&server);
     assert_eq!(bound.schema.operations["thread"].runs.as_deref(), Some("server"));
@@ -122,7 +129,9 @@ fn ascending_and_nested_helper_reads_are_located_but_server_queries_and_mutation
 
 #[test]
 fn held_order_note_does_not_promise_server_fallback() {
-    let bound = bind(&SOURCE.replace("c: cursor ?):", "c: cursor ?) held:").replace("last 2 by", "first 2 by"));
+    let source = SOURCE.replace("c: cursor ?):", "c: cursor ?) held:").replace("last 2 by", "first 2 by");
+    let bound = bind(&source);
+    apply_repair(&source, &repairs::PAGE.replace("last 2", "first 2"));
     let note = bound.notes.iter().find(|note| note.code == "N_SYNC_ORDER").unwrap();
     assert!(note.message.contains("held query stays on the device"));
     assert!(!note.message.contains("needs the server"));
@@ -136,11 +145,7 @@ fn extra_equality_pins_get_an_explicit_index_rewrite_that_clears_the_note() {
     let note = bound.notes.iter().find(|note| note.code == "N_SYNC_ORDER").unwrap();
     assert!(note.message.contains("conversationId, sender, at, ordinal, id"));
     assert!(note.rewrite.contains("by bySyncWindow: conversationId, at, ordinal, id"));
-    let repaired = source.replace("  at: time", "  by bySyncWindow: conversationId, at, ordinal, id\n  at: time")
-        .replace("sync last 10000 by .at, .ordinal", "sync last 10000 by bySyncWindow")
-        .replace("messages where .conversationId = conversationId where .sender = viewer last 2 by .at, .ordinal after c",
-            "messages[conversationId = conversationId] by bySyncWindow where .sender = viewer last 2 after c");
-    assert!(!bind(&repaired).notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
+    apply_repair(&source, "messages where .conversationId = conversationId where .sender = viewer last 2 by .at, .ordinal after c");
 }
 
 #[test]
@@ -151,11 +156,7 @@ fn intrinsic_id_is_not_duplicated_when_followed_by_another_column() {
     assert_eq!(table.index(&table.sync.as_ref().unwrap().horizon.as_ref().unwrap().by).unwrap().columns(), ["conversationId", "at", "id", "ordinal"]);
     let note = bound.notes.iter().find(|note| note.code == "N_SYNC_ORDER").unwrap();
     assert!(note.rewrite.contains("by bySyncWindow: conversationId, at, id, ordinal"));
-    let repaired = source.replace("  at: time", "  by bySyncWindow: conversationId, at, id, ordinal\n  at: time")
-        .replace("sync last 10000 by .at, .id, .ordinal", "sync last 10000 by bySyncWindow")
-        .replace("messages where .conversationId = conversationId last 2 by .at, .id, .ordinal after c",
-            "messages[conversationId = conversationId] last 2 by bySyncWindow after c");
-    assert!(!bind(&repaired).notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
+    apply_repair(&source, "messages where .conversationId = conversationId last 2 by .at, .id, .ordinal after c");
 }
 
 #[test]
@@ -167,7 +168,7 @@ fn named_indexes_with_identical_columns_still_have_distinct_window_coverage() {
     let note = bound.notes.iter().find(|note| note.code == "N_SYNC_ORDER").unwrap();
     assert!(note.message.contains("index byOther") && note.message.contains("index byWindow"));
     assert!(note.rewrite.contains("last 2 by byWindow"));
-    assert!(!bind(&source.replace("last 2 by byOther", "last 2 by byWindow")).notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
+    apply_repair(&source, "messages[conversationId] last 2 by byOther after c");
 }
 
 #[test]
@@ -184,11 +185,7 @@ fn legacy_implicit_id_index_gets_a_repair_that_selects_the_window_index() {
     let bound = bind(&source);
     let note = bound.notes.iter().find(|note| note.code == "N_SYNC_ORDER").unwrap();
     assert!(note.rewrite.contains("by bySyncWindow: conversationId, at, ordinal, id"));
-    let repaired = source.replace("  at: time", "  by bySyncWindow: conversationId, at, ordinal, id\n  at: time")
-        .replace("sync last 10000 by .at, .ordinal", "sync last 10000 by bySyncWindow")
-        .replace("messages where .conversationId = conversationId last 2 by .at, .ordinal", "messages[conversationId] last 2 by bySyncWindow");
-    let corrected = bind(&repaired);
-    assert!(!corrected.notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
+    let corrected = bind(&apply_repair(&source, &repairs::PAGE.replace(" after c", "")));
     assert!(corrected.notes.iter().any(|note| note.code == "N_NO_CURSOR"), "the separate missing cursor advice remains");
 }
 
@@ -215,8 +212,8 @@ fn calendar_pages_get_order_advice_and_the_window_repair_clears_it() {
     assert!(note.message.contains("day(.at)"), "{note}");
     assert!(!note.message.contains("by .day,"), "calendar keys are functions, not row fields: {note}");
     let page = note.rewrite.split('`').nth(1).unwrap();
-    assert_eq!(page, "last 2 by byWindow");
-    assert!(!bind(&source.replace("last 2 by byDay", page)).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+    assert!(page.contains("last 2 by byWindow"));
+    apply_repair(&source, "messages[conversationId] last 2 by byDay after c");
 }
 
 #[test]
@@ -230,7 +227,7 @@ fn index_repair_moves_an_incompatible_explicit_range_into_a_residual_filter() {
     let page = note.rewrite.split('`').nth(1).unwrap();
     assert!(page.starts_with("messages[conversationId = conversationId]"), "{note}");
     assert!(page.contains("where .ordinal > 0"), "{note}");
-    let repaired = bind(&source.replace(original, page));
+    let repaired = bind(&apply_repair(&source, original));
     assert!(!repaired.notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
     let scans = snapback4_core::ir::scans(&repaired.programs[0].program);
     assert_eq!(scans[0].index, "byWindow");
@@ -241,20 +238,11 @@ fn index_repair_moves_an_incompatible_explicit_range_into_a_residual_filter() {
 }
 
 #[test]
-fn view_repair_names_an_executable_source_page_with_its_predicates() {
+fn view_advice_does_not_offer_a_single_branch_as_a_whole_read() {
     let source = SOURCE.replace("  at: time", "  sender: principal\n  at: time")
         .replace("query thread(", "view activity:\n  messages where .sender = viewer { conversationId, at, ordinal }\n\nquery thread(")
         .replace("return messages where", "return activity where");
-    let bound = bind(&source);
-    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
-    assert!(note.rewrite.contains("page the source table messages"), "{note}");
-    let quotes: Vec<_> = note.rewrite.split('`').collect();
-    let repaired = source.replace("  at: time", &format!("  {}\n  at: time", quotes[1]))
-        .replace("last 10000 by .at, .ordinal", quotes[3])
-        .replace("activity where .conversationId = conversationId last 2 by .at, .ordinal after c", quotes[5]);
-    assert!(quotes[5].contains("after c"), "retain the cursor parameter: {note}");
-    assert!(quotes[5].contains(".sender = viewer"), "keep branch predicates: {note}");
-    assert!(!bind(&repaired).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+    repairs::words_only(&source);
 }
 
 #[test]
@@ -266,8 +254,8 @@ fn replacement_preserves_compatible_ranges_and_moves_calendar_ranges() {
     let source = base.replace(original, compatible);
     let bound = bind(&source);
     let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
-    let order = note.rewrite.split('`').nth(1).unwrap();
-    assert!(!bind(&source.replace("first 2 by byWindow", order)).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+    assert!(note.rewrite.contains("at > 0"));
+    apply_repair(&source, compatible);
 
     let calendar = "messages[conversationId, day > 0] first 2 by byDay after c";
     let source = base.replace(original, calendar);
@@ -275,7 +263,7 @@ fn replacement_preserves_compatible_ranges_and_moves_calendar_ranges() {
     let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
     let page = note.rewrite.split('`').nth(1).unwrap();
     assert!(page.contains("where day(.at) > 0"), "{note}");
-    assert!(!bind(&source.replace(calendar, page)).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+    apply_repair(&source, calendar);
 }
 
 #[test]

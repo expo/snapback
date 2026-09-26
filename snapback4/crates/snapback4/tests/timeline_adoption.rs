@@ -19,25 +19,14 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     check_source_page_repairs(source, &b);
     b
 }
-// Apply every source-page repair produced during Following retirement. A bad
-// view-only rewrite must fail here, even if the advisory code is still right.
-fn check_source_page_repairs(source: &str, bound: &snapback4_lang::Bound) {
+// A planned view is a merge of projected branches. Replacing one branch is
+// not an exact replacement of the view, so advice must stay prose-only.
+fn check_source_page_repairs(_source: &str, bound: &snapback4_lang::Bound) {
     for note in bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER") {
-        assert!(note.rewrite.contains("page the source table posts"), "{note}");
-        let parts: Vec<_> = note.rewrite.split('`').collect();
-        assert_eq!(parts.len(), 7, "declaration, horizon and complete source page: {note}");
-        let page = parts[5];
-        assert!(page.contains("after c"), "retain the cursor parameter: {note}");
-        assert!(page.starts_with("posts["), "never select an index on activity: {note}");
-        assert!(page.contains(".parentId = null") && page.contains(".removed = false"), "preserve both branch predicates: {note}");
-        // Qualify this source branch independently; the note tells a builder to
-        // retain its projection and the other branch when composing the result.
-        let repaired = source.replace("table posts:\n", &format!("table posts:\n  {}\n", parts[1]))
-            .replacen("sync public last 1000 by .at", &format!("sync public {}", parts[3]), 1)
-            .replace("activity last 20 by .at after c", &format!("{page} {{ post: .id, actor: .authorId, at, repost: false }}"));
-        let fixed = snapback4_lang::compile(&[("schema.q".into(), repaired)]);
-        assert!(fixed.diagnostics.is_empty(), "repair {note}: {:?}", fixed.diagnostics);
-        assert!(!fixed.notes.iter().any(|n| n.code == "N_SYNC_ORDER"), "{:?}", fixed.notes);
+        assert!(!note.rewrite.contains('`'), "no incomplete branch rewrite: {note}");
+        assert!(!note.rewrite.contains('$'), "no compiler binding: {note}");
+        assert!(note.rewrite.contains("newest first") && note.rewrite.contains("index"), "{note}");
+        assert!(note.rewrite.contains("merge context"), "{note}");
     }
 }
 fn engine(source: &str) -> Engine {

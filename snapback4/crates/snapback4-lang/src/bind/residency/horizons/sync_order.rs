@@ -26,43 +26,40 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             let query_order = ordered_columns(query_index, scan.prefix.len()).join(", ");
             let direction = if scan.order == ir::Order::Desc { "newest first" } else { "oldest first" };
             let location = bound.sources.get(&scan.site).map_or(&bound.site, |(location, _)| location);
-            let spelling = bound.sources.get(&scan.site).map(|(_, spelling)| format!(" `{spelling}`")).unwrap_or_default();
+            let spelling = bound.sources.get(&scan.site).filter(|(_, spelling)| !spelling.contains('$')).map(|(_, spelling)| format!(" `{spelling}`")).unwrap_or_default();
             let outcome = if fact.held { "this held query stays on the device with unknown coverage" }
                 else { "the client needs the server for this read; offline coverage is unknown" };
             let describe = |name: &str, index: &snapback4_core::schema::Index| {
                 let name = if name.starts_with("$intent:") { String::new() } else { format!("{name} ") };
                 format!(" (index {name}[{}])", index.components.iter().filter_map(order_component).collect::<Vec<_>>().join(", ").replace('.', ""))
             };
-            // A named index rewrite preserves its physical identity, even if
-            // another declared index happens to have identical columns.
-            let by = if window.by.starts_with("$intent:") { window_order.clone() } else { window.by.clone() };
-            let mut rewrite = format!("order this page by the window's columns, newest first: `last {} by {by}`; keep its audience predicate and cursor", scan.take.maximum());
-            let window_columns = index.columns();
-            let query_columns = query_index.columns();
-            let view_page = scan.merge_site.is_some() || bound.sources.get(&scan.site)
-                .is_some_and(|(_, source)| source.split(|c: char| !c.is_alphanumeric() && c != '_').next() != Some(scan.table.as_str()));
-            let incompatible_range = scan.range.is_some()
-                && query_index.components.get(scan.prefix.len()) != index.components.get(prefix);
-            if view_page || incompatible_range || scan.prefix.len() != prefix || query_columns.get(..prefix) != window_columns.get(..prefix)
-                || (scan.index != window.by && ordered_columns(query_index, 0) == ordered_columns(index, 0))
-                || window_columns.iter().position(|column| column == "id").is_some_and(|at| at + 1 < window_columns.len()) {
-                // Extra equality pins, a legacy implicit-id index, or order
-                // keys after intrinsic id can select another index again.
-                // Give an explicit physical-index rewrite for those cases.
+            // A lane has only part of a merge's predicate/cursor/projection.
+            // Never present that fragment as a replacement for the authored read.
+            let mut rewrite = format!("The window uses {window_order}, newest first{}; preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context", describe(&window.by, index));
+            let audience_columns = index.columns()[..prefix].to_vec();
+            let rule_pins = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
+            let cursor_index = index.uses_column("id") || index.unique
+                && index.columns().iter().all(|column| table.columns.get(column).is_some_and(|ty| !ty.is_optional()));
+            if scan.merge_site.is_none()
+                && rule_pins.iter().all(|column| audience_columns.contains(column))
+                && (scan.after.is_none() || cursor_index)
+                && let Some(source) = bound.page_sources.get(&scan.site)
+                && bound.sources.get(&scan.site).is_none_or(|(_, spelling)|
+                    spelling.split(|c: char| !c.is_alphanumeric() && c != '_').next() == Some(scan.table.as_str())) {
                 let mut name = window.by.clone();
                 let mut declaration = String::new();
                 if name.starts_with("$intent:") {
                     name = "bySyncWindow".into();
                     while table.index(&name).is_some() { name.push('_'); }
-                    declaration = format!("declare `by {name}: {}` on {}; set its sync horizon to `last {} by {name}`; ", window_columns.join(", "), scan.table, window.last);
+                    declaration = format!("declare `by {name}: {}` on {}; set its sync horizon to `last {} by {name}`; ", index.columns().join(", "), scan.table, window.last);
                 }
-                if let Some(source) = bound.page_sources.get(&scan.site) {
-                    let page = source_page(source, &name, index, prefix);
-                    rewrite = if view_page {
-                        format!("{declaration}page the source table {} with `{page}`, newest first; keep this branch's projection and the other source branches when composing the result; a view cannot select a physical index. Restart pagination after changing the order", scan.table)
-                    } else {
-                        format!("{declaration}use `{page}`, newest first; keep only audience pins in the key and incompatible range predicates in the residual filter. Restart pagination after changing the order")
-                    };
+                // A cap on removed equality keys no longer proves that this
+                // page needs no cursor. Do not add N_NO_CURSOR as a repair.
+                let cap_covers = schema.group_bound(&scan.table, &audience_columns)
+                    .is_some_and(|cap| u64::from(cap) <= scan.take.maximum());
+                if (source.range.is_some() || cap_covers)
+                    && let Some(page) = source_page(source, &name, index, prefix, scan.take.maximum() as u32) {
+                    rewrite = format!("{declaration}use `{page}`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order");
                 }
             }
             notes.push(Diagnostic::new(location, "N_SYNC_ORDER",
@@ -94,23 +91,48 @@ fn order_component(component: &IndexComponent) -> Option<String> {
     }
 }
 
-// @ref LLP 3000.019#3.1 — replace the index without turning its old range key into an invalid key on the new index.
-fn source_page(source: &ast::ReadExpr, name: &str, index: &Index, prefix: usize) -> String {
+// @ref LLP 3000.019#3.1 — advice is a complete, exact page or words; never rebind an outer row as a candidate row.
+fn source_page(source: &ast::ReadExpr, name: &str, index: &Index, prefix: usize, take: u32) -> Option<String> {
+    use crate::bind::intent::{column, conjunction, independent, split};
+    // Key and seek operands are evaluated in the enclosing scope. Moving a
+    // focal operand into a where would silently change which row it reads.
+    if source.keys.iter().any(|key| !independent(&key.value))
+        || source.seeks.iter().any(|seek| !independent(&seek.value))
+        || print::read_expr(source).contains('$') { return None; }
     let mut page = source.clone();
     let columns = index.columns();
-    let mut filters = page.filter.take().map(|filter| vec![*filter]).unwrap_or_default();
+    let mut filters = Vec::new();
+    if let Some(filter) = page.filter.take() { split(*filter, &mut filters); }
     let comparison = |column: &str, op: &str, value: ast::Expr| ast::Expr::Binary {
         op: op.into(), left: Box::new(source.computed.get(column).cloned().unwrap_or_else(|| ast::Expr::Member {
             base: Box::new(ast::Expr::Focal { site: source.site.clone() }), name: column.into(), site: source.site.clone(),
         })), right: Box::new(value), site: source.site.clone(),
     };
     let mut keys = std::mem::take(&mut page.keys);
-    for column in columns.iter().take(prefix) {
-        let Some(at) = keys.iter().position(|key| key.column.as_ref() == Some(column)) else { break; };
-        page.keys.push(keys.remove(at));
+    // Named indexes do not infer audience keys from where. Lift each plain
+    // equality explicitly; every audience column must be pinned exactly once.
+    let equality = |expr: &ast::Expr| {
+        if let ast::Expr::Binary { op, left, right, .. } = expr && op == "=" {
+            if let Some(col) = column(left) && independent(right) { return Some((col.to_owned(), *right.clone())); }
+            if let Some(col) = column(right) && independent(left) { return Some((col.to_owned(), *left.clone())); }
+        }
+        None
+    };
+    for col in columns.iter().take(prefix) {
+        let matches: Vec<_> = filters.iter().enumerate().filter_map(|(at, expr)|
+            equality(expr).filter(|(column, _)| column == col).map(|(_, value)| (at, value))).collect();
+        if let Some(at) = keys.iter().position(|key| key.column.as_ref() == Some(col)) {
+            if !matches.is_empty() { return None; }
+            page.keys.push(keys.remove(at));
+        } else {
+            if matches.len() != 1 { return None; }
+            let (at, value) = matches.into_iter().next()?;
+            filters.remove(at);
+            page.keys.push(ast::KeyPart { column: Some(col.clone()), value, site: source.site.clone() });
+        }
     }
     for key in keys {
-        filters.push(comparison(key.column.as_ref().expect("resolved source key"), "=", key.value));
+        filters.push(comparison(key.column.as_ref()?, "=", key.value));
     }
     let next = columns.get(page.keys.len());
     page.seeks.retain(|seek| {
@@ -121,9 +143,18 @@ fn source_page(source: &ast::ReadExpr, name: &str, index: &Index, prefix: usize)
             false
         }
     });
-    page.filter = crate::bind::intent::conjunction(filters);
+    // An unscoped residual would add N_SPARSE_FILTER. A lone next-key
+    // comparison can add N_SEEK (or need a nullable endpoint guard). Leave
+    // these shapes to prose rather than emit a newly diagnostic program.
+    if page.seeks.is_empty() && (!filters.is_empty() && prefix == 0
+        || filters.len() == 1 && crate::bind::intent::comparison(&filters[0])
+            .is_some_and(|(column, _, _)| next == Some(&column))) { return None; }
+    page.filter = conjunction(filters);
     page.order_keys.clear();
     page.index = Some(name.into());
-    if let Some(range) = &mut page.range { range.order = ast::Order::Desc; }
-    print::read_expr(&page)
+    let range = page.range.get_or_insert(ast::RangeSpec {
+        order: ast::Order::Desc, take, cursor: None, site: source.site.clone(),
+    });
+    range.order = ast::Order::Desc;
+    Some(print::read_expr(&page))
 }

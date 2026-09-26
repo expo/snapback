@@ -40,9 +40,6 @@ impl Binder<'_> {
                 setup.push(Stmt::Let { name: selector, value: ir::var(&binding) });
             }
             let (mut scan, _) = self.scan_at(&read, &mut setup, position)?;
-            // @ref LLP 3000.019#3.1 — source-page advice retains the authored cursor parameter; execution still owns it at the merge.
-            if let Some(source) = self.page_sources.get_mut(&scan.site)
-                && let Some(range) = &mut source.range { range.cursor = merge.cursor.clone(); }
             scan.after = cursor.as_ref().map(|(value, _)| Box::new(value.clone()));
             scan.opaque_cursor = cursor.is_some();
             scan.merge_site = Some(site.clone());

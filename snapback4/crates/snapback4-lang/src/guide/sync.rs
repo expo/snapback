@@ -82,12 +82,14 @@ boundary by key; crossing it returns only the known suffix with `complete: false
 and unknown coverage, so the online client asks the server. Without a boundary
 the group is unknown. Ascending reads and other indexes have unknown coverage.
 N_SYNC_ORDER notes these query orders at their source sites and names the
-window's order for ordinary pages, including calendar-index pages. Move a range
-predicate to a residual filter if its column is no longer the next index key.
-For a view, the repair names a source-table page: keep that branch's predicates
-and projection and compose it with the other branches. Views cannot name a
-physical index. Whole-domain aggregates and word searches
-have separate coverage requirements; this ordering note does not cover them.
+window's order for ordinary pages, including calendar-index pages. A printed
+page repair keeps audience equalities in bracket keys, every other predicate,
+and the cursor. A range can move to a filter only with the same meaning;
+outer-row endpoints, generated membership lanes and merges get words naming
+the window order and index instead of a paste-ready replacement. This also
+applies to projected views: one branch is not the whole result. Whole-domain
+aggregates and word searches have separate coverage requirements; this
+ordering note does not cover them.
 Use `last N by .at, .id` for the example above, keeping the
 audience predicate and cursor. A query on the window's own index, newest first,
 can answer offline within the acquired boundary, including timestamp ties.

@@ -15,7 +15,7 @@ fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
     for _ in 0..2 {
         let text = run(&["check"]);
         assert_eq!(text.matches(" — N_SYNC_ORDER:").count(), 1, "{text}");
-        assert!(text.contains("schema.q:22:10") && text.contains("last 2 by .at, .id"), "{text}");
+        assert!(text.contains("schema.q:22:10") && text.contains("by bySyncWindow: conversationId, at, id"), "{text}");
     }
     let result: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
     assert_eq!(result["notes"].as_array().unwrap().iter().filter(|note| note["code"] == "N_SYNC_ORDER").count(), 1);
