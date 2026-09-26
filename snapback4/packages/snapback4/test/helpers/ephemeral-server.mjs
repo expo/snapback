@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { server } from './app-server.mjs';
-import { webDevice, memoryPersistence } from '../../src/web.ts';
+import { webDevice, memoryPersistence } from '../../dist/web.js';
 export { until } from './app-server.mjs';
 export const source = `use identity
 use personas alice, bob
