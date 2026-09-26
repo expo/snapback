@@ -147,9 +147,10 @@ function useReceipts(conversation: string, visible: boolean) {
   useEffect(() => {
     if (floor !== null && through !== null && through > floor) void client.mutate(api.delivered, { conversation, through });
   }, [client, conversation, floor, through]);
+  // A view needs no watermark first: seen only moves forward.
   const shown = mine && Math.max(mine.seenOrdinal, mine.joinedOrdinal);
   useEffect(() => {
-    if (visible && shown !== null && newest !== null && newest > shown) void client.mutate(api.seen, { conversation, through: newest });
+    if (visible && newest !== null && (shown === null || newest > shown)) void client.mutate(api.seen, { conversation, through: newest });
   }, [client, conversation, visible, shown, newest]);
   return page;
 }

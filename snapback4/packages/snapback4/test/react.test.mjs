@@ -252,13 +252,25 @@ const cases = {
     equal(acked(joined), ["delivered:103", "seen:103"], "a new member acknowledges from the join, and never a pending row");
     check(active(joined).filter(record => "c" in record.args).length === 1, "no page older than the join is loaded");
     await unmount();
-    const returning = receiptsClient(new Map([[null, ready(ordinals(30, 11), "p2")], ["p2", { loading: true }]]),
-      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
+    // Offline past the synced window: a stale page, then an incomplete one.
+    const returning = receiptsClient(new Map([[null, ready(ordinals(30, 11), "p2", { fresh: false, since: 50 })], ["p2", ready([], null, { complete: false, fresh: false, since: 50 })]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }, null, { fresh: false, since: 50 }));
     await mount(h(Receipts, { visible: true }), returning);
     equal(acked(returning), ["seen:30"], "a gap the client cannot fetch holds delivery back, not the view");
+    await render(h(Receipts, { visible: false }), returning);
     const older = active(returning).find(record => record.args.c === "p2");
     await act(async () => older.set(ready(ordinals(10, 1))));
-    equal(acked(returning), ["seen:30", "delivered:30"], "once the gap is fetched the run reaches the newest message");
+    equal(acked(returning), ["seen:30", "delivered:30"], "the gap fetched after the screen closed still delivers under the earlier view");
+    await unmount();
+  },
+  async "the receipts card records a view before its membership arrives"() {
+    const client = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), { loading: true });
+    await mount(h(Receipts, { visible: true }), client);
+    equal(acked(client), ["seen:20"], "a view on screen is recorded without waiting for the watermarks");
+    await render(h(Receipts, { visible: false }), client);
+    const member = active(client).find(record => !("c" in record.args));
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 })));
+    equal(acked(client), ["seen:20", "delivered:20"], "the fetch is acknowledged once the watermarks arrive");
     await unmount();
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
