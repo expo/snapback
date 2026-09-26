@@ -59275,3 +59275,9 @@ across a remount, so giving the owed runs back a per-mount memory survived.
 A case now drops a run at the 64-run cap, replaces its page, remounts the
 screen on the same client and frees capacity, and requires the run to go
 again.
+
+Round 21 is a test. Grok's review of round 20 (READY WITH CHANGES) found every
+earlier finding fixed and one gap: nothing showed a kept view staying kept
+across a loading answer, so honoring the kept mark only when the member's row
+is present survived. A case publishes a loading answer and then the same row,
+and requires no second `seen`.

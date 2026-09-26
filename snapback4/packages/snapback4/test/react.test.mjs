@@ -411,6 +411,13 @@ const cases = {
     await act(async () => active(reading).find(record => record.args.c === null).set(ready(ordinals(21, 1))));
     equal(reading.acks, ["delivered:21-21", "seen:21"], "an arriving message on screen is delivered and seen");
     await unmount();
+    // A kept view stays kept across a loading answer, though the member's row is not yet past it (Grok, round 20).
+    const kept = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, []));
+    await mount(h(Receipts, { visible: true }), kept);
+    await act(async () => stream(kept).set({ loading: true }));
+    await act(async () => stream(kept).set(progressOf(20, 0, [])));
+    equal(kept.acks.filter(ack => ack === "seen:20").length, 1, "a kept view is not sent again after a loading answer");
+    await unmount();
     // A view the client could not keep is owed, hidden too, until the member's row shows it.
     const refused = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), progressOf(20, 0, []));
     let refusals = 2;
