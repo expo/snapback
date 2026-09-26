@@ -6,6 +6,8 @@
 #[cfg(feature = "sqlite")]
 pub mod effects;
 #[cfg(feature = "sqlite")]
+mod asset_columns;
+#[cfg(feature = "sqlite")]
 pub mod ephemeral;
 #[cfg(feature = "sqlite")]
 mod effect_steps;
@@ -615,7 +617,7 @@ impl Engine {
             .tables
             .values()
             .flat_map(|table| table.columns.values())
-            .filter_map(|kind| match (kind.required(), sniffed.kind) {
+            .filter_map(|kind| match (asset_columns::leaf(kind), sniffed.kind) {
                 (ColumnType::Image { max, .. }, AssetKind::Image) | (ColumnType::Video { max }, AssetKind::Video) => Some(*max),
                 _ => None,
             })
@@ -696,7 +698,7 @@ impl Engine {
         };
         let table = self.schema.table(table_name).ok_or_else(unknown)?;
         let Some(row) = tx.get(table_name, row_id)? else { return Err(unknown()) };
-        if asset_id(row.field(column).ok()) != Some(id) || table.expired(&row, now) {
+        if !table.columns.get(column).is_some_and(|kind| asset_columns::contains(kind, row.field(column).ok(), id)) || table.expired(&row, now) {
             return Err(unknown());
         }
         let mut image = row.clone();
@@ -710,7 +712,7 @@ impl Engine {
             tx.rollback()?;
             return Err(unknown());
         }
-        let once = matches!(table.columns.get(column).map(ColumnType::required), Some(ColumnType::Image { once: true, .. }));
+        let once = matches!(table.columns.get(column).map(asset_columns::leaf), Some(ColumnType::Image { once: true, .. }));
         if once {
             if range {
                 return Err(RuntimeError::Asset { code: "E_ASSET_RANGE", message: "one-view photos require a complete request without Range; the view was not consumed".into() });

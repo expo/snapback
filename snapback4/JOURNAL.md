@@ -64034,3 +64034,77 @@ Final repository checks passed: `ref-check --verbose` reports 513 LLP
 documents, 9,442 references, zero errors and zero unchecked references;
 `git grep -n "^<<<<<<<"` is empty; `git diff --check` and the complete
 merge delta against main pass. The temporary suite launch job was removed.
+
+## 2026-09-26 — bounded asset lists get their home and read authority
+
+Fixed calibration #22's accepted-but-unservable `[image <=10000000] <=4`
+shape on `sb4/image-list-assets`, in the image-list worktree. Chose element
+placement: LLP 1006's one-home contract already includes lists, and the
+builder wanted that form. The server now stamps each element's upload facts,
+claims its row/column home, and follows that row's read rule when serving it.
+Reconciliation uses asset identities: reorder retains homes and view history,
+removing an element releases it, and deleting a row releases every element.
+Optional/nested lists and video lists use the same traversal; `once` remains
+per image and principal. Upload admission also recognizes a backend with only
+list asset columns. Existing refusal codes and transactional claims are reused.
+
+Asset ledger work is reserved before write-target lookup, including for an
+empty or unchanged cell. A scalar slot reserves four examinations, two writes,
+eight steps and 16 KiB scratch; each list cap multiplies the same allowance.
+System retirement outside a write attempt pays the same reservation. No runtime
+ceiling is raised. Asset placement remains server-side and sqlite-gated.
+
+Added real HTTP upload/GET regressions for authorized and unauthorized viewers,
+reorder, removal, deletion of two elements together, and per-element once/Range
+behavior. Core regressions cover authoritative facts, ownership/kind/size/home
+refusals and rollback, optional/nested/video lists, and a readable editor
+retaining another uploader's elements. Meter tests compare 0/1/4 elements with
+four scalar slots and refuse before any claim at the declared boundary. The
+four core and two initial HTTP regressions all fail against the restored base
+runtime; they pass with the fix. The media card's compiled `sendPhotos` example
+and its two authoring-census entries landed with the implementation.
+
+The first complete suite caught a synthetic timeline target absent from the
+table map and the new example's missing census entries. Reservation now checks
+for a real table declaration; both existing regressions pass in isolation.
+Neither assertion nor any test count/timeout was relaxed.
+
+The same pass also found two expectations tied to the old, uncharged scalar
+ledger. The feed fixture now asserts both exactly four physical application
+rows and six logical writes (four plus the declared claim/release pair). The
+rule-probe exhaustion fixture leaves four examinations for the scalar slot so
+it still isolates the exhausted rule-probe boundary; both hidden worlds have
+the same control allowance. Its unchanged heap-receipt assertion exposed
+unallocated scratch retained after refusal. Heap admission now preflights room;
+the new list boundary regression covers that refusal as well as examinations.
+These are accounting corrections and test isolation, not raised product ceilings.
+
+Code inspection found a separate device boundary: its offline media home index
+still handles scalar columns only. The media card now says that ordinary list
+assets serve online but are not retained offline. Follow-up:
+`issues/20260926-snapback4-list-asset-offline-cache.md`; no device runtime change
+or executed offline-list witness is claimed here.
+
+Final qualification of the unchanged implementation passed the required suite:
+`== 0 failure(s) in 3832 s` (exit 0), with `FORCE_COLOR` unset, incremental
+compilation off, test/dev debug info off, and serial client files. All 225 Rust
+test binaries / 937 executions and workspace doctests passed; ordinary clients
+passed 2,222 tests with 9 existing skips; all 78 client models passed. Node
+24.18.0 was on PATH; two Rust test processes and two build jobs bounded local
+concurrency. The temporary user launch job was removed after completion.
+The harness-generated following fixture lock version change was preserved as
+evidence and restored to the base version; no product lock change belongs here.
+
+Same-worktree production wasm builds measured the base at 1,972,811 bytes raw /
+569,967 bytes gzip and the fix at 1,972,811 bytes raw / 569,966 bytes gzip. The
+full suite reproduced the fixed measurement. All sections except data are
+byte-identical, including code: server asset placement adds no web code.
+The one-byte smaller compressed artifact lowers the ratchet to measured + 1,000
+= 570,966 bytes, with the reason recorded in the budget and commit message.
+
+Evidence is under `snapback4/target/image-list-assets/` (including the complete
+`suite-final.log`, exit receipt, counterfactual tests, targeted checks and both
+wasm artifacts). The final report is
+`/Users/ccheever/projects/snapback-sb5-program/image-list-assets.final.md`.
+Previously unplaced rows are not backfilled; an authorized replacement with
+fresh uploads establishes their homes. No external calibration store changed.

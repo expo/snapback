@@ -363,13 +363,16 @@ fn public_bridge_reports_handwritten_reduction_and_bounded_publish_overhead() {
         mutate(&mut e, "follow", "reader", &[("authorId", id("author"))], 2);
         let mut times = Vec::new(); let mut meter = None;
         for n in 0..25 {
+            let before: usize = e.schema().tables.keys().map(|table| e.store().rows(table).unwrap().len()).sum();
             let start = std::time::Instant::now();
             let out = mutate(&mut e, "createPost", "author", &[("postId", id(&format!("post{n}"))), ("body", Value::String("measurement".into()))], 10 + n);
             if n >= 5 { times.push(start.elapsed().as_secs_f64() * 1000.0); }
+            let after: usize = e.schema().tables.keys().map(|table| e.store().rows(table).unwrap().len()).sum();
+            assert_eq!(after - before, 4, "one app card, event, author copy and follower copy");
             meter = Some(out.metered);
         }
         times.sort_by(f64::total_cmp); let meter = meter.unwrap();
-        assert_eq!(meter.rows_written, 4, "one app card, event, author copy and follower copy");
+        assert_eq!(meter.rows_written, 4 + 2, "four application rows plus the declared scalar asset claim/release allowance");
         println!("bridge publish generated={generated}: measured=20 warmup=5 examined={} index={} written={} p50_ms={:.3} p95_ms={:.3}", meter.examined, meter.index_entries, meter.rows_written, times[9], times[18]);
     }
 }
