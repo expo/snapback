@@ -63790,3 +63790,58 @@ The inherited local.ts source-length exception remains outside P1.
 Implementation commits: b5f7976f8, 82ab5b5a7, ac68fa04d, each with the requested
 GPT-6 Astra co-author trailer. This entry and the round-3 report record the
 qualification in the final documentation commit.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 4: preserve optional predicates and range failures
+
+Read both full round-3 reviews, the lane prompt and all prior report rounds.
+Fixed exactly the two Medium repair defects and two Low test gaps. Optional
+presence variants now require words: their reused scan-site metadata cannot
+supply a full predicate-preserving page. Present/null sender and lower-bound
+filters execute across continuation; any printed repair is applied and its
+complete population compared. The pre-fix sender repair admitted the excluded
+Bob row, and the new test failed on population equality.
+
+Relocated equality/range guards now precede the authored residual, so a row
+excluded by ordinal > 0 never reaches 10 / .ordinal. Potentially refusing
+moved operands get words: division, modulo, other arithmetic and calls are
+conservatively excluded. Compatible seeks retain their original evaluation
+point; already-bound locals remain usable. Empty-group tests preserve the
+original E_DIV_ZERO for division, modulo and share with empty recipients,
+including moved equalities. Both reviewer failure cases failed before the
+fix and now pass. Runtime evaluation and meters are unchanged.
+
+Added ordinal >= 2 with a row exactly at 2, comparing complete populations
+across pages. Its temporary >= to > mutation loses that row and fails. The
+cursorless tie-break witness uses byAt: conversationId, at, id versus the
+window's conversationId, at, ordinal, id. At equal timestamps a's ordinal
+ranks above z's while its id ranks below; the original selects new,z and the
+unsafe window page selects new,a. It gets words. Comparing only the first
+order column fails the regression. Both mutations were restored; none is
+committed. All 40 sync-window tests, 86 guide tests and the compatibility
+test pass in the final targeted control.
+
+The single scripts/test.sh invocation finished **`== 0 failure(s) in 2817 s`**,
+exit **0**. Rust: **3,616 passed, zero failed, 19 existing ignores** (769 s),
+plus the separately passing docs-budget guide case. Ordinary clients:
+**2,215 passed, zero failed/cancelled, 10 existing skips** (1,777 s). Seeded
+models: **78 passed**, zero failed/skipped (256 s), unchanged
+5,000 / 5,000 / 3,000 sequences. Both app typechecks, all nine fixture-wrapper
+tests and every other stage passed. The old expireMember startup timeout
+did not recur. Failure classification: ours zero, baseline zero,
+environmental zero. No post-suite fix or rerun was needed.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, under the unchanged **582,094 B**
+budget by **1,000 B**, matching round 3's measured size. No independent
+fresh-control delta is claimed. No runtime, wire, authorization, durability,
+meter, guide, compatibility record or budget changes; no new syntax, LLP,
+merge, push or publication. No round-4 deviation or unresolved finding.
+Earlier documented query-modifier, merge and coverage boundaries remain.
+
+Commits: eee731071 (variants), 7a5ca41ff (evaluation), dd57d9790 (inclusive
+lower bound), f3ba53b7c (tie-break), all with the requested GPT-6 Astra
+co-author trailer. Full log: /tmp/p1-r4-full-suite.log; final targeted log:
+/tmp/p1-r4-final-lang.log. The appended round-4 report in
+reports/20260926-p1-sync-windows.md records each fixture, applied repair,
+mutation and qualification result. This entry and that report section are
+the only post-suite edits.

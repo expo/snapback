@@ -958,3 +958,174 @@ and test commits. No fix or test rerun was needed after it. The only remaining
 edits are this result record and the single appended round-3 journal entry.
 The prior startup-timeout observation did not recur; its original cause is
 still not established. No unresolved round-3 product finding remains.
+
+
+## Round 4 — 2026-09-26
+
+Read the lane prompt, all previous report rounds, and both complete round-3
+reviews (`p1-r3.astra.md`, `p1-r3.grok.md`). Addressed exactly the two Medium
+repair defects and two Low regression gaps. Work begins at `235e9109f` and
+stays on `sb4-intent/p1-sync-windows`; no merge, push or publication.
+
+Used `llp-orient` for the advisory generator and executable repair tests.
+Governing context: LLP 3000 §4 (fence), LLP 2000.000 §§6–7 (meters and
+authorized partitions), LLP 3000.007 §§6.2/18.2 (device classification and
+full-key acquisition), and LLP 3000.019 §3.1 (in current/). Read the current
+sync and reads cards. The user's exact-page-or-words rule governs these
+repairs. No new design or LLP; hand-off: none.
+
+### Findings and changes, file by file
+
+1. **Optional-filter variants (Astra, Medium).**
+   `crates/snapback4-lang/src/bind/residency/horizons/sync_order.rs` requires
+   `scan.variant.is_none()` before printing a page. Presence branches share
+   scan-site ids; a page saved by the absent branch cannot replace the whole
+   optional read. Both `(sender = null or .sender = sender)` and
+   `(lo = null or .ordinal >= lo)` now get words naming the window and index.
+   `tests/sync_windows/repairs.rs` runs both filters with present and null
+   arguments, follows continuation, and pins the full expected populations.
+   It applies every quoted repair if any is emitted and compares complete
+   rows. Before the guard the test fails because the sender-filter repair
+   admits the Bob row. Log: `/tmp/p1-r4-optional-before.log` (0 passed,
+   1 failed, exit 101); restored control: `/tmp/p1-r4-optional-control.log`.
+
+2. **Evaluation semantics (Astra, Medium).** The same generator now puts
+   relocated equality and range guards before the authored residual, in
+   their original key/seek order. A moved operand must be safe to evaluate
+   inside a candidate filter: division, modulo, other potentially overflowing
+   arithmetic and calls stay in prose. The conservative check rejects calls
+   without attempting to classify each builtin. Compatible seeks keep their
+   operands in bracket keys, and already-bound locals keep their computation
+   outside the scan, so those forms can still receive a page.
+
+   `repairs.rs` proves that a zero-ordinal row is excluded before
+   `10 / .ordinal > 1`, and compares all surviving rows across pages. It also
+   runs empty-group endpoints containing `/`, `%`, and the refusing builtin
+   `share(100, recipients, viewer)`, for both a moved range and a moved equality.
+   With zero divisor/empty recipients the original refuses E_DIV_ZERO; every
+   emitted repair must preserve that refusal. These shapes now get words.
+   A compatible `at > 100 / divisor` seek still refuses on an empty group
+   after repair; a named local holding a computed bound still moves safely.
+   Both reviewer cases fail against the previous generator: 1 passing
+   positive control and 2 failures, exit 101, in
+   `/tmp/p1-r4-evaluation-before.log`. The corrected 39-test control passes in
+   `/tmp/p1-r4-evaluation-control.log`.
+
+3. **Inclusive lower bound (Astra, Low).** `repairs.rs` adds
+   `two_sided_range_keeps_inclusive_lower_bound_across_pages`, using
+   `ordinal >= 2` and `ordinal <= 4`, a row exactly at 2, and rows outside
+   both bounds. Applying the actual repair and draining both queries keeps
+   the same full rows; the window order is `c,b,d`, across continuation pages.
+   Temporarily changing only the relocated `>=` to `>` fails population
+   equality by losing `b`: 0 passed, 1 failed, exit 101. Restored control
+   passes. Logs: `/tmp/p1-r4-mutant-lower-strict.log` and
+   `/tmp/p1-r4-lower-control.log`.
+
+4. **Full tie-break (Grok, Low).** The existing cursorless partial-page test
+   now includes `byWindow: conversationId, at, ordinal, id`,
+   `byAt: conversationId, at, id`, and cursorless `last 2 by .at`. Two rows
+   tie at time 100: `a` has ordinal 2, `z` ordinal 1. With a newer row at
+   200, the original selects `new,z`; the unsafe window page selects
+   `new,a`. The test requires words. A real temporary mutation comparing
+   only the first order column fails this assertion: 0 passed, 1 failed,
+   exit 101, in `/tmp/p1-r4-mutant-first-column.log`. The mutation is restored.
+
+Only those two Rust files changed. The report appends this section and
+`JOURNAL.md` appends one dated round-4 entry. The existing residual-text
+assertion now expects the range guard before the sender predicate; no
+runtime assertion or compatibility expectation was removed. Modified source
+files have 199 and 509 lines, both below 1,500. `git diff --check` passes.
+
+### Forms and regression evidence
+
+No new syntax. These examples use the fixture's conversation audience and
+named window (`conversationId, at, ordinal, id`).
+
+```quarry
+-- optional filter: compiles and runs; N_SYNC_ORDER gives words
+messages where .conversationId = conversationId and (sender = null or .sender = sender) first 2 by .ordinal after c
+messages where .conversationId = conversationId and (lo = null or .ordinal >= lo) first 2 by .ordinal after c
+-- applied range repair: excluded rows cannot reach the division
+messages[conversationId = conversationId] after c last 2 by byWindow where .ordinal > 0 and 10 / .ordinal > 1
+-- inclusive lower bound keeps ordinal 2 across continuation pages
+messages[conversationId = conversationId] after c last 2 by byWindow where .ordinal >= 2 and .ordinal <= 4 and .sender = viewer
+-- compatible fallible seek keeps its original evaluation point
+messages[conversationId = conversationId, at > 100 / divisor] after c last 2 by byWindow
+```
+
+A moved `ordinal > 100 / divisor` remains a valid query and gets words; it
+still refuses E_DIV_ZERO for divisor zero even on an empty group. Cursorless
+`last 2 by .at` with the differing tie-break also remains valid and gets
+words. Scope-independent names are still repairable; the tests bind
+`floor = 100 / 100` before reading `ordinal > floor`.
+
+Five new tests bring the sync-window target to **40**; the tie-break extends
+an existing test. All **40** pass, along with the whole **86-test guide**
+and the **one compatibility test**. Final targeted log:
+`/tmp/p1-r4-final-lang.log`. Both named Low mutations and the two Medium
+before-fix controls fail for the expected behavioral reason; none is committed.
+
+Implementation commits, all with the required co-author trailer:
+
+- `eee731071`: optional variants and present/null population tests.
+- `7a5ca41ff`: guard order, fallible operands and failure-preservation tests.
+- `dd57d9790`: inclusive lower-bound continuation witness.
+- `f3ba53b7c`: cursorless full-tie-break witness.
+
+### Qualification and remaining limits
+
+No implementation deviation or unresolved round-4 product finding. Earlier
+scope boundaries still apply: no query `online only` modifier, automatic
+whole-merge repair, or changed whole-domain/word-search coverage. The inherited
+`local.ts` source-length exception remains outside P1, as recorded in round 2.
+No runtime, wire, authorization, disclosure, durability or meter changes.
+The wasm budget remains **582,094 B**.
+
+The single complete-suite invocation runs after all implementation and test
+commits, from `snapback4/`:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh
+```
+
+Node: v24.13.1; Bun: 1.3.14. `bun install --frozen-lockfile` passed first:
+507 installs across 501 packages checked, no changes. No test, skip condition,
+timeout, model count or ceiling was reduced. Full log:
+`/tmp/p1-r4-full-suite.log`; exit status: `/tmp/p1-r4-full-suite.exit`.
+
+The wasm build measured **2,021,689 B raw / 581,094 B gzip**, under the
+unchanged **582,094 B** budget by **1,000 B**. It matches round 3's artifact
+size; no independent fresh-control delta is claimed. Runtime sources and
+`metrics/wasm-budget.json` are unchanged.
+
+The full Rust stage passed **3,616 tests, zero failed, 19 existing ignores**,
+reported as `-- ok: cargo test (769 s)`. The docs-budget stage separately
+ran one passing guide case, giving 3,617 Rust test executions across the
+script. Both device stores, all 40 compiler window tests, all 86 guide
+cases, compatibility, three CLI-note tests and nine timeline-adoption tests
+are in the passing full Rust stage. Both app typechecks, all nine fixture
+wrapper cases and every preceding build/docs/package stage passed.
+
+Ordinary clients passed **2,215 tests, zero failed, zero cancelled,
+10 existing skips**, reported as `-- ok: client tests (1777 s)`. The skips
+are the unchanged platform/opt-in conditions recorded in round 0. The
+round-2 expireMember startup timeout did not recur: its test passed in
+5,086.740581 ms. No product fix or targeted rerun was needed after the full
+script began.
+
+All **78 seeded client-model tests passed**, with zero failures,
+cancellations or skips, at the unchanged **5,000 / 5,000 / 3,000** sequence
+counts. The stage reported `-- ok: client models (256 s)`.
+
+Exact complete-script result (exit **0**):
+
+```text
+== 0 failure(s) in 2817 s
+```
+
+Every stage passed. Failure classification: **ours: zero; baseline: zero;
+environmental: zero**. The script ran exactly once, after all code and test
+commits. No post-suite fix or test rerun was needed. This report section and
+the single appended round-4 journal entry are the only post-suite edits.
+The final documentation commit records the completed qualification.
