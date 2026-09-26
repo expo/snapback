@@ -46,18 +46,26 @@ fn moving_a_live_database_and_its_sidecars_preserves_ownership() {
     assert!(!dir.join("serve.lock").exists(), "a contender must not create a second owner record");
 }
 
-fn http(host: &Running, path: &str, body: Option<&str>) -> serde_json::Value {
+fn http_response(host: &Running, path: &str, body: Option<&str>) -> (u16, serde_json::Value) {
     let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
     let mut curl = Command::new("curl");
-    curl.args(["--silent", "--show-error", "--fail", "--max-time", "10", "-H", "x-snapback-persona: alice"]);
+    curl.args(["--silent", "--show-error", "--max-time", "10", "--write-out", "\n%{http_code}", "-H", "x-snapback-persona: alice"]);
     if let Some(body) = body { curl.args(["-H", "Content-Type: application/json", "--data", body]); }
     let out = curl.arg(format!("{address}{path}")).output().unwrap();
     assert!(out.status.success(), "{out:?}\n{}", host.logs());
-    serde_json::from_slice(&out.stdout).unwrap()
+    let reply = String::from_utf8(out.stdout).unwrap();
+    let (body, status) = reply.rsplit_once('\n').unwrap();
+    (status.parse().unwrap(), serde_json::from_str(body).unwrap())
+}
+
+fn http(host: &Running, path: &str, body: Option<&str>) -> serde_json::Value {
+    let (status, reply) = http_response(host, path, body);
+    assert_eq!(status, 200, "{reply}\n{}", host.logs());
+    reply
 }
 
 #[test]
-fn sync_and_changes_keep_the_owned_database_after_its_path_is_replaced() {
+fn sync_refuses_replaced_path_while_changes_keeps_the_owned_database() {
     let source = SOURCE.replace("  public 'test'", "  public 'test'\n  sync public last 100 by byId");
     let p = Project::new(); p.source(&source); p.initialize();
     let replacement = Project::new(); replacement.source(&source); replacement.initialize(); replacement.initialize();
@@ -73,12 +81,16 @@ fn sync_and_changes_keep_the_owned_database_after_its_path_is_replaced() {
     }
     fs::copy(replacement.store(), p.store()).unwrap();
     assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 2);
-    // Both snapshot and stream readers must fall back to the original engine.
+    // @ref LLP 3000.019#3.6 — a failed file reader refuses instead of waiting on the writer.
+    // R's ownership rule still holds: replacement rows never wear the original
+    // identity. Both detached sync paths must refuse this changed inode.
     for stream in [false, true] {
-        let after = http(&host, "/sync", Some(&format!(r#"{{"from":0,"limit":100,"stream":{stream}}}"#)));
-        assert_eq!(after["store_id"], before["store_id"], "{after}");
-        assert_eq!(after["watermark"], 1, "replacement rows must never wear the original store_id: {after}");
-        assert_eq!(after["events"].as_array().unwrap().len(), 1, "{after}");
+        let (status, after) = http_response(&host, "/sync", Some(&format!(r#"{{"from":0,"limit":100,"stream":{stream}}}"#)));
+        assert_eq!(status, 503, "{after}");
+        assert_eq!(after["denied"]["code"], "E_STORE", "{after}");
+        assert_eq!(after["denied"]["retryable"], true, "{after}");
+        assert!(after["denied"]["message"].as_str().unwrap().contains("moved or was replaced"), "{after}");
+        assert!(after.get("events").is_none() && after.get("store_id").is_none(), "no replacement data or identity: {after}");
     }
     let changes = http(&host, "/changes?since=1&wait=0", None);
     assert_eq!(changes["store_id"], before["store_id"], "{changes}");

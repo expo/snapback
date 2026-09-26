@@ -167,6 +167,8 @@ pub struct Runner<'a> {
     #[cfg(feature = "sqlite")]
     pub(super) column_rebuild: bool,
     #[cfg(feature = "sqlite")]
+    pub(super) rebuilt_source_rows: u64,
+    #[cfg(feature = "sqlite")]
     pub(crate) import_targets: Option<&'a BTreeMap<(String, String), Value>>,
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
@@ -286,6 +288,8 @@ impl<'a> Runner<'a> {
             event_free: false,
             #[cfg(feature = "sqlite")]
             column_rebuild: false,
+            #[cfg(feature = "sqlite")]
+            rebuilt_source_rows: 0,
             #[cfg(feature = "sqlite")]
             import_targets: None,
             beyond_horizon: false,

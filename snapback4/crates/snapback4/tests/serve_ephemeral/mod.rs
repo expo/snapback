@@ -259,7 +259,7 @@ fn adoption_and_restart_change_incarnation_and_removed_members_read_empty() {
                 h.shared.now(),
             )
             .unwrap();
-        lock(&h.shared.readers).invalidate();
+        lock(&h.shared.readers).replace(&engine);
         *lock(&h.shared.bound) = b;
         h.shared.publish_engine(&engine);
     }

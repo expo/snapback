@@ -13,6 +13,7 @@ const CONTENDED_TIME: Duration = Duration::from_micros(250);
 
 fn engine_work<T>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration) -> T) -> T {
     let mut engine = shared.engine.background();
+    lock(&shared.readers).retry_missing(&engine);
     let budget = if engine.contended() { CONTENDED_TIME } else { WORK_TIME };
     let result = run(&mut engine, budget);
     // Publish from this guard: a second ordinary admission would both delay

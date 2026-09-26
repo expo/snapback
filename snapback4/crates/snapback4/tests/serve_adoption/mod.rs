@@ -174,7 +174,7 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
         lock(&host.shared.adoption).refused(&error, engine.generation());
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
         lock(&host.shared.adoption).recovered();
-        lock(&host.shared.readers).invalidate();
+        lock(&host.shared.readers).replace(&engine);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }
@@ -186,3 +186,17 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
     assert_eq!(body(&host.request("POST", "/q/version", "x-snapback-persona: alice\r\n", "{}"))["data"], 2);
     println!("adoption recovery: in_flight_version=1 new_version=2 returned_old_readers=0");
 }
+
+mod reads;
+
+mod saturation;
+
+mod authority;
+
+mod failure;
+
+mod scale;
+
+mod reader_failure;
+
+mod worker;

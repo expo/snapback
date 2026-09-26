@@ -312,7 +312,11 @@ impl Runner<'_> {
                     let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true)?;
                     let Some((stored, position)) = rows.into_iter().next() else { return Ok(None); };
                     let source = match stored {
-                        Some(stored) => stored.into_value(),
+                        Some(stored) => {
+                            #[cfg(feature = "sqlite")]
+                            { self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1); }
+                            stored.into_value()
+                        },
                         // A rejected device candidate is expired or unreadable, never a contribution.
                         None if device_live => Value::Null,
                         None => return Err(RuntimeError::Prediction("row-view source authority is not covered".into())),

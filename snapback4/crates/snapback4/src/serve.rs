@@ -108,43 +108,17 @@ pub struct Shared {
     pub poll_wait: WorkHook,
     #[cfg(test)]
     pub query_wait: WorkHook,
+    #[cfg(test)]
+    pub mutation_wait: WorkHook,
 }
 
 impl Shared {
     pub fn now(&self) -> i64 { lock(&self.clock).now() }
 }
 
-// @ref LLP 3000#7-decisions-during-execution — reader reuse retains fresh transactions and retires old native modules.
-/// Reuse only detached read owners. Each query still opens and rolls back
-/// its own identity-checked SQLite transaction; no result or viewer is cached.
-#[derive(Default)]
-struct QueryReaders {
-    epoch: Arc<()>,
-    idle: Vec<Engine>,
-}
-
-impl QueryReaders {
-    fn take(&mut self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
-        let reader = match self.idle.pop() {
-            Some(reader) => reader,
-            None => engine.reader()?,
-        };
-        Ok((self.epoch.clone(), reader))
-    }
-
-    fn put(&mut self, epoch: &Arc<()>, reader: Engine) {
-        if Arc::ptr_eq(epoch, &self.epoch) && self.idle.len() < REQUEST_WORKERS {
-            self.idle.push(reader);
-        }
-    }
-
-    fn invalidate(&mut self) {
-        // Native code can change without a schema-generation change. Loans
-        // retain their old epoch so an in-flight return cannot repopulate it.
-        self.epoch = Arc::new(());
-        self.idle.clear();
-    }
-}
+#[path = "serve_readers.rs"]
+mod query_readers;
+use query_readers::QueryReaders;
 
 /// A panicking request must not turn one poisoned process mutex into a
 /// permanent server-wide panic loop. The guarded value is retained, the
@@ -297,13 +271,14 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         Mode::Release { owner, .. } => Some(owner.clone()),
         _ => host_lock.take().map(Arc::new),
     };
-    // `--fresh`: a store in memory that dies with the process, for acceptance
-    // scripts that must start from nothing every time.
+    // `--fresh` has private, disposable storage and the same WAL readers as dev.
+    let fresh = if matches!(mode, Mode::Dev { fresh: true, .. }) { Some(query_readers::FreshDirectory::new()?) } else { None };
     let mut engine = match &mode {
-        Mode::Dev { fresh: true, .. } => Engine::new_at(snapback4_core::Store::memory().map_err(|e| e.to_string())?, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), clock.now()),
+        Mode::Dev { fresh: true, .. } => Engine::new_at(fresh.as_ref().unwrap().store().map_err(|e| e.to_string())?, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), clock.now()),
         Mode::Dev { .. } => adoption::open(host_owner.as_deref().unwrap(), &bound, &clock),
         Mode::Release { expected, .. } => host_owner.as_ref().unwrap().open_store(Duration::from_secs(5)).and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
     }.map_err(|e| e.to_string())?;
+    adoption::report(&engine);
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also
     // here so a fresh clone serves without a separate step.
@@ -322,13 +297,14 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
+    let readers = Mutex::new(QueryReaders::new(&engine));
     let shared = Arc::new(Shared {
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
-        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] request_work: Mutex::new(None),
@@ -336,14 +312,15 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
         #[cfg(test)] query_wait: Mutex::new(None),
+        #[cfg(test)] mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
-    let mut worker = match &mode {
-        Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,
-        Mode::Release { worker: Some(source), .. } => Some(crate::dev_worker::DevWorker::start_source(&project, shared.clone(), worker_url, source.clone(), true)?),
+    let worker = match &mode {
+        Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url.clone())?,
+        Mode::Release { worker: Some(source), .. } => Some(crate::dev_worker::DevWorker::start_source(&project, shared.clone(), worker_url.clone(), source.clone(), true)?),
         _ => None,
     };
     crate::lifecycle::generation(generation);
@@ -355,7 +332,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     }
     if dev {
         match mode {
-            Mode::Dev { fresh: true, .. } => eprintln!("store: in memory — dies with this process"),
+            Mode::Dev { fresh: true, .. } => eprintln!("store: temporary — discarded on exit"),
             _ => eprintln!("store: {}", project.store_path().display()),
         }
     }
@@ -372,25 +349,24 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         background.push(("maintenance", crate::lifecycle::background("maintenance", move || maintain(shared))?));
     }
     if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
+    let worker = crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;
+    serve_requests(server, shared, worker, background, crate::lifecycle::stopping)
+}
+
+// The production accept loop is also exercised with a real supervised child
+// and a held SQLite adoption transaction in the server regression.
+fn serve_requests(
+    server: Arc<Server>, shared: Arc<Shared>, worker: crate::dev_worker::Supervisor,
+    background: Vec<(&str, std::thread::JoinHandle<()>)>, stopping: impl Fn() -> bool,
+) -> Result<(), String> {
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
-    let mut worker_start_revision = shared.worker_revision.load(Ordering::Acquire);
     loop {
-        if crate::lifecycle::stopping() { return Ok(()); }
+        if stopping() { return Ok(()); }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }
-        let revision = shared.worker_revision.load(Ordering::Acquire);
-        if worker.is_none() && dev && revision != worker_start_revision {
-            worker_start_revision = revision;
-            match crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]")) {
-                Ok(next) => worker = next,
-                Err(error) => eprintln!("snapback4 worker: {error}"),
-            }
-        }
-        if let Some(worker) = &mut worker {
-            worker.tick();
-        }
+        if worker.is_finished() { return Err("worker thread stopped".into()); }
         if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
             dispatch(request, shared.clone(), admission.clone());
         }
@@ -398,26 +374,29 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
 }
 
 const REQUEST_WORKERS: usize = 32;
+// Writer-dependent requests have their own budget: queued behind adoption, they cannot take
+// the slots reads and discovery need, and neither class loses capacity.
+const MUTATION_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
 const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
 
 #[derive(Clone, Copy)]
-enum RequestClass { Short, Wait, Route, Registry, Verifier }
+enum RequestClass { Short, Mutation, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
-        match class { RequestClass::Short => &self.short, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
+        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
@@ -431,12 +410,24 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
-        else if is_waiter(request.method(), path) { RequestClass::Wait } else { RequestClass::Short };
+        else if is_waiter(request.method(), path) { RequestClass::Wait }
+        // @ref LLP 3000.019#3.6 — only writer-independent handlers share the read reservation.
+        // Default to the writer budget, so adding a writer door cannot silently
+        // consume read slots. Authentication uses the same detached-read policy.
+        else if detached_request(request.method(), path)
+            || shared.personas && matches!((request.method(), path), (Method::Get, "/dev/latency") | (Method::Post, "/dev/latency/reset")) { RequestClass::Short }
+        else { RequestClass::Mutation };
     let Some(permit) = admission.acquire(class) else { request.abort(); return; };
     if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit;
         if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } }) {
         eprintln!("snapback4: cannot start request thread: {error}");
     }
+}
+
+fn detached_request(method: &Method, path: &str) -> bool {
+    method == &Method::Post && (path.starts_with("/q/") || path == "/sync")
+        || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/auth/config")
+        || method == &Method::Options
 }
 
 fn is_waiter(method: &Method, path: &str) -> bool {
@@ -705,6 +696,10 @@ pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
 
 /// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
 pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
+    principal_with_owner(request, shared, None)
+}
+
+fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engine>) -> Result<String, Refusal> {
     dev_request(request, shared)?;
     let mut persona = None;
     let mut bearer = None;
@@ -739,14 +734,36 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
         return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
     }
     if let Some(token) = bearer {
-        let engine = lock(&shared.engine);
-        return match snapback4_core::identity::resolve(engine.store(), &token, shared.now()) {
+        // Reads may authenticate against the committed generation during adoption.
+        // Keep write authentication behind the writer: time queued for adoption
+        // must not preserve a session that expired or was revoked in that wait.
+        let path = request.url().split('?').next().unwrap_or("");
+        let read = detached_request(request.method(), path);
+        let resolved = if let Some(engine) = owner {
+            snapback4_core::identity::resolve(engine.store(), &token, shared.now())
+        } else if read { match shared.reader() {
+            Ok((epoch, reader)) => {
+                let identity = lock(&shared.wake).store_id.clone();
+                let result = snapback4_core::identity::resolve_read_only(reader.store(), &token, shared.now(), identity.as_deref());
+                lock(&shared.readers).put(&epoch, reader);
+                result
+            }
+            Err(_) if shared.memory_store() => snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()),
+            Err(error) => return Err(error.refusal()),
+        } } else { snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()) };
+        return match resolved {
             Ok(Some((principal, _))) => Ok(principal),
             Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
             Err(error) => Err(error.refusal()),
         };
     }
     Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
+}
+
+// @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.
+fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+    if principal_with_owner(request, shared, Some(engine))? == principal { Ok(()) }
+    else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
 }
 
 fn query_params(url: &str) -> BTreeMap<String, String> {
@@ -787,7 +804,7 @@ fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
 }
 
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
-    let metadata = { response_head(&mut lock(&shared.engine)) };
+    let metadata = shared.read_head();
     match metadata {
         Ok((store_id, head)) => respond_timed(request, shared, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head })),
         Err(why) => respond_timed(request, shared, 503, json!({ "denied": refusal_json(&why) })),
@@ -849,17 +866,17 @@ fn handle(mut request: Request, shared: &Shared) {
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
-            return reject(request, 401, refusal);
+            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
     if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
-            return reject(request, 401, refusal);
+            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
     if method == Method::Get && matches!(path.as_str(), "/" | "/schema" | "/api.ts" | "/native.wasm" | "/changes") {
         if let Err(refusal) = principal_of(&request, shared) {
-            return reject(request, 401, refusal);
+            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
     let _upload_permit = if method == Method::Post && path == "/assets" {
@@ -924,22 +941,22 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Get, "/effects") => effects::list(request, shared, &url),
         (Method::Get, "/probe") => match principal_of(&request, shared) {
             Ok(_) => {
-                let identity = { let engine = lock(&shared.engine); engine.store().meta("store_id").and_then(|id| engine.store().seq().map(|seq| (id, seq))) };
+                let identity = shared.read_head();
                 match identity {
                     Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq })),
-                    Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+                    Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error) })),
                 }
             },
-            Err(refusal) => respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
+            Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
             let auth = lock(&shared.bound).schema.auth.clone();
             respond_timed(request, shared, 200, json!({ "guests": auth.guests, "password": auth.password }));
         }
         (Method::Get, "/") => {
-            let seq = match lock(&shared.engine).seq() {
-                Ok(seq) => seq,
-                Err(error) => return respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+            let seq = match shared.read_head() {
+                Ok((_, seq)) => seq,
+                Err(error) => return respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error) })),
             };
             let body = {
                 let bound = lock(&shared.bound);
@@ -991,7 +1008,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let principal = match principal_of(&request, shared) {
                 Ok(principal) => principal,
                 Err(refusal) => {
-                    respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+                    respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
                     return;
                 }
             };
@@ -1004,8 +1021,13 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
+                #[cfg(test)] test_work(&shared.mutation_wait);
                 let (replay, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
+                        drop(engine);
+                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
+                    }
                     // Adoption may have changed the operation after the early
                     // route check. Classify again under the executing owner.
                     if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
@@ -1028,6 +1050,13 @@ fn handle(mut request: Request, shared: &Shared) {
             // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some((kind, arg_types)) = signature else {
+                if path.starts_with("/q/") && lock(&shared.readers).pending(&op) {
+                    match shared.read_head() {
+                        Ok((store_id, head)) => respond_timed(request, shared, 200, json!({"loading":true,"complete":false,"data":null,"store_id":store_id,"seq":head,"tables":[],"viewer":principal})),
+                        Err(why) => respond_timed(request, shared, 503, json!({"denied":why})),
+                    }
+                    return;
+                }
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
             };
@@ -1052,7 +1081,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
             let viewer = principal.clone();
-            let mut context = Context::new(principal, args).at(shared.now());
+            let mut context = Context::new(&principal, args).at(shared.now());
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
                 if provenance { context = context.with_row_provenance(); }
@@ -1060,10 +1089,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}")));
                     return;
                 }
-                let reader = {
-                    let engine = lock(&shared.engine);
-                    lock(&shared.readers).take(&engine)
-                };
+                let reader = shared.reader();
                 let (outcome, cut, metadata, reads_presence) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
@@ -1076,8 +1102,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
                         (outcome, cut, metadata, reads_presence)
                     },
-                    // `--fresh` deliberately uses an in-memory store, which
-                    // has no second SQLite connection to detach.
+                    // Only memory stores lack detached readers by construction.
+                    Err(error) if !shared.memory_store() => {
+                        return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
+                    }
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
@@ -1154,8 +1182,13 @@ fn handle(mut request: Request, shared: &Shared) {
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
+                #[cfg(test)] test_work(&shared.mutation_wait);
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
+                        drop(engine);
+                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
+                    }
                     if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
@@ -1291,8 +1324,8 @@ mod poison_tests {
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
-            engine: FairMutex::new(engine),
-            readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
+            readers: Mutex::new(QueryReaders::new(&engine)),
+            engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(Bound { view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
             worker_revision: AtomicUsize::new(0),
@@ -1315,6 +1348,7 @@ mod poison_tests {
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
             query_wait: Mutex::new(None),
+            mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let poisoned = shared.clone();
