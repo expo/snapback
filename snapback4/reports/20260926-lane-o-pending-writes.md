@@ -447,3 +447,148 @@ source, mutation preloads and exact logs remain under
 `target/lane-o-r1-evidence/` (`full-test.log`, `full-test.exit`,
 `failed-cases-isolated.log`, `baseline-failed-cases.log`, `baseline-timing.log`).
 No push or publication has been performed.
+
+## Round 2 — 2026-09-26
+
+Read both round-1 reviews in full and accepted every finding. No finding is
+contested. The repairs are committed on `sb4-intent/o-pending-writes`:
+
+- `a116ddedd` — preserve online custody through notification and hold-save failures.
+- `346497f52` — capture exit evidence before changing device send status.
+
+Both implementation commits include
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### Repairs and files
+
+Paths below are relative to `snapback4/`.
+
+| Finding | Files and resulting behavior |
+| --- | --- |
+| Astra Medium: closing from notification rejects committed admission and loses peer invalidation | `packages/snapback4/src/journal-changes.ts` posts the cross-tab invalidation before running local subscribers. Broadcast/notification exceptions cannot reject the already-completed journal save. The temporary-channel path closes its channel even if posting throws. `test/app-online.test.mjs` uses the real client to cover the last owner's callback unsubscribing and closing, a closed channel, and a throwing listener. `test/react.test.mjs` adds the exact closing-owner case across two Chromium pages: B returns pending, and A's mounted hook and direct list receive B's queued admission. |
+| Astra Low: failed hold saves display stale sent status | `src/app-online.ts` retains the owning runtime's failed-to-save hold code as a presentation fallback. The shared journal still supplies entries and order. Successful dispatch binding, persisted hold, terminal notification and lifetime pause clear the fallback. `test/app-online.test.mjs` drives one failed hold save and three failed retry-binding saves, checking held/E_BUSY against the real raw queue each time, with a queued successor and reversed id ordering. A second client continues reading the persisted sent status. Repairing storage permits sent without the stale reason, followed by ordered dispatch and settlement of both entries. |
+| Grok Low: capture occurs after device begin_send | `src/web.ts` requires successful synchronous exit capture before invoking begin_send. Failed capture leaves no device mutation for a later drain to persist. |
+| Both: capture failure mutations survive | `test/web-navigation.test.mjs` adds a first-dispatch marker setItem failure with QuotaExceededError. It proves capture was attempted, no keepalive starts, a later ordinary device call changes neither outbox nor send revision, and an independent persisted-store copy reopens queued. The fixture now exposes its existing backend URL for that reopen. |
+| Documentation | `packages/snapback4/CLIENT-AND-OPERATIONS.md` documents committed-admission notification isolation and the scope of an unsaved online hold: visible on its owning runtime, while other clients/reloads read persisted status. This report and one dated append-only `JOURNAL.md` entry record round 2. |
+
+### Public forms and tests
+
+Round 2 adds no public spelling. The existing forms compile and run:
+
+```ts
+const admitted = await client.mutate(api.send, { conversationId, body: "hello" }, {
+  id: savedId, waitSeconds: 0,
+}); // committed custody remains pending even if its subscriber closes this client
+const writes = await client.pendingWrites();
+const stop = client.onPendingWrites(() => { void client.pendingWrites().then(render); });
+stop();
+```
+
+```tsx
+const sends = usePendingWrites(api.send);
+const all = usePendingWrites();
+```
+
+Package typecheck/build passed. The final affected run passed **94/94**, with
+**zero skipped**: app-online, pending-writes, React and web-navigation. It
+includes six new cases: the three notification faults, the storage outage,
+the two-page Chromium close-at-admission case, and failed exit capture. Existing
+assertions are preserved. `git diff --check` passed. Every changed source remains
+under 1,500 lines; the largest is the React test at 1,405 lines.
+
+Mutation trials used Node module-loader substitutions, without modifying
+implementation source or built artifacts:
+
+| Substitution | Result and killed assertion |
+| --- | --- |
+| captureExit's catch returns true | **0 pass / 1 fail**: no keepalive expected; one started. |
+| beginSend ignores a false captureExit result | **0 pass / 1 fail**: same no-keepalive assertion. |
+| Move capture back after device begin_send | **0 pass / 1 fail**: later drain changed the outbox/send revision. |
+| Remove unsaved hold projection | **0 pass / 1 fail**: wrapper reported sent instead of held/E_BUSY. |
+| Restore original notification ordering/error propagation | **1 pass / 2 fail**: closing owner and closed-channel cases returned failed instead of pending. The throwing-listener case already passed through the existing listener isolation. |
+
+### Measurement, constraints and open problems
+
+The required full script rebuilt the wasm at **2,023,103 B raw / 581,523 B
+gzip**, unchanged from rounds 0 and 1. The budget stays **582,094 B**, leaving
+**571 B**. No Rust runtime, engine meter, diagnostic, package version or public
+API changed. No source edit occurred during the full run.
+
+There is no scope deviation and no unfixed review finding. The scoped
+`llp-orient` pass used the same installed fallback as earlier rounds; the
+binding context remains LLP 3000's fence, LLP 2000.000 §7.2–7.3's durable
+outbox and identity, LLP 3000.013 §6's custody boundary, LLP 3000.007 §17/§20.4's
+receipt/recovery constraints, the supplied LLP 3000.019 §3.3 part 4, and LLP
+3000.008.002.000 §3's bounded wait. The guide's existing write semantics still
+apply; no supervisor-owned design document needed revision.
+
+The historical pre-0.4.4 information limit remains: an outbox with neither
+dispatch metadata nor retained sequence evidence cannot distinguish a past
+unacknowledged POST from a never-sent write. Reproduce by interrupting a POST
+with the old client, upgrading, and reading the restored list before replay.
+Other runtimes/reloads also cannot recover a hold code that storage never
+saved; the new fallback deliberately belongs only to the runtime that saw it.
+Neither limitation permits new ids, reordered delivery or changed receipts.
+The two inherited timing races documented under round 1 remain outside this
+lane's changes; their reproductions are preserved there.
+
+### Required full script
+
+Ran `bash scripts/test.sh` **once**, at implementation commit `346497f52`.
+Its literal summary is **`== 1 failure(s) in 1035 s`**, exit **1**. The failed
+step is `client tests`; the full run is recorded as red and was not rerun.
+
+- Rust targets and workspace doctests passed (**562 s**), including the full
+  guide target: **86 passed / 0 failed / 0 ignored**.
+- Cargo/wasm/package builds, package typecheck, release guard, docs budget,
+  fixture wrappers and both app typechecks passed.
+- Main client invocation: **2,202 tests; 2,191 passed; 1 failed; 10 existing
+  optional/host skips** (**193 s**). Every new round-2 case passed, including
+  the real Chromium closing-owner case and failed first-exit capture.
+- Client models: **78/78 passed**, no skips (**264 s**), with unchanged seeded
+  sequence counts.
+- The two previously documented inherited timing races both passed in this
+  full run: identity invocation cancellation and local session restoration.
+
+**Only failure — environmental port collision in an unchanged baseline test:**
+`packages/snapback4/test/native-e2e.test.mjs`, “the native module follows the
+server, predicts, queues, and starts cold offline,” failed its initial partition
+assertion at line 65. The initial query already contained “hello from the
+module,” which this test does not submit until line 70. It expected exactly
+30 seed rows. The test selects `4550 + (process.pid % 20)` and accepts any HTTP
+response as server readiness, so a concurrent invocation can occupy its port
+and answer from a different store.
+
+The affected test passes alone on this lane (**1/1**) and on the isolated
+`992cec75c` package (**1/1**). A controlled occupied-port probe against that
+baseline, with assertions unchanged, reproduces the same initial-row assertion
+(**0/1**) and records the attempted test server's exact refusal:
+`cannot listen on 127.0.0.1:4562: Address already in use (os error 98)`.
+The port is the probe process's chosen value; another run may choose a different
+one. The baseline test file is byte-identical to this lane's file. No round-2
+source affects the native client path. This is a newly observed environmental
+collision in the inherited harness, **not either of round 1's two timing
+races**, and is left open for the integration owner. No assertion was weakened,
+no product repair was needed, and only this affected test was rerun.
+
+Reproduce from `snapback4/` with the documented toolchain PATH:
+
+```sh
+node --test packages/snapback4/test/native-e2e.test.mjs
+node --test target/lane-o-r1-evidence/baseline-992cec75c/snapback4/packages/snapback4/test/native-e2e.test.mjs
+node --import ./target/lane-o-r2-evidence/occupied-native-port.mjs --test \
+  target/lane-o-r1-evidence/baseline-992cec75c/snapback4/packages/snapback4/test/native-e2e.test.mjs
+```
+
+The collision preload starts a separate server/store at the test's chosen port,
+seeds an earlier message, then runs the baseline test with its original
+assertions. It logs the test server's bind failure and cleans up only the
+server it created. Product source and generated package artifacts stay intact.
+A manual equivalent is to occupy the selected port with another seeded chat
+server before the native test opens. Evidence is in `native-e2e-isolated.log`,
+`native-e2e-baseline-isolated.log`, `native-e2e-baseline-collision.log` and the
+matching exit records. The baseline source/build are retained from round 1.
+
+Local evidence is under `target/lane-o-r2-evidence/`: `affected.log`,
+`typecheck.log`, `full-test.log`, `full-test.exit`, and the named mutation
+preloads/logs/exit records. Nothing was pushed or published.

@@ -63664,3 +63664,53 @@ of LLP 3000.019 was implemented, and nothing was pushed or published. The
 round-1 section of [the lane report](reports/20260926-lane-o-pending-writes.md)
 records every changed file, test, mutant and baseline-failure reproduction;
 local logs are under `target/lane-o-r1-evidence/`.
+
+## 2026-09-26 — Lane O round 2: notification failures and unsaved holds preserve custody
+
+Read both round-1 blind reviews and fixed every finding. Commits `a116ddedd`
+and `346497f52` broadcast journal invalidations before local callbacks can
+close the last owner, keep notification exceptions from refusing an already
+committed admission, retain the owning online runtime's unsaved hold code in
+its list without changing shared FIFO, and capture exit evidence before
+mutating device send status. Successful dispatch/hold persistence, settlement
+and pause clear the presentation fallback. The client reference documents its
+runtime-only scope. No public spelling changed.
+
+The affected client/navigation/React run passed 94/94 with no skips, including
+six new cases. Real clients cover closing/throwing listeners, a closed channel,
+and one failed hold save followed by three failed dispatch-binding retries.
+Two Chromium pages prove B's listener can unsubscribe and close at admission
+while B returns pending and A's mounted hook receives the queued intent. The
+new first-exit setItem failure starts no keepalive, leaves no phantom mutation
+for a later device drain, and reopens an independent persisted copy as queued.
+Both requested capture mutants fail (return true on capture failure; ignore
+false). Restoring late capture, removing the hold fallback and restoring the
+old notification path also fail their regressions. Mutation loaders did not
+change source or generated artifacts.
+
+Ran `bash scripts/test.sh` once at `346497f52`; its exact summary is
+`== 1 failure(s) in 1035 s`, exit 1, failed step `client tests`. Rust targets
+and doctests passed (562 s), the complete guide passed 86/86, and builds,
+budgets, fixture tests and both app typechecks passed. The main client run
+reported 2,202 tests: 2,191 passed, one failed, ten existing optional/host skips.
+All 78 seeded-model tests passed. Both round-1 inherited timing races passed.
+
+The one failure is an environmental port collision in unchanged
+`native-e2e.test.mjs`: its initial 30-row assertion already saw “hello from the
+module,” before this test's own send. Its port pool is only
+`4550 + (process.pid % 20)`, and readiness accepts another server's response.
+The affected test passes alone on the lane and the `992cec75c` baseline. A
+controlled occupied-port run of that baseline reproduces the same assertion
+and logs `Address already in use`. This newly observed inherited harness
+hazard remains for the integration owner; it is not either prior timing race.
+No assertion or native product path was changed, and no full-suite rerun was
+performed. The report records the reproduction and individual evidence logs.
+
+Wasm is unchanged: 2,023,103 B raw / 581,523 B gzip, 571 B below the unchanged
+582,094 B budget. No Rust runtime, meter, diagnostic, package version or other
+release lane changed. There is no scope deviation or unfixed review finding;
+the pre-0.4.4 missing-dispatch-information limit remains. This journal entry
+and the round-2 section of
+[the lane report](reports/20260926-lane-o-pending-writes.md) are the durable
+record; local evidence is under `target/lane-o-r2-evidence/`. Nothing was
+pushed or published.
