@@ -61679,3 +61679,16 @@ changes. Same build: **1,982,094 B raw / 573,320 B gzip**, **1,340 B gzip saved*
 from 574,660. The write/maintain portion measured 573,820; the additional
 read-through, target and Following borrows save another 500 B. This removes
 runtime allocations as well as bytes; no timing improvement is asserted.
+
+## 2026-09-25 — device diet: separate replica indexes from server work schema
+
+Row-view preparation now has an index-only part shared by every host and a
+SQLite-only work-schema constructor. The web still prepares all member/source
+lifetime and predicate indexes but does not synthesize `$recount` / `$basis`
+tables. Existing serialized work entries are left intact on offline reopen;
+server schema construction and the schema's serde representation are unchanged.
+The regression checks exact serialized bytes for both the public projection
+(with indexes removed then rebuilt) and a legacy schema already containing
+work tables. Same build: **1,976,372 B raw / 571,850 B gzip**, **1,470 B gzip
+saved** from 573,320. Work-table name recognizers remain necessary for the
+engine-owned table fence; their string presence alone is not code leakage.

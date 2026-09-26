@@ -1,0 +1,159 @@
+   Compiling snapback4-core v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 22.79s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-76b7b2441d1954e1)
+
+running 128 tests
+test assets::tests::jpeg_dimensions_come_from_the_frame_header ... ok
+test assets::tests::webp_vp8x_dimensions ... ok
+test assets::tests::png_dimensions_are_read_from_ihdr ... ok
+test assets::tests::other_bytes_are_refused ... ok
+test assets::tests::webp_headers_never_borrow_bytes_from_the_next_chunk ... ok
+test assets::tests::mp4_duration_has_a_nonzero_finite_bound ... ok
+test assets::tests::mp4_duration_comes_from_mvhd ... ok
+test engine::authorized_scan::tests::scratch_keeps_only_the_fixed_peak_on_success_and_failure ... ok
+test engine::authorized_scan::row_view_tests::internal_work_cannot_change_reserved_receipt_or_cut ... ok
+test cursor::tests::canonical_round_trip_is_typed_and_strict ... ok
+test cursor::tests::descriptor_and_value_tags_are_bound ... ok
+test engine::authorized_scan::tests::raw_write_fetches_reserve_before_even_an_absent_candidate ... ok
+test engine::native::tests::module_bytes_and_the_single_table_share_the_heap_budget ... ok
+test engine::native::tests::log_bounds_are_sticky_per_invocation_and_drop_excess_retained_lines ... ok
+test engine::field_authority_tests::unknown_negation_does_not_authorize_delivery ... ok
+test engine::presence::setup_tests::w15a6_setup_nested_reassignment ... ok
+test engine::native::tests::packed_lengths_and_catalog_growth_are_bounded_before_large_allocations ... ok
+test engine::aggregate_metadata_tests::memory_aggregate_point_and_raw_probe_dependencies_are_constant ... ok
+test engine::presence::setup_tests::w15a6_setup_nested_assignments ... ok
+test engine::aggregate_metadata_tests::memory_inherited_only_aggregate_dependencies ... ok
+test engine::read::read_verdict_tests::aggregate_cuts::authorized_aggregate_shortcut_stops_at_its_own_cut_boundary ... ok
+test engine::aggregate_metadata_tests::memory_denied_aggregate_restores_probe_expiry ... ok
+test engine::read::read_verdict_tests::expiry_candidates::uniform_prefix_deadline_is_provisional_even_when_true ... ok
+test engine::read::read_verdict_tests::expiry_candidates::admitted_candidate_deadline_waits_for_emission ... ok
+test engine::presence::setup_tests::w15a5_setup_live_aliases_nested_guards ... ok
+test engine::presence::setup_tests::w15a5_setup_live_aliases_inside_loop ... ok
+test engine::presence::setup_tests::w15a7_setup_balanced_independent_tree_is_s_log_s ... ok
+test engine::presence::setup_tests::w15a5_setup_live_aliases_sibling_guards ... ok
+test engine::maintains::timeline_tests::timeline_owned_tables_cannot_be_maintain_targets ... ok
+test engine::presence::setup_tests::reference::w15a6_setup_marks_match_eager_walk ... ok
+test engine::native::tests::duplicate_target_cannot_shadow_native_privacy ... ok
+test engine::native::tests::native_column_results_and_private_targets ... ok
+test engine::authorized_scan::tests::allowance_alone_decides_admission_and_every_exit_keeps_it ... ok
+test engine::native::tests::native_job_requests_cannot_forge_recorded_fields ... ok
+test engine::read::read_verdict_tests::merge_continuation::a_predicate_error_restores_both_depths_and_binding ... ok
+test engine::read_auth::row_view_tests::provisional_row_view_witness_uses_complete_rule_deadline ... ok
+test engine::read_auth::tests::provisional_authority_uses_complete_existential_and_correlated_timelines ... ok
+test engine::read_auth::tests::witness_answer_cache_is_invalidated_by_every_row_write ... ok
+test engine::read_auth::tests::provisional_authorization_scopes_expiry_to_succeeded_predicates ... ok
+test engine::recorded::tests::event_free_scope_restores_after_success_and_failure ... ok
+test engine::recorded::tests::device_runner_refuses_capture_activation ... ok
+test engine::recorded::tests::prediction_requires_a_clock_and_prices_covered_targets ... ok
+test engine::retire_tests::retired_birth_releases_table_and_group_occupancy_in_memory_rows ... ok
+test engine::recorded::tests::hidden_replacement_does_not_disclose_a_stored_capture ... ok
+test engine::retire_tests::retiring_expired_siblings_scans_their_key_once ... ok
+test engine::read::read_verdict_tests::round2::r2_n1_input_checks_precede_denied_matching_scope ... ok
+test engine::read::read_verdict_tests::r1a_per_row_rules_register_all_dependency_tables ... ok
+test engine::read::read_verdict_tests::r1a_repeated_site_cannot_reuse_a_word_verdict_for_a_nested_read ... ok
+test engine::read::read_verdict_tests::merge_continuation::d58_non_owner_drain_candidate_is_raw_position_loss ... ok
+test engine::read::read_verdict_tests::round2::r2_n2_self_witness_is_simplified_before_partial_precheck ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_memory ... ok
+test engine::read::read_verdict_tests::round3::r3_nested_conjunction_33_words_preserve_later_row_without_shared_cursor ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_sqlite ... ok
+test engine::row_views::tests::inherited::inherited_source_count_sqlite ... ok
+test engine::rules::lifetime_tests::branch_selection_uses_verdicts_and_structure_including_created_tests ... ok
+test engine::row_views::tests::inherited::inherited_source_count_memory ... ok
+test engine::steps::tests::action_provider_keys_keep_the_v1_bytes_and_effects_have_their_own_domain ... ok
+test engine::row_views::tests::live_basis_walk_charges_only_live_inputs_on_its_internal_ledger ... ok
+test engine::row_views::tests::member_materialization_is_precharged_and_its_transient_peak_survives_release ... ok
+test engine::row_views::tests::live_basis_reservation_is_identical_for_pending_and_zero_expired_reads ... ok
+test engine::timeline_authority::tests::guard_restores_previous_authority_after_success_and_error ... ok
+test engine::sequences::tests::pending_copy_is_charged_before_mutation_at_the_heap_ceiling ... ok
+test engine::timeline_authority::write_tests::column_mirror_requires_timeline_authority_even_when_validation_is_bypassed ... ok
+test engine::timeline_authority::write_tests::purge_gates_actual_writes_charges_deletes_and_never_refuses_reads ... ok
+test identity::service_tests::services_and_custom_accounts_have_sessions_of_their_own ... ok
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+test engine::timeline_authority::write_tests::upsert_needs_insert_and_update_grants_on_both_addressing_paths ... ok
+test ids::tests::ids_sort_by_time_and_carry_it ... ok
+test ids::tests::observing_an_id_does_not_predict_the_next ... ok
+test ir::lane_source::tests::discovery_includes_derive_renames_and_aliases ... ok
+test ir::lane_source::tests::scan_derive_fields_are_nonempty_and_disjoint_from_domain_discriminators ... ok
+test ir::lane_source::tests::unsupported_discovery_refuses_instead_of_panicking ... ok
+test key::tests::order_matches_the_value_model ... ok
+test key::tests::prefix_ranges_contain_exactly_their_extensions ... ok
+test key::tests::round_trips ... ok
+test key::tests::scans_hold_exactly_their_bounds ... ok
+test identity::tests::password_bounds_and_credential_recheck ... ok
+test meter::tests::a_capped_read_records_where_it_was_cut ... ok
+test meter::tests::an_aborting_write_names_the_actual_work ... ok
+test meter::tests::once_per_read_scratch_is_prepaid_and_restores_with_its_charge ... ok
+test engine::row_views::tests::exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep ... ok
+test rows::disclosed::tests::oversized_nested_declarations_saturate_the_reservation ... ok
+test rows::word_heap::tests::a_tokenizer_allocation_is_refused_before_fold_or_token_growth ... ok
+test rows::word_heap::tests::cal18_projection::matched_period_projection_avoids_rust_payload_but_does_not_prove_engine_capacity ... ignored, async lane: 41 paired store projection allocation samples
+test rows::word_heap::tests::cursor_decode_and_canonical_reencode_fit_the_preparse_allowance ... ok
+test rows::word_heap::tests::dedup_node_and_split_measurements_fit_the_preinsert_bound ... ok
+test rows::word_heap::tests::exact_growth_and_query_token_cap_are_charged_before_growth ... ok
+test rows::word_heap::tests::metered_tokenization_matches_index_tokens_across_columns_and_unicode ... ok
+
+running 1 test
+private decoder empty: rust=1230, native=12424, reservation=16018464
+private decoder ascii: rust=1001230, native=2014496, reservation=16018464
+test identity::tests::rotation_and_revoke_all_end_every_old_bearer ... ok
+test rows::word_heap::tests::stored_row_bound_covers_decoder_growth_and_btree_splits ... ok
+test schema::field_authority::tests::created_and_exists_terms_require_private_values ... ok
+test schema::field_authority::tests::ordered_optional_types_require_private_values ... ok
+test schema::tests::target_sync_group_keys_are_required_in_raw_schemas ... ok
+test schema::timeline::tests::owned_digest_frames_and_separates_every_input ... ok
+test engine::read::read_verdict_tests::round2::r2_n1_reversed_conjunct_at_examined_boundary ... ok
+private decoder escaped: rust=3098374, native=4016448, reservation=16018464
+test engine::read::read_verdict_tests::r1a_prefix_conjunction_denial_matches_with_cap_and_abort ... ok
+test identity::tests::sessions_resolve_until_closed ... ok
+private decoder utf8: rust=4001230, native=8020360, reservation=16018464
+test engine::read::read_verdict_tests::round2::r2_n1_reversed_conjunct_complete_observation ... ok
+W14A empty scans=1 statements=2 native_allocated=1952 native_per_scan=1952 maximum_per_scan=1952 pin=2048 peak_live=976 native_freed=1952 end_live=0 charged=8297
+W14A empty scans=1000 statements=2000 native_allocated=1952000 native_per_scan=1952 maximum_per_scan=1952 pin=2048 peak_live=976 native_freed=1952000 end_live=0 charged=113192
+W14A increasing rows=22 limit=22 ceiling=9000 page_size=4096 rust_allocated=272 native_allocated=1768 payload_allocated=728 charged=8297 attempted=9855 native_bound=16489
+W14A increasing positive_rows=22 rust_allocated=35874 native_allocated=38144 charged=137863
+W14A resident json_bytes=720 page_size=4096 ceiling=500 rust_allocated=104 native_allocated=0 payload_allocated=0 native_retained=0 preflight_runs=0 charged=8297
+W14A resident prepaid=8192 rust_allocated=272 native_allocated=1768 payload_allocated=728 native_retained=0 preflight_runs=1 payload_runs=0
+SQLite 3.53.2 preflight data Column P5=[192]
+W14A resident positive_rows=1 rust_allocated=1847 first_native=3536 next_fetch_native=3536 next_read_native=3536 cumulative_fetch_native=7072 first_charge=13578 next_fetch_charge=5386 next_read_charge=13578
+W14A overflow json_bytes=4070 page_size=4096 ceiling=500 rust_allocated=104 native_allocated=0 payload_allocated=0 native_retained=0 preflight_runs=0 charged=8297
+W14A overflow prepaid=8192 rust_allocated=272 native_allocated=5160 payload_allocated=0 native_retained=0 preflight_runs=1 payload_runs=0
+SQLite 3.53.2 preflight data Column P5=[192]
+W14A overflow positive_rows=1 rust_allocated=5197 first_native=14400 next_fetch_native=14400 next_read_native=14400 cumulative_fetch_native=28800 first_charge=33678 next_fetch_charge=25486 next_read_charge=33678
+test rows::word_heap::tests::sqlite_allocation_probes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 0.10s
+
+test rows::word_heap::tests::sqlite_allocation_probes ... ok
+test identity::tests::passwords_hash_and_verify ... ok
+test engine::read::read_verdict_tests::round3::r3_nested_conjunction_complete_observation ... ok
+test engine::read::read_verdict_tests::round3::r3_nested_conjunction_examined_boundary ... ok
+test store::activation_walk::tests::callback_keeps_the_whole_fetched_page_reserved ... ok
+test key::tests::unescape_accepts_only_what_escape_writes ... ok
+test value::disclosed::tests::projection_defaults_and_physical_private_omission_are_stable ... ok
+test wire::tests::borrowed_wire_encoding_matches_every_value_form ... ok
+test words::tests::distinct_and_bounded ... ok
+test words::tests::folds_case_and_splits_on_punctuation ... ok
+test words::tests::long_unicode_words_and_query_terms_share_the_portable_cap ... ok
+test words::tests::normalizes_to_nfc_so_composed_and_decomposed_agree ... ok
+test words::tests::terms_match_as_prefixes ... ok
+test engine::row_views::tests::private_expiry_chunks_keep_durable_cursor_edits_and_restart ... ok
+test store::authority::tests::shared_authority_facts_map_on_sqlite ... ok
+test store::authority::tests::shared_authority_invalidations_run_on_sqlite ... ok
+test store::activation_walk::tests::heap_retries_keep_admission_examinations_at_the_callback_boundary ... ok
+test store::authority::tests::shared_authority_policy_cases_run_on_sqlite ... ok
+test store::tests::independent_readers_reuse_plans_and_refresh_snapshots ... ok
+test store::tests::scans_pages_and_cursors ... ok
+test store::tests::cached_scan_plans_rebind_and_still_refresh_after_schema_changes ... ok
+test store::activation_walk::tests::every_cumulative_budget_fixes_the_page_before_any_callback ... ok
+test engine::read::read_verdict_tests::round2::r2_n1_partial_true_verdict_keeps_only_admitted_expiries ... ok
+test engine::read::read_verdict_tests::round3::r3_admitted_word_bound_both_cuts_and_real_meter_ceiling ... ok
+test store::activation_walk::tests::only_non_fitting_singletons_refuse_before_callbacks ... ok
+test engine::read::read_verdict_tests::round2::r2_n1_malformed_cursor_precedes_any_prefix_verdict ... ok
+test engine::timeline_authority::write_tests::raw_columns_reject_timeline_owned_parents_and_sources_and_admit_mapped_ones ... ok
+test engine::read::read_verdict_tests::r1a_w5_static_allowance_already_matches_every_meter_and_error ... ok
+test engine::read::read_verdict_tests::r1a_short_circuit_dependencies_match_complete_observations ... ok
+test partition::born_tests::randomized_commits_match_original_events_and_meter ... ok
+
+test result: ok. 127 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.99s
+

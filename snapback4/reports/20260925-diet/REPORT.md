@@ -98,3 +98,7 @@ The baseline's largest functions (`row_changed`, `insert_attempt`, parent author
 | Plus read-through, write targets, Following transitions/slots | 1,982,094 | 573,320 | 500 |
 
 Combined **1,340 B gzip saved**. No new representation, format or algorithm. Matching declarations stay in schema order; cloned filter iterators repeat only immutable schema comparisons. This removes allocations but no quantitative latency claim is made.
+
+## Candidate 1: replica index preparation
+
+573,320 → **571,850 B gzip** (1,982,094 → **1,976,372 B raw**): **1,470 B gzip saved**. `prepare_row_view_indexes` is shared; `prepare_row_view_work` requires SQLite. All lookup/lifetime/predicate indexes remain. Existing work-schema entries survive reopening unchanged; the new regression compares exact serialized schemas after index rebuilding and legacy preparation. Public backend wire serialization and the serde schema representation are unchanged. New web installations no longer synthesize private server tables. Their names still occur in the artifact because `is_recount_work` must refuse attempts to read engine-owned state.
