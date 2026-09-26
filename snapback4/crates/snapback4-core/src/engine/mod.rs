@@ -92,6 +92,9 @@ use std::collections::{BTreeMap, VecDeque};
 // @ref LLP 3000.007#21.3 — the host and abstract presence providers share one confirmation window on the commit clock.
 pub const PRESENCE_GRACE: std::time::Duration = std::time::Duration::from_secs(35);
 pub const PRESENCE_CONFIRMATION: std::time::Duration = std::time::Duration::from_secs(5);
+/// How soon a client re-runs a live query that read `connected[p]`. Presence
+/// changes without a commit, so no change feed names it (LLP 3000.017 §3).
+pub const PRESENCE_REFRESH: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Who is connected right now: what a server knows from the long polls it
 /// holds open, answered to a program's `connected[p]`. Only a server has

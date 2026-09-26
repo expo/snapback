@@ -59253,3 +59253,31 @@ bystander's poll.
 Evidence: nine server tests, and eight server mutants that fail them; three
 client tests on a controlled transport; the three-tier test, where Bob's mark
 turns true in about 20 ms.
+
+## 2026-09-26 — Live presence round 5: a refresh, not a follow
+
+Astra's fourth review of the follow design was NOT READY again. It found that
+a clock-dependent answer such as `now + connected[p] * 0` reopened the
+hidden-count oracle. Retiring a token made a revocation observable at a
+presence change. Retained arguments outgrew their charge. And two clients
+reading each other's connection counts fed each other's poll restarts, at 65
+polls a second.
+
+Four rounds had each closed their predecessor's defects and opened new ones.
+Following presence exactly, without telling a client more than re-running its
+query would, needs a double evaluation at one instant, delivery-latched
+reports, conservative memory accounting and restart-free polling. For an
+online mark that is too much surface, so round 5 ships the simple version:
+
+- **An answer that read presence asks for its refresh.** The `/q/` reply
+  carries `refresh: 5000`, and names no principal or count.
+- **Clients re-run the watch every 5 seconds, keeping the answer.** The online
+  client retains it, marked `fresh: false`, until the new answer arrives. The
+  local tier publishes only the new answer. Closing a watch stops its refresh.
+- **The server keeps nothing and wakes nothing.** The token table, follow
+  lists, presence generation and count wakes are gone. The change poll is as it
+  was in 0.4.2.
+
+The once-per-run memoized presence read stays, so every read in one answer
+agrees. Alice's mark now turns within about 5 seconds, on every tier, with no
+loading in between. LLP 3000.017 §6 records the follow design and why it waits.

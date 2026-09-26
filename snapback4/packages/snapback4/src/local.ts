@@ -21,7 +21,8 @@ import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
-import { changeFeed, FOLLOW_RESTART } from "./changes.ts";
+import { changeFeed } from "./changes.ts";
+import { presenceRefresh } from "./presence-refresh.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
@@ -50,7 +51,6 @@ import {
 
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
-import { followTokens, movedWatches, presenceRetry, sameFollow } from "./presence-follow.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -818,8 +818,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture) return false;
-      sentFollow = followTokens(watches.values());
-      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, sentFollow);
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity);
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
@@ -830,7 +829,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
-      if (json.presence?.length) rerunPresence(json.presence);
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {
         seq = Math.max(seq, json.seq);
@@ -840,9 +838,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
       }
       return changed;
-    } catch (error) {
-      // A changed follow list restarts the poll at once; the link is fine.
-      if (error === FOLLOW_RESTART) return false;
+    } catch {
       if (closed) return false;
       setLink("offline");
       await new Promise((r) => setTimeout(r, 1000));
@@ -909,22 +905,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const subscriber of watch.subscribers) subscriber();
   }
 
-  // @ref LLP 3000.017#3.2 — server-answered watches follow the presence they read.
-  let sentFollow: readonly string[] = [];
-  function followAnswer(watch: Watch, presence: string | undefined) {
-    watch.presence = new Set(presence ? [presence] : []);
-    // @ref LLP 3000.017#3.5 — an empty token: the server will not follow this answer, so it re-runs on a timer.
-    watch.presenceRetry = presenceRetry(watch.presenceRetry, presence === "", () => {
-      watch.presenceRetry = null;
-      if (watches.get(watch.key) === watch) void rerun(watch);
-    });
-    // A held poll sent before this answer does not follow its token yet.
-    if (!sameFollow(followTokens(watches.values()), sentFollow)) changes.restart();
-  }
-  function rerunPresence(tokens: Iterable<string>) {
-    for (const watch of movedWatches(watches.values(), tokens)) void rerun(watch);
-  }
-
   function rerunTables(tables: Set<string>) {
     if (!tables.size) return;
     for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((table) => tables.has(table))) void rerun(watch);
@@ -965,12 +945,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, presence, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      followAnswer(watch, presence);
+      // @ref LLP 3000.017#3 — a server answer that read presence re-runs after its server's interval.
+      // An answer from this device, or none, keeps the interval: the device does not know presence.
+      if (after !== undefined) watch.presenceEvery = after;
+      watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
+        watch.presenceRefresh = null;
+        if (watches.get(watch.key) === watch) void rerun(watch);
+      });
       scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
       if (watch.snapshot !== read) {
         const denied = unavailable(); // Rule 1: immediately before notifying observers.
@@ -978,7 +964,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         notify(watch);
       }
     } catch {
-      if (!closed && watches.get(watch.key) === watch) { watch.publish({ loading: true }); notify(watch); }
+      if (!closed && watches.get(watch.key) === watch) {
+        watch.publish({ loading: true }); notify(watch);
+        watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, watch.presenceEvery, () => {
+          watch.presenceRefresh = null;
+          if (watches.get(watch.key) === watch) void rerun(watch);
+        });
+      }
     } finally {
       watch.running = false;
       const dirty = watch.dirty;
@@ -1151,7 +1143,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presence: new Set<string>(), presenceRetry: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
         watches.set(key, watch);
         void rerun(watch);
       }
@@ -1177,8 +1169,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             watches.delete(own.key);
             if (own.expiryTimer) clearTimeout(own.expiryTimer);
             own.expiryTimer = null;
-            if (own.presenceRetry) clearTimeout(own.presenceRetry);
-            own.presenceRetry = null;
+            if (own.presenceRefresh) clearTimeout(own.presenceRefresh);
+            own.presenceRefresh = null;
           }
         },
       };
@@ -1371,7 +1363,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-      for (const watch of watches.values()) if (watch.presenceRetry) clearTimeout(watch.presenceRetry);
+      for (const watch of watches.values()) if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
       for (const watch of watches.values()) watch.publish({ denied: unavailable()! });
       for (const watch of watches.values()) notify(watch);
       watches.clear();

@@ -13,7 +13,7 @@ use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -89,9 +89,6 @@ pub struct Shared {
     pub effect_wait: WorkHook,
     #[cfg(test)]
     pub poll_wait: WorkHook,
-    /// Runs after a poll's presence look, before it takes the change lock.
-    #[cfg(test)]
-    pub poll_checked: WorkHook,
 }
 
 impl Shared {
@@ -169,7 +166,7 @@ impl Drop for AssetTransfer<'_> {
 
 /// A connection lasts as long as its poll and a grace after it: a client
 /// re-polls within milliseconds of an answer, a dropped one never does.
-use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
+use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION, PRESENCE_REFRESH};
 
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
@@ -178,308 +175,26 @@ use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
 pub struct Live {
     polls: Mutex<BTreeMap<String, (u32, Option<i64>)>>,
     clock: Arc<Mutex<crate::dev_clock::Clock>>,
-    /// How many held polls follow each principal (LLP 3000.017 §3.2).
-    followers: Mutex<BTreeMap<String, u32>>,
-    /// Follow tokens: each stands for a query its viewer ran and the answer it
-    /// published, never for the presence it read (LLP 3000.017 §3.5).
-    tokens: Mutex<Tokens>,
-    /// Moves, under the change lock, whenever a followed presence may have changed.
-    generation: AtomicU64,
-}
-
-/// Wakes held polls for a presence change. The generation moves and the polls
-/// are told under the change lock, so a poll between its checks and its wait
-/// sees the generation, and one already waiting takes the notice as one more
-/// look (LLP 3000.017 §3.2). Call without the engine lock.
-pub(crate) fn wake_presence(shared: &Shared) {
-    let _change = lock(&shared.seq);
-    shared.presence.generation.fetch_add(1, Ordering::SeqCst);
-    shared.committed.notify_all();
-}
-
-/// What a follow token stands for: the query its viewer ran, a digest of the
-/// answer it published, and, kept here, the connection counts and tables it
-/// read and the head it read them at (LLP 3000.017 §3.5).
-#[derive(Clone, Debug)]
-pub(crate) struct FollowToken {
-    pub(crate) viewer: String,
-    pub(crate) op: String,
-    pub(crate) args: BTreeMap<String, snapback4_core::Value>,
-    /// The JSON bytes the arguments arrived as: what they are charged.
-    pub(crate) args_bytes: usize,
-    pub(crate) provenance: bool,
-    pub(crate) answer: [u8; 32],
-    pub(crate) reads: BTreeMap<String, u64>,
-    pub(crate) tables: Vec<String>,
-    pub(crate) seq: u64,
-}
-
-impl FollowToken {
-    /// What the token table charges for this token.
-    fn charge(&self) -> usize {
-        256 + self.viewer.len() + self.op.len() + self.args_bytes
-            + self.reads.keys().map(|principal| principal.len() + 64).sum::<usize>()
-            + self.tables.iter().map(|table| table.len() + 32).sum::<usize>()
-    }
-}
-
-/// What an answer publishes, hashed: a follow token reports a change only when
-/// a re-run's digest differs (LLP 3000.017 §3.5).
-pub(crate) fn answer_digest(outcome: &snapback4_core::engine::QueryOutcome, provenance: bool) -> [u8; 32] {
-    use sha2::{Digest, Sha256};
-    #[derive(serde::Serialize)]
-    struct Published<'a> {
-        unavailable: bool,
-        complete: bool,
-        cut: Option<snapback4_core::engine::ReadCut>,
-        next: &'a Option<String>,
-        tables: &'a [String],
-        data: wire::Plain<'a>,
-        provenance: Option<wire::Plain<'a>>,
-    }
-    let mask = provenance.then(|| outcome.data.retained_rows_mask());
-    let published = Published { unavailable: outcome.unavailable, complete: outcome.complete, cut: outcome.cut, next: &outcome.next, tables: &outcome.tables, data: wire::Plain(&outcome.data), provenance: mask.as_ref().map(wire::Plain) };
-    Sha256::digest(serde_json::to_vec(&published).unwrap_or_default()).into()
-}
-
-/// The token table's bounds (LLP 3000.017 §3.5). Past the first three the
-/// least recently followed token makes room, the viewer's own first. A query
-/// that read more principals, or whose token would charge more bytes, than the
-/// last two gets no token: its client re-runs it on a timer instead.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TokenLimits {
-    pub(crate) tokens: usize,
-    pub(crate) bytes: usize,
-    pub(crate) viewer: usize,
-    pub(crate) reads: usize,
-    pub(crate) largest: usize,
-    /// A token no poll has followed for this long lapses.
-    pub(crate) idle: Duration,
-}
-
-pub(crate) const TOKEN_LIMITS: TokenLimits = TokenLimits { tokens: 100_000, bytes: 64 << 20, viewer: 256, reads: 1024, largest: 256 << 10, idle: Duration::from_secs(120) };
-
-#[derive(Debug)]
-struct Held { token: FollowToken, followed: Instant, charge: usize }
-
-/// Live tokens, ordered by when a poll last followed each, in all and per viewer.
-#[derive(Debug)]
-struct Tokens {
-    live: std::collections::HashMap<String, Held>,
-    order: BTreeSet<(Instant, String)>,
-    viewers: BTreeMap<String, BTreeSet<(Instant, String)>>,
-    bytes: usize,
-    limits: TokenLimits,
-}
-
-impl Tokens {
-    fn remove(&mut self, id: &str) {
-        let Some(held) = self.live.remove(id) else { return };
-        let key = (held.followed, id.to_owned());
-        self.order.remove(&key);
-        if let Some(own) = self.viewers.get_mut(&held.token.viewer) {
-            own.remove(&key);
-            if own.is_empty() { self.viewers.remove(&held.token.viewer); }
-        }
-        self.bytes -= held.charge;
-    }
-
-    fn follow(&mut self, id: &str, now: Instant) {
-        let Some(held) = self.live.get_mut(id) else { return };
-        let old = (held.followed, id.to_owned());
-        held.followed = now;
-        self.order.remove(&old);
-        self.order.insert((now, id.to_owned()));
-        if let Some(own) = self.viewers.get_mut(&held.token.viewer) {
-            own.remove(&old);
-            own.insert((now, id.to_owned()));
-        }
-    }
-
-    /// Lapses the tokens no poll followed within the idle bound, least recent
-    /// first, so the work is what lapsed.
-    fn prune(&mut self, now: Instant) {
-        while let Some((followed, id)) = self.order.first().cloned() {
-            if now.saturating_duration_since(followed) < self.limits.idle { break; }
-            self.remove(&id);
-        }
-    }
-
-    fn get(&self, viewer: &str, id: &str, now: Instant) -> Option<&Held> {
-        self.live.get(id).filter(|held| held.token.viewer == viewer && now.saturating_duration_since(held.followed) < self.limits.idle)
-    }
-}
-
-/// A held poll's followed principals, counted while it waits.
-pub(crate) struct Following<'a> {
-    live: &'a Live,
-    principals: BTreeSet<String>,
-}
-
-impl Following<'_> {
-    /// Follows exactly these principals from now on: a re-run can change what
-    /// a token read.
-    pub(crate) fn set(&mut self, principals: BTreeSet<String>) {
-        let mut followers = lock(&self.live.followers);
-        for principal in self.principals.difference(&principals) {
-            if let Some(count) = followers.get_mut(principal) {
-                *count -= 1;
-                if *count == 0 { followers.remove(principal); }
-            }
-        }
-        for principal in principals.difference(&self.principals) { *followers.entry(principal.clone()).or_insert(0) += 1; }
-        self.principals = principals;
-    }
-}
-
-impl Drop for Following<'_> {
-    fn drop(&mut self) { self.set(BTreeSet::new()); }
 }
 
 impl Live {
     // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
-    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self {
-        let tokens = Tokens { live: Default::default(), order: BTreeSet::new(), viewers: BTreeMap::new(), bytes: 0, limits: TOKEN_LIMITS };
-        Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), tokens: Mutex::new(tokens), generation: AtomicU64::new(0) }
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock } }
+
+    fn enter(&self, principal: &str) {
+        let mut map = lock(&self.polls);
+        map.entry(principal.to_owned()).or_insert((0, None)).0 += 1;
     }
 
-    #[cfg(test)]
-    pub(crate) fn limit_tokens(&self, limits: TokenLimits) { lock(&self.tokens).limits = limits; }
-
-    #[cfg(test)]
-    pub(crate) fn token_count(&self) -> (usize, usize) { let tokens = lock(&self.tokens); (tokens.live.len(), tokens.bytes) }
-
-    /// A held poll's follower registration, empty until set.
-    pub(crate) fn following(&self) -> Following<'_> { Following { live: self, principals: BTreeSet::new() } }
-
-    /// Whether any held poll follows this principal.
-    pub(crate) fn followed(&self, principal: &str) -> bool { lock(&self.followers).contains_key(principal) }
-
-    /// Whether any held poll follows anyone.
-    pub(crate) fn any_followed(&self) -> bool { !lock(&self.followers).is_empty() }
-
-    /// The presence generation a poll compares across its checks and its wait.
-    pub(crate) fn generation(&self) -> u64 { self.generation.load(Ordering::SeqCst) }
-
-    /// Issues an opaque token for an answer that read presence, bound to its
-    /// viewer; none when the answer is too large to follow.
-    pub(crate) fn issue(&self, token: FollowToken) -> Option<String> {
-        let minted = lock(&self.clock).presence_now();
-        let now = Instant::now();
-        let charge = token.charge();
-        let mut tokens = lock(&self.tokens);
-        if token.reads.len() > tokens.limits.reads || charge > tokens.limits.largest { return None; }
-        tokens.prune(now);
-        while let Some((_, oldest)) = tokens.viewers.get(&token.viewer).filter(|own| own.len() >= tokens.limits.viewer).and_then(|own| own.first().cloned()) {
-            tokens.remove(&oldest);
-        }
-        while tokens.live.len() >= tokens.limits.tokens || tokens.bytes + charge > tokens.limits.bytes {
-            let Some((_, oldest)) = tokens.order.first().cloned() else { break };
-            tokens.remove(&oldest);
-        }
-        let id = snapback4_core::ids::mint(minted, &mut 0).ok()?;
-        tokens.bytes += charge;
-        tokens.order.insert((now, id.clone()));
-        tokens.viewers.entry(token.viewer.clone()).or_default().insert((now, id.clone()));
-        tokens.live.insert(id.clone(), Held { token, followed: now, charge });
-        Some(id)
-    }
-
-    /// Splits a poll's tokens into the live ones of its viewer, which stay live
-    /// while followed, and the rest, which the poll reports at once so their
-    /// watches re-run. A foreign token reads as lapsed.
-    pub(crate) fn follow_tokens(&self, viewer: &str, ids: &[String]) -> (Vec<String>, Vec<String>) {
-        let now = Instant::now();
-        let mut tokens = lock(&self.tokens);
-        tokens.prune(now);
-        let (mut live, mut lapsed) = (Vec::new(), Vec::new());
-        for id in ids {
-            if tokens.get(viewer, id, now).is_some() { tokens.follow(id, now); live.push(id.clone()); } else { lapsed.push(id.clone()); }
-        }
-        (live, lapsed)
-    }
-
-    /// A live token of this viewer.
-    pub(crate) fn token(&self, viewer: &str, id: &str) -> Option<FollowToken> {
-        lock(&self.tokens).get(viewer, id, Instant::now()).map(|held| held.token.clone())
-    }
-
-    /// The counts a live token of this viewer read, without its arguments.
-    pub(crate) fn reads(&self, viewer: &str, id: &str) -> Option<BTreeMap<String, u64>> {
-        lock(&self.tokens).get(viewer, id, Instant::now()).map(|held| held.token.reads.clone())
-    }
-
-    /// The principals a poll's live tokens read: those whose change wakes it.
-    pub(crate) fn read_principals(&self, viewer: &str, ids: &[String]) -> BTreeSet<String> {
-        let tokens = lock(&self.tokens);
-        let now = Instant::now();
-        ids.iter().filter_map(|id| tokens.get(viewer, id, now)).flat_map(|held| held.token.reads.keys().cloned()).collect()
-    }
-
-    /// Moves a token's baseline to what a re-run of its query published and
-    /// read; a re-run that read too much retires it.
-    pub(crate) fn rebase(&self, id: &str, answer: [u8; 32], reads: BTreeMap<String, u64>, tables: Vec<String>, seq: u64) {
-        let mut tokens = lock(&self.tokens);
-        let limits = tokens.limits;
-        let Some(held) = tokens.live.get_mut(id) else { return };
-        held.token.answer = answer;
-        held.token.reads = reads;
-        held.token.tables = tables;
-        held.token.seq = seq;
-        let (before, charge) = (held.charge, held.token.charge());
-        held.charge = charge;
-        tokens.bytes = tokens.bytes - before + charge;
-        if held_too_large(&tokens.live[id].token, charge, limits) { tokens.remove(id); }
-    }
-
-    /// Stops a token: its query no longer answers its viewer, or its answer
-    /// changed with data the client is told about anyway.
-    pub(crate) fn retire(&self, id: &str) { lock(&self.tokens).remove(id); }
-
-    /// Counts a poll in; whether that moved the count a query reads (not while
-    /// a grace already counts the principal once).
-    fn enter(&self, principal: &str) -> bool {
+    fn leave(&self, principal: &str) {
         let mut map = lock(&self.polls);
         let now = lock(&self.clock).presence_now();
-        let entry = map.entry(principal.to_owned()).or_insert((0, None));
-        let graced = entry.0 == 0 && entry.1.is_some_and(|at| now.saturating_sub(at) < PRESENCE_GRACE.as_millis() as i64);
-        entry.0 += 1;
-        !graced
-    }
-
-    /// A followed principal's count as a query reads it, and how long its grace
-    /// has left while only the grace keeps it connected (LLP 3000.017 §3.2).
-    fn follow(&self, principal: &str) -> (u64, Option<Duration>) {
-        let map = lock(&self.polls);
-        let now = lock(&self.clock).presence_now();
-        match map.get(principal) {
-            Some((open, _)) if *open > 0 => (u64::from(*open), None),
-            Some((_, Some(last))) => {
-                let remaining = (PRESENCE_GRACE.as_millis() as i64).saturating_sub(now.saturating_sub(*last));
-                if remaining > 0 { (1, Some(Duration::from_millis(remaining as u64))) } else { (0, None) }
-            }
-            _ => (0, None),
-        }
-    }
-
-    /// Counts a poll out; whether that moved the count a query reads. The last
-    /// poll out does not: its grace counts the principal once until it ends.
-    fn leave(&self, principal: &str) -> bool {
-        let mut map = lock(&self.polls);
-        let now = lock(&self.clock).presence_now();
-        let mut moved = false;
         if let Some(entry) = map.get_mut(principal) {
-            moved = entry.0 > 1;
             entry.0 = entry.0.saturating_sub(1);
             entry.1 = Some(now);
         }
         map.retain(|_, (open, last)| *open > 0 || last.is_some_and(|at| now.saturating_sub(at) < PRESENCE_GRACE.as_millis() as i64));
-        moved
     }
-}
-
-fn held_too_large(token: &FollowToken, charge: usize, limits: TokenLimits) -> bool {
-    token.reads.len() > limits.reads || charge > limits.largest
 }
 
 impl Presence for Live {
@@ -587,7 +302,6 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
-        #[cfg(test)] poll_checked: Mutex::new(None),
     });
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -1011,32 +725,6 @@ fn query_params(url: &str) -> BTreeMap<String, String> {
 
 // Identity and head are a single snapshot from the owner of the evaluated
 // operation. Mutation replay's seq is historical; head is never that receipt.
-/// Runs a query as a `/q/` read does: on a detached reader when one is free,
-/// on the engine otherwise. A follow token's re-run uses it too.
-pub(crate) fn evaluate(shared: &Shared, op: &str, context: Context) -> (Result<snapback4_core::engine::QueryOutcome, Refusal>, Result<(String, u64), Refusal>) {
-    let reader = {
-        let engine = lock(&shared.engine);
-        lock(&shared.readers).take(&engine)
-    };
-    match reader {
-        Ok((epoch, mut reader)) => {
-            // Take identity from the same reader that evaluates the query,
-            // never from an engine that may have replaced it meanwhile.
-            let metadata = response_head(&mut reader);
-            let outcome = reader.query(op, context);
-            if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-            (outcome, metadata)
-        }
-        // `--fresh` deliberately uses an in-memory store, which
-        // has no second SQLite connection to detach.
-        Err(_) => {
-            let mut engine = lock(&shared.engine);
-            let metadata = response_head(&mut engine);
-            (engine.query(op, context), metadata)
-        }
-    }
-}
-
 fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
     let tx = engine.store_mut().read_transaction()?;
     let id: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).map_err(snapback4_core::RuntimeError::from)?;
@@ -1296,7 +984,6 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
             let viewer = principal.clone();
-            let token_args = path.starts_with("/q/").then(|| args.clone());
             let mut context = Context::new(principal, args).at(shared.now());
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
@@ -1305,15 +992,30 @@ fn handle(mut request: Request, shared: &Shared) {
                     operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}")));
                     return;
                 }
-                let (outcome, metadata) = evaluate(shared, &op, context);
+                let reader = {
+                    let engine = lock(&shared.engine);
+                    lock(&shared.readers).take(&engine)
+                };
+                let (outcome, metadata) = match reader {
+                    Ok((epoch, mut reader)) => {
+                        // Take identity from the same reader that evaluates the query,
+                        // never from an engine that may have replaced it meanwhile.
+                        let metadata = response_head(&mut reader);
+                        let outcome = reader.query(&op, context);
+                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
+                        (outcome, metadata)
+                    },
+                    // `--fresh` deliberately uses an in-memory store, which
+                    // has no second SQLite connection to detach.
+                    Err(_) => {
+                        let mut engine = lock(&shared.engine);
+                        let metadata = response_head(&mut engine);
+                        (engine.query(&op, context), metadata)
+                    },
+                };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
-                        // @ref LLP 3000.017#3.5 — an answer that read presence leaves an opaque token for its query, bound to its viewer; an empty one when the server will not follow it.
-                        let follow = (!outcome.presence.is_empty()).then(|| shared.presence.issue(FollowToken {
-                            viewer: viewer.clone(), op: op.clone(), args: token_args.unwrap_or_default(), args_bytes: args_json.to_string().len(), provenance,
-                            answer: answer_digest(&outcome, provenance), reads: outcome.presence.clone(), tables: outcome.tables.clone(), seq: outcome.seq,
-                        }).unwrap_or_default());
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             complete: bool,
@@ -1330,10 +1032,11 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter: Option<Json>,
                             #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
                             row_provenance: Option<wire::Plain<'a>>,
-                            // @ref LLP 3000.017#3.5 — a token for the query behind this answer, never the presence it read.
                             #[serde(skip_serializing_if = "Option::is_none")]
-                            presence: Option<String>,
+                            refresh: Option<u64>,
                         }
+                        // @ref LLP 3000.017#3 — an answer that read presence asks its client to re-run it: no change feed names presence.
+                        let refresh = (!outcome.presence.is_empty()).then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
@@ -1343,12 +1046,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
-                            if let Some(token) = &follow { reply["presence"] = json!(token); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
+                            if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, presence: follow });
+                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
@@ -1525,7 +1228,6 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
-            poll_checked: Mutex::new(None),
         });
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {

@@ -19,8 +19,8 @@ authenticated `/probe` confirms recovery. Suspended hosts notify on resume.
 It is not a table: nothing
 syncs, nothing is written. A mutation uses it to defer an absence-guarded
 notification while a connected-looking client is unconfirmed (guide effects); a query reads it for an online mark.
-An observed query follows its own answer: when a count it read moves (a first poll, another device, or
-the end of the grace after the last poll), it answers again within a second if its answer changed.
+An observed query that reads it re-runs every 5 seconds, keeping its answer meanwhile, so an online
+mark turns within 5 seconds of a first poll and of the end of the grace after the last one.
 On a device the word is unknown: a query that reads it is `complete: false`, and the server answers it online.
 A mutation stays eligible to predict when presence decides only effects: connection state never changes its rows or result on a successful commit, but can change which effect arms run and therefore its charges, as live versus absent presence already could. The server commits the effects and defers unconfirmed absence decisions until their deadline. The paved `if not exists connected[p]: emit …` form charges the same whether the recipient is held, graced or absent.
 Shared boolean payloads and separate positive-presence emits can cost more for

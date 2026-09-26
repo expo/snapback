@@ -1,6 +1,7 @@
-// LLP 3000.017: a live query that reads connected[p] follows p. Alice's
-// observed online mark for Bob moves when Bob's client starts polling and
-// when his grace ends, on every client tier.
+// LLP 3000.017: a live query that reads connected[p] re-runs on the interval
+// its server names. Alice's observed online mark for Bob turns when Bob's
+// client starts polling and when his grace ends, on every client tier, and
+// never falls back to loading while it refreshes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -61,10 +62,18 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const bob = createClient(options("bob"));
   clients.push(bob);
   const bobWatch = bob.observe(query, { p: "dev:alice" });
-  const cameOnline = await until(() => online() === true && mark.getSnapshot().fresh === true);
+  const cameOnline = await until(() => online() === true, 8000);
   assert.notEqual(cameOnline, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob came online`);
   // The count rides along; a client that restarts its poll briefly holds two.
   assert.ok(mark.getSnapshot().data.count >= 1);
+  // A refresh keeps the answer: sampled like a screen would, across a whole
+  // interval with no commit, the mark never reads loading.
+  let loading = 0, samples = 0, refreshes = 0;
+  const stop = mark.subscribe(() => { if ("data" in mark.getSnapshot()) refreshes++; });
+  for (const end = Date.now() + 6000; Date.now() < end; await sleep(50)) { samples++; if ("loading" in mark.getSnapshot()) loading++; }
+  stop();
+  assert.equal(loading, 0, `a presence refresh keeps its answer: ${loading} of ${samples} samples read loading`);
+  assert.ok(refreshes >= 1 && online() === true, "the mark refreshed and Bob is still online");
 
   // Bob leaves. His grace keeps him connected until the clock passes it.
   bobWatch.close();
@@ -78,8 +87,8 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const started = Date.now();
   const wentAway = await until(async () => {
     assert.equal(await advance(), 200);
-    return await until(() => online() === false && mark.getSnapshot().fresh === true, 1000) !== null;
-  }, 10000);
+    return await until(() => online() === false, 6500) !== null;
+  }, 20000);
   assert.notEqual(wentAway, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob's grace ended`);
   t.diagnostic(JSON.stringify({ tier, cameOnlineMs: cameOnline, wentAwayAfterCloseMs: Date.now() - started }));
 });
