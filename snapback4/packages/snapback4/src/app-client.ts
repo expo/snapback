@@ -60,6 +60,13 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const detach = () => { stop?.(); source?.close(); source = undefined; stop = undefined; };
       cleanups.add(detach); invalidations.add(emit);
       const refresh = async () => {
+        // @ref LLP 3000.019#3.3 — withdrawal cannot wait for storage; only data publication needs authority.
+        const read = source?.getSnapshot();
+        if (!closed && read && ("loading" in read || "denied" in read)) {
+          snapshot = valid() ? read : denied();
+          emit();
+          return;
+        }
         const refused = await refusal();
         if (closed) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };

@@ -6,6 +6,9 @@ import { LocalReads } from "../dist/local-reads.js";
 import { observeWatch } from "../dist/observe-watch.js";
 import { guardClient } from "../dist/app-client.js";
 import { createClient } from "../dist/client.js";
+import { createApp } from "../dist/app.js";
+import { keepSession, memorySessionStore } from "../dist/auth.js";
+import { ServerClock } from "../dist/clock.js";
 const ready = data => ({ data, complete: true, cut: null, fresh: true, next: null });
 const why = { code: "HIDDEN", family: "rule", message: "no longer visible" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
@@ -203,6 +206,58 @@ test("the app client forwards keep while its lifetime fence still withdraws data
   f.hold(false); for (const release of f.releases) release.resolve();
   await delay(10);
   assert.deepEqual(watch.getSnapshot(), { denied: why });
+});
+
+test("createApp forwards source expiry while sessionStore.get is held", async t => {
+  const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
+  const clock = new ServerClock(() => wall), memory = memorySessionStore(), held = deferred();
+  const session = { kind: "user", token: "kept", principal: "alice", expiresAt: wall + 90 * 86400000 };
+  await keepSession(url, session, memory);
+  let holding = false, blocked = 0;
+  const app = createApp({ url, sessionStore: { ...memory, async get(key) {
+    if (holding) { blocked++; await held.promise; }
+    return memory.get(key);
+  } }, fetch: clock.wrap(async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json({ schema: { tables: {} }, programs: [] });
+    if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+    if (path === "/probe") return Response.json({ ok: true, principal: "alice" });
+    if (path.startsWith("/q/")) return Response.json({ ...ready("expires"), nextExpiry: deadline });
+    throw Error(path);
+  }) });
+  t.after(async () => { holding = false; held.resolve(); await app.close(); });
+  assert.equal((await app.ready).ok, true);
+  const watch = app.client.observe(q, {}, { keep: true }), snapshots = [];
+  watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+  await until(() => watch.getSnapshot().data === "expires" && watch.getSnapshot().fresh);
+  holding = true; snapshots.length = 0;
+  clock.sample(deadline + 1, wall, wall, "server:1");
+  await until(() => blocked > 0);
+  await delay(10);
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "session storage cannot hold an expired row on screen");
+  assert.ok(snapshots.some(read => read.loading), "the source withdrawal notifies the app subscriber before storage resumes");
+});
+
+for (const withdrawn of [{ loading: true }, { denied: why }]) test(`app facade forwards ${"loading" in withdrawn ? "loading" : "denied"} synchronously but gates replacement data`, async () => {
+  const authority = deferred(), listeners = new Set(); let hold = false, snapshot = ready("old");
+  const source = { getSnapshot: () => snapshot, subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }, close() {} };
+  const facade = guardClient({ observe: () => source }, () => hold ? authority.promise : Promise.resolve(true), () => true, () => why);
+  const watch = facade.client.observe(q, {}, { keep: true }), seen = [];
+  watch.subscribe(() => seen.push(watch.getSnapshot()));
+  await until(() => watch.getSnapshot().data === "old");
+  hold = true; snapshot = ready("waiting");
+  for (const listener of listeners) listener();
+  assert.equal(watch.getSnapshot().data, "old", "new data waits for authority");
+  snapshot = withdrawn;
+  for (const listener of listeners) listener();
+  assert.deepEqual(watch.getSnapshot(), withdrawn, "withdrawal is synchronous");
+  assert.deepEqual(seen.at(-1), withdrawn, "notification is synchronous too");
+  snapshot = ready("new");
+  for (const listener of listeners) listener();
+  assert.deepEqual(watch.getSnapshot(), withdrawn, "replacement data still waits for authority");
+  authority.resolve(true);
+  await until(() => watch.getSnapshot().data === "new");
+  watch.close(); facade.fence()();
 });
 
 test("online keep preserves the existing expiry withdrawal before a held refetch", async t => {
