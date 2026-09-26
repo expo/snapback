@@ -69,4 +69,48 @@ fn a_variant_whose_only_extra_work_is_cleanup_says_so_inside_a_growing_certifica
     let c = analyze(&b.schema, &b.programs[0].program);
     assert!(c.variants.len() == 4 && c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
     assert!(!c.line().contains("constant once background cleanup catches up") && !c.line().contains(": constant"), "{}", c.line());
+    // So does growth under a condition the variant shares: status present or absent covers every variant.
+    let shared = source.replace("  return t where", "  extra = t where (status = null or .status = status) first 2 by .at after c\n  return t where");
+    let b = snapback4_lang::compile(&[("schema.q".into(), shared.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let c = analyze(&b.schema, &b.programs[0].program);
+    assert!(c.variants.iter().filter(|v| v.when.contains("assignee")).all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    assert!(!c.line().contains("constant once background cleanup catches up"), "{}", c.line());
+}
+
+#[test]
+fn a_coarser_variant_takes_the_growth_of_every_site_that_can_run_with_it() {
+    // `byAssignee` varies only with the assignee; `both`, which grows by its residual filter,
+    // varies with status too. When the assignee is present, `both` runs whatever the status.
+    let source = "table t:\n  assignee: principal\n  status: enum('todo', 'done')\n  note: text <=20\n  at: time\n  public\n  online only\nquery q(status: enum('todo', 'done') ?, assignee: principal ?, c: cursor ?):\n  byAssignee = t where (assignee = null or .assignee = assignee) first 2 by .at after c\n  both = t where (status = null or .status = status) and (assignee = null or .assignee = assignee) and .note != 'x' first 2 by .at after c\n  return byAssignee\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let c = analyze(&b.schema, &b.programs[0].program);
+    let coarse: Vec<_> = c.variants.iter().filter(|v| v.when == "assignee is present").collect();
+    assert_eq!(coarse.len(), 1, "{:?}", c.variants);
+    assert_eq!(coarse[0].class, Class::Grows, "{:?}", c.variants);
+    assert!(!c.line().contains("when assignee is present: constant"), "{}", c.line());
+    // Growth under an unrelated input runs beside every variant too (Grok, scale round 2).
+    let orthogonal = "table notes:\n  owner: principal\n  tag: text <=40\n  read <- .owner = viewer\ntable t:\n  assignee: principal\n  status: enum('todo', 'done')\n  at: time\n  until: time\n  expire at .until\n  read <- .assignee = viewer\nquery ortho(status: enum('todo', 'done') ?, assignee: principal ?, label: text <=40 ?, c: cursor ?):\n  extra = notes where (label = null or .tag = label) first 2 by .id after c\n  return t where (status = null or .status = status) and (assignee = null or .assignee = assignee) first 2 by .at after c\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), orthogonal.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let c = analyze(&b.schema, &b.programs[0].program);
+    assert!(c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    assert!(!c.line().contains("constant once background cleanup catches up"), "{}", c.line());
+}
+
+#[test]
+fn unconditional_cleanup_makes_otherwise_constant_variants_a_backlog() {
+    // A public expiring scan runs in every call; beside it, the optional-assignee scan is
+    // constant where the assignee is pinned, and grows by its read rule where it is not.
+    let source = "table e:\n  at: time\n  until: time\n  expire at .until\n  public\n  online only\ntable t:\n  assignee: principal\n  status: enum('todo', 'done')\n  at: time\n  read <- .assignee = viewer\nquery q(status: enum('todo', 'done') ?, assignee: principal ?, c: cursor ?):\n  early = e first 2 by .at\n  return t where (status = null or .status = status) and (assignee = null or .assignee = assignee) first 2 by .at after c\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let c = analyze(&b.schema, &b.programs[0].program);
+    assert_eq!(c.class, Class::Grows);
+    let json = serde_json::to_value(&c).unwrap();
+    assert!(c.variants.iter().all(|v| v.class != Class::Constant), "{:?}", c.variants);
+    assert_eq!(c.variants.iter().filter(|v| v.class == Class::Backlog).count(), 2, "{:?}", c.variants);
+    assert!(json["variants"].as_array().unwrap().iter().filter(|v| v["class"] == "backlog").count() == 2, "{json}");
+    assert!(!c.line().contains(": constant"), "{}", c.line());
 }

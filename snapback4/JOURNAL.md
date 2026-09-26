@@ -59482,3 +59482,16 @@ condition's cleanup promise ignored unconditional growth; every variant now
 takes at least the class of the work that runs in all of them. The summary
 test now pins all three counts, and a test pins the guide's and README's
 three-class wording.
+
+## 2026-09-26 — Scale certificate round 3: a variant answers for every site that can run with it
+
+Both reviews of round 2 found that a condition's class still ignored growth
+recorded under other conditions: a scan that grows whether `status` is present
+or absent, or whatever `label` is, runs beside the variant where the assignee
+is pinned, yet that variant still promised `constant once background cleanup
+catches up`. Sites and variants now keep their presence conditions, and every
+variant takes at least the class of each site whose conditions do not
+contradict its own. Unconditional sites contradict nothing. New tests cover a
+status-wide scan, an orthogonal input, a coarser variant beside a finer
+growing site, and an unconditional expiring scan that makes otherwise
+constant variants a backlog.

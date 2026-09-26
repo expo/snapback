@@ -40,6 +40,9 @@ pub(crate) struct Variant {
     pub when: String,
     pub class: Class,
     pub indexes: BTreeSet<String>,
+    /// The presence conditions `when` names, each argument present or absent.
+    #[serde(skip)]
+    pub conditions: Vec<(String, bool)>,
 }
 
 /// Bounds are conservative allowances, not predictions or a promise that a
@@ -65,6 +68,9 @@ pub(crate) struct Growth {
     pub site: String,
     pub reason: String,
     pub rewrite: String,
+    /// The presence conditions under which the site runs; none for every call.
+    #[serde(skip)]
+    pub conditions: Vec<(String, bool)>,
 }
 
 pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
@@ -122,10 +128,14 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
     // @ref LLP 3000.013#14.4 — skips that background cleanup removes are a backlog, not growth with the corpus.
     a.result.class = if a.result.growth_sites.is_empty() { Class::Constant }
         else if a.result.growth_sites.iter().all(|g| g.backlog) { Class::Backlog } else { Class::Grows };
-    // Unconditional work runs in every variant, so no variant is better than it.
-    let unconditional = a.result.growth_sites.iter().filter(|g| g.when.is_none())
-        .map(|g| if g.backlog { Class::Backlog } else { Class::Grows }).max().unwrap_or(Class::Constant);
-    for variant in &mut a.result.variants { variant.class = variant.class.max(unconditional); }
+    // A site can run in every variant its conditions do not contradict, the
+    // unconditional ones in all of them, so no variant is better than such a site.
+    for variant in &mut a.result.variants {
+        for site in &a.result.growth_sites {
+            let contradicts = site.conditions.iter().any(|(name, present)| variant.conditions.iter().any(|(other, value)| name == other && present != value));
+            if !contradicts { variant.class = variant.class.max(if site.backlog { Class::Backlog } else { Class::Grows }); }
+        }
+    }
     // Do not clip structural allowances to ceilings: the runtime records
     // the charge that crosses a ceiling, and a query may try later sites.
     a.result
@@ -152,7 +162,7 @@ impl Analysis<'_> {
 
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
         self.variant(Class::Grows, None);
-        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into() };
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.conditions.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
@@ -160,14 +170,14 @@ impl Analysis<'_> {
     /// backlog lasts, and absent once cleanup catches up.
     fn backlog(&mut self, site: &str, reason: String, rewrite: &str) {
         self.variant(Class::Backlog, None);
-        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into() };
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.conditions.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
     fn variant(&mut self, class: Class, index: Option<String>) {
         let Some(when) = display::conditions(&self.conditions) else { return; };
         let at = self.result.variants.iter().position(|v| v.when == when).unwrap_or_else(|| {
-            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new() });
+            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new(), conditions: self.conditions.clone() });
             self.result.variants.len() - 1
         });
         let variant = &mut self.result.variants[at];
