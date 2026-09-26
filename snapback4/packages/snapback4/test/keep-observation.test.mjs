@@ -56,12 +56,28 @@ test("keep carries the original since across loading, then accepts null, empty d
 test("lingering watches close on the 30-second timer and cannot return after clock rollback", t => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
   const watches = new Map(); let stops = 0;
+  let expired = 0, refreshed = 0;
   const open = () => observeWatch(watches, "key", () => Object.assign(new ReadObservation(true), {
     key: "key", subscribers: new Set(), expiryTimer: null, presenceRefresh: null,
   }), () => {}, () => stops++, () => null);
-  const watch = open(); watches.get("key").publish(ready("old")); watch.close();
+  const watch = open(), observed = watches.get("key");
+  observed.publish(ready("old"));
+  observed.expiryTimer = setTimeout(() => expired++, 60_000);
+  observed.presenceRefresh = setTimeout(() => refreshed++, 60_000);
+  const expiry = observed.expiryTimer, presence = observed.presenceRefresh;
+  const cancel = t.mock.method(globalThis, "clearTimeout");
+  watch.close();
   assert.equal(watches.size, 1);
+  t.mock.timers.tick(29_999);
+  assert.equal(cancel.mock.callCount(), 0, "expiry and presence stay armed while lingering");
+  t.mock.timers.tick(1);
+  assert.ok(cancel.mock.calls.some(call => call.arguments[0] === expiry), "close cancels the installed expiry timer");
+  assert.ok(cancel.mock.calls.some(call => call.arguments[0] === presence), "close cancels the installed presence timer");
+  assert.equal(observed.expiryTimer, null);
+  assert.equal(observed.presenceRefresh, null);
   t.mock.timers.tick(30_000);
+  assert.equal(expired, 0, "the closed watch's expiry callback never runs");
+  assert.equal(refreshed, 0, "the closed watch's presence callback never runs");
   t.mock.timers.setTime(1000);
   assert.equal(watches.size, 0); assert.equal(stops, 1);
   assert.deepEqual(watch.getSnapshot(), { loading: true });
