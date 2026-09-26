@@ -63621,3 +63621,44 @@ branch counted as staying. The scale, cost, check, expiry and fix targets pass:
 `check` 71, `check_cost_source` 10, `expiry_writes` 32, `fix` 27,
 `following_view` 2, `intent_issue_tracker` 4, `scale` 20, `scale_intent` 7,
 `scale_variants` 23, `scale_windows_expiry` 7.
+
+## 2026-09-26 — Scale certificate precision round 1: each branch starts from the tests before it
+
+Both families reviewed round 0. Astra returned NOT READY with two High soundness
+regressions, and Grok READY WITH CHANGES with three Lows. Both High findings
+came from boolean bindings, the one new mutable state in the walk:
+
+- **The `then` arm's bindings leaked into the `else` arm.** Arms were walked in
+  turn over one `tests` map, and the reassignments were invalidated only after
+  both. So `known = true; if flag: (if known: known = false) else: (if known:
+  return t first 2)` certified the `else` arm's scan as never running. The same
+  happened inside a helper's expression block. Each arm now starts from a
+  snapshot of the tests in force. The `and`/`or` step is read at the end of its
+  own arm. After the `if`, the snapshot returns, and every binding either arm
+  reassigned holds no test.
+- **A loop's rebuilt test survived the loop.** At entry, a loop's reassigned
+  bindings were cleared, but the body could rebuild one (`known = true; if
+  known: known = assignee != null`) and carry it out, although the loop can
+  run no times. They are now cleared again after the loop.
+
+Grok's Lows are precision:
+
+- **A constant side of `and`/`or` hid the other's facts.** `false or assignee
+  != null` stated nothing. `facts()` now lets a side the facts decide as its
+  operator's identity leave the other side to decide the whole. So
+  `assignee != null and (assignee = null or false)` never holds.
+- **A `require` inside an arm that always runs, or inside both arms, did not
+  condition what followed the `if`.** `body()` now returns the facts that hold
+  where it falls through, not only whether it leaves. After an `if`, what
+  follows runs under the facts every staying arm keeps.
+- **A dead assignment cleared a live binding.** Code that never runs now
+  assigns nothing, in an arm or in a loop.
+
+Astra's Low: nothing pinned `or` with a true operand, or `and` with a false one,
+beside an unknown. Four refusals now do.
+
+Evidence: 27 variant tests, 12 of them new. Astra's and Grok's repros are among
+them, including the sibling-arm case inside a helper, an empty loop, a weaker
+reassignment in an arm, dead assignments, constant sides, and refusals kept
+after an arm. Grok's surviving mutation, both sides' facts for a true `or`, now
+fails `a_constant_side_of_and_or_or_leaves_the_other_to_decide`.

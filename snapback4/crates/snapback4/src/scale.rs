@@ -259,14 +259,25 @@ impl Test {
         }
     }
 
-    /// The presence facts that hold wherever the test has `value`.
-    fn facts(&self, value: bool, out: &mut Vec<Fact>) {
+    /// The presence facts that hold wherever the test has `value`, given the facts `known`.
+    fn facts(&self, value: bool, known: &[(String, bool)], out: &mut Vec<Fact>) {
         match self {
             Test::Present(identity, name, present) => out.push((identity.clone(), name.clone(), *present == value)),
-            Test::Not(test) => test.facts(!value, out),
-            Test::And(a, b) if value => { a.facts(true, out); b.facts(true, out); }
-            Test::Or(a, b) if !value => { a.facts(false, out); b.facts(false, out); }
-            _ => {}
+            Test::Not(test) => test.facts(!value, known, out),
+            Test::And(a, b) | Test::Or(a, b) => {
+                let and = matches!(self, Test::And(..));
+                if value == and {
+                    // `a and b` holds, or `a or b` fails: so does each side.
+                    a.facts(value, known, out);
+                    b.facts(value, known, out);
+                } else {
+                    // `a and b` fails, or `a or b` holds: a side known to be `true` (`false` for
+                    // `or`) leaves the other to decide it.
+                    if a.value(known) == Some(and) { b.facts(value, known, out); }
+                    if b.value(known) == Some(and) { a.facts(value, known, out); }
+                }
+            }
+            Test::Known(_) | Test::Unknown => {}
         }
     }
 }
@@ -327,7 +338,7 @@ impl Analysis<'_> {
     fn assume(&self, test: &Test, value: bool) -> Option<Vec<Fact>> {
         if test.value(&self.identities).is_some_and(|holds| holds != value) { return None; }
         let mut facts = Vec::new();
-        test.facts(value, &mut facts);
+        test.facts(value, &self.identities, &mut facts);
         let mut added: Vec<Fact> = Vec::new();
         for (identity, name, present) in facts {
             let known = self.identities.iter().map(|(known, value)| (known, *value))
@@ -343,7 +354,7 @@ impl Analysis<'_> {
     }
 
     /// Walks with `facts` added to those in force, or, without any, as code no call reaches.
-    fn under(&mut self, facts: Option<&[Fact]>, walk: impl FnOnce(&mut Self) -> bool) -> bool {
+    fn under<T>(&mut self, facts: Option<&[Fact]>, walk: impl FnOnce(&mut Self) -> T) -> T {
         let Some(facts) = facts else {
             self.unreachable += 1;
             let leaves = walk(self);
@@ -434,10 +445,12 @@ impl Analysis<'_> {
         match bound { Bound::Meter => self.result.bounds.meters.examined, _ => bound.maximum() }
     }
 
-    /// Walks a body and says whether every path through it leaves it: a `return`,
-    /// `break` or `continue`, a refusal where its test fails, or a test each of whose
-    /// branches leaves or never runs. A loop may not run, so it never leaves.
-    fn body(&mut self, body: &[Stmt], times: u64) -> bool {
+    /// Walks a body. `None` when every path through it leaves it: a `return`, `break`
+    /// or `continue`, a refusal where its test fails, or a test each of whose branches
+    /// leaves or never runs. Otherwise the presence facts, beyond those in force, that
+    /// hold wherever it falls through. A loop may not run, so it never leaves and
+    /// states nothing.
+    fn body(&mut self, body: &[Stmt], times: u64) -> Option<Vec<Fact>> {
         for (at, stmt) in body.iter().enumerate() {
             let rest = &body[at + 1..];
             match stmt {
@@ -450,17 +463,20 @@ impl Analysis<'_> {
                     // never clear a possible dependency on another path.
                     *self.data.entry(name.clone()).or_default() |= data;
                     // A binding holds the test it is defined with. Reassigned, it holds none from
-                    // here, except the step of an `and` or `or`, which its `if` recovers.
-                    let test = if matches!(stmt, Stmt::Assign { .. }) { self.written.push(name.clone()); Test::Unknown } else { self.test(value) };
-                    self.tests.insert(name.clone(), test);
+                    // here, except the step of an `and` or `or`, which its `if` recovers. Code that
+                    // never runs assigns nothing.
+                    if self.unreachable == 0 {
+                        let test = if matches!(stmt, Stmt::Assign { .. }) { self.written.push(name.clone()); Test::Unknown } else { self.test(value) };
+                        self.tests.insert(name.clone(), test);
+                    }
                 }
                 Stmt::Push { target, value } => {
                     let data = self.expr(value, times);
                     *self.data.entry(target.clone()).or_default() |= data;
                 }
                 // Nothing after a statement that leaves the body runs.
-                Stmt::Return(value) => { self.expr(value, times); self.never(rest, times); return true; }
-                Stmt::Break | Stmt::Continue => { self.never(rest, times); return true; }
+                Stmt::Return(value) => { self.expr(value, times); self.never(rest, times); return None; }
+                Stmt::Break | Stmt::Continue => { self.never(rest, times); return None; }
                 Stmt::Emit { payload, once, .. } => {
                     self.expr(payload, times);
                     if let Some(key) = once {
@@ -475,41 +491,45 @@ impl Analysis<'_> {
                     // ways in one call. Each branch runs under the facts its test adds, or never, when they
                     // contradict the facts in force.
                     let test = self.test(condition);
-                    let tested = match condition { Expr::Variable(name) => self.tests.get(name).cloned().map(|before| (name, before)), _ => None };
-                    let written = self.written.len();
-                    let mut stays = Vec::new();
-                    for (branch, value) in [(then_body, true), (else_body, false)] {
-                        let facts = self.assume(&test, value);
-                        let leaves = self.under(facts.as_deref(), |a| a.body(branch, times));
-                        if let Some(facts) = facts && !leaves { stays.push(facts); }
+                    // Each arm starts from the bindings' tests as they stand here.
+                    let (incoming, written) = (self.tests.clone(), self.written.len());
+                    let (mut stays, mut combined) = (Vec::new(), None);
+                    for (branch, other, holds) in [(then_body, else_body, true), (else_body, then_body, false)] {
+                        self.tests = incoming.clone();
+                        let facts = self.assume(&test, holds);
+                        let end = self.under(facts.as_deref(), |a| a.body(branch, times));
+                        // An arm that runs and falls through keeps its test's facts and its own.
+                        if let (Some(facts), Some(end)) = (facts, end) { stays.push([facts, end].concat()); }
+                        // `x and y` binds `b = x; if b: b = y`, and `x or y` binds `b = x; if b: else: b = y`;
+                        // the step's value is read where its arm ends.
+                        if let Expr::Variable(name) = condition && other.is_empty()
+                            && let (Some(assigned), Some(before)) = (step(branch, name), incoming.get(name)) {
+                            let (before, after) = (Box::new(before.clone()), Box::new(self.test(assigned)));
+                            combined = Some((name.clone(), if holds { Test::And(before, after) } else { Test::Or(before, after) }));
+                        }
                     }
-                    // `x and y` binds `b = x; if b: b = y`, and `x or y` binds `b = x; if b: else: b = y`.
-                    let combined = tested.and_then(|(name, before)| {
-                        let test = match (step(then_body, name), step(else_body, name)) {
-                            (Some(value), None) if else_body.is_empty() => Test::And(Box::new(before), Box::new(self.test(value))),
-                            (None, Some(value)) if then_body.is_empty() => Test::Or(Box::new(before), Box::new(self.test(value))),
-                            _ => return None,
-                        };
-                        Some((name.clone(), test))
-                    });
-                    // Any other binding a branch reassigns holds either path's value after it.
+                    // After the `if`, a binding either arm reassigned holds either path's value, so no
+                    // test, except the `if`'s own step.
+                    self.tests = incoming;
                     for name in self.written[written..].to_vec() { self.tests.insert(name, Test::Unknown); }
                     if let Some((name, test)) = combined { self.tests.insert(name, test); }
-                    // @ref LLP 3000.013#14.4 — what follows runs only after a branch that can run and
-                    // does not leave, so after one alone it runs under that branch's facts.
-                    match stays.as_slice() {
-                        [] => { self.never(rest, times); return true; }
-                        [facts] if !facts.is_empty() => { let facts = facts.clone(); return self.under(Some(&facts), |a| a.body(rest, times)); }
-                        _ => {}
-                    }
+                    // @ref LLP 3000.013#14.4 — what follows runs only after an arm that can run and does
+                    // not leave, under the facts every such arm keeps.
+                    let mut stays = stays.into_iter();
+                    let Some(first) = stays.next() else { self.never(rest, times); return None; };
+                    let kept: Vec<Fact> = match stays.next() {
+                        Some(second) => first.into_iter().filter(|fact| second.contains(fact)).collect(),
+                        None => first,
+                    };
+                    if !kept.is_empty() { return self.after(kept, rest, times); }
                 }
                 Stmt::Require { condition, .. } => {
                     self.expr(condition, times);
                     // A refusal leaves where its test fails, so what follows runs only where it holds.
                     let test = self.test(condition);
                     match self.assume(&test, true) {
-                        None => { self.never(rest, times); return true; }
-                        Some(facts) if !facts.is_empty() => return self.under(Some(&facts), |a| a.body(rest, times)),
+                        None => { self.never(rest, times); return None; }
+                        Some(facts) if !facts.is_empty() => return self.after(facts, rest, times),
                         Some(_) => {}
                     }
                 }
@@ -554,19 +574,28 @@ impl Analysis<'_> {
                 }
             }
         }
-        false
+        Some(Vec::new())
     }
 
-    /// A body that runs again and again: a binding it reassigns can carry a later
-    /// value back to its start, so the walk knows no test of it there.
+    /// Walks what follows under `facts`, which then also hold wherever it falls through.
+    fn after(&mut self, facts: Vec<Fact>, rest: &[Stmt], times: u64) -> Option<Vec<Fact>> {
+        let end = self.under(Some(&facts), |a| a.body(rest, times))?;
+        Some([facts, end].concat())
+    }
+
+    /// A body that runs again and again, or not at all: a binding it reassigns can
+    /// carry a later value back to its start, or keep its value from before it, so
+    /// the walk knows no test of it inside or after.
     fn repeated(&mut self, body: &[Stmt], times: u64) {
-        for name in assigned(body) { self.tests.remove(&name); }
+        let assigned = assigned(body);
+        for name in &assigned { self.tests.remove(name); }
         self.body(body, times);
+        for name in &assigned { self.tests.remove(name); }
     }
 
     /// Statements that never run: walked for their bindings, but no site of theirs counts.
     fn never(&mut self, body: &[Stmt], times: u64) {
-        self.under(None, |a| a.body(body, times));
+        self.under(None, |a| { a.body(body, times); });
     }
 
     fn domain(&mut self, domain: &LoopDomain, times: u64, spelling: Option<&str>) -> (u64, bool) {
