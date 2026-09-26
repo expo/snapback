@@ -63711,3 +63711,51 @@ budget or meter, change device runtime code, or rewrite prior journal entries.
 The round-2 section of `reports/20260926-p2-extremum-expressions.md` records the
 files, examples, mutation evidence and logs. Only that report and this entry
 were added after qualification.
+
+
+## 2026-09-26 — 0.4.4 P2 round 3: unknown projection errors and appended-list bounds
+
+Read the lane prompt, prior report, and both complete round-2 blind reviews;
+accepted every finding. In the shared aggregate projection evaluator, restore
+`$filter`, check the meter, then give unknown scalar coverage precedence over
+an application error derived from a null placeholder. Both devices now return
+null/incomplete for `min(t, 10 / (secrets[.target].n ?? 0))` when only `t` is
+held; the server returns 2/complete with a secret value of 5. Memory and SQLite
+regressions cover min, max with an outer default, and a materialized page,
+before and after reopen. Fully synced controls agree with the server, and
+known zero-divisor controls still raise E_DIV_ZERO. Both new tests reproduced
+the erroneous E_DIV_ZERO before the fix. Commit: `4087278f3`.
+
+The collection census now resolves a sentinel-valued derived array through its
+source list after all pushes and assignments have been collected. The same
+bound prices reads directly inside that loop. Grok's exact copy program and
+its scalar-list shaped twin each certify Constant / 2 examinations, execute
+two, and return 9. Nested alias/shape bounds multiply correctly; unknown and
+cyclic sources retain the step-ceiling fallback; declared argument maxima,
+including u32::MAX, remain contracts. The scalar-list shape uses `{ n: . }`;
+`{ n }` asks for a field on an int and is a type error. Commit: `c6d42fa4d`.
+
+Added E_QUARRY_TYPE assertions for record and list projections in both min and
+max (`c43fb27f7`). Actual mutation trials fail on assertions: forcing the
+sentinel to one underprices two reads, and deleting the binder guard admits a
+record result without a diagnostic. Restored both mutations; all 180 affected
+tests passed, including the full 86-test guide, old extrema, both-store
+components and frozen-fixture compatibility. No existing assertion was weakened.
+
+Ran `scripts/test.sh` exactly once on implementation checkpoint `c43fb27f7`:
+**`== 0 failure(s) in 3235 s`**, exit 0. No ours, baseline or environmental
+failure; no repair or repeat full run. Rust: 3,606 passed, 19 existing ignores;
+fixture wrappers: 9/9; ordinary clients: 2,215 passed, 10 existing skips;
+seeded models: 78/78, retaining the two 5,000-sequence session runs and the
+3,000-interleaving online run. All builds, typechecks, docs budget and release
+guard passed. Frozen Bun install made no changes. Full log:
+`/tmp/lane-p2-r3-suite.log`.
+
+Standalone and full-suite wasm builds both measure **2,024,238 B raw /
+582,031 B gzip**, +108 raw / +33 gzip versus round 2. The unchanged
+**582,094 B** budget leaves **63 B headroom**, zero bytes over. Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt; Node 24.13.1, Bun 1.3.14. Whole-artifact
+measurement, not per-symbol attribution. No open round-3 problem or design
+change. Did not push, publish, raise a budget or meter, relax authorization or
+disclosure, or rewrite prior journal entries. The report's round-3 section
+contains the file list, examples, mutation evidence and qualification logs.

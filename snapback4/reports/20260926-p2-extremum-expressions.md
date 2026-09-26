@@ -1,5 +1,8 @@
 # P2: extrema over scalar row expressions — 2026-09-26
 
+Current qualification: [Round 3](#round-3--2026-09-26). Earlier rounds below
+are historical records.
+
 Implementation lane: `sb4-intent/p2-extremum-expressions`, based on `0badac987`.
 The supplied LLP 3000.019 §3.2 is the design authority. The supervisor owns
 its document, integration and blind reviews. No push or package publication.
@@ -576,3 +579,161 @@ Logs: `/tmp/lane-p2-r2-merged-tests.log`,
 `/tmp/lane-p2-r2-regressions.log`, `/tmp/lane-p2-r2-final-affected.log`,
 `/tmp/lane-p2-r2-mutant-shaped.log`, `/tmp/lane-p2-r2-mutant-unheld.log`,
 `/tmp/lane-p2-r2-mutant-reassigned.log`, and `/tmp/lane-p2-r2-suite.log`.
+
+## Round 3 — 2026-09-26
+
+Read the lane prompt, all earlier report rounds, and both complete round-2
+blind reviews (Astra and Grok, both READY WITH CHANGES). Accepted every
+finding. This section is the current qualification; prior sections are
+historical records.
+
+### Changes by finding and file
+
+Paths are relative to `snapback4/`.
+
+| Finding | Files and change |
+| --- | --- |
+| Astra: unknown projection input escapes as an application error | `crates/snapback4-core/src/engine/extrema.rs`: after restoring `$filter` and checking the meter, inspect the active scalar frame's unknown coverage. Mark the scalar unavailable and return the existing internal unavailability error before propagating the projection result. This shared projection evaluator covers streaming and materialized extrema, and streaming sums. Known-input errors still propagate. No change to `engine/read.rs` is needed: the unavailability now reaches its existing frame cleanup. |
+| Grok: a derived-list heap sentinel is priced as a length | `crates/snapback4/src/scale/collections.rs`: retain source-list expressions for sentinel-valued derived-array frames, then resolve their bounds through the completed census. Pushes add; nested iterations multiply; aliases preserve recovered bounds; unknown/cyclic sources and invalidated bindings fall back conservatively. A declared `ArgList` maximum remains a real contract, even at `u32::MAX`. `crates/snapback4/src/scale.rs`: use that same recovered length, or the step ceiling, when pricing reads directly inside a derived-array loop. |
+| Both: surviving mutations and missing regressions | `crates/snapback4-device/tests/extremum_expressions.rs`: two new both-store error-precedence tests. `crates/snapback4/tests/scale_extremum_expressions.rs`: three new bound/certificate tests. `crates/snapback4-lang/tests/extremum_expressions.rs`: one new negative binder test covering all four requested nonscalar forms. |
+| Round record | `JOURNAL.md`: one appended dated round-3 entry. This report: this round-3 section. |
+
+Implementation commits, each with the requested co-author trailer:
+`4087278f3` (projection coverage), `c6d42fa4d` (list bounds),
+`c43fb27f7` (binder regressions).
+
+### Forms and regression evidence
+
+On a server holding `secrets['s'].n = 5`, each of these returns **2, complete**:
+
+```quarry
+return min(t, 10 / (secrets[.target].n ?? 0))
+return max(t, 10 / (secrets[.target].n ?? 0)) ?? -1
+```
+
+```quarry
+rows = t first 1 by .id
+return min(rows, 10 / (secrets[.target].n ?? 0))
+```
+
+A device holding `t` but not online-only `secrets` now returns **null,
+complete: false**, without a meter cut, for all three. Both memory and SQLite
+run the assertions before and after reopen. A column extremum proves that
+`t` is held. Fully synced controls return 2/complete; fully synced zero-divisor
+controls retain **E_DIV_ZERO** on server and device for every form and reopen.
+Before the fix, both new device tests failed with E_DIV_ZERO at the first
+unknown-input query.
+
+Grok's program compiles and runs unchanged:
+
+```quarry
+rows = []
+for i in range(0, 2):
+  rows = rows + [i]
+copy = []
+for n in rows:
+  copy = copy + [n]
+return max(copy, secrets['g'].n ?? 0)
+```
+
+Its shaped twin replaces the copy loop with `shaped = rows { n: . }` and
+aggregates `shaped`. Both certify **Constant / 2 examinations**, execute
+exactly two examinations, and return 9. A nested alias/copy/shape chain
+certifies and executes four; reads directly in the two-item loop certify and
+execute two. Unknown-length copies, nonempty-appended shapes and cyclic
+self-appends keep the **1,000,000-step fallback**. A declared list argument
+with maximum **4,294,967,295** retains that contract rather than becoming a
+sentinel.
+
+All four requested negative forms produce **E_QUARRY_TYPE** at the projection
+site, with the scalar rewrite:
+
+```quarry
+min([{ n: 1 }], { n: .n })
+min([{ n: 1 }], [.n])
+max([{ n: 1 }], { n: .n })
+max([{ n: 1 }], [.n])
+```
+
+New tests:
+
+1. `expression_extrema_memory_unknown_projection_precedes_errors`.
+2. `expression_extrema_sqlite_unknown_projection_precedes_errors`.
+3. `loops_and_shapes_over_append_built_lists_use_recovered_push_bounds`.
+4. `derived_heap_sentinels_without_recovered_lengths_keep_the_step_ceiling`.
+5. `declared_argument_maximum_is_a_contract_even_at_u32_max`.
+6. `non_scalar_row_projections_are_type_errors`.
+
+Actual mutation trials, both restored before qualification:
+
+| Mutation | Result |
+| --- | --- |
+| Use one iteration for a `u32::MAX` derived array (the new representation of `Some(1)`) | Copy-loop certificate assertion fails: 1 instead of 2 examinations; exit 101. |
+| Delete the binder's nonscalar-result rejection | Record projection compiles without a diagnostic, failing the E_QUARRY_TYPE assertion; exit 101. |
+
+The restored affected run passed **180 tests**, zero failures: existing scale
+20, expression certificates 12, language expressions 12, language extrema 21,
+language components 8, device expressions 8, device extrema 2, device
+components 10, frozen fixture compatibility 1, and the complete guide 86.
+No existing assertion, fixture, sample count, skip or meter was weakened.
+
+### Wasm and final qualification
+
+Both the standalone build and the full suite's wasm build measure
+**2,024,238 B raw / 582,031 B gzip**: **+108 B raw / +33 B gzip** relative to
+round 2. Against the unchanged **582,094 B** gzip budget, headroom is **63 B**,
+with **zero bytes over**. Whole-artifact comparison; no per-symbol attribution.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt; Node 24.13.1, Bun 1.3.14.
+`bun install --frozen-lockfile` succeeded without changes.
+
+Implementation checkpoint: `c43fb27f7`. The single final full-suite invocation:
+
+```sh
+env -u FORCE_COLOR CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 \
+  CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 \
+  SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 \
+  bash scripts/test.sh
+```
+
+Exact `scripts/test.sh` result, **exit 0**:
+
+```text
+== 0 failure(s) in 3235 s
+```
+
+**Failures: none — ours, baseline, or environmental.** The suite ran exactly
+once, with the implementation fixed throughout. No repair or second full run
+was needed. Rust: **3,606 passed, zero failed, 19 existing ignores**, across
+939 test executions plus passing doctests; the docs-budget phase separately
+reran one passing guide assertion. Fixture wrappers: **9/9**. Ordinary clients:
+**2,215 passed, zero failed, 10 existing skips**. Seeded models: **78/78**,
+including both 5,000-sequence session runs and the 3,000-interleaving online
+run. Workspace/wasm/package builds, every typecheck, docs budget, release guard,
+and chat schema checks passed. The existing client skips are the macOS media
+case and nine optional legacy-binary/identity-fixture cases. No new waiver.
+
+The largest changed source file is 753 lines. `git diff --check` passes.
+
+### Deviations and open problems
+
+No rejected finding or design change in round 3. The review's abbreviated
+`rows { n }` is not valid for its integer list: it produces E_QUARRY_TYPE,
+“int has no fields.” The equivalent scalar-list shape is `rows { n: . }`,
+which the test uses. The existing shorthand remains valid for record lists.
+The derived-array arm in `scale.rs` also uses the corrected bound, so reads
+inside a loop receive the same allowance as reads in a later aggregate;
+no other control-flow analysis changed.
+
+No open round-3 problem or surviving named review mutation. No known failing
+case remains to reproduce. The qualification does not claim a push or a
+publication; it is the tested lane commit above.
+
+No push, publication, budget increase, runtime meter change, authorization or
+disclosure relaxation, or new IR encoding. All three implementation commits
+carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. The report and journal
+are the only changes after full qualification.
+
+Logs: `/tmp/lane-p2-r3-coverage-before.log`,
+`/tmp/lane-p2-r3-regressions.log`, `/tmp/lane-p2-r3-final-affected.log`,
+`/tmp/lane-p2-r3-mutant-derived-one.log`, `/tmp/lane-p2-r3-mutant-nonscalar.log`,
+`/tmp/lane-p2-r3-wasm.log`, `/tmp/lane-p2-r3-suite.log`.
