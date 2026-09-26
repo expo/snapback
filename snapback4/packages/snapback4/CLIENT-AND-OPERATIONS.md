@@ -956,7 +956,7 @@ export function PendingSend({ conversationId, savedId }: { conversationId: strin
 }
 ```
 
-For reload-safe outcomes, save `{ id: mintId(), ...args }` before submitting
+For reload-safe outcomes, save `{ id: mintId(), args }` before submitting
 with `{ id }`, in account-and-backend-scoped storage; observe it with
 `usePendingWrite(op, savedId)` after reload. See `snapback4 guide client`. Recovery observes that id; it
 never submits again. `await client.write(id)` also reads its latest outcome,

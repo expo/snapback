@@ -23,7 +23,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
 
 `waitSeconds: 0` returns at custody; `inFlight` covers the call, while `pending` lasts until settlement and must not disable the next send.
 A refusal before custody keeps the draft; text typed meanwhile survives. Predicted rows carry `pending: true`: show “Sending…”.
-For earlier sends and reload, save `{ id: mintId(), ...args }` in account-and-backend-scoped storage **before** `run(args, { id, waitSeconds: 0 })`.
+For earlier sends and reload, save `{ id: mintId(), args }` in account-and-backend-scoped storage **before** `run(args, { id, waitSeconds: 0 })`.
 Observe each saved id with `usePendingWrite(op, savedId)`; `failed` shows its refusal and saved text to edit. An `undefined` receipt is unknown, never failed or automatically resent.
 A deliberate new attempt gets a new id; never mint one to recover a lost acknowledgement. A replay confirms execution without a historical result.
 The reference saved-intent journal is in the starters: `snapback4 init --expo` / `--web`; it is not another outbox or resend loop.
