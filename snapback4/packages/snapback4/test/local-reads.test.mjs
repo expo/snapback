@@ -19,3 +19,11 @@ test('a local commit unconditionally retires retained answers and in-flight publ
   assert.deepEqual((await fetch).read, { loading: true });
   assert.deepEqual(watch.snapshot, { loading: true });
 });
+
+test('clearing starts the order again: a replaced store\'s first answer is remembered at any cut', () => {
+  const reads = new LocalReads();
+  reads.serverAnswers.delete("read:{}", { seq: 100, ticket: reads.serverAnswers.begin() });
+  reads.clear([]);
+  reads.serverAnswers.set("read:{}", { read: { data: ['new store'], complete: true, cut: null, fresh: true }, at: 1, nextExpiry: null, tables: new Set() }, { seq: 1, ticket: reads.serverAnswers.begin() });
+  assert.deepEqual(reads.serverAnswers.get("read:{}")?.read.data, ['new store'], "the old store's cut 100 orders nothing after a clear");
+});

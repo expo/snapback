@@ -59458,3 +59458,9 @@ showed that older answer. Both composition branches now carry the server's
 cut, and publishing a composed answer is an ordered deletion, as a composed
 refusal already was. New cases cover a composed answer of each kind against
 an older answer that lands later, and a composed refusal at a later cut.
+
+Round 14 is a test. Astra's round-13 review (READY WITH CHANGES) found every
+round-11 and round-12 finding fixed and one gap: nothing required a store
+replacement to clear the order as well as the answers. A case now remembers a
+refusal at cut 100, clears, and requires the new store's first answer at cut 1
+to be remembered.
