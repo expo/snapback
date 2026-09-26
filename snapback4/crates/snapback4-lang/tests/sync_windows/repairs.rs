@@ -172,13 +172,17 @@ fn named_where_pages_lift_audience_and_keep_second_page() {
 }
 
 fn four_rows(source: &str) -> Engine {
+    seeded_rows(source, &[("a", 10, 1), ("b", 40, 2), ("c", 30, 3), ("d", 20, 4)])
+}
+
+fn seeded_rows(source: &str, entries: &[(&str, i64, i64)]) -> Engine {
     let b = bind(source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     let mut rows = vec![
         ("conversations".into(), object([("id", id("room"))])),
         ("members".into(), object([("id", id("m")), ("conversationId", id("room")), ("principal", id("alice"))])),
     ];
-    for (name, at, ordinal) in [("a", 10, 1), ("b", 40, 2), ("c", 30, 3), ("d", 20, 4)] {
+    for &(name, at, ordinal) in entries {
         rows.push(("messages".into(), object([
             ("id", id(name)), ("conversationId", id("room")), ("sender", id("alice")),
             ("at", Value::Int(at)), ("ordinal", Value::Int(ordinal)),
@@ -208,6 +212,20 @@ fn cursorless_partial_pages_in_another_order_get_words() {
         assert_ne!(before.data, after.data, "this cursorless rewrite changes the result");
         words_only(&source);
     }
+    // Sharing the first order column is insufficient. Opposite ordinal/id
+    // ranks at the timestamp tie change which row the cursorless page keeps.
+    let original = "messages where .conversationId = conversationId last 2 by .at";
+    let source = named().replace("  at: time", "  by byAt: conversationId, at, id\n  at: time").replace(PAGE, original);
+    let entries = [("a", 100, 2), ("z", 100, 1), ("new", 200, 0), ("old", 50, 3)];
+    let bound = bind(&source);
+    assert_eq!(snapback4_core::ir::scans(&bound.programs[0].program)[0].index, "byAt");
+    let before = page(&mut seeded_rows(&source, &entries), Value::Null);
+    assert_eq!(ids(before.data.as_array().unwrap()), ["new", "z"]);
+    let unsafe_repair = source.replace(original, "messages[conversationId = conversationId] last 2 by byWindow");
+    let after = page(&mut seeded_rows(&unsafe_repair, &entries), Value::Null);
+    assert_eq!(ids(after.data.as_array().unwrap()), ["new", "a"]);
+    assert_ne!(before.data, after.data, "the tie-break changes the selected ids");
+    words_only(&source);
 }
 
 #[test]
