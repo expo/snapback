@@ -196,3 +196,5 @@ mod authority;
 mod failure;
 
 mod scale;
+
+mod worker;

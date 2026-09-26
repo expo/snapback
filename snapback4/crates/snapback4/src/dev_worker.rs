@@ -45,6 +45,49 @@ pub(crate) fn node() -> PathBuf {
     crate::project::node()
 }
 
+// @ref LLP 3000.019#3.6 — worker status and revocation may wait for adoption; HTTP admission must not.
+pub(crate) struct Supervisor {
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Supervisor {
+    pub(crate) fn start(project: Project, shared: Arc<Shared>, url: String, dev: bool, mut worker: Option<DevWorker>) -> Result<Self, String> {
+        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stopping = stop.clone();
+        let mut revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
+        let thread = crate::lifecycle::background("worker", move || {
+            // This thread owns DevWorker, including its durable revocation and
+            // child cleanup on every return or unwind. The host joins it on exit.
+            while !stopping.load(std::sync::atomic::Ordering::Acquire) && !crate::lifecycle::stopping() {
+                let next = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
+                if worker.is_none() && dev && next != revision {
+                    revision = next;
+                    match DevWorker::start(&project, shared.clone(), url.clone()) {
+                        Ok(next) => worker = next,
+                        Err(error) => eprintln!("snapback4 worker: {error}"),
+                    }
+                }
+                if let Some(worker) = &mut worker { worker.tick(); }
+                std::thread::park_timeout(Duration::from_millis(100));
+            }
+        })?;
+        Ok(Self { stop, thread: Some(thread) })
+    }
+
+    pub(crate) fn is_finished(&self) -> bool { self.thread.as_ref().unwrap().is_finished() }
+}
+
+impl Drop for Supervisor {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Release);
+        if let Some(thread) = self.thread.take() {
+            thread.thread().unpark();
+            if thread.join().is_err() { eprintln!("snapback4 worker: supervisor panicked"); }
+        }
+    }
+}
+
 pub(crate) struct DevWorker {
     project: Project,
     source: PathBuf,

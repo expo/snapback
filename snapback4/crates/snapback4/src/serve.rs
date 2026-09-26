@@ -301,9 +301,9 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
     }
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
-    let mut worker = match &mode {
-        Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,
-        Mode::Release { worker: Some(source), .. } => Some(crate::dev_worker::DevWorker::start_source(&project, shared.clone(), worker_url, source.clone(), true)?),
+    let worker = match &mode {
+        Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url.clone())?,
+        Mode::Release { worker: Some(source), .. } => Some(crate::dev_worker::DevWorker::start_source(&project, shared.clone(), worker_url.clone(), source.clone(), true)?),
         _ => None,
     };
     crate::lifecycle::generation(generation);
@@ -332,25 +332,24 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         background.push(("maintenance", crate::lifecycle::background("maintenance", move || maintain(shared))?));
     }
     if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
+    let worker = crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;
+    serve_requests(server, shared, worker, background, crate::lifecycle::stopping)
+}
+
+// The production accept loop is also exercised with a real supervised child
+// and a held SQLite adoption transaction in the server regression.
+fn serve_requests(
+    server: Arc<Server>, shared: Arc<Shared>, worker: crate::dev_worker::Supervisor,
+    background: Vec<(&str, std::thread::JoinHandle<()>)>, stopping: impl Fn() -> bool,
+) -> Result<(), String> {
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
-    let mut worker_start_revision = shared.worker_revision.load(Ordering::Acquire);
     loop {
-        if crate::lifecycle::stopping() { return Ok(()); }
+        if stopping() { return Ok(()); }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }
-        let revision = shared.worker_revision.load(Ordering::Acquire);
-        if worker.is_none() && dev && revision != worker_start_revision {
-            worker_start_revision = revision;
-            match crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]")) {
-                Ok(next) => worker = next,
-                Err(error) => eprintln!("snapback4 worker: {error}"),
-            }
-        }
-        if let Some(worker) = &mut worker {
-            worker.tick();
-        }
+        if worker.is_finished() { return Err("worker thread stopped".into()); }
         if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
             dispatch(request, shared.clone(), admission.clone());
         }
