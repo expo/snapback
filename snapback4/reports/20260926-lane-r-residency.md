@@ -245,3 +245,159 @@ No newly added lane test was skipped.
 - published 0.2.33 capability fence: maintained-column — set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory
 - published 0.2.33 control: capability-free bytes and stores stay compatible — set SNAPBACK4_FENCE_PUBLISHED to an npm tarball cache directory
 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract — set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+
+## Round 1 — 2026-09-26
+
+Read both blind reviews in full: Astra `r2-r0.astra.md` (READY WITH
+CHANGES) and Grok `r2-r0.grok.md` (READY). Both Astra findings are accepted
+and fixed; no finding is disputed. This round retains §3.4's refusal choice,
+byte units, physical-image meaning, session fences and bounded counters.
+
+### Integration
+
+Fetched origin, then merged the specifically requested `992cec75c` in
+`b90a195f4`; the fetched tracking branch had advanced further, and that later
+work is not included. The only textual conflict was `JOURNAL.md`. Both sides
+are preserved verbatim: the merge adds 483 lines relative to the lane parent
+and 48 relative to the main parent, with zero deletions. The client overlap
+merged automatically, preserving both residency and LLP 3000.008.002.000's
+custody changes. No rebase, push or publication was performed.
+
+The merged tree passed package typecheck/build, device residency 2/2, guide
+86/86, CLI check 71/71, clock 19/19, lifecycle 20/20, replay 15/15, admission
+12/12, and 114/114 focused client tests (residency, client seams, periphery,
+app online and online intent store). These checks used the merged
+implementation before the round-1 fixes.
+
+Orientation used the repository's `llp-orient` skill after initializing its
+small `vendor/llp` submodule. Governing scope: LLP 3000.019 §3.4 (current,
+residency and refusal), LLP 3000.008.002.000 (current, merged client custody),
+LLP 3000 §4 (the Snapback 4 fence), the residency card and the existing
+release/store/session code. No new LLP or design change was needed; report,
+journal and the existing card are the documentation updates.
+
+### Findings and changed files
+
+Paths below are relative to `snapback4/`.
+
+- **Astra Medium, release ownership:** `crates/snapback4/src/verbs/releases.rs`
+  now acquires through `store_owner::command(release/store.sqlite)`, the same
+  resolver already used by `token --release`. Serving, deploy and rollback
+  therefore lock the real database directory even when that path is a
+  symlink. `src/serve.rs` carries the acquired file in release mode and
+  announces through that file; it no longer independently opens another
+  `serve.lock`. Dev also uses the shared database-path helper directly.
+  `src/verbs.rs` drops the obsolete helper re-export.
+- **Astra Low, rejected reads:** `packages/snapback4/src/residency.ts` catches
+  rejected device calls, rechecks closed/session state, then uses existing
+  `E_STORE` / family `store` with site `client.residency`, the host error and
+  a restart/reopen rewrite. Returned refusals retain their code and details.
+  `src/app-client.ts` also rechecks app custody on rejection, so retirement
+  wins over a device exception. `crates/snapback4-lang/src/guide.rs` documents
+  that device-read failure and its recovery beside the existing measurement.
+- **Grok interrupted installation:**
+  `crates/snapback4-device/src/sqlite_residency.rs` considers installation
+  complete only when the table and all three triggers exist. An incomplete
+  set is dropped, backfilled and recreated inside the same immediate
+  transaction. Ordinary complete reopens do not recount the partition.
+- **Regression instrumentation:** `crates/snapback4-device/Cargo.toml` enables
+  rusqlite trace/hooks only for tests; `tests/residency.rs` records executed
+  SQL, full-scan steps and SQLite authorizer reads around the actual public
+  dispatcher call. It rejects every read of `r`, including indexed range
+  scans whose SQLite `FullscanStep` happens to stay zero. The 20,000-row case
+  exercises this before and after reopen. The same file adds incomplete
+  installation cases for all triggers absent and each single trigger absent,
+  stale counters, reopen, insert, Unicode update, delete and a second reopen.
+- **Release regressions:** `crates/snapback4/tests/run_admission.rs` adds two
+  tests. Two independent release directories share a moved database via
+  symlinks; startup works without a preexisting lock at its actual location,
+  one server owns it, the second refuses with that address, and token/deploy/
+  rollback through either alias refuse without a new release or pointer
+  change. The test reverses server ownership after exit. A real token command
+  paused behind a SQLite writer owns the resolved path before opening;
+  competing token, serve, deploy and rollback refuse. Contenders have bounded
+  waits and owned-process cleanup, including when a regression lets a second
+  server start.
+- **Client regressions:**
+  `packages/snapback4/test/device-residency.test.mjs` compares heap reports to
+  the actual exported `WebAssembly.Memory.buffer.byteLength`, explicitly
+  grows it by two pages and compares again. It kills its own native process
+  with SIGKILL and requires the coded read error. Returned refusal and
+  rejected-call cases verify closed/session precedence; an app-facade case
+  retires custody while a rejected read is pending.
+
+The public forms are unchanged: `await client.residency()` returns the same
+measurement, and `snapback4 token --release release-a --service worker`
+works offline and refuses with `E_STORE_BUSY` while either alias is served.
+`snapback4 serve release-a --port 0` now starts successfully with
+`release-a/store.sqlite` symlinked to `external/store.sqlite`.
+
+### Regression and mutation evidence
+
+Local logs live under `target/lane-r1-evidence/` (ignored build output).
+
+| Probe | Deliberate old behavior | Exact focused outcome |
+| --- | --- | --- |
+| Release symlink regression | Restore merged round-0 serve/releases/verbs implementation | 0 passed, 1 failed; startup reproduces `No such file or directory (os error 2)`; exit 101 |
+| Native/helper rejection | Restore round-0 residency helper | 0 passed, 2 failed; uncoded `native device exited (SIGKILL)` and `device host died`; exit 1 |
+| Astra heap mutant | Replace actual wasm memory read with `65536` | 0 passed, 1 failed; `65536 !== 1376256`; exit 1 |
+| Grok partition-scan mutant | Replace counter lookup with `COUNT(*)` / `SUM(length(CAST(data AS BLOB)))` over `r` by catalog number | 0 passed, 1 failed; trace/authorizer reports partition reads; exit 101 |
+| Grok partial-install mutant | Restore the table-exists-only installation shortcut | 0 passed, 1 failed; stale counter fixture disagrees with actual rows; exit 101 |
+
+Every mutant was restored. Final focused checks passed native residency 3/3,
+CLI admission 14/14, client residency 5/5 and guide 86/86, with no skips.
+The partial-install test constructs the durable table-without-triggers state
+a split-transaction crash would leave; it proves next-open repair. It does
+not claim a timed OS-crash injection into SQLite's own atomic commit.
+
+### Qualification and limits
+
+Implementation commits: `d484b143b` (coded errors and actual wasm memory),
+`9140277e3` (counter repair and scan evidence), `3adc19d52` (release
+ownership). All, and merge `b90a195f4`, carry
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+No deviation from the round-1 requested behavior. The error spelling reuses
+`E_STORE` instead of introducing another code. Recovery covers incomplete
+trigger sets rather than relying only on the existing transaction to make
+them impossible. No authority/disclosure check, meter ceiling, wasm budget,
+Quarry form or publication pin was changed. No known open round-1 defect or
+unimplemented finding remains. Native iOS/Android app qualification and
+physical IndexedDB disk allocation remain outside the evidence, as in round 0.
+
+The full-suite run is bound to implementation commit `3adc19d52`, using
+Node 24.18.0, Rust 1.97.0, Bun 1.3.14 and wasm-bindgen 0.2.127, eight build
+jobs/eight Rust test processes, four Rust test threads, debug symbols and
+incremental builds disabled, and serialized client files on this shared host.
+Its wasm build reports **2,021,689 B raw / 581,094 B gzip**, unchanged from
+round 0 and **1,000 B below the unchanged 582,094 B budget**.
+
+Ran **`bash scripts/test.sh` exactly once in round 1**, on the committed
+implementation above. It exited **0**, with the literal final summary:
+
+```text
+== 0 failure(s) in 3096 s
+```
+
+Every check passed. Rust: **3,580 passed, 0 failed, 19 ignored**. Fixture
+wrapper tests: **9 passed**. Client tests: **2,220 passed, 0 failed, 10
+skipped** (2,230 tests). Seeded client models: **78 passed, 0 failed**.
+There were no cancelled tests and no `-- FAIL:` check. Implementation source
+stayed unchanged throughout. No post-suite fix or affected-test rerun was
+needed. The longer duration includes explicitly serialized client files
+(1,875 seconds); the Rust phase took 937 seconds and models 254 seconds.
+
+There are **no failures to classify** as lane-owned, baseline or
+environmental. The ten skips are exactly the pre-existing platform/artifact
+cases listed in round 0's “Environment-gated skips” section: macOS native
+media, managed-identity/profile witnesses, the published 0.2.27 reference,
+the 0.2.33 F2 fence, three 0.2.33 capability fences plus their control, and
+the 0.2.32 sync compatibility witness. No lane regression was skipped.
+The deliberate negative regression/mutation runs above are separate from
+this green complete invocation, and none of those mutations remains.
+
+Evidence: `full-suite.log`, `full-suite.exit`, `full-suite-commit.txt`, the
+`merged-*`, `*-restored`, `mutation-*`, `regression-*` and `guide-final`
+logs under `target/lane-r1-evidence/`. This report and the one dated round-1
+journal entry are the only changes after qualification. No push or package
+publication occurred. No known open round-1 problem remains.

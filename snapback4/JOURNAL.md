@@ -63621,3 +63621,46 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+## 2026-09-26 — Lane R round 1: release aliases and measured residency regressions
+
+Merged the requested main commit `992cec75c` in `b90a195f4`, preserving both
+journal additions and both client surfaces. The merged-tree targeted checks
+passed, including 114 client tests. Accepted both Astra findings. Release
+serve/deploy/rollback now acquire through the same resolved database path as
+`token --release`; the server announces through its acquired file handle.
+Two deployment aliases to a moved database admit exactly one server owner;
+the other server and offline writers return E_STORE_BUSY with its address.
+A real paused token command also excludes every competing release writer.
+
+Rejected residency calls now recheck closed/session state and otherwise
+return E_STORE with the device error, read site and reopen rewrite. The app
+facade rechecks custody on rejection too. Native counter installation repairs
+a table missing any of its three triggers, rebuilding and installing in one
+immediate transaction. Reporting still uses only counters and metadata.
+
+The requested negative probes fail: constant 65536 heap bytes disagree with
+actual wasm memory; a COUNT/SUM replacement reads the partition, caught by
+SQLite statement trace and authorizer observation; the table-only installed
+shortcut leaves the partial-install fixture stale. The heap test compares the
+actual exported memory before and after two pages of growth. The original
+release code reproduces Astra's uncoded missing-file failure, and the original
+read helper leaks the killed native process's uncoded rejection. All originals
+and mutants were restored. Focused checks pass residency 3 native / 5 client,
+admission 14 and guide 86, with no skips.
+
+At implementation `3adc19d52`, the single final `bash scripts/test.sh` exited
+0 with **`== 0 failure(s) in 3096 s`**. Rust: 3,580 passed, 19 ignored; fixture
+wrapper: 9 passed; clients: 2,220 passed and 10 existing environment-gated skips;
+seeded models: 78 passed. No failing or cancelled test, no post-suite code fix
+or test rerun. Client files were serialized on the shared host. Wasm remains
+**2,021,689 B raw / 581,094 B gzip**, +0/+0 from round 0 and 1,000 B below the
+unchanged **582,094 B** budget. Source stayed fixed throughout qualification.
+
+No behavior deviation, authority/disclosure relaxation, meter/budget increase,
+new Quarry syntax, push or publication. Partial-install evidence constructs
+the durable interrupted state and proves repair on reopen; it does not claim
+OS-crash injection into SQLite's atomic commit. Native iOS/Android application
+qualification remains outside this lane. No known open round-1 defect remains.
+Commits, file-by-file changes, exact checks, mutation evidence and limitations
+are in [the round-1 report](reports/20260926-lane-r-residency.md#round-1--2026-09-26).
