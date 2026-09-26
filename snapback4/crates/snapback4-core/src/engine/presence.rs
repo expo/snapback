@@ -82,8 +82,8 @@ impl Runner<'_> {
         let name = match expr {
             Expr::Variable(name) => Some(name),
             Expr::Field { base, .. } => return self.read_presence_value(base),
-            Expr::Builtin { args, .. } => {
-                for arg in args { self.read_presence_value(arg)?; }
+            Expr::Builtin { builtin, args } => {
+                for arg in builtin.operands(args) { self.read_presence_value(arg)?; }
                 None
             }
             _ => None,
@@ -212,7 +212,7 @@ fn proof(expr: &Expr, env: &Proofs<'_>) -> Proof {
             Proof::UNKNOWN
         }
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } if proof(base, env).independent => Proof::INDEPENDENT,
-        Expr::Builtin { args, .. } if args.iter().all(|e| proof(e, env).independent) => Proof::INDEPENDENT,
+        Expr::Builtin { builtin, args } if builtin.operands(args).all(|e| proof(e, env).independent) => Proof::INDEPENDENT,
         _ => Proof::UNKNOWN,
     }
 }
@@ -421,7 +421,7 @@ impl<'a> Assignments<'a> {
             Expr::Variable(name) => { names.insert(name); }
             Expr::Field { base, .. } | Expr::Unary { value: base, .. } => Self::reads(base, names),
             Expr::Binary { left, right, .. } => { Self::reads(left, names); Self::reads(right, names); }
-            Expr::Builtin { args, .. } => { for arg in args { Self::reads(arg, names); } }
+            Expr::Builtin { builtin, args } => { for arg in builtin.operands(args) { Self::reads(arg, names); } }
             _ => {}
         }
     }
@@ -470,7 +470,7 @@ fn mark_inputs(expr: &Expr, bindings: &Bindings<'_>, inputs: &mut Vec<usize>, as
         Expr::Variable(name) => { if let Some(binding) = bindings.get(name.as_str(), assignments) { inputs.push(*binding); } }
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => mark_inputs(base, bindings, inputs, assignments),
         Expr::Binary { left, right, .. } => { mark_inputs(left, bindings, inputs, assignments); mark_inputs(right, bindings, inputs, assignments); }
-        Expr::Builtin { args, .. } => { for arg in args { mark_inputs(arg, bindings, inputs, assignments); } }
+        Expr::Builtin { builtin, args } => { for arg in builtin.operands(args) { mark_inputs(arg, bindings, inputs, assignments); } }
         _ => {}
     }
 }

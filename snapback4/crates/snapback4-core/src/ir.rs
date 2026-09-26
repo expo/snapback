@@ -230,6 +230,9 @@ pub enum Builtin {
     Max,
     /// SQL-style column extrema; domain reads require complete coverage.
     Extremum { field: String, max: bool, domain: bool },
+    /// @ref LLP 3000.019#3.2 — expression extrema bind `$filter` per authorized row;
+    /// the existing column extremum encoding is unchanged.
+    ExtremumOf { value: Box<Expr>, max: bool, domain: bool },
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
@@ -244,9 +247,14 @@ pub enum Builtin {
 }
 
 impl Builtin {
+    /// Every evaluated operand, including a row-bound aggregate value.
+    pub fn operands<'a>(&'a self, args: &'a [Expr]) -> impl Iterator<Item = &'a Expr> {
+        args.iter().chain(match self { Self::ExtremumOf { value, .. } => Some(value.as_ref()), _ => None })
+    }
+
     pub fn arity(&self) -> usize {
         match self {
-            Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::ExtremumOf { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
@@ -587,7 +595,7 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
             expr_read_sites(right, out);
         }
         Expr::Unary { value, .. } => expr_read_sites(value, out),
-        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_read_sites(item, out)),
+        Expr::Builtin { builtin, args } => builtin.operands(args).for_each(|item| expr_read_sites(item, out)),
         Expr::Get(read) | Expr::Exists(read) => {
             read.key.iter().for_each(|item| expr_read_sites(item, out));
             out.push(ReadSite { site: read.site.clone(), table: read.table.clone(), index: read.index.clone(), kind: "point", take: 1 });
@@ -699,7 +707,7 @@ fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, has_merge: &mut bool)
             expr_scans(right, out, has_merge);
         }
         Expr::Unary { value, .. } => expr_scans(value, out, has_merge),
-        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out, has_merge)),
+        Expr::Builtin { builtin, args } => builtin.operands(args).for_each(|item| expr_scans(item, out, has_merge)),
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out, has_merge)),
         Expr::Block { body, value } => { stmts_scans(body, out, has_merge); expr_scans(value, out, has_merge); }
         Expr::Scan(scan) => {

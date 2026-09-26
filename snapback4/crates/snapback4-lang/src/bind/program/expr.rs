@@ -723,7 +723,8 @@ fn lexical_value(expr: &Expr) -> bool {
 pub(super) fn allocates(expr: &Expr) -> bool {
     match expr {
         Expr::Input(Input::NewId) => true,
-        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().any(allocates),
+        Expr::Array(values) => values.iter().any(allocates),
+        Expr::Builtin { builtin, args: values } => builtin.operands(values).any(allocates),
         Expr::Object(fields) => fields.values().any(allocates),
         Expr::Binary { left, right, .. } => allocates(left) || allocates(right),
         Expr::Unary { value, .. } | Expr::Field { base: value, .. } => allocates(value),

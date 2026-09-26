@@ -4,7 +4,7 @@ use crate::{error::{MeterKind, RuntimeError}, ir::{Expr, Order}, meter::Cut, val
 
 pub(in crate::engine) enum Aggregate<'a> {
     Total { value: i128, projection: Option<&'a Expr> },
-    Extremum { value: Value, retained: u64, field: &'a str, max: bool, seek: bool },
+    Extremum { value: Value, retained: u64, field: &'a str, projection: Option<&'a Expr>, max: bool, seek: bool },
 }
 impl<'a> Aggregate<'a> {
     pub(in crate::engine) fn total(projection: Option<&'a Expr>) -> Self { Self::Total { value: 0, projection } }
@@ -24,9 +24,19 @@ impl<'a> Aggregate<'a> {
                 *value += amount;
                 Ok(false)
             }
-            Self::Extremum { value, retained, field, max, seek } => {
+            Self::Extremum { value, retained, field, projection, max, seek } => {
                 runner.meter.step(1)?;
-                let next = if *row == Value::Null { row } else { row.field(field)? };
+                // @ref LLP 3000.019#3.2 — evaluate only after source authorization;
+                // expression allocations and setup remain metered, just as in sum.
+                let projected;
+                let next = if let Some(projection) = projection {
+                    runner.meter.heap(row.expression_copy(ExpressionAccess(())))?;
+                    let prior = runner.env.insert("$filter".into(), row.clone());
+                    let result = runner.expr(projection);
+                    match prior { Some(value) => { runner.env.insert("$filter".into(), value); }, None => { runner.env.remove("$filter"); } }
+                    projected = result?;
+                    &projected
+                } else if *row == Value::Null { row } else { row.field(field)? };
                 if *next == Value::Null { return Ok(false); }
                 let replace = *value == Value::Null || if *max { next.total_cmp(value).is_gt() } else { next.total_cmp(value).is_lt() };
                 if replace {
@@ -53,11 +63,11 @@ impl<'a> Aggregate<'a> {
 impl Runner<'_> {
     // @ref LLP 3000.013#5.1 — an extremum is unavailable on a cut or unknown
     // domain; one locally held endpoint never proves domain completeness.
-    pub(in crate::engine) fn extremum(&mut self, source: &Expr, field: &str, max: bool, domain: bool) -> Result<Value, RuntimeError> {
-        let fold = |seek| Aggregate::Extremum { value: Value::Null, retained: 0, field, max, seek };
+    pub(in crate::engine) fn extremum(&mut self, source: &Expr, field: &str, projection: Option<&Expr>, max: bool, domain: bool) -> Result<Value, RuntimeError> {
+        let fold = |seek| Aggregate::Extremum { value: Value::Null, retained: 0, field, projection, max, seek };
         let result = if domain {
             let Expr::Scan(scan) = source else { return Err(RuntimeError::Input("an extremum domain must be a scan".into())); };
-            let seek = scan.orders_field(self.schema, field) && scan.order == if max { Order::Desc } else { Order::Asc };
+            let seek = projection.is_none() && scan.orders_field(self.schema, field) && scan.order == if max { Order::Desc } else { Order::Asc };
             self.stream_aggregate(scan, fold(seek))
         } else {
             let inputs = crate::engine::components::Frame {

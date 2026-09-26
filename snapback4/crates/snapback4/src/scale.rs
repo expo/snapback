@@ -321,7 +321,37 @@ impl Analysis<'_> {
                 self.scan(&priced, times, false);
                 true
             }
-            Expr::Builtin { builtin, args } => args.iter().fold(matches!(builtin, Builtin::Connected), |d, e| self.expr(e, times) | d),
+            // @ref LLP 3000.019#3.2 — expression extrema price every source row,
+            // including the reads performed by the value expression per row.
+            Expr::Builtin { builtin: Builtin::ExtremumOf { value, max, domain }, args } => {
+                let count = if let Some(Expr::Scan(scan)) = args.first().filter(|_| *domain) {
+                    self.result.aggregates.push(format!("{}({}, expression): metered scan of the domain on {}.{}; nulls skipped; a cut has no scalar answer",
+                        if *max { "max" } else { "min" }, self.scan_domain(scan), scan.table, scan.index));
+                    let table = &self.schema.tables[&scan.table];
+                    let pinned = table.indexes[&scan.index].columns()[..scan.prefix.len()].to_vec();
+                    let cap = self.schema.group_bound(&scan.table, &pinned)
+                        .filter(|_| !table.is_expiring() && self.schema.maintain_for(&scan.table).is_none());
+                    if let Some(cap) = cap {
+                        let mut priced = scan.clone();
+                        priced.take = Bound::Literal(cap);
+                        // A physical cap bounds rejected rows too. Keep pricing
+                        // their predicate, without calling their count unbounded.
+                        priced.filter = None;
+                        self.scan(&priced, times, false);
+                        if let Some(filter) = &scan.filter { self.expr(filter, times.saturating_mul(u64::from(cap))); }
+                        u64::from(cap)
+                    } else {
+                        self.scan(scan, times, false);
+                        self.result.bounds.meters.examined
+                    }
+                } else {
+                    for arg in args { self.expr(arg, times); }
+                    match args.first() { Some(Expr::Array(values)) => values.len() as u64, _ => self.result.bounds.meters.steps }
+                };
+                self.expr(value, times.saturating_mul(count));
+                true
+            }
+            Expr::Builtin { builtin, args } => builtin.operands(args).fold(matches!(builtin, Builtin::Connected), |d, e| self.expr(e, times) | d),
             Expr::Get(read) | Expr::Exists(read) => { self.point(read, times, true); true }
             Expr::Block { body, value } => { self.body(body, times); self.expr(value, times) }
             Expr::Scan(scan) => { self.scan(scan, times, false); true }

@@ -97,7 +97,8 @@ impl Census {
     fn expr(&mut self, value: &Expr) {
         match value {
             Expr::Variable(name) => self.use_name(name),
-            Expr::Array(items) | Expr::Builtin { args: items, .. } => { for item in items { self.expr(item); } }
+            Expr::Array(items) => { for item in items { self.expr(item); } }
+            Expr::Builtin { builtin, args: items } => { for item in builtin.operands(items) { self.expr(item); } }
             Expr::Object(fields) => { for field in fields.values() { self.expr(field); } }
             Expr::Shape { base, fields } => { self.expr(base); for field in fields.values() { self.expr(field); } }
             Expr::Field { base, .. } | Expr::Unary { value: base, .. } => self.expr(base),

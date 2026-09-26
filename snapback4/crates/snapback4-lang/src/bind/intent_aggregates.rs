@@ -61,12 +61,30 @@ fn required_args(args: &[ArgDecl]) -> BTreeSet<String> {
 pub(super) fn is_consumer(name: &str, args: &[Expr], tables: &BTreeMap<String, TableInfo>) -> bool {
     if matches!(name, "count" | "sum") { return true; }
     if !matches!(name, "min" | "max") { return false; }
-    let Some(field) = args.get(1).and_then(intent::column) else { return false; };
+    let field = args.get(1).and_then(intent::column);
+    // @ref LLP 3000.019#3.2 — expression extrema use ordinary aggregate scan planning.
+    // Collection-valued second arguments keep binary page comparison planning.
+    if field.is_none() && args.get(1).is_none_or(may_be_collection) { return false; }
     // A binary comparison of two pages keeps their observable row order.
     // A focal member absent from this table can belong to an outer shape.
     match args.first() {
         Some(Expr::Read(read)) => tables.get(&read.table).is_some_and(|table|
-            extremum_domain(read, table) && (field == "id" || table.columns.contains_key(field))),
+            extremum_domain(read, table) && field.is_none_or(|field| field == "id" || table.columns.contains_key(field))),
+        _ => true,
+    }
+}
+
+// Before type binding, only select an aggregate order for a definitely scalar
+// result. Otherwise leave the source order intact for the binary overload;
+// the binder can still admit a scalar aggregate over that ordinary scan.
+fn may_be_collection(value: &Expr) -> bool {
+    match value {
+        Expr::Literal { .. } | Expr::Unary { .. } | Expr::Exists { .. } | Expr::Created { .. } => false,
+        Expr::Binary { op, left, right, .. } if op == "??" || op == "+" => may_be_collection(left) || may_be_collection(right),
+        Expr::Binary { .. } => false,
+        Expr::If { then, otherwise, .. } => may_be_collection(then) || may_be_collection(otherwise),
+        Expr::Assert { value, .. } => may_be_collection(value),
+        // Calls can be user helpers, including helpers which return pages.
         _ => true,
     }
 }

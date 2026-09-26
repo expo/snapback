@@ -756,7 +756,11 @@ impl<'a> Runner<'a> {
             Expr::Builtin { builtin, args } => {
                 if let Builtin::Extremum { field, max, domain } = builtin {
                     if args.len() != 1 { return Err(RuntimeError::Input("column min/max takes one source".into())); }
-                    return self.extremum(&args[0], field, *max, *domain);
+                    return self.extremum(&args[0], field, None, *max, *domain);
+                }
+                if let Builtin::ExtremumOf { value, max, domain } = builtin {
+                    if args.len() != 1 { return Err(RuntimeError::Input("expression min/max takes one source".into())); }
+                    return self.extremum(&args[0], "", Some(value), *max, *domain);
                 }
                 if matches!(builtin, Builtin::Count | Builtin::Sum) && let Some(Expr::Scan(scan)) = args.first()
                     && (scan.take == Bound::Meter || scan.existence) && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)))
@@ -825,7 +829,7 @@ impl<'a> Runner<'a> {
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
-            Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
+            Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {

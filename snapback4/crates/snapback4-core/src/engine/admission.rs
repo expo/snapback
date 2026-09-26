@@ -139,7 +139,10 @@ impl Flow<'_> {
                 .unwrap_or(Origin::Unknown(Vec::new())),
             Expr::Array(values) if values.is_empty() => Origin::Empty,
             Expr::Literal(Value::Array(values)) if values.is_empty() => Origin::Empty,
-            Expr::Builtin { args, .. } | Expr::Array(args) => args
+            Expr::Builtin { builtin, args } => builtin.operands(args)
+                .fold(Origin::Other, |origin, arg| origin.join(self.expr(arg)))
+                .transformed(),
+            Expr::Array(args) => args
                 .iter()
                 .fold(Origin::Other, |origin, arg| origin.join(self.expr(arg)))
                 .transformed(),

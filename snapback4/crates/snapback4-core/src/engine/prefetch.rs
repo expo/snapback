@@ -171,7 +171,8 @@ fn children(expr: &Expr, f: &mut impl FnMut(&Expr)) {
     match expr {
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => f(base),
         Expr::Binary { left, right, .. } => { f(left); f(right); }
-        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().for_each(f),
+        Expr::Array(values) => values.iter().for_each(f),
+        Expr::Builtin { builtin, args: values } => builtin.operands(values).for_each(f),
         Expr::Object(fields) => fields.values().for_each(f),
         Expr::Shape { base, fields } => { f(base); fields.values().for_each(f); }
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(f),

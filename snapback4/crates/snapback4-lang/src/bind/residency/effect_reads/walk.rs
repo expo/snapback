@@ -7,7 +7,8 @@ pub(super) fn expression(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
         Expr::Literal(_) | Expr::Input(_) | Expr::Variable(_) => {}
         Expr::Get(read) | Expr::Exists(read) => for key in &read.key { expression(key, f); },
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expression(base, f),
-        Expr::Array(items) | Expr::Builtin { args: items, .. } => for item in items { expression(item, f); },
+        Expr::Array(items) => for item in items { expression(item, f); },
+        Expr::Builtin { builtin, args: items } => for item in builtin.operands(items) { expression(item, f); },
         Expr::Object(fields) => for item in fields.values() { expression(item, f); },
         Expr::Shape { base, fields } => { expression(base, f); for item in fields.values() { expression(item, f); } }
         Expr::Binary { left, right, .. } => { expression(left, f); expression(right, f); }

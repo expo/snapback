@@ -309,7 +309,7 @@ fn pure_expr(expr: &Expr) -> bool {
         Expr::Block { body, value } => pure(body) && pure_expr(value),
         Expr::Shape { base, fields } => pure_expr(base) && fields.values().all(pure_expr),
         Expr::Array(items) => items.iter().all(pure_expr),
-        Expr::Builtin { builtin, args } => pure_builtin(builtin) && args.iter().all(pure_expr),
+        Expr::Builtin { builtin, args } => pure_builtin(builtin) && builtin.operands(args).all(pure_expr),
         Expr::Object(fields) => fields.values().all(pure_expr),
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => pure_expr(base),
         Expr::Binary { left, right, .. } => pure_expr(left) && pure_expr(right),
@@ -322,7 +322,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
         Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
-        | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
+        | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }
 }
 
