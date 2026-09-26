@@ -66033,3 +66033,96 @@ Final repository checks passed: `ref-check --verbose` reports 513 LLP
 documents, 9,442 references, zero errors and zero unchecked references;
 `git grep -n "^<<<<<<<"` is empty; `git diff --check` and the complete
 merge delta against main pass. The temporary suite launch job was removed.
+
+## 2026-09-26 — 0.4.4 lane LT round 2: discovery trust and completion regressions
+
+Read both round-1 reviews in full, the binding lane prompt, the round-0/1
+entries and LLP 3000.019 §3.7. Merged `sb4-intent/integration-044` first in
+`211767588`, retaining both journal/LLP histories, lane R's database ownership,
+`serve.lock` placement and `announce`, and LT's separate discovery record.
+Committed the merge before building; `cargo build` passed. The local
+`llp-orient` symlink was broken; used the same skill from lane-r2's populated
+vendor checkout for read-only orientation. No delegation.
+
+**Changes, by file.** `dev_address.rs` opens `.snapback4` with
+`O_DIRECTORY | O_NOFOLLOW` and verifies ownership before opening a record.
+Enumeration, record opens, identity checks and cleanup stay relative to that
+verified descriptor through `openat`, `fdopendir`, `fstatat` and `unlinkat`.
+Replacing the directory's name cannot redirect a later operation. Existing
+regular-file, single-link, uid, inode and lifetime-lock checks remain.
+`serve.rs` remembers the canonical project and temporary-store flag and returns
+both from `/dev/status`. `verbs/adoption.rs` requires the server's project to
+match doctor's own project and leaves the server's temporary flag intact;
+`verbs.rs` prints the temporary store id through `as_str`.
+
+`latency.rs` supplies a fallback guard that calls `finished(true)` only when
+there is no earlier stamp. `vendor/tiny_http/src/request.rs` drops that guard
+before unanswered-request cleanup, including body drain on panic; the common
+JSON path transfers it to the response writer so consuming the request does
+not stamp before the write. Attaching it to the request in `serve.rs` preserves
+it across moves into nested handlers. `serve_tests.rs` initializes the new
+server metadata and test-only request hook. LLP 3000.019 §3.7 records those
+changes. Lane R's `store_owner.rs`, its tests and native-opening test are
+unchanged from integration; asset production code is unchanged.
+
+**New regression evidence.** `tests/latency/discovery.rs` adds rejection of a
+symlinked/foreign-owned parent and proves that enumeration, reads, creation
+and cleanup use the original directory after replacement. `tests/latency.rs`
+adds real-process startup/doctor/SIGTERM symlink cases preserving external
+contents, a locked planted record from project A pointing at B (neither
+inspection nor reset reaches B's counters), and flipped temporary flags in
+both directions with persisted health and unquoted store identity assertions.
+`tests/latency/duration.rs` adds the panicking-handler case with a 2-KiB body
+withheld 300 ms, a 16-KiB common JSON response with socket reads withheld
+200 ms, and a TCP reset during a 32-MiB asset yielding exactly one sample and
+one refusal. The JSON test constrains the TCP receive window before the
+handshake, as changing it after connection left enough advertised credit for
+the entire reply. It uses the real common responder and real TCP writes.
+
+**Mutation evidence.** Each mutation compiled, failed its intended assertion
+(Cargo exit 101), and was restored separately:
+
+- JSON stamp before write: total **0.360 ms**, failing the **≥200 ms** bound;
+  restored witness **200.830 ms**.
+- Asset callback `finished(false)`: **0 refusals instead of 1**, with one sample.
+- Remove the fallback guard: total **300.774 ms**, including the withheld
+  body; restored panic witness **0.445 ms**, response arrived at **0.891 ms**.
+
+**Forms exercised.** `snapback4 dev --fresh --no-watch --port 0` and
+`snapback4 dev --memory --no-watch --port 0` remain discoverable through
+`snapback4 doctor`, `snapback4 doctor --json`, `snapback4 doctor --latency`,
+`snapback4 doctor --latency --json`, and
+`snapback4 doctor --latency --reset --json`. `GET /dev/status` now includes
+`project` and `temporary` from server memory. Persisted dev retains its store
+health inspection even if the address file claims it is temporary. No new
+Quarry form, diagnostic, authorization, meter or client surface.
+
+Affected verification on the restored implementation: server/CLI unit tests
+**135 passed, 2 ignored**; real CLI latency **8/8**; HTTP framing **2/2**;
+lifecycle **20/20**; adoption/doctor `w8c_` **4/4**; whole guide **86/86**;
+`native-opening.test.mjs` **6/6**, including “names a live server's published
+address”. The two ignored latency measurements were run explicitly and passed:
+**69.8 ns/record**, **7,720 bytes/operation**; alternating 2,000 real HTTP reads
+per mode gave off p50/p95 **335.693/452.448 µs**, on **336.213/446.469 µs**,
+median delta **+0.520 µs**. This is a shared-host witness, not a scheduling
+or latency guarantee.
+
+The first broad targeted run used Cargo's default test parallelism and hit
+this shell's **1,024-file-descriptor** limit. Five environmental failures were
+retained in `r2-affected.log`: `upload_disk_work_is_bounded_and_does_not_hold_the_query_engine`
+and `saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution`
+logged **EMFILE** in tiny_http; `unsupported_http_versions_release_connection_slots`
+failed with connection refused; `route_development_exception_does_not_expose_core_doors_or_personas`
+and `mutation_wire_query_version_and_no_sqlite_writer_lock` timed out. The entire
+affected set passed unchanged with `--test-threads=1`, matching the canonical
+suite's server/lifecycle concurrency (`r2-affected-serial.log`). No product
+assertion or timeout was weakened. Initial test-construction compile errors
+and the first JSON test's unblocked socket were corrected before this final
+qualification; deliberate mutation failures above are expected evidence.
+
+Node **24.13.1**, Bun **1.3.14**, Rust **1.97.0**, wasm-bindgen **0.2.127**;
+eight Cargo build jobs and dev/test debug info disabled. Frozen Bun install
+made no changes; package build passed. Source files remain at or below 1,500
+lines. All evidence is under `target/lane-lt-evidence/r2-*`. No requested fix
+was deferred and no brief deviation, budget/version change, push or publication
+was made. Final reference/full-suite qualification follows in this entry.

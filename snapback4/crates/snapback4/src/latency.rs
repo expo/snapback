@@ -155,6 +155,11 @@ impl Drop for Sample {
         self.registry.record(&self.path, self.accepted, total, wait, refused);
     }
 }
+// @ref LLP 3000.019#3.7 — an unanswered/panicking handler ends before
+// Request cleanup drains its body. `finished` preserves any earlier stamp.
+pub(super) struct FinishOnDrop;
+impl Drop for FinishOnDrop { fn drop(&mut self) { finished(true); } }
+
 // @ref LLP 3000.019#3.7 — measure the first engine acquisition, including authentication.
 pub(super) fn acquired() {
     CURRENT.with(|current| { if let Some(mut timing) = current.get() && timing.wait.is_none() { timing.wait = Some(timing.accepted.elapsed()); current.set(Some(timing)); } });

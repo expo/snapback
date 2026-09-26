@@ -60,6 +60,8 @@ pub(crate) mod latency;
 
 pub struct Shared {
     latency: Arc<latency::Registry>,
+    project: std::path::PathBuf,
+    temporary: bool,
     ephemeral: Arc<snapback4_core::engine::ephemeral::Hub>,
     ephemeral_rate: ephemeral::Rate,
     wake: Mutex<ephemeral::Wake>,
@@ -96,6 +98,8 @@ pub struct Shared {
     owner: Option<Arc<crate::store_owner::Owner>>,
     #[cfg(test)]
     pub auth_work: WorkHook,
+    #[cfg(test)]
+    request_work: WorkHook,
     #[cfg(test)]
     pub upload_work: WorkHook,
     #[cfg(test)]
@@ -319,12 +323,15 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
+        project: project.root.canonicalize().map_err(|e| e.to_string())?,
+        temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
         adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
+        #[cfg(test)] request_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
@@ -799,6 +806,8 @@ fn mutation_error_status(refusal: &Refusal) -> u16 {
 }
 
 fn handle(mut request: Request, shared: &Shared) {
+    request.set_cleanup_guard(latency::FinishOnDrop);
+    #[cfg(test)] test_work(&shared.request_work);
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
@@ -828,7 +837,7 @@ fn handle(mut request: Request, shared: &Shared) {
         // No engine lock: doctor must remain usable while an adoption waits on SQLite.
         let generation = *lock(&shared.generation);
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "generation":generation, "adoption":status.failure, "now":shared.now()}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now()}));
     }
     if method == Method::Options {
         respond_empty(request, 204);
@@ -1283,6 +1292,7 @@ mod poison_tests {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
+            project: std::env::current_dir().unwrap(), temporary: true,
             latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
@@ -1306,6 +1316,7 @@ mod poison_tests {
             uploads: AtomicUsize::new(0),
             route_verification: routes::Verification::default(), owner: None,
             auth_work: Mutex::new(None),
+            request_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),

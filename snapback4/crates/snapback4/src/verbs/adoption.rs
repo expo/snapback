@@ -34,13 +34,15 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     }).collect())
 }
 
+// @ref LLP 3000.019#3.7 — the server, not its writable discovery file, vouches for project and store lifetime.
 /// Discover a live host for this project, checking its advertised store identity.
 /// The address record is independent of persisted or temporary store placement.
 pub(super) fn project_host(project: &Project) -> Option<serde_json::Value> {
+    let root = serde_json::to_value(project.root.canonicalize().ok()?).ok()?;
     for address in crate::dev_address::read(project) {
         if let Some(mut status) = request_port(address.port, "GET", "/dev/status")
-            && status["storeId"].as_str() == Some(&address.store_id) {
-            status["temporary"] = serde_json::json!(address.temporary);
+            && status["storeId"].as_str() == Some(&address.store_id)
+            && status["project"] == root {
             status["port"] = serde_json::json!(address.port);
             return Some(status);
         }
@@ -51,10 +53,12 @@ pub(super) fn project_host(project: &Project) -> Option<serde_json::Value> {
 /// Read the live host through its address record's listener port. A
 /// store identity check prevents a stale port from inspecting another project.
 pub(super) fn host(project: &Project, store_id: &str) -> Option<serde_json::Value> {
+    let root = serde_json::to_value(project.root.canonicalize().ok()?).ok()?;
     for address in crate::dev_address::read(project) {
         if address.store_id != store_id { continue; }
         if let Some(mut status) = request_port(address.port, "GET", "/dev/status")
-            && status["storeId"].as_str() == Some(store_id) {
+            && status["storeId"].as_str() == Some(store_id)
+            && status["project"] == root {
             status["port"] = serde_json::json!(address.port);
             return Some(status);
         }

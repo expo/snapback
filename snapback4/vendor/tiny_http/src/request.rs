@@ -49,6 +49,7 @@ use chunked_transfer::Decoder;
 /// If you want to build fake requests to test your server, use [`TestRequest`](crate::test::TestRequest).
 pub struct Request {
     accepted_at: std::time::Instant,
+    cleanup_guard: Option<Box<dyn Send>>,
     // where to read the body from
     data_reader: Option<Box<dyn Read + Send + 'static>>,
 
@@ -302,6 +303,7 @@ where
 
     Ok(Request {
         accepted_at,
+        cleanup_guard: None,
         data_reader: Some(reader),
         response_writer: Some(Box::new(writer) as Box<dyn Write + Send + 'static>),
         abort_connection,
@@ -323,6 +325,14 @@ impl Request {
     /// When the parsed HTTP request was accepted, before body prebuffering.
     pub fn accepted_at(&self) -> std::time::Instant { self.accepted_at }
 
+    // @ref LLP 3000.019#3.7 — fallback completion precedes request cleanup even on unwind.
+    /// Drop this guard before request cleanup, including an unanswered request's
+    /// automatic 500 and reader drain. `into_writer` transfers it to the writer,
+    /// where it drops before transport cleanup instead.
+    pub fn set_cleanup_guard(&mut self, guard: impl Send + 'static) {
+        self.cleanup_guard = Some(Box::new(guard));
+    }
+
     /// Close a bounded-host request immediately, without draining its body.
     /// Used for admission refusal when no response worker is available.
     pub fn abort(mut self) {
@@ -330,6 +340,7 @@ impl Request {
         if let Some(abort) = self.abort_writers.as_ref() { abort.abort(); }
         if let Some(abort) = self.abort_connection.as_mut() { abort.abort(); }
         drop(self.response_writer.take());
+        drop(self.cleanup_guard.take());
         drop(self.data_reader.take());
         if let Some(sender) = self.notify_when_responded.take() { let _ = sender.send(()); }
     }
@@ -486,7 +497,19 @@ impl Request {
     /// Therefore you should always destroy the `Writer` as soon as possible.
     #[inline]
     pub fn into_writer(mut self) -> Box<dyn Write + Send + 'static> {
+        // Declaration order drops the guard before the transport writer.
+        struct GuardedWriter {
+            _guard: Option<Box<dyn Send>>,
+            writer: Box<dyn Write + Send>,
+        }
+        impl Write for GuardedWriter {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> { self.writer.write(bytes) }
+            fn flush(&mut self) -> io::Result<()> { self.writer.flush() }
+        }
         let writer = self.extract_writer_impl();
+        let writer: Box<dyn Write + Send> = if self.cleanup_guard.is_some() {
+            Box::new(GuardedWriter { _guard: self.cleanup_guard.take(), writer })
+        } else { writer };
         if let Some(sender) = self.notify_when_responded.take() {
             let writer = NotifyOnDrop {
                 sender,
@@ -516,6 +539,7 @@ impl Request {
     /// header deadline while this response is still waiting between frames.
     pub fn finish_stream(mut self) {
         drop(self.response_writer.take());
+        drop(self.cleanup_guard.take());
         drop(self.data_reader.take());
         if let Some(sender) = self.notify_when_responded.take() { let _ = sender.send(()); }
     }
@@ -676,6 +700,7 @@ impl fmt::Debug for Request {
 
 impl Drop for Request {
     fn drop(&mut self) {
+        drop(self.cleanup_guard.take());
         if self.response_writer.is_some() {
             let response = Response::empty(500);
             let _ = self.respond_impl(response); // ignoring any potential error

@@ -121,3 +121,112 @@ fn latency_large_asset_total_includes_blocked_socket_write() {
     assert!(total >= 200.0, "asset write missing from total: {result}");
     assert_eq!(result["operations"]["/assets (download)"]["refused"], 0);
 }
+
+#[test]
+fn latency_panicking_handler_excludes_withheld_request_body_cleanup() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
+    *lock(&host.shared.request_work) = Some(Arc::new(|| panic!("intentional unanswered handler")));
+    let began = Instant::now();
+    let mut stream = TcpStream::connect(host.address).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    write!(stream, "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{PERSONA}Content-Length: 2048\r\n\r\n").unwrap();
+    let mut reader = BufReader::new(stream);
+    let mut headers = String::new();
+    loop {
+        let mut line = String::new(); assert!(reader.read_line(&mut line).unwrap() > 0);
+        headers.push_str(&line); if line == "\r\n" { break; }
+    }
+    assert_eq!(status(&headers), 500);
+    let arrived = began.elapsed();
+    *lock(&host.shared.request_work) = None;
+    thread::sleep(Duration::from_millis(300));
+    reader.get_mut().write_all(&vec![b'x'; 2048]).unwrap();
+    let mut tail = Vec::new(); reader.read_to_end(&mut tail).unwrap();
+    let result = counted(&host, "/q/read", 1);
+    let op = &result["operations"]["/q/read"];
+    assert_eq!(op["refused"], 1);
+    let total = op["total"]["max"].as_f64().unwrap();
+    println!("panicking handler; 500 at {arrived:?}; body withheld 300ms; total={total:.3}ms");
+    assert!(total < arrived.as_secs_f64() * 1000.0 + 50.0, "panic cleanup entered total: {result}");
+}
+
+#[test]
+fn latency_small_json_total_includes_blocked_socket_write() {
+    use std::os::fd::{AsRawFd, FromRawFd};
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
+    // Constrain both real TCP buffers so a 16 KiB JSON response (below the
+    // 32 KiB chunking threshold) must wait for its reader to resume.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let buffer: libc::c_int = 1024;
+    let set_buffer = |fd, option| {
+        assert_eq!(unsafe { libc::setsockopt(fd, libc::SOL_SOCKET, option, (&buffer as *const libc::c_int).cast(), std::mem::size_of_val(&buffer) as _) }, 0);
+    };
+    set_buffer(listener.as_raw_fd(), libc::SO_SNDBUF);
+    let address = listener.local_addr().unwrap();
+    let server = Server::from_listener(listener, None).unwrap();
+    let fd = unsafe { libc::socket(libc::AF_INET, libc::SOCK_STREAM, 0) };
+    assert!(fd >= 0);
+    assert_eq!(unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) }, 0);
+    let mut reader = unsafe { TcpStream::from_raw_fd(fd) };
+    set_buffer(reader.as_raw_fd(), libc::SO_RCVBUF);
+    // Set the receive window before the handshake; changing it afterwards can
+    // leave the peer enough previously advertised credit for the entire reply.
+    let mut target: libc::sockaddr_in = unsafe { std::mem::zeroed() };
+    #[cfg(target_os = "macos")]
+    { target.sin_len = std::mem::size_of_val(&target) as _; }
+    target.sin_family = libc::AF_INET as _;
+    target.sin_port = address.port().to_be();
+    target.sin_addr.s_addr = u32::from_ne_bytes([127, 0, 0, 1]);
+    assert_eq!(unsafe { libc::connect(reader.as_raw_fd(), (&target as *const libc::sockaddr_in).cast(), std::mem::size_of_val(&target) as _) }, 0);
+    reader.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    reader.write_all(b"POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").unwrap();
+    let request = server.recv().unwrap();
+    let sample = latency::Sample::new(&request, &host.shared.latency).unwrap();
+    let payload = "x".repeat(16 * 1024);
+    let expected = json!({"data":payload});
+    let answer = expected.clone();
+    let worker = thread::spawn(move || sample.run(|| {
+        let mut request = request;
+        request.set_cleanup_guard(latency::FinishOnDrop);
+        respond(request, 200, answer);
+    }));
+    let mut first = [0]; reader.read_exact(&mut first).unwrap();
+    thread::sleep(Duration::from_millis(200));
+    let mut bytes = first.to_vec(); reader.read_to_end(&mut bytes).unwrap();
+    worker.join().unwrap();
+    let response = String::from_utf8(bytes).unwrap();
+    assert_eq!(status(&response), 200);
+    assert!(!response.contains("Transfer-Encoding: chunked"));
+    assert_eq!(body(&response), expected);
+    let result = counted(&host, "/q/read", 1);
+    let total = result["operations"]["/q/read"]["total"]["max"].as_f64().unwrap();
+    println!("16KiB JSON; socket reads held 200ms: total={total:.3}ms");
+    assert!(total >= 200.0, "JSON write missing from total: {result}");
+    assert_eq!(result["operations"]["/q/read"]["refused"], 0);
+}
+
+#[test]
+fn latency_disconnected_asset_records_exactly_one_sample_and_refusal() {
+    use std::os::fd::AsRawFd;
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &SCHEMA.replace("image <=1024", "image <=64000000"));
+    let id = asset(&host, 32 << 20);
+    let mut reader = get(&host, &format!("/assets/{id}"), 0);
+    assert!(head(&mut reader).contains("Transfer-Encoding: chunked"));
+    let mut prefix = [0; 1024]; reader.read_exact(&mut prefix).unwrap();
+    // Reset the TCP connection mid-body, while the 32 MiB response still
+    // exceeds the socket buffers, so the transport must report a write error.
+    let linger = libc::linger { l_onoff: 1, l_linger: 0 };
+    assert_eq!(unsafe { libc::setsockopt(reader.get_ref().as_raw_fd(), libc::SOL_SOCKET, libc::SO_LINGER, (&linger as *const libc::linger).cast(), std::mem::size_of_val(&linger) as _) }, 0);
+    drop(reader);
+    let result = counted(&host, "/assets (download)", 1);
+    assert_eq!(result["operations"]["/assets (download)"]["refused"], 1, "{result}");
+    // The permit is released after the sample; no later completion can add a
+    // second sample once this worker has exited.
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while host.admission.short.load(Ordering::Acquire) != 0 {
+        assert!(Instant::now() < deadline); thread::yield_now();
+    }
+    let result = snapshot(&host);
+    assert_eq!(result["operations"]["/assets (download)"]["n"], 1);
+    assert_eq!(result["operations"]["/assets (download)"]["refused"], 1);
+}

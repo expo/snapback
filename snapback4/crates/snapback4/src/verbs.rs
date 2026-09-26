@@ -694,7 +694,7 @@ pub fn doctor(options: &Options) -> i32 {
     let temporary_host = if options.flags.contains_key("store") || options.flags.contains_key("release") { None }
         else { adoption::project_host(&project).filter(|host| host["temporary"] == true) };
     if let Some(host) = temporary_host {
-        lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"], host["generation"]));
+        lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"].as_str().unwrap_or("unknown"), host["generation"]));
         latency_snapshot = latency::read(&project, &host, false);
         if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
         if let Some(reason) = host["adoption"].as_str() {
