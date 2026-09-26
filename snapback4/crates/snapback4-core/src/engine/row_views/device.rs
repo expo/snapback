@@ -2,23 +2,20 @@
 use super::*;
 
 impl Runner<'_> {
-    pub(super) fn device_view_plan(&self, m: &Maintain, member: &Value) -> (String, Bounds, bool) {
-        let k = m.row_key.as_ref().unwrap();
-        if let Some(range) = k.device_range(&self.schema.tables[&m.source])
-            && let Some(bounds) = range.bounds(member) {
-            return (k.range_index(range.column), bounds, true);
-        }
-        (k.source_index(), Bounds::default(), false)
-    }
-
     // @ref LLP 3000.020#3.3 — a horizon miss asks the server; a covered meter cut only publishes its partial.
     pub(super) fn device_live_count(&mut self, m: &Maintain, member: &Value) -> Result<(i64, bool), RuntimeError> {
-        let (index, bounds, range) = self.device_view_plan(m, member);
+        let k = m.row_key.as_ref().unwrap();
+        let selected = k.device_range(&self.schema.tables[&m.source])
+            .and_then(|plan| plan.lower_bound(member).map(|(value, strict)| (plan.column, value, strict)));
+        let mut bounds = Bounds::default();
+        let (index, range) = if let Some((column, value, strict)) = selected {
+            *(if strict { &mut bounds.gt } else { &mut bounds.gte }) = Some(value.clone());
+            (k.range_index(column), true)
+        } else { (k.source_index(), false) };
         let covered = self.covered_view_source(m, member, &index, &bounds)?;
         if !covered {
             if !range { return Ok((0, false)); }
-            let k = m.row_key.as_ref().unwrap();
-            self.unknown_fact(&m.source, &index, &[member.field(&k.member_key)?.clone()], "row-keyed view range");
+            self.unknown_fact(&m.source, &index, std::slice::from_ref(member.field(&k.member_key)?), "row-keyed view range");
             if self.meter.cut == crate::meter::Cut::Abort {
                 self.pending_view_read()?;
             }

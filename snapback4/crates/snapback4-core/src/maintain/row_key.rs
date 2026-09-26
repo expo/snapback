@@ -34,31 +34,28 @@ impl RowKey {
         self.predicate.matches_member(source, Some(member))
     }
 
-    pub fn comparisons(&self) -> Vec<(String, String)> {
-        fn visit(p: &Predicate, out: &mut Vec<(String, String)>) {
+    fn each_comparison<'a>(&'a self, out: &mut dyn FnMut(&'a str, &'a str, &'a str)) {
+        fn visit<'a>(p: &'a Predicate, out: &mut dyn FnMut(&'a str, &'a str, &'a str)) {
             match p {
-                Predicate::And(a, b) => {
-                    visit(a, out);
-                    visit(b, out);
-                }
-                Predicate::Compare {
-                    left: Operand::Field(a),
-                    right: Operand::Field(b),
-                    ..
-                } => {
-                    if let Some(field) = b.strip_prefix("$row.") {
-                        out.push((a.clone(), field.into()));
-                    } else if let Some(field) = a.strip_prefix("$row.") {
-                        out.push((b.clone(), field.into()));
-                    }
-                }
+                Predicate::And(a, b) => { visit(a, out); visit(b, out); }
+                Predicate::Compare { op, left: Operand::Field(a), right: Operand::Field(b) } => out(op, a, b),
                 _ => {}
             }
         }
+        visit(&self.predicate, out);
+    }
+    pub fn comparisons(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();
-        visit(&self.predicate, &mut out);
+        self.each_comparison(&mut |_, a, b| {
+            if let Some(field) = b.strip_prefix("$row.") {
+                out.push((a.into(), field.into()));
+            } else if let Some(field) = a.strip_prefix("$row.") {
+                out.push((b.into(), field.into()));
+            }
+        });
         out
     }
+
 }
 impl Maintain {
     pub fn work_table(&self) -> String {
@@ -304,7 +301,7 @@ impl RowKey {
         Ok(())
     }
     // @ref LLP 3000.020#3.1 — only normalized lower bounds on the horizon's first free column certify a suffix.
-    pub fn device_range<'a>(&'a self, source: &'a Table) -> Option<RowRange<'a>> {
+    pub fn device_range<'a>(&'a self, source: &'a Table) -> Option<SuffixRange<'a>> {
         use crate::schema::Audience;
         let sync = source.sync.as_ref()?;
         let horizon = sync.horizon.as_ref()?;
@@ -315,54 +312,86 @@ impl RowKey {
         };
         let column = source.indexes[&horizon.by].components.get(width)?.column()?;
         if column == &self.source_key { return None; }
-        fn collect<'a>(p: &'a Predicate, column: &str, out: &mut Vec<(&'a str, bool)>) {
-            match p {
-                Predicate::And(a, b) => { collect(a, column, out); collect(b, column, out); }
-                Predicate::Compare {
-                    op,
-                    left: Operand::Field(a),
-                    right: Operand::Field(b),
-                } => {
-                    let (source, member) = match op.as_str() {
-                        ">" | ">=" => (a, b),
-                        "<" | "<=" => (b, a),
-                        _ => return,
-                    };
-                    if source == column && let Some(field) = member.strip_prefix("$row.") {
-                        out.push((field, op.len() == 1));
-                    }
-                }
-                _ => {}
-            }
-        }
-        let mut lower = Vec::new();
-        collect(&self.predicate, column, &mut lower);
-        (!lower.is_empty()).then_some(RowRange { column, lower })
+        let range = SuffixRange { column, key: self };
+        let mut present = false;
+        range.each_bound(&mut |_, _| present = true);
+        present.then_some(range)
     }
 }
 
 /// A read-time plan over existing indexes; not persisted in schemas or recount cursors.
-pub struct RowRange<'a> {
+pub struct SuffixRange<'a> {
     pub column: &'a str,
-    pub lower: Vec<(&'a str, bool)>,
+    key: &'a RowKey,
 }
-impl RowRange<'_> {
-    pub fn bounds(&self, member: &Value) -> Option<crate::rows::Bounds> {
+impl<'a> SuffixRange<'a> {
+    fn each_bound(&self, out: &mut dyn FnMut(&'a str, bool)) {
+        self.key.each_comparison(&mut |op, a, b| {
+            let (source, member) = match op {
+                ">" | ">=" => (a, b),
+                "<" | "<=" => (b, a),
+                _ => return,
+            };
+            if source == self.column && let Some(field) = member.strip_prefix("$row.") {
+                out(field, op.len() == 1);
+            }
+        });
+    }
+    /// Reporting enumerates the same candidates without making execution allocate a list.
+    pub fn lower(&self) -> Vec<(&'a str, bool)> {
+        let mut lower = Vec::new();
+        self.each_bound(&mut |field, strict| lower.push((field, strict)));
+        lower
+    }
+    pub fn lower_bound<'m>(&self, member: &'m Value) -> Option<(&'m Value, bool)> {
         let mut value = &Value::Null;
         let mut strict = false;
-        for (field, candidate_strict) in &self.lower {
-            let candidate = member.field(field).ok()?;
+        let mut valid = true;
+        self.each_bound(&mut |field, candidate_strict| {
+            let candidate = member.field(field).unwrap_or(&Value::Null);
             // Any null candidate disables the range, rather than falling through.
-            if *candidate == Value::Null { return None; }
+            if *candidate == Value::Null { valid = false; }
             match candidate.total_cmp(value) {
-                std::cmp::Ordering::Greater => { value = candidate; strict = *candidate_strict; }
+                std::cmp::Ordering::Greater => { value = candidate; strict = candidate_strict; }
                 std::cmp::Ordering::Equal => strict |= candidate_strict,
                 std::cmp::Ordering::Less => {}
             }
+        });
+        if !valid || *value == Value::Null { return None; }
+        Some((value, strict))
+    }
+}
+
+impl RowKey {
+    /// Historical first-comparison selector. Device certification uses `device_range`.
+    pub fn live_range(&self, member: &Value) -> (String, crate::rows::Bounds) {
+        fn find(p: &Predicate, k: &RowKey, u: &Value) -> Option<(String, crate::rows::Bounds)> {
+            match p {
+                Predicate::And(a, b) => find(a, k, u).or_else(|| find(b, k, u)),
+                Predicate::Compare {
+                    op,
+                    left: Operand::Field(a),
+                    right: Operand::Field(b),
+                } if !a.starts_with("$row.") && a != &k.source_key => {
+                    let f = b.strip_prefix("$row.")?;
+                    let value = u.field(f).ok()?.clone();
+                    if value == Value::Null {
+                        return None;
+                    }
+                    let mut bounds = crate::rows::Bounds::default();
+                    match op.as_str() {
+                        ">" => bounds.gt = Some(value),
+                        ">=" => bounds.gte = Some(value),
+                        "<" => bounds.lt = Some(value),
+                        "<=" => bounds.lte = Some(value),
+                        _ => return None,
+                    }
+                    Some((k.range_index(a), bounds))
+                }
+                _ => None,
+            }
         }
-        if *value == Value::Null { return None; }
-        let mut bounds = crate::rows::Bounds::default();
-        *(if strict { &mut bounds.gt } else { &mut bounds.gte }) = Some(value.clone());
-        Some(bounds)
+        find(&self.predicate, self, member)
+            .unwrap_or((self.source_index(), crate::rows::Bounds::default()))
     }
 }

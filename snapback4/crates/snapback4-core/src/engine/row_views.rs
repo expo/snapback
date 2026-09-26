@@ -186,7 +186,7 @@ impl Runner<'_> {
         }
         let k = m.row_key.as_ref().unwrap();
         let t = &self.schema.tables[&m.source];
-        let prefix = vec![u.field(&k.member_key)?.clone()];
+        let prefix = std::slice::from_ref(u.field(&k.member_key)?);
         let Some(sync) = &t.sync else {
             return Ok(false);
         };
@@ -218,16 +218,17 @@ impl Runner<'_> {
             Some(crate::rows::AcquiredBoundary::Whole) => Ok(true),
             Some(crate::rows::AcquiredBoundary::Key(floor)) => {
                 // @ref LLP 3000.020#3.2 — a public table's global suffix is not this parent's suffix.
-                if group != prefix.as_slice() { return Ok(false); }
+                if group != prefix { return Ok(false); }
                 let h = t.indexes[&horizon.by].components.get(group.len()).and_then(|c| c.column());
                 let planned = t.indexes[index].components.get(1).and_then(|c| c.column());
                 if h != planned {
                     return Ok(false);
                 }
-                let mut lower = bounds.clone();
-                lower.after = None;
-                lower.before = None;
-                let Some((lo, _)) = crate::rows::scan_range(&group, &lower, Dir::Asc) else {
+                // A certification starts from the predicate, never a resume position.
+                if bounds.after.is_some() || bounds.before.is_some() || bounds.at_or_after.is_some() {
+                    return Ok(false);
+                }
+                let Some((lo, _)) = crate::rows::scan_range(group, bounds, Dir::Asc) else {
                     return Ok(true);
                 };
                 Ok(lo >= floor)
@@ -265,7 +266,7 @@ impl Runner<'_> {
         live: bool,
     ) -> Result<(i64, bool, Option<Value>), RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
-        let prefix = vec![u.field(&k.member_key)?.clone()];
+        let prefix = std::slice::from_ref(u.field(&k.member_key)?);
         let device_live = self.device && live;
         if device_live { self.observe_sequence_selection(&m.source, index, &prefix)?; }
         // Keep bounds/cursor storage outside the transient row allocation scope.
@@ -302,7 +303,7 @@ impl Runner<'_> {
                     let selected = !matches!(source, Value::Null) && (!live
                         || !self.expired(&self.schema.tables[&m.source], &source))
                         // @ref LLP 3000.020#3.3 — retained copies never contribute to a current-row bound.
-                        && (!device_live || self.tx.current_row(&m.source, &source)? || self.is_provisional(&m.source, &source)?)
+                        && (!device_live || (self.tx.current_row(&m.source, &source)? || self.is_provisional(&m.source, &source)?))
                         && k.matches(&source, u);
                     if live && selected {
                         self.note_expiry(&self.schema.tables[&m.source], &source);
@@ -692,7 +693,7 @@ impl Runner<'_> {
             if self.device && self.schema.tables[&m.source].is_expiring()
                 && m.row_key.as_ref().unwrap().device_range(&self.schema.tables[&m.source]).is_some() {
                 let k = m.row_key.as_ref().unwrap();
-                self.unknown_fact(&m.source, &k.source_index(), &[member.field(&k.member_key)?.clone()], "row-keyed source authority");
+                self.unknown_fact(&m.source, &k.source_index(), std::slice::from_ref(member.field(&k.member_key)?), "row-keyed source authority");
             }
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
