@@ -1012,6 +1012,7 @@ pub fn token(options: &Options) -> i32 {
 fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::schema::Maintain) -> Option<serde_json::Value> {
     let k = m.row_key.as_ref()?;
     let source = &schema.tables[&m.source];
+    if !source.is_expiring() { return None; }
     let range = k.device_range(source)?;
     let horizon = source.sync.as_ref()?.horizon.as_ref()?;
     Some(json!({

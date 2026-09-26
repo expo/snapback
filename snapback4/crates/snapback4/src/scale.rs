@@ -587,10 +587,19 @@ impl Analysis<'_> {
     fn point_work(&mut self, table: &str, index: &str, site: &str, times: u64, authorize: bool) {
         self.rows(times.saturating_mul(if self.schema.table(table).is_some_and(|t| t.is_expiring()) { 2 } else { 1 }));
         if self.in_filter { self.probes(times); }
-        if self.schema.maintain_for(table).is_some_and(|m| m.row_key.is_some()
-            && self.schema.tables[&m.source].is_expiring()) { self.rows(times.saturating_mul(2)); }
+        self.row_view_work(table, site, times);
         self.lookup_growth(table, index, site, false);
         if authorize && let Some(table) = self.schema.table(table) { self.rule(&table.rules.read, site, times); }
+    }
+
+    // @ref LLP 3000.020#3.4 — each evaluated live view fetches its member and
+    // reserves certification, even inside a page; the source rule costs probes too.
+    fn row_view_work(&mut self, name: &str, site: &str, times: u64) {
+        if let Some(m) = self.schema.maintain_for(name) && m.row_key.is_some() {
+            let source = &self.schema.tables[&m.source];
+            if source.is_expiring() { self.rows(times.saturating_mul(2)); }
+            self.rule(&source.rules.read, site, times);
+        }
     }
 
     fn lookup_growth(&mut self, name: &str, index: &str, site: &str, witness: bool) {
@@ -716,6 +725,7 @@ impl Analysis<'_> {
         }
         // A scan already explains expiry; only the implicit live-aggregate
         // source work needs the point-lookup check here.
+        self.row_view_work(&scan.table, &scan.site, times.saturating_mul(candidates));
         self.lookup_growth(&scan.table, "byId", &scan.site, false);
         if let Some(filter) = &scan.filter {
             let previous = self.in_filter;

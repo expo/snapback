@@ -126,3 +126,35 @@ fn certificate_uses_the_guide_plan_and_actual_fields_without_invented_backlog() 
         assert!(result.bounds.rows_examined < 8192);
     }
 }
+
+#[test]
+fn live_view_page_and_point_certificates_cover_real_receipts() {
+    use snapback4_core::{Context, Engine, Value, wire};
+    use serde_json::json;
+    use std::collections::BTreeMap;
+    let b = bound(SOURCE);
+    let certs = ["badgeRows", "badge"].map(|name| {
+        analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == name).unwrap().program)
+    });
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut rows = Vec::new();
+    for n in 0..100 {
+        let c = format!("c{n}");
+        for (table, row) in [
+            ("conversations", json!({"id":c,"title":"chat"})),
+            ("members", json!({"id":format!("u{n}"),"conversationId":c,"principal":"bob","readUpTo":0,"joinedAt":0})),
+            ("messages", json!({"id":format!("m{n}"),"conversationId":c,"ordinal":1,"at":1,"senderId":"alice","tombstone":false,"until":null})),
+        ] { rows.push((table.into(), wire::row_from_json(&engine.schema().tables[table], &row).unwrap())); }
+    }
+    engine.seed(rows).unwrap();
+    for (i, name) in ["badgeRows", "badge"].into_iter().enumerate() {
+        let args = if i == 0 { BTreeMap::new() } else { BTreeMap::from([("member".into(), Value::Id("u0".into()))]) };
+        let q = engine.query(name, Context::new("bob", args).at(1)).unwrap();
+        assert!(q.complete, "{q:?}");
+        assert_eq!(q.metered.examined, if i == 0 { 300 } else { 3 });
+        assert_eq!(q.metered.rule_probes, if i == 0 { 100 } else { 1 });
+        assert!(certs[i].bounds.rows_examined >= q.metered.examined, "{q:?} exceeds {:?}", certs[i]);
+        assert!(certs[i].bounds.probes >= q.metered.rule_probes, "{q:?} exceeds {:?}", certs[i]);
+        eprintln!("{name}: certificate {} examined / {} probes, receipt {} / {}", certs[i].bounds.rows_examined, certs[i].bounds.probes, q.metered.examined, q.metered.rule_probes);
+    }
+}

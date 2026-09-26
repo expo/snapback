@@ -266,3 +266,12 @@ test('check enumerates every range candidate and its fallback in text and JSON',
   const text = execFileSync(binary, ['check'], { cwd: s.dir, encoding: 'utf8' });
   for (const part of [r.index, r.horizon.index, r.selection, r.fallback, '.ordinal > member.joinedAt']) assert.ok(text.includes(part), part);
 });
+
+test('check omits the device range for a stored non-expiring count', { timeout: 120000 }, async t => {
+  const s = await serverFor(t, { replace: [['  expire at .until\n', '']] });
+  const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: s.dir, encoding: 'utf8' }));
+  assert.equal(checked.rowViews[0].range, null);
+  const plain = execFileSync(binary, ['check'], { cwd: s.dir, encoding: 'utf8' });
+  assert.ok(!plain.includes('device range:'));
+  assert.ok(!plain.includes('Whole keeps the live-basis scan'));
+});
