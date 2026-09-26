@@ -1107,8 +1107,13 @@ supplies the query's cursor argument itself, which must be named `c`
 For screens that must not unmount on a transient reload, explicitly opt in:
 
 ```tsx
-const inbox = useQuery(api.inbox, {}, { keep: true });
-const thread = usePage(api.thread, { conversationId }, { keep: true });
+import { useQuery, usePage } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+function useKeptThread(conversationId: string) {
+  const inbox = useQuery(api.inbox, {}, { keep: true });
+  const thread = usePage(api.thread, { conversationId }, { keep: true });
+  return { inbox, thread };
+}
 ```
 
 On the local client (wasm or process device) and the online client, `keep`
