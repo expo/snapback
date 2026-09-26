@@ -22,6 +22,7 @@ mod caps;
 mod authority;
 mod successor;
 mod sequences;
+mod ownership;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
@@ -36,6 +37,9 @@ fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> 
 
 pub struct Store {
     conn: Connection,
+    // Fields drop in declaration order: SQLite must close before the raw lock
+    // descriptor, whose close can discard process-wide SQLite POSIX locks.
+    ownership: Option<std::sync::Arc<std::fs::File>>,
     #[cfg(unix)]
     file_identity: Option<(u64, u64)>,
     page_size: u64,
@@ -92,7 +96,7 @@ impl Store {
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
+        Ok(Self { conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -249,7 +253,7 @@ impl Store {
         let identity = activation::identity(&opened)?;
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
+        Ok(Self { conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
@@ -301,7 +305,7 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+        Ok(Self { conn, ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {

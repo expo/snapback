@@ -242,7 +242,8 @@ the failure; restart the device host and reopen the client before retrying.
 
 Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
 fixture, `token`, `deploy`, `rollback`) lock the database file for their lifetime.
-Device processes share ownership with each other and exclude backend writers.
+Native devices, including embedded C-ABI hosts, share ownership with each other
+and exclude backend writers until their stores close.
 A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the
 command once, then restart it. Another CLI writer also refuses; wait for it.
 The HTTP /seed development door already runs through the host. `check`, `data`,

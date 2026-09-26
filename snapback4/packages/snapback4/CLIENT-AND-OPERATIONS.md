@@ -1653,8 +1653,9 @@ step.
   Before opening SQLite, it locks the database file for its lifetime. A live dev/serve host or another CLI writer
   refuses `E_STORE_BUSY` with the store site and server address. Stop the host, run once, then restart it.
   The same rule covers `token`, `test` without a fixture, `deploy` and `rollback`; HTTP `/seed` already
-  runs through the dev host. Device processes share compatible ownership with each other, but refuse
-  a backend owner and exclude backend writers. `serve.lock` holds only an address hint; removing it
+  runs through the dev host. Native devices (process clients and embedded C-ABI hosts) share compatible
+  ownership with each other, but refuse a backend owner before initialization and exclude backend writers
+  until their SQLite stores close. `serve.lock` holds only an address hint; removing it
   never releases ownership. SQLite opens and retries use the acquired canonical database path.
   Read-only inspection and fixture tests remain available beside the server.
   `data` opens a read-only snapshot without writable store initialization. The native smoke driver's

@@ -13,7 +13,7 @@ use std::path::Path;
 
 /// Open (or create) the device's store at `path`, with its side tables.
 pub fn open(path: &Path) -> Result<Store, RuntimeError> {
-    let store = Store::open(path)?;
+    let store = Store::open_shared(path)?;
     store.conn().execute_batch(
         "CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);
          CREATE TABLE IF NOT EXISTS _device_base (t TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(t, id)) WITHOUT ROWID;

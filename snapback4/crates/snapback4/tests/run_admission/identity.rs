@@ -143,6 +143,61 @@ fn backend_file(p: &Project) -> PathBuf {
     path
 }
 
+struct AbiDevice(*mut snapback4_device::native::Device);
+impl Drop for AbiDevice {
+    fn drop(&mut self) { snapback4_device::ffi::sb4_close(self.0); }
+}
+
+fn abi_open(p: &Project) -> AbiDevice {
+    let path = std::ffi::CString::new(p.store().to_str().unwrap()).unwrap();
+    let backend = std::ffi::CString::new(fs::read(backend_file(p)).unwrap()).unwrap();
+    AbiDevice(snapback4_device::ffi::sb4_open(path.as_ptr(), backend.as_ptr()))
+}
+
+#[test]
+fn c_abi_open_cannot_initialize_or_clear_a_running_server_store() {
+    let p = Project::new(); p.initialize();
+    let _host = server(&p, "c-abi-host");
+    let device = abi_open(&p);
+    assert!(device.0.is_null(), "embedded native opens must take shared ownership before SQLite initialization");
+    let reason = snapback4_device::ffi::sb4_open_reason(std::ptr::null(), std::ptr::null());
+    assert!(!reason.is_null());
+    // SAFETY: this NUL-terminated response belongs to sb4_open_reason and is
+    // freed exactly once with the corresponding ABI function.
+    let reason_text = unsafe { std::ffi::CStr::from_ptr(reason) }.to_str().unwrap().to_owned();
+    snapback4_device::ffi::sb4_free(reason);
+    let reason: serde_json::Value = serde_json::from_str(&reason_text).unwrap();
+    assert_eq!(reason["denied"]["code"], "E_STORE_BUSY", "{reason}");
+    assert_eq!(reason["denied"]["family"], "store");
+    assert_eq!(reason["denied"]["site"], p.store().to_str().unwrap());
+    assert!(reason["denied"]["rewrite"].as_str().unwrap().contains("stop"));
+    let conn = p.conn();
+    assert_eq!(conn.query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!(conn.query_row("SELECT count(*) FROM sqlite_master WHERE name LIKE '_device_%'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+}
+
+#[test]
+fn two_c_abi_opens_share_ownership_until_both_close() {
+    let p = Project::new();
+    let first = abi_open(&p); assert!(!first.0.is_null());
+    let second = abi_open(&p); assert!(!second.0.is_null());
+    for args in [vec!["dev", "--port", "0", "--no-watch"], vec!["run", "put"]] {
+        assert_owner_refusal(&p, &args, "E_STORE_BUSY");
+    }
+    drop(first);
+    assert_owner_refusal(&p, &["run", "put"], "E_STORE_BUSY");
+    let request = std::ffi::CString::new(r#"{"op":"residency"}"#).unwrap();
+    let response = snapback4_device::ffi::sb4_call(second.0, request.as_ptr());
+    assert!(!response.is_null());
+    // SAFETY: the response remains owned by the ABI until sb4_free below.
+    let result: serde_json::Value = serde_json::from_str(unsafe { std::ffi::CStr::from_ptr(response) }.to_str().unwrap()).unwrap();
+    snapback4_device::ffi::sb4_free(response);
+    assert!(result.get("ok").is_some(), "{result}");
+    drop(second);
+    let out = p.run(&["run", "put"]);
+    assert!(out.status.success(), "{out:?}");
+}
+
 #[test]
 fn device_cannot_clear_a_running_servers_rows() {
     let p = Project::new(); p.initialize();
