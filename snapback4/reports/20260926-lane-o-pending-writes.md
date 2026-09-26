@@ -749,3 +749,130 @@ Local evidence: `target/lane-o-r3-evidence/`, including `regressions.log`,
 `affected.log`, `affected.exit`, `typecheck.log`, `build.log`, `full-test.log`,
 `full-test.exit`, and the named mutation preloads/logs/exit records. Nothing was
 pushed or published.
+
+## Round 4 — 2026-09-26
+
+Accepted the remaining storage-failure Lows from both round-3 blind reviews,
+including Astra's repeated-exit coverage gap. This round changes only those
+paths, their regression tests and their documentation. Implementation commits:
+
+- `4de79595f` — refused exit cancellation when removal or replacement fails.
+- `46cf4ab20` — local observed holds survive failed status persistence.
+- `06bfcaa88` — repeated exit recovery after an acknowledged earlier exit.
+
+Every commit has `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+No push or publication was performed.
+
+### Findings, file by file
+
+Paths below are relative to `snapback4/`.
+
+| Finding | Files and resulting behavior |
+| --- | --- |
+| Both: cancellation removal throws | `packages/snapback4/src/web-journal.ts`: `cancelExit` first attempts removal and checks absence. If the key remains, it writes and verifies `{ key, cancelled: true }`, which recovery ignores. It drops the staged exit only after removal or replacement succeeds. If replacement also fails, the staged acknowledgement remains for the next commit, without another `begin_send`. `test/web-navigation.test.mjs` extends both denied and throwing first-exit cases with throwing removal and with both removal/replacement throwing. Copied stores reopen queued; the double-failure case first commits the independent acknowledgement. No keepalive or ordinary POST starts. Later cleanup preserves the original outbox and send revision and removes the acknowledgement. |
+| Astra: local known hold is lost after failed save | `src/pending-writes.ts`: a runtime fallback retains the observed refusal code when `hold_write` throws or refuses and notifies subscribers. The existing device send revision, persisted dispatch value and client lifetime fence supersede it; settled or absent entries discard it. `src/local.ts` uses this helper for ordinary and exit responses and clears it at settlement, sign-out, close and incarnation changes. `test/pending-writes.test.mjs` exposes the fixture's real persistence provider and covers failed saves, refusals and supersession. `CLIENT-AND-OPERATIONS.md` documents the same runtime-only fallback on local and online clients. |
+| Astra: unique exit token lacked repeated-cycle coverage | `test/web-navigation.test.mjs`: the first exit's acknowledgement commits while synchronous cleanup throws; its response then persists held/E_BUSY. The second exit starts while its status/acknowledgement save is stalled. Copies of both stores reopen sent, despite the still-persisted first acknowledgement and hold. Removing the unique token makes this assertion reopen held/E_BUSY and fail. The token implementation is unchanged. |
+
+### Public forms and regression evidence
+
+No public spelling changed. These forms still compile and run:
+
+```ts
+const writes = await client.pendingWrites();
+// After a received E_BUSY and failed local status save:
+// [{ id, op, args, state: "held", reason: "E_BUSY", predicted }]
+const stop = client.onPendingWrites(() => {
+  void client.pendingWrites().then(render);
+});
+stop();
+```
+
+```tsx
+const all = usePendingWrites();
+const sends = usePendingWrites(api.send);
+```
+
+Added **17 cases**: four cancellation-storage variants, twelve local hold cases
+(two failure modes times six supersession events), and one repeated-exit case.
+The existing first-exit checks remain and still pass.
+
+- Cancellation focus: **7/7**, no skips. Both throwing `removeItem` cases
+  reopen queued immediately from copies of the persisted stores. Both
+  double-failure cases retain their staged acknowledgement for the next
+  ordinary commit and reopen queued from that committed copy.
+- Local hold focus: **12/12**, no skips. The real provider rejects the saved
+  outbox update after exactly one POST receives E_BUSY, while the VM discards
+  the failed update and subsequent reads see persisted sent. A subscriber
+  still observes held/E_BUSY. Separate device-refusal cases cover a returned
+  denial. Both modes check newer dispatch, newer hold, settlement, sign-out,
+  close and adoption. Failed send retries retain the fallback without a new POST.
+- Repeated-exit case: **1/1**, no skips; the reopened list is sent with no
+  stale hold reason, before the second status save completes.
+- Affected run: **201/201**, **zero skips** (app-online, pending-writes,
+  web-navigation, client-lifecycle, online-session, local-signout and React).
+- Package build and `git diff --check` pass. Changed sources remain below
+  1,500 lines; `local.ts` is 1,489 lines.
+
+Mutation trials use Node loader substitutions in ignored local evidence files;
+implementation sources and package artifacts were not edited for these trials.
+
+| Mutation | Result |
+| --- | --- |
+| Restore the old unconditional exit cancellation | **0 pass / 2 fail**: both throwing-removal cases retain an executable marker instead of a cancellation. |
+| Remove the local fallback | **0 pass / 1 fail**: the subscriber never sees held/E_BUSY after the failed provider save. |
+| Remove local send-revision supersession | **0 pass / 1 fail**: a newer dispatch leaves the list held instead of sent. |
+| Remove the unique exit token | **0 pass / 1 fail**: the second interrupted exit reopens held/E_BUSY instead of sent. |
+
+### Constraints, measurement and remaining limits
+
+Wasm rebuilt at **2,023,103 B raw / 581,523 B gzip**, unchanged from rounds
+0–3: **571 B** below the unchanged **582,094 B** gzip budget. No Rust runtime,
+engine meter, diagnostic, package version, other release lane or supervisor-owned
+RFC changed. No deviation from this round's brief and no unfixed requested finding.
+
+The scoped `llp-orient` workflow used the same installed fallback as earlier
+rounds (`lane-z/vendor/llp/skills/llp-orient/SKILL.md`). Governing constraints
+remain LLP 3000 §4, LLP 2000.000 §7.2–7.3, LLP 3000.013 §6,
+LLP 3000.007 §17/§20.4 and the supplied LLP 3000.019 §3.3 part 4.
+The current client reference's custody and receipt semantics remain intact.
+
+Existing information limits still apply: a hold never saved is visible only on
+the runtime that observed it (fail the status save, close, reopen before retry);
+pre-0.4.4 records cannot invent absent dispatch evidence. If both cancellation
+writes fail and the page dies before the next independent acknowledgement
+commit, cancellation cannot be durably recovered. Reproduce by making removal
+and cancellation replacement throw, refusing `begin_send`, and killing the page
+before any subsequent commit. This round preserves the staged acknowledgement
+for a living page's next commit, as requested; it does not claim storage can
+retain a cancellation when all relevant writes fail.
+
+### Required full script
+
+Ran `bash scripts/test.sh` **once**, at implementation commit `06bfcaa88`,
+with no implementation or test edits during the run.
+
+**Exact result: `== 0 failure(s) in 1109 s`, exit 0.**
+
+- Cargo build, wasm build/budget, docs budget, release guard, package typecheck
+  and build, chat check, both app typechecks and fixture wrappers passed.
+- Rust targets and workspace doctests passed (**615 s**); the full guide
+  target passed **86/86**.
+- The main client invocation reported **2,229 tests: 2,219 passed, 0 failed,
+  10 existing optional/host skips**. The separately sharded acquisition and
+  server tests also passed. The complete client step took **205 s**.
+- Every round-4 regression passed. The prior strict-admission/session-lock and
+  residency intermittent assertions also passed in this run; this does not
+  erase the earlier inherited reproductions recorded above and by the reviewers.
+- All **78 client model tests** passed with **zero skips** (**272 s**), including
+  all 3,000 online interleavings and the session-model seed counts.
+
+**Failures to classify: none.** No inherited or environmental failure occurred
+in this full run. No post-suite repair or test rerun was needed. During initial
+implementation the package build caught the helper initialization outside the
+local client's try-block scope; moving it inside that existing scope fixed the
+build and the preliminary affected failures before the passing runs above.
+
+Evidence is retained locally under `target/lane-o-r4-evidence/`: `full-test.log`
+and `full-test.exit`, `affected.log` and `affected.exit`, `cancellation.log`,
+`local-holds.log`, `new-cases.log`, and the four mutation logs, loaders and exit
+records. The full-script exit record is `0`; every mutation exit record is `1`.

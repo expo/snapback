@@ -63764,3 +63764,46 @@ finding; old records without dispatch evidence and holds never saved retain thei
 previous information limits. The round-3 section of
 [the lane report](reports/20260926-lane-o-pending-writes.md) and local evidence in
 `target/lane-o-r3-evidence/` record the work and the full red result.
+
+## 2026-09-26 — Lane O round 4: cancellation under storage failure and local held status
+
+Fixed the remaining storage-failure Lows from both round-3 blind reviews, and
+added Astra's repeated-exit sequence. Commits `4de79595f`, `46cf4ab20` and
+`06bfcaa88` replace an unremovable refused-exit marker with an ignored
+cancellation; keep the staged acknowledgement if that replacement also fails;
+and retain a received local hold at runtime when its status save throws or
+refuses. The local fallback notifies subscribers and expires against the device's
+send revision, newer persisted status, settlement and client lifetime fences.
+The client reference records its runtime-only scope. No public spelling changed.
+
+Seventeen added cases cover both denied/throwing exit starts under removal and
+replacement failures, local failed-save/refused-save holds and six supersession
+events, and two exit cycles with blocked cleanup and a stalled second status
+commit. The real persistence-provider case receives E_BUSY after one POST, fails
+the hold save and still publishes held/E_BUSY. Copied stores reopen queued after
+cancelled exit starts; when both cancellation writes fail, the next independent
+commit must acknowledge the marker first. A second interrupted exit reopens sent
+despite the first exit's acknowledgement and later held status. Removing the
+unique token now fails that assertion. All four mutation trials were killed:
+old cancellation, missing local fallback, missing send-revision supersession,
+and missing unique token.
+
+The affected client/React run passed 201/201 with no skips. Ran
+`bash scripts/test.sh` once at `06bfcaa88`, with no implementation/test edits
+during it. Exact result: `== 0 failure(s) in 1109 s`, exit 0. Rust targets and
+workspace doctests passed (615 s), the full guide passed 86/86, the main client
+run had 2,219 passes, no failures and ten existing skips out of 2,229 tests
+(client step 205 s), the separate acquisition/server shards passed, and all
+78 model tests passed (272 s). Builds, typechecks, fixtures and budgets passed.
+No inherited or environmental failure occurred in this run, and no post-suite
+repair or rerun was needed. The earlier intermittent failures remain documented
+in the prior reports; this green run does not replace that evidence.
+
+Wasm is unchanged: 2,023,103 B raw / 581,523 B gzip, 571 B under the unchanged
+582,094 B budget. No Rust runtime, meter, diagnostic, package version, other
+release lane or supervisor-owned design changed. No scope deviation or unfixed
+requested finding remains. Unsaved status is runtime-only, and cancellation
+cannot survive losing the page before any cancellation/acknowledgement write
+succeeds. The round-4 section of [the lane report](reports/20260926-lane-o-pending-writes.md)
+and local `target/lane-o-r4-evidence/` hold the full record. Nothing was pushed
+or published.
