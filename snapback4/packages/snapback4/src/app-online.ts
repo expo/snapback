@@ -147,15 +147,15 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const dispatch = async (): Promise<Write<R>> => {
-        const result = await raw.mutate(op, snapshot as A, { ...options, id });
-        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
-        if (terminal(result)) {
-          try { await settle(result); }
-          // Keep the durable intent for replay if receipt storage fails, but
-          // never replace the server-confirmed outcome of this dispatched call.
-          catch (error) { retain(result, error); }
-        }
-        return terminal(result) ? result : { state: "pending", id };
+          const result = await raw.mutate(op, snapshot as A, { ...options, id });
+          if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+          if (terminal(result)) {
+            try { await settle(result); }
+            // Keep the durable intent for replay if receipt storage fails, but
+            // never replace the server-confirmed outcome of this dispatched call.
+            catch (error) { retain(result, error); }
+          }
+          return terminal(result) ? result : { state: "pending", id };
         };
         if (mutationWaitSeconds(options?.waitSeconds) === 0) {
           // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — the committed journal owns recovery after this return.

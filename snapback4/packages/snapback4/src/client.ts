@@ -712,10 +712,10 @@ export function createClient(options: ClientOptions): Client {
         if (link !== "online" || wait === 0) return write;
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
-        const timeout = wait === undefined ? [] : [new Promise<Write>(resolve => { timer = setTimeout(() => resolve(write), wait * 1_000); })];
-        const outcome = await Promise.race([settled, attempt.then((): Write => write), ...timeout]) as Write<R>;
-        if (outcome.state === "pending" && closed) { await closingResponses.done; return entry.response.write(outcome); }
-        return outcome;
+          const timeout = wait === undefined ? [] : [new Promise<Write>(resolve => { timer = setTimeout(() => resolve(write), wait * 1_000); })];
+          const outcome = await Promise.race([settled, attempt.then((): Write => write), ...timeout]) as Write<R>;
+          if (outcome.state === "pending" && closed) { await closingResponses.done; return entry.response.write(outcome); }
+          return outcome;
         } finally { clearTimeout(timer); }
       });
     }),

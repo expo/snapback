@@ -61942,3 +61942,16 @@ sends/reopen, older refusal after newer send, unknown receipts, account fences,
 storage failure, appended typing and protected-row removal during loading.
 The simulator witness cannot be run in this lane; final blocking-suite and
 browser-witness results will be appended below and in CCP-REPORT-L1.md.
+
+Verification follow-up for this entry: the supplied `~/.local/node24/bin`
+path is absent on this host; that literal PATH resolved to Homebrew Node
+25.9.0. The initial full-suite attempt was interrupted before completion,
+and its browser witness timed out waiting for acquisition during shared
+compilation. Neither qualifies the lane. Explicitly selecting the installed
+`~/.volta/tools/image/node/24.18.0/bin` fixes the runtime selection. On 24.18.0,
+the four zero-wait probes returned in 4.678/4.817/0.559/0.688 ms
+(native/web/raw/app); device defaults remained 4002.071/4001.469 ms and online
+defaults waited for release at 175.257/175.427 ms. Six admission/normalization/
+background-error cases and all 27 React tests passed. A final review also
+prunes Expo's in-memory outcome when its saved reference is dismissed, so
+retiring sent references retires their transient results as well.

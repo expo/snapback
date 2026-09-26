@@ -52,7 +52,11 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
     } finally { if (current()) { owner.admitting = false; setAdmitting(false); } }
   };
   const dismiss = useCallback((id: string) => {
-    try { journal.forget(id); setIntents(saved => saved.filter(i => i.id !== id)); }
+    try {
+      journal.forget(id);
+      setIntents(saved => saved.filter(i => i.id !== id));
+      setOutcomes(saved => { const next = { ...saved }; delete next[id]; return next; });
+    }
     catch (error) { setProblem(String(error)); }
   }, [journal]);
   return <View style={styles.thread}>
