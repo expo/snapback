@@ -1,0 +1,18 @@
+(node:3732863) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1851.089852ms)
+  ✔ legacy binding survives adopted B on keepalive transport (2023.751387ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (7928.248086ms)
+✔ web receipt upgrades preserve original binding and corrected shared custody (12592.109309ms)
+ℹ {"transport":"ordinary","original":"f30afb403fd544777de9765667bc654e","adopted":"0dcca7e5519c0705c0b57b7f7fcc36f6","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"f30afb403fd544777de9765667bc654e","adopted":"935947475ce01ccf87c7cb3f2961467c","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12696.392251

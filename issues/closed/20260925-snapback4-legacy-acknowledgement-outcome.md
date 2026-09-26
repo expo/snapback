@@ -15,3 +15,13 @@ Astra's reproduction: the server holds a `NOT_ADMIN` record and a legacy acknowl
 An observation proves the server decided; it does not say what it decided.
 - An acknowledgement is success-qualified only when it carries the outcome.
 - An unqualified or legacy acknowledgement is revalidated against the original bound store before success is reported or custody retired. The client resends the same id, which the server answers from its idempotency record without executing it again.
+
+## Resolution
+
+Resolved 2026-09-26 by lane V rounds 12–15, integrated in 0.4.3. Acknowledgements
+are outcome-qualified (the stream's `sent` map and `receipt_store.success_seq`). A
+legacy sequence-only observation stays pending until a same-id replay to its
+original store returns the recorded outcome. Receipt custody survives web upgrades,
+and settlement never reads the shared window. The one residual, a `sent` receipt
+manufactured before 0.4.2 that is already stored, moves to
+`issues/20260926-snapback4-stored-manufactured-sent.md`.

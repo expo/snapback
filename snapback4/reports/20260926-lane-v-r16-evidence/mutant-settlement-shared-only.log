@@ -1,0 +1,71 @@
+(node:736500) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✖ a shared correction never hides this device's qualified or pending custody (absent local history) (1324.51684ms)
+  ✖ shared-only refusal cannot settle legacy custody before bound replay (1422.190369ms)
+  ✖ adoption during lookup recomputes legacy custody (absent local history) (1421.628125ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (4930.096958ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5026.022348
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ a shared correction never hides this device's qualified or pending custody (absent local history) (1324.51684ms)
+  AssertionError [ERR_ASSERTION]: {"state":"failed","id":"01M3DNPHXAV3JCWEDNCEJGKT20","why":{"code":"NOT_ADMIN","family":"rule","message":"write refused: NOT_ADMIN"}}
+  + actual - expected
+  
+    [
+  +   'failed',
+  +   undefined
+  -   'sent',
+  -   7
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:304:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:275:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'failed', undefined ],
+    expected: [ 'sent', 7 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ shared-only refusal cannot settle legacy custody before bound replay (1422.190369ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:351:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:344:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ adoption during lookup recomputes legacy custody (absent local history) (1421.628125ms)
+  page.evaluate: TypeError: Cannot read properties of null (reading 'id')
+      at eval (eval at evaluate (:291:30), <anonymous>:1:59)
+      at async <anonymous>:317:30
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:398:31)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:370:52)

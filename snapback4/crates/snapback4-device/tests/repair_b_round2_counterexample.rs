@@ -98,7 +98,7 @@ fn counterexample<H: Host>(host: &mut H, receive_write_responses: bool) {
     let page: StreamPage = serde_json::from_value(serde_json::json!({
         "snapshot": false, "events": events, "watermark": stream.watermark,
         "more": stream.more, "generation": engine.generation(),
-        "acknowledged": acknowledged, "committed_above": committed_above, "images_at": images_at,
+        "acknowledged": acknowledged,"sent":acknowledged, "committed_above": committed_above, "images_at": images_at,
     })).unwrap();
 
     device.apply(&page, false).unwrap();
@@ -119,6 +119,7 @@ fn counterexample<H: Host>(host: &mut H, receive_write_responses: bool) {
     assert_eq!(covering.watermark, images_at);
     assert!(!covering.more);
     covering.acknowledged = engine.acknowledged("dev:alice", &pending, covering.watermark).unwrap();
+    covering.sent = covering.acknowledged.clone();
     reopened.apply(&covering, false).unwrap();
     assert_eq!(value(&mut reopened), 3);
     assert!(reopened.queued().unwrap().iter().all(|q| q.observed_seq.is_some()));

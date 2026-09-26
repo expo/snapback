@@ -13,6 +13,10 @@ import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 //    Remembered answers share this fence; all data rechecks expiry, and local
 //    expiry retries locally once through rules 2–5 (then dirties a watch if
 //    still expired). Only expired memory is retired by the expiry decision.
+//    Recovery preserves local wakeups; retry transport retires the old value.
+//    Memory expires only at its server deadline; an elapsed local wakeup
+//    dirties its watch and is consumed without withdrawing valid memory.
+//    Future remembered wakeups carry that provenance to the watch timer.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
@@ -20,7 +24,7 @@ import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 
-type Result<R> = { ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; rowProvenance?: unknown };
+type Result<R> = { ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -51,7 +55,19 @@ export interface QueryEnvironment {
   offline(): Refusal;
   deviceNow(): number;
   serverNow(): number;
-  serverAnswers: Map<string, ServerAnswer>;
+  serverAnswers: AnswerCache;
+}
+
+/** Remembered server answers, which recovery may show (Rule 5), ordered by the
+ * server's store cut: `set` and `delete` carry it when the reply names one,
+ * `forget` is cleanup of an expired answer, and `renew` starts a new read within
+ * an attempt. */
+export interface AnswerCache {
+  get(key: string): ServerAnswer | undefined;
+  set(key: string, answer: ServerAnswer, seq?: number): void;
+  delete(key: string, seq?: number): void;
+  forget(key: string): void;
+  renew(): void;
 }
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {
@@ -106,12 +122,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (stopped) return localCandidate();
     let last = env.serverAnswers.get(key);
     if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) {
-      env.serverAnswers.delete(key); last = undefined;
+      env.serverAnswers.forget(key); last = undefined;
     }
     if (last) for (const table of last.tables) tables.add(table);
     const read: Read<R> = last ? { ...last.read, fresh: false, since: Math.min(last.at, Date.now()) } as Read<R>
       : watch ? { loading: true } : { denied: env.offline() };
-    return { origin: "remembered", result: { read, tables, nextExpiry: null, serverExpiry: last?.nextExpiry ?? null } };
+    // Rules 4/5: recovery still depends on the local branch's next deadline.
+    // Its wakeup is separate from the remembered answer's server-clock expiry.
+    return { origin: "remembered", result: { read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
@@ -136,7 +154,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     latest = { outcome, result: { read, tables, nextExpiry } };
     return latest;
   };
-  const server = async (provenance = false): Promise<Candidate<R>> => {
+  const server = async (provenance = false, retain = true): Promise<Candidate<R>> => {
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; }
     const fetch = async (): Promise<Candidate<R>> => {
@@ -145,12 +163,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const credentials = env.credentialRevision;
         const eph = ephemeral ? env.ephemeralReads.request() : undefined;
         const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph); checkpoint();
-        if (eph && !env.ephemeralReads.current(eph)) continue;
+        // A refetch within the attempt is a new read for the remembered answers (LLP 3000.018 §3.2).
+        if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
         // Rule 5: admission can happen while the transport is in flight.
         const stopped = await blocked(); checkpoint();
         if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
         if (response.obsoleteAuth || credentials !== env.credentialRevision) {
           if (env.refreshing) { try { await env.refreshing; } catch {} checkpoint(); }
+          env.serverAnswers.renew();
           continue;
         }
         const json = response.json;
@@ -158,29 +178,32 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
-        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
+        const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
+        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
     // procedure publishes the returned candidate after its final checks.
-    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain: !ephemeral }) : await fetch(); checkpoint();
+    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain: retain && !ephemeral }) : await fetch(); checkpoint();
     return result;
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
   const wantsServer = (coverage: Coverage) => !!coverage.unknown && !coverage.retained;
   // Rules 2–4 apply to every local observation, including an expiry retry.
-  const routeLocal = async (first: { outcome: Outcome; result: Result<R> }): Promise<Candidate<R>> => {
+  const routeLocal = async (first: { outcome: Outcome; result: Result<R> }, retain = true): Promise<Candidate<R>> => {
     if (!first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
     const retainedRows = !!first.outcome.unknown && hasRetainedRows(first.outcome.retainedRows);
-    if (composed || retainedRows) { remember = false; env.serverAnswers.delete(key); }
+    // @ref LLP 3000.018#3.2 — a composed read remembers no whole answer, and clears nothing before
+    // its reply: only that reply names the server's cut, and so takes its place in the order.
+    if (composed || retainedRows) remember = false;
     if (!withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
     const composedSince = env.lastSyncAt;
-    const remote = await server(retainedRows); checkpoint();
+    const remote = await server(retainedRows, retain); checkpoint();
     if ((!composed && !retainedRows) || withheld) return remote;
     // Rule 5 applies to refusals and loading too. An authoritative refusal of
     // the original query must not be concealed by a second local observation.
@@ -198,7 +221,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // with the current server page; routing and publication use Rules 1–5.
       return { origin: "composed", result: {
         read: { ...remote.result.read, data: keepRetainedRows(remote.result.read.data, second.outcome.data, second.outcome.retainedRows, remote.result.rowProvenance) as R, fresh: false, complete: false },
-        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null,
+        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq,
       } };
     }
     const coverage = Object.entries(second.outcome.components ?? {});
@@ -207,7 +230,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const kept = coverage.filter(([, c]) => !wantsServer(c));
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null } };
+    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq } };
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
@@ -239,13 +262,23 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         return { ...loading, ephemeralStale: true };
       }
       // Rules 1/5: no await between this deadline check and publication.
-      if ((attempt > 0 || "data" in result.read) && ((result.nextExpiry !== null && result.nextExpiry <= env.deviceNow())
+      const localDue = result.nextExpiry !== null && result.nextExpiry <= env.deviceNow();
+      if (origin === "remembered" && localDue) {
+        // Rule 5: this is a local branch wakeup, not memory's validity limit.
+        // Consume it so scheduleExpiry cannot immediately erase this page.
+        if (watch) watch.dirty = true;
+        result.nextExpiry = null;
+      }
+      if ((attempt > 0 || "data" in result.read) && ((origin !== "remembered" && localDue)
         || (result.serverExpiry != null && result.serverExpiry <= env.serverNow()))) {
         if (origin === "local" && attempt === 0) {
           // note_expiry records only deadlines after the evaluation's now.
           // Reobserve once, then run the same fallback/composition/recovery.
           const refreshed = await local(); checkpoint();
-          candidate = await routeLocal(refreshed); checkpoint();
+          // Rule 5: an expired watch value cannot survive a server round trip.
+          // A purely local retry publishes directly, without a loading reset.
+          env.serverAnswers.renew();
+          candidate = await routeLocal(refreshed, false); checkpoint();
           continue;
         }
         // A second deadline crossed in flight: keep the watch runnable when
@@ -253,17 +286,20 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (attempt > 0 && watch) watch.dirty = true;
         if (origin === "remembered") {
           const last = env.serverAnswers.get(key);
-          if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) env.serverAnswers.delete(key);
+          if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) env.serverAnswers.forget(key);
         }
-        return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
+        // Recovery still needs any future local branch wakeup after memory
+        // expires; only the expired server deadline is retired here.
+        return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry, localWakeup: true } : loading;
       }
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
-      if (origin === "server") {
-        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) });
-        else env.serverAnswers.delete(key);
+      if (origin === "server" || origin === "composed") {
+        // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
+        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
+        else env.serverAnswers.delete(key, result.seq);
       }
-      if (origin !== "local" || !("data" in result.read)) return result;
+      if (origin !== "local" || !("data" in result.read)) return { ...result, localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
       return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) } };
     }

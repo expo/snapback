@@ -166,7 +166,7 @@ fn unrelated_receipt<H: Host>(h: &mut H) {
     admit(&mut d,"q","bump",json!({"k":"a"}));
     let mut q=d.queued().unwrap().remove(0);
     q.sent_seq=Some(1);
-    q.receipt_store=Some(snapback4_device::device::ReceiptStore{id:Some("unrelated".into())});
+    q.receipt_store=Some(snapback4_device::device::ReceiptStore{id:Some("unrelated".into()), success_seq: None});
     d.dequeue("q").unwrap(); d.enqueue(&q).unwrap();
     let mut p=snapshot_pages(&mut e,"dev:alice",100).remove(0); p.store_id=Some("replacement".into());
     let observation=d.observe_store(&p).unwrap();

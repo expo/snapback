@@ -96,6 +96,8 @@ pub struct Shared {
     pub effect_wait: WorkHook,
     #[cfg(test)]
     pub poll_wait: WorkHook,
+    #[cfg(test)]
+    pub query_wait: WorkHook,
 }
 
 impl Shared {
@@ -173,7 +175,7 @@ impl Drop for AssetTransfer<'_> {
 
 /// A connection lasts as long as its poll and a grace after it: a client
 /// re-polls within milliseconds of an answer, a dropped one never does.
-use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
+use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION, PRESENCE_REFRESH};
 
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
@@ -311,6 +313,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
+        #[cfg(test)] query_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
@@ -994,6 +997,9 @@ fn handle(mut request: Request, shared: &Shared) {
             }
             let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
                 .map(|p| (p.program.kind, p.program.args.clone()));
+            // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
+            // and comes from the schema of the engine that evaluates it.
+            let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some((kind, arg_types)) = signature else {
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
@@ -1031,21 +1037,26 @@ fn handle(mut request: Request, shared: &Shared) {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let (outcome, metadata) = match reader {
+                let (outcome, cut, metadata, reads_presence) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
-                        let outcome = reader.query(&op, context);
+                        #[cfg(test)]
+                        test_work(&shared.query_wait);
+                        let reads_presence = presence_of(&reader);
+                        let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        (outcome, metadata)
+                        (outcome, cut, metadata, reads_presence)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
-                        (engine.query(&op, context), metadata)
+                        let reads_presence = presence_of(&engine);
+                        let (outcome, cut) = engine.query_at(&op, context);
+                        (outcome, cut, metadata, reads_presence)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1069,7 +1080,11 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter: Option<Json>,
                             #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
                             row_provenance: Option<wire::Plain<'a>>,
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            refresh: Option<u64>,
                         }
+                        // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
+                        let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
@@ -1081,13 +1096,22 @@ fn handle(mut request: Request, shared: &Shared) {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
                             if let Some(version) = &outcome.ephemeral { reply["ephemeral"] = json!(version); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
+                            if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
+                            respond_timed(request, shared, 200, QueryReply { ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
-                    Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
+                    Err(refusal) => {
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
+                        // taken before it may predate, so a client can order it against a remembered answer.
+                        if let Some(cut) = cut { reply["seq"] = json!(cut); }
+                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
+                        if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
+                        respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
+                    }
                 }
             } else {
                 if kind == ProgramKind::Query {
@@ -1259,6 +1283,7 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            query_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let poisoned = shared.clone();

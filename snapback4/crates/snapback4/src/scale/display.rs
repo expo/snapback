@@ -5,10 +5,26 @@ impl Certificate {
         let scope = if self.per_chunk { "per chunk — " } else { "" };
         let verdict = match self.class {
             Class::Constant => format!("constant — at most {} rows examined, {} probes, {} lanes", self.bounds.rows_examined, self.bounds.probes, self.bounds.lanes.map_or_else(|| "meter-bounded".into(), |n| n.to_string())),
-            Class::Grows if self.growth_sites.iter().any(|g| g.when.is_some()) => self.growth_sites.iter().map(|g| match &g.when {
-                Some(when) => format!("when {when}: grows with {}", g.reason), None => format!("grows with {}", g.reason),
+            // A cleanup site keeps its own words inside a growing certificate: under a condition
+            // whose only extra work is cleanup, that variant is constant once cleanup catches up.
+            Class::Grows if self.growth_sites.iter().any(|g| g.when.is_some()) => self.growth_sites.iter().map(|g| match (&g.when, g.backlog) {
+                (Some(when), true) if self.variants.iter().any(|v| &v.when == when && v.class == Class::Backlog) =>
+                    format!("when {when}: constant once background cleanup catches up ({})", g.reason),
+                (Some(when), true) => format!("when {when}: also, until background cleanup catches up, {}", g.reason),
+                (None, true) => format!("also, until background cleanup catches up, {}", g.reason),
+                (Some(when), false) => format!("when {when}: grows with {}", g.reason),
+                (None, false) => format!("grows with {}", g.reason),
             }).collect::<Vec<_>>().join("; "),
-            Class::Grows => format!("grows with {}", self.growth_sites.iter().map(|g| g.reason.as_str()).collect::<Vec<_>>().join("; ")),
+            Class::Grows => {
+                let (cleanup, grows): (Vec<_>, Vec<_>) = self.growth_sites.iter().partition(|g| g.backlog);
+                let reasons = |sites: &[&Growth]| sites.iter().map(|g| g.reason.as_str()).collect::<Vec<_>>().join("; ");
+                let also = if cleanup.is_empty() { String::new() } else { format!("; also, until background cleanup catches up, {}", reasons(&cleanup)) };
+                format!("grows with {}{also}", reasons(&grows))
+            }
+            Class::Backlog => format!("constant once background cleanup catches up; until then at most {} rows examined: {}",
+                self.bounds.rows_examined, self.growth_sites.iter().map(|g| match &g.when {
+                    Some(when) => format!("when {when}: {}", g.reason), None => g.reason.clone(),
+                }).collect::<Vec<_>>().join("; ")),
         };
         let writes = if self.per_write.is_empty() { String::new() } else { format!("; per write: {}", self.per_write.join("; ")) };
         let sweep = if self.whole_job.is_empty() { String::new() } else { format!("; whole job grows with {}", self.whole_job.join("; ")) };
@@ -18,24 +34,26 @@ impl Certificate {
     }
 }
 
-pub(super) fn presence(expr: &Expr, labels: &BTreeMap<String, String>) -> Option<(String, bool)> {
+/// A presence test: the binding it tests (its runtime name, or the searched
+/// expression's text), whether it tests a search, and whether it tests "present".
+pub(super) fn presence(expr: &Expr) -> Option<(String, bool, bool)> {
     match expr {
         Expr::Binary { op: op @ (BinaryOp::Eq | BinaryOp::Ne), left, right } => {
             let input = match (left.as_ref(), right.as_ref()) {
                 (Expr::Variable(name), Expr::Literal(Value::Null)) | (Expr::Literal(Value::Null), Expr::Variable(name)) => name,
                 _ => return None,
             };
-            Some((author_name(input), *op == BinaryOp::Ne))
+            Some((input.clone(), false, *op == BinaryOp::Ne))
         }
-        Expr::Builtin { builtin: Builtin::SearchPresent, args } => Some((format!("search {}", match &args[0] {
-            Expr::Variable(name) => labels.get(name).cloned().unwrap_or_else(|| author_name(name)),
+        Expr::Builtin { builtin: Builtin::SearchPresent, args } => Some((match &args[0] {
+            Expr::Variable(name) => name.clone(),
             value => self::expr(value),
-        }), true)),
+        }, true, true)),
         _ => None,
     }
 }
 
-fn author_name(name: &str) -> String {
+pub(super) fn author_name(name: &str) -> String {
     if let Some(local) = name.strip_prefix('$') { local.trim_end_matches(|ch: char| ch.is_ascii_digit()).into() }
     else { name.into() }
 }
@@ -43,7 +61,9 @@ fn author_name(name: &str) -> String {
 pub(super) fn conditions(conditions: &[(String, bool)]) -> Option<String> {
     if conditions.is_empty() { return None; }
     let render = |present| {
-        let names: Vec<_> = conditions.iter().filter(|(_, value)| *value == present).map(|(name, _)| name.as_str()).collect();
+        // One spelling for one state, whatever order the tests nest in.
+        let mut names: Vec<_> = conditions.iter().filter(|(_, value)| *value == present).map(|(name, _)| name.as_str()).collect();
+        names.sort_unstable();
         if names.is_empty() { return None; }
         let verb = if names.len() == 1 { "is" } else if names.len() == 2 { "are both" } else { "are all" };
         Some(format!("{} {verb} {}", names.join(" and "), if present { "present" } else { "absent" }))
@@ -52,11 +72,14 @@ pub(super) fn conditions(conditions: &[(String, bool)]) -> Option<String> {
 }
 
 pub(crate) fn summary(certificates: &[Certificate]) -> String {
-    let grows: Vec<_> = certificates.iter().filter(|c| c.class == Class::Grows).map(|c| c.operation.as_str()).collect();
+    let of = |class: Class| certificates.iter().filter(|c| c.class == class).map(|c| c.operation.as_str()).collect::<Vec<_>>();
+    let (grows, backlog) = (of(Class::Grows), of(Class::Backlog));
+    let named = |names: &[&str]| if names.is_empty() { String::new() } else { format!(" ({})", names.join(", ")) };
     let chunks = certificates.iter().filter(|c| c.per_chunk).count();
-    format!("scale: {} of {} operations are constant; {} grow with data{}{} — `check --cost` gives the certificate",
-        certificates.len() - grows.len(), certificates.len(), grows.len(),
-        if grows.is_empty() { String::new() } else { format!(" ({})", grows.join(", ")) },
+    // @ref LLP 3000.013#14.4 — a backlog is counted apart from growth with the corpus.
+    let cleanup = if backlog.is_empty() { String::new() } else { format!("; {} constant once background cleanup catches up{}", backlog.len(), named(&backlog)) };
+    format!("scale: {} of {} operations are constant{cleanup}; {} grow with data{}{} — `check --cost` gives the certificate",
+        certificates.len() - grows.len() - backlog.len(), certificates.len(), grows.len(), named(&grows),
         if chunks == 0 { String::new() } else { format!("; {chunks} job(s) assessed per chunk") })
 }
 

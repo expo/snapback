@@ -60,6 +60,9 @@ query page(parent: parents):
 query nested(parent: parents):
   rows = children where .parent = parent first 10 by .id { id, body }
   return [{ rows }]
+query sampled(parent: parents):
+  sample = connected[viewer]
+  return children where .parent = parent first 10 by .id { id, body }
 mutation replace(old: children, parent: parents):
   delete children[old]
   insert children {id: 'new', parent, body: 'current'}
@@ -97,6 +100,15 @@ for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back
   const nestedLocal=host.answers.findLast(a=>a.name==="nested");
   assert.equal(nestedLocal.retainedRows[0].source,null);
   assert.deepEqual(nestedLocal.retainedRows[0].fields.rows[0].source,["children","old"]);
+  // LLP 3000.018 §3.1: a query that may read presence composes retained rows the same way, and the
+  // composed answer keeps the server's refresh, so the watch keeps re-reading.
+  host.refresh=300;
+  const sampled=client.observe({kind:"query",name:"sampled"},{parent:"a"});
+  t.after(()=>sampled.close());
+  const asked=()=>host.requests.filter(path=>path==="/q/sampled").length;
+  for(let i=0;i<500&&asked()<3;i++)await new Promise(resolve=>setTimeout(resolve,20));
+  assert.ok(asked()>=3,`the composed presence answer stopped refreshing after ${asked()} reads`);
+  assert.deepEqual(sampled.getSnapshot().data,[{id:"new",body:"current"},{id:"old",body:"delivered",retained:true}],JSON.stringify(sampled.getSnapshot()));
 });
 
 const chain=readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/read-through-device.q"),"utf8");

@@ -1,0 +1,76 @@
+(node:729649) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1885.233334ms)
+  ✔ legacy binding survives adopted B on keepalive transport (1968.869344ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1824.447793ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (356.662629ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1341.935906ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (replacement local history) (1392.089882ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (absent local history) (1422.065128ms)
+  ✔ shared-only lookup recovers absent history and opener remembers those ids without settling them (1419.615184ms)
+  ✖ shared-only refusal cannot settle legacy custody before bound replay (77681.47673ms)
+  ✖ adoption during lookup recomputes legacy custody (absent local history) (3.347989ms)
+  ✖ adoption during lookup recomputes legacy custody (replacement local history) (1.364806ms)
+  ✖ lookup preserves local NOT_FOUND committed between history reads (1.659208ms)
+  ✖ lookup preserves local sent committed between history reads (1.215592ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (90097.000637ms)
+ℹ {"transport":"ordinary","original":"7c735457ef9d4acf8e2d62ba6cae1110","adopted":"a586049157106d13e5e634c634ff1f07","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"7c735457ef9d4acf8e2d62ba6cae1110","adopted":"b7e663790f31b7aaca27ab80481fd025","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ tests 14
+ℹ suites 0
+ℹ pass 8
+ℹ fail 5
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90185.056654
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ shared-only refusal cannot settle legacy custody before bound replay (77681.47673ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:366:28)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:344:3)
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ adoption during lookup recomputes legacy custody (absent local history) (3.347989ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-v/snapback4/witness/lib.mjs:140:33)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:370:19)
+      at check (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:369:58)
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ adoption during lookup recomputes legacy custody (replacement local history) (1.364806ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-v/snapback4/witness/lib.mjs:140:33)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:370:19)
+      at check (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:369:58)
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ lookup preserves local NOT_FOUND committed between history reads (1.659208ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-v/snapback4/witness/lib.mjs:140:33)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:409:19)
+      at check (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:408:54)
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ lookup preserves local sent committed between history reads (1.215592ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-v/snapback4/witness/lib.mjs:140:33)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:409:19)
+      at check (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:408:54)
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:29:1
+✖ web receipt upgrades preserve original binding and corrected shared custody (90097.000637ms)
+  'test timed out after 90000ms'

@@ -1,0 +1,34 @@
+(node:3422294) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (898.551736ms)
+✖ web admission review: recovery and transport respect the session boundary (1680.1196ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1772.518474
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (898.551736ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'sent' !== 'failed'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:887:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:858:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'sent',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

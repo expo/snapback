@@ -189,8 +189,8 @@ Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; nev
 authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
 mutation commits atomically. A job sweeps; an effect records external work. An asset follows its row's read rule.
 `snapback4 check` ends with a scale line; `check --cost` gives each operation's certificate: **constant**
-(bounded work at any data size) or **grows with** a named site. A constant verdict is the structural proof
-for a degradation rule; timing a constant operation measures noise. Cite the verdicts in scale reports.
+(bounded work at any data size), **constant once background cleanup catches up**, or **grows with** a named
+site. A constant verdict proves a degradation rule; timing one measures noise. Cite the verdicts in scale reports.
 
 ```quarry
 table notes:
@@ -285,7 +285,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Quarry grammar | `guide language` |
 | Complete chat example / offline web starter | `guide app` / [Vite starter](./CLIENT-AND-OPERATIONS.md#offline-web-starter) |
 | Fields / indexes / rules / aggregates | `guide types` / `guide indexes` / `guide rules` / `guide maintains` |
-| Reads / shapes / writes / helpers | `guide reads` / `guide shapes` / `guide writes` / `guide programs` |
+| Reads / shapes / writes / helpers / chat receipts | `guide reads` / `guide shapes` / `guide writes` / `guide programs` / `guide receipts` |
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
 | Following: `view following` / Global: planned view / Trending: predicate read / search | `guide feeds` / `guide search` |
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |

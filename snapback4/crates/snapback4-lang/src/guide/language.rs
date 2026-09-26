@@ -573,7 +573,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal. Also see from-sql (aliases sql, convex, rosetta).
 
 ## An ID belongs to one intent

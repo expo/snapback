@@ -15,7 +15,7 @@ async function localPersona() {
   const backend = { generation: 1, schema: { tables: {} }, programs: [] };
   return createLocalClient({ url: "https://card.invalid", persona: "alice", sessionStore: memorySessionStore(),
     device: { open: async () => ({ async close() {}, async call({ op }) {
-      if (op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [] } };
+      if (op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [] } };
       if (op === "state") return { ok: { watermark: 0, generation: 1, native: null } };
       if (op === "backend") return { ok: backend };
       if (op === "queued") return { ok: [] };

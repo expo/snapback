@@ -106,6 +106,9 @@ use std::collections::{BTreeMap, VecDeque};
 // @ref LLP 3000.007#21.3 — the host and abstract presence providers share one confirmation window on the commit clock.
 pub const PRESENCE_GRACE: std::time::Duration = std::time::Duration::from_secs(35);
 pub const PRESENCE_CONFIRMATION: std::time::Duration = std::time::Duration::from_secs(5);
+/// How soon a client re-runs a live query that read `connected[p]`. Presence
+/// changes without a commit, so no change feed names it (LLP 3000.018 §3).
+pub const PRESENCE_REFRESH: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Who is connected right now: what a server knows from the long polls it
 /// holds open, answered to a program's `connected[p]`. Only a server has
@@ -839,7 +842,19 @@ impl Engine {
 
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
     /// card's `denied`; store failures surface as retryable refusals too.
-    pub fn query(&mut self, name: &str, mut context: Context) -> Result<QueryOutcome, Refusal> {
+    pub fn query(&mut self, name: &str, context: Context) -> Result<QueryOutcome, Refusal> {
+        self.query_at(name, context).0
+    }
+
+    /// A query and the store cut its transaction read, which a refusal also
+    /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
+    pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
+        let mut cut = None;
+        let result = self.query_reading(name, context, &mut cut);
+        (result, cut)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
@@ -855,6 +870,7 @@ impl Engine {
         }
         let tx = self.store.read_transaction()?;
         let seq = tx.next_seq()? - 1;
+        *cut = Some(seq);
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
         if let Some(hub) = &mut hub {

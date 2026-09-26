@@ -28,3 +28,17 @@ On the online retry, `server()` runs with `retain` on. The watch's snapshot keep
 **Fix:** on this one retry, call `server()` with `retain: false`, and do not publish a loading reset on the purely local retry.
 
 **Tests:** a watch that already holds the pre-deadline value when it straddles T online. Add a paginated server fallback after T that keeps its `next`; Grok's surviving mutation nulls it.
+
+## Resolution — 2026-09-25, lane U round 11 (for 0.4.3)
+
+Recovery preserves the local retry's `nextExpiry` alongside the remembered
+answer's separate `serverExpiry`; existing watch scheduling observes both
+clock domains. Only server transport reached by the expiry retry disables
+snapshot retention. Purely local retries still publish without a loading reset.
+
+Real wasm and native process tests cover the chained-permit watch, an already
+populated watch during delayed fallback, and server pagination through the next
+cursor. Router tests cover missing, valid and expired memory, queries and
+watches, offline recovery and failed transport. The related whole-answer
+row-expiry limitation remains in its separate open ticket. Evidence and the
+full-suite result: [round-11 report](../../snapback4/reports/20260925-bounded-following-r11/REPORT.md).
