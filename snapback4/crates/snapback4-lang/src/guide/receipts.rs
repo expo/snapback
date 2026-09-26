@@ -132,8 +132,10 @@ offline after more than the 500 synced messages holds: the newest, not the ones
 before them. The client reports each unbroken run of fetched, settled messages
 with `delivered`, and loads older pages to reach its prefix. A run extends the
 prefix or grows the span outward; one that meets neither waits for those pages.
-So a receipt never claims a message the client did not fetch, and never moves
-back. `seen` records the newest message on screen, online or offline, gap or
+One span holds one return: a run above a second gap, opened offline before the
+first was fetched, waits until the client fetches the gap between, which its
+walk does online. So a receipt never claims a message the client did not fetch,
+and never moves back. `seen` records the newest message on screen, online or offline, gap or
 not. A message is `read` for a recipient once it is fetched and `seen` reaches
 it. Both are the member's own report, bounded by the last message. Each message
 costs one scan of at most 50 member rows; `check --cost` prints the certificate.
@@ -161,8 +163,9 @@ function useReceipts(conversation: string, visible: boolean) {
   const prefix = mine && Math.max(mine.deliveredOrdinal, mine.joinedOrdinal);
   const short = prefix !== null && low !== null && low > prefix + 1;
   useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
-  // The run extends the prefix, or grows the one span above a gap.
-  const joins = mine !== null && prefix !== null && low !== null && (low <= prefix + 1 || mine.spanThrough === 0 || low <= mine.spanThrough + 1);
+  // The run extends the prefix, or grows the one span above a gap: the same test the mutation makes.
+  const joins = mine !== null && prefix !== null && low !== null && newest !== null
+    && (low <= prefix + 1 || mine.spanThrough === 0 || (low <= mine.spanThrough + 1 && newest + 1 >= mine.spanFrom));
   const claimed = mine !== null && prefix !== null && low !== null && newest !== null && (newest <= prefix || (mine.spanFrom <= low && newest <= mine.spanThrough));
   useEffect(() => {
     if (joins && !claimed && low !== null && newest !== null) void client.mutate(api.delivered, { conversation, from: low, through: newest });

@@ -234,6 +234,7 @@ const cases = {
     const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: false }), client);
     equal(acked(client), ["delivered:41-60", "delivered:21-60", "delivered:1-60"], "ready later pages keep paging, each longer run reported, until the run meets the prefix");
+    check(client.acks.filter(ack => ack.startsWith("delivered")).length <= 4, "one write per page, and one replayed by Strict Mode: " + JSON.stringify(client.acks));
     const member = active(client).find(record => !("c" in record.args));
     client.acks.length = 0;
     await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 })));
@@ -270,6 +271,21 @@ const cases = {
     await mount(h(Receipts, { visible: false }), client);
     equal(acked(client), ["delivered:501-530"], "a run that meets the span only after one more page grows it then, and not before");
     check(pages() === 3, "the walk goes on toward the prefix");
+    await unmount();
+  },
+  async "the receipts card reports the fetched suffix of an incomplete page, and retries a run once the span meets it"() {
+    const offline = receiptsClient(new Map([[null, ready(ordinals(600, 101), null, { complete: false, fresh: false, since: 50 })]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), offline);
+    equal(acked(offline), ["delivered:101-600"], "exactly the fetched suffix, never the gap below it");
+    await unmount();
+    const later = receiptsClient(new Map([[null, ready(ordinals(80, 61), "p2")], ["p2", { loading: true }]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 101, spanThrough: 120, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), later);
+    equal(later.acks, [], "a run below the span, with a gap between, is not reported");
+    const member = active(later).find(record => !("c" in record.args));
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 81, spanThrough: 120, seenOrdinal: 0 })));
+    equal(acked(later), ["delivered:61-80"], "once the span meets the run it is reported");
     await unmount();
   },
   async "the receipts card records a view before its membership arrives"() {

@@ -348,9 +348,15 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("delivered", None, at("bob", 5_200, &run(long(), 505, 511))).unwrap());
     assert_eq!(states(&everything(&mut engine), 502, 511), ["sent"].into(), "a run above a second gap claims nothing");
     sent(&engine.mutate("delivered", None, at("bob", 5_210, &run(long(), 502, 511))).unwrap());
+    // A run below the span waits too, until one meets the span from below.
+    sent(&engine.mutate("delivered", None, at("bob", 5_212, &run(long(), 50, 75))).unwrap());
+    assert_eq!(states(&everything(&mut engine), 50, 101), ["sent"].into(), "a run below the span claims neither itself nor the gap above it");
+    sent(&engine.mutate("delivered", None, at("bob", 5_214, &run(long(), 76, 101))).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((states(&all, 50, 75), states(&all, 76, 101)), (["sent"].into(), ["read"].into()), "a run that meets the span from below grows it down");
     sent(&engine.mutate("delivered", None, at("bob", 5_220, &run(long(), 300, 400))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 1, 101), states(&all, 102, 501), states(&all, 502, 511)), (["sent"].into(), ["read"].into(), ["delivered"].into()), "a run that meets the span grows it; one inside it changes nothing");
+    assert_eq!((states(&all, 1, 75), states(&all, 76, 501), states(&all, 502, 511)), (["sent"].into(), ["read"].into(), ["delivered"].into()), "a run that meets the span grows it; one inside it changes nothing");
     // The gap fetched: the prefix meets the span and takes it in, so a run above
     // a new gap can start a span of its own.
     sent(&engine.mutate("delivered", None, at("bob", 5_300, &run(long(), 1, 101))).unwrap());
