@@ -4,10 +4,11 @@ use counted::{Counted, Visits};
 
 fn measured<S: DeviceStore>(store: S) {
     let source = SOURCE.replace("last 3 by .ordinal", "last 19999 by .ordinal")
+        .replace("ordinal: int", "ordinal: sequence by conversationId").replace("ordinal: 10, ", "")
         + "\nquery many(member: members):\n  a = unread[member]\n  b = unread[member]\n  c = unread[member]\n  return { a, b, c }\n";
     let (mut server, mut backend) = compile(&source);
     let mut rows = vec![("conversations", json!({"id":"c","title":"chat"})), ("members", member(json!(19997), json!(0)))];
-    for i in 1..=20000 { rows.push(("messages", message(i))); }
+    for i in 1..=20000 { let mut row = message(i); row.as_object_mut().unwrap().remove("ordinal"); rows.push(("messages", row)); }
     server.seed(rows.into_iter().map(|(t,r)|(t.into(),wire::row_from_json(&server.schema().tables[t],&r).unwrap())).collect::<Vec<_>>()).unwrap();
     backend.schema = backend.schema.public_projection();
     let visits = Visits::default();
@@ -33,6 +34,12 @@ fn measured<S: DeviceStore>(store: S) {
     let sum: i64 = ["a","b","c"].iter().map(|f|q["ok"]["data"][f].as_i64().unwrap()).sum();
     assert_eq!(sum,candidates as i64,"{q}");
     eprintln!("three 4,000-unread badges share one allowance: {candidates} candidates, {q}");
+    visits.borrow_mut().clear();
+    let prediction = call::call(&mut d, json!({"op":"admit","entry":{"id":"short-mark","seq":1,"op":"mark","viewer":"bob","args":{"member":"b","readUpTo":19998},"now":1,"predictable":true}}));
+    assert_eq!(prediction["ok"]["predictable"], true, "{prediction}");
+    let candidates: usize = visits.borrow().iter().filter(|((table, _), _)| table == "messages").map(|(_, n)| n).sum();
+    assert_eq!(candidates, 4, "two candidates each for recount and return: {:?}", visits.borrow());
+    eprintln!("20,000-row sequenced group / 2 unread prediction: {candidates} source candidates including its return");
 }
 #[test] fn memory_candidate_visits() { measured(snapback4_device::memory::MemoryStore::new()); }
 #[test] fn sqlite_candidate_visits() {

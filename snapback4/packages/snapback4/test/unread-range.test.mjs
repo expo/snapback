@@ -18,7 +18,7 @@ const cases = JSON.parse(readFileSync(join(root, 'crates/snapback4-device/tests/
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
 initSync({ module: wasm });
 const viewer = 'dev:bob';
-const member = c => ({ id: 'b', conversationId: 'c', principal: viewer, readUpTo: 'mark' in c ? c.mark : 4, joinedAt: c.joinedAt ?? 0 });
+const member = c => ({ id: 'b', conversationId: 'c', principal: viewer, readUpTo: 'mark' in c ? c.mark : 4, joinedAt: Object.hasOwn(c, 'joinedAt') ? c.joinedAt : 0 });
 const message = n => ({ id: `m${String(n).padStart(2, '0')}`, conversationId: 'c', ordinal: n, at: n, senderId: 'dev:alice', tombstone: false, until: null });
 const put = (table, data) => ({ table, id: data.id, kind: 'put', data });
 async function serverFor(t, c) {
@@ -51,6 +51,7 @@ async function serverFor(t, c) {
   }
   for (const extra of c.extra ?? []) rows.push({ table: 'messages', row: { ...message(0), ...extra } });
   for (const seed of c.seed ?? []) rows.unshift({ table: seed.table, row: { ...seed.row, principal: seed.row.principal === 'bob' ? viewer : seed.row.principal } });
+  if (text.includes('joinedAt: sequence')) for (const { table, row } of rows) if (table === 'members') delete row.joinedAt;
   assert.equal((await post('/seed', rows)).seeded, rows.length);
   return { backend, post, url, dir, close };
 }
@@ -111,6 +112,19 @@ for (const c of cases) test(`unread range wasm: ${c.name}`, { timeout: 120000 },
         const send = a.kind === 'send';
         const r = ok({ op: 'admit', entry: { id: `intent-${i}`, seq: i + 1, op: send ? 'send' : a.kind === 'succeed' ? 'depend' : 'countThenRefuse', viewer, args: send ? { conversationId: 'c' } : { member: 'b' }, now: 1, new_ids: send ? ['pred'] : [], predictable: true } });
         assert.equal(r.predictable, a.kind !== 'refuse', JSON.stringify(r)); break;
+      }
+      case 'server-accept': {
+        // Advance the server's sequence outside the selected .at suffix.
+        await s.post('/seed', Array.from({ length: a.advance }, (_, n) => ({ table: 'messages', row: {
+          id: `ahead-${n}`, conversationId: 'c', at: 0, senderId: 'dev:alice', tombstone: false, until: null,
+        } })));
+        const sent = await s.post('/m/send', { args: { conversationId: 'c' } });
+        assert.equal(sent.state, 'sent', JSON.stringify(sent));
+        assert.equal(sent.result.ordinal, 10007, JSON.stringify(sent));
+        const accepted = await s.post('/m/countThenRefuse', { args: { member: 'b' } });
+        assert.equal(accepted.state, 'sent', JSON.stringify(accepted));
+        assert.equal(accepted.result, 1, JSON.stringify(accepted));
+        break;
       }
       case 'acquiring': page([], {}, [{ at: 0, table: 'messages', index: horizon, group: ['c'] }]); break;
       case 'leave': page([{ table: 'messages', id: '', kind: 'scope', data: ['c'] }]); break;

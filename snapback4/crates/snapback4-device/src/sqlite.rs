@@ -115,6 +115,9 @@ impl DeviceTx for Tx<'_> {
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> {
         Ok(self.conn().prepare("SELECT t, id, data FROM _device_base ORDER BY t, id")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?)
     }
+    fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.conn().query_row("SELECT id FROM _device_base WHERE t = ?1 AND id > ?2 ORDER BY id LIMIT 1", params![table, after], |row| row.get(0)).optional()?)
+    }
     fn base_clear(&self) -> Result<(), RuntimeError> {
         self.conn().execute("DELETE FROM _device_base", [])?;
         Ok(())

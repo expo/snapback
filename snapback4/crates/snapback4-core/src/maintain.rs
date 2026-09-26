@@ -50,7 +50,6 @@ impl Operand {
             Self::Literal(value) => value,
         }
     }
-    fn fields(&self, out: &mut BTreeSet<String>) { if let Self::Field(field) = self { out.insert(field.clone()); } }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -78,11 +77,19 @@ impl Predicate {
     pub fn steps(&self) -> u64 {
         match self { Self::Not(p) => 1 + p.steps(), Self::And(a,b) | Self::Or(a,b) => 1 + a.steps() + b.steps(), Self::Compare { .. } => 3, _ => 1 }
     }
+    #[inline(never)] // Keep one owned-field collector around the borrowed traversal.
     pub fn fields(&self, out: &mut BTreeSet<String>) {
+        self.each_field(&mut |field| { out.insert(field.to_owned()); });
+    }
+    /// Borrow fields for dependency observation without constructing a copied set.
+    pub(crate) fn each_field<'a>(&'a self, out: &mut dyn FnMut(&'a str)) {
         match self {
-            Self::Field(field) => { out.insert(field.clone()); }
-            Self::Not(p) => p.fields(out), Self::And(a,b) | Self::Or(a,b) => { a.fields(out); b.fields(out); }
-            Self::Compare { left, right, .. } => { left.fields(out); right.fields(out); }
+            Self::Field(field) => out(field),
+            Self::Not(p) => p.each_field(out), Self::And(a,b) | Self::Or(a,b) => { a.each_field(out); b.each_field(out); }
+            Self::Compare { left, right, .. } => {
+                if let Operand::Field(field) = left { out(field); }
+                if let Operand::Field(field) = right { out(field); }
+            }
             Self::Bool(_) => {}
         }
     }

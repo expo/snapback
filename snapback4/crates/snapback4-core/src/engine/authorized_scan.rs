@@ -94,6 +94,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
     pub(crate) fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> { self.raw.release_asset(id, now) }
     pub(crate) fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> { self.raw.effect_once(effect, key) }
+    pub(crate) fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.raw.provisional_id_after(table, after) }
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
     pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }

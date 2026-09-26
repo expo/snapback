@@ -63,6 +63,7 @@ fn run<H: Host>(h: &mut H, spec: &Json) {
         spec.get("mark").cloned().unwrap_or(json!(4)),
         spec.get("joinedAt").cloned().unwrap_or(json!(0)),
     );
+    if source.contains("joinedAt: sequence") { m.as_object_mut().unwrap().remove("joinedAt"); }
     let n = spec["n"].as_i64().unwrap_or(6);
     let mut rows = vec![
         ("conversations", json!({"id":"c","title":"chat"})),
@@ -197,6 +198,17 @@ fn run<H: Host>(h: &mut H, spec: &Json) {
                     json!({"op":"admit","entry":{"id":format!("intent-{i}"),"seq":i+1,"op":if send{"send"}else if action["kind"] == "succeed" {"depend"} else {"countThenRefuse"},"viewer":"bob","args":if send{json!({"conversationId":"c"})}else{json!({"member":"b"})},"now":1,"new_ids":if send{vec!["pred"]}else{vec![]},"predictable":true}}),
                 );
                 assert_eq!(result["ok"]["predictable"], action["kind"] != "refuse", "{name}: {result}");
+            }
+            "server-accept" => {
+                let backlog = (0..action["advance"].as_i64().unwrap()).map(|n| {
+                    let row = json!({"id":format!("ahead-{n}"),"conversationId":"c","at":0,"senderId":"alice","tombstone":false,"until":null});
+                    ("messages".into(), wire::row_from_json(&server.schema().tables["messages"], &row).unwrap())
+                }).collect::<Vec<_>>();
+                server.seed(backlog).unwrap();
+                let sent = server.mutate("send", None, Context::new("bob", args(&[("conversationId", id("c"))])).at(1)).unwrap();
+                assert!(matches!(sent.state, snapback4_core::WriteState::Sent { ref result, .. } if result.field("ordinal") == Ok(&Value::Int(10007))), "{sent:?}");
+                let accepted = server.mutate("countThenRefuse", None, Context::new("bob", args(&[("member", id("b"))])).at(1)).unwrap();
+                assert!(matches!(accepted.state, snapback4_core::WriteState::Sent { result: Value::Int(1), .. }), "{accepted:?}");
             }
             "acquiring" => page(
                 &mut d,

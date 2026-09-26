@@ -932,5 +932,152 @@
       }
     ],
     "mark": null
+  },
+  {
+    "name": "strongest-bound-first",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 4,
+    "joinedAt": 0,
+    "replace": [
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "null-sibling-last",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 4,
+    "joinedAt": null,
+    "replace": [
+      [
+        "joinedAt: int default 0",
+        "joinedAt: int ?"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "sequence-short-range-large-window",
+    "value": 3,
+    "complete": true,
+    "unknown": false,
+    "n": 20000,
+    "mark": 19997,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ],
+      [
+        "last 3 by .ordinal",
+        "last 19999 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 19998,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 2,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "provisional-residual-sequence-refusal",
+    "value": 0,
+    "complete": true,
+    "unknown": false,
+    "mark": 10000,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ],
+      [
+        "last 3 by .ordinal",
+        "last 3 by .at"
+      ],
+      [
+        "and .senderId != m.principal",
+        "and .at > m.joinedAt"
+      ],
+      [
+        "require n < 0",
+        "require n > 0"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "send"
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
+      },
+      {
+        "kind": "server-accept",
+        "advance": 10000
+      }
+    ]
+  },
+  {
+    "name": "provisional-member-sequence-refusal",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "joinedAt: int default 0",
+        "joinedAt: sequence by conversationId"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal > m.joinedAt"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 5,
+        "predictable": true
+      },
+      {
+        "kind": "query",
+        "value": 1,
+        "complete": true,
+        "unknown": false
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
+      }
+    ]
   }
 ]

@@ -273,13 +273,22 @@ impl Runner<'_> {
         let prefix = std::slice::from_ref(u.field(&k.member_key)?);
         let device_live = self.device && live;
         let expiring = live && self.schema.tables[&m.source].is_expiring();
-        if device_live { self.observe_sequence_selection(&m.source, index, &prefix)?; }
+        if device_live && self.device_allowance.is_some() && !self.provisional_sequence_read {
+            // @ref LLP 3000.020#3.2 — the whole predicate consumes sequences,
+            // including residual source columns and provisional member bounds.
+            let source_table = &self.schema.tables[&m.source];
+            let member_table = &self.schema.tables[&k.table];
+            let (mut source_sequence, mut member_sequence) = (false, false);
+            k.predicate.each_field(&mut |field| {
+                if let Some(field) = field.strip_prefix("$row.") { member_sequence |= member_table.sequences.contains_key(field); }
+                else { source_sequence |= source_table.sequences.contains_key(field); }
+            });
+            if source_sequence { self.observe_provisional_selection(&m.source, &source_table.indexes[index], prefix)?; }
+            if member_sequence { self.provisional_sequence_read |= self.is_provisional(&k.table, u)?; }
+        }
         // Keep bounds/cursor storage outside the transient row allocation scope.
         let cursor_bytes = crate::rows::word_heap::key_decode(
-            self.schema.tables[&m.source].indexes[index]
-                .components
-                .len()
-                + 1,
+            self.schema.tables[&m.source].indexes[index].components.len() + 1,
             crate::rows::MAX_INDEX_KEY_BYTES,
         );
         let scratch = cursor_bytes.saturating_mul(2).saturating_add(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4);
@@ -396,11 +405,15 @@ impl Runner<'_> {
             _ => None,
         };
         let live = self.schema.tables[&m.source].is_expiring();
-        let changed = k.fields().iter().any(|name| {
-            old.as_ref()
-                .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
+        let (mut changed, mut several) = (None, false);
+        k.predicate.each_field(&mut |field| {
+            if let Some(name) = field.strip_prefix("$row.")
+                && old.as_ref().is_none_or(|old| old.field(name).ok() != u.field(name).ok()) {
+                several |= changed.is_some_and(|previous| previous != name);
+                changed = Some(name);
+            }
         });
-        if !changed
+        if changed.is_none()
             && !live
             && let Some(existing) = &existing
         {
@@ -417,31 +430,14 @@ impl Runner<'_> {
                 && old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
         });
         if let Some(old) = delta {
-            let changed = k
-                .fields()
-                .into_iter()
-                .filter(|f| old.field(f).ok() != u.field(f).ok())
-                .collect::<Vec<_>>();
-            if changed.len() == 1 {
-                let fields = k
-                    .comparisons()
-                    .into_iter()
-                    .filter(|(_, f)| f == &changed[0])
-                    .map(|(s, _)| s)
-                    .collect::<std::collections::BTreeSet<_>>();
-                if fields.len() == 1 {
-                    let f = fields.into_iter().next().unwrap();
-                    let (a, b) = (old.field(&changed[0])?, u.field(&changed[0])?);
-                    if f != k.source_key && !matches!(a, Value::Null) && !matches!(b, Value::Null) {
-                        index = k.range_index(&f);
-                        let (lo, hi) = if a.total_cmp(b).is_gt() {
-                            (b, a)
-                        } else {
-                            (a, b)
-                        };
-                        bounds.gte = Some(lo.clone());
-                        bounds.lte = Some(hi.clone());
-                    }
+            if !several && let Some(changed) = changed
+                && let Some(f) = k.comparison_source(changed) {
+                let (a, b) = (old.field(changed)?, u.field(changed)?);
+                if f != k.source_key && !matches!(a, Value::Null) && !matches!(b, Value::Null) {
+                    index = k.range_index(f);
+                    let (lo, hi) = if a.total_cmp(b).is_gt() { (b, a) } else { (a, b) };
+                    bounds.gte = Some(lo.clone());
+                    bounds.lte = Some(hi.clone());
                 }
             }
         }

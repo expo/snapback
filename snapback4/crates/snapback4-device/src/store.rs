@@ -70,6 +70,8 @@ pub trait DeviceTx: Rows {
     /// when there was no row); the first image kept wins.
     fn base_remember(&self, table: &str, id: &str, image: Option<&str>) -> Result<(), RuntimeError>;
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError>;
+    /// Seek one touched id without loading confirmed images or unrelated tables.
+    fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError>;
     fn base_clear(&self) -> Result<(), RuntimeError>;
 
     /// A staged snapshot row, keyed by `key` (ordered), in `table`.

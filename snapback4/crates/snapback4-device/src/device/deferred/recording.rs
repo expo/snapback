@@ -80,6 +80,7 @@ impl<T: DeviceTx> DeviceTx for Recording<'_, T> {
     fn outbox_max_seq(&self) -> Result<u64, RuntimeError> { self.tx.outbox_max_seq() }
     fn base_remember(&self, t: &str, id: &str, v: Option<&str>) -> Result<(), RuntimeError> { self.tx.base_remember(t, id, v) }
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> { self.tx.base_entries() }
+    fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.tx.base_id_after(table, after) }
     fn base_clear(&self) -> Result<(), RuntimeError> { self.tx.base_clear() }
     fn staged_put(&self, k: &str, t: &str, v: &str) -> Result<(), RuntimeError> { self.tx.staged_put(k, t, v) }
     fn staged_delete(&self, k: &str) -> Result<(), RuntimeError> { self.tx.staged_delete(k) }

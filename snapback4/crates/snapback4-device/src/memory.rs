@@ -664,6 +664,13 @@ impl DeviceTx for MemoryTx<'_> {
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> {
         Ok(self.store.state.borrow().base.iter().map(|((table, id), image)| (table.clone(), id.clone(), image.clone())).collect())
     }
+    fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
+        let mut next = String::with_capacity(after.len() + 1);
+        next.push_str(after);
+        next.push('\0'); // The smallest string strictly after this id.
+        Ok(self.store.state.borrow().base.range((table.into(), next)..)
+            .next().filter(|((name, _), _)| name == table).map(|((_, id), _)| id.clone()))
+    }
     fn base_clear(&self) -> Result<(), RuntimeError> {
         let keys: Vec<(String, String)> = self.store.state.borrow().base.keys().cloned().collect();
         for key in keys {

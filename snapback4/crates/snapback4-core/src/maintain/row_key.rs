@@ -24,11 +24,10 @@ impl RowKey {
     }
     pub fn fields(&self) -> BTreeSet<String> {
         let mut fields = BTreeSet::new();
-        self.predicate.fields(&mut fields);
+        self.predicate.each_field(&mut |field| {
+            if let Some(field) = field.strip_prefix("$row.") { fields.insert(field.to_owned()); }
+        });
         fields
-            .into_iter()
-            .filter_map(|f| f.strip_prefix("$row.").map(str::to_owned))
-            .collect()
     }
     pub fn matches(&self, source: &Value, member: &Value) -> bool {
         self.predicate.matches_member(source, Some(member))
@@ -44,16 +43,29 @@ impl RowKey {
         }
         visit(&self.predicate, out);
     }
+    #[inline(never)] // Share normalized metadata traversal in the device artifact.
+    fn each_pair<'a>(&'a self, out: &mut dyn FnMut(&'a str, &'a str)) {
+        self.each_comparison(&mut |_, a, b| {
+            if let Some(field) = b.strip_prefix("$row.") { out(a, field); }
+            else if let Some(field) = a.strip_prefix("$row.") { out(b, field); }
+        });
+    }
     pub fn comparisons(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();
-        self.each_comparison(&mut |_, a, b| {
-            if let Some(field) = b.strip_prefix("$row.") {
-                out.push((a.into(), field.into()));
-            } else if let Some(field) = a.strip_prefix("$row.") {
-                out.push((b.into(), field.into()));
+        self.each_pair(&mut |source, member| out.push((source.into(), member.into())));
+        out
+    }
+    /// Preserve distinct-column selection without materializing owned pairs and sets.
+    pub(crate) fn comparison_source(&self, member: &str) -> Option<&str> {
+        let mut source = None;
+        let mut ambiguous = false;
+        self.each_pair(&mut |field, operand| {
+            if operand == member {
+                ambiguous |= source.is_some_and(|previous| previous != field);
+                source = Some(field);
             }
         });
-        out
+        if ambiguous { None } else { source }
     }
 
 }
@@ -95,14 +107,14 @@ impl crate::schema::Schema {
                     key.source_index(),
                     Index::of(&[&key.source_key, "id"], false),
                 );
-                for (field, _) in key.comparisons() {
+                key.each_pair(&mut |field, _| {
                     if field != key.source_key {
                         t.indexes.insert(
-                            key.range_index(&field),
-                            Index::of(&[&key.source_key, &field, "id"], false),
+                            key.range_index(field),
+                            Index::of(&[&key.source_key, field, "id"], false),
                         );
                     }
-                }
+                });
             }
             let mut work = public_table(
                 BTreeMap::from([

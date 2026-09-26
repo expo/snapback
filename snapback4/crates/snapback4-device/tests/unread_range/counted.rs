@@ -61,6 +61,7 @@ impl<T: DeviceTx> DeviceTx for Tx<T> {
     fn outbox_max_seq(&self) -> Result<u64, RuntimeError> { self.inner.outbox_max_seq() }
     fn base_remember(&self, table: &str, id: &str, image: Option<&str>) -> Result<(), RuntimeError> { self.inner.base_remember(table, id, image) }
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> { self.inner.base_entries() }
+    fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.inner.base_id_after(table, after) }
     fn base_clear(&self) -> Result<(), RuntimeError> { self.inner.base_clear() }
     fn staged_put(&self, key: &str, table: &str, image: &str) -> Result<(), RuntimeError> { self.inner.staged_put(key, table, image) }
     fn staged_delete(&self, key: &str) -> Result<(), RuntimeError> { self.inner.staged_delete(key) }
