@@ -282,6 +282,23 @@ const cases = {
     await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 181], [231, 250]])));
     check(waiting.acks.length === before, "nothing is sent once the server stores it all: " + JSON.stringify(waiting.acks));
     await unmount();
+    // Fetched before progress answers, and replaced before it does, a run is still owed.
+    const early = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const loading = receiptsClient(early, { loading: true });
+    await mount(h(Receipts, { visible: false }), loading);
+    await act(async () => active(loading).find(record => record.args.c === null).set(ready(ordinals(250, 231), "p2")));
+    await act(async () => stream(loading).set(progressOf(0, 0, [], [[101, 150]])));
+    for (const ack of ["delivered:161-181", "delivered:231-250"]) check(loading.acks.includes(ack), ack + " owed from before progress: " + JSON.stringify(loading.acks));
+    await unmount();
+    // Disjoint runs arriving at capacity: each is sent once, not again with every newcomer.
+    const arrivals = new Map([[null, ready(ordinals(1000, 991), "p2")], ["p2", { loading: true }]]);
+    const capped = receiptsClient(arrivals, progressOf(0, 0, [], Array.from({ length: 64 }, (_, k) => [2 + 2 * k, 2 + 2 * k])));
+    await mount(h(Receipts, { visible: false }), capped);
+    const top = () => active(capped).find(record => record.args.c === null);
+    for (let k = 1; k < 25; k++) await act(async () => top().set(ready(ordinals(1000 - 20 * k, 991 - 20 * k), "p2")));
+    const calls = capped.acks.filter(ack => ack.startsWith("delivered")).length;
+    check(calls <= 30, "25 disjoint runs take about 25 reports, not one per run per arrival: " + calls);
+    await unmount();
     // While a run is owed, another conversation and another signed-in client owe nothing of it.
     const scoped = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
     const one = receiptsClient(scoped, progressOf(0, 0, [], [[101, 150]]));
@@ -291,9 +308,28 @@ const cases = {
     await render(h(Receipts, { visible: false, conversation: "c2" }), one);
     check(one.calls.some(call => call.conversation === "c2" && call.from === 231), "the other conversation reports what it holds: " + JSON.stringify(one.calls));
     check(!one.calls.some(call => call.conversation === "c2" && call.from === 161), "and nothing the first owed: " + JSON.stringify(one.calls));
-    const other = receiptsClient(scoped, progressOf(0, 0, [], [[101, 150]]));
+    await unmount();
+    // The same conversation on a replaced client owes nothing of the first, even once coverage moves.
+    const kept = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const original = receiptsClient(kept, progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), original);
+    check(original.calls.some(call => call.from === 161), "the run is owed: " + JSON.stringify(original.calls));
+    kept.set(null, ready(ordinals(250, 231), "p2"));
+    const other = receiptsClient(kept, progressOf(0, 0, [], [[101, 150]]));
     await render(h(Receipts, { visible: false }), other);
+    await act(async () => stream(other).set(progressOf(0, 0, [], [[101, 160]])));
+    check(other.calls.some(call => call.from === 231), "the replacement reports what it holds: " + JSON.stringify(other.calls));
     check(!other.calls.some(call => call.from === 161), "another client owes nothing of the first: " + JSON.stringify(other.calls));
+    await unmount();
+    // So does the same client under another viewer.
+    const solo = receiptsClient(new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]), progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), solo);
+    await act(async () => active(solo).find(record => record.args.c === null).set(ready(ordinals(250, 231), "p2")));
+    check(solo.calls.some(call => call.from === 161) && solo.calls.some(call => call.from === 231), "both runs are owed: " + JSON.stringify(solo.calls));
+    const mark = solo.calls.length;
+    await act(async () => solo.setViewer("dev:someone-else"));
+    await act(async () => stream(solo).set(progressOf(0, 0, [], [[101, 160]])));
+    check(!solo.calls.slice(mark).some(call => call.from === 161), "another viewer owes nothing of the first: " + JSON.stringify(solo.calls.slice(mark)));
     await unmount();
     // Offline past its synced window: the page ahead lies above a gap, so the hook walks the pages it holds.
     const offline = receiptsClient(new Map([[null, ready(ordinals(600, 581), "p2", { fresh: false, since: 50 })], ["p2", ready(ordinals(580, 561), "p3", { fresh: false, since: 50 })], ["p3", { loading: true }]]),

@@ -440,6 +440,22 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(stored(&progress(&mut engine, "bob", 6_874, "win")), vec![(490, 500), (505, 506), (510, 512)], "a run just above a stored one extends it");
     sent(&engine.mutate("delivered", None, at("bob", 6_875, &run(win(), 502, 515))).unwrap());
     assert_eq!(stored(&progress(&mut engine, "bob", 6_876, "win")), vec![(490, 500), (502, 515)], "an enclosing run takes in every run it covers");
+    // A conversation holds more than 800 runs: 13 members at their 64 each all fit.
+    let busy = || ("conversation", id("busy"));
+    let crowd: Vec<String> = (1..=13).map(|n| format!("b{n}")).collect();
+    let mut rows = vec![chat("busy"), member("ba", "busy", "alice")];
+    rows.extend(crowd.iter().map(|p| member(&format!("m-{p}"), "busy", p)));
+    engine.seed(rows).unwrap();
+    for n in 1..=130 {
+        let row = format!("b-msg-{n}");
+        sent(&engine.mutate("send", None, at("alice", 7_000 + n, &[busy(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    }
+    for (k, p) in crowd.iter().enumerate() {
+        for (j, n) in (2..=128).step_by(2).enumerate() {
+            let outcome = engine.mutate("delivered", None, at(p, 7_500 + 100 * k as i64 + j as i64, &run(busy(), n, n))).unwrap();
+            assert_eq!(outcome.events, 1, "{p}'s run {j} is stored");
+        }
+    }
     // The worst page: 49 recipients with 16 runs each, and a page every one of them
     // covers from a run, not the prefix. Each receipt seeks one run per member, so the
     // page stays within the read meter.

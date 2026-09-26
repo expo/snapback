@@ -158,10 +158,11 @@ Three things keep every fetched message moving:
   and the page of at most 100 messages ahead of the prefix, counted from the
   join, then the next page as the prefix moves, until the client is caught up.
   It never needs the page's cursor.
-- **Owing.** While mounted, the hook keeps what it has reported, merged into
+- **Owing.** While mounted, the hook keeps what it has fetched, merged into
   disjoint runs, for this conversation and signed-in client, until the
-  server's own rows cover it; a predicted row covers nothing. It reports what
-  it owes again whenever those rows move, even after a page is gone. When the
+  server's own rows cover it, even before `progress` first answers; a
+  predicted row covers nothing. It sends a run when the run is new or grows,
+  and again only when those rows move, even after a page is gone. When the
   lowest run it holds lies above the prefix, it walks older pages it holds,
   offline too.
 - **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
@@ -202,20 +203,28 @@ function useReceipts(conversation: string, visible: boolean) {
   const progress = useQuery(api.progress, { conversation });
   const mine = "data" in progress ? progress.data : null;
   const member = mine ? mine.member : null;
-  // What it holds (the pages walked, the page ahead) and still owes, for this
-  // conversation and signed-in client, until the server's own rows cover it.
-  const owed = useMemo(() => ({ runs: [] as [number, number][] }), [client, viewer, conversation]);
+  // What it holds (the pages walked, the page ahead) it owes until the server's own rows
+  // cover it, for this conversation and signed-in client, remembered even before progress loads.
+  const owed = useMemo(() => new Map<string, { run: [number, number]; tried: string | null }>(), [client, viewer, conversation]);
   const held = [...page.items, ...(mine ? mine.ahead : [])].filter(m => !m.pending).map(m => m.ordinal);
-  const runs = runsOf(owed.runs, held);
   const prefix = member && !member.pending ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
-  const stored = mine ? mine.runs.filter(r => !r.pending) : [];
-  const state = mine && JSON.stringify([prefix, stored, runs]);
+  const stored = mine ? mine.runs.filter(r => !r.pending).map((r): [number, number] => [r.fromOrdinal, r.throughOrdinal]) : [];
+  const coverage = mine && JSON.stringify([prefix, stored]);
+  const holding = JSON.stringify(runsOf([], held));
   useEffect(() => {
-    if (!mine) return;
-    owed.runs = runs.map(([from, through]): [number, number] => [prefix === null ? from : Math.max(from, prefix + 1), through])
-      .filter(([from, through]) => from <= through && !stored.some(r => r.fromOrdinal <= from && through <= r.throughOrdinal));
-    for (const [from, through] of owed.runs) void client.mutate(api.delivered, { conversation, from, through });
-  }, [client, conversation, owed, state]); // eslint-disable-line react-hooks/exhaustive-deps
+    const entries = new Map(owed);
+    owed.clear();
+    for (const run of runsOf([...entries.values()].map(entry => entry.run), held)) owed.set(run.join("-"), entries.get(run.join("-")) ?? { run, tried: null });
+    if (coverage === null) return;
+    // Send a run when it is new, and again only when the server's coverage has moved.
+    for (const [name, entry] of owed) {
+      const from = prefix === null ? entry.run[0] : Math.max(entry.run[0], prefix + 1), through = entry.run[1];
+      if (from > through || stored.some(([low, high]) => low <= from && through <= high)) { owed.delete(name); continue; }
+      if (entry.tried === coverage) continue;
+      entry.tried = coverage;
+      void client.mutate(api.delivered, { conversation, from, through });
+    }
+  }, [client, conversation, owed, holding, coverage]); // eslint-disable-line react-hooks/exhaustive-deps
   // Walk older pages while the lowest run held lies above the prefix.
   const floor = member ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
   const lowest = runsOf([], held)[0];
