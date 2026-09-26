@@ -63740,3 +63740,53 @@ fresh-control delta is claimed. No query online-only modifier, whole-domain
 or word-search coverage change, automatic merge rewrite, push or publication.
 Commits: `193dc3e6b` (repairs and tests), `3b06badfd` (floor equality witness),
 `64ac359ac` (cursorless cap guard), each with the requested co-author trailer.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 3: preserve page slices and refuse invalid horizons
+
+Read both complete round-2 reviews, the lane prompt and report; accepted all
+four findings. N_SYNC_ORDER now prints a page only when its query has a
+cursor, a cap proves the whole group fits, or the query already reads the
+same ordered columns newest first. Existing exact-predicate and scope guards
+remain. Grok's four-row fixture proves cursorless first/last ordinal pages
+select different ids from the proposed time page; those repairs now stay in
+words. Positive controls apply the printed repairs for cursor traversal,
+covering caps and an identical cursorless slice under another index name.
+
+A window index fully pinned by its audience gets words, preserving the page
+result type. The reviewer's byOwner program executes correctly; the test
+applies any quoted repair, which failed to compile before this guard.
+Advisory generation checks the horizon prefix with get(..prefix), its actual
+audience columns and a nonzero window length. The short bad: at horizon now
+returns E_SYNC instead of panicking; wrong-prefix and zero-length cases also
+refuse without order advice. The sync card and why text state the narrower
+page boundary, within the existing output bound.
+
+Two-sided incompatible ranges now have executable strict and inclusive upper
+bound witnesses. Rows below, inside and above the interval are seeded; the
+actual printed repair is compiled and traversed across continuation pages,
+with identical full row populations and exactly c,b,d in window order. A
+real temporary mutation dropping < and <= residuals failed both comparisons
+by admitting above-range e (0 passed, 2 failed, exit 101). Restored controls
+pass all 35 compiler tests. The complete guide target passes 86/86. Before-fix
+controls also reproduced the cursorless mismatch, pinned-index type refusal
+and invalid-horizon panic. No mutation is committed.
+
+The single scripts/test.sh invocation, after all implementation and test
+commits, finished **`== 0 failure(s) in 2958 s`**, exit **0**. Rust stage:
+**3,611 passed, zero failed, 19 existing ignores** (884 s); docs budget also
+ran one passing guide case separately. Ordinary clients: **2,215 passed,
+zero failed, 10 existing skips** (1805 s). Seeded models: **78 passed**, zero
+failed/skipped (254 s), unchanged 5,000 / 5,000 / 3,000 sequences. Both app
+typechecks, nine fixture-wrapper tests and every other stage passed. Round
+2's expireMember startup timeout did not recur. No post-suite fix or rerun.
+Full log: /tmp/p1-r3-full-suite.log; details: reports/20260926-p1-sync-windows.md.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, under the unchanged **582,094 B**
+budget by **1,000 B**. No runtime, wire, authorization, durability or meter
+change; no new LLP, query online-only modifier, automatic merge repair,
+push or publication. No unresolved review finding or implementation deviation.
+The inherited local.ts source-length exception remains outside P1.
+Implementation commits: b5f7976f8, 82ab5b5a7, ac68fa04d, each with the requested
+GPT-6 Astra co-author trailer. This entry and the round-3 report record the
+qualification in the final documentation commit.

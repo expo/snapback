@@ -757,3 +757,204 @@ Implementation commits: `cf47b8105` (requested merge), `193dc3e6b` (exact
 repairs, guide and compiler/CLI tests), `3b06badfd` (floor equality witness),
 and `64ac359ac` (explicit cursorless-cap guard).
 Every commit has the requested co-author trailer. No push or publication.
+
+## Round 3 — 2026-09-26
+
+Read the original lane prompt, all prior rounds of this report, and both
+complete round-2 reviews (`p1-r2.astra.md`, `p1-r2.grok.md`). Accepted all
+four findings; none was dismissed. This section narrows round 2's exact-page
+claim: a cursorless partial page cannot change its selected slice merely
+because the new page compiles and clears N_SYNC_ORDER.
+
+Used `llp-orient` for the compiler and guide scope. Governing context remains
+LLP 3000 §4, LLP 2000.000 §§6–7, LLP 3000.007 §§6.2/18.2 and LLP 3000.019
+§3.1 (in `current/`), with the user's explicit round-3 rule deciding when a
+page may be pasted. Read the current sync and writes cards. No new LLP or
+design is needed; hand-off: none. Work stays on `sb4-intent/p1-sync-windows`
+at round-2 head `eec2f07b8`, with no merge, push or publication this round.
+
+### Findings and changes, file by file
+
+1. **Cursorless partial pages (Grok, Medium).**
+   `crates/snapback4-lang/src/bind/residency/horizons/sync_order.rs` now
+   requires a cursor, a covering audience-group cap, or an already-descending
+   query with exactly the window's ordered columns before it can print a
+   page. All previous predicate, audience, cursorability, scope and no-new-note
+   guards still apply. `tests/sync_windows/repairs.rs` seeds Grok's exact
+   four rows: `(a,10,1)`, `(b,40,2)`, `(c,30,3)`, `(d,20,4)` for
+   `(id,at,ordinal)`. Cursorless `first 2 by .ordinal` returns `a,b`;
+   `last 2 by .ordinal` returns `d,c`; the old proposed window page returns
+   `b,c`. Both now get words. The same-direction/different-column and
+   same-column/different-direction cases are covered. Positive controls
+   apply the actual emitted repair and prove all four ids across cursor
+   pages, all four ids under a covering cap, and the identical `b,c` slice
+   for a cursorless same-order page using another named index. The existing
+   legacy implicit-id and implicit capped-read controls remain.
+
+2. **Fully pinned window (Astra, Medium).** The same advisory file refuses
+   a page repair if the audience consumes all window-index components.
+   The test in `tests/sync_windows/repairs.rs` uses the reviewer's exact
+   `unique byOwner: owner` / `sync to .owner last 100 by byOwner` program,
+   seeds Alice and Bob, and executes the original: Alice gets only her row,
+   complete. It applies and compiles any quoted repair before comparing
+   results; otherwise it requires prose without any Quarry snippet. Against
+   round 2 it fails on the printed repair's E_QUARRY_TYPE. The fixed code
+   prints words. It does not substitute a point read with a different type.
+
+3. **Invalid horizon panic (Astra, Medium).** The advisory file uses
+   `index_columns.get(..prefix)` and checks the declared audience columns
+   and nonzero horizon length before generating advice. Missing or nonplain
+   indexes already skip this pass. `tests/sync_windows.rs` compiles the
+   reviewer's two-column membership audience and one-column `bad: at`
+   horizon. Before the fix it panicked with “range end index 2 out of range
+   for slice of length 1.” Now it returns located E_SYNC diagnostics and no
+   N_SYNC_ORDER. Wrong-prefix and zero-length horizons have the same tested
+   refusal behavior. Schema validation remains authoritative.
+
+4. **Upper-bound evidence (Astra, Low).** Two tests in
+   `tests/sync_windows/repairs.rs` apply the actual printed repair for
+   `ordinal > 1` together with either `ordinal < 5` or `ordinal <= 4`,
+   retaining an existing sender residual and `after c`. The seed contains
+   rows below, inside and above the interval, including a readable row above
+   it and another readable audience. Both original and repaired queries
+   traverse continuation pages; complete row values match, and repaired ids
+   are exactly `c,b,d` in the window order. No production residual change
+   was necessary: the round-2 implementation was correct, but its evidence
+   was incomplete.
+
+`crates/snapback4-lang/src/guide/sync.rs` and `guide/codes.rs` document the
+narrowed rule. The sync card also explains the fully pinned index's result
+type problem. The N_SYNC_ORDER paragraph is now separate from acquisition
+details so its existing action and held-query facts fit within the unchanged
+`why` output bound. All source files edited this round are below 1,500 lines.
+This report records round 3, and `JOURNAL.md` receives one dated entry.
+
+### Which forms print pages, and which print words
+
+Subject to all earlier exact-repair guards, the following print complete
+pages with audience equalities in bracket keys and unchanged predicates:
+
+- **Cursor traversal:** `messages where .conversationId = conversationId
+  first 2 by .ordinal after c` becomes
+  `messages[conversationId = conversationId] after c last 2 by byWindow`.
+  Restart with a null cursor after changing the order; draining keeps the
+  same rows, although individual pages and their order may differ.
+- **Covering cap:** with `cap 50 by conversationId`, a cursorless
+  `first 50 by .ordinal` becomes `last 50 by byWindow` in its full emitted
+  page. The implicit capped read still gets its bound as `last 50`.
+- **Same ordered columns and direction:** a cursorless `last 2 by byOther`
+  can name `byWindow` when their remaining ordered columns agree. The result
+  slice is unchanged. The old implicit-id-index repair also still compiles.
+- **Independent incompatible ranges with a cursor:** both bounds move to
+  residual comparisons, for example
+  `messages[conversationId = conversationId] after c last 2 by byWindow
+  where .sender = viewer and .ordinal > 1 and .ordinal <= 4`.
+
+Cursorless partial pages in another order, fully pinned window indexes,
+outer-focal endpoints, generated membership lanes, explicit merges,
+projected views, noncursorable target indexes for cursor pages, cap-losing
+rewrites and other repairs that would introduce a note get words. Invalid
+horizons get E_SYNC and no ordering advice. Word search and whole-domain
+aggregates remain outside this note. A query already reading the window's
+own index newest first needs no N_SYNC_ORDER.
+
+### Tests and mutation evidence
+
+Seven new tests bring the language sync-window target to **35**:
+
+- `cursorless_partial_pages_in_another_order_get_words`: the four-row
+  counterexample, both ordinal directions and ascending window columns.
+- `cursor_or_covering_cap_allows_the_four_row_order_change`: apply the
+  diagnostic for both original directions, compare full traversals and
+  capped populations, and require descending window order.
+- `cursorless_same_order_repair_keeps_the_identical_slice`: exact equality
+  of the partial page after changing only index identity.
+- `fully_pinned_window_gets_an_exact_page_or_words`: apply anything quoted;
+  verify the original's authorized one-row page and the prose boundary.
+- `invalid_horizons_return_e_sync_without_advice_or_panics`: short,
+  wrong-prefix and zero-length horizon refusals.
+- `two_sided_range_keeps_strict_upper_bound_across_pages` and
+  `two_sided_range_keeps_inclusive_upper_bound_across_pages`: exact row
+  populations and continuation, with both excluded sides seeded.
+
+The new cursorless test failed before the guard (0 passed, 1 failed);
+the pinned-window and invalid-horizon tests both failed before their fixes
+(31 passed, 2 failed). Logs: `/tmp/p1-r3-cursorless-before.log` and
+`/tmp/p1-r3-invalid-before.log`. These are intentional regression controls.
+The first guide run exposed a newly truncated `why` excerpt (85 passed,
+1 failed); separating the paragraph fixed it without changing its output
+bound or removing assertions. The final whole guide target passed **86/86**
+in `/tmp/p1-r3-horizon-control.log`.
+
+Actually mutated the advisory code to discard incompatible `<` and `<=`
+seeks instead of adding residuals. **Both new upper-bound tests failed on
+row equality**, admitting the above-range row `e`: **0 passed, 2 failed,
+exit 101**. Restored the source and ran the whole sync-window target:
+**35 passed, zero failed**, exit 0. Logs:
+`/tmp/p1-r3-mutant-upper-dropped.log` and
+`/tmp/p1-r3-final-sync-control.log`. No mutation is committed.
+
+Implementation commits: `b5f7976f8` (cursorless slices and guide),
+`82ab5b5a7` (invalid/fully pinned horizons), `ac68fa04d` (upper bounds).
+Every commit has `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### Qualification, deviations and open problems
+
+The implementation and tests are committed before the single full-suite
+invocation; the final documentation commit records its actual result.
+No implementation deviation or unaddressed review finding remains. The
+round-2 stops remain: no query `online only` modifier, automatic whole-merge
+rewrite, or changed whole-domain/word-search coverage. Runtime, wire,
+authorization, durability, meters and the **582,094 B** wasm budget are
+unchanged. The unrelated inherited `packages/snapback4/src/local.ts`
+1,512-line exception remains unchanged (reproduction in round 2).
+
+The single full-suite command, from `snapback4/`, is:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh
+```
+
+Node is v24.13.1 and Bun is 1.3.14. `bun install --frozen-lockfile` passed
+before JS checks (507 installs across 501 packages checked, no changes).
+No test, assertion, skip condition, timeout, model sequence count or resource
+ceiling was reduced. Full log: `/tmp/p1-r3-full-suite.log`; exit status:
+`/tmp/p1-r3-full-suite.exit`.
+
+The script measured wasm at **2,021,689 B raw / 581,094 B gzip**, under
+the unchanged **582,094 B** budget by **1,000 B**. This matches the prior
+whole-artifact measurement; no independent fresh-control delta is claimed.
+Runtime sources and the budget file are unchanged this round.
+
+The full Rust stage passed **3,611 tests, zero failed, 19 existing ignores**,
+reported as `-- ok: cargo test (884 s)`. The docs-budget stage separately
+ran one guide case, also passing; counting that extra execution gives 3,612
+Rust test passes across the script. Both device window witnesses, all 35
+sync-window compiler tests, all 86 guide cases, compatibility, three CLI-note
+tests and nine timeline-adoption tests are in the passing Rust stage.
+Both app typechecks and all nine fixture-wrapper tests passed.
+
+Ordinary clients passed **2,215 tests, zero failed, zero cancelled, 10
+existing skips**, reported as `-- ok: client tests (1805 s)`. The skips
+retain the platform/opt-in conditions listed in round 0; none was added or
+changed. Round 2's `predicted expireMember: every commit clears the pending
+observation` case passed in this full run (5,088.975023 ms); its startup
+timeout did not recur.
+
+All **78 seeded client-model tests passed**, with zero failures, cancellations
+or skips, at the unchanged **5,000 / 5,000 / 3,000** sequence counts.
+The stage reported `-- ok: client models (254 s)`.
+
+Exact complete-script result (exit **0**):
+
+```text
+== 0 failure(s) in 2958 s
+```
+
+Every stage passed. Failure classification: **ours: zero; baseline: zero;
+environmental: zero**. The full script ran once, after all implementation
+and test commits. No fix or test rerun was needed after it. The only remaining
+edits are this result record and the single appended round-3 journal entry.
+The prior startup-timeout observation did not recur; its original cause is
+still not established. No unresolved round-3 product finding remains.
