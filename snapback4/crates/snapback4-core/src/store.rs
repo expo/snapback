@@ -281,6 +281,9 @@ impl Store {
         Ok(Self { conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
+    pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {
+        self.catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
+    }
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
@@ -461,6 +464,7 @@ impl<'a> Tx<'a> {
     /// that touches only the index entries whose keys changed (a `words`
     /// index has one per token). Returns the number of entries written.
     pub fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
@@ -485,6 +489,7 @@ impl<'a> Tx<'a> {
     }
 
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = old.field("id")?.as_str()?.to_owned();
         self.tx.prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;

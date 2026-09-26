@@ -82,7 +82,7 @@ impl Store {
         let mut catalog: BTreeMap<String, i64> = sql.prepare("SELECT name, num FROM _catalog")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let mut next = catalog.values().copied().max().unwrap_or(0) + 1;
-        for (name, table) in &schema.tables {
+        for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
             for full in std::iter::once(name.clone()).chain(table.indexes.keys().map(|index| format!("{name}.{index}"))) {
                 if !catalog.contains_key(&full) {
                     sql.execute("INSERT INTO _catalog(name, num) VALUES (?1, ?2)", params![full, next])?;
@@ -115,14 +115,14 @@ impl Store {
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.
-            let active: BTreeSet<String> = schema.tables.iter().flat_map(|(t, def)| std::iter::once(t.clone()).chain(def.indexes.keys().map(move |i| format!("{t}.{i}")))).collect();
+            let active: BTreeSet<String> = schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()).flat_map(|(t, def)| std::iter::once(t.clone()).chain(def.indexes.keys().map(move |i| format!("{t}.{i}")))).collect();
             for (name, num) in &catalog {
                 if !active.contains(name) {
                     tx.tx.execute("DELETE FROM r WHERE t = ?1", [num])?;
                     tx.tx.execute("DELETE FROM i WHERE ti = ?1", [num])?;
                 }
             }
-            for (name, table) in &schema.tables {
+            for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
@@ -166,7 +166,7 @@ impl Store {
         // participate in the same activation transaction as rows and indexes.
         if cap_counts && tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash) {
             tx.tx.execute_batch("DELETE FROM _cap_counts;")?;
-            for (name, table) in &schema.tables {
+            for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 if table.is_expiring() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
                     walk(&tx, catalog[name], |_, row| tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ()))?;
                 }
@@ -175,7 +175,7 @@ impl Store {
         }
         build(&tx, changed)?;
         if schema_changed {
-            for (name, table) in &schema.tables {
+            for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 walk(&tx, catalog[name], |_, mut row| {
                     materialize_optional_fields(&mut row, table);
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
@@ -216,6 +216,8 @@ impl Store {
         }
         let after = identity(&tx.tx)?;
         tx.commit()?;
+        // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
+        catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
         self.catalog = catalog;
         self.identity = after;
         Ok(generation)

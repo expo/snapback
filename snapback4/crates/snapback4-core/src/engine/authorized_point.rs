@@ -54,6 +54,9 @@ impl<'r> Runner<'r> {
         if self.expired(table, &row) || !self.check_rule(name, Effect::Read, None, &row)? {
             return Ok(None);
         }
+        // Memory deadlines are hidden by Disclosed itself; transfer the live
+        // boundary before projecting, still inside this candidate's expiry scope.
+        if table.ephemeral.is_some() { self.note_expiry(table, &row); }
         let projection = self.disclosed_row(table, row).for_query();
         let visible = projection.into_value();
         Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: expiry.defer() }))

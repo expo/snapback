@@ -5,6 +5,10 @@ use crate::{error::RuntimeError, schema::{Table, Index}};
 pub(crate) struct Supplied(Value);
 impl std::ops::Deref for Supplied { type Target = Value; fn deref(&self) -> &Value { &self.0 } }
 impl Supplied {
+    pub(crate) fn ephemeral(mut self, table: &Table, now: i64) -> Result<Self, RuntimeError> {
+        table.stamp_ephemeral(&mut self.0, now)?;
+        Ok(self)
+    }
     pub(crate) fn into_value(self) -> Value { self.0 }
     pub(crate) fn heap_bytes(&self) -> u64 { self.0.retained_heap() }
     pub(crate) fn field_copy(&self, field: &str) -> u64 { self.0.field(field).map_or(0,Value::clone_heap) }

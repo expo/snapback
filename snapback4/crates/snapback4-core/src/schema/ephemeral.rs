@@ -5,6 +5,9 @@ use super::*;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ephemeral { pub life_ms: u64 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Version { pub epoch: u64, pub incarnation: String }
+
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = Vec::new();
     let ephemeral = |name: &str| schema.tables.get(name).is_some_and(|t| t.ephemeral.is_some());
@@ -120,4 +123,23 @@ pub fn admit_program(schema: &Schema, program: &crate::ir::Program) -> Result<()
         return Err(crate::RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "ephemeral operation facts differ from the program's effects; compile this generation again".into() });
     }
     Ok(())
+}
+
+impl Table {
+    pub fn stamp_ephemeral(&self, row: &mut Value, now: i64) -> Result<bool, crate::RuntimeError> {
+        let Some(e) = &self.ephemeral else { return Ok(false); };
+        let deadline=now.checked_add(e.life_ms as i64).filter(|n| *n <= crate::value::I53_MAX)
+            .ok_or_else(||crate::RuntimeError::Input("ephemeral deadline exceeds the clock range".into()))?;
+        if let Value::Row(fields) | Value::Map(fields) = row { fields.insert(through::DEADLINE.into(),Value::Int(deadline)); }
+        Ok(true)
+    }
+}
+
+impl Schema {
+    pub fn refuse_ephemeral_import(&self, table: &str) -> Result<(), crate::RuntimeError> {
+        if self.table(table).is_some_and(|t| t.ephemeral.is_some()) {
+            return Err(crate::RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: format!("seed/load cannot import ephemeral table {table}; call its mutation in this process") });
+        }
+        Ok(())
+    }
 }

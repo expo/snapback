@@ -18,7 +18,7 @@ pub(crate) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<()
 }
 
 pub(crate) fn public_image(table: &Table, mut row: Value) -> Value {
-    if table.recorded.is_empty() && table.through.is_none() && !table.columns.keys().any(|f| crate::schema::timeline::is_slot(f)) { return row; }
+    if table.ephemeral.is_none() && table.recorded.is_empty() && table.through.is_none() && !table.columns.keys().any(|f| crate::schema::timeline::is_slot(f)) { return row; }
     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| !table.engine_field(field) && !crate::schema::timeline::is_slot(field)); }
     row
 }

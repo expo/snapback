@@ -160,7 +160,7 @@ impl PostgresEngine {
         runner.meter.used = self.precharge;
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
-        let outcome = QueryOutcome {
+        let outcome = QueryOutcome { ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()
@@ -394,6 +394,9 @@ fn retry_transaction(error: &RuntimeError) -> bool {
 }
 
 fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    if schema.tables.values().any(|t| t.ephemeral.is_some()) {
+        return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "Postgres evaluation does not support ephemeral tables; use the SQLite server".into() });
+    }
     refuse_maintained_columns(schema)?;
     schema.validate_column_owners()?;
     for program in programs.values() {
