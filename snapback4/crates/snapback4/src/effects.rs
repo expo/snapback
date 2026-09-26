@@ -109,6 +109,7 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
                 engine.claim_effects_strict(&token, effect.as_deref(), limit, lease_ms, fenced, declaration_contract.as_deref(), || sample(shared))
             }
         };
+        if claimed.as_ref().is_ok_and(|runs| !runs.is_empty()) { shared.durable_committed(&lock(&shared.engine)); }
         match claimed {
             Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                 let seq = lock(&shared.seq);
@@ -127,6 +128,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/effects/").and_then(|tail| tail.strip_suffix("/cancel")) {
         if let Err(refusal) = service_of(&request, shared) { return respond(request, 401, json!({ "denied": refusal_json(&refusal) })); }
         let outcome = { lock(&shared.engine).cancel_effect(id, shared.now()) };
+        if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
         return match outcome {
             Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
             Err(error) => answer_error(request, error),
@@ -187,7 +189,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
                     _ => unreachable!("step verb validated before taking the engine guard"),
                 }))()
             };
-            shared.committed.notify_all();
+            shared.durable_committed(&lock(&shared.engine));
             return match outcome {
                 Ok(StepOutcome::Began(step)) => respond(request, 200, json!({ "step": step })),
                 Ok(StepOutcome::Completed(step)) => respond(request, 200, json!({ "ok": true, "step": step })),
@@ -221,6 +223,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
         let mut engine = lock(&shared.engine);
         engine.settle_effect_strict(&service_token, &id, lease, settled, || sample(shared))
     };
+    if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
     match outcome {
         Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
         Err(error) => answer_error(request, error),

@@ -74,6 +74,11 @@ pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
 
 // @ref LLP 3000.007#20 — admission reports the author's population and bound; source locations stay beside the IR.
 pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
+    let mut fact = schema.operations.get(&program.name).cloned().unwrap_or_default();
+    crate::schema::ephemeral::execution(schema, program, &mut fact).map_err(|message| Problem {
+        code: "E_QUARRY_EPHEMERAL", site: program.name.clone(), page_site: None,
+        message, rewrite: "split durable work from ephemeral mutations and queries".into(),
+    })?;
     for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) {
         if let Err(error) = schema.refuse_private(&table) {
             return Err(Problem { code: "E_MAINTAINED_COLUMN_PRIVATE", site: program.name.clone(), page_site: None,

@@ -7,7 +7,7 @@ pub fn snapshot(e: &mut Engine, who: &str, after: Option<String>, now: i64) -> V
         .snapshot_acquisition_page_at(who, after.as_deref(), 1000, now)
         .unwrap();
     let next = p.next.map(|n| n.encode());
-    serde_json::to_vec(&SnapshotReply { now,
+    serde_json::to_vec(&SnapshotReply { now, sent: Default::default(),
         acknowledged: e.acknowledged(who, &[], p.watermark).unwrap(),
         acquisitions: p.acquisitions,
         events: SyncEvents::Snapshot(p.events),
@@ -28,7 +28,7 @@ pub fn stream(e: &mut Engine, who: &str, from: u64, now: i64) -> Vec<u8> {
     let (acknowledged, committed_above) = e
         .acknowledged_at(who, &[], p.watermark, p.images_at.unwrap_or(p.watermark))
         .unwrap();
-    serde_json::to_vec(&StreamReply { now,
+    serde_json::to_vec(&StreamReply { now, sent: Default::default(),
         acknowledged,
         committed_above,
         acquisitions: p.acquisitions,

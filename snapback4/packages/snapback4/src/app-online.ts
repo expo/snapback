@@ -1,3 +1,4 @@
+import { routeMutations, failedSignal } from "./ephemeral.ts";
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
@@ -102,7 +103,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
 
   const client: Client = {
     ...raw,
-    mutate<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
+    mutate: routeMutations((op, args) => {
+      if (storeRefusal || !active || raw.viewer() !== viewer) return Promise.resolve(failedSignal(mintId(), storeRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to write" }));
+      return raw.mutate(op, args);
+    }, function<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const id = options?.id ?? mintId();
       if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
       if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
@@ -149,7 +153,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         }
         return terminal(result) ? result : { state: "pending", id };
       });
-    },
+    }),
     async write(id) {
       if (!active || raw.viewer() !== viewer) return undefined;
       const retained = unpersisted.get(id);

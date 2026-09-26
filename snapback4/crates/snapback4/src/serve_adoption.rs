@@ -157,11 +157,12 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 let adopted = engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), shared.now());
                 let mut reopened = false;
                 let adopted = match adopted {
-                    Err(RuntimeError::Generation(_)) => project.open_engine_at(&bound, shared.now()).map(|mut next| {
+                    Err(RuntimeError::Generation(_)) => project.open_engine_at(&bound, shared.now()).and_then(|mut next| {
+                        next.share_ephemeral_hub(shared.ephemeral.clone())?;
                         next.set_presence(Some(shared.presence.clone()));
                         *engine = next;
                         reopened = true;
-                        engine.generation()
+                        Ok(engine.generation())
                     }),
                     other => other,
                 };
@@ -197,8 +198,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                             eprintln!("  {:?}: {}", step.change, step.message);
                         }
                         // Adoption can itself commit a populated maintain rebuild.
-                        if let Ok(seq) = engine.seq() { let mut current = lock(&shared.seq); *current = (*current).max(seq); }
-                        shared.committed.notify_all();
+                        shared.publish_engine(&engine);
                     }
                     Err(error) => {
                         retry = retryable(&error);

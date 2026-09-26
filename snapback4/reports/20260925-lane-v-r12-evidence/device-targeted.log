@@ -1,0 +1,179 @@
+   Compiling snapback4-device v0.4.1 (/home/ccheever/sb4-intent/lane-v/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 10.25s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_device-8d7a96768b11987e)
+
+running 42 tests
+test call::route_tests::page_route_and_duplicate_fallback_on_memory ... ok
+test device::deferred::recording::recording_refuses_unsupported_nested_savepoints - should panic ... ok
+test device::opening_tests::explicit_open_checks_its_backend_memory ... ok
+test device::opening_tests::first_install_checks_absence_memory ... ok
+test device::opening_tests::first_install_envelope_is_not_a_legacy_backend ... ok
+test device::opening_tests::kept_open_checks_its_backend_memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_memory_changes_restore_reopen_and_reset ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::memory ... ok
+test ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::memory ... ok
+test device::expired_births_tests::retired_birth_keeps_memory_device_caps_exact ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_memory ... ok
+test device::publication_tests::pending_publication_reads_the_slot_not_request_progress ... ok
+test device::publication_round5::stored_capture_must_be_a_bounded_prefix ... ok
+test device::recorded::tests::membership_transitions_do_not_depend_on_recording_targets_on_both_stores ... ok
+test device::deferred::recording::tests::prefix_deletion_is_an_ordered_fold_operation ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::sqlite ... ok
+test device::publication_round5::absent_capture_and_echo_preserve_published_exclusion ... ok
+test device::publication_round7::capture_revision_checkpoint_and_optional_echo ... ok
+test device::opening_tests::first_install_checks_absence_sqlite ... ok
+test device::publication_tests::apply_returns_publication_without_a_second_store_read ... ok
+test device::deferred::recording::failed_metadata_operation_is_not_recorded ... ok
+test device::publication_round7::only_unbound_receipts_bind_to_first_private_identity ... ok
+test ffi::tests::open_reason_reports_the_attempt_without_trying_again ... ok
+test device::publication_tests::checkpoint_capture_remains_readable_without_widening ... ok
+test ffi::tests::first_install_envelope_preserves_a_backend_installed_by_another_owner ... ok
+test device::publication_tests::empty_cursor_and_reset_remove_all_publication_keys ... ok
+test device::publication_round5::terminal_gap_is_a_protocol_refusal ... ok
+test device::opening_tests::kept_open_checks_its_backend_sqlite ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_sqlite ... ok
+test device::opening_tests::explicit_open_checks_its_backend_sqlite ... ok
+test device::publication_round7::recovery_discards_corrupt_capture_without_discarding_private_pages ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::sqlite ... ok
+test device::publication_round6::clear_rows_consumes_all_private_progress_and_keeps_incarnation ... ok
+test device::publication_round5::live_cursor_precedes_terminal_snapshot_cut ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_sqlite_changes_restore_and_reset ... ok
+test device::publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_memory ... ok
+test device::expired_births_tests::retired_birth_keeps_sqlite_device_caps_exact ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_sqlite ... ok
+test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_both_stores ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+     Running tests/repair_b.rs (target/debug/deps/repair_b-ef8da6c64ac17bdc)
+
+running 108 tests
+test round8::first_private_identity_already_owns_its_restore_evidence::memory ... ok
+test round4::observed_incarnation_is_known_before_first_apply::memory ... ok
+test round8::replacement_and_reopen_preserve_disposed_image_head::memory ... ok
+test round8::inline_observation_retains_repair_b_restore_evidence::memory ... ok
+test resumption::generation_adoption_compares_published_identity::memory ... ok
+test round8::only_validated_pages_advance_private_restore_evidence::memory ... ok
+test round5::dequeue_rebases_surviving_predictions::memory ... ok
+test resumption::replacement_retires_known_receipt_above_private_snapshot_cut::memory ... ok
+test resumption::sending_during_interrupted_snapshot_selects_a_restart::memory ... ok
+test resumption::unrelated_receipt_cannot_be_retired_by_replacement_watermark::memory ... ok
+test resumption::replacement_before_first_publication_discards_private_incarnation::memory ... ok
+test round8::inline_recovery_fences_private_and_published_cuts_without_retiring_predictions::memory ... ok
+test round5::replacement_start_is_not_the_ordinary_cursor::memory ... ok
+test round5::publishing_an_omitted_identity_uses_the_staged_identity::memory ... ok
+test round5::snapshot_catchup_uses_its_own_request_floor::memory ... ok
+test resumption::dropping_images_invalidates_published_observations::memory ... ok
+test round5::terminal_snapshot_gap_is_rejected::memory ... ok
+test round5::capture_survives_send_and_inspection_until_its_reply_is_rejected::memory ... ok
+test round8::capped_dequeue_keeps_the_published_image::memory ... ok
+test round6::late_response_cannot_erase_new_revision_capture::memory ... ok
+test resumption::malformed_terminal_page_cannot_create_a_permanent_deferral::memory ... ok
+test round5::send_after_terminal_snapshot_drains_multiple_catchup_pages::memory ... ok
+test round5::deferred_continuation_requires_its_request_cursor::memory ... ok
+test round5::legacy_live_tail_publishes_with_an_unsent_prediction::memory ... ok
+test round6::abandoned_capture_after_deferral_includes_later_send::memory ... ok
+test round6::snapshot_cut_is_consumed_before_live_requests::memory ... ok
+test round8::only_an_explicit_new_incarnation_releases_the_restore_halt::memory ... ok
+test round8::round10_image_head_only_advance_fences_without_false_restore::memory ... ok
+test round8::healthy_pagination_and_stale_responses_do_not_report_restore::memory ... ok
+test round8::round10_later_declaration_cannot_erase_captured_restore_proof::memory ... ok
+test round6::first_page_identity_is_bound_before_replacement::memory ... ok
+test round5::replacement_start_is_not_the_ordinary_cursor::sqlite ... ok
+test round5::terminal_snapshot_gap_is_rejected::sqlite ... ok
+test resumption::generation_adoption_compares_published_identity::sqlite ... ok
+test resumption::unrelated_receipt_cannot_be_retired_by_replacement_watermark::sqlite ... ok
+test round5::publishing_an_omitted_identity_uses_the_staged_identity::sqlite ... ok
+test round5::dequeue_rebases_surviving_predictions::sqlite ... ok
+test round6::late_response_cannot_erase_new_revision_capture::sqlite ... ok
+test round5::snapshot_catchup_uses_its_own_request_floor::sqlite ... ok
+test round5::deferred_continuation_requires_its_request_cursor::sqlite ... ok
+test round8::inline_observation_retains_repair_b_restore_evidence::sqlite ... ok
+test round4::observed_incarnation_is_known_before_first_apply::sqlite ... ok
+test round8::first_private_identity_already_owns_its_restore_evidence::sqlite ... ok
+test resumption::malformed_terminal_page_cannot_create_a_permanent_deferral::sqlite ... ok
+test round5::legacy_live_tail_publishes_with_an_unsent_prediction::sqlite ... ok
+test round5::capture_survives_send_and_inspection_until_its_reply_is_rejected::sqlite ... ok
+test round8::inline_recovery_fences_private_and_published_cuts_without_retiring_predictions::sqlite ... ok
+test round6::snapshot_cut_is_consumed_before_live_requests::sqlite ... ok
+test round8::only_validated_pages_advance_private_restore_evidence::sqlite ... ok
+test resumption::sending_during_interrupted_snapshot_selects_a_restart::sqlite ... ok
+test resumption::dropping_images_invalidates_published_observations::sqlite ... ok
+test resumption::replacement_before_first_publication_discards_private_incarnation::sqlite ... ok
+test resumption::replacement_retires_known_receipt_above_private_snapshot_cut::sqlite ... ok
+test round5::send_after_terminal_snapshot_drains_multiple_catchup_pages::sqlite ... ok
+test round6::abandoned_capture_after_deferral_includes_later_send::sqlite ... ok
+test round8::capped_dequeue_keeps_the_published_image::sqlite ... ok
+test round4::replacement_discards_slot_and_its_receipts::memory ... ok
+test round6::terminal_gap_refuses_ordinary_snapshot_and_catchup::memory ... ok
+test round7::teardown_loses_send_revision_after_durable_admission ... ok
+test round8::only_an_explicit_new_incarnation_releases_the_restore_halt::sqlite ... ok
+test round8::round10_later_declaration_cannot_erase_captured_restore_proof::sqlite ... ok
+test round8::round10_image_head_only_advance_fences_without_false_restore::sqlite ... ok
+test lifecycle::incomplete_echo_requires_its_capture_bound ... ok
+test lifecycle::interrupted_snapshot_returns_its_mode_with_its_cursor ... ok
+test lifecycle::empty_capture_ends_when_its_response_applies ... ok
+test legacy_terminal_releases_private_effects_and_receipts ... ok
+test malformed_bounds_roll_back ... ok
+test captures_follow_each_request_and_end_on_deferred_apply ... ok
+test lifecycle::un_echoed_response_keeps_capture_while_live_and_is_fenced_after_reopen ... ok
+test lifecycle::replacement_binds_checkpoint_receipts_before_reset ... ok
+test folded_create_update_and_delete_recreate_preserve_indexes ... ok
+test lifecycle::receipt_during_first_snapshot_binds_its_private_identity ... ok
+test round8::replacement_and_reopen_preserve_disposed_image_head::sqlite ... ok
+test lifecycle::replacement_retires_receipts_of_discarded_private_effects ... ok
+test known_gap_refusal_delete_recreate_and_reopen ... ok
+test multirow_prediction_survives_partial_page ... ok
+test plain_counter_and_crash_and_termination ... ok
+test request_bound_does_not_swallow_new_admissions ... ok
+test round7::snapshot_catchup_installs_intermediate_and_terminal_events ... ok
+test round7::snapshot_disposes_an_advanced_ordinary_slot ... ok
+test staged_identity_publishes_with_the_snapshot ... ok
+test several_deferred_receipts_and_indexes ... ok
+test lifecycle::incomplete_declaration_does_not_defer_a_safe_gapped_page ... ok
+test round8::round10_schema_adoption_compares_request_progress_atomically::memory ... ok
+test round8::healthy_pagination_and_stale_responses_do_not_report_restore::sqlite ... ok
+test round6::first_page_identity_is_bound_before_replacement::sqlite ... ok
+test identity_reset_clears_declarations_without_retiring_private_receipts ... ok
+test round7::receipt_arms_restore_before_replaying_relative_survivors ... ok
+test round6::terminal_gap_refuses_ordinary_snapshot_and_catchup::sqlite ... ok
+test round8::round10_request_owns_private_restore_evidence::memory ... ok
+test round7::receipt_without_identity_rebinds_on_first_real_store ... ok
+test round4::replacement_discards_slot_and_its_receipts::sqlite ... ok
+test replacing_pages_use_the_same_publication_predicate ... ok
+test round8::private_cursor_restore_is_durable_through_refill::memory ... ok
+test round8::private_image_head_survives_reopen_before_first_restore_observation::memory ... ok
+test round8::round10_schema_adoption_compares_request_progress_atomically::sqlite ... ok
+test round4::row_reset_preserves_incarnation_and_retires_its_receipts::memory ... ok
+test round4::private_incarnation_survives_generation_and_retires_its_receipts::memory ... ok
+test retained_images_retain_published_replay_guard ... ok
+test round8::round10_request_owns_private_restore_evidence::sqlite ... ok
+test round4::private_incarnation_survives_generation_and_retires_its_receipts::sqlite ... ok
+test round4::row_reset_preserves_incarnation_and_retires_its_receipts::sqlite ... ok
+test round8::private_image_head_survives_reopen_before_first_restore_observation::sqlite ... ok
+test round8::private_cursor_restore_is_durable_through_refill::sqlite ... ok
+test lifecycle::every_reset_clears_one_publication_state ... ok
+test newly_declared_commit_participates_in_deferral ... ok
+test overlapping_captures_do_not_change_the_answered_declaration ... ok
+test undeclared_is_kept_and_predicts_when_declared ... ok
+
+test result: ok. 108 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.01s
+
+     Running tests/write_authority.rs (target/debug/deps/write_authority-6a3a72c81723a4c7)
+
+running 9 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test w9r1a_historical_named_receipt_dropped_reply_then_revocation_memory ... ok
+test w9r1a_named_receipt_dropped_reply_then_revocation_memory ... ok
+test w9r1a_historical_named_receipt_dropped_reply_then_revocation_sqlite ... ok
+test w9r1a_named_receipt_dropped_reply_then_revocation_sqlite ... ok
+test a_server_page_pass_never_predicts_even_when_held_and_after_reopen ... ok
+test only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal ... ok
+test legacy_receipts_require_the_original_store_outcome_before_replacing_unknown_failure ... ok
+test w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.78s
+

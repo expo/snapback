@@ -285,6 +285,10 @@ impl Engine {
     /// Record even a brief reconnect before its grace deadline. The host
     /// calls this under the same engine lock as emission and claiming.
     pub fn presence_reconnected(&mut self, principal: &str, now: i64) -> Result<(), RuntimeError> {
+        let read = self.store.read_transaction()?;
+        let pending: bool = read.conn().query_row("SELECT EXISTS(SELECT 1 FROM _effect_presence WHERE principal = ?1 AND deadline >= ?2 AND reconnected = 0)", params![principal, now], |r| r.get(0))?;
+        read.rollback()?;
+        if !pending { return Ok(()); }
         let tx = self.store.transaction()?;
         tx.conn().execute("UPDATE _effect_presence SET reconnected = 1 WHERE principal = ?1 AND deadline >= ?2", params![principal, now])?;
         tx.commit()

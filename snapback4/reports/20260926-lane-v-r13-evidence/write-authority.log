@@ -1,0 +1,18 @@
+   Compiling snapback4-device v0.4.1 (/home/ccheever/sb4-intent/lane-v/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 3.79s
+     Running tests/write_authority.rs (target/debug/deps/write_authority-6a3a72c81723a4c7)
+
+running 10 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test w9r1a_historical_named_receipt_dropped_reply_then_revocation_memory ... ok
+test w9r1a_named_receipt_dropped_reply_then_revocation_memory ... ok
+test w9r1a_historical_named_receipt_dropped_reply_then_revocation_sqlite ... ok
+test w9r1a_named_receipt_dropped_reply_then_revocation_sqlite ... ok
+test an_old_page_cannot_qualify_a_refused_ops_record_as_success ... ok
+test a_server_page_pass_never_predicts_even_when_held_and_after_reopen ... ok
+test only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal ... ok
+test legacy_receipts_require_the_original_store_outcome_before_replacing_unknown_failure ... ok
+test w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+

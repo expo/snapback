@@ -1,0 +1,18 @@
+(node:734273) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ shared-only lookup recovers absent history and opener remembers those ids without settling them (1401.535943ms)
+  ✔ shared-only refusal cannot settle legacy custody before bound replay (2898.666539ms)
+  ✔ adoption during lookup recomputes legacy custody (absent local history) (1476.638025ms)
+  ✔ adoption during lookup recomputes legacy custody (replacement local history) (1430.825186ms)
+  ✔ lookup preserves local NOT_FOUND committed between history reads (1349.363696ms)
+  ✔ lookup preserves local sent committed between history reads (1380.502295ms)
+✔ web receipt upgrades preserve original binding and corrected shared custody (10755.461989ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10846.868197

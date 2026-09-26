@@ -1,0 +1,58 @@
+(node:757997) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✖ a shared correction never hides this device's qualified or pending custody (replacement local history) (1510.08674ms)
+  ✖ a shared correction never hides this device's qualified or pending custody (absent local history) (1439.892717ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (5736.993217ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5816.774461
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ a shared correction never hides this device's qualified or pending custody (replacement local history) (1510.08674ms)
+  AssertionError [ERR_ASSERTION]: {"state":"failed","id":"01M3DNSXN604NC6NAEBH5D3MEB","why":{"code":"NOT_ADMIN","family":"rule","message":"write refused: NOT_ADMIN"}}
+  + actual - expected
+  
+  + 'NOT_ADMIN'
+  - 'E_STORE_REPLACED'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:307:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:275:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'NOT_ADMIN',
+    expected: 'E_STORE_REPLACED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ a shared correction never hides this device's qualified or pending custody (absent local history) (1439.892717ms)
+  AssertionError [ERR_ASSERTION]: {"state":"failed","id":"01M3DNSZ2FS12KXSADEQCPB1F2","why":{"code":"NOT_ADMIN","family":"rule","message":"write refused: NOT_ADMIN"}}
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:307:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:275:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

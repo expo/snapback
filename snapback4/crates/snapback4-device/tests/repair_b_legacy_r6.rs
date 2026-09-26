@@ -39,7 +39,7 @@ mutation bump():
     let captured = serde_json::to_value(&request).unwrap();
     let page = json!({"snapshot":false,"watermark":wire.watermark,"more":false,
         "requested_watermark":request.watermark,"captured_watermark":request.watermark,
-        "send_revision":request.send_revision,"acknowledged":ack,
+        "send_revision":request.send_revision,"acknowledged":ack,"sent":ack,
         "pending_through":captured.get("pending_through"),"pending_complete":captured.get("pending_complete"),
         "pending_bound":captured.get("pending_bound"),"joined":wire.joined,"acquisitions":wire.acquisitions,
         "events":wire.events.iter().map(|ev| json!({"table":ev.table,"kind":ev.kind,"id":ev.id,

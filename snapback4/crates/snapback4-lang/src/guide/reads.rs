@@ -92,41 +92,9 @@ function useExpiringRows<T extends { expiresAt: number | null }>(rows: T[]) {
 Render the rows returned by `useExpiringRows(rows)`. `client.now()` estimates the server's time and never
 moves backward; `null` never expires. The hook cleans up on unmount.
 
-For example, this typing indicator lasts 4,500 ms after the last keystroke.
-Render `typingNow`'s ready held rows directly. For a server answer, use the
-render-deadline filter above.
-This is an application table, separate from the server's `connected[p]`.
-
-```quarry
-table rooms:
-  read <- exists members[.id, viewer]
-  sync to members[.id]
-
-table members:
-  roomId: rooms
-  principal: principal
-  unique roomId, principal
-  read <- exists members[.roomId, viewer]
-  sync to members[.roomId]
-
-table typing:
-  roomId: rooms
-  principal: principal
-  expiresAt: time
-  unique roomId, principal
-  cap 50 by roomId
-  read <- exists members[.roomId, viewer]
-  insert <- .principal = viewer and exists members[.roomId, viewer]
-  update <- .principal = viewer and exists members[.roomId, viewer]
-  expire at .expiresAt
-  sync to members[.roomId]
-
-mutation setTyping(roomId: rooms):
-  upsert typing[roomId, viewer] { roomId, principal: viewer, expiresAt: now + 4500 }
-
-query typingNow(roomId: rooms):
-  return typing where .roomId = roomId by .principal { principal, expiresAt }
-```
+For typing and viewing indicators, use an ephemeral table (`guide ephemeral`,
+also `guide typing`). Keep its server query separate from the device-held
+chats list. The expiring-rows recipe above is for durable disappearing messages.
 
 ## Nullable predicates and enum lanes
 

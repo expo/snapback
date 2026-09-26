@@ -27,6 +27,9 @@ mod effects;
 #[path = "serve_routes.rs"]
 mod routes;
 
+#[path = "serve_ephemeral.rs"]
+mod ephemeral;
+
 #[path = "serve_changes.rs"]
 mod changes;
 
@@ -53,6 +56,10 @@ mod engine_lock;
 use engine_lock::{FairMutex, Lockable};
 
 pub struct Shared {
+    ephemeral: Arc<snapback4_core::engine::ephemeral::Hub>,
+    ephemeral_rate: ephemeral::Rate,
+    wake: Mutex<ephemeral::Wake>,
+    polls: Condvar,
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
     maintenance: Mutex<()>,
     pub engine: FairMutex<Engine>,
@@ -89,6 +96,8 @@ pub struct Shared {
     pub effect_wait: WorkHook,
     #[cfg(test)]
     pub poll_wait: WorkHook,
+    #[cfg(test)]
+    pub query_wait: WorkHook,
 }
 
 impl Shared {
@@ -166,7 +175,7 @@ impl Drop for AssetTransfer<'_> {
 
 /// A connection lasts as long as its poll and a grace after it: a client
 /// re-polls within milliseconds of an answer, a dropped one never does.
-use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
+use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION, PRESENCE_REFRESH};
 
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
@@ -296,13 +305,17 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
+            ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
+            wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
         adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
+        #[cfg(test)] query_wait: Mutex::new(None),
     });
+    shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
     // Discover the live dev inspector through the existing lifetime lock file.
@@ -584,6 +597,14 @@ pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
      Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
 }
 
+// @ref LLP 3000.017#3.3 — advertise only on ephemeral backends; durable-only HTTP bytes stay unchanged.
+// The online tier can discover /schema facts through its ordinary traffic.
+pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
+    if lock(&shared.wake).eph.tables.is_empty() { return Vec::new(); }
+    vec![Header::from_bytes("X-Snapback-Ephemeral", "1").unwrap(),
+         Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
+}
+
 pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl serde::Serialize) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
@@ -611,7 +632,9 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
     } else { status };
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
-    if let Some(shared) = shared { for header in clock_headers(shared) { response.add_header(header); } }
+    if let Some(shared) = shared {
+        for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
+    }
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
     if allow_origin {
@@ -763,7 +786,13 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post && let Some((name, route)) = routes::declared(shared, &url) {
         return routes::ingress(request, shared, &name, route);
     }
+    let ephemeral_request = method == Method::Post && path.strip_prefix("/m/").is_some_and(|op| lock(&shared.bound).schema.operations.get(op).is_some_and(|f| f.ephemeral));
+    let reject = |request, status, refusal: Refusal| {
+        if ephemeral_request { ephemeral::failed(request,shared,None,refusal); }
+        else { respond_timed(request,shared,status,json!({"denied":refusal_json(&refusal)})); }
+    };
     if let Err(refusal) = dev_request(&request, shared) {
+        if ephemeral_request { return ephemeral::failed(request, shared, None, refusal); }
         respond_with_sync(request, 403, json!({ "denied": refusal_json(&refusal) }), false, None, Some(shared));
         return;
     }
@@ -793,17 +822,17 @@ fn handle(mut request: Request, shared: &Shared) {
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
-            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+            return reject(request, 401, refusal);
         }
     }
     if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
-            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+            return reject(request, 401, refusal);
         }
     }
     if method == Method::Get && matches!(path.as_str(), "/" | "/schema" | "/api.ts" | "/native.wasm" | "/changes") {
         if let Err(refusal) = principal_of(&request, shared) {
-            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+            return reject(request, 401, refusal);
         }
     }
     let _upload_permit = if method == Method::Post && path == "/assets" {
@@ -828,21 +857,21 @@ fn handle(mut request: Request, shared: &Shared) {
         let length = request.body_length();
         let too_large = || Refusal::new("E_INPUT", "input", format!("the request body exceeds its {ceiling}-byte limit; split it into smaller requests"));
         if length.is_some_and(|length| length > ceiling) {
-            return respond_timed(request, shared, 413, json!({ "denied": refusal_json(&too_large()) }));
+            return reject(request, 413, too_large());
         }
         let mut buffer = [0; 8 * 1024];
         loop {
             let length = buffer.len().min(ceiling - bytes.len() + 1);
             match request.as_reader().read(&mut buffer[..length]) {
                 Ok(0) => break,
-                Ok(read) if read > ceiling - bytes.len() => return respond_timed(request, shared, 413, json!({ "denied": refusal_json(&too_large()) })),
+                Ok(read) if read > ceiling - bytes.len() => return reject(request, 413, too_large()),
                 Ok(read) => bytes.extend_from_slice(&buffer[..read]),
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-                Err(error) => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("cannot read the request body: {error}"))) })),
+                Err(error) => return reject(request, 400, Refusal::new("E_INPUT", "input", format!("cannot read the request body: {error}"))),
             }
         }
         if length.is_some_and(|length| length != bytes.len()) {
-            return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "the request body ended before its declared Content-Length")) }));
+            return reject(request, 400, Refusal::new("E_INPUT", "input", "the request body ended before its declared Content-Length"));
         }
     }
     if method == Method::Post && path == "/assets" {
@@ -853,7 +882,7 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     let body = match String::from_utf8(bytes) {
         Ok(body) => body,
-        Err(_) => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
+        Err(_) => return reject(request, 400, Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")),
     };
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
@@ -929,6 +958,9 @@ fn handle(mut request: Request, shared: &Shared) {
         }
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
             let op = path[3..].to_owned();
+            if path.starts_with("/m/") && lock(&shared.bound).schema.operations.get(&op).is_some_and(|f| f.ephemeral) {
+                return ephemeral::serve(request, shared, &op, &body);
+            }
             let principal = match principal_of(&request, shared) {
                 Ok(principal) => principal,
                 Err(refusal) => {
@@ -947,6 +979,12 @@ fn handle(mut request: Request, shared: &Shared) {
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
                 let (replay, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    // Adoption may have changed the operation after the early
+                    // route check. Classify again under the executing owner.
+                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                        drop(engine);
+                        return ephemeral::serve(request, shared, &op, &body);
+                    }
                     let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
                     (replay, response_head(&mut engine))
                 };
@@ -959,6 +997,9 @@ fn handle(mut request: Request, shared: &Shared) {
             }
             let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
                 .map(|p| (p.program.kind, p.program.args.clone()));
+            // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
+            // and comes from the schema of the engine that evaluates it.
+            let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some((kind, arg_types)) = signature else {
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
@@ -996,21 +1037,26 @@ fn handle(mut request: Request, shared: &Shared) {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let (outcome, metadata) = match reader {
+                let (outcome, cut, metadata, reads_presence) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
-                        let outcome = reader.query(&op, context);
+                        #[cfg(test)]
+                        test_work(&shared.query_wait);
+                        let reads_presence = presence_of(&reader);
+                        let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        (outcome, metadata)
+                        (outcome, cut, metadata, reads_presence)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
-                        (engine.query(&op, context), metadata)
+                        let reads_presence = presence_of(&engine);
+                        let (outcome, cut) = engine.query_at(&op, context);
+                        (outcome, cut, metadata, reads_presence)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1018,6 +1064,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
                             complete: bool,
                             cut: Option<snapback4_core::engine::ReadCut>,
                             data: wire::Plain<'a>,
@@ -1032,7 +1080,11 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter: Option<Json>,
                             #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
                             row_provenance: Option<wire::Plain<'a>>,
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            refresh: Option<u64>,
                         }
+                        // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
+                        let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
@@ -1042,14 +1094,24 @@ fn handle(mut request: Request, shared: &Shared) {
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
+                            if let Some(version) = &outcome.ephemeral { reply["ephemeral"] = json!(version); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
+                            if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
+                            respond_timed(request, shared, 200, QueryReply { ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
-                    Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
+                    Err(refusal) => {
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
+                        // taken before it may predate, so a client can order it against a remembered answer.
+                        if let Some(cut) = cut { reply["seq"] = json!(cut); }
+                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
+                        if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
+                        respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
+                    }
                 }
             } else {
                 if kind == ProgramKind::Query {
@@ -1066,17 +1128,17 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                        drop(engine);
+                        return ephemeral::serve(request, shared, &op, &body);
+                    }
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
+                    if matches!(&outcome, Ok(outcome) if matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
                     (outcome, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
-                        if let WriteState::Sent { seq, .. } = &outcome.state {
-                            let mut current = lock(&shared.seq);
-                            *current = (*current).max(*seq);
-                            shared.committed.notify_all();
-                        }
                         let mut body = outcome.reply(id.as_deref());
                         body["store_id"] = json!(store_id);
                         body["head"] = json!(head);
@@ -1175,11 +1237,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let outcome = lock(&shared.engine).seed_at(typed, shared.now());
             match outcome {
                 Ok(count) => {
-                    if let Ok(seq) = lock(&shared.engine).seq() {
-                        let mut current = lock(&shared.seq);
-                        *current = (*current).max(seq);
-                        shared.committed.notify_all();
-                    }
+                    shared.durable_committed(&lock(&shared.engine));
                     respond_timed(request, shared, 200, json!({ "seeded": count }));
                 }
                 Err(error) => respond_timed(request, shared, 200, json!({ "denied": refusal_json(&error.refusal()) })),
@@ -1200,6 +1258,8 @@ mod poison_tests {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
+            ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
+            wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: FairMutex::new(engine),
             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
@@ -1223,7 +1283,9 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            query_wait: Mutex::new(None),
         });
+        shared.install_ephemeral_wake();
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {
             let _engine = poisoned.engine.lock().unwrap();

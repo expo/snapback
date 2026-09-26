@@ -1,0 +1,40 @@
+(node:3988642) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (2472.106548ms)
+  ✔ legacy binding survives adopted B on keepalive transport (1995.487886ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1814.241232ms)
+  ✖ adoption corrects a shared replacement refusal to an orphan sent receipt (10660.178391ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1387.088847ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (19108.761063ms)
+ℹ {"transport":"ordinary","original":"c920896ff4bfceaad1501d4de10a00b8","adopted":"b17578e601f0b7047c399bcf9587e240","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"c920896ff4bfceaad1501d4de10a00b8","adopted":"2430ae021e959e51301db9f5711e8d66","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19202.341837
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:96:74
+✖ adoption corrects a shared replacement refusal to an orphan sent receipt (10660.178391ms)
+  AssertionError [ERR_ASSERTION]: timed out: adoption shared the sent correction
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:217:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:206:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -117,10 +117,15 @@ back on either cut.
 
 ### The scale certificate
 
-Every successful `check` summarizes how many operations are constant and
-which grow with data. `check --cost` starts each operation with its verdict;
+Every successful `check` summarizes how many operations are constant, which
+are constant once background cleanup catches up, and which grow with data. A
+`backlog` verdict reads `scale: constant once background cleanup catches up;
+until then at most N rows examined: <what the cleanup removes>`, and its
+certificate keeps the read meter's allowance. `check --cost` starts each operation with its verdict;
 `check --json --cost` puts the same certificates in `scale`, including
-`class`, `bounds`, `growth_sites` (site, reason and rewrite), and `per_write`.
+`class` (`constant`, `backlog` or `grows`), `bounds`, `growth_sites` (site,
+reason and rewrite, with `backlog: true` on a site that background cleanup
+removes), and `per_write`.
 A growth site's rewrite is empty when the shape needs no suggested change.
 The existing cost details follow each verdict.
 
@@ -146,9 +151,10 @@ To make a growing read constant, pin its filter column in the indexed
 domain, add a maintained view for a total, or cap the domain when that cap
 is a product rule. A page size alone does not bound rows skipped by a
 residual filter, a per-row read rule or expiry. Search's word expansion
-and additional terms also depend on the data. Even a point lookup may
-grow when it passes expired siblings, or recomputes a maintained aggregate
-over expiring contributions. The certificate names these cases.
+and additional terms also depend on the data. A point lookup that passes
+expired siblings is a cleanup backlog, and one that recomputes a maintained
+aggregate over expiring contributions grows. The certificate names these
+cases.
 
 A finite ranked window whose only residual predicates are its time endpoints
 says `grows with posts rows in the window's two edge hours`, with its lane
@@ -160,7 +166,8 @@ with edge-hour density, not total history. Day windows say edge days. This
 remains `class: grows`, with the conservative examined-meter allowance:
 there is no fixed bound on rows per hour or day. No filter-pinning rewrite
 is suggested for the exact endpoints. Additional residual predicates,
-per-row read rules, expiry and nested reads retain their own growth costs.
+per-row read rules and nested reads retain their own growth costs, and
+expiry its cleanup backlog.
 
 Expiry skips say `expired messages rows not yet swept`. The server's expiry
 sweep runs on a one-second maintenance tick and removes at most 2,000 rows
@@ -168,9 +175,18 @@ per pass across tables. This is a cadence, not a maximum age or size of the
 backlog: a burst of 2,001 expirations leaves at least one row after a pass,
 and downtime, slow maintenance or a failed sweep can leave older rows.
 Reads remain metered and expired rows remain invisible on every host.
-Expiry scans keep `class: grows`; a page size and the sweep interval alone
-cannot certify a fixed cost. Point lookups may still suggest reading by id
-to avoid skipped expired siblings.
+An operation says `class: backlog` only when cleanup explains all of its
+variable work: constant once the sweep catches up, and bounded by the read
+meter while a backlog lasts, so the certificate keeps the meter allowance.
+Beside a residual filter, a per-row read rule or a window, an expiry scan
+stays `class: grows`, and its expiry site still says what cleanup removes. A
+page size and the sweep interval alone cannot certify a fixed cost. The paved
+Following read says `class: backlog` for the same reason: its only filter is
+the platform's retirement check, an unfollow or a removal retires feed
+entries, and background cleanup purges them in chunks of at most 256. A scan
+of the owned feed table with a filter of your own grows: the certificate
+trusts only the compiler's expansion of a timeline read. Point lookups may
+still suggest reading by id to avoid skipped expired siblings.
 
 Jobs say `scale: per chunk`; the number of chunks and rows written by the
 whole sweep can still grow with its domain. Maintained aggregates, recorded

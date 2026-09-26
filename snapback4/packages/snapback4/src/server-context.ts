@@ -1,3 +1,4 @@
+import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { createClient, mintId } from "./client.ts";
 import type { Refusal } from "./contract.ts";
 import type { ActionMeta } from "./worker.ts";
@@ -113,13 +114,16 @@ export function context(
         const result = await client.query(op, args);
         return refusal() ? { denied: refusal()! } : result;
       },
-      async mutate(op, args, mutateOptions) {
+      mutate: routeMutations((op, args) => {
+        const why = refusal();
+        return why ? Promise.resolve(failedSignal(mintId(), why)) : client.mutate(op, args);
+      }, async (op, args, mutateOptions) => {
         const why = refusal();
         if (why) return { state: "failed", id: mutateOptions?.id ?? mintId(), why };
         // A request may already have committed. Preserve the client's pending
         // or failed receipt even if authority ends while the call is in flight.
         return client.mutate(op, args, mutateOptions);
-      },
+      }),
       writeIdFor(name) { assertActive(); return writeIdFor(meta.id, name); },
       step: steps(post, assertActive, redact),
     } satisfies ServerContext<string>),

@@ -308,7 +308,7 @@ The generated `api` groups a module’s operations under `api.<module>`: `api.so
 
 The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance sends `speculative` only when true; an absent field means false, including in component coverage. It keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
 Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
-Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. A withheld retry keeps its next future deadline. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
+Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. Recovery preserves the next local wakeup separately from remembered data's server expiry. An elapsed local wakeup, whether during publication or from the watch timer, reruns its watch without withdrawing valid memory; only the remembered answer's own server deadline expires it, including during that rerun. Actual local-row deadlines still withdraw local or composed data. A retry needing the server clears the expired watch value during transport; a purely local retry publishes without a loading reset. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -332,7 +332,7 @@ interpreter the server runs: as wasm on the web (`webDevice()`, the
 partition in memory and kept in IndexedDB behind each call), as the
 native module on Expo (§7), as a process in Node (`processDevice({ dir, binary?, spawn?, writeFile? })` from
 `snapback4/native`) — syncs the viewer's partition into it, runs every
-query on it, queues every mutation durably and predicts its rows when local
+query on it, queues every durable mutation durably and predicts its rows when local
 facts permit, and follows the server's stream for the rest. The device keeps the compiled
 backend too, so a device that starts with no network opens on what it
 holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
@@ -690,6 +690,80 @@ notifications until resumed. Closing a client removes timers and event
 listeners. Custom fetch transports must honor abort and forward response
 chunks promptly when exposing streams.
 
+### Ephemeral writes
+
+Declare a short-lived table with `ephemeral 4s` for typing, or `ephemeral 30s`
+for room viewing (`snapback4 guide ephemeral`). Its rows live only in server
+memory and disappear on expiry, restart or schema adoption. Keep its read as
+its own query beside your durable, device-held list: a query that reads an
+ephemeral table needs the server.
+
+Generated ephemeral mutations have type `Ephemeral<A, R>`.
+`client.mutate(op, args)` and `app.mutate(op, args)` return `Signal<R>`:
+`{ state: "sent", id, result }` or `{ state: "failed", id, why }`.
+There is no `pending`, sequence, replay, prediction, outbox entry, admission
+journal, `write(id)` receipt or `onWrite` event. The id correlates this call;
+it does not deduplicate it. Ephemeral calls take no mutation options.
+`useMutation(op)` keeps `{ run, last, inFlight }`, with a `Signal<R>` result;
+`usePendingWrite` accepts only durable mutations.
+
+Each client sends ephemeral calls in one ordered lane, one request at a time.
+Only operations the compiler proves to be renewals (`renews: true`) coalesce:
+an identical waiting operation and canonical JSON argument pair moves to the
+end of the lane, and the replaced caller receives its replacement's outcome.
+A request already in flight stays in place. Other operations, including
+`stopTyping`, are sent once per call in order.
+
+A renewal identical to the last successful send returns that result immediately
+within its generated `renewMs` window, provided no other call was sent and none
+is waiting. This check also runs at dequeue. `renewMs` is one quarter of the
+shortest life the operation writes. A typing row therefore expires between
+`0.75 × life` and `life` after the last call, plus delivery; use `ephemeral 4s`
+or less for a five-second bound. The lane holds at most 256 waiting calls;
+excess calls fail with retryable `E_RATE_LIMIT`.
+
+Calls while offline, and calls waiting when the link drops, fail with
+`E_OFFLINE`: they are dropped, never held or retried. A lost response can follow
+execution; its failure is not proof that the server did nothing. Rate, capacity,
+rule and generation refusals leave the link online. Only a transport failure
+changes the link. Closing drops the lane and ends outstanding waits.
+
+A watched query registers its generated `ephemeralReads` before its first
+answer. Adoption reconciles all mounted interests with the new backend, including
+removed reads. Clients send the three ephemeral poll parameters only when the
+backend declares an ephemeral table; durable-only polling keeps its old wire.
+An ephemeral backend advertises `X-Snapback-Ephemeral: 1` on ordinary
+responses. The online tier then loads `/schema` for those facts and reissues
+its discovery poll; durable-only clients make no extra schema request. Growing that interest reissues the held `/changes` poll. Ephemeral
+table notifications rerun matching watches without a durable change or `/sync`.
+Watches also refetch at `nextExpiry`; incomplete ephemeral answers refresh at a
+fixed one-second cadence until complete or closed. No application expiry timer
+is needed. Offline ephemeral reads have no retained data.
+
+Query answers and polls carry an incarnation and epoch, separately from the
+durable sequence. Each watch rejects older epochs. Accepting a new incarnation
+advances the client's ephemeral request revision, invalidates outstanding
+requests, and reruns every ephemeral watch and the poll. Responses tagged with
+an older revision are discarded before considering their incarnation.
+
+```tsx
+import { useMutation, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+function Typing({ room }: { room: string }) {
+  const typing = useQuery(api.typingIn, { room });
+  const setTyping = useMutation(api.setTyping);
+  const stopTyping = useMutation(api.stopTyping);
+  return <>
+    <input onChange={event => void (event.target.value ? setTyping.run({ room }) : stopTyping.run({ room }))} />
+    {"data" in typing && typing.data.length > 0 && <span>Someone is typing</span>}
+  </>;
+}
+```
+
+For room viewing, call the generated renewal on mount and every ten seconds,
+and its delete operation on unmount. Rules still decide every read and write;
+renewing a row must satisfy its insert rule as well as its update rule.
+
 ### The card
 
 Every word a screen reads is on the card (`snapback4/contract`):
@@ -754,10 +828,10 @@ A complete empty page has `cut: null` and `complete: true`.
 
 Held device observations republish at `nextExpiry`, including offline, so render their
 ready rows directly. The browser witness measured publication within a frame; suspended
-pages still depend on host timer scheduling. Only server-answered reads need a render-deadline
+pages still depend on host timer scheduling. For durable expiring tables, only server-answered reads need a render-deadline
 filter while the next network answer is pending. Return `expiresAt` with each row
-(`guide reads` has the typing table and query). This is an application table, separate
-from the server's `connected[p]`, which has no `expiresAt`.
+(`guide reads` has the durable expiring-row recipe). Ephemeral typing uses the
+section above; its hidden deadline is handled by the client.
 
 `client.now()` returns estimated server Unix milliseconds, monotonically. In React,
 `useNow(deadline)` returns that time and re-renders at the deadline and when the estimate
@@ -901,9 +975,17 @@ Refusals before durable admission, the online tier and mock remember outcomes
 only for that client lifetime, up to 256 terminal outcomes. Before deleting an
 adopted web tab's store, the host copies its value-free terminal receipts into
 a shared window for the same server and viewer, bounded to 256 receipts in
-recovery order. Existing shared ids keep their outcome and position. Every
+recovery order. Verified terminal corrections replace shared `E_STORE_REPLACED`
+in place; authored refusals and retention positions stay unchanged. Every
 opener and `client.write(id)` reads that window alongside its own device's
-256 receipts; reads never copy or refresh it. A different tab winning adoption
+256 receipts; reads never copy or refresh it. For an id with no outbox entry on
+this device, `client.write(id)` recovers absent local history or corrects its own
+`E_STORE_REPLACED` from the window. Every other local receipt answers first.
+Lookup rechecks outbox custody after reading that window; an adopted entry is
+answered from this device's own custody. Settlement reads only local history,
+including when it has no receipt for the id. The opener reads shared ids solely
+to route retries through lookup, without copying or settling their outcomes.
+A different tab winning adoption
 cannot hide the receipt from a reload. Outboxes remain exclusively owned:
 a held Web Lock is never taken; a queued background lock request wakes recovery
 when its owner releases it, and closing cancels the wait. Unidentified journals
@@ -911,8 +993,17 @@ wait for a matching open or sync signal. Persistence failures get at most three
 retries, after 1, 2 and 4 seconds; later opens or sync signals can try again.
 Receipt lookups do not create the shared window before adoption. Browser storage
 clearing or eviction from both receipt windows can still make an id unknown. Rebuild the Expo native binary with this client
-version: acquisition is a device protocol field, and an older module refuses
-startup with `E_DEVICE_VERSION`.
+version: acquisition and qualified receipt outcomes are device protocol fields,
+and an older module refuses startup with `E_DEVICE_VERSION`.
+
+A sequence-only observation from an older device proves that the server decided,
+not that it succeeded. Without a retained outcome, the upgraded client keeps it
+pending and replays the same id against its original store to recover the recorded
+success or refusal. New sync pages explicitly qualify successful acknowledgements;
+only that evidence, or the original store's replay, can correct `E_STORE_REPLACED`.
+Authored refusals such as `NOT_ADMIN` remain failures.
+Both ordinary and page-hide replay post the retained receipt's original store
+binding before any journal or current-device identity, including after replacement.
 
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent or fixture; arbitrary fixture strings still need an application ledger.
@@ -1421,7 +1512,15 @@ card over in-memory tables, for component tests: `ops` is `{ queries:
 mutation named `t.verb` marks the rows of table `t` pending until
 `settle()` commits it (`commitDelayMs` and an initial `link` are options);
 `setLink("offline")` flips the link; `upload` accepts anything as a 1×1
-PNG and `asset` is always denied.
+PNG and `asset` is always denied. For ephemeral fixtures, set
+`ephemeral: { typing: 4000 }` on the mock options and provide `ops.signals` handlers.
+They receive the same tables/args/viewer/mint arguments and return the operation's
+result or a Refusal. Use `Map.set` for an insert or renewal, including an empty
+patch, and `Map.delete` for a deletion. Each configured table expires rows at its
+own life, in memory only; refused handlers roll back. The same ordered sender
+coalesces proven renewals. Signals never settle as durable writes. With the
+legacy `table.verb` convention and no metadata, one table's life is inferred as
+four times the generated `renewMs`; multiple table lives need explicit metadata.
 
 ```ts
 import { createMockClient, mockId, page } from "snapback4/mock";
@@ -1616,8 +1715,8 @@ step.
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
   assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
-  presence, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words resolve too:
-  `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → personas, `push` → effects.
+  presence, receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
+  resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.
 
@@ -1686,14 +1785,16 @@ success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "f
 `result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused over the
 wire (`E_OP`). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
 `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged snapshot: `{ snapshot: true,
-events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged }`. Continue
+events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged, sent? }`. Continue
 with `after: next`; `limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs, each 1–128 UTF-8
 bytes, and reports which queued writes the server applied. The request body is at most **262,144 bytes (256
 KiB)**, including the cursor and JSON escaping; this accommodates all 256 maximum-length IDs even with
 six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`, including chunked bodies; malformed fields
 are HTTP 400 with `E_INPUT`. With `from: W` or `stream: true` it returns the stream from a watermark: `{
-snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged
-}`. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
+snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged, sent?
+}`. The optional `sent` map qualifies successful sequences in `acknowledged` and
+`committed_above`; its absence requires same-id replay to establish an unknown
+outcome. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
 old snapshot cursors and partition evidence, even if the watermark is equal or higher, while a server restart
 on the same database keeps its identity. An older server can omit this additive field; a backwards watermark
 still requires reacquisition, and a device with no stored identity reacquires once when it first learns one.
@@ -1705,7 +1806,9 @@ tables. A different identity or a head below `since` answers immediately; a regr
 `seq`. A matching identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1
 response starts immediately and sends JSON whitespace every 2 seconds before the final JSON object. Proxies
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
-`denied`, including `E_AUTH` if the session ended while waiting. `POST /assets` (the file's bytes as the body,
+`denied`, including `E_AUTH` if the session ended while waiting. Every reply of a query that may read `connected[p]`, refusals included,
+carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
+5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it (LLP 3000.018). `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
 uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{

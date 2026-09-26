@@ -493,6 +493,10 @@ fn note_sites(program: &super::BoundProgram, site: &ResidencySite) -> BTreeSet<S
 
 pub fn table_line(schema: &Schema, name: &str) -> String {
     let table = &schema.tables[name];
+    if let Some(e) = &table.ephemeral {
+        let life = if e.life_ms % 1000 == 0 { format!("{}s", e.life_ms / 1000) } else { format!("{}ms", e.life_ms) };
+        return format!("ephemeral {life}: server memory, never on a device");
+    }
     let mut line = match &table.sync {
         Some(sync) => format!("{}{}{}", sync.line(), if table.residency.inferred { " (from the read rule)" } else { "" }, table.residency.inherited_from.as_ref().map(|source| format!(" (inherited from {source})")).unwrap_or_default()),
         None => format!("online only{}", if table.residency.online_only { "" } else { " (no sync line)" }),
@@ -509,6 +513,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };
+    if fact.ephemeral { word = if fact.renews { "ephemeral, renews" } else { "ephemeral" }.into(); }
     if fact.held { word.push_str(" (held; server refuses E_QUERY_HELD; no server fallback)"); }
     if !fact.components.is_empty() { word.push_str(&format!("; components: {}", fact.components.iter().map(|component| component.field.as_str()).collect::<Vec<_>>().join(", "))); }
     let reads = horizons::reads(fact);

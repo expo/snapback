@@ -9,7 +9,7 @@ pub(in crate::engine) fn schema() -> Schema {
         edges: ["follows", "followerId", "followedId"].map(String::from), author_cap: 1000, edge_cap: 100000, followed_index: "byFollowed".into(),
         purge: "feedPurgeRemoved".into(), owned: OWNED_SUFFIXES.iter().map(|s| format!("feed{s}")).collect(),
         mapped: ["posts", "reposts", "follows"].map(String::from).into() };
-    let table = Table { sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None, recorded: Default::default(), maintained: Default::default(), residency: Default::default(), defaults: Default::default(),
+    let table = Table { ephemeral: None, sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None, recorded: Default::default(), maintained: Default::default(), residency: Default::default(), defaults: Default::default(),
         columns: [("id".into(), ColumnType::Id), ("value".into(), ColumnType::Int)].into(),
         indexes: [("byId".into(), Index::of(&["id"], true))].into(),
         rules: Rules { read: RuleExpr::Allow, ..Rules::deny() }, constraints: vec![], leave: Default::default(), sync: None, expire: None };
