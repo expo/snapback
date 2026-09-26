@@ -53,3 +53,16 @@ fn replaced_canonical_path_cannot_be_opened_with_the_old_guard() {
     drop(owner);
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn doctor_dials_the_published_loopback_address() {
+    use std::net::SocketAddr;
+    let at = |s: &str| s.parse::<SocketAddr>().unwrap();
+    assert_eq!(dialable("http://127.0.0.1:4400"), Some(at("127.0.0.1:4400")));
+    assert_eq!(dialable("http://[::1]:4400"), Some(at("[::1]:4400")));
+    assert_eq!(dialable("http://0.0.0.0:4400"), Some(at("127.0.0.1:4400")));
+    assert_eq!(dialable("http://[::]:4400"), Some(at("[::1]:4400")));
+    for published in ["http://192.168.1.2:4400", "http://[2001:db8::1]:4400", "http://127.0.0.1:0", "https://127.0.0.1:4400", "4400", ""] {
+        assert_eq!(dialable(published), None, "{published}");
+    }
+}
