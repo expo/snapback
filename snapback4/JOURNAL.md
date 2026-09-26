@@ -66501,3 +66501,47 @@ completed temporary launch job was removed. Evidence is under
 targeted/counterfactual logs and both wasm artifacts. The requested report is
 `/Users/ccheever/projects/snapback-sb5-program/image-list-fix-3.final.md`.
 This fix is committed locally on `sb4/image-list-assets`; it is not pushed.
+
+
+## 2026-09-27 — A5: list media retained offline under download-confirmed homes
+
+Ported lane A's reviewed device/cache half onto the landed M5
+`engine/asset_columns.rs` server. Acquired-row generation markers and recursive
+optional/list membership replace inferred per-asset homes. Authorized downloads
+carry the ledger's table/row/column and store identity; retention, read,
+reconciliation and reopen validate that binding. Ordinary list bytes survive
+reorder and offline reopen, while removal, clear, deletion, expiry, generation
+change and partition leave retire them. A delayed old-store response cannot
+cache bytes in a replacement, and `once` stays uncached. Old unconfirmed cache
+entries are purged. The assets card, LLP 3000.019 §3.5 and the closed offline-list
+ticket record the behavior. Runtime/tests are committed locally as `b8bf5c327`
+and `1158caa1b`; nothing was pushed or published.
+
+Targeted evidence: four new memory/SQLite list tests, 22 HTTP/native/wasm list
+cases, 28 unchanged server asset-list tests, 20 retained-history tests, six
+deferred-boundary tests, two scalar media scenarios and all 86 guide tests pass.
+The other 72 affected Blob/clock/reset client tests passed; one imported list
+assertion was adapted to query server-stored facts instead of expecting them in
+the landed server's mutation return. The final reference audit has zero errors.
+
+Same-host production wasm (Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt)
+measures 1,980,253 raw / 571,842 gzip before, 1,980,173 raw / 571,839 gzip after:
+−80 raw / −3 gzip bytes. Budget remains 570,966; the unmodified baseline was
+already 876 bytes over and the final artifact is 873 bytes over. The full run
+reproduced the final measurement. No server placement, scalar accounting,
+runtime ceiling, package version or budget was changed; no automatic legacy
+repair or unrelated size redesign was attempted.
+
+Ran `scripts/test.sh` once, exit 1: `== 3 failure(s) in 2372 s` — `wasm build`,
+`cargo test`, `client tests`. All are baseline or consequences of baseline:
+(1) the measured wasm overrun; (2) the unchanged unread-range test adapter still
+implements/calls `release_asset(id, now)` against the landed five-argument
+trait (E0050/E0061), preventing the workspace test-binary run; (3) the skipped
+Rust trace producer leaves `target/event-slots-traces.json` absent, so the two
+event-slot client files fail at import. Running that unchanged producer
+separately passed 2/2, then both client files passed 48/48. Those reruns do not
+replace the original result. Ordinary clients: 2,506 tests, 2,494 passed,
+2 failed imports, 10 skipped. All 78 client models passed. No A5-owned or
+additional timing failure occurred in the full run. Evidence, reproduction
+commands and file map: `reports/20260927-lane-a5-list-offline.md`; logs and
+before/after artifacts: `target/a5-evidence/`.
