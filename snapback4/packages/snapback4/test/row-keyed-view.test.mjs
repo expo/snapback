@@ -24,7 +24,7 @@ mutation fill(start: int):
 `;
   writeFileSync(join(directory, 'snapback/schema.q'), source);
   const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: directory, encoding: 'utf8' }));
-  assert.deepEqual(checked.rowViews, [{ view: 'unread', source: 'messages', sourceKey: 'conversationId', member: 'members', memberKey: 'conversationId', fanout: 100, writerRecount: 1024, recountChunk: 256 }]);
+  assert.deepEqual(checked.rowViews, [{ view: 'unread', source: 'messages', sourceKey: 'conversationId', member: 'members', memberKey: 'conversationId', fanout: 100, range: null, writerRecount: 1024, recountChunk: 256 }]);
   const server = spawn(binary, ['dev', '--port', '0', '--no-watch', '--hold-schedules'], { cwd: directory, stdio: ['ignore', 'pipe', 'pipe'] });
   appendFileSync(join(root, 'target/b3-r1-server-pids.log'), `${server.pid}\n`);
   const exited = once(server, 'exit');

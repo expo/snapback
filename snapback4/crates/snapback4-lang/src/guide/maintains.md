@@ -674,7 +674,7 @@ position, add `and .ordinal > m.joinedAt` to exclude pre-join history. The
 engine assigns the sequence position at commit, shared per conversation.
 Own sends and tombstones are excluded explicitly. A source already expired at
 its commit clock is retired in that transaction, before adding a contribution;
-it will not be subtracted later. Marks, background recounts, server reads,
+it will not be subtracted later. Server marks, background recounts, reads,
 snapshots and catch-up certify the live basis using only the null and future
 ranges of the parent/expiry index. Unswept expired inputs are never visited.
 Server reads certify the whole current live range, including counts above the

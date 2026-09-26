@@ -587,11 +587,26 @@ impl Analysis<'_> {
     fn point_work(&mut self, table: &str, index: &str, site: &str, times: u64, authorize: bool) {
         self.rows(times.saturating_mul(if self.schema.table(table).is_some_and(|t| t.is_expiring()) { 2 } else { 1 }));
         if self.in_filter { self.probes(times); }
-        self.lookup_growth(table, index, site);
+        if self.schema.maintain_for(table).is_some_and(|m| m.row_key.is_some()
+            && self.schema.tables[&m.source].is_expiring()) { self.rows(times.saturating_mul(2)); }
+        self.lookup_growth(table, index, site, false);
         if authorize && let Some(table) = self.schema.table(table) { self.rule(&table.rules.read, site, times); }
     }
 
-    fn lookup_growth(&mut self, name: &str, index: &str, site: &str) {
+    fn lookup_growth(&mut self, name: &str, index: &str, site: &str, witness: bool) {
+        // @ref LLP 3000.020#3.4 — a row-keyed live basis is not an ordinary aggregate's expiry backlog.
+        if let Some(m) = self.schema.maintain_for(name) && let Some(k) = &m.row_key {
+            if witness {
+                self.result.aggregates.push(format!("{name}: reads the member's indexed existence and lifetime; does not certify the count"));
+            } else if let Some(source) = self.schema.table(&m.source).filter(|t| t.is_expiring()) {
+                let device = if let Some(range) = k.device_range(source) {
+                    let predicate = range.lower().iter().map(|(field, strict)| format!(".{} {} member.{field}", range.column, if *strict { ">" } else { ">=" })).collect::<Vec<_>>().join(" and ");
+                    format!("device: exact when its window holds every row with {predicate} (the acquired floor key on this {} prefix is at or below the encoded bound); otherwise the current rows it holds, pending, and online the server's count; a null bound requires the whole group", k.source_key)
+                } else { "device: exact only when it holds the whole group; otherwise pending".into() };
+                self.growth(site, format!("server: certifies the member's whole live basis on the internal ledger (unswept expired rows skipped), charging one examined unit and one step; the walk itself is not metered. {device}"), "");
+            }
+            return;
+        }
         if self.schema.table(name).is_some_and(|t| t.is_expiring()) && index != "byId" {
             self.backlog(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
                 "read by id, or use a non-expiring keyed view");
@@ -607,13 +622,13 @@ impl Analysis<'_> {
 
     fn rule(&mut self, rule: &RuleExpr, site: &str, times: u64) {
         match rule {
-            RuleExpr::Exists { table, index, .. } => {
-                self.lookup_growth(table, index, site);
+            RuleExpr::Exists { table, index, equalities, .. } => {
+                self.lookup_growth(table, index, site, !equalities.iter().any(|(field, _)| field == "value"));
                 // Static reservation and evaluation can both charge a probe.
                 self.probes(times.saturating_mul(2));
             }
             RuleExpr::Created { table, index, equalities, .. } if !equalities.is_empty() => {
-                self.lookup_growth(table, index, site); self.probes(times.saturating_mul(2));
+                self.lookup_growth(table, index, site, !equalities.iter().any(|(field, _)| field == "value")); self.probes(times.saturating_mul(2));
             }
             RuleExpr::And(parts) | RuleExpr::Or(parts) => { for part in parts { self.rule(part, site, times); } }
             RuleExpr::Not(part) => self.rule(part, site, times),
@@ -698,7 +713,7 @@ impl Analysis<'_> {
         }
         // A scan already explains expiry; only the implicit live-aggregate
         // source work needs the point-lookup check here.
-        self.lookup_growth(&scan.table, "byId", &scan.site);
+        self.lookup_growth(&scan.table, "byId", &scan.site, false);
         if let Some(filter) = &scan.filter {
             let previous = self.in_filter;
             self.in_filter = true;

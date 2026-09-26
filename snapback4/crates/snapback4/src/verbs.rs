@@ -214,7 +214,7 @@ pub fn check(options: &Options) -> i32 {
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
         "view": m.target, "source": m.source, "sourceKey": k.source_key, "member": k.table,
-        "memberKey": k.member_key, "fanout": k.fanout, "writerRecount": snapback4_core::engine::row_views::WRITER_RECOUNT, "recountChunk": snapback4_core::engine::row_views::RECOUNT_CHUNK
+        "memberKey": k.member_key, "fanout": k.fanout, "range": row_view_range(&bound.schema, m), "writerRecount": snapback4_core::engine::row_views::WRITER_RECOUNT, "recountChunk": snapback4_core::engine::row_views::RECOUNT_CHUNK
     }))).collect::<Vec<_>>();
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
@@ -251,6 +251,9 @@ pub fn check(options: &Options) -> i32 {
     }
     if !options.json { for m in &bound.schema.maintains { if let Some(k)=&m.row_key {
         println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= {} examined source rows within remaining meter, then pending/background chunks <= {}",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout,snapback4_core::engine::row_views::WRITER_RECOUNT,snapback4_core::engine::row_views::RECOUNT_CHUNK);
+        if let Some(range) = row_view_range(&bound.schema, m) {
+            println!("    device range: {}; index {}; horizon {} by {}; encoded lower bound on the same parent prefix; otherwise pending", range["predicate"].as_str().unwrap(), range["index"].as_str().unwrap(), range["horizon"]["last"], range["horizon"]["index"].as_str().unwrap());
+        }
     } } }
     if !options.json && !options.flags.contains_key("residency") {
         for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {
@@ -1003,6 +1006,21 @@ pub fn token(options: &Options) -> i32 {
             1
         }
     }
+}
+
+// @ref LLP 3000.020#3.1 — report the same normalized candidates execution chooses between.
+fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::schema::Maintain) -> Option<serde_json::Value> {
+    let k = m.row_key.as_ref()?;
+    let source = &schema.tables[&m.source];
+    let range = k.device_range(source)?;
+    let horizon = source.sync.as_ref()?.horizon.as_ref()?;
+    Some(json!({
+        "column": range.column, "index": k.range_index(range.column),
+        "bounds": range.lower().iter().map(|(field, strict)| json!({"memberField": field, "operator": if *strict { ">" } else { ">=" }})).collect::<Vec<_>>(),
+        "predicate": range.lower().iter().map(|(field, strict)| format!(".{} {} member.{field}", range.column, if *strict { ">" } else { ">=" })).collect::<Vec<_>>().join(" and "),
+        "horizon": {"index": horizon.by, "last": horizon.last},
+        "fallback": "whole group when any candidate is null; otherwise greatest encoded lower bound on the same parent prefix"
+    }))
 }
 
 /// The native module as a process: the same `Device` the Expo and Exact2
