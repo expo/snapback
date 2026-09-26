@@ -145,6 +145,11 @@ export class AdmissionJournal {
     } catch { return false; }
   }
 
+  cancelExit(id: string): void {
+    remove(`${prefix(this.name)}exit:${id}`);
+    this.stagedExits.delete(`exit:${id}`);
+  }
+
   recoverExits(device: WebDevice): void {
     const store = storage();
     if (!store || !this.exclusive) return;

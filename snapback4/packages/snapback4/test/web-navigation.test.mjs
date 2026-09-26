@@ -8,6 +8,7 @@ import { createLocalClient } from "../dist/local.js";
 import { exitTransport } from "../dist/local-exit.js";
 import { prepareClient } from "../dist/client-start.js";
 import { devServer } from "../../../witness/lib.mjs";
+import { WebDevice } from "../dist/wasm/snapback4_device.js";
 
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const send = { kind: "mutation", name: "send" };
@@ -283,14 +284,17 @@ for (const blockedCleanup of [false, true]) test(`first pagehide dispatch surviv
     const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
     assert.ok(name);
     assert.equal(JSON.parse((await f.persist.load(name)).find(c => c.s === "o" && c.k === admitted.id).v).dispatch, undefined);
-    async function reopenCopy(state = "sent") {
+    async function reopenCopy(state = "sent", cleaned = false) {
       const copy = memoryPersistence();
       for (const [name, entries] of f.persist.stores) copy.stores.set(name, new Map(structuredClone([...entries])));
       const options = { url: f.requests[0].input.split("/m/")[0], persona: "alice", device: webDevice({ wasm, persist: copy }),
         fetch: () => Promise.reject(new TypeError("reopen offline")) };
       const originalStorage = storage; storage = new Map(storage);
       const opened = await prepareClient(options, () => createLocalClient(options));
-      try { assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, state]]); }
+      try {
+        assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, state]]);
+        if (cleaned) assert.ok((await copy.load(name)).every(c => c.s !== "j" || !c.k.startsWith("exit:")), "reopen retains no durable exit acknowledgements");
+      }
       finally { await opened.client.close(); storage = originalStorage; }
     }
     await reopenCopy();
@@ -300,25 +304,30 @@ for (const blockedCleanup of [false, true]) test(`first pagehide dispatch surviv
       "the keyed begin_send itself must persist sent before journal cleanup");
     if (blockedCleanup) {
       assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "failed cleanup retains its acknowledged marker");
+      assert.ok((await f.persist.load(name)).some(c => c.s === "j" && c.k === `exit:${admitted.id}`), "failed synchronous cleanup keeps the durable acknowledgement");
       await call({ op: "hold_write", id: admitted.id, reason: "E_BUSY" });
       await reopenCopy("held"); // An acknowledged marker must not regress a later refusal.
       cleanupFails = false; await call({ op: "queued" });
     }
     assert.equal([...storage.keys()].some(k => k.includes(":exit:")), false);
-    await reopenCopy(blockedCleanup ? "held" : "sent");
+    await call({ op: "queued" });
+    assert.ok((await f.persist.load(name)).every(c => c.s !== "j" || !c.k.startsWith("exit:")), "a later drain removes durable exit acknowledgements after synchronous cleanup");
+    await reopenCopy(blockedCleanup ? "held" : "sent", true);
   } finally { stall = false; release?.(); }
 });
 
-test("first pagehide dispatch with failed marker capture starts no keepalive and reopens queued", async t => {
+for (const fault of ["failed marker capture", "denied begin_send", "throwing begin_send"]) test(`first pagehide dispatch with ${fault} starts no keepalive and reopens queued`, async t => {
   const f = await fixture(t, { stallExitBody: true, applyExit: false });
-  const storage = new Map();
-  let failedCaptures = 0;
+  let storage = new Map(), captures = 0, exitCalls = 0;
   const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
     get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
     getItem: key => storage.get(key) ?? null, removeItem: key => storage.delete(key),
     setItem(key, value) {
-      if (key.includes(":exit:")) { failedCaptures++; throw new DOMException("storage full", "QuotaExceededError"); }
+      if (key.includes(":exit:")) {
+        captures++;
+        if (fault === "failed marker capture") throw new DOMException("storage full", "QuotaExceededError");
+      }
       storage.set(key, value);
     },
   } });
@@ -332,20 +341,52 @@ test("first pagehide dispatch with failed marker capture starts no keepalive and
   const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
   assert.ok(name);
   const before = await f.persist.load(name);
+  const deviceCall = WebDevice.prototype.call;
+  t.mock.method(WebDevice.prototype, "call", function (request) {
+    if (JSON.parse(request).op === "begin_send" && exitCalls++ === 0 && fault !== "failed marker capture") {
+      if (fault === "throwing begin_send") throw Error("transient device call failure");
+      return JSON.stringify({ denied: { code: "E_STORE", family: "store", message: "transient send refusal" } });
+    }
+    return deviceCall.call(this, request);
+  });
   await tick();
   f.window.dispatchEvent(new Event("pagehide"));
-  assert.equal(failedCaptures, 1, "the first exit marker setItem actually throws");
-  assert.equal(f.requests.length, 0, "failed capture must prevent keepalive");
-  await call({ op: "queued" }); // A living hidden page drains any accidental VM mutation.
-  assert.deepEqual(await f.persist.load(name), before, "failed capture cannot change the outbox or send revision on a later drain");
-  assert.deepEqual((await f.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]);
+  assert.equal(captures, 1, "exit capture was attempted before begin_send");
+  assert.equal(exitCalls, fault === "failed marker capture" ? 0 : 1);
+  assert.equal(f.requests.length, 0, "failed exit dispatch must prevent keepalive");
+  assert.equal([...storage.keys()].some(k => k.includes(":exit:")), false, "a denied or throwing begin_send cancels its captured marker");
+  // Copy immediately, before a living page has a chance to heal by draining.
   const copy = memoryPersistence();
   for (const [key, entries] of f.persist.stores) copy.stores.set(key, new Map(structuredClone([...entries])));
   const options = { url: f.url, persona: "alice", device: webDevice({ wasm, persist: copy }),
     fetch: () => Promise.reject(new TypeError("reopen offline")) };
+  const originalStorage = storage; storage = new Map(storage);
   const opened = await prepareClient(options, () => createLocalClient(options));
   try { assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]); }
-  finally { await opened.client.close(); }
+  finally { await opened.client.close(); storage = originalStorage; }
+  await call({ op: "queued" }); // A living hidden page drains any accidental VM mutation or staged acknowledgement.
+  assert.deepEqual(await f.persist.load(name), before, "failed dispatch cannot change outbox, send revision or staged exit acknowledgements on a later drain");
+  assert.deepEqual((await f.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]);
+});
+
+for (const end of ["signOut", "close"]) test(`pagehide dispatch subscriber ${end} prevents keepalive and POST`, async t => {
+  const f = await fixture(t);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "must not execute after shutdown" }, { waitSeconds: 0 });
+  assert.equal((await f.client.pendingWrites())[0].state, "queued");
+  await tick();
+  let ending, notices = 0;
+  const stop = f.client.onPendingWrites(() => { notices++; stop(); ending = f.client[end](); });
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(notices, 1, "the dispatch callback ran synchronously");
+  if (end === "signOut") assert.equal(f.client.viewer(), null);
+  await ending;
+  assert.equal(admitted.state, "pending");
+  assert.equal(f.requests.length, 0, "no keepalive starts after the dispatch callback ends the client");
+  assert.deepEqual(f.ordinaryRequests, [], "no ordinary POST starts either");
+  assert.deepEqual(await f.rows(), [], "the real server never receives the cancelled dispatch");
 });
 
 test("IndexedDB save resolves on transaction completion, not request success", async t => {
