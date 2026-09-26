@@ -63743,3 +63743,49 @@ All 27 new regressions passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta
 0 B, 1,000 B below the unchanged 582,094 B budget. Affected repairs are green;
 no second full run and no green final full-suite claim. All commits carry
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-26 — 0.4.4 lane K, round 4: lingering live observations
+
+Implemented the supervisor's LLP 3000.019 §3.3 revision 5. Deleted the separate
+KeptAnswers store, retirement/restoration deadline path, idle ephemeral
+classification and adoption eviction. An opted-in watch now stays in the live
+map for 30 seconds after its last subscriber leaves, with all existing commit,
+expiry, clock, presence and ephemeral subscriptions. A remount joins its current
+snapshot with unchanged fresh/since and no extra read. Scope-ending resets close
+lingering observations immediately. Adoption resets every affected snapshot,
+including the accepting owner, before callbacks or replacement reads; first
+schema installation uses the same two-phase ordering. A post-acceptance revision
+check prevents a callback's reset or close from being overtaken by publication.
+
+The cost is live observation memory and continued background reads while a
+screen is unmounted: local commit re-evaluation, server refetches, held change
+interest and normal presence/incomplete timers for up to 30 seconds. There is
+no second answer lifetime to keep synchronized with these rules. Updated the
+client operations manual, reads guide, README and reads-06 fact. No engine,
+authorization, meter, outbox, version or wasm-budget change; no push, publication
+or delegated agent. Source files remain below 1,500 lines (local.ts: 1,486).
+
+Added 17 regressions for accepting-owner loading replies, peer callbacks that
+close/remount it, first schema installation, split device/server clocks, clock
+rollback and remembered local wakeups. Strengthened existing tests for live
+commit re-evaluation, all resets, permanent scope closure, unchanged remount
+metadata and the 29.999/30-second boundary. Ten independent mutations were
+killed with 37 expected assertion failures; all generated mutations restored.
+Focused suite: 245/245; strengthened scope cases: 35/35; final combined new
+regressions and scope checks: 52/52. Whole guide: 86/86; build/typecheck and
+documentation budget pass. Test-only argument/session fixture errors were
+corrected before qualification. Full result and wasm are recorded below after
+the required single scripts/test.sh run. Detailed report:
+reports/20260926-lane-k-answers-stay.md, round 4.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 1034 s`,
+exit 0. No introduced, baseline or environmental failures; no repair or rerun.
+Rust: 3,573 passed, 0 failed, 19 ignored. Main client batch: 2,270 passed,
+0 failed, 10 existing skips (2,280 tests); all seven separate shards passed.
+Models: 78/78. All 17 new regressions and the earlier timing-sensitive cadence
+case passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B below
+the unchanged 582,094 B budget. Reference audit: 513 LLP docs, 9,444 refs in
+26,815 files, 0 errors, 0 unchecked. Node 24.13.1, Bun 1.3.14; eight Cargo
+build jobs and dev/test debug info disabled. Implementation commits:
+4409e31c7 and d970f4bf2. Exact evidence: target/lane-k-round4-evidence/.
+All commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

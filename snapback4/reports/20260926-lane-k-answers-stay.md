@@ -682,3 +682,199 @@ Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
 Full log and exit: `target/lane-k-round3-evidence/test-sh.log` and
 `test-sh.exit`. The full script was not repeated. The repaired final tree has
 passing affected checks; **no green full-suite result is claimed**.
+
+## Round 4 — 2026-09-26: the observation lingers, not a retired answer
+
+Implemented the supervisor's revision 5 of LLP 3000.019 §3.3 part 2 after
+reading both round-3 reviews in full. Every requested finding is addressed.
+There is **one lifetime**: an opted-in observation remains in the live watch
+map for 30 seconds after the last subscriber leaves. A matching remount joins
+that observation, including its current `fresh` and `since`, without an extra
+read. The 30-second cutoff uses elapsed monotonic time, independently of either
+row-expiry clock. Scope-ending resets close lingering observations immediately.
+No push or publication.
+
+### Removed and built, file by file
+
+- Deleted `packages/snapback4/src/kept-answers.ts`: no `KeptAnswers`, stored
+  retired snapshots, retirement deadline copies, restore/re-arm path, per-entry
+  ephemeral classification, adoption eviction, or second answer lifetime.
+- Added `src/observe-watch.ts`: shared subscriber ownership, the 30-second
+  linger timer, joining the same watch, cutoff enforcement on remount even
+  when the host delays timers, and immediate closure on a scope-ending reset. Expiry, presence and
+  ephemeral subscriptions stay attached during the grace period and stop when
+  that observation closes. The old local default-close behavior is preserved.
+- `src/client.ts` and `src/local.ts`: use ordinary watches throughout the
+  grace period; end lingering on sign-out, credentials/viewer changes, store
+  replacement/adoption and close. First online schema installation resets
+  all watches before callbacks. Ephemeral reset callbacks separate reset from
+  delivery. Online background publication rechecks after adoption callbacks.
+- `src/ephemeral-reads.ts`: reset **every** affected interest, including the
+  response's owner, before delivering any callback or scheduling a read; no
+  idle eviction hook remains. The accepting response cannot preserve old rows
+  when it is loading, or when a peer closes/remounts the adopting observation.
+- `src/read-observation.ts`: acceptance can itself reset/close an observation;
+  recheck its publication revision before publishing. Removed the ephemeral
+  classification used only by retired-answer storage.
+- `src/local-reads.ts`: removed its `KeptAnswers` owner. Lingering watches
+  participate in the existing commit reset/reload loop. Ordered
+  `RememberedAnswers` recovery, store-cut ordering, and the read revision are
+  unchanged.
+- `src/read-expiry.ts`: removed retirement-only deadline checks and wall-clock
+  fallback. The displayed answer's normal expiry timer and clock-correction
+  re-arm remain, including remembered local-wakeup provenance.
+- `CLIENT-AND-OPERATIONS.md`, README, `guide/reads.rs`, and only the `reads-06`
+  fact-home entry: replaced idle-answer wording with revision 5's live linger,
+  current-snapshot metadata, reset rules and background cost.
+- Existing `keep-device`, `keep-expiry`, `keep-incarnation`, `keep-observation`
+  and `keep-reset` tests: updated the deliberately superseded stale-remount /
+  immediate-refetch assertions; strengthened commit and scope-ending evidence.
+- Added `test/keep-adoption.test.mjs` and `test/keep-clock.test.mjs`: **17 new
+  regressions**, detailed below. Report and one append-only journal entry
+  record this round.
+
+Paths abbreviated `src/` and `test/` above are under `packages/snapback4/`.
+The largest modified source, `local.ts`, is **1,486 lines**, below 1,500.
+
+The existing forms still compile and run:
+
+```tsx
+const query = useQuery(api.inbox, {}, { keep: true });
+const pages = usePage(api.thread, { conversationId }, { keep: true });
+const watch = client.observe(api.inbox, {}, { keep: true });
+```
+
+**Cost:** each distinct lingering watch retains its observation, answer,
+subscriptions and timers for up to 30 seconds. Local watches continue evaluating
+on commits without a subscriber; server reads, change-feed interests, incomplete
+answer refreshes and presence refreshes also continue normally. Rapid navigation
+can therefore leave several screens' reads doing work concurrently during that
+window. This is intentionally more background work than storing a retired
+answer. Existing engine meters bound each evaluation; no new aggregate resource
+cap or latency benchmark is claimed. Scope resets and the 30-second close
+release the watch and its timers. Explicit keep's revoked-row presentation
+trade-off during an ordinary re-read remains documented.
+
+### Tests and mutation evidence
+
+- All three clients: same-watch remount with unchanged `fresh`/`since`, no
+  extra query on join, last-subscriber ownership, distinct keys, reuse at
+  **29.999 s**, and loading at **30 s** even before the delayed timer runs.
+  A timer test separately proves physical watch closure and no resurrection
+  after moving time backwards.
+- Real wasm/process devices: a lingering watch re-evaluates on `apply`,
+  `admit`, `settle`, applied revocation, predicted leave and refusal, without
+  needing a remount. The remount joins its current committed snapshot.
+- Real wasm/process and online resets: adoption, store replacement,
+  credential/viewer changes, sign-out and close; online also store regression.
+  The old closed handle cannot resume after scope changes. `clear_rows` and
+  `settle_exit` additionally exercise the shared `LocalReads.committed` policy
+  with an actual lingering watch in the map; they do not claim a new public
+  client verb or process exit transport.
+- Nine adoption reproductions: online/wasm/process, each with a peer that
+  inspects, closes, or closes and remounts the accepting watch. Its response
+  carries incarnation B and `{ loading: true }`. The callback captures both
+  the owner and a lingering third watch: every snapshot is already loading.
+  Replacement reads are held, then released to prove progress to B.
+- First online schema installation: an unclassified pre-discovery query
+  lingers with generation 1; generation 2 installs while reads are held. The
+  active callback sees the lingering snapshot already reset. Local clients
+  install their first schema before exposing the client, so no local watch
+  can predate that installation; subsequent real-device adoption is covered.
+- Three split-clock reproductions: device time is two hours ahead of server
+  time, and the displayed server answer has an hour left. Correcting server
+  time to its deadline must reset active and lingering answers immediately;
+  the original one-hour timer cannot satisfy the test. Server rollback and
+  remount must leave loading. Replacement reads are loading online and held
+  on each real local device.
+- Two real-device remembered-answer cases: remount during linger preserves a
+  remembered answer; its device wakeup, even after clock correction, starts
+  reobservation without withdrawing it. Its independent server deadline still
+  withdraws during that held reobservation.
+- Two timer-domain tests: device-first and server-first deadlines disagree;
+  assert the actual scheduled delay and which deadline fired.
+
+Ten generated-code mutations were tested independently and restored; each
+failed a behavioral assertion. Exact diffs, commands, logs and exit statuses
+are under `target/lane-k-round4-evidence/` (`mutations.py`, `mutations.json`).
+
+| Mutation | Tests killed |
+| --- | ---: |
+| Delete online clock-correction re-arm | 1 |
+| Delete local clock-correction re-arm | 2 |
+| Swap device/server delays only when arming expiry | 2 |
+| Force `localWakeup: false` | 2 |
+| Treat all device deadlines as local wakeups | 2 |
+| Exclude the accepting owner from ephemeral reset | 9 |
+| Notify inside the ephemeral reset loop | 9 |
+| Skip lingering watches at first schema installation | 1 |
+| Close immediately instead of lingering | 3 |
+| Keep lingering local watches after a scope-ending reset | 6 |
+| **Total expected assertion failures** | **37** |
+
+Final positive evidence before the full script: expanded focused run **245
+passed / 0 failed**, including Chromium, ephemeral, presence, expiry recovery
+and README cases; strengthened scope run **35/35**; after restoring mutations,
+combined new regressions and scope tests **52/52**. Whole guide **86/86**;
+package build/typecheck and docs budget pass. The README remains 300 lines.
+Reference audit: **513 LLP docs, 9,444 refs in 26,815 files, 0 errors,
+0 unchecked**.
+
+Test development caught two fixture mistakes, repaired before qualification:
+unknown arguments on a zero-argument query, and existing fake refresh replies
+missing the required session `kind`. The fixtures now use a second declared
+query and valid user sessions. No production failure was waived.
+
+### Decisions, deviations and open problems
+
+No requested functionality is deferred or rejected. No second cache, engine or
+authorization change, meter change, outbox work, new syntax/diagnostic, version
+change, budget increase, agent delegation, push or publication. The supervisor's
+revision-5 instruction governs part 2; its RFC remains supervisor-owned and the
+lane updates the requested client documentation. No new LLP is needed.
+
+Orientation used the same installed `llp-orient` skill as round 3 (the lane's
+vendor link remains broken). Governing context: LLP 3000 §7, LLP 3000.001
+repair B, LLP 3000.007 §18.2, LLP 3000.016 §2.2, LLP 3000.017 §3.3,
+LLP 3000.018 §3.2, and revised LLP 3000.019 §3.3. Current reads guide and
+client documentation were read before edits. No broken governing reference
+was found.
+
+The previously documented incomplete-ephemeral cadence test's startup-discovery
+assumption remains an inherited test risk; the broader focused run passed it.
+The concrete baseline reproduction is retained in round 3 above. Any outcome
+in this round's full qualification is reported below without masking it.
+
+Implementation: `4409e31c7`; new regression tests: `d970f4bf2`.
+All commits carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### Exact round-4 full qualification
+
+Required `scripts/test.sh` ran **once**, unmodified, and finished:
+
+```text
+== 0 failure(s) in 1034 s
+```
+
+Exit **0**. **No failures** to classify as introduced, baseline or
+environmental; no repair or repeat run was needed.
+
+- Rust: **3,573 passed, 0 failed, 19 ignored**.
+- Main client batch: **2,280 tests; 2,270 passed, 0 failed, 10 existing skips**.
+  All seven separate acquisition/server shards also passed.
+- Models: **78 passed, 0 failed, 0 skipped**, including both 5,000-sequence
+  session models.
+- All **17 new regressions**, strengthened existing keep/reset tests,
+  withdrawal guards, Chromium cases and the previously timing-sensitive
+  incomplete-ephemeral cadence case passed in this full run.
+- Build/typecheck, docs budget, release guard, both app typechecks, fixture
+  wrappers and the whole guide passed.
+- Wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B** from round 3;
+  unchanged budget **582,094 B**, headroom **1,000 B**. No budget increase.
+
+Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`.
+Full log and exit: `target/lane-k-round4-evidence/test-sh.log` and
+`test-sh.exit`. Targeted checks and negative experiments are in the same
+evidence directory. The final documentation commit adds only this report and
+the round-4 journal record; tested implementation is unchanged.
