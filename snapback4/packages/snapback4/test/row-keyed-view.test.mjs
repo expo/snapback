@@ -6,11 +6,119 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, appendFile
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initSync, WebDevice } from '../src/wasm/snapback4_device.js';
+import { processDevice } from '../dist/native.js';
+import { DatabaseSync } from 'node:sqlite';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const fixture = readFileSync(join(root, 'crates/snapback4-lang/tests/fixtures/row-keyed-view.q'), 'utf8');
 initSync({ module: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)) });
+
+async function legacyWorkAdoption(t, directory, publicBackend) {
+  const backend = structuredClone(publicBackend);
+  backend.schema.tables.conversations.sync.horizon = { last: 100, by: 'byId' };
+  const ok = reply => { assert.ok(Object.hasOwn(reply, 'ok'), JSON.stringify(reply)); return reply.ok; };
+  const invoke = (device, request) => ok(JSON.parse(device.call(JSON.stringify(request))));
+  const boundary = 'device:acquisition-boundaries:["conversations","byId",""]';
+  const snapshot = { op: 'apply', first: true, page: {
+    snapshot: true, generation: backend.generation, watermark: 7, more: false,
+    events: [{ table: 'conversations', kind: 'put', id: 'c', data: { id: 'c', title: 'kept' } }],
+    acquisitions: [
+      { table: 'conversations', index: 'byId', group: [], at: 0 },
+      { table: 'conversations', index: 'byId', group: [], at: 1, floor: 'whole' },
+    ],
+  } };
+  const next = structuredClone(backend);
+  next.generation++;
+  next.schema.tables.conversations.columns.archived = 'Bool';
+  next.schema.tables.conversations.defaults = { archived: { Literal: { Bool: false } } };
+
+  // Native still synthesizes exactly the work schema the old web build saved.
+  // Use its canonical backend bytes and identity to exercise that persisted form.
+  const native = await processDevice({ binary, dir: join(directory, 'legacy-device') }).open('legacy', backend);
+  const database = new DatabaseSync(join(directory, 'legacy-device/legacy.sqlite'), { readOnly: true });
+  const nativeMeta = key => database.prepare('SELECT value FROM _meta WHERE key = ?').get(key)?.value;
+  let legacyText, legacyIdentity;
+  try {
+    legacyText = nativeMeta('device:backend');
+    legacyIdentity = nativeMeta('device:backend-identity');
+    const legacy = JSON.parse(legacyText);
+    assert.ok(legacy.schema.tables['$recount:unread']);
+    assert.ok(legacy.schema.tables['$basis:unread']);
+    assert.equal(Object.keys(legacy.schema.tables).length, Object.keys(backend.schema.tables).length + 2);
+    await t.test('native adoption still preserves acquisition with synthesized work tables', async () => {
+      ok(await native.call(snapshot));
+      assert.equal(nativeMeta(boundary), 'whole');
+      ok(await native.call({ op: 'adopt', backend: next }));
+      const state = ok(await native.call({ op: 'sync_state', capture: false }));
+      assert.equal(state.acquired, true);
+      assert.equal(state.generation, next.generation);
+      assert.equal(state.backend_required, false);
+      assert.equal(nativeMeta(boundary), 'whole');
+      const adopted = ok(await native.call({ op: 'backend' }));
+      assert.ok(adopted.schema.tables['$recount:unread']);
+      assert.ok(adopted.schema.tables['$basis:unread']);
+    });
+  } finally { database.close(); await native.close(); }
+
+  const legacyDevice = new WebDevice(legacyText, '[]');
+  let kept;
+  try {
+    invoke(legacyDevice, snapshot);
+    assert.equal(invoke(legacyDevice, { op: 'sync_state', capture: false }).acquired, true);
+    kept = JSON.parse(legacyDevice.drain());
+    const meta = key => kept.findLast(change => change.s === 'm' && change.k === key)?.v;
+    assert.equal(meta('device:backend'), legacyText);
+    assert.equal(meta('device:backend-identity'), legacyIdentity);
+    assert.equal(meta(boundary), 'whole');
+  } finally { legacyDevice.free(); }
+  const folded = changes => [...changes.reduce((values, { s, k, v }) => {
+    const key = JSON.stringify([s, k]);
+    if (v === null) values.delete(key); else values.set(key, v);
+    return values;
+  }, new Map())].sort(([a], [b]) => a.localeCompare(b));
+
+  await t.test('web offline reopen preserves all persisted legacy bytes and identity', () => {
+    const reopened = new WebDevice(null, JSON.stringify(kept));
+    try {
+      assert.equal(invoke(reopened, { op: 'sync_state', capture: false }).acquired, true);
+      assert.deepEqual(folded([...kept, ...JSON.parse(reopened.drain())]), folded(kept));
+    } finally { reopened.free(); }
+  });
+
+  for (const mode of ['adopt', 'open']) for (const addedPublicTables of [false, true]) {
+    await t.test(`web legacy work schema ${mode}: added public tables=${addedPublicTables}`, () => {
+      const successor = structuredClone(next);
+      if (addedPublicTables) {
+        // Two new public tables replace the two omitted work tables in the
+        // raw count. They must still invalidate acquisition, never cancel out.
+        for (const name of ['extra1', 'extra2']) {
+          const table = structuredClone(backend.schema.tables.conversations);
+          table.constraints = table.constraints.filter(constraint => !constraint.Capabilities);
+          successor.schema.tables[name] = table;
+        }
+      }
+      const device = new WebDevice(mode === 'open' ? JSON.stringify(successor) : null, JSON.stringify(kept));
+      try {
+        if (mode === 'adopt') invoke(device, { op: 'adopt', backend: successor });
+        const state = invoke(device, { op: 'sync_state', capture: false });
+        assert.equal(state.acquired, !addedPublicTables);
+        assert.equal(state.generation, next.generation);
+        assert.equal(state.backend_required, false);
+        const saved = folded([...kept, ...JSON.parse(device.drain())]);
+        const meta = key => new Map(saved).get(JSON.stringify(['m', key]));
+        assert.equal(meta(boundary), addedPublicTables ? undefined : 'whole');
+        assert.deepEqual(saved.filter(([key]) => JSON.parse(key)[0] === 'r'), folded(kept).filter(([key]) => JSON.parse(key)[0] === 'r'));
+        const fresh = new WebDevice(JSON.stringify(successor), '[]');
+        try {
+          const freshIdentity = JSON.parse(fresh.drain()).find(change => change.k === 'device:backend-identity').v;
+          assert.equal(meta('device:backend-identity'), freshIdentity);
+          assert.ok(!invoke(fresh, { op: 'backend' }).schema.tables['$recount:unread']);
+        } finally { fresh.free(); }
+      } finally { device.free(); }
+    });
+  }
+}
 
 test('row-key check JSON and rebuilt wasm queue large live-count certification', { timeout: 90000 }, async t => {
   const directory = mkdtempSync(join(root, 'target/b3-wire-'));
@@ -44,6 +152,7 @@ mutation fill(start: int):
   const response = await fetch(url + '/schema', { headers: { 'x-snapback-persona': 'bob' } });
   assert.equal(response.status, 200);
   const backend = await response.json();
+  await legacyWorkAdoption(t, directory, backend);
   device = new WebDevice(JSON.stringify(backend), '[]');
   const call = request => JSON.parse(device.call(JSON.stringify(request)));
   const applied = call({ op: 'apply', first: true, page: {

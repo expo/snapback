@@ -61818,3 +61818,94 @@ The ratchet is **567,391 B**. The **46,392 B** remainder to a strictly
 below-520,000 artifact stays open in the ticket; the report records the
 remaining codec/container/executor work needed. All work stays on
 `sb4/diet-20260925`, committed locally; no push or publication.
+
+## 2026-09-26 — device diet follow-up: preserve acquisition across legacy web work schemas
+
+The web work-schema separation left old stores carrying synthesized
+`$recount:<target>` and `$basis:<target>` tables. On a literal-default
+successor, both adoption and opening with a supplied backend compared raw
+table counts, so removing those invisible tables discarded acquisition
+boundaries and the acquired generation even though held images survived.
+Both checks now count `visible_tables()`, matching the existing image-retention
+predicate (LLP 3000.007 §18.3; row-view work is private under LLP 3000.015 §3).
+Backend identity hashing is unchanged. Offline reopening preserves the old
+backend and identity bytes; native still synthesizes its work tables.
+
+The existing real-wasm row-keyed-view test now obtains the legacy schema and
+identity from the native device's unchanged synthesis, persists a snapshot
+with a nonempty acquisition boundary, and exercises web adopt and
+open-with-successor. Both preserve acquisition and row images. A second
+case adds two public tables while removing the two work tables: those public
+additions still clear acquisition, even though the raw counts match. Offline
+reopen compares every persisted value byte-for-byte. Native adoption preserves
+its boundary and acquired generation, and the adopted web identity matches a
+fresh store of the same public successor. All seven tests in the focused file
+pass. The root reference check passes: 510 LLP documents, 9,395 references,
+0 errors and 0 unchecked.
+
+`scripts/measure-wasm.sh` passes the family and forbidden-symbol checks and
+measures **1,960,344 B raw / 566,500 B gzip / 429,423 B Brotli**, using Rust
+1.97.0, wasm-bindgen 0.2.127 and wasm-opt 132 (the optimized candidate was not
+selected). This is **+109 B gzip** for the public-table comparisons, within
+the unchanged **567,391 B** ratchet. Glue is unchanged at 14,057 B raw /
+3,497 B gzip / 3,102 B Brotli. The wasm SHA-256 is
+`2d0bbb9b6661f0a7a3f46eaaeb4cf64e8a22afde609cafa32a2253e974f03b9d`.
+The measurement record identifies base `053fee3fb6` with `dirty: true` for
+this fix. Work remains on `sb4/diet-20260925`, with no push or publication.
+
+The first complete qualification used the requested environment, Node 24.18.0
+and the default 18 Rust workers. It ended **`== 2 failure(s) in 4101 s`**:
+`replay` exceeded its five-second delivery deadline, the isolated `witness`
+target encountered mocked-command launch timeouts, and the local 5,000-sequence
+session model reached its existing 240-second timeout. The ordinary client
+suite passed 2,004 tests with 9 existing skips; the other 77 model tests passed.
+After the heavy Rust work drained, the unchanged replay case passed with
+900-follower delivery in 1,389 ms, and the unchanged witness target passed
+24/24 tests. The initial suite and diagnostic logs remain under
+`target/diet-adopt-*`. The complete retry uses the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` scheduling option and process-local normal
+Darwin I/O, latency and throughput settings from launch; no test inventory,
+assertion, seed count, deadline or source changes accompany that retry.
+
+The single-worker retry enumerated all 220 binaries / 932 executions and
+completed the Rust inventory plus doctests, but `check` observed a partial
+startup log, `replay` missed its five-second deadline, and `witness` again
+hit mocked-command launch timeouts. During this run, all 184 not-yet-run
+executables were warmed with `--list --format=terse` only; no test bodies
+were skipped. After 569 client checks had passed without a failure, this
+already-failed retry was stopped (exit 143) and its logs preserved as
+`target/diet-adopt-suite-second*`.
+
+The agent's children inherited nice 5. A temporary one-shot launch job at
+ordinary nice 0 with Interactive process scheduling ran the unchanged full
+`check`, `replay`, and `witness` targets with their normal runner thread counts:
+**71/71**, **15/15**, and **24/24** passed in 12.30 s, 1.48 s, and 66.82 s.
+That job was removed. The final complete qualification uses the same
+process-local scheduling, Node 24.18.0, the requested environment and
+`SNAPBACK4_RUST_TEST_PROCESSES=4`. No other jobs or machine-wide settings were
+changed, and no test assertions, deadlines, seeds, or harness code were edited.
+
+The ordinary-priority, four-worker complete run ended
+**`== 1 failure(s) in 2372 s`**. The sole failing target was `check`: its
+startup-adoption test read the error prefix before the recovery suffix had
+been written. Replay passed 15/15 and witness passed 24/24 in this full run.
+All 2,004 ordinary client tests passed (9 existing skips), including every
+new legacy-work regression, and all 78 model tests passed. The local
+5,000-sequence model completed in 85.84 s within its unchanged 240-second
+deadline. The complete log is `target/diet-adopt-suite-third.log`.
+The next complete run keeps ordinary process priority and uses one Rust
+worker; the unrelated partial-log test remains unchanged.
+
+The final complete run passed: **`== 0 failure(s) in 3244 s`**, exit 0.
+It used Node 24.18.0, the requested `env -u FORCE_COLOR CARGO_INCREMENTAL=0
+CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh`, and the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` scheduling option at ordinary nice 0 with
+Interactive process scheduling. All 220 Rust test binaries / 932 executions
+and workspace doctests passed; ordinary clients passed 2,004 tests with
+9 existing skips; all 78 model tests passed. The online and local
+5,000-sequence session models completed in 44.13 s and 105.10 s. The unrelated
+startup-log test, every assertion, seed count, deadline, and the test harness
+remain unchanged. The temporary launch job was removed. The final full log
+and exit receipt are `target/diet-adopt-suite.log` and
+`target/diet-adopt-suite.status.json`.
