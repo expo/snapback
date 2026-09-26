@@ -358,7 +358,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
 }
 
 const REQUEST_WORKERS: usize = 32;
-// Mutations have their own budget: queued behind an adoption, they cannot take
+// Writer-dependent requests have their own budget: queued behind adoption, they cannot take
 // the slots reads and discovery need, and neither class loses capacity.
 const MUTATION_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
@@ -392,13 +392,22 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
-        // @ref LLP 3000.019#3.6 — queued mutations cannot occupy the read reservation during adoption.
-        else if request.method() == &Method::Post && path.starts_with("/m/") { RequestClass::Mutation }
-        else if is_waiter(request.method(), path) { RequestClass::Wait } else { RequestClass::Short };
+        else if is_waiter(request.method(), path) { RequestClass::Wait }
+        // @ref LLP 3000.019#3.6 — only writer-independent handlers share the read reservation.
+        // Default to the writer budget, so adding a writer door cannot silently
+        // consume read slots. Authentication uses the same detached-read policy.
+        else if detached_request(request.method(), path) { RequestClass::Short }
+        else { RequestClass::Mutation };
     let Some(permit) = admission.acquire(class) else { request.abort(); return; };
     if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
         eprintln!("snapback4: cannot start request thread: {error}");
     }
+}
+
+fn detached_request(method: &Method, path: &str) -> bool {
+    method == &Method::Post && (path.starts_with("/q/") || path == "/sync")
+        || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/auth/config")
+        || method == &Method::Options
 }
 
 fn is_waiter(method: &Method, path: &str) -> bool {
@@ -707,8 +716,7 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
         // Keep write authentication behind the writer: time queued for adoption
         // must not preserve a session that expired or was revoked in that wait.
         let path = request.url().split('?').next().unwrap_or("");
-        let read = request.method() == &Method::Post && (path.starts_with("/q/") || path == "/sync")
-            || request.method() == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm");
+        let read = detached_request(request.method(), path);
         let resolved = if let Some(engine) = owner {
             snapback4_core::identity::resolve(engine.store(), &token, shared.now())
         } else if read { match shared.reader() {

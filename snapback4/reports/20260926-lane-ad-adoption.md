@@ -387,9 +387,10 @@ stress runs invoked it 64 times with eight concurrent subprocesses.
   review's predicate removal would produce 2 and 2; both paths reject and
   retain totals 1 and 2, generation, sequence, every row/index/log/commit and
   generation record. Removing either validation fails its paired test.
-- `snapback4/src/serve.rs`: mutation admission and other short requests each
-  have 16 slots, retaining the existing total of 32. `saturation.rs` submits
-  32 mutations while the writer is held, proves excess mutations are bounded,
+- `snapback4/src/serve.rs`: the supervisor's `d15d5110a` supersedes the lane's
+  initial split: writer requests have a separate 32 slots and short requests
+  retain 32. `saturation.rs` submits 32 mutations while the writer is held,
+  proves excess mutations are bounded,
   and obtains real query and sync responses within two seconds while the
   admitted mutations still wait. Routing mutations back into `Short` makes
   the query get EOF and fails the regression.
