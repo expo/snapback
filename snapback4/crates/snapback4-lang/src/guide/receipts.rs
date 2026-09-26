@@ -37,7 +37,7 @@ table runs:
   throughOrdinal: int
   unique conversation, principal, fromOrdinal
   cap 16 by conversation, principal
-  cap 400 by conversation
+  cap 800 by conversation
   read <- exists members[.conversation, viewer]
   insert <- .principal = viewer and exists members[.conversation, viewer]
   delete <- .principal = viewer
@@ -118,7 +118,7 @@ mutation delivered(conversation: conversations, from: int, through: int):
     delete runs[run]
   if low <= prefix + 1:
     update members[me] { deliveredOrdinal: high }
-  else:
+  else if count(runs where .conversation = conversation and .principal = viewer) < 16:
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   return null
 
@@ -148,7 +148,9 @@ The client reports each unbroken run of fetched, settled messages with
 with every run it meets, and folds it into the prefix when it reaches it. So a
 receipt never claims a message the client did not fetch and never moves back,
 and every window a member fetched is delivered at once, however many gaps lie
-between. A member keeps at most 16 runs, and a conversation 400. `seen` records
+between. A member keeps at most 16 runs: a seventeenth waits, unrecorded, and
+the hook reports it again when the member's prefix moves. So no member's runs
+crowd out another's: a conversation holds at most 50 members' 16. `seen` records
 the newest message on screen, online or offline, gap or not. A message is
 `read` for a recipient once it is fetched and `seen` reaches it. Both are the
 member's own report, bounded by the last message. Each message costs one scan

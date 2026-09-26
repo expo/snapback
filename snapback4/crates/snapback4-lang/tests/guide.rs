@@ -253,7 +253,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let member = |row: &str, chat: &str, principal: &str| ("members".to_owned(), snapback4_core::value::object([("id", id(row)), ("conversation", id(chat)), ("principal", id(principal)), ("joinedOrdinal", Value::Int(0))]));
     let chat = |row: &str| ("conversations".to_owned(), snapback4_core::value::object([("id", id(row)), ("creatorId", id("alice")), ("lastOrdinal", Value::Int(0))]));
-    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob")]).unwrap();
+    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), chat("lap"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob"), member("oa", "lap", "alice"), member("ob", "lap", "bob")]).unwrap();
     let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
     let receipt = |m: &Value| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") };
     let receipts = |engine: &mut Engine, conversation: &str| -> Vec<String> {
@@ -366,10 +366,13 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // A member keeps at most 16 runs: past that a run waits.
     for n in 512..=546 { post(&mut engine, n); }
     for (k, n) in (513..=543).step_by(2).enumerate() { sent(&engine.mutate("delivered", None, at("bob", 5_400 + k as i64, &run(long(), n, n))).unwrap()); }
-    let refused = engine.mutate("delivered", None, at("bob", 5_500, &run(long(), 545, 545))).unwrap();
-    assert!(matches!(refused.state, WriteState::Failed { .. }), "a seventeenth run is refused");
+    sent(&engine.mutate("delivered", None, at("bob", 5_500, &run(long(), 545, 545))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 543, 543), states(&all, 544, 546)), (["delivered"].into(), ["sent"].into()));
+    assert_eq!((states(&all, 543, 543), states(&all, 544, 546)), (["delivered"].into(), ["sent"].into()), "a seventeenth run waits, unrecorded");
+    // Its runs reach the prefix, and the waiting run, sent again, is recorded.
+    sent(&engine.mutate("delivered", None, at("bob", 5_510, &run(long(), 512, 544))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 5_520, &run(long(), 545, 545))).unwrap());
+    assert_eq!(states(&everything(&mut engine), 512, 545), ["delivered"].into(), "the waiting run, sent again once room frees, is delivered");
     // Leaving drops a member's runs, so a rejoin starts clean.
     sent(&engine.mutate("leave", None, at("bob", 5_600, &[long()])).unwrap());
     sent(&engine.mutate("add", None, at("alice", 5_610, &[long(), ("principal", id("bob"))]).with_ids(["lb2".into()])).unwrap());
@@ -377,6 +380,22 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("delivered", None, at("bob", 5_620, &run(long(), 549, 550))).unwrap());
     let all = everything(&mut engine);
     assert_eq!((states(&all, 547, 548), states(&all, 549, 550)), (["sent"].into(), ["delivered"].into()), "a rejoined member starts a run of their own");
+    // Overlapping runs merge into one: a later, wider run swallows an earlier one.
+    let lap = || ("conversation", id("lap"));
+    for n in 1..=30 {
+        let row = format!("o{n}");
+        sent(&engine.mutate("send", None, at("alice", 6_000 + n, &[lap(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    }
+    sent(&engine.mutate("delivered", None, at("bob", 6_100, &run(lap(), 10, 20))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_110, &run(lap(), 5, 30))).unwrap());
+    let states_of = |engine: &mut Engine| -> Vec<String> {
+        let page = engine.query("history", at("alice", 9_000, &[lap()])).unwrap();
+        let mut all: Vec<String> = page.data.as_array().unwrap().iter().map(receipt).collect();
+        all.reverse();
+        all
+    };
+    let all = states_of(&mut engine);
+    assert!(all.len() == 20 && all.iter().all(|r| r == "delivered"), "the newest 20, 11 to 30, lie in the one merged run 5 to 30: {all:?}");
 }
 
 fn compile(source: &str) -> snapback4_lang::Bound {

@@ -285,6 +285,21 @@ const cases = {
     check(active(caught).filter(record => "c" in record.args).length === 1, "no older page is walked under the prefix");
     await unmount();
   },
+  async "the receipts card reports a late joiner's run above a gap, and resends a run when the prefix moves"() {
+    const late = receiptsClient(new Map([[null, ready(ordinals(500, 401), "p2")], ["p2", { loading: true }]]),
+      ready({ joinedOrdinal: 100, deliveredOrdinal: 0, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), late);
+    equal(acked(late), ["delivered:401-500"], "a member who joined at 100 and fetched 401..500 reports it");
+    await unmount();
+    const waiting = receiptsClient(new Map([[null, ready(ordinals(80, 61), "p2")], ["p2", { loading: true }]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), waiting);
+    const member = active(waiting).find(record => !("c" in record.args));
+    const before = waiting.acks.length;
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 40, seenOrdinal: 0 })));
+    check(waiting.acks.length === before + 1 && waiting.acks.at(-1) === "delivered:61-80", "a run that waited is sent again when the prefix moves: " + JSON.stringify(waiting.acks));
+    await unmount();
+  },
   async "the receipts card records a view before its membership arrives"() {
     const client = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), { loading: true });
     await mount(h(Receipts, { visible: true }), client);
