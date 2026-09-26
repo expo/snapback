@@ -588,3 +588,142 @@ Evidence remains scoped to this Linux host, process clients and wasm. No
 native iOS/Android app build or OS power-loss injection is claimed. External
 SQLite writers that do not participate in `flock` still use SQLite's own
 locking and the existing bounded CLI retry. No push or publication occurred.
+
+
+## Round 3 — 2026-09-26
+
+Read the original lane prompt, this report through round 2, and Grok's
+`r2-r2.grok.md` in full. Accepted all three new defects and the open-time
+recount test gap. The prior round-1 findings remain fixed. Astra did not
+complete a review this round; no additional independent review is claimed.
+
+Orientation scope is native store identity/ownership, address records and
+residency installation. Governing context: LLP 3000 §4 (the independent
+Snapback 4 fence), LLP 3000.019 §3.4 (current working set, residency and
+writer refusal), LLP 2000.000 §6 (unchanged runtime meters), and the
+residency guide card. No new design document or hand-off is needed. These
+fixes implement the existing ownership choice; documentation changes are
+in the guide, operations reference, this report and one appended journal entry.
+
+### Findings and changed files
+
+Paths are relative to `snapback4/`.
+
+1. **Readers use the owned database.** `crates/snapback4-core/src/store.rs`
+   retains the device/inode identity of the opening connection. After opening
+   a detached read connection, `reader()` stats its path and rejects a
+   different identity with the existing moved/replaced store error. The new
+   connection drops on that error. The existing `/sync` and `/changes`
+   fallback keeps using the original engine. Identity checking uses metadata
+   only, avoiding an extra raw database descriptor that could disturb SQLite's
+   POSIX locks. `crates/snapback4/tests/run_admission/identity.rs` moves the
+   live one-row store and both sidecars, copies a different two-row database
+   into its old path, and requires snapshot sync, stream sync and changes to
+   retain the original identity and watermark 1. Both sync modes return one
+   event, never the replacement's two rows under the original identity.
+2. **Embedded devices share ownership.**
+   `crates/snapback4-device/src/sqlite.rs` now calls `Store::open_shared`
+   before all SQLite/device initialization. The new
+   `crates/snapback4-core/src/store/ownership.rs` resolves the database,
+   acquires shared ownership, validates its identity, and opens SQLite while
+   retaining that descriptor. `store.rs` keeps the guard after the connection
+   in field drop order; detached readers share its lifetime. Multiple shared
+   descriptors, including the CLI's existing outer guard, coexist.
+   `crates/snapback4-core/src/error.rs` supplies native-only `E_STORE_BUSY`
+   with the path site, store family and a concrete separate-store/stop-writer
+   rewrite. Two direct C-ABI tests in `run_admission/identity.rs` prove that
+   `sb4_open` beside a live dev server returns null before any device table or
+   row change, and that two successful C-ABI handles exclude dev/run until the
+   last handle closes. The surviving handle can still read residency after
+   its peer closes. `crates/snapback4-lang/src/guide.rs` and
+   `packages/snapback4/CLIENT-AND-OPERATIONS.md` explicitly cover embedded hosts.
+3. **Address refusal precedes mutation.**
+   `crates/snapback4/src/store_owner.rs` validates the address descriptor's
+   regular-file type, single link and distinct database inode inside
+   `regular()`, before permissions or length change. The existing unsafe
+   address-file test in `run_admission/identity.rs` now includes an unrelated
+   hard-linked file explicitly set to 0644, and verifies both its original
+   mode and its bytes after refusal.
+4. **Reopening cannot silently recount.**
+   `crates/snapback4-device/tests/residency.rs` registers the new
+   `tests/residency_open/mod.rs`. It uses SQLite's auto-extension hook to
+   attach a read authorizer at connection creation, then runs the real second
+   `Device::open`. The observer records metadata reads (proving it ran) and
+   refuses any read of `r` in the assertion. Instrumentation is confined to
+   the test thread and unregistered on scope exit; production code has no
+   test hook. Counters and exact page totals must remain unchanged.
+
+### Tests and deliberate mutation
+
+All final affected checks passed, with no skips: native residency **4/4**,
+interrupted installation **1/1**, CLI/process/C-ABI admission **23/23**,
+ownership **3/3**, complete guide **86/86**, public client residency **5/5**,
+and package build. `bun install --frozen-lockfile` passed without changes.
+The initial HTTP test fixture omitted a sync declaration and correctly got
+zero events; adding `sync public last 100 by byId` made the fixture exercise
+row delivery. That was corrected before its commit and full qualification.
+
+Deleting exactly `if installed { return Ok(tx.commit()?); }` from
+`sqlite_residency.rs` makes
+`a_second_device_open_does_not_read_the_installed_partition` fail with
+**0 passed / 1 failed, exit 101**: the real open's authorizer records reads
+of `r`. The original source was restored automatically in a `finally` block;
+the complete four-test native residency target then passed. No mutation remains.
+
+Existing forms continue to compile and run, without new Quarry syntax:
+
+- `POST /sync` with `{"from":0,"limit":100}` answers the owned store even
+  after replacement of its pathname; `stream: true` follows the same rule.
+- `sb4_open(device_path, backend_json)` supports two compatible embedded
+  handles; the same call on a live server's path returns null and
+  `sb4_open_reason` reports `E_STORE_BUSY`.
+- `await client.residency()` retains the same measurement contract and
+  returns counters without rereading the partition on a complete reopen.
+- `snapback4 run put` refuses an unsafe hard-linked address record with
+  `E_STORE`; the unrelated file's mode and content remain unchanged.
+
+Implementation commits, each with the requested co-author trailer:
+`2726e185a` (reader identity), `e70f80914` (address-record refusal),
+`274da8439` (embedded native ownership), `6010d0460` (open-time observation).
+Evidence is under `target/lane-r3-evidence/`.
+
+### Qualification, deviations and open problems
+
+Ran **`bash scripts/test.sh` exactly once in round 3**, on implementation
+commit `6010d0460`. It exited **0**, with the literal final summary:
+
+```text
+== 0 failure(s) in 3120 s
+```
+
+Every check passed. The log records **3,595 Rust tests passed, 19 ignored**
+(including doctests), fixture wrapper **9 passed**, client suite **2,220
+passed / 10 skipped** (2,230 tests), and seeded client models **78 passed**.
+There were no failed or cancelled cases and no failure to classify as
+lane-owned, baseline or environmental. The ten client skip names and
+prerequisites match round 2 exactly; they remain the environment-gated cases
+listed earlier in this report, not new passing evidence. No post-suite repair
+or test rerun was needed. Rust took **940 s**, serialized clients **1,862 s**,
+and the seeded models **258 s**. Source stayed unchanged throughout the run.
+
+The suite rebuilt wasm successfully at **2,021,689 B raw / 581,094 B gzip**:
+**+0 / +0 B** against round 2 and **1,000 B below the unchanged 582,094 B
+budget**. This is an artifact-size comparison, not independent per-change
+attribution. Its SHA-256 is saved in `target/lane-r3-evidence/wasm.sha256`.
+The full client run used this newly rebuilt artifact.
+
+Toolchain: Node **24.13.1**, Rust **1.97.0**, Bun **1.3.14**, wasm-bindgen
+**0.2.127**, no wasm-opt. Cargo build jobs and Rust test processes were capped
+at eight; `RUST_TEST_THREADS=4`, debug symbols/incremental builds disabled,
+and `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. The full log, exact exit code,
+source commit, environment and start time are retained under
+`target/lane-r3-evidence/` beside the focused checks and mutation log.
+
+No requested finding is rejected, no design change or new Quarry form was
+needed, and no known round-3 problem remains in the affected checks. The
+native refusal's structured path and recovery are implementation details
+where the brief was silent. The wasm budget, authorization, disclosure,
+meters, versions and publication pins are unchanged. Evidence is from this
+Linux host, direct C-ABI/process clients and wasm; it does not claim an
+Expo iOS/Android app build, power-loss injection, or live-file migration.
+No push or publication was performed.

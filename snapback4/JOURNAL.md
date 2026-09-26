@@ -63715,3 +63715,52 @@ uses SQLite's real installation boundary, not power-loss injection; relocation
 proves exclusion, not a live backup/migration protocol. Mobile app builds stay
 outside this lane. The [round-2 report](reports/20260926-lane-r-residency.md#round-2--2026-09-26)
 contains file-by-file changes, exact tests, mutation evidence and limitations.
+
+
+## 2026-09-26 — Lane R round 3: owned readers and embedded device ownership
+
+Accepted all three new Grok round-2 findings and its reopen-recount test gap.
+The owning SQLite store now retains device/inode identity; detached readers
+reject a replaced path before reading, and sync/changes use the original
+engine's existing fallback. A live one-row database and its sidecars moved
+aside with a two-row replacement at the path still return the original store
+identity, one event and watermark 1 in snapshot and stream sync; changes also
+retains the original identity and head.
+
+Native SQLite opens now acquire compatible shared ownership before SQLite or
+device-table initialization, including the C ABI used by embedded hosts. The
+store retains the descriptor until after its connection closes, and detached
+readers share that guard. Direct C-ABI tests prove live-server refusal without
+rows or device tables changing, two simultaneous opens, a usable surviving
+handle, and backend exclusion until the final close. Native E_STORE_BUSY
+carries a path site and concrete recovery. Address-record validation now
+precedes chmod/truncation; a refused unrelated hard-linked 0644 file keeps its
+mode and bytes. The guide and operations reference include embedded hosts.
+
+A SQLite auto-extension observes the real second Device::open from connection
+creation. Removing the installed-counter short-circuit fails the new test
+with 0 passed / 1 failed, exit 101, because it sees reads of r. The mutation
+was restored; all four native residency tests then passed. Other affected
+checks passed: admission 23, ownership 3, interrupted installation 1, complete
+guide 86, public client residency 5, and package build. Frozen dependency
+installation passed without changes. Implementation commits are 2726e185a,
+e70f80914, 274da8439 and 6010d0460, with the requested co-author trailer.
+
+Ran bash scripts/test.sh exactly once on 6010d0460, with source unchanged.
+Exit 0; exact summary **`== 0 failure(s) in 3120 s`**. Rust reported 3,595
+passed / 19 ignored including doctests; fixture wrapper 9 passed; clients
+2,220 passed / 10 existing environment-gated skips; seeded models 78 passed.
+No failed or cancelled case, no post-suite repair or rerun. Rust took 940 s,
+serialized clients 1,862 s, models 258 s. Rebuilt wasm is **2,021,689 B raw /
+581,094 B gzip**, +0/+0 from round 2, **1,000 B below the unchanged 582,094 B
+budget**. The full client suite used the rebuilt artifact. Logs and exact
+qualification metadata remain in target/lane-r3-evidence/.
+
+No rejected finding, design deviation, remaining known round-3 problem,
+authority/disclosure relaxation, meter/budget change, new Quarry form, version
+change, push or publication. No additional independent review is claimed:
+Astra's review did not complete this round. Evidence remains Linux, direct
+C-ABI/process clients and wasm, without mobile app builds or power-loss
+injection; replacement testing is not a live migration protocol. The
+[round-3 report](reports/20260926-lane-r-residency.md#round-3--2026-09-26)
+records the file-by-file changes, forms, tests and complete result.
