@@ -24,74 +24,50 @@ impl RowKey {
     }
     pub fn fields(&self) -> BTreeSet<String> {
         let mut fields = BTreeSet::new();
-        self.predicate.fields(&mut fields);
+        self.predicate.each_field(&mut |field| {
+            if let Some(field) = field.strip_prefix("$row.") { fields.insert(field.to_owned()); }
+        });
         fields
-            .into_iter()
-            .filter_map(|f| f.strip_prefix("$row.").map(str::to_owned))
-            .collect()
     }
     pub fn matches(&self, source: &Value, member: &Value) -> bool {
-        fn operand<'a>(o: &'a Operand, source: &'a Value, member: &'a Value) -> &'a Value {
-            match o {
-                Operand::Literal(v) => v,
-                Operand::Field(f) => f
-                    .strip_prefix("$row.")
-                    .map_or_else(|| source.field(f), |f| member.field(f))
-                    .unwrap_or(&Value::Null),
-            }
-        }
-        fn evaluate(p: &Predicate, source: &Value, member: &Value) -> bool {
-            match p {
-                Predicate::Bool(v) => *v,
-                Predicate::Field(f) => source.field(f) == Ok(&Value::Bool(true)),
-                Predicate::Not(p) => !evaluate(p, source, member),
-                Predicate::And(a, b) => evaluate(a, source, member) && evaluate(b, source, member),
-                Predicate::Or(a, b) => evaluate(a, source, member) || evaluate(b, source, member),
-                Predicate::Compare { op, left, right } => {
-                    let (a, b) = (
-                        operand(left, source, member),
-                        operand(right, source, member),
-                    );
-                    match op.as_str() {
-                        "=" => a == b,
-                        "!=" => a != b,
-                        "<" => a.total_cmp(b).is_lt(),
-                        "<=" => !a.total_cmp(b).is_gt(),
-                        ">" => a.total_cmp(b).is_gt(),
-                        ">=" => !a.total_cmp(b).is_lt(),
-                        _ => false,
-                    }
-                }
-            }
-        }
-        evaluate(&self.predicate, source, member)
+        self.predicate.matches_member(source, Some(member))
     }
 
-    pub fn comparisons(&self) -> Vec<(String, String)> {
-        fn visit(p: &Predicate, out: &mut Vec<(String, String)>) {
+    fn each_comparison<'a>(&'a self, out: &mut dyn FnMut(&'a str, &'a str, &'a str)) {
+        fn visit<'a>(p: &'a Predicate, out: &mut dyn FnMut(&'a str, &'a str, &'a str)) {
             match p {
-                Predicate::And(a, b) => {
-                    visit(a, out);
-                    visit(b, out);
-                }
-                Predicate::Compare {
-                    left: Operand::Field(a),
-                    right: Operand::Field(b),
-                    ..
-                } => {
-                    if let Some(field) = b.strip_prefix("$row.") {
-                        out.push((a.clone(), field.into()));
-                    } else if let Some(field) = a.strip_prefix("$row.") {
-                        out.push((b.clone(), field.into()));
-                    }
-                }
+                Predicate::And(a, b) => { visit(a, out); visit(b, out); }
+                Predicate::Compare { op, left: Operand::Field(a), right: Operand::Field(b) } => out(op, a, b),
                 _ => {}
             }
         }
+        visit(&self.predicate, out);
+    }
+    #[inline(never)] // Share normalized metadata traversal in the device artifact.
+    fn each_pair<'a>(&'a self, out: &mut dyn FnMut(&'a str, &'a str)) {
+        self.each_comparison(&mut |_, a, b| {
+            if let Some(field) = b.strip_prefix("$row.") { out(a, field); }
+            else if let Some(field) = a.strip_prefix("$row.") { out(b, field); }
+        });
+    }
+    pub fn comparisons(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();
-        visit(&self.predicate, &mut out);
+        self.each_pair(&mut |source, member| out.push((source.into(), member.into())));
         out
     }
+    /// Preserve distinct-column selection without materializing owned pairs and sets.
+    pub(crate) fn comparison_source(&self, member: &str) -> Option<&str> {
+        let mut source = None;
+        let mut ambiguous = false;
+        self.each_pair(&mut |field, operand| {
+            if operand == member {
+                ambiguous |= source.is_some_and(|previous| previous != field);
+                source = Some(field);
+            }
+        });
+        if ambiguous { None } else { source }
+    }
+
 }
 impl Maintain {
     pub fn work_table(&self) -> String {
@@ -131,14 +107,14 @@ impl crate::schema::Schema {
                     key.source_index(),
                     Index::of(&[&key.source_key, "id"], false),
                 );
-                for (field, _) in key.comparisons() {
+                key.each_pair(&mut |field, _| {
                     if field != key.source_key {
                         t.indexes.insert(
-                            key.range_index(&field),
-                            Index::of(&[&key.source_key, &field, "id"], false),
+                            key.range_index(field),
+                            Index::of(&[&key.source_key, field, "id"], false),
                         );
                     }
-                }
+                });
             }
             let mut work = public_table(
                 BTreeMap::from([
@@ -336,7 +312,68 @@ impl RowKey {
         }
         Ok(())
     }
-    /// A safe conjunctive comparison narrows a live recount before residual filtering.
+    // @ref LLP 3000.020#3.1 — only normalized lower bounds on the horizon's first free column certify a suffix.
+    pub fn device_range<'a>(&'a self, source: &'a Table) -> Option<SuffixRange<'a>> {
+        use crate::schema::Audience;
+        let sync = source.sync.as_ref()?;
+        let horizon = sync.horizon.as_ref()?;
+        let width = match &sync.audience {
+            Audience::Public => 0,
+            Audience::Column(_) => 1,
+            Audience::Target { prefix, .. } => prefix.len(),
+        };
+        let column = source.indexes[&horizon.by].components.get(width)?.column()?;
+        if column == &self.source_key { return None; }
+        let range = SuffixRange { column, key: self };
+        let mut present = false;
+        range.each_bound(&mut |_, _| present = true);
+        present.then_some(range)
+    }
+}
+
+/// A read-time plan over existing indexes; not persisted in schemas or recount cursors.
+pub struct SuffixRange<'a> {
+    pub column: &'a str,
+    key: &'a RowKey,
+}
+impl<'a> SuffixRange<'a> {
+    fn each_bound(&self, out: &mut dyn FnMut(&'a str, bool)) {
+        self.key.each_comparison(&mut |op, a, b| {
+            let (source, member) = match op {
+                ">" | ">=" => (a, b),
+                "<" | "<=" => (b, a),
+                _ => return,
+            };
+            if source == self.column && let Some(field) = member.strip_prefix("$row.") {
+                out(field, op.len() == 1);
+            }
+        });
+    }
+    /// Reporting enumerates the same candidates without making execution allocate a list.
+    pub fn lower(&self) -> Vec<(&'a str, bool)> {
+        let mut lower = Vec::new();
+        self.each_bound(&mut |field, strict| lower.push((field, strict)));
+        lower
+    }
+    pub fn lower_bound<'m>(&self, member: &'m Value) -> Option<(&'m Value, bool)> {
+        let mut value = &Value::Null;
+        let mut strict = false;
+        self.each_bound(&mut |field, candidate_strict| {
+            let candidate = member.field(field).unwrap_or(&Value::Null);
+            // Null is the weakest bound, never a veto on a non-null sibling.
+            match candidate.total_cmp(value) {
+                std::cmp::Ordering::Greater => { value = candidate; strict = candidate_strict; }
+                std::cmp::Ordering::Equal => strict |= candidate_strict,
+                std::cmp::Ordering::Less => {}
+            }
+        });
+        if *value == Value::Null { return None; }
+        Some((value, strict))
+    }
+}
+
+impl RowKey {
+    /// Historical first-comparison selector. Device certification uses `device_range`.
     pub fn live_range(&self, member: &Value) -> (String, crate::rows::Bounds) {
         fn find(p: &Predicate, k: &RowKey, u: &Value) -> Option<(String, crate::rows::Bounds)> {
             match p {

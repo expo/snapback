@@ -241,6 +241,10 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
+        self.tx.base_id_after(table, after)
+    }
+
     fn provisional_sequence_floor(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
         Ok(self.tx.meta(&predictions::sequence_floor_key(parent, id))?.and_then(|v| v.parse().ok()).unwrap_or(0))
     }

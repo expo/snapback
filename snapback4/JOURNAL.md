@@ -65208,3 +65208,151 @@ Evidence: `target/lane-ek-round1-evidence/` holds the affected and guide logs,
 reference audit, timing load driver and all 20 logs plus range summaries,
 mutation driver and per-mutation build/test logs, and the slow-mutation
 control logs. Round-0 full-suite evidence remains in `target/lane-ek-evidence/`.
+
+
+## 2026-09-26 — P5: the device certifies the unread suffix (LLP 3000.020 revision 1)
+
+Implemented the supplied draft in lane `sb4-intent/p5-unread-range`, based on
+`992cec75c`. The device normalizes lower source/member comparisons, chooses
+the strongest bound on the sync horizon's first order column, and certifies
+against the saved full-key floor on the same parent prefix. Any null candidate
+falls back to whole-group coverage. Read and prediction use the same proof;
+retained rows never contribute. An uncovered expiring range publishes its
+current authorized live lower bound and an unknown fact, so the existing client
+asks the server online. A covered meter cut publishes its partial without
+asking. Non-expiring pending values keep their prior meaning.
+
+The guide now runs the complete private Clique shape with sequence positions,
+a conversation timer, expiry and `last 500` message sync. `check` reports the
+range/index/operators/horizon. The certificate calls the server's unmetered
+whole-live-basis count `grows`; a pure rule witness is constant. Expression
+`exists` retains its existing full-read semantics and is still `grows` over an
+expiring source. The guide's three new authorization sites are registered.
+The optional comparison binder admits matching scalar types with null ordering.
+
+Measured wasm: 2,024,421 B raw / 581,517 B gzip, versus baseline 2,021,689 /
+581,094: +2,732 raw / +423 gzip; 577 B below the unchanged 582,094 B ceiling.
+Borrowed bounds/prefixes and shared predicate/comparison traversal keep it
+inside that budget. There is no new index or adoption requirement, and the
+legacy `live_range` helper remains. Server certification, private accounting
+and durable recount cursors are unchanged. Remembered-answer expiry and
+bounding the server walk remain outside this RFC.
+
+Evidence: 39 shared scenarios on memory, SQLite and wasm, including cold
+reopen, floor ties, expiry/deletion, retained rejoin, authority and prediction;
+503 real guide sends yield exact 2 after reopening, then 0 at expiry. All eight
+required mutants are caught. Final affected reruns pass: native 37 tests, CLI/
+certificate 101, server accounting/legacy/witness 10, complete guide 86, census
+1, and wasm/client 43. `bun run build` and the wasm gate pass.
+
+The one complete `scripts/test.sh` run ended exactly
+`== 3 failure(s) in 3270 s`: `wasm build`, `cargo test`, `client tests`.
+The first two were ours: a 116 B wasm overrun and the three missing guide
+census entries; both are fixed and their checks pass. The two client failures
+were environmental dev-readiness timeouts in the memory legacy old-page empty-
+and replacement-history cases; both pass isolated (2/2). No persistent
+baseline failure is claimed. The complete run's remaining stages passed,
+including the client models and server/device disclosure tests; it was not
+repeated after the fixes. The full commands, failure reproductions and
+file-by-file record are in `reports/20260926-p5-unread-range.md`.
+This lane made local commits only; no push or publication.
+
+## 2026-09-26 — P5 round 1: revision 2 preserves Whole and certifies the suffix
+
+Adopted the supervisor's revision 2 of LLP 3000.020 verbatim, retaining its
+Revised history after reading both revision-1 reviews. Whole coverage keeps
+the expiry-index live-basis scan; the 9,000-expired/3-live backlog certifies 3.
+Window coverage extends beyond Whole. Null is the weakest bound, so a non-null
+sibling on the horizon's first free column still selects; all-null operands
+retain the whole-group rule. The writer proves completion at exactly 1,024
+candidates and queues at 1,025. Authority remains uncertain when unresolved;
+expired and retained-only images never contribute. Every counted deadline,
+including a lower-bound contribution, remains visible to offline expiry.
+
+The certificate now distinguishes server certification, each device case and
+metadata-only witnesses from expression/numeric probes. `check` names all
+candidates, greatest-bound selection, indexes and fallback. All three guide
+meter-cut sentences are corrected and generic costs name ordinary aggregates.
+Covered cuts keep their partial without unknown; coverage misses keep their
+lower bound with unknown; neither is speculative. Actual-client evidence
+covers held/prediction fallback fences, empty provisional ranges and successful
+versus refusing dependent mutations. No production client change was needed.
+
+Evidence: 48 shared scenarios on memory, SQLite and wasm, including cold
+reopen; 12 independently applied mutants all killed by behavioral failures.
+Measured native source visits are exactly 3 for 3 unread in 20,000 rows. Three
+badges share 8,168 candidate visits, yielding 4,000 / 4,000 / 168 on both native
+stores and wasm. The server's 20,000-live/3-unread receipts and successful
+count-dependent writer are identical with 0 or 10,000 unswept expired rows.
+Existing server disclosure tests pass unchanged. Pending numeric probes and
+non-uniform-source defenses are tested at the raw core boundary because those
+public spellings are rejected by admission. Visit instrumentation is confined
+to native test-store wrappers; wasm checks the same counts and flags.
+
+Final wasm: 2,024,555 B raw / 582,024 B gzip, +134 / +507 B from round 0;
+70 B below the unchanged 582,094 B budget. Borrowed authority metadata and
+source-index reuse avoid an overrun without changing meters, indexes, server
+certification, private allowance or durable recount cursors. All changed
+source files remain below 1,500 lines. Targeted checks and root ref-check pass.
+
+The one complete round-1 `scripts/test.sh` run exited 0 with the exact summary
+`== 0 failure(s) in 3319 s`. Every stage passed. Client tests: 2,270 passed,
+0 failed, 10 existing platform/optional-fixture skips. Client models: 78 passed,
+including 5,000 online session sequences, 5,000 local session sequences and
+3,000 integrated client interleavings. No post-run repair or rerun was needed.
+The prior round's two memory readiness-timeout cases passed in this full run.
+
+No design deviation or open revision-2 implementation problem. The server's
+unmetered live-group traversal and remembered-answer expiry remain outside this
+lane. The unavailable `llp-orient` skill was replaced by direct corpus/guide
+orientation. Commands, conditional skips, forms, mutants and file-by-file
+changes are in `reports/20260926-p5-unread-range.md`. Local commits only;
+no push or publication.
+
+## 2026-09-26 — P5 round 2: provisional dependencies and honest page allowances
+
+Closed every finding from the two blind round-1 reviews. A provisional source
+row whose rule cannot be admitted now records an unknown fact; a covered range
+keeps its counted lower bound, incomplete and not speculative. Expired-image
+skips are unchanged. Prediction observes sequence fields throughout the
+predicate and member bounds, including residual ordinals outside the chosen
+index and empty ranges. It walks existing provisional-row metadata instead of
+all held confirmed history, with device/private work allowances intact.
+Successful predictions still succeed; dependent refusals queue as intent.
+
+The certificate includes member-fetch and certification charges per evaluated
+live view row and now represents the preexisting omitted source-rule probes.
+For a 100-row page, its 303 examined / 202 probe allowance covers the real
+300 / 100 receipt; a point allowance of 3 / 2 covers 3 / 1. `check` omits range
+plans for non-expiring sources. The expiry why card now qualifies its null
+meter-interrupt result as an ordinary aggregate.
+
+Evidence: 53 shared scenarios on memory, SQLite and wasm, including the
+reviewer's residual ordinal 7 becoming server ordinal 10007, a provisional
+member sequence, and the 20,000-message short-range prediction. That prediction
+visits only four source candidates on each native store, including its returned
+count. Reversed unequal bounds and null-last bounds both certify exact 2.
+All three requested surviving mutants are killed by behavioral failures,
+including probe exhaustion with a valid matching provisional insert. Final
+affected tests pass: device 7 + 23 + 10, core row views 13, sequence 12 + 4,
+server 6 + 18 + 1 + 3, CLI/certificate 71 + 20 + 5 + 7, guide 86 and wasm/client
+62. Borrowed predicate/comparison metadata preserves the wasm budget:
+2,024,909 B raw / 582,036 B gzip, +354 / +12 B from round 1, **58 B below**
+the unchanged 582,094 B ceiling. The full run reproduces that artifact.
+
+The one complete round-2 `scripts/test.sh` run exited 0 with the exact summary
+`== 0 failure(s) in 3119 s`. Every stage passed: client tests had 2,276 passes,
+0 failures and the 10 existing platform/optional-fixture skips; client models
+had 78 passes, including the 5,000 online / 5,000 local session sequences and
+3,000 integrated interleavings. Failure classifications: ours 0, baseline 0,
+environmental 0. No post-run repair or rerun was needed. Both earlier memory
+legacy readiness-timeout cases passed. Final references and diff checks pass.
+
+No design deviation, new index, migration, budget change or server accounting
+change. Whole, floors, ties, retained history, expired rows, fallback fences,
+private allowance and durable cursors retain their policy. Bounding the
+server's live-basis walk and changing remembered-answer expiry remain outside
+this lane. The complete file-by-file record, examples, commands, mutants,
+measurement and suite result are in `reports/20260926-p5-unread-range.md`.
+Only local commits with the requested Astra co-author footer; no push or
+publication.

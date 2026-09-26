@@ -771,7 +771,7 @@
     "id": "types-04-10",
     "card": "types",
     "home": "E_QUARRY_MAINTAIN_EXPIRE",
-    "text": "A maintained `view` over an\n  expiring table subtracts its unswept expired backlog from the physical\n  total on the server. Devices still recompute live contributions; a partial\n  device reports `complete: false`. If the meter interrupts a maintained\n  lookup, backlog scan or device live group, the query returns `data: null,\n  complete: false`, without substituting zero or a partial total.\n  Value-order indexes over expiring sources are refused\n  (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,\n  so stored top-N can miss a winner. For a window over the entity's own\n  immutable time, `guide feeds` gives a predicate over a non-expiring source. A rolling\n  contribution window still needs live counts; a cut makes that answer incomplete."
+    "text": "An ordinary maintained `view` over an\n  expiring table subtracts its unswept expired backlog from the physical\n  total on the server. Devices still recompute live contributions; a partial\n  device reports `complete: false`. If the meter interrupts an ordinary aggregate\n  lookup, backlog scan or device live group, the query returns `data: null,\n  complete: false`, without substituting zero or a partial total.\n  Value-order indexes over expiring sources are refused\n  (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,\n  so stored top-N can miss a winner. For a window over the entity's own\n  immutable time, `guide feeds` gives a predicate over a non-expiring source. A rolling\n  contribution window still needs live counts; a cut makes that answer incomplete."
   },
   {
     "id": "types-05",

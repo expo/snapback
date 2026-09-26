@@ -270,12 +270,13 @@ fn source_horizon<H: Host>(host: &mut H) {
         observed_seq: None, dispatch: None,
     };
     let queued = device.admit(mark(1, 10)).unwrap();
-    assert!(queued.predictable, "{queued:?}");
+    // A public floor cannot certify a parent delta (LLP 3000.020 §3.2).
+    assert!(!queued.predictable, "{queued:?}");
     let r = device
         .query("unreadFor", "bob", &json!({"member":"member"}), 1)
         .unwrap();
     assert!(r.complete, "{r:?}");
-    assert_eq!(r.data, Value::Int(0));
+    assert_eq!(r.data, Value::Int(1));
     let outside = device.admit(mark(2, 0)).unwrap();
     assert!(!outside.predictable, "{outside:?}");
 }

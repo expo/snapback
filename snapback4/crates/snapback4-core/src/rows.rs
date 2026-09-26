@@ -220,6 +220,9 @@ pub trait Rows {
         Err(RuntimeError::Store("effect keys require a writable server transaction".into()))
     }
 
+    /// Next overlay metadata id, including deleted rows; no confirmed-history scan.
+    fn provisional_id_after(&self, _table: &str, _after: &str) -> Result<Option<String>, RuntimeError> { Ok(None) }
+
     /// Whether the current image comes from the device prediction overlay.
     fn provisional_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     /// A predicted attribution may use only a currently covered target image.
