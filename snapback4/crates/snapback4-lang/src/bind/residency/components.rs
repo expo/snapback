@@ -88,6 +88,13 @@ impl Facts {
             Expr::Shape { base, fields } => { self.expr(base, top)?; for value in fields.values() { self.expr(value, top)?; } }
             Expr::Binary { left, right, .. } => { self.expr(left, top)?; self.expr(right, top)?; }
             Expr::Builtin { builtin, args } => {
+                // @ref LLP 3000.019#3.2 — the source has the outer scope;
+                // only the per-row projection owns the implicit aggregate row.
+                if matches!(builtin, Builtin::ExtremumOf { .. } | Builtin::Sum) && args.len() == 2 {
+                    self.expr(&args[0], top)?;
+                    self.row_expr(&args[1], top)?;
+                    return Some(());
+                }
                 match builtin {
                     Builtin::Divmod { remainder_sink } if top.contains(remainder_sink) => return None,
                     Builtin::Connected => self.reads += 1,
@@ -122,8 +129,15 @@ impl Facts {
         for key in &scan.prefix { match key { IndexKeyExpr::Scalar(value) | IndexKeyExpr::WordPrefix(value) => self.expr(value, top)? } }
         if let Bound::Arg { name, .. } = &scan.take { self.names.insert(name.clone()); }
         if let Some(range) = &scan.range { for value in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { self.expr(value, top)?; } }
-        if let Some(filter) = &scan.filter { self.expr(filter, top)?; }
+        if let Some(filter) = &scan.filter { self.row_expr(filter, top)?; }
         Some(())
+    }
+    fn row_expr(&mut self, value: &Expr, top: &BTreeSet<String>) -> Option<()> {
+        let locals = self.locals.clone();
+        self.locals.insert("$filter".into());
+        let result = self.expr(value, top);
+        self.locals = locals;
+        result
     }
     fn stmts(&mut self, body: &[Stmt], top: &BTreeSet<String>) -> Option<()> {
         for stmt in body {

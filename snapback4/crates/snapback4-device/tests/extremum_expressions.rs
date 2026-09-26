@@ -50,3 +50,23 @@ fn run<H: Host>(host: &mut H) {
 }
 #[test] fn expression_extrema_memory_coverage_prediction_and_reopen() { run(&mut Memory::new()); }
 #[test] fn expression_extrema_sqlite_coverage_prediction_and_reopen() { run(&mut Sqlite::new("extremum-expressions")); }
+
+fn components<H: Host>(host: &mut H) {
+    let source = "table t:\n  n: int\n  cap 3\n  public\n  sync public\ntable remote:\n  n: int\n  public\n  online only\nquery column():\n  return { a: min(t, .n), z: remote['r'].n }\nquery expression():\n  return { a: min(t, .n + 0), z: remote['r'].n }\n";
+    let (mut server, backend) = compile(source);
+    assert_eq!(backend.schema.operations["expression"].components.len(), 2);
+    server.seed([("t".into(), object([("id", id("t")), ("n", Value::Int(5))])),
+        ("remote".into(), object([("id", id("r")), ("n", Value::Int(9))]))]).unwrap();
+    let mut device = host.open("components", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    host.close("components", device);
+    let mut device = host.open("components", None).unwrap();
+    let (column, _, _, expected) = device.query_with_components("column", "alice", &json!({}), 100);
+    let (expression, _, _, actual) = device.query_with_components("expression", "alice", &json!({}), 100);
+    assert_eq!(column.unwrap().data, expression.unwrap().data);
+    assert_eq!(actual, expected);
+    assert!(actual["a"].complete && !actual["a"].unknown);
+    assert!(!actual["z"].complete && actual["z"].unknown);
+}
+#[test] fn expression_extrema_memory_independent_components() { components(&mut Memory::new()); }
+#[test] fn expression_extrema_sqlite_independent_components() { components(&mut Sqlite::new("extremum-components")); }
