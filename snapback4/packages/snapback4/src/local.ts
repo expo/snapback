@@ -50,7 +50,7 @@ import {
 
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
-import { PresenceFollow, sameFollow } from "./presence-follow.ts";
+import { PresenceFollow, presenceRenewal, sameFollow } from "./presence-follow.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -915,8 +915,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.017#3.2 — server-answered watches follow the presence they read.
   const presenceBits = new PresenceFollow();
   let sentFollow: ReadonlyMap<string, boolean> = new Map();
+  const renewal = presenceRenewal(() => watches.values(), (watch) => void rerun(watch as Watch));
   function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
     watch.presence = new Set(Object.keys(presence ?? {}));
+    renewal.update();
     rerunPresence(presenceBits.observe(presence), watch);
     // A held poll sent before this answer does not follow its principals yet.
     if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
@@ -1367,6 +1369,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       stopSuspend?.();
       stopOutbox?.();
       stopClock?.();
+      renewal.stop();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
