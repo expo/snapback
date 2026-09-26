@@ -61909,3 +61909,67 @@ startup-log test, every assertion, seed count, deadline, and the test harness
 remain unchanged. The temporary launch job was removed. The final full log
 and exit receipt are `target/diet-adopt-suite.log` and
 `target/diet-adopt-suite.status.json`.
+
+### 2026-09-26 — Diet adoption follow-up 2: table sets and withheld successor reads
+
+The first repair (`f5d9fa3c3b`) already excluded private work tables in both
+explicit successor opening and adoption. This follow-up preserves that fix
+and shares `same_public_tables`: compare the ordered public table names on
+both sides, without allocating another collection. `visible_tables()`
+excludes the row-keyed view's `$recount:<target>` and `$basis:<target>` via
+`is_recount_work`, along with the existing private-column tables. The
+literal-default image predicate and acquired-generation check still gate
+retention. Native work-table synthesis and adoption behavior are unchanged.
+This makes the set requirement explicit; under the image predicate's
+requirement that every old public table survive, it agrees with the first
+repair's public-count comparison (LLP 3000.007 §18.3).
+
+Astra's two reproduction scripts were rerun using the retained pre-diet and
+unfixed diet wasm controls and compiler-produced backend fixtures, with
+only absolute paths adapted into `target/diet-adopt-fix-2/repro/`. Both
+reproduce the review's failure through both `adopt` and explicit successor
+open: the unfixed diet loses acquisition for a literal-default addition
+(`E_PREDICT` instead of complete unread count 2), and falsely certifies an
+empty page when that addition also introduces two synced tables. Both
+scripts exit 1 for the unfixed control and 0 against the rebuilt follow-up,
+matching the pre-diet control in all four cases. The first repair's retained
+before logs also pass both scripts. The withheld-read invariant remains
+LLP 3000.016 §2.2; no new acquisition protocol is introduced.
+
+The existing real-web-wasm regression now asserts the actual reads in all
+four cases, including the absence of both `data` and `complete` before new
+tables are acquired. A subsequent snapshot supplies a row and the same
+query returns it complete. Ordinary offline reopen still compares every
+persisted value byte-for-byte, including backend bytes and identity, and
+now checks the complete unread count. Native adoption also checks that
+count. Focused rerun: **7 passed, 0 failed**
+(`target/diet-adopt-fix-2/regression-relaunch.log`).
+
+The relaunched measurement repeats **1,960,518 B raw / 566,540 B gzip /
+429,121 B Brotli**, +40 B gzip from the first repair and 851 B below the
+unchanged **567,391 B** ratchet. Glue: 14,057 / 3,497 / 3,102 B;
+wasm-opt not selected; family and forbidden-symbol checks pass. Both the
+interrupted run's measurement and this rerun remain in `metrics/wasm.jsonl`.
+The production artifact's SHA-256 is
+`806a7182fa20a4a092e51dc76c5d9d4be220ec9c1aa5e8fdcf9abd8f303bcd88`.
+
+The first full-suite job survived the agent interruption but had already
+recorded SQLite failures while the host disk was full. Its logs were
+preserved under `target/diet-adopt-fix-2/disk-full-run/`, and the recorded
+job was stopped (exit 143). After disk space was freed, the full suite was
+restarted with the requested environment, Node 24.18.0 and the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` setting at ordinary nice 0 / Interactive
+process scheduling, as in the first repair's successful qualification.
+No test assertion, deadline, seed count or harness was changed.
+
+The fresh complete run passed: **`== 0 failure(s) in 2996 s`**, exit 0.
+All 220 Rust test binaries / 932 executions and workspace doctests passed;
+ordinary clients passed **2,004 tests with 9 existing skips**, including all
+legacy-work regressions, and **all 78 client model tests passed**. The
+full command was `env -u FORCE_COLOR CARGO_INCREMENTAL=0
+CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh` from `snapback4/`.
+The temporary launch job was removed after completion. Full log and exit
+receipt: `target/diet-adopt-fix-2/suite.log` and `suite.status.json`.
+`ref-check --verbose` passed: 510 LLP documents, 9,396 references, zero
+errors and zero unchecked references. `git diff --check` passed.

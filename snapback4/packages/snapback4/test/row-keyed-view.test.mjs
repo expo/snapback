@@ -22,7 +22,13 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
   const boundary = 'device:acquisition-boundaries:["conversations","byId",""]';
   const snapshot = { op: 'apply', first: true, page: {
     snapshot: true, generation: backend.generation, watermark: 7, more: false,
-    events: [{ table: 'conversations', kind: 'put', id: 'c', data: { id: 'c', title: 'kept' } }],
+    events: [
+      ['conversations', { id: 'c', title: 'kept' }],
+      ['members', { id: 'm', conversationId: 'c', principal: 'dev:bob', readUpTo: 0, joinedAt: 0 }],
+      ['messages', { id: 'a', conversationId: 'c', ordinal: 7, senderId: 'dev:alice', tombstone: false, until: null }],
+      ['messages', { id: 'b', conversationId: 'c', ordinal: 8, senderId: 'dev:alice', tombstone: false, until: null }],
+      ['unread', { id: 'm', member: 'm', value: 2, recountPending: false }],
+    ].map(([table, data]) => ({ table, kind: 'put', id: data.id, data })),
     acquisitions: [
       { table: 'conversations', index: 'byId', group: [], at: 0 },
       { table: 'conversations', index: 'byId', group: [], at: 1, floor: 'whole' },
@@ -32,6 +38,7 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
   next.generation++;
   next.schema.tables.conversations.columns.archived = 'Bool';
   next.schema.tables.conversations.defaults = { archived: { Literal: { Bool: false } } };
+  const unread = { op: 'query', name: 'unreadFor', viewer: 'dev:bob', args: { member: 'm' }, now: 1 };
 
   // Native still synthesizes exactly the work schema the old web build saved.
   // Use its canonical backend bytes and identity to exercise that persisted form.
@@ -55,6 +62,9 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
       assert.equal(state.generation, next.generation);
       assert.equal(state.backend_required, false);
       assert.equal(nativeMeta(boundary), 'whole');
+      const reply = ok(await native.call(unread));
+      assert.equal(reply.complete, true);
+      assert.equal(reply.data, 2);
       const adopted = ok(await native.call({ op: 'backend' }));
       assert.ok(adopted.schema.tables['$recount:unread']);
       assert.ok(adopted.schema.tables['$basis:unread']);
@@ -82,6 +92,9 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
     const reopened = new WebDevice(null, JSON.stringify(kept));
     try {
       assert.equal(invoke(reopened, { op: 'sync_state', capture: false }).acquired, true);
+      const reply = invoke(reopened, unread);
+      assert.equal(reply.complete, true);
+      assert.equal(reply.data, 2);
       assert.deepEqual(folded([...kept, ...JSON.parse(reopened.drain())]), folded(kept));
     } finally { reopened.free(); }
   });
@@ -94,9 +107,15 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
         // raw count. They must still invalidate acquisition, never cancel out.
         for (const name of ['extra1', 'extra2']) {
           const table = structuredClone(backend.schema.tables.conversations);
+          table.sync.horizon = null;
           table.constraints = table.constraints.filter(constraint => !constraint.Capabilities);
           successor.schema.tables[name] = table;
         }
+        const newRows = structuredClone(backend.programs.find(program => program.name === 'unreadRows'));
+        newRows.name = 'newRows';
+        newRows.body[0].Return.Scan.table = 'extra1';
+        for (const site of newRows.sites) site.table = 'extra1';
+        successor.programs.push(newRows);
       }
       const device = new WebDevice(mode === 'open' ? JSON.stringify(successor) : null, JSON.stringify(kept));
       try {
@@ -105,6 +124,17 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
         assert.equal(state.acquired, !addedPublicTables);
         assert.equal(state.generation, next.generation);
         assert.equal(state.backend_required, false);
+        const reply = invoke(device, addedPublicTables
+          ? { op: 'query', name: 'newRows', viewer: 'dev:bob', args: {}, now: 1 }
+          : unread);
+        if (addedPublicTables) {
+          assert.equal(reply.denied?.code, 'E_PREDICT', JSON.stringify(reply));
+          assert.equal(Object.hasOwn(reply, 'data'), false);
+          assert.equal(Object.hasOwn(reply, 'complete'), false);
+        } else {
+          assert.equal(reply.complete, true);
+          assert.equal(reply.data, 2);
+        }
         const saved = folded([...kept, ...JSON.parse(device.drain())]);
         const meta = key => new Map(saved).get(JSON.stringify(['m', key]));
         assert.equal(meta(boundary), addedPublicTables ? undefined : 'whole');
@@ -115,6 +145,20 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
           assert.equal(meta('device:backend-identity'), freshIdentity);
           assert.ok(!invoke(fresh, { op: 'backend' }).schema.tables['$recount:unread']);
         } finally { fresh.free(); }
+        if (addedPublicTables) {
+          // Once the successor snapshot arrives, this same query must expose
+          // its row, proving the earlier empty answer would have been a hole.
+          const row = { id: 'new', title: 'acquired only in the successor' };
+          invoke(device, { op: 'apply', first: true, page: {
+            ...snapshot.page, generation: successor.generation,
+            events: [...snapshot.page.events, { table: 'extra1', kind: 'put', id: row.id, data: row }],
+          } });
+          assert.equal(invoke(device, { op: 'sync_state', capture: false }).acquired, true);
+          const acquired = invoke(device, { op: 'query', name: 'newRows', viewer: 'dev:bob', args: {}, now: 1 });
+          assert.equal(acquired.complete, true, JSON.stringify(acquired));
+          assert.equal(acquired.data.length, 1);
+          assert.equal(acquired.data[0].id, row.id);
+        }
       } finally { device.free(); }
     });
   }
