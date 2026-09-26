@@ -6,9 +6,18 @@ use serde_json::{Value, json};
 // @ref LLP 3000.019#3.4 — inspecting residency must not copy or scan the held partition on every call.
 pub(crate) fn install(conn: &Connection) -> Result<(), RuntimeError> {
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
-    let installed: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_device_residency')", [], |r| r.get(0))?;
+    let installed: bool = tx.query_row("SELECT
+        EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_device_residency') AND
+        (SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'r'
+         AND name IN ('_device_residency_insert', '_device_residency_delete', '_device_residency_update')) = 3", [], |r| r.get(0))?;
     if installed { return Ok(tx.commit()?); }
-    tx.execute_batch("CREATE TABLE _device_residency (t INTEGER PRIMARY KEY, rows INTEGER NOT NULL, bytes INTEGER NOT NULL);")?;
+    // A table without all its triggers cannot certify the counters. Rebuild
+    // interrupted/partial installations atomically before reporting or writing.
+    tx.execute_batch("DROP TRIGGER IF EXISTS _device_residency_insert;
+        DROP TRIGGER IF EXISTS _device_residency_delete;
+        DROP TRIGGER IF EXISTS _device_residency_update;
+        DROP TABLE IF EXISTS _device_residency;
+        CREATE TABLE _device_residency (t INTEGER PRIMARY KEY, rows INTEGER NOT NULL, bytes INTEGER NOT NULL);")?;
     // Upgrade old devices in bounded maintenance chunks. Read only keys and
     // byte lengths, never row bodies. The transaction fences concurrent owners
     // and rolls the entire installation back on failure.
