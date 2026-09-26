@@ -63673,3 +63673,51 @@ lane. The unavailable `llp-orient` skill was replaced by direct corpus/guide
 orientation. Commands, conditional skips, forms, mutants and file-by-file
 changes are in `reports/20260926-p5-unread-range.md`. Local commits only;
 no push or publication.
+
+## 2026-09-26 — P5 round 2: provisional dependencies and honest page allowances
+
+Closed every finding from the two blind round-1 reviews. A provisional source
+row whose rule cannot be admitted now records an unknown fact; a covered range
+keeps its counted lower bound, incomplete and not speculative. Expired-image
+skips are unchanged. Prediction observes sequence fields throughout the
+predicate and member bounds, including residual ordinals outside the chosen
+index and empty ranges. It walks existing provisional-row metadata instead of
+all held confirmed history, with device/private work allowances intact.
+Successful predictions still succeed; dependent refusals queue as intent.
+
+The certificate includes member-fetch and certification charges per evaluated
+live view row and now represents the preexisting omitted source-rule probes.
+For a 100-row page, its 303 examined / 202 probe allowance covers the real
+300 / 100 receipt; a point allowance of 3 / 2 covers 3 / 1. `check` omits range
+plans for non-expiring sources. The expiry why card now qualifies its null
+meter-interrupt result as an ordinary aggregate.
+
+Evidence: 53 shared scenarios on memory, SQLite and wasm, including the
+reviewer's residual ordinal 7 becoming server ordinal 10007, a provisional
+member sequence, and the 20,000-message short-range prediction. That prediction
+visits only four source candidates on each native store, including its returned
+count. Reversed unequal bounds and null-last bounds both certify exact 2.
+All three requested surviving mutants are killed by behavioral failures,
+including probe exhaustion with a valid matching provisional insert. Final
+affected tests pass: device 7 + 23 + 10, core row views 13, sequence 12 + 4,
+server 6 + 18 + 1 + 3, CLI/certificate 71 + 20 + 5 + 7, guide 86 and wasm/client
+62. Borrowed predicate/comparison metadata preserves the wasm budget:
+2,024,909 B raw / 582,036 B gzip, +354 / +12 B from round 1, **58 B below**
+the unchanged 582,094 B ceiling. The full run reproduces that artifact.
+
+The one complete round-2 `scripts/test.sh` run exited 0 with the exact summary
+`== 0 failure(s) in 3119 s`. Every stage passed: client tests had 2,276 passes,
+0 failures and the 10 existing platform/optional-fixture skips; client models
+had 78 passes, including the 5,000 online / 5,000 local session sequences and
+3,000 integrated interleavings. Failure classifications: ours 0, baseline 0,
+environmental 0. No post-run repair or rerun was needed. Both earlier memory
+legacy readiness-timeout cases passed. Final references and diff checks pass.
+
+No design deviation, new index, migration, budget change or server accounting
+change. Whole, floors, ties, retained history, expired rows, fallback fences,
+private allowance and durable cursors retain their policy. Bounding the
+server's live-basis walk and changing remembered-answer expiry remain outside
+this lane. The complete file-by-file record, examples, commands, mutants,
+measurement and suite result are in `reports/20260926-p5-unread-range.md`.
+Only local commits with the requested Astra co-author footer; no push or
+publication.

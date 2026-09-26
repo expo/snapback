@@ -433,3 +433,219 @@ evidence), `8b57cda21` (certificate/check/guide and fallback fences), and
 The report and one appended round-1 journal entry follow in a documentation
 commit. Every round-1 commit has the requested Astra co-author footer. Nothing
 was pushed or published.
+
+## Round 2 — 2026-09-26: close both blind reviews
+
+Read both round-1 reviews in full (`p5-r1.astra.md`, NOT READY, and
+`p5-r1.grok.md`, READY WITH CHANGES), the lane prompt and the earlier report.
+All seven requested items are fixed; none is disputed. This section supersedes
+round 1's claims about complete sequence-selection observation and page
+certificate allowances. LLP 3000.020 revision 2 remains the design.
+
+### Findings and files
+
+1. **Unresolved provisional authority is unknown.**
+   `crates/snapback4-core/src/engine/authorized_point.rs` records a source-prefix
+   unknown fact only when a provisional row needs a rule and probe admission
+   fails. It still returns `(None, key)`, does not mark the result speculative,
+   and preserves previously counted rows as a lower bound. Expired-image and
+   definite-denial skips are unchanged. `engine/row_views/range_tests.rs` uses
+   a covered suffix, one settled match, one valid matching provisional insert
+   and one expired row. With room the count is exact 2; at
+   `used.rule_probes == ceilings.rule_probes`, the query returns pending 1 with
+   an unknown fact. The aborting prediction meter keeps its bound error and
+   the unknown/prediction signal used by the existing queue conversion.
+
+2. **Observe every sequence read by the predicate and member bounds.**
+   `engine/row_views.rs` visits the entire predicate's source and member fields,
+   rather than only sequence columns in the chosen index. It observes source
+   provisional rows even when the selected range is empty, and observes
+   provisional member sequence operands. `engine/sequences.rs` retains the
+   existing successful-prediction behavior and dependent-refusal conversion;
+   `local.rs` is unchanged. The shared residual-ordinal regression reproduces
+   Astra's `.at` horizon, `joinedAt = 4`, `readUpTo = 10000` and provisional
+   ordinal 7. A successful dependent read predicts; `require n > 0` queues.
+   After 10,000 server-only messages outside the `.at` range, the pending send
+   gets ordinal 10007 and the server accepts with result 1. A second scenario
+   covers a provisional member sequence, including cold reopen.
+
+3. **Inspect provisional metadata, not held confirmed history.**
+   `engine/sequences.rs` inspects the current runner's provisional IDs and the
+   persisted overlay's IDs, fetching only those rows and checking stable parent
+   pins. Rows whose eventual sequence could enter an empty suffix still count
+   as dependencies. `crates/snapback4-core/src/rows.rs` and
+   `engine/authorized_scan.rs` expose/forward the metadata accessor;
+   `crates/snapback4-device/src/store.rs`, `device.rs`, `memory.rs` and
+   `sqlite.rs` implement it using the existing base-row map/table. Memory seeks
+   by table/id; SQLite uses an ordered `id > ?` lookup. No new persistent
+   structure, index or migration. Metadata iteration, row decoding and fetches
+   spend the device work and shared private allowances; they do not add caller
+   charges. `device/deferred/recording.rs`, `tests/unread_range/counted.rs` and
+   `tests/w13g_review/counting.rs` forward the accessor. The 20,000-message,
+   `last 19999` case predicts a mark from 19997 to 19998 on all three device
+   configurations. Native visit instrumentation measures **4 source candidates**
+   on each store: two for recount and two for its returned count.
+
+   To retain the wasm budget, `maintain.rs` shares a borrowed predicate-field
+   visitor, and `maintain/row_key.rs` shares borrowed comparison-pair traversal.
+   The member-change check in `engine/row_views.rs` also avoids building copied
+   field sets. These replace metadata allocations without changing predicate
+   evaluation, comparison indexes, delta bounds or server charges.
+
+4. **Cover every evaluated live view row in the certificate.**
+   `crates/snapback4/src/scale.rs` shares the two fixed examined charges
+   (member fetch and live certification) between point and scan analysis,
+   multiplying by the number of evaluated view rows. It also analyzes the
+   source read rule, fixing the preexisting omitted source-authorization probes.
+   `crates/snapback4/tests/scale_row_ranges.rs` compares both bounds to actual
+   receipts for 100 independently readable conversations. Page: certificate
+   **303 examined / 202 probes**, receipt **300 / 100**. Point: certificate
+   **3 / 2**, receipt **3 / 1**. The conservative page lookahead remains. This
+   changes the certificate, not server execution or accounting.
+
+5. **No expiring range plan for a stored count.**
+   `crates/snapback4/src/verbs.rs` returns no device range when the source is
+   non-expiring. `packages/snapback4/test/unread-range.test.mjs` checks text and
+   JSON for that case; the existing positive expiring checks remain.
+
+6. **Qualify the guide's meter-interrupt sentence.**
+   `crates/snapback4-lang/src/guide/why/E_QUARRY_MAINTAIN_EXPIRE.md` now says
+   “ordinary aggregate.” Its tested quote in
+   `tests/fixtures/guide-fact-homes.json` matches. A row-keyed range cut remains
+   `{ value: L, recountPending: true }`, incomplete. All 86 guide tests pass.
+
+7. **Kill the surviving mutations.**
+   `crates/snapback4-device/tests/unread_range/cases.json` adds
+   `strongest-bound-first` (`readUpTo = 4`, `joinedAt = 0`, exact 2) and
+   `null-sibling-last` (`readUpTo = 4`, `joinedAt = null`, exact 2).
+   `lower_bound` itself was already correct and is unchanged. Both scenarios
+   run on memory, SQLite and wasm, including reopen. The JS fixture now
+   preserves an explicit null instead of defaulting it to zero. Removing the
+   admission unknown fact is caught by item 1's exhausted-probe test.
+
+`tests/unread_range.rs` and the JS runner also support the new server-accept
+step and omit supplied values when seeding member sequence fields.
+`tests/unread_range/measured.rs` now exercises the actual sequenced prediction
+path. There are **53 shared scenarios**, up from 48. Existing empty-range,
+floor/tie/null, history, flag, fallback and successful prediction cases remain.
+
+### Forms exercised
+
+| Form | Example and result |
+|---|---|
+| Strongest lower bound, independent of order | `.ordinal > m.readUpTo and .ordinal > m.joinedAt`: `(4, 0)` and `(4, null)` both certify 2. |
+| Residual sequence outside the horizon index | `.at > m.joinedAt and .ordinal > m.readUpTo`, horizon `.at`: a provisional ordinal-dependent refusal queues; the server later returns 1. |
+| Member sequence operand | `.ordinal > m.joinedAt`, with sequenced `joinedAt`: successful predictions remain; dependent refusal queues after cold reopen too. |
+| Short covered prediction | 20,000 sequenced messages, `last 19999 by .ordinal`, mark 19998: predicts exact 2. |
+| Page of live counts | `unread where .principal = viewer first 100`: certificate covers the real 300 examined / 100 probe charge. |
+| Non-expiring source | Remove `expire at .until`: stored-count semantics remain and `check` reports no range. |
+
+No new authoring syntax, diagnostic or design deviation. The exhausted-probe
+case uses the raw core boundary to place the request precisely at its probe
+ceiling; the admitted predicate/sequence/large-history scenarios execute on
+the real memory, SQLite and wasm devices. Source-visit instrumentation remains
+native-only; wasm asserts prediction, results and provenance.
+
+### Mutants and affected checks
+
+Each requested mutant was applied separately, compiled, failed behaviorally
+with `test result: FAILED. 0 passed; 1 failed;`, and was restored. No compiler
+failure is counted as a kill.
+
+| Mutant | Killing test |
+|---|---|
+| Let a later null veto a real bound | `null-sibling-last` |
+| Let `Ordering::Less` overwrite the current bound | `strongest-bound-first` |
+| Skip failed provisional rule admission without an unknown fact | `exhausted_provisional_rule_admission_keeps_a_covered_range_unknown` |
+
+All final affected checks passed before the full run:
+
+| Command/check | Result |
+|---|---|
+| Device `unread_range`, `row_keyed_views`, `row_view_expiry` | 7 + 23 + 10 passed; 53 scenarios on each native store. |
+| Core library `engine::row_views` | 13 passed, including query and aborting-meter probe exhaustion. |
+| Device `sequence_by`, `sequence_disclosure` | 12 + 4 passed. |
+| Server `row_view_accounting`, `row_view_disclosure`, `row_view_legacy`, `row_view_witness` | 6 + 18 + 1 + 3 passed; disclosure corpus unchanged. |
+| CLI `check`, `scale`, `scale_row_ranges`, `scale_windows_expiry` | 71 + 20 + 5 + 7 passed. |
+| Complete language `guide` | 86 passed. |
+| Node `unread-range.test.mjs` and `row-keyed-view.test.mjs`, serial | 62 passed, 0 failed, 0 skipped; 28.953 s, using the final wasm. |
+| Package build and wasm build | Passed. |
+
+The prior measurements remain: 3 source visits for a 3-row query in 20,000
+held rows; three badge reads share 8,168 candidates; server receipts remain
+identical with 0 or 10,000 unswept expired rows.
+
+### Wasm
+
+Rust 1.97.0, the unchanged repository wasm profile and `scripts/build-wasm.sh`,
+with wasm-bindgen and no wasm-opt:
+
+| Build | Raw wasm | gzip -9 |
+|---|---:|---:|
+| Original `992cec75c` | 2,021,689 B | 581,094 B |
+| Round 1 | 2,024,555 B | 582,024 B |
+| Round 2 | 2,024,909 B | 582,036 B |
+| Round-2 delta | +354 B | +12 B |
+| Cumulative lane delta | +3,220 B | +942 B |
+
+The unchanged **582,094 B** budget passes with **58 B** remaining. Borrowed
+metadata traversal resolved intermediate overruns; no ceiling, toolchain or
+profile was changed.
+
+### One complete round-2 run
+
+After all implementation and test changes were committed and all mutants
+restored, ran exactly once from `snapback4/`:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=12 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+
+Exit code **0**. Exact final summary:
+
+```text
+== 0 failure(s) in 3119 s
+```
+
+Every stage passed: cargo build (9 s), wasm build (24 s), docs budget (16 s),
+release guard (3 s), package typecheck (2 s), package build (2 s), chat app
+check (0 s), cargo test (976 s), chat app typecheck (1 s), Expo app typecheck
+(1 s), fixture wrapper tests (10 s), client tests (1,829 s), and client models
+(258 s). The full wasm build reproduced **2,024,909 B raw / 582,036 B gzip**.
+
+Client tests: **2,286 total, 2,276 passed, 0 failed, 10 skipped**. The skips
+are the same ten platform/optional-fixture checks enumerated in the round-1
+table: macOS media, managed organization/OIDC fixtures, and published-version
+compatibility binaries. Model tests: **78 passed, 0 failed, 0 skipped**,
+including 5,000 online session sequences, 5,000 local session sequences and
+3,000 integrated client interleavings. Both memory legacy old-page cases that
+timed out in round 0 passed here. All five new shared wasm scenarios and the
+non-expiring CLI check passed in this complete run.
+
+Failure classifications: **ours 0, baseline 0, environmental 0**. No repair
+or affected-test rerun was needed after the full suite, and it was not repeated.
+The exact log and exit status are `/tmp/p5-r2-test-sh.log` and
+`/tmp/p5-r2-test-sh.exit`.
+
+### Completion and scope
+
+No open round-2 implementation problem. Final reference/diff audit:
+
+```text
+ref-check: ok — 514 LLP docs, 9452 refs in 26813 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes.
+
+All changed source files stay below 1,500 lines; largest is `device.rs` at
+1,186. The original report and journal contents are preserved verbatim, with
+one round-2 report section and exactly one dated round-2 journal entry appended.
+
+The server's certification policy, unmetered live-basis walk, private allowance
+and durable cursors are unchanged. Remembered-answer expiry remains outside
+this lane. The broken `llp-orient` link was handled by direct corpus/guide
+orientation, as recorded in round 1. No new index or store migration, push or
+publication. Round-2 implementation commits are `1439977a3`, `7a7d252e5`,
+`743ae0f52` and `a5948761b`; the report and exactly one appended dated journal
+entry follow in a documentation commit. All carry the requested Astra footer.
