@@ -63914,3 +63914,49 @@ and both previously recorded timing-sensitive ephemeral tests passed unchanged.
 Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B below the unchanged
 582,094 B budget. Node 24.13.1, Bun 1.3.14; eight Cargo build jobs and dev/test
 debug info disabled. Exact output and exit are retained in the evidence folder.
+
+
+## 2026-09-26 — 0.4.4 lane K, round 8: expiry sweeps and facade identity complete the four review fixes
+
+Read Astra's rounds 6–7 review and addressed all four findings. Ordinary expiry
+timers now preserve their triggering deadline and use the clock-correction
+sweep: withdraw every due snapshot and expired remembered answer before any
+subscriber can roll time back. Every displayed server expiry advances its
+ordering barrier even when newer unexpired memory survives, preserving seq and
+highest. The facade synchronously withdraws a superseded answer before awaiting
+authority for its replacement. Freshness-only copies retain a stable internal
+answer identity; the facade approves that identity so a lingering re-read
+remounts with its answer in the first commit. New publications and resets get
+new identities and still wait for authority. Weak identity metadata adds no
+answer store or separate lifetime.
+
+Added 13 regressions: timer callback rollback on online/wasm/process; four
+real-device active/lingering cases using real mutations and unchanged server
+query bodies, preserving newer B after expiry, rollback and a released old body;
+ordering-fence coverage; held createApp session storage during replacement;
+freshness identity versus identical-payload publications/resets; Chromium
+useQuery/usePage first-commit remounts through createApp while a lingering
+replacement read is held; long-deadline timer clamping and rearming. Updated
+two facade expectations to the requested synchronous retirement behavior.
+Affected run: 316/316. Five independent mutations killed, with 14 behavioral
+failures plus the Chromium harness parent failure; every mutation restored.
+Reference audit: 513 LLP docs, 9,451 refs in 26,815 files, zero errors/unchecked.
+local.ts is 1,491 lines and the Chromium test is 1,444; no source-limit increase.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 941 s`,
+exit 0. No introduced, baseline or environmental failures; no repair or rerun.
+Rust: 3,573 passed, 0 failed, 19 ignored (485 s); whole guide 86/86. Main client
+batch: 2,317 passed, 0 failed, 10 existing skips (2,327 tests); all seven separate
+shards passed (client group 193 s). Models: 78/78 (250 s), including both
+5,000-sequence session models. All 13 new regressions and earlier timing-sensitive
+ephemeral cases passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B,
+1,000 B below the unchanged 582,094 B budget. Node 24.13.1, Bun 1.3.14;
+eight Cargo build jobs and dev/test debug info disabled.
+
+Implementation commits: 508b6379c, 9b847020f, d654838f6, each with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Updated the client
+reference and reports/20260926-lane-k-answers-stay.md. No requested fix deferred
+or redesigned; added the review's missing timer-clamping evidence. No engine,
+authorization, meter, outbox, public API/syntax, version or budget change.
+No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
+no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.

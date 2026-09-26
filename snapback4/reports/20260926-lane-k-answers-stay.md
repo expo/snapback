@@ -1374,3 +1374,175 @@ Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
 commands: `commands.txt` in that directory. This final documentation commit
 adds only this report and the single dated round-7 journal entry; qualified
 code and tests are unchanged. No push or publication.
+
+## Round 8 — 2026-09-26: complete expiry sweeps and facade answer identity
+
+Read the lane prompt, the rounds 0–7 report and Astra's complete rounds 6–7
+review (`k2-r7.astra.md`, NOT READY). Implemented all four final-round findings
+and the review's missing long-deadline timer coverage. Grok supplied no verdict
+for rounds 6–7; no second-review approval is claimed. No push or publication.
+
+### Findings and files
+
+Paths below are relative to `snapback4/`.
+
+1. **Timer expiry sweeps before callbacks.**
+   `packages/snapback4/src/read-expiry.ts` leaves the triggering deadline in
+   place until the two-phase sweep captures it. `src/client.ts` and
+   `src/local.ts` route timer expiry and clock corrections through the same
+   `sweepExpiries` function. Every due snapshot and expired remembered entry
+   is withdrawn before any subscriber runs; notifications and refetch follow.
+   Local wakeups retain their separate device/server clock provenance.
+   `test/keep-clock.test.mjs` adds online/wasm/process timer versions of
+   Astra's rollback reproduction: deliver only the active watch's expiry
+   timer, roll back in its subscriber, inspect and remount the lingering peer
+   within that callback, and prove its answer and expired recovery memory
+   are already gone. The new virtual long-deadline case checks the
+   2,147,483,647 ms clamp, rearming for the remainder without early expiry,
+   and preservation of the triggering deadline for the sweep.
+2. **Every displayed server expiry fences old bodies.**
+   `src/local-reads.ts` separates the ordering fence from deletion.
+   `RememberedAnswers.expire(key, now)` always advances the barrier with
+   `seq` and `highest` preserved, deleting memory only when its own deadline
+   is due. `src/local.ts` invokes it for every displayed server expiry,
+   using the sweep's captured server time. `test/keep-clock.test.mjs` adds
+   four real-device cases: wasm/process × active/lingering. Actual mutations
+   publish A, remember B with a later deadline without replacing displayed A,
+   then supply an older-deadline body at a higher store cut. That body's read
+   starts before A expires and is held until after expiry and rollback; every
+   later request fails. Both the watch and a subsequent one-shot recovery must
+   return B, and no notification may publish the held old body. Server query
+   bodies are unchanged; the fixture owns clock samples and transport timing.
+   `test/remembered-answers.test.mjs` additionally checks preserved B, rejection
+   of pre-expiry bodies/refusals, highest-cut learning, post-expiry replacement,
+   and deletion exactly when memory's own deadline expires.
+3. **A facade replacement retires its predecessor synchronously.**
+   `src/app-client.ts` compares internal answer identities before awaiting
+   authority. A real replacement withdraws the superseded display immediately;
+   freshness-only changes preserve it and forward its current metadata.
+   `test/keep-observation.test.mjs` reproduces the issue through `createApp`:
+   A has deadline D; a background read replaces raw A with B, whose deadline
+   is later, while `sessionStore.get` is held. A must be withdrawn and notify
+   before authority resumes, including past D. B remains hidden until the
+   storage check finishes. The existing loading/denied facade tests now expect
+   withdrawal as soon as the replacement arrives, as the requested behavior
+   deliberately changes their former expectation of keeping old data.
+4. **Facade remounts recognize the same stale answer.**
+   `src/read-observation.ts` gives each publication/reset a new internal
+   identity and preserves it across freshness-only snapshot copies. Identity
+   metadata lives in a WeakMap, outside the public `Read` shape; the facade's
+   weak approval set retains identity tokens, not answers. Old snapshots keep
+   their identity even if a caller republishes the identical `Read` object.
+   `src/app-client.ts` approves and peeks by this identity.
+   `test/keep-observation.test.mjs` checks synchronous staleness without
+   loading, approved peeking, and withholding of both republished and reset
+   identical payloads until authority returns.
+   `test/react.test.mjs` adds Chromium `useQuery` and `usePage` cases through
+   `createApp`: authorize, unmount, deliver a change while lingering, hold the
+   replacement read, remount, and inspect the first layout effect's read and
+   DOM. That first commit contains the answer/editor with `fresh: false` and
+   `since`; StrictMode replay adds neither loading nor a duplicate read.
+
+`packages/snapback4/CLIENT-AND-OPERATIONS.md` states first-commit reuse during
+a lingering re-read and synchronous retirement of a facade's superseded answer.
+This report and one appended dated `JOURNAL.md` entry record the round.
+
+The existing forms compile and run; no public API or Quarry syntax was added:
+
+```tsx
+const inbox = useQuery(api.inbox, {}, { keep: true });
+const pages = usePage(api.thread, { conversationId }, { keep: true });
+const watch = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+### Tests and mutation evidence
+
+**13 new regressions**, plus two updated facade expectations. Before the fixes,
+all three timer reproductions failed, all four newer-memory device cases
+returned the held old body, the createApp replacement case kept expired A,
+and both new Chromium remount cases first committed loading. The new helper
+long-deadline test also failed its triggering-deadline assertion before the
+fix; clamping itself was already correct.
+
+After fixes: clock suite **28/28**; expanded clock/ordering **48/48**;
+facade/Chromium **73/73**; final broader affected run **316/316**, with no
+failures, skips or cancellations. The broader run includes every keep test,
+remembered ordering, publication/session/authority fences, ownership and
+membership withdrawal, presence/composed refresh, ephemeral watches, app
+handles/retirement, Chromium and README examples.
+
+Five independent mutations were killed, with **14 expected behavioral
+failures**, plus the React harness parent failure:
+
+| Mutation | Failing behavioral tests |
+| --- | ---: |
+| Clear the triggering deadline before the sweep | 3 |
+| Skip the barrier when preserving newer remembered data | 5 |
+| Keep superseded facade data while authority waits | 3 |
+| Lose answer identity when marking stale | 2 (Chromium) |
+| Remove long-deadline timer clamping | 1 |
+
+Generated JavaScript was mutated except for the identity case, where Chromium
+loads TypeScript source. Every file was restored in `finally`. No mutation is
+committed. Logs, commands and exits are retained in
+`target/lane-k-round8-evidence/`: `timer-before.log`, `memory-before.log`,
+`facade-before.log`, `react-before.log`, the corresponding positive logs,
+`affected.log`, `mutations.py`, `mutations.json` and `mutation-*.log`.
+Package build/typecheck and docs budget pass. Reference audit:
+**513 LLP docs, 9,451 refs in 26,815 files, 0 errors, 0 unchecked**.
+Largest changed source: `local.ts`, **1,491 lines**; Chromium test: **1,444**.
+
+Implementation commits, each with the requested co-author trailer:
+`508b6379c` (timer sweep), `9b847020f` (unconditional expiry barrier),
+`d654838f6` (facade replacement and stable identity, including Chromium).
+
+### Scope, decisions and open problems
+
+No requested finding was rejected, deferred or redesigned. Added the review's
+low-priority timer-clamping regression alongside the four requested fixes.
+No new answer store/lifetime, engine, authorization, meter, outbox, version,
+public syntax/API or wasm-budget change. No delegated agent, push or publication.
+No known unresolved requested defect remains. Earlier baseline cadence/startup
+and notification-timing test risks remain recorded in rounds 3 and 6; their
+unchanged cases passed this round's affected run.
+
+Orientation used the installed `llp-orient` skill at
+`/home/ccheever/sb4-intent/lane-z/vendor/llp/skills/llp-orient/SKILL.md` because
+this lane's vendor link remains broken. Governing context: LLP 3000 §7,
+LLP 2000.000 §7.2, LLP 3000.001 repair B, LLP 3000.007 §6.5/§18.2,
+LLP 3000.018 §3.2 and LLP 3000.019 §3.3 with the live-linger and round-8
+rulings. The reads card and client reference were read. The root and 3000.019
+remain in `llp/current/`; neither is in `llp/foundation/`. No new LLP decision
+or hand-off is needed; the supervisor-owned RFC is unchanged.
+
+### Exact round-8 full qualification
+
+Required `scripts/test.sh` ran **once**, unmodified, and finished:
+
+```text
+== 0 failure(s) in 941 s
+```
+
+Exit **0**. **No failures** to classify as introduced, baseline or
+environmental. No repair, affected rerun or second full run was needed.
+
+- Rust: **3,573 passed, 0 failed, 19 ignored**, in **485 s**; whole guide
+  **86/86**.
+- Main client batch: **2,327 tests; 2,317 passed, 0 failed, 10 existing skips**.
+  All seven separate acquisition/server shards passed. Client group: **193 s**.
+- Models: **78 passed, 0 failed, 0 skipped**, in **250 s**, including both
+  5,000-sequence session models.
+- All **13 new regressions**, both updated facade expectations, prior
+  publication/withdrawal/expiry/custody guards, and Chromium cases passed.
+  The earlier timing-sensitive ephemeral cases passed unchanged.
+- Package typecheck/build, documentation budget, release guard, both app
+  typechecks and fixture wrappers passed.
+- Wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B** from round 7;
+  unchanged budget **582,094 B**, headroom **1,000 B**.
+
+Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`. Full log and exit:
+`target/lane-k-round8-evidence/test-sh.log` and `test-sh.exit`.
+The final documentation commit adds only this report and the one dated
+round-8 journal entry; qualified implementation and tests are unchanged.
+No push or publication.
