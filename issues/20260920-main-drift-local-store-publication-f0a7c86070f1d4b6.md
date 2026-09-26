@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:f0a7c86070f1d4b63b4543297c992c904deaa86b7984e7543396ca1126727ce9`
 **Causal landing:** `6abe83b639ae602d7d6ad5e001e0558b1322484a` (Park Snapback 1-3 tickets and keep Snapback 4 as the working set)
 **Detected at:** `cca6a2d0b1fc14f337f592c880e260242b97fd9b`
-**Last observed:** `05382d59f040a3c3ae0f77be9b7e3a7a663f6204`
+**Last observed:** `71f77c16cad32f068a4395e9d86b4689a1b13683`
 **Attribution:** `first-parent-signature-epoch`
 **Related:** LLP 0175 §D2.1
 
