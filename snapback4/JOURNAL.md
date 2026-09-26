@@ -63664,3 +63664,54 @@ OS-crash injection into SQLite's atomic commit. Native iOS/Android application
 qualification remains outside this lane. No known open round-1 defect remains.
 Commits, file-by-file changes, exact checks, mutation evidence and limitations
 are in [the round-1 report](reports/20260926-lane-r-residency.md#round-1--2026-09-26).
+
+## 2026-09-26 — Lane R round 2: ownership belongs to the database
+
+Accepted every Astra/Grok round-1 finding. Backend commands and hosts now
+flock the database inode exclusively; native device processes use compatible
+shared locks and exclude backend writers. The guard retains its canonical
+path and descriptor, compares fstat/stat after acquisition, retries changed
+names before SQLite, and validates the retained identity on later opens.
+Server workers retain the guard through their SQLite lifetimes. Address
+records use no-follow/nonblocking opens, descriptor regular-file checks and
+0600 permissions before truncation; symlinks, FIFOs, directories and hard
+links refuse with E_STORE. Removing/replacing serve.lock cannot release
+ownership. Run retries cannot follow a retargeted alias into another host's
+store. The witness fixture now follows the same descriptor drop order.
+
+Native residency uses the store's generation-checked read transaction.
+Stale handles return E_GENERATION, including through the public process
+client. Exact page totals, actual interrupted installation with a competing
+installer, address-record replacement, live database/WAL/SHM relocation,
+retargeted retries, live-server device exclusion and multiple device owners
+are tested. Mutants adding one byte, returning 1 GiB, committing counters
+before triggers, or opening/closing an extra database descriptor all fail.
+The last exposes SQLite's POSIX-lock pitfall in DELETE mode; restored locks
+also coexist correctly with SQLite in WAL mode. No mutant remains.
+
+Local implementation commits are 1e01ec296, 6c8aec280 and d3a000f94, each with
+the requested GPT-6 Astra co-author trailer. Focused checks passed admission
+20, residency 3, installation boundary 1, ownership 3, guide 86 and client
+residency 5. The single complete `bash scripts/test.sh`, at 6c8aec280, exited
+1 with **`== 1 failure(s) in 3082 s`**. Its only failure, **wasm build**, was
+ours: the residency wrapper lacked the store method's native feature gate.
+All other checks passed: Rust 3,590 passed / 19 ignored; fixture wrapper 9;
+clients 2,220 passed / 10 existing environment-gated skips; models 78 passed.
+No failing or cancelled test case, and no baseline/environmental failure.
+
+After d3a000f94 fixed that gate, only affected checks were rerun: wasm build,
+release guard, native residency 3/3, witness barrier 1/1, package build and
+client residency 5/5 all passed. The full script was not rerun. Rebuilt wasm
+is **2,021,689 B raw / 581,094 B gzip**, +0/+0 by size and 1,000 B below the
+unchanged **582,094 B** budget; the artifact hash differs from the retained
+artifact used by the full client run, so no digest-identity claim is made.
+The rebuilt artifact passed the focused client test. Node was 24.13.1, Rust
+1.97.0, Bun 1.3.14 and wasm-bindgen 0.2.127; client files were serialized.
+
+No requested finding remains open. Shared device ownership is the compatible
+multiple-device choice; unsafe address records reuse E_STORE. No authority,
+disclosure, meter, budget or Quarry change, push or publication. Interruption
+uses SQLite's real installation boundary, not power-loss injection; relocation
+proves exclusion, not a live backup/migration protocol. Mobile app builds stay
+outside this lane. The [round-2 report](reports/20260926-lane-r-residency.md#round-2--2026-09-26)
+contains file-by-file changes, exact tests, mutation evidence and limitations.

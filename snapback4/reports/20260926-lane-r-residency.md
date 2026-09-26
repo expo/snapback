@@ -401,3 +401,190 @@ Evidence: `full-suite.log`, `full-suite.exit`, `full-suite-commit.txt`, the
 logs under `target/lane-r1-evidence/`. This report and the one dated round-1
 journal entry are the only changes after qualification. No push or package
 publication occurred. No known open round-1 problem remains.
+
+## Round 2 — 2026-09-26
+
+Read the round-1 report, the original lane prompt, and both blind reviews in
+full: Astra `r2-r1.astra.md` (NOT READY) and Grok `r2-r1.grok.md` (READY WITH
+CHANGES). Every finding is accepted. No counterexample is claimed against a
+review. Orientation follows LLP 3000 §4, the current LLP 3000.019 §3.4, the
+residency/refusals cards, and LLP 3000.011.004.000 §2's pre-admission retry
+boundary. The newer ownership brief supersedes that older document's live
+external-CLI compatibility; direct SQLite contention remains covered.
+
+### Ownership design
+
+Ownership is a Unix `flock` on the **database file**, held by one raw descriptor
+opened before SQLite. Backend commands and hosts take exclusive ownership;
+`device` processes take compatible shared ownership. Thus two native process
+devices may use SQLite's existing transaction and generation protocol, while
+neither can coexist with a backend owner. A backend command likewise refuses
+while any device owner remains. This is the requested compatible-device choice.
+
+Acquisition resolves the canonical database path, opens without following a
+new final-component symlink, locks, then compares descriptor and path metadata
+(device/inode). If the name disappeared or changed identity, acquisition drops
+that descriptor and retries, bounded to 16 attempts, before SQLite is opened.
+The guard retains the resolved path and descriptor. Every guarded SQLite open
+and retry uses that retained path and checks its identity again; `run` cannot
+acquire A and then follow a retargeted invocation alias into B. Moving and
+relinking the live database cannot defeat its inode lock. Replacing/removing
+`serve.lock` has no bearing on admission.
+
+No guard validation opens and closes a second database descriptor. Server
+state retains an `Arc` to the guard through background/request workers and
+drops its engine/readers before its last ownership reference. Command/device
+locals similarly drop SQLite before the guard. The cross-process test proves
+SQLite still excludes a competing writer in both WAL and DELETE journal
+modes. An injected extra raw open/close makes that test fail in DELETE mode,
+exposing precisely the POSIX-lock pitfall in the brief.
+
+`serve.lock` is only an address hint. Creation uses `0600`, `O_NOFOLLOW`, and
+`O_NONBLOCK`; descriptor metadata must show a regular file before truncation.
+Directories, FIFOs and symlinks refuse with existing `E_STORE`, a path and a
+repair/retry instruction. Hard links are also refused, including a hard link
+to the database. Address reads (including doctor) use no-follow, bounded
+reads. Missing or replaced address records cannot grant ownership; an empty
+record reports `owned by another CLI command or a server starting up (address
+pending);`, distinct from the static recovery sentence.
+
+### Findings and changed files
+
+Paths are relative to `snapback4/`.
+
+| Finding | Files and resulting behavior |
+| --- | --- |
+| 1: unguarded device writer | `crates/snapback4/src/verbs.rs` acquires shared database ownership before device initialization. A running dev host causes `E_STORE_BUSY` before side tables or `clear_rows` can write. `src/store_owner.rs` implements compatible shared device/exclusive backend locks. |
+| 2: destructive address symlink/nonregular file | `src/store_owner.rs` verifies the opened record before truncation, creates/tightens to `0600`, refuses symlinks/FIFOs/directories/hard links, and bounds address reads. `src/verbs/adoption.rs` uses the same safe address reader. |
+| 3: directory-entry ownership and retargeted retries | `src/store_owner.rs` retains the database descriptor and canonical path. `src/verbs/run_admission.rs`, `src/verbs.rs`, `src/verbs/releases.rs`, and `src/verbs/witness/smoke.rs` open through that guard. `src/serve.rs` retains ownership through server workers, and `src/serve_adoption.rs` uses it on initial and generation-recovery opens. `src/project.rs` attaches a release using the already guarded store and removes its obsolete unguarded opener. `src/serve_tests.rs` sets no owner for in-memory test hosts. |
+| 4: stale native residency | `crates/snapback4-device/src/sqlite_residency.rs` reads through `Store::read_transaction`, which checks the handle's adopted generation in the same snapshot. `src/sqlite.rs`, `src/store.rs`, `src/device.rs` and `src/call.rs` carry the mutable store borrow to that transaction. Stale public clients now receive `E_GENERATION`. |
+| 5: missing regression evidence | `crates/snapback4-device/src/sqlite_residency_tests.rs` interrupts the real installer with a competing connection. `tests/residency.rs` pins exact page bytes and stale-owner behavior across adoption. `packages/snapback4/test/device-residency.test.mjs` checks both through the public native client. `crates/snapback4/src/store_owner_tests.rs` proves SQLite lock coexistence and refuses a changed/gone canonical path. `tests/run_admission/identity.rs` holds the six new filesystem/process scenarios; `tests/run_admission.rs` registers them and pins the empty-record owner phrase. |
+| Documentation | `crates/snapback4-lang/src/guide.rs`, `src/guide/codes.rs`, `src/guide/refusals.rs` and `tests/guide/definitions.rs` describe database ownership and generation refusal. `packages/snapback4/CLIENT-AND-OPERATIONS.md` explains compatible devices and the address-only record. This report and one appended journal entry record qualification. |
+
+No new Quarry spelling is introduced. Existing forms still apply:
+
+```sh
+snapback4 dev --port 4400
+# Same database, another terminal:
+snapback4 run backfill
+# E_STORE_BUSY at .../store.sqlite; no work admitted.
+snapback4 device .snapback4/store.sqlite backend.json
+# E_STORE_BUSY before device initialization.
+```
+
+```ts
+const held = await client.residency(); // native totals are exact allocated SQLite page bytes
+// If another handle adopts a new schema, this stale client's next call rejects E_GENERATION.
+```
+
+### Tests and negative probes
+
+Focused checks on the restored implementation: admission **20/20**, native
+residency **3/3**, installation boundary **1/1**, ownership tests **3/3**
+(including the subprocess fixture), complete guide **86/86**, and public client
+residency **5/5**, with no skips. Package build and frozen dependency install
+also passed. Logs are `target/lane-r2-*.log`; full qualification is under
+`target/lane-r2-evidence/`.
+
+The six new admission scenarios prove:
+
+- deleting and replacing a running host's address record still refuses a
+  second dev, mutation and token command;
+- moving the live database with its WAL and SHM, then relinking its old name,
+  still refuses dev/run/token and creates no destination address record;
+- retargeting A's alias to live B after a real writer made `run put` wait
+  writes only A after release (A has two rows, B retains one);
+- symlinks to the database and an unrelated file, a directory, FIFO and
+  database hard link all refuse without changing either file's bytes;
+- `device` cannot clear a running server's row or create any device side table;
+- two native device processes open compatibly, exclude backend writers, and
+  retain exclusion until the last device exits.
+
+The installation test pauses the actual installer after backfill at its first
+trigger via SQLite's authorizer, refuses that statement, and verifies complete
+rollback. At the barrier a competing installer gets SQLite BUSY and cannot see
+a committed counter table; after rollback it installs and verifies all three
+triggers and exact Unicode counters. This is injected SQL failure at the real
+transaction boundary, not OS power-loss/crash injection.
+
+| Deliberate mutation | Observed rejection |
+| --- | --- |
+| `totalBytes = pages * page_size + 1` | Exact total assertion: 237,569 versus 237,568; 0 passed / 1 failed, exit 101. |
+| `totalBytes = 1 << 30`, kind still `sqlite-pages` | Exact total assertion: 1,073,741,824 versus 237,568; 0 passed / 1 failed, exit 101. |
+| Commit the counter table before installing triggers | Competing connection sees a table (1 versus 0), and interruption leaves a committed remnant; 0 passed / 1 failed, exit 101. |
+| Open and close another raw database descriptor during guard validation | A DELETE-mode competing SQLite writer succeeds despite the held write transaction; lock-coexistence test fails, exit 101. |
+
+All mutations were restored before the final full invocation.
+
+### Qualification, deviations and open problems
+
+Implementation commits before the full run: `1e01ec296` (native generation
+fence and atomic/exact accounting evidence), `6c8aec280` (database ownership,
+compatible devices, address-record safety and process regressions). Both carry
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+Ran **`bash scripts/test.sh` exactly once in round 2**, at `6c8aec280`.
+It exited **1**, with the literal summary:
+
+```text
+== 1 failure(s) in 3082 s
+   wasm build
+```
+
+The sole failure is **lane-owned**, not baseline or environmental: the new
+`Device::residency` wrapper lacked `#[cfg(feature = "native")]`, while its
+store method already had that gate. The web build therefore failed with
+Rust E0599 (`no method named residency` for `S`). The script continued through
+every other check; source stayed fixed during the complete invocation.
+
+All remaining checks passed: **3,590 Rust tests passed, 19 ignored**; fixture
+wrapper **9 passed**; client suite **2,220 passed, 10 skipped** (2,230 tests);
+seeded client models **78 passed**. There were no failed or cancelled test
+cases. The ten client skips are the same platform/external-artifact cases
+listed in round 0 above, and none is a lane regression. Rust took 973 seconds,
+serialized client files 1,818 seconds, and client models 258 seconds.
+
+Commit **`d3a000f94`** repairs the feature gate and corrects the witness unit
+fixture's descriptor order: it closes SQLite before acquiring/releasing a
+raw ownership descriptor. It carries the same requested co-author trailer.
+Per the brief, the full script was **not** repeated. These affected checks
+then all passed, with no skips:
+
+- `bash scripts/build-wasm.sh` — exit 0.
+- `bash scripts/check-release-guard.sh` — exit 0.
+- `cargo test -p snapback4-device --test residency` — 3 passed, exit 0.
+- `cargo test -p snapback4 --bin snapback4 smoke_barrier_advances_only_the_commit_clock`
+  — 1 passed, exit 0.
+- `bun run --cwd packages/snapback4 build` — exit 0.
+- `node --test packages/snapback4/test/device-residency.test.mjs`
+  — 5 passed, exit 0, against the rebuilt wasm package.
+
+The repaired wasm measures **2,021,689 B raw / 581,094 B gzip**, **+0 / +0 B**
+against the prior rounds' measurements and **1,000 B below the unchanged
+582,094 B budget**. This is a size comparison, not a digest-identity claim:
+the retained artifact used by the full client run and the rebuilt artifact
+have different SHA-256 hashes, both saved in the evidence directory. The full
+client run used that retained artifact after the failed wasm build; the
+post-repair residency tests used the freshly rebuilt artifact. The repair
+removes a native-only wrapper from web compilation and changes no web behavior.
+
+Toolchain actually used on this host: Node **24.13.1**, Rust **1.97.0**, Bun
+**1.3.14**, wasm-bindgen **0.2.127**; no wasm-opt. The original prompt's PATH
+setup was used. Build jobs and Rust test processes were capped at eight;
+`RUST_TEST_THREADS=4`, debug symbols/incremental builds disabled, and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. Full log, exit, source commit and the
+six repair-check logs are in `target/lane-r2-evidence/`.
+
+No requested finding remains open, and no finding was rejected. There is no
+behavior deviation from the round-2 rule. Engineering choices are shared
+device ownership, bounded acquisition retries, reuse of `E_STORE` for unsafe
+address records, and rejecting hard links as well as the required symlinks and
+nonregular files. No authorization/disclosure rule, runtime meter, wasm budget,
+Quarry spelling, version or publication pin changed. Address deletion or
+replacement can lose the owner-address hint, but never the lock. Relocation
+tests establish exclusion, not a live-file migration or backup protocol.
+
+Evidence remains scoped to this Linux host, process clients and wasm. No
+native iOS/Android app build or OS power-loss injection is claimed. External
+SQLite writers that do not participate in `flock` still use SQLite's own
+locking and the existing bounded CLI retry. No push or publication occurred.
