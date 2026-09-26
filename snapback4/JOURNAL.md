@@ -63539,3 +63539,37 @@ remained 4002.386/4003.594 ms; floored 1.9-second requests took
 admission attempt and zero dispatches. Two public createApp owners recovered
 one execution's sent/replayed receipt through a journal save outage. These are
 targeted harness measurements, not cold-network or native-UI qualification.
+
+## 2026-09-26 — LLP 3000.008.002.000 landed: admission boundary, starter intents, the client card (lead)
+
+Charlie asked for a three-family direction check of LLP 3000.008.002.000 and then
+its implementation. Opus 5.5 max, Grok 4.7 xhigh and GPT-6 Astra max each said
+RIGHT WITH CORRECTIONS: the RFC's Clique receipt rule inverted the brief (d-01
+was a grader misreading; leavers drop out), the read gaps were the client's own
+fence and commit resets, and calibration 21's builder worked from the README, C&O
+and cards on the Expo tier, several of whose examples taught its mistakes.
+Revision 3 records both review rounds (llp/reviews/3000.008.002.000-*).
+
+What landed: `MutateOptions.waitSeconds` (0 returns at custody: native 0.55 ms,
+web 0.41 ms versus 4,002 ms by default) and `run(args, options)` on the React
+write hooks; `usePendingWrite(...).restoring`; per-intent outcomes with saved text
+in both starters (web and `init --expo`), clear-at-submit composers that give
+refused text back, loading-stable thread shells that keep earlier pages; the
+`client` card (`guide client`, 82 lines) deferring receipts to the `receipts`
+card; the reads card's fence split into withheld versus partial answers; the jobs
+card's inbox split so a withholding total no longer hides it; README/C&O example
+fixes; the mock and `createApp` online custody fixes from the code reviews.
+
+Overlap: LLP 3000.019 (sb4-intent program) was filed in parallel from the same
+run and owns read retention (P3(1)–(3)), the outbox view (P3(4)) and
+`N_SYNC_ORDER` (P1). Lane L3's device measurements for P1 — an order mismatch is
+partial data; totals, extrema and point misses past the horizon withhold — are in
+`issues/20260926-snapback4-query-withholding-shapes.md`. Ticketed: the same-id
+wait policy (`issues/20260926-snapback4-same-id-wait-policy.md`) and the Clique
+grader's d-01 (`issues/20260926-clique-grader-d01-departure-clause.md`).
+
+Owed: the full `scripts/test.sh` on the landed commit once the 0.4.3 publication
+frees this host (lanes' full suites were red only with load-sensitive cases that
+pass isolated and at base; the web starter witness times out at `Local data
+acquired` at the exact base too); a publication; the RFC's §8 cold build and
+native witness.
