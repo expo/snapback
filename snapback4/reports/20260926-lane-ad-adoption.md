@@ -785,3 +785,228 @@ appended journal entry accompany the three implementation commits; all commits
 carry the requested co-author trailer. Full log and exit status remain in
 ignored `target/lane-ad-evidence/r2-test-sh.log` and `r2-test-sh.exit`.
 No push or publication.
+
+## Round 3 — 2026-09-27 (final review round)
+
+Read the lane prompt, this report, and both round-2 reviews. Addressed only the
+five requested findings. The `/changes` ruling stands. No push, publication,
+new syntax, new diagnostic, budget increase, or adoption/chunking redesign.
+
+Orientation used the existing LLP 3000.019 §3.6 query/sync design and LLP
+3000.007 §9.2 / LLP 3000.009 §5.3 worker ownership. The lane's `llp-orient`
+symlink is broken; read the same skill from the sibling lane-z vendor checkout.
+The maintained-view guide still describes the adopted behavior. Durable session
+revocation, atomic adoption, generation checks and existing meters remain in
+force; no LLP decision changed and no new LLP was needed.
+
+### Changes, file by file
+
+Paths are relative to `snapback4/`.
+
+- `crates/snapback4/src/dev_worker.rs`: `Supervisor` owns a background thread,
+  the optional `DevWorker`, revision-triggered discovery and ticking. Its drop
+  signals and joins that thread. `DevWorker` still owns durable session-family
+  revocation, status persistence, child termination and reaping. Those actions
+  can wait for adoption without preventing HTTP admission.
+- `crates/snapback4/src/serve.rs`: production `serve_requests` checks supervisor
+  health and accepts HTTP without calling `tick`. Bearer resolution and query
+  execution only use the writer fallback for an explicitly identified memory
+  store. Retryable authentication/storage errors retain retryable HTTP status.
+  The poison-test fixture initializes the reader policy from its actual store.
+- `crates/snapback4/src/serve_readers.rs`: cache whether the store is in memory
+  when installing its factory. A missing file-reader factory refuses without
+  taking the writer; opening another reader also propagates its failure.
+  `read_head` only falls back for memory. A test-only fault counter selects the
+  reader-open failure site without exhausting the test process's descriptors.
+- `crates/snapback4/src/serve_sync.rs`: snapshot and stream checkout failures
+  return retryable `E_STORE`/503 for file-backed stores. Memory still uses its
+  writer. Bearer failures preserve retryability.
+- `crates/snapback4/tests/serve_adoption/worker.rs`: runs the production accept
+  loop and supervisor with a real Node child. An authorizer holds SQLite inside
+  adoption; the child exits, and supervision queues for the writer. Query and
+  sync must return correct responses within two seconds before release. After
+  release it proves revocation of the exited child's family, restart, and joined
+  shutdown with no session marker or live owned child.
+- `crates/snapback4/tests/serve_adoption/reader_failure.rs`: seven fault cases
+  cover bearer resolution, query evaluation, pending-query head, sync head,
+  snapshot checkout, stream checkout, and an absent factory. With the writer
+  held, each returns 503 with retryable `E_STORE`, within two seconds, without
+  even queuing for the writer. Restoring the factory permits successful retry.
+- `crates/snapback4/src/serve_ephemeral.rs`: adds a test hook in the gap before
+  memory fallback's second writer acquisition; production authority is unchanged.
+- `crates/snapback4/tests/serve_adoption/authority.rs`: adds both expiry and
+  revocation against `Store::memory()`, specifically in that second-lock gap.
+  The request must fail `E_AUTH`, with no ephemeral change or durable commit.
+- `crates/snapback4-core/src/store/adoption_tests.rs`: six physical-corruption
+  cases now cover both guards present, both absent, and only the corrupting
+  operation's guard absent, for INSERT and UPDATE separately. Each requires
+  `E_INDEX_KEY_BYTES` and unchanged generation, sequence, rows, indexes, logs,
+  commits, proof and trigger definitions after rollback.
+- `crates/snapback4/src/serve_adoption.rs`: successful `adopt_candidate` owns
+  status recovery alongside its existing refusal handler; the watcher no longer
+  duplicates recovery. `tests/serve_adoption/failure.rs` checks `/dev/status`
+  equals the actual rejection (`E_STORE: not authorized`) and clears after a
+  successful attempt through the same production function.
+- `crates/snapback4/src/serve_tests.rs`,
+  `crates/snapback4/tests/serve_adoption/mod.rs`, and
+  `crates/snapback4/tests/serve_ephemeral/mod.rs`: manual adoption/native handoffs
+  now install the reader factory as production does instead of relying on an
+  implicit read-side writer repair. Existing assertions remain. The adoption
+  module registers the two new regressions. Largest changed source: 1,499 lines.
+- `JOURNAL.md`: one appended dated round-3 entry. This report gains this section;
+  earlier rounds and their measurements are retained.
+
+### Forms and outcomes
+
+No language change. Existing examples exercised in this round:
+
+- `view originalTotals: count posts where .parent = null by .author` and the
+  other five M8 views still compile and adopt at scale.
+- `view totals: count items by .owner` plus a query returning `totals[viewer]`
+  remains pending until adoption publishes; `POST /q/who` and `POST /sync`
+  answer while an exited worker waits for that same adoption.
+- `mutation typeNow(id: id)` with `upsert typing[owner = viewer] {}` against
+  the four-second ephemeral table now has memory-fallback expiry/revocation
+  coverage: the wire result is `state: failed`, `why.code: E_AUTH`.
+- An injected file-reader failure yields HTTP 503 and
+  `{"denied":{"code":"E_STORE","retryable":true,...}}` without writer access.
+  `/dev/status` reports `adoption: "E_STORE: not authorized"` after the injected
+  rejection and `adoption: null` after success.
+
+### Affected verification and mutation experiments
+
+After restoring every deliberate mutation: CLI **122 passed, 2 intentional
+ignores**; core adoption **6/6**; lifecycle integration **20/20**; scale engine
+and HTTP witnesses **1/1 each**. The crash helper is exercised by its parent
+regression and the ignored HTTP scale test was run explicitly.
+
+Every experiment below compiled, ran its regression, and exited **101 with
+`test result: FAILED`**. All source was restored before the final affected
+checks and the full suite. Detailed logs and the exact mutation script are
+retained under ignored `target/lane-ad-evidence/r3-*`.
+
+| Deliberate mutation | Failing regression / observed failure |
+|---|---|
+| Put `worker.tick()` back on the production accept loop, with inline worker ownership | `production_accept_loop_reads_while_exited_worker_waits_for_adoption`: HTTP read times out while adoption remains held |
+| Restore writer repair when the reader factory is absent | `failed_file_reader_refuses_without_waiting_for_the_writer`: HTTP read times out |
+| Remove the memory-only restriction from bearer fallback | Same regression: bearer read times out |
+| Remove the memory-only restriction from `read_head` | Same regression: pending-query head times out |
+| Remove the query reader-error refusal | Same regression: query times out |
+| Remove the snapshot reader-error refusal | Same regression: snapshot checkout times out |
+| Remove the stream reader-error refusal | Same regression: stream checkout times out |
+| Delete only memory fallback's `mutation_authority` | `bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps`: `sent` instead of `failed` |
+| Change `installed != 2` to `installed == 0` | `physical_key_edits_invalidate_a_matching_proof`: adoption succeeds as generation 2 instead of refusing |
+| Delete `refused()` in `adopt_candidate` | `failed_candidate_clears_pending_names_and_allows_a_later_adoption`: status is null instead of `E_STORE: not authorized` |
+| Delete successful status recovery | Same regression: status remains non-null after successful adoption |
+
+Two preliminary authoring failures were mine and fixed before final verification:
+adding a rollback assertion to the wrong fixture caused a compile error, and
+an early authentication response initially mapped retryable reader errors to
+401 instead of 503. A broad CLI run at the inherited **1,024-descriptor soft
+limit** hit `Too many open files` and caused five HTTP tests to fail. That run
+is environmental, retained as `r3-cli.log`. Repeating with **65,536 descriptors**
+passed all 122 tests (`r3-cli-final.log`, then `r3-cli-restored.log`). No product
+limits changed; the same shell limit is used for the final suite. Bun frozen
+installation passed without changes, Node 24.13.1 / Bun 1.3.14 / Rust 1.97.0.
+
+### Scale measurement
+
+Same prepared M7 fixture: **1,447,960 rows / 9,077,125 indexes**, test-profile
+opt-level 1, eight Cargo jobs, dev/test debug information disabled, standard
+SQLite cache and FULL durability. Distribution and synthetic-fixture limits
+remain those documented above.
+
+| Measurement | Round 3 |
+|---|---:|
+| Key proof/guard check | 0.125 ms |
+| Remaining preflight | 1,807.968 ms |
+| Projection/index work | 474.954 ms |
+| Capture, included in derived work | 770.057 ms |
+| Derived work | 1,455.168 ms |
+| Validation | 474.121 ms |
+| Metadata | 1.793 ms |
+| Commit/checkpoint | 2,329.793 ms |
+| Whole engine adoption | **6,545 ms** |
+| Detached query proved inside transaction | **525 µs** |
+| Injected transaction hold | 562 µs |
+| HTTP witness adoption | **6,521 ms** |
+| HTTP `/changes` wait | **6,523 ms** |
+| HTTP query while adoption held | **5.991 ms** |
+| HTTP sync while adoption held | **8.270 ms** |
+
+Per-view folds: dailyLikes **13.040 ms / 5,008 visits**; dailyPosts **226.457 ms /
+50,228**; originalTotals **219.848 ms / 50,228**; receivedLikes **12.401 ms /
+5,008**; receivedReplies **209.751 ms / 50,228**; receivedReposts **2.914 ms /
+1,004**. No adoption performance change was attempted in this round.
+
+Reproduce with the round-1 scale and HTTP commands above. New focused tests:
+
+```sh
+cargo test -p snapback4 --bin snapback4 adoption_tests
+cargo test -p snapback4-core --lib store::adoption_tests
+cargo test -p snapback4 --test lifecycle
+```
+
+### Scope, commits and open reproductions
+
+No deviation from the five-finding scope. The production-loop regression
+injects its adoption hold in-process and runs a real supervised Node child;
+it does not depend on scale timings or replace the loop with Host's dispatcher.
+Worker cleanup remains allowed to wait for the writer during shutdown.
+A file-backed reader failure refuses instead of falling back; after a missing
+factory, a writer-owned factory installation restores it, while ordinary failed
+reader opens retry from the existing factory. Reads never repair it through the
+writer.
+
+The one-second adoption target remains unmet (run `m7_to_m8` with the opt-in
+scale environment). `/changes` still waits for durable reconnect admission
+(run `scale_changes_waits` with `SNAPBACK4_ADOPTION_HTTP_DB`); the supervisor's
+0.4.4 ruling and existing follow-up ticket are unchanged. No new unresolved
+failure was found in affected verification. The final suite result follows.
+
+Implementation commits, all with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`:
+`caa0f52c9` (one missing guard), `9eb386f41` (authority/status coverage),
+`94a837d44` (worker supervision), `a5b9b7105` (reader refusals).
+
+### Round-3 final full-suite result
+
+Ran `scripts/test.sh` **exactly once**, after the affected tests, all restored
+mutation experiments and both scale runs. From `snapback4/`:
+
+```sh
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ulimit -n 65536
+bash scripts/test.sh > target/lane-ad-evidence/r3-test-sh.log 2>&1
+```
+
+Exact summary, **exit status 1**:
+
+```text
+== 1 failure(s) in 967 s
+   wasm build
+```
+
+Every full-suite failure: **baseline — wasm build**, and no others.
+**2,025,652 B raw / 582,551 B gzip**, against the unchanged **582,094 B** budget:
+**457 B over**, with **round-3 size delta 0 B**. Reproduce with
+`bash scripts/build-wasm.sh`. This is the same artifact size as rounds 1–2;
+no budget increase or clean-full-suite claim. **No introduced or environmental
+failure in this final run.**
+
+- Rust workspace tests/doctests: **3,678 passed, 0 failed, 22 ignored**;
+  cargo-test phase **502 s**. CLI **122 passed, 2 ignored**; lifecycle **20/20**;
+  whole guide **86/86**.
+- Client main batch: **2,377 passed, 10 skipped**; seven separate shards:
+  **56 passed**; client phase **194 s**.
+- Seeded client models: **78/78**, **256 s**. Fixture wrapper tests: **9/9**.
+- Cargo build, docs budget, release guard, package typecheck/build, chat
+  check/typecheck and Expo typecheck all passed.
+
+The reference audit reports **513 LLP docs, 9,504 refs in 26,973 files,
+0 errors, 0 unchecked** (`r3-ref-check.log`). `git diff --check` passes, and no
+changed Rust source exceeds 1,500 lines. Restored the suite-generated native
+fixture Cargo.lock version update. Full log and exact exit status remain in
+ignored `target/lane-ad-evidence/r3-test-sh.log` and `r3-test-sh.exit`.
+Only this report and the one appended journal entry accompany the four scoped
+implementation commits. No push or publication.

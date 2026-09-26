@@ -65024,3 +65024,46 @@ fixture wrapper checks pass. Final reference audit: 513 LLPs / 9,503 refs /
 zero errors or unchecked. The generated native fixture lockfile was restored.
 Implementation commits are 39b76c1b6, 888931efb and bb9b8bce5; the evidence
 commit completes this entry. No push or publication.
+
+### 2026-09-27 — Lane AD round 3: supervision and reader failure isolation
+
+Addressed the five final-round review findings. Worker supervision now runs on
+its own owned, joined thread; durable status/session revocation and child
+shutdown stay with DevWorker. A production accept-loop regression holds an
+adoption transaction, exits a real Node child, and requires correct query/sync
+responses while supervision waits on the writer. It also proves revocation,
+restart, and shutdown reaping. File-backed reader-open failures now refuse with
+retryable E_STORE without taking the writer; seven injected-failure cases cover
+auth, query, pending head, sync head/snapshot/stream and missing factory. Only
+explicit memory stores use the read-class writer fallback.
+
+Added expiry and revocation in the memory ephemeral fallback's second lock gap;
+insert-only-missing and update-only-missing index guards with corruption through
+the unguarded operation and complete rollback; and /dev/status assertions naming
+a refused adoption then clearing on production success. All eleven deliberate
+mutations fail, including inline accept-loop ticking, each read fallback, the
+memory authority deletion, `installed == 0`, omitted refusal recording and
+omitted recovery. Restored CLI: 122 passed / 2 intentional ignores; core adoption
+6/6; lifecycle integration 20/20. The initial CLI run hit its shell's 1,024-file
+limit; rerun at 65,536 passed. This changes the test shell, not product limits.
+
+The unchanged prepared scale fixture (1,447,960 rows / 9,077,125 indexes) adopted
+in 6,545 ms, with a 525 µs detached query proved inside the held transaction.
+HTTP witness: adoption 6,521 ms, query 5.991 ms, sync 8.270 ms, /changes 6,523 ms.
+The one-second target is still unmet, and /changes still waits for durable
+reconnect admission under the supervisor's accepted 0.4.4 ruling. No chunking,
+new syntax, diagnostic, budget change, push or publication. Four small commits
+carry the requested co-author trailer; report and full evidence are in
+reports/20260926-lane-ad-adoption.md and ignored target/lane-ad-evidence/r3-*.
+
+Final qualification: ran scripts/test.sh exactly once after all affected checks,
+mutations were restored, and both scale runs. Exact summary: `== 1 failure(s) in
+967 s`, group `wasm build`, exit 1. The sole failure is baseline: 2,025,652 B raw /
+582,551 B gzip against the unchanged 582,094 B cap, 457 B over and **0 B change
+from round 2**. No introduced or environmental failure in the final run. Rust
+3,678 passed / 0 failed / 22 ignored (502 s); whole guide 86/86; client main
+2,377 passed / 10 skipped plus 56 shard tests (194 s); models 78/78 (256 s);
+fixture wrappers 9/9. Cargo build, docs budget, release guard, package and app
+checks passed. Reference audit: 513 LLP docs / 9,504 refs / zero errors or
+unchecked. Restored the generated native fixture lockfile change. All changed
+Rust files fit 1,500 lines; no push or publication.
