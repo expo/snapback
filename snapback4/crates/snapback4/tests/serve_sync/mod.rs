@@ -1,5 +1,7 @@
 use super::*;
 
+mod concurrent;
+
 const SOURCE: &str = "use personas alice\ntable items:\n  n: int\n  public 'generation fixture'\n  update <- allow\n  sync public\nmutation bump():\n  item = items['one'] ! else NOT_FOUND\n  update items['one'] {n: item.n + 1}\n";
 const PERSONA: &str = "x-snapback-persona: alice\r\n";
 static NEXT_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
