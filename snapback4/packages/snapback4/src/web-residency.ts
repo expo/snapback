@@ -1,4 +1,4 @@
-import type { Residency } from "./residency.ts";
+import type { Residency } from "./contract.ts";
 import type { Change } from "./web.ts";
 
 const encoder = new TextEncoder();

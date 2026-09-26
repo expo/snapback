@@ -1,18 +1,4 @@
-import type { Refusal } from "./contract.ts";
-
-/** Physical local rows, including predictions and retained/expired images still
- * stored. Counts confer no query authority. Media caches are separate. */
-export interface Residency {
-  /** UTF-8 stored row payload bytes, excluding keys and indexes. */
-  readonly tables: Readonly<Record<string, { readonly rows: number; readonly bytes: number }>>;
-  readonly totalBytes: number;
-  /** SQLite allocated pages (including free pages; excluding WAL/SHM files),
-   * or UTF-8 logical persistence record keys + values (before IDB packing).
-   * Neither is RSS or an estimate of IndexedDB's physical disk allocation. */
-  readonly totalBytesKind: "sqlite-pages" | "logical";
-  /** Allocated wasm linear memory shared by this realm's devices, not live heap. */
-  readonly wasmHeapBytes?: number;
-}
+import type { Refusal, Residency } from "./contract.ts";
 
 export function residencyError(why: Refusal): Error {
   return Object.assign(new Error(`${why.code}: ${why.message}`), why);
