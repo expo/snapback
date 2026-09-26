@@ -7,7 +7,6 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 static DEV: AtomicBool = AtomicBool::new(false);
 static SIGNAL: AtomicI32 = AtomicI32::new(0);
-static ADDRESS_CLEANUP: AtomicBool = AtomicBool::new(false);
 static WORKER_CLEANUP: AtomicBool = AtomicBool::new(false);
 
 struct Line<const N: usize> { bytes: [u8; N], len: usize }
@@ -46,7 +45,6 @@ impl<const N: usize> Write for Line<N> {
 
 pub(crate) fn generation(next: u64) { GENERATION.store(next, Ordering::Release); }
 pub(crate) fn stopping() -> bool { SIGNAL.load(Ordering::Acquire) != 0 }
-pub(crate) fn address_cleanup() { ADDRESS_CLEANUP.store(true, Ordering::Release); }
 pub(crate) fn worker_cleanup() { WORKER_CLEANUP.store(true, Ordering::Release); }
 
 fn signal_name(signal: i32) -> &'static str {
@@ -86,7 +84,7 @@ extern "C" fn signal_received(signal: libc::c_int) {
     let _ = line.write_str(" signal=");
     line.number(signal as u64);
     line.send();
-    if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) && (WORKER_CLEANUP.load(Ordering::Acquire) || ADDRESS_CLEANUP.load(Ordering::Acquire)) {
+    if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) && WORKER_CLEANUP.load(Ordering::Acquire) {
         SIGNAL.store(signal, Ordering::Release);
     } else {
         // Terminate immediately when there is no cleanup, and preserve fatal
@@ -132,11 +130,6 @@ pub(crate) fn install(verb: &str) -> Result<(), String> {
 
 pub(crate) fn finish(result: Result<(), String>) -> i32 {
     let signal = SIGNAL.load(Ordering::Acquire);
-    if signal != 0 && !WORKER_CLEANUP.load(Ordering::Acquire) {
-        // The dev address has been removed. Preserve the pre-existing OS signal
-        // status for servers without a worker child.
-        unsafe { libc::signal(signal, libc::SIG_DFL); libc::raise(signal); }
-    }
     if signal != 0 { return 128 + signal; } // The handler already reported the reason, before cleanup.
     let (status, reason) = match result { Ok(()) => (0, "server loop returned".to_owned()), Err(reason) => (1, reason) };
     let mut line = Line::<4096>::new();

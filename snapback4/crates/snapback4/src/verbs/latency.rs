@@ -1,12 +1,12 @@
 //! The live server owns latency; doctor never samples by running operations.
 // @ref LLP 3000.019#3.7 — a short default summary, all operations on request, dev-only reset.
 use super::{Options, adoption, work_records};
-use crate::{project::Project, serve::latency::Snapshot};
+use crate::serve::latency::Snapshot;
 use serde_json::Value;
 
-pub(super) fn read(_project: &Project, host: &Value, reset: bool) -> Option<Snapshot> {
+pub(super) fn read(host: &Value, reset: bool) -> Option<Snapshot> {
     let path = if reset { format!("/dev/latency/reset?store_id={}", host["storeId"].as_str()?) } else { "/dev/latency".into() };
-    let response = adoption::request_port(u16::try_from(host["port"].as_u64()?).ok()?, if reset { "POST" } else { "GET" }, &path)?;
+    let response = adoption::request(host["address"].as_str()?.parse().ok()?, if reset { "POST" } else { "GET" }, &path)?;
     if response["storeId"] != host["storeId"] { return None; }
     serde_json::from_value(response).ok()
 }
@@ -27,14 +27,12 @@ pub(super) fn doctor(options: &Options) -> i32 {
     if !options.flags.contains_key("latency") { return fail("--reset requires --latency; run snapback4 doctor --latency --reset"); }
     if options.flags.contains_key("release") { return fail("doctor latency uses a running dev server; run snapback4 dev and snapback4 doctor --latency (serve inspection uses GET /dev/latency with a service token)"); }
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => return fail(&error.to_string()) };
-    let host = match if options.flags.contains_key("store") {
-        snapback4_core::Store::open_read_only(&work_records::store_path(options)).ok()
-            .and_then(|store| store.meta("store_id").ok().flatten()).and_then(|id| adoption::host(&project, &id))
-    } else { adoption::project_host(&project) } {
-        Some(host) => host,
-        None => return fail("no running dev server for this store; start snapback4 dev, then retry snapback4 doctor --latency"),
+    let host = match adoption::host(&project, options) {
+        Ok(Some(host)) => host,
+        Ok(None) => return fail(adoption::NO_HOST),
+        Err(error) => return fail(&error),
     };
-    let Some(snapshot) = read(&project, &host, options.flags.contains_key("reset")) else { return fail("the dev server did not return latency; restart snapback4 dev with this CLI, then retry snapback4 doctor --latency"); };
+    let Some(snapshot) = read(&host, options.flags.contains_key("reset")) else { return fail("the dev server did not return latency; restart snapback4 dev with this CLI, then retry snapback4 doctor --latency"); };
     if options.json { println!("{}", serde_json::to_string(&snapshot).unwrap()); }
     else { for line in lines(&snapshot, true) { println!("{line}"); } }
     0

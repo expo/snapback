@@ -150,12 +150,10 @@ fn latency_panicking_handler_excludes_withheld_request_body_cleanup() {
     assert!(total < arrived.as_secs_f64() * 1000.0 + 50.0, "panic cleanup entered total: {result}");
 }
 
-#[test]
-fn latency_small_json_total_includes_blocked_socket_write() {
+// Constrain real TCP buffers before connecting, so final response writes block
+// when the client stops reading. Shared by JSON and held-poll regressions.
+fn constrained_socket() -> (Server, TcpStream) {
     use std::os::fd::{AsRawFd, FromRawFd};
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
-    // Constrain both real TCP buffers so a 16 KiB JSON response (below the
-    // 32 KiB chunking threshold) must wait for its reader to resume.
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let buffer: libc::c_int = 1024;
     let set_buffer = |fd, option| {
@@ -167,7 +165,7 @@ fn latency_small_json_total_includes_blocked_socket_write() {
     let fd = unsafe { libc::socket(libc::AF_INET, libc::SOCK_STREAM, 0) };
     assert!(fd >= 0);
     assert_eq!(unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) }, 0);
-    let mut reader = unsafe { TcpStream::from_raw_fd(fd) };
+    let reader = unsafe { TcpStream::from_raw_fd(fd) };
     set_buffer(reader.as_raw_fd(), libc::SO_RCVBUF);
     // Set the receive window before the handshake; changing it afterwards can
     // leave the peer enough previously advertised credit for the entire reply.
@@ -179,6 +177,13 @@ fn latency_small_json_total_includes_blocked_socket_write() {
     target.sin_addr.s_addr = u32::from_ne_bytes([127, 0, 0, 1]);
     assert_eq!(unsafe { libc::connect(reader.as_raw_fd(), (&target as *const libc::sockaddr_in).cast(), std::mem::size_of_val(&target) as _) }, 0);
     reader.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    (server, reader)
+}
+
+#[test]
+fn latency_small_json_total_includes_blocked_socket_write() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
+    let (server, mut reader) = constrained_socket();
     reader.write_all(b"POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").unwrap();
     let request = server.recv().unwrap();
     let sample = latency::Sample::new(&request, &host.shared.latency).unwrap();
@@ -229,4 +234,48 @@ fn latency_disconnected_asset_records_exactly_one_sample_and_refusal() {
     let result = snapshot(&host);
     assert_eq!(result["operations"]["/assets (download)"]["n"], 1);
     assert_eq!(result["operations"]["/assets (download)"]["refused"], 1);
+}
+
+
+#[test]
+fn latency_held_poll_total_includes_blocked_final_frame_write() {
+    use snapback4_core::{Value, value::object};
+    // The final invalidation list is larger than the constrained socket buffers.
+    // The actual changes handler holds a poll, emits a heartbeat, then wakes
+    // after these tables are seeded; no substitute responder or clock is used.
+    let tables: Vec<_> = (0..160).map(|n| format!("table{n}_{}", "x".repeat(96))).collect();
+    let source = format!("{SOURCE}{}", tables.iter().map(|name| format!("table {name}:\n  n: int\n  public\n")).collect::<String>());
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &source);
+    let (server, mut stream) = constrained_socket();
+    write!(stream, "GET /changes?wait=25&heartbeat=1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{PERSONA}Content-Length: 0\r\n\r\n").unwrap();
+    let request = server.recv().unwrap();
+    let sample = latency::Sample::new(&request, &host.shared.latency).unwrap();
+    let shared = host.shared.clone();
+    let worker = thread::spawn(move || sample.run(|| handle(request, &shared)));
+    // A one-byte buffer prevents read-ahead from freeing the final frame's window.
+    let mut reader = BufReader::with_capacity(1, stream);
+    assert!(head(&mut reader).contains("Transfer-Encoding: chunked"));
+    let mut heartbeat = [0; 6]; reader.read_exact(&mut heartbeat).unwrap();
+    assert_eq!(&heartbeat, b"1\r\n\n\r\n");
+    {
+        let mut engine = lock(&host.shared.engine);
+        engine.seed(tables.iter().map(|table| (table.clone(), object([("id", Value::Id("row".into())), ("n", Value::Int(1))])))).unwrap();
+        host.shared.durable_committed(&engine);
+    }
+    let mut first = [0]; reader.read_exact(&mut first).unwrap();
+    thread::sleep(Duration::from_millis(200));
+    let mut bytes = first.to_vec(); reader.read_to_end(&mut bytes).unwrap();
+    worker.join().unwrap();
+    let frame = String::from_utf8(bytes).unwrap();
+    let (length, payload) = frame.split_once("\r\n").unwrap();
+    let length = usize::from_str_radix(length, 16).unwrap();
+    assert!(length > 16 * 1024);
+    assert_eq!(&payload[length..], "\r\n0\r\n\r\n");
+    let reply: Json = serde_json::from_str(&payload[..length]).unwrap();
+    assert_eq!(reply["tables"].as_array().unwrap().len(), tables.len());
+    let result = counted(&host, "/changes", 1);
+    let total = result["operations"]["/changes"]["total"]["max"].as_f64().unwrap();
+    println!("held poll final frame {length}B; socket reads held 200ms: total={total:.3}ms");
+    assert!(total >= 200.0, "final frame write missing from total: {result}");
+    assert_eq!(result["operations"]["/changes"]["refused"], 0);
 }

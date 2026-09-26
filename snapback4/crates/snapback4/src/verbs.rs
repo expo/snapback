@@ -691,11 +691,16 @@ pub fn doctor(options: &Options) -> i32 {
         };
         lines.push(format!("native    {} declared: {}; {built}; {toolchain}", if native_jobs.len() == 1 { "program" } else { "programs" }, native_jobs.join(", ")));
     }
-    let temporary_host = if options.flags.contains_key("store") || options.flags.contains_key("release") { None }
-        else { adoption::project_host(&project).filter(|host| host["temporary"] == true) };
-    if let Some(host) = temporary_host {
+    let host = match adoption::host(&project, options) {
+        Ok(host) => host,
+        Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
+    };
+    if host.is_none() && !options.flags.contains_key("release") {
+        lines.push(format!("latency   {}", adoption::NO_HOST));
+    }
+    if let Some(host) = host.as_ref().filter(|host| host["temporary"] == true) {
         lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"].as_str().unwrap_or("unknown"), host["generation"]));
-        latency_snapshot = latency::read(&project, &host, false);
+        latency_snapshot = latency::read(host, false);
         if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
         if let Some(reason) = host["adoption"].as_str() {
             ok = false;
@@ -709,10 +714,13 @@ pub fn doctor(options: &Options) -> i32 {
             if let Ok(Some(status)) = store.meta("worker:status") { lines.push(format!("worker    last report: {status}")); }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
-            let host = store.meta("store_id").ok().flatten().and_then(|id| adoption::host(&project, &id));
+            if host.as_ref().is_some_and(|host| store.meta("store_id").ok().flatten().as_deref() != host["storeId"].as_str()) {
+                eprintln!("E_INPUT at doctor: the dev server serves a different persisted store; run doctor in that server's project with its current store");
+                return 1;
+            }
             let now = host.as_ref().and_then(|h| h["now"].as_i64()).unwrap_or_else(snapback4_core::now_ms);
             if let Some(host) = &host {
-                latency_snapshot = latency::read(&project, host, false);
+                latency_snapshot = latency::read(host, false);
                 if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
                 if let Some(active) = host["generation"].as_u64() {
                     if active.to_string() != generation {

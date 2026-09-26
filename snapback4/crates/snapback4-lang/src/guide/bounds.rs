@@ -122,14 +122,19 @@ few; `--json` gives milliseconds. Reset between phases with
 `snapback4 doctor --latency --reset` (dev only). Timings cover completed HTTP
 requests, including action waits and held change polls, since startup or reset;
 they describe the load you ran, not a latency guarantee. Requests that never
-acquire the engine have zero wait. Doctor finds a running dev server in the
-same project, including `dev --fresh` and `--memory`. `GET /dev/latency` also
-works on `serve` with a live service token; reset remains dev-only.
+acquire the engine have zero wait. Doctor finds persisted dev through its store
+address. For `dev --fresh` or `dev --memory`, pass `--url` with the loopback
+address dev printed at startup; the server must belong to the same project.
+`GET /dev/latency` also works on `serve` with a live service token; reset
+remains dev-only.
 
 ```sh
 snapback4 doctor --latency --reset
 # Run your application's load, then inspect the new window:
 snapback4 doctor --latency --json
+# For a fresh or memory server, use its printed address on both commands:
+snapback4 doctor --latency --reset --url http://127.0.0.1:4400
+snapback4 doctor --latency --json --url http://127.0.0.1:4400
 ```
 
 ### The scale certificate

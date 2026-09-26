@@ -66151,3 +66151,121 @@ and `r2-test.exit`; targeted checks, mutation logs and the reference check are
 beside them. Merge commit **211767588**, fixes/design/evidence **94374fb39**;
 this final verification append has its own co-authored commit. No push or
 publication.
+
+## 2026-09-27 — 0.4.4 lane LT round 3: persisted discovery, explicit temporary-server URLs
+
+Read the lane prompt, rounds 0–2, LLP 3000.019 §3.7, and both round-2
+reviews (Astra READY; Grok NOT READY). Applied the supervisor's final-round
+ruling on `sb4-intent/lt-latency`. Read-only `llp-orient` used the populated
+sibling lane-r2 skill because this checkout's link is still broken. The
+context is LLP 3000 §4/§7, LLP 3000.019 §3.4 for database ownership and §3.7
+for timing and inspection. No delegation, integration merge or publication.
+
+**Changes, by file.** Deleted `src/dev_address.rs` and its obsolete unit
+suite, `tests/latency/discovery.rs`. Removed the module and registration from
+`main.rs` and `serve.rs`; `lifecycle.rs` removes only LT's address-cleanup
+signal branch. Persisted dev still uses lane R's unchanged `store_owner.rs`,
+resolved database inode and `serve.lock` announcement. All three dev modes
+write no additional discovery file. Symlinked `.snapback4` startup again has
+lane R's behavior: an existing target store reopens and serves successfully.
+Creating a new database through a symlinked data directory was already refused
+by lane R's `private_fs::directory`; that pre-LT behavior is unchanged.
+
+`verbs/adoption.rs` restores persisted lookup via `store_owner::inspector_port`
+and the persisted store identity, and adds explicit `--url` selection. Both
+paths read `/dev/status`, require the server's canonical project to equal
+doctor's own, and retain its `temporary` flag. A wrong project is named in the
+refusal before latency inspection or reset. Literal IPv4/IPv6 loopback and
+`localhost` HTTP origins are accepted; localhost maps directly to 127.0.0.1,
+without DNS. Credentials, non-root paths, queries, fragments, non-loopback
+addresses and non-HTTP schemes are refused with an `E_INPUT` rewrite. This
+is local inspection with consistency checks, not process authentication.
+
+`verbs.rs` shares that selection for ordinary doctor, retains unquoted
+temporary-store identity and persisted-store health, and explains `--url` when
+there is no persisted host. `verbs/latency.rs` sends inspection/reset to the
+selected address, retaining response store-identity and reset precondition
+checks. `main.rs` lists `--url` in help. The bounds card and LLP 3000.019 §3.7
+teach the printed URL for fresh and memory servers; the card's lead and Quarry
+blocks are unchanged. No new diagnostic code, meter, authorization rule or client API.
+
+**Forms exercised.** Persisted `snapback4 dev --no-watch --port 0` remains
+inspectable with `snapback4 doctor`, `snapback4 doctor --json`,
+`snapback4 doctor --latency`, `snapback4 doctor --latency --json`, and
+`snapback4 doctor --latency --reset --json`. After
+`snapback4 dev --fresh --no-watch --port 0` or the `--memory` spelling, use
+its printed address, for example `snapback4 doctor --url http://127.0.0.1:4400`,
+`snapback4 doctor --latency --url http://127.0.0.1:4400`,
+`snapback4 doctor --latency --json --url http://127.0.0.1:4400`, and
+`snapback4 doctor --latency --reset --json --url http://127.0.0.1:4400`.
+The URL can also inspect a persisted host. A fresh server can coexist with
+persisted dev: plain doctor selects persisted dev; its explicit URL selects
+the temporary server. No Quarry forms changed.
+
+**Regression evidence.** `tests/latency.rs` retains the original default,
+all-operation, reset and >32-KiB snapshot cases. It replaces record-specific
+cases with printed-URL inspection of both temporary spellings; no-file
+assertions for all three modes; simultaneous hosts and server-reported
+lifetime; stale `serve.lock` store identity; cross-project refusal through
+both address sources for ordinary/JSON/read/reset forms; non-loopback URL
+refusal and localhost; actual IPv6 loopback inspection/reset; and reopening
+an existing symlinked store with its original identity and a successful query.
+The URL parser's unit test includes userinfo, misleading hostname, alternative
+IP spelling and control-character cases.
+
+`tests/latency/duration.rs` shares the existing constrained-TCP helper with a
+new real changes-handler test. A held poll emits its heartbeat, wakes on a
+seed commit, and sends a **17,324-byte** final table-invalidation frame. The
+client reads one byte of that frame, then withholds reads for **200 ms**.
+The unchanged production completion stamp measured **205.037 ms**. Moving
+`finished(refused)` before `write_response_frame` compiled and failed the new
+regression with **4.169 ms**, Cargo exit **101**; the original file was restored
+byte for byte, and the entire binary unit target passed afterward. Production
+`serve_changes.rs` is unchanged. The previous post-frame body-drain test stays.
+
+Targeted verification: binary unit suite **134 passed, 0 failed, 2 ignored**;
+CLI latency **9/9**; HTTP framing **2/2**; lifecycle **20/20**; lane R ownership
+and run admission **23/23**; whole guide **86/86**; native-opening **6/6** after
+the package build. Frozen Bun install made no changes. The first CLI test
+construction incorrectly expected `storeId` in the CLI's typed snapshot
+(the HTTP envelope alone carries it) and attempted symlinked creation instead
+of reopening an existing store; both fixture assumptions were corrected.
+The final CLI set passes. The two ignored measurement tests were not rerun:
+this round changes discovery and tests, not histogram recording. No source
+file exceeds 1,500 lines. No requested change was deferred.
+
+Toolchain: Node **24.13.1**, Bun **1.3.14**, Rust **1.97.0**, wasm-bindgen
+**0.2.127**; eight Cargo build jobs, dev/test debug info disabled, affected
+server tests serial as in the canonical suite. Evidence is in
+`target/lane-lt-evidence/r3-*`. The supervisor-selected scope leaves Grok's
+separate inherited observation about a chunked asset's terminal-chunk write
+outside this change: `chunked_transfer::Encoder`'s destructor ignores that
+write error. A transport failing only on `0\r\n\r\n` can evade refusal
+classification; the mid-body disconnect regression covers a different point.
+No terminal-chunk-only reproduction was executed here and no fix is claimed.
+Reference, adoption and final full-suite results follow in this same entry.
+
+Final qualification: adoption/doctor `w8c_` **4/4**.
+`./ref-check --verbose` passed before the full suite:
+`ref-check: ok — 515 LLP docs, 9536 refs in 27002 files, 0 errors, 0 unchecked`.
+Ran the required, unmodified `scripts/test.sh` **once**, after the affected
+checks and whole guide. Exact summary: **`== 1 failure(s) in 953 s`**,
+exit **1**. The only failure is **`wasm build` — inherited integration
+baseline**, not introduced by LT: **1,980,253 B raw / 571,839 B gzip** against
+**570,967 B**, **872 B over**. This equals the supervisor's integration and
+round-2 measurements: **0 B raw/gzip delta**. Budget unchanged. Wasm SHA-256:
+`3ad0d7215e220d0417e0be0c74ea8bcc69d22b2912356f0b994423ee552cc47f`.
+Reproduce from `snapback4/` with `bash scripts/build-wasm.sh` on the recorded
+toolchain. No introduced or environmental failure occurred in the final suite.
+
+Full Rust: **3,728 passed, 0 failed, 21 ignored**, **490 s**. Main client batch:
+**2,459 passed, 0 failed, 10 existing skips**, with all seven separate server/
+acquisition shards green (**193 s** client stage). Seeded models: **78/78**,
+**257 s**. Native build, docs budget, release guard, package typecheck/build,
+chat check, chat/Expo typechecks and fixture-wrapper tests passed. Exact full
+output and exit status are in `target/lane-lt-evidence/r3-test.log` and
+`r3-test.exit`; focused and mutation logs are beside them. No generated tracked
+file cleanup was needed. No deviation from the final-round brief, budget or
+version change, push or publication. This round's implementation, design,
+tests and this single dated journal entry are committed together with the
+requested GPT-6 Astra co-author trailer.

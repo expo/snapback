@@ -340,12 +340,6 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
-    // Independent of the store path and the store-ownership record (lane R).
-    let _dev_address = if dev {
-        Some(crate::dev_address::Registration::new(&project,
-            address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port(),
-            lock(&shared.adoption).store_id.clone(), matches!(mode, Mode::Dev { fresh: true, .. }))?)
-    } else { None };
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
     let mut worker = match &mode {
         Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,
