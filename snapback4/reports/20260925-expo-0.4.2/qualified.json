@@ -1,0 +1,106 @@
+{
+  "source": "b22d59d65e59d20a57d2d3ff1632bac00dadfb4d",
+  "sourceTrees": {
+    "snapback4-core": "ed1d60397c2a34e8dc31041784334f683f60753f",
+    "snapback4-device": "de78af098e10f4e6af5b4a16f6c47269014625a5"
+  },
+  "version": "0.4.2",
+  "published": true,
+  "qualification": "Full publication suite, published-0.2.33 fences and installed-consumer proof passed; both native Release witness segments passed. Registry metadata and downloaded tarballs match the qualified staged CLI, platform and Expo bytes.",
+  "xcframework": {
+    "ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "811bbc14dfd4caa1357e17894dbebb657baeeb8229a982c68df94c2da06da66a",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "e26a0fe7e6fd1fc16ef071ef36f1f042af76839270cf929ade2d127661703aac"
+  },
+  "toolchain": {
+    "node": "v24.18.0",
+    "bun": "1.4.2",
+    "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "xcode": "Xcode 27.0\nBuild version 27A266a",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83",
+    "cpu": "Apple M5 Max"
+  },
+  "preparedAt": "2026-09-25T23:28:17.255152+00:00",
+  "linkedNativeArchive": {
+    "built": "/Users/ccheever/projects/snapback-pub-042/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+    "linked": "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-gggbowgflfbkrodngfykvywuxmhw/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/Snapback4Expo/libsnapback4_device.a",
+    "sha256": "e26a0fe7e6fd1fc16ef071ef36f1f042af76839270cf929ade2d127661703aac",
+    "matches": true
+  },
+  "app": {
+    "built": "/Users/ccheever/projects/snapback-pub-042/snapback4/target/expo-release/Snapback4chat.app",
+    "installed": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Bundle/Application/7A49D9A1-1D4D-4540-9634-E31306787129/Snapback4chat.app",
+    "executable": "Snapback4chat",
+    "sha256": "f7f7b908b004d20c1ab23c6bea1bc978c3967912767ee7bad906af49899cf29b",
+    "bundleSha256": "b051bc9103d634a3e607ad1d27537676679586ef166ff5ef4bc185a9ff2e8c40",
+    "installedMatches": true,
+    "bundleId": "dev.snapback4.chat"
+  },
+  "cli": {
+    "path": "/Users/ccheever/projects/snapback-pub-042/snapback4/target/debug/snapback4",
+    "sha256": "bd1452cbe6d5394c32810a00261505cc04de3e145fa2d28059dbf0c6fc4bcc88"
+  },
+  "simulator": "81961F7D-DF85-4A7A-B376-20D9073AC101",
+  "port": 44441,
+  "witnesses": {
+    "offline": {
+      "manifest": "offline-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 8.677,
+      "prime": true,
+      "relaunch": false,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "f7f7b908b004d20c1ab23c6bea1bc978c3967912767ee7bad906af49899cf29b"
+    },
+    "restart": {
+      "manifest": "restart-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 12.186,
+      "prime": true,
+      "relaunch": true,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "f7f7b908b004d20c1ab23c6bea1bc978c3967912767ee7bad906af49899cf29b"
+    }
+  },
+  "files": {
+    "README.md": "fccdac445608be19f1223a3a836b8cfc218236d9cabfe9a7dc82b9203ae2a1fa",
+    "expo-module.config.json": "4150f21b78b3dcfff4f15a4a2fe59ebfa76969fd3af43d10d1a9bc563eb9ad37",
+    "ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+    "ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "811bbc14dfd4caa1357e17894dbebb657baeeb8229a982c68df94c2da06da66a",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "e26a0fe7e6fd1fc16ef071ef36f1f042af76839270cf929ade2d127661703aac",
+    "ios/Snapback4Expo.podspec": "c9f21e5335e77827679388d8f69a6f4396452c9b2a80f029cb8aaceaf0d15746",
+    "ios/Snapback4Module.swift": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe",
+    "ios/WitnessContainer.swift": "4cd3f74d2cbb689d9c991669f0162217235d725ba7472d26542dac1549087bbe",
+    "package.json": "c92a1c2c61888ea190bf7f2adafab1d31b9525d116bfddddfd338174bc408fb0",
+    "src/index.ts": "4b621eacaaf6d7d88ed5bee30eaac7f445c06347c70d8af5206782f87d867753",
+    "src/smoke.ts": "e38c1250b68e509cbc84eec20e1880c09ebc52c3f61e4812e24bb117dfa27575",
+    "src/witness-core.ts": "59770033e81452fd43f3cc5ec3631ffa6cd5aeda619859406f2205534e6a1464",
+    "src/witness.ts": "edb2692c496607ffa49be4ae1c318527229637019c0424e765b38765c101ed97"
+  },
+  "at": "2026-09-25T23:29:34.524348+00:00",
+  "publishedAt": "2026-09-26T00:40:24.754382+00:00",
+  "expoPackage": {
+    "integrity": "sha512-JCn0b5xe2u6nfk7G9qy9szMSFFs6ifO45oGJDJO6OaGoW+ylUr8ugJULsbb9ik0MHuEj1O3LwC1dAQWFXVwhiw==",
+    "bytes": 5016004,
+    "matchesQualifiedNativePackage": true,
+    "registryDownloadedBytesMatch": true
+  },
+  "cliPublication": {
+    "suite": "passed",
+    "installedConsumerDryRun": "passed",
+    "installedConsumerResume": "passed",
+    "binarySha256": "4bea81bfc08ec6be0051acc26ba40dbf231bb8d81fe29673bc4d1e58030cc7e8",
+    "clientIntegrity": "sha512-C0yc76nbskRoBuzva3sZc7dENfA7d3uXtHTwgHg13vTeOanxx5+vQ67Z0+4MCOAopvAbbFuPZQy3uNFDecmgYg==",
+    "platformIntegrity": "sha512-8xdEcltsy84cZa9qO5LK0aAVeYXS6hqFzQ+X7ZSeGhYda4a0ngHy9icG893JA/qR/wtLqOtvLEpqZuJ5Fg7MYg==",
+    "registryDownloadedBytesMatch": true
+  }
+}

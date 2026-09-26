@@ -58886,3 +58886,26 @@ The first 0.4.2 publication stopped at its full-suite gate. Three published-0.2.
 - **Qualification:** on the black M5 with `SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33`, the full suite ran `== 0 failure(s) in 661 s`, and all three capability fences and the compatibility control passed. A browser typing-expiry test that had failed once under host load 49 ("execution context was destroyed") passed in this run.
 
 The fix lane wrote the change. Its codex session lost its sign-in before qualification, so the supervisor ran the suite and committed.
+
+## 2026-09-26 — 0.4.2 published: CLI, platform and Expo, registry-verified
+
+`snapback4@0.4.2`, `snapback4-darwin-arm64@0.4.2` and `snapback4-expo@0.4.2`
+are published from source `b22d59d65`, which is main `7706ab656` with the
+publication records. The supervisor ran every step by hand, because the lane's
+codex session could not authenticate.
+
+- Attempt 2 stopped before qualification: its witness had run a pre-fix CLI and
+  client.
+- Attempt 3 rebuilt in 0.4.1's order: the framework, the CLI, wasm, the client
+  package and the Release app. Both native witness segments passed (8.7 s and
+  12.2 s), with every artifact hash verified.
+- Its first dry run failed one client test while other sessions' builds held
+  the M5 at load 78–126. That was W8R1a's native tier: 10 isolated passes at
+  load 18, and a ticket asks whether a timer gates it.
+- The retried dry run passed: 0 failures in 2,163 s, the published-0.2.33
+  fences included. So did the consumer proof.
+- The resume published the platform and client packages; Expo followed.
+- Every registry tarball was downloaded back and matches the staged bytes.
+- Production binary: 11,960,272 bytes, SHA-256 `4bea81bf…c7e8`.
+
+Report: `reports/20260925-publication-0.4.2/REPORT.md`.
