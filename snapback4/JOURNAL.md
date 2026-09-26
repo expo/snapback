@@ -63789,3 +63789,44 @@ the unchanged 582,094 B budget. Reference audit: 513 LLP docs, 9,444 refs in
 build jobs and dev/test debug info disabled. Implementation commits:
 4409e31c7 and d970f4bf2. Exact evidence: target/lane-k-round4-evidence/.
 All commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-26 — 0.4.4 lane K, round 5: expiry stays withdrawn and slow replies publish
+
+Read Astra's complete round-4 NOT READY review and fixed both defects. When a
+local watch's server expiry fires, it synchronously forgets an expired remembered
+answer before subscriber notification. Its highest store-cut ordering record
+stands, and any newer unexpired memory remains available. Clock rollback and
+release of a held device read can no longer resurrect the withdrawn entry.
+Online refresh now checks inFlight and sets dirty before reload, so the one-second
+incomplete-ephemeral cadence does not fence every 1.15-second reply. Existing
+commit, reset, credential and ephemeral publication fences remain intact.
+
+Added nine regressions: active and lingering remembered-answer rollback/release
+on wasm and process (four), preserving newer unexpired memory (two), slow online
+replacement replies for active and lingering watches (two), and highest-cut
+ordering after expiry cleanup (one). Strengthened the linger lifetime test to
+install expiry and presence timers, prove both remain armed through 29.999 s,
+and prove cancellation at close and no later callback. Seven mutations killed,
+13 expected assertion failures, including the formerly surviving expiry-cleanup
+mutation. Before the fixes, all six defect reproductions failed as expected;
+afterward the focused run passed 53/53 and the final affected run passed 187/187.
+Reference audit: 513 LLP docs, 9,446 refs in 26,815 files, 0 errors, 0 unchecked.
+Implementation commits: 0bee969a3, e0e414ce0, 26d7aedf7, all with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 959 s`, exit 0.
+No introduced, baseline or environmental failures; no repair or rerun. Rust:
+3,573 passed, 0 failed, 19 ignored; whole guide 86/86. Main client batch: 2,279
+passed, 0 failed, 10 existing skips (2,289 tests); all seven separate shards
+passed. Models: 78/78. All new regressions and the original timing-sensitive
+cadence case passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B
+below the unchanged 582,094 B budget. Node 24.13.1, Bun 1.3.14; eight Cargo
+build jobs and dev/test debug info disabled. Evidence and exact commands:
+`target/lane-k-round5-evidence/`; detailed report:
+`reports/20260926-lane-k-answers-stay.md`, round 5.
+
+No design deviation or unresolved round-5 product defect. The inherited cadence
+test's startup-discovery assumption and prior reproduction remain recorded in
+round 3; its old assertion is unchanged. No engine, authorization, meter,
+outbox, API/syntax, package-version or wasm-budget change; no delegated agent,
+push or publication. local.ts remains under the source cap at 1,491 lines.

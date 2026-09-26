@@ -878,3 +878,165 @@ Full log and exit: `target/lane-k-round4-evidence/test-sh.log` and
 `test-sh.exit`. Targeted checks and negative experiments are in the same
 evidence directory. The final documentation commit adds only this report and
 the round-4 journal record; tested implementation is unchanged.
+
+## Round 5 — 2026-09-26: permanent expiry withdrawal and slow refresh progress
+
+Read the lane prompt, rounds 0–4 report and the complete Astra round-4 review
+(`k2-r4.astra.md`, NOT READY). Addressed both defects and the surviving cleanup
+mutation. The reviewer-confirmed round-3/4 fixes and live-linger design remain.
+No push or publication.
+
+### Findings and files
+
+Paths below are relative to `snapback4/`.
+
+- **High, inherited remembered-answer resurrection:**
+  `packages/snapback4/src/local.ts` now checks the query's remembered entry
+  synchronously when its displayed server deadline fires. If that entry is
+  expired, `RememberedAnswers.forget` removes it before reset notification or
+  asynchronous recovery. The query key excludes the observation's `keep:`
+  prefix. The existing `forget` operation preserves the ordering record,
+  including LLP 3000.018 §3.2's highest cut. A newer entry with a future deadline,
+  or an entry without a deadline, is left alone. `local-query.ts` needs no new
+  recovery path: once forgotten, the old answer is unavailable even after a
+  server-clock rollback.
+- **Medium, starvation of slow online replies:**
+  `packages/snapback4/src/client.ts` now checks `inFlight` and sets `dirty`
+  before calling `reload()`. A periodic refresh during an outstanding request
+  queues another read without advancing that request's publication revision.
+  The store-cut, commit, reset, credential and ephemeral fences still reject
+  obsolete replies.
+- **Low, expiry-timer cleanup survived mutation:**
+  `packages/snapback4/test/keep-observation.test.mjs` installs both expiry and
+  presence timers before a watch lingers. It proves they remain armed at
+  29.999 seconds, are explicitly cancelled when the watch closes at 30 seconds,
+  and never invoke their callbacks at their later deadline. Production cleanup
+  in `observe-watch.ts` was already correct and is unchanged.
+- `packages/snapback4/test/keep-clock.test.mjs`: four rollback regressions
+  cover active and lingering kept watches on real wasm and process devices.
+  Each first remembers a server answer, goes offline, observes the remembered
+  answer, holds replacement device reads, advances the server clock beyond
+  expiry, observes withdrawal, rolls back the server clock, and releases the
+  reads. Lingering cases remount before release. No expired data can publish,
+  and an additional one-shot recovery returns `E_OFFLINE` without a new server
+  reply. Active cases roll the clock back inside the withdrawal subscriber,
+  proving cleanup precedes notification. Two further device cases remember a
+  newer unexpired answer with a later deadline while the older answer remains
+  displayed: expiry withdraws the older snapshot but recovery can still show
+  the newer answer. Fixture controls now release held reads and set the
+  server reply's deadline independently of the displayed deadline.
+- `packages/snapback4/test/ephemeral-watches.test.mjs`: two online regressions
+  cover active and lingering kept watches. After capability discovery, an
+  incomplete ephemeral answer refreshes on its real one-second cadence; each
+  replacement reply takes 1.15 seconds and is complete. The complete replacement
+  must publish, and a lingering remount joins it without adding a read.
+- `packages/snapback4/test/remembered-answers.test.mjs`: expiry cleanup leaves
+  the highest store cut intact; a later-arriving reply below it cannot restore
+  memory, while a newer read at the same cut can be remembered.
+- This report and one appended dated `JOURNAL.md` entry record the round's
+  measurements and qualification.
+
+The same forms compile and run; this round adds no API or Quarry syntax:
+
+```tsx
+const query = useQuery(api.inbox, {}, { keep: true });
+const pages = usePage(api.thread, { conversationId }, { keep: true });
+const watch = client.observe(api.inbox, {}, { keep: true });
+```
+
+### Regression and mutation evidence
+
+**Before the production fixes:** the selected ten tests produced **six expected
+failures**: all four active/lingering rollback cases resurrected the old answer,
+and both slow online cases still displayed the incomplete answer after three
+successful complete responses. The newer-memory, highest-cut and existing
+cleanup behavior passed. Log: `target/lane-k-round5-evidence/before.log`.
+
+**After the fixes:** the initial focused run passed **53/53**. Nine new tests
+were added and the existing timer-lifetime test was strengthened. The slow-reply
+fixture then gained an explicit observed ephemeral-poll condition to finish
+capability discovery before testing cadence, avoiding the inherited startup
+assumption described in round 3.
+
+Seven independent generated-code mutations were executed and restored in
+`finally`; **all seven killed, 13 expected assertion failures**:
+
+| Mutation | Failing tests |
+| --- | ---: |
+| Omit expiry's remembered-answer cleanup | 4 |
+| Forget a newer, unexpired entry too | 2 |
+| Move cleanup after subscriber notification | 2 |
+| Reload before the online in-flight guard | 2 |
+| Delete expiry-timer cancellation at close | 1 |
+| Delete presence-timer cancellation at close | 1 |
+| Forget the answer's ordering record as well | 1 |
+
+Exact mutations, commands, diffs, logs and exits are in
+`target/lane-k-round5-evidence/` (`mutations.py`, `mutations.json` and each
+named `.diff` / `.log`). No mutation is committed.
+
+After restoring all mutations, the broader affected run passed **187/187**,
+with no failures, skips or cancellations: every keep test, the original and new
+ephemeral cadence cases, remembered-answer ordering, local commit handling,
+read-observation publication, presence refresh/composition, session publication
+and page-authority regressions. Log: `target/lane-k-round5-evidence/fences.log`.
+The package build passed. Reference audit: **513 LLP docs, 9,446 refs in 26,815
+files, 0 errors, 0 unchecked** (`ref-check.log`).
+
+Implementation commits: `0bee969a3` (expiry), `e0e414ce0` (slow refresh),
+`26d7aedf7` (timer cleanup test). Each carries the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer. Git initially lacked
+an author identity; per-command identity matching the previous lane commits
+resolved that host configuration issue without changing global settings.
+
+### Scope, decisions and open problems
+
+No requested fix was rejected, deferred or redesigned. This round adds a
+five-line expiry guard and reorders the existing refresh guard, using the
+existing ordered cache and refresh queue. No additional cache, engine/meter change, authorization change,
+outbox work, syntax/diagnostic, package version, budget increase, delegated agent,
+push or publication. `local.ts` is 1,491 lines, below the 1,500-line source cap.
+
+Used the installed `llp-orient` skill from
+`/home/ccheever/lanes/enginefix/vendor/llp/skills/llp-orient/SKILL.md`, as in the
+previous rounds. Governing context: LLP 3000 §7, LLP 3000.001 repair B,
+LLP 3000.007 §18.2 and Rule 5, LLP 3000.018 §3.2's memory order, and
+LLP 3000.019 §3.3 with the supervisor's round-4 live-linger ruling. The current
+reads card and lane lifetime implementation were read before editing. No new
+LLP decision is needed; the fixes enforce existing guarantees.
+
+No known unresolved round-5 product defect. The previously recorded baseline
+cadence test still assumes startup-discovery reads are periodic reads; its
+reproduction and attribution remain in round 3. The old test and its assertion
+are unchanged; this round's new cadence cases wait for discovery explicitly.
+
+### Exact round-5 full qualification
+
+Required `scripts/test.sh` ran **once**, unmodified, and finished:
+
+```text
+== 0 failure(s) in 959 s
+```
+
+Exit **0**. **No introduced, baseline or environmental failures** occurred in
+this full run. No repair or affected-test rerun was necessary after it; the full
+script was not repeated.
+
+- Rust: **3,573 passed, 0 failed, 19 ignored**; whole guide **86/86**.
+- Main client batch: **2,289 tests; 2,279 passed, 0 failed, 10 existing skips**.
+  All seven separate acquisition/server shards also passed.
+- Models: **78 passed, 0 failed, 0 skipped**, including both 5,000-sequence
+  session models.
+- All **nine new regressions**, the strengthened expiry/presence cancellation
+  test, existing publication/reset/authority guards and Chromium cases passed.
+  The original timing-sensitive incomplete-ephemeral cadence test passed too.
+- Package build/typecheck, docs budget, release guard, both app typechecks and
+  fixture-wrapper checks passed.
+- Wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B** from round 4;
+  unchanged budget **582,094 B**, headroom **1,000 B**. No budget increase.
+
+Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`.
+Full log and exit: `target/lane-k-round5-evidence/test-sh.log` and
+`test-sh.exit`. The final documentation commit adds this report and one dated
+round-5 journal entry; the qualified implementation is unchanged.
