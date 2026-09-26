@@ -910,8 +910,8 @@ time when it does not, and absent when the device has never finished
 one); `next` is the cursor for the next page (pass it as the query's
 `cursor ?` argument); a page with a cursor and more rows is `complete:
 true` with `next`. A row this device wrote and the server has not yet
-confirmed carries `pending: true`. A write is `pending` while the link is
-down, while the server has not answered within four seconds, or when the
+confirmed carries `pending: true`. A write is `pending` while unsettled, including
+a return at custody, a down link, an expired wait, or when the
 client closes before its response arrives. It is `sent` with the server's
 sequence, or `failed` with the refusal and its predicted rows withdrawn.
 `createApp` and local devices keep admitted uncertain intent for restart; the raw
@@ -933,10 +933,14 @@ ordinary query if needed; do not issue a new mutation to recover the old result.
 A queued write's eventual `onWrite` event and `useMutation.last` preserve the same
 fresh-or-replayed outcome; `useMutation.run()` returns the outcome of its call.
 Pending writes have no predicted result: their predicted rows carry `pending`.
+`mutate(op, args, { waitSeconds: 0 })` (or a hook's `run(args, { waitSeconds: 0 })`)
+returns at custody; omitted keeps the tier's default wait. Settlement still
+reaches `onWrite`, `write(id)` and the latest call's `last`.
 
 Writes that do not predict show pending with `usePendingWrite(op)`. Its
 `pending` flag starts at `run(args)` and stays true until `sent` or `failed`,
-including the interval before admission returns an id. `last` is the Write;
+including the interval before admission returns an id; it must not gate the
+next send. Disable Send only with `inFlight`. `last` is the Write;
 `run` returns that call's outcome, like `useMutation`. A pre-acquisition write
 that queues without a row reports `reason: "queued without a row: not acquired yet"`.
 Other missing local evidence reports `reason: "queued without a row: local data does not justify prediction"`.
@@ -945,11 +949,11 @@ A predicted write has no such reason; predictions remain visible on rows.
 ```tsx
 import { useAcquired, usePendingWrite } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-export function PendingSend({ conversationId, savedId }: { conversationId: string; savedId?: string }) {
+export function PendingSend({ conversationId }: { conversationId: string }) {
   const acquired = useAcquired();
-  const send = usePendingWrite(api.send, savedId);
+  const send = usePendingWrite(api.send);
   return <>
-    <button disabled={send.pending} onClick={() => void send.run({ conversationId, body: "hi" })}>Send</button>
+    <button disabled={send.inFlight} onClick={() => void send.run({ conversationId, body: "hi" }, { waitSeconds: 0 })}>Send</button>
     {!acquired && <small>Local data is still acquiring.</small>}
     {send.pending && <small role="status">{send.last?.state === "pending" ? send.last.reason ?? "Sending…" : "Sending…"}</small>}
     {send.last?.state === "failed" && <small role="alert">{send.last.why.message}</small>}
@@ -957,11 +961,13 @@ export function PendingSend({ conversationId, savedId }: { conversationId: strin
 }
 ```
 
-Keep the returned mutation `id` with the application's view state and pass it
-as `usePendingWrite(op, savedId)` after reload. Recovery observes that id; it
+For reload-safe outcomes, save `{ id: mintId(), args }` before submitting
+with `{ id }`, in account-and-backend-scoped storage; observe it with
+`usePendingWrite(op, savedId)` after reload. See `snapback4 guide client`. Recovery observes that id; it
 never submits again. `await client.write(id)` also reads its latest outcome,
 and `onWrite` receives later terminal changes. An unknown id returns
-`undefined`, as does an evicted terminal id once it leaves the outbox. The
+`undefined`, as does an evicted terminal id once it leaves the outbox: unknown,
+never failed or a reason to resend automatically. The
 online client keeps at most 256 terminal outcomes in memory. The local client
 reads terminal receipts directly from one device metadata record holding the
 last 256 server outcomes; it reads pending writes from the current outbox,
@@ -1056,15 +1062,14 @@ them without a network fetch on reload. It also persists the compiled backend
 with the device rows, so a device that opened and synced online can reopen
 offline. Custom wasm URLs should identify immutable module versions.
 
-A sent replay receipt carries `replayed: true` and no result. Narrow with
-`write.state === "sent" && !write.replayed` before using `write.result`;
-query the current state when a replay needs a value. Both client tiers and
-React mutation settlement preserve the receipt. `Client.signOut()` clears
+`Client.signOut()` clears
 local credentials and closes the client; remote session revocation is best effort.
 Applications keeping an online session with `keepSession` also call
 `forgetSession` on their own store (§6); the local client clears its managed store.
 
 ### React
+
+Start with `snapback4 guide client` for composers, stable routes, receipts and one-view photos.
 
 ```tsx
 import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useAction, useLink, useViewer, useSession, useAsset } from "snapback4/react";
@@ -1082,10 +1087,10 @@ function Thread({ conversationId }: { conversationId: string }) {
   const client = useClient();
   const photo = useAsset(items[0]?.photo?.id);
   return <View>
-    <Text>{link}: {items.length} messages</Text>
+    <Text>{link}: {"loading" in read ? "Loading…" : "denied" in read ? read.denied.message : `${items.length} messages`}</Text>
     {photo.status === "ready" && <Image source={{ uri: photo.url }} style={{ width: 240, height: 180 }} />}
     {photo.status === "loading" && <Text>Loading photo…</Text>}
-    {photo.status === "empty" && <Text>No photo</Text>}
+    {"data" in read && photo.status === "empty" && <Text>No photo</Text>}
     {photo.status === "denied" && <Text>{photo.why.message}</Text>}
     <Text onPress={() => void client.signOut()}>Sign out</Text>
   </View>;
@@ -1133,20 +1138,19 @@ store replacement or restore, adoption, `clear_rows` and `settle_exit` discard
 kept answers at once. Existing expiry and ephemeral reset fences still withdraw
 active answers. Closing the client discards the memory; it is not durable.
 
-A complete list renders continuation, refusal and incomplete answers explicitly:
+`usePage` returns `items: []` while page one is loading: that is not an empty
+answer. Keep effects out of rows and the header/composer above this boundary.
+Render loading, continuation, refusal and incomplete answers explicitly:
 
 ```tsx
-import { useRef } from "react";
 import { Button, Text, View } from "react-native";
 import { usePage } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 
 export function InboxList() {
   const { items, hasMore, loadMore, read } = usePage(api.inbox, {});
-  const answered = useRef(false);
-  if ("data" in read) answered.current = true;
   return <View>
-    {!answered.current && "loading" in read && <Text>Loading…</Text>}
+    {"loading" in read && <Text>Loading…</Text>}
     {"denied" in read && <Text>{read.denied.message}</Text>}
     {items.map(item => <Text key={item.conversationId}>{item.conversationId}</Text>)}
     {"data" in read && !read.complete && <Text>Results may be incomplete</Text>}
@@ -1160,7 +1164,7 @@ Unmounting a screen closes its observations; remounting starts from the client's
 current answer. Only a local unavailable-read fallback may keep its previous answer
 while the server fetch is pending, marked `fresh: false` with `since`; settlement
 or a local state change clears that retention. Online reads retain no old answer.
-Before the first answer the component shows loading; refusals show their message.
+Every loading gap is shown as loading; refusals show their message.
 An empty or incomplete answer does not prove that no matching rows exist.
 
 ### Assets
@@ -1223,6 +1227,7 @@ The Expo cache gives retained MP4 files a `.mp4` suffix for native playback;
 older extensionless MP4 entries migrate within the same cache when read.
 Rebuild the app with `snapback4-expo` 0.2.24 or later to include this host repair.
 
+For one-view photos, own the handle above the list: `snapback4 guide client`'s viewer recipe.
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. A client-side fetch or blob-URL failure returns a typed
 `denied` state.
@@ -1337,9 +1342,11 @@ Check handle availability with a query before sign-up. The unique index is
 still authoritative: another signup may claim the handle between that check
 and the profile mutation. Write the profile in the first mutation after
 sign-up, and keep the signed-in session if that write fails so the user can
-choose another handle. On sign-in or reload, a profile query returning null
-routes to the profile screen; loading and denied reads are separate states.
-A session without a profile is onboarding, never an app stuck loading.
+choose another handle. The signed-in tree follows `useAuth().state`, not a
+profile read. Decide its initial route once per account/backend: null means
+onboarding, denied means an error, loading means still undecided. After that
+first answer, a loading profile must never unmount the tree, route or draft;
+only explicit navigation changes routes. Protected content follows current reads.
 
 ```quarry
 use identity
@@ -1374,11 +1381,15 @@ import type { Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 const url = "http://127.0.0.1:4400";
 
-async function profileScreen(client: Client) {
-  const profile = await client.query(api.myProfile, {});
-  if ("loading" in profile) return "loading";
-  if ("denied" in profile) return "error";
-  return profile.data === null ? "profile" : "app";
+function initialProfileRoute(client: Client) { // Own above routes; recreate on account/backend change.
+  let route: "profile" | "app" | undefined;
+  return async () => {
+    if (route) return route;
+    const profile = await client.query(api.myProfile, {});
+    if ("loading" in profile) return "loading";
+    if ("denied" in profile) return "error";
+    return route ??= profile.data === null ? "profile" : "app";
+  };
 }
 
 async function register(email: string, password: string, handle: string) {
@@ -1396,7 +1407,8 @@ async function register(email: string, password: string, handle: string) {
   // Keep client/session on failure; the profile screen retries createProfile, not signup.
   if (write.state === "failed") return { client, screen: "profile", error: write.why.message };
   if (write.state === "pending") return { client, screen: "profile", waiting: true };
-  return { client, screen: await profileScreen(client) };
+  const route = initialProfileRoute(client);
+  return { client, route, screen: await route() };
 }
 ```
 
@@ -1743,7 +1755,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
-  assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
+  assets, client, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
   presence, receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the

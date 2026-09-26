@@ -1,3 +1,5 @@
+import { withIntentStorage } from "./intents";
+import { intentStorage } from "./intent-store";
 // One call opens the device: the Rust module when this build carries it
 // (a development or production build), else the online tier in Expo Go,
 // which loads no custom native code and no wasm. Either way the secure
@@ -15,11 +17,11 @@ import { nativeAvailable, nativeDevice } from "snapback4-expo";
 export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 export const persona = process.env.EXPO_PUBLIC_SNAPBACK_PERSONA;
 
-const sessionStore = {
+const sessionStore = withIntentStorage({
   get: (key: string) => SecureStore.getItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_"), value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
-};
+  set: async (key: string, value: string) => SecureStore.setItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_"), value),
+  delete: async (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
+}, intentStorage);
 
 export type DeviceClient = LocalClient | Client;
 

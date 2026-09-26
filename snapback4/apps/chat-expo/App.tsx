@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, Button, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import type { App as SnapbackApp } from "snapback4/app";
 import type { Client } from "snapback4/contract";
-import { AppProvider, SnapbackProvider, useLink } from "snapback4/react";
-import { openApp, openClient, persona } from "./src/client";
+import { AppProvider, SnapbackProvider, useAuth, useLink } from "snapback4/react";
+import { openApp, openClient, persona, url } from "./src/client";
 import { Inbox } from "./src/Inbox";
 import { Thread } from "./src/Thread";
 import { runWitness } from "./src/witness";
@@ -43,8 +43,17 @@ export function App() {
   return <SafeAreaView style={styles.screen}>
     <StatusBar style="auto" />
     {witnessStatus ? <Text style={styles.note}>{witnessStatus}</Text> : null}
-    {problem ? <Text style={styles.alert}>{problem}</Text> : app ? <AppProvider app={app}><Home /></AppProvider> : client ? <SnapbackProvider client={client}><Home initialConversationId={witnessConversation} /></SnapbackProvider> : <Text style={styles.note}>Opening your replica…</Text>}
+    {problem ? <Text style={styles.alert}>{problem}</Text> : app ? <AppProvider app={app}><Account /></AppProvider> : client ? <SnapbackProvider client={client}><Home initialConversationId={witnessConversation} /></SnapbackProvider> : <Text style={styles.note}>Opening your replica…</Text>}
   </SafeAreaView>;
+}
+
+function Account() {
+  const auth = useAuth();
+  if (auth.state === "restoring") return <Text>Restoring your account…</Text>;
+  if (auth.state === "signed-in") return <Home />;
+  return <View><Text>{auth.why?.message ?? "Signed out"}</Text>
+    <Button title="Continue as a guest" onPress={() => { void auth.guest(); }} />
+  </View>;
 }
 
 function Home({ initialConversationId }: { initialConversationId?: string }) {
@@ -55,7 +64,7 @@ function Home({ initialConversationId }: { initialConversationId?: string }) {
       <Text style={styles.title}>Snapback 4 chat</Text>
       <Text style={styles.note}>{link === "online" ? "Online" : link === "offline" ? "Offline" : "Signed out"} · local-first · SQLite</Text>
     </View>
-    {selected ? <Thread conversationId={selected} onBack={() => setSelected(undefined)} /> : <Inbox onSelect={setSelected} />}
+    {selected ? <Thread backend={url} conversationId={selected} onBack={() => setSelected(undefined)} /> : <Inbox onSelect={setSelected} />}
   </View>;
 }
 

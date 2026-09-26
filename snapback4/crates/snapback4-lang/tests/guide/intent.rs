@@ -2,6 +2,10 @@
 use super::{args, clean, id, quarry, text, Context, Engine, JobState, Value};
 use serde_json::{json, Value as Json};
 use snapback4_core::{wire, Store};
+use snapback4_device::{device::{Backend, Device, StreamPage}, memory::MemoryStore};
+#[allow(dead_code)]
+#[path = "../../../snapback4/src/sync_wire.rs"]
+mod sync_wire;
 
 fn load(engine: &mut Engine, rows: Vec<(&str, Json)>) {
     let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(engine.schema().table(table).unwrap(), &row).unwrap())).collect::<Vec<_>>();
@@ -64,9 +68,32 @@ fn published_digest_streams_past_the_old_limit_and_once_survives_reopen() {
     ]);
     load(&mut engine, (0..130).map(|n| ("messages", json!({"id":format!("m{n:03}"), "conversationId":"chat", "senderId":if n == 2 { "alice" } else { "bob" }, "ordinal":n+1, "body":"message", "at":if n == 3 {100} else {10}, "tombstone":n == 4, "expiresAt":if n == 5 {json!(50)} else {Json::Null}}))).collect());
     let period = || args(&[("periodStart", Value::Int(0)), ("periodEnd", Value::Int(100))]);
-    let inbox = engine.query("inbox", Context::new("alice", period()).at(100)).unwrap();
+    let inbox = engine.query("inbox", Context::new("alice", args(&[])).at(100)).unwrap();
     assert!(inbox.complete);
-    assert_eq!(inbox.data.as_array().unwrap()[0].field("unread").unwrap(), &Value::Int(125));
+    let conversation = &inbox.data.as_array().unwrap()[0];
+    assert_eq!(conversation.field("conversationId").unwrap(), &id("chat"));
+    assert!(conversation.field("unread").is_err(), "unread totals cannot withhold the inbox");
+    let totals = engine.query("unreadTotals", Context::new("alice", period()).at(100)).unwrap();
+    assert!(totals.complete);
+    assert_eq!(totals.data.as_array().unwrap()[0].field("unread").unwrap(), &Value::Int(125));
+    let snapshot = engine.snapshot_acquisition_page_at("alice", None, 1000, 100).unwrap();
+    assert!(snapshot.next.is_none());
+    let page: StreamPage = serde_json::from_slice(&serde_json::to_vec(&sync_wire::SnapshotReply {
+        now: 100, sent: Default::default(), acknowledged: engine.acknowledged("alice", &[], snapshot.watermark).unwrap(),
+        acquisitions: snapshot.acquisitions, events: sync_wire::SyncEvents::Snapshot(snapshot.events),
+        generation: engine.generation(), store_id: engine.store().meta("store_id").unwrap().unwrap(),
+        held: snapshot.held, more: false, next: None, after: None, snapshot: true, watermark: snapshot.watermark,
+    }).unwrap()).unwrap();
+    let backend = Backend { generation: engine.generation(), schema: engine.schema().public_projection(),
+        programs: clean("device digest", &source).programs.into_iter().map(|p| p.program).collect() };
+    let mut device = Device::open_store(MemoryStore::new(), Some(backend)).unwrap();
+    device.apply(&page, true).unwrap();
+    let local_inbox = device.query("inbox", "alice", &json!({}), 100).unwrap();
+    assert!(local_inbox.complete && !local_inbox.unavailable, "{local_inbox:?}");
+    assert_eq!(local_inbox.data, inbox.data);
+    let local_totals = device.query("unreadTotals", "alice", &json!({"periodStart":0, "periodEnd":100}), 100).unwrap();
+    assert!(local_totals.unavailable, "horizon totals withhold only the decoration: {local_totals:?}");
+    println!("guide inbox: device complete=true, rows=1; separate unreadTotals unavailable=true; server unread=125");
     let run = engine.run_job("digest", period(), 100).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
     let effects = engine.effects(None, 10).unwrap();
