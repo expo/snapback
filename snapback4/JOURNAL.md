@@ -63083,3 +63083,64 @@ presence, which LLP 3000.018 fixes. It first did so by following presence
 through held polls, which four review rounds could not make safe, then by a
 refresh. The full record is
 `reports/20260926-intent-integration-043/REPORT.md`.
+
+### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
+
+Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
+online backend installation advances the query epoch, discards mounted answers
+and expiry timers, and reruns watches before seeding generation. Both an already
+published durable answer and a late in-flight answer are covered. Discovery is
+complete only after a successful installation. Failed requests and schema facts
+older than the poll's generation retry before another long poll can hold them
+up. The local choice where the RFC is silent is 25/50/100/200/400 ms exponential
+backoff capped at 500 ms, continuing while the client has credentials and mounted
+watches; close aborts the wait. Stale facts never replace operation interests.
+The scratch candidate's initial reset was retained, with seeding ordered after
+the reset; its retry-on-next-poll alone was insufficient for bounded recovery.
+Tx::rollback_to clears the lazy sequence-table existence cache after successful
+rollback, so rolled-back DDL can be allocated again in the same transaction.
+
+Added ephemeral-capability.test.mjs and the sequence_by savepoint regression.
+With production sources still at 1c5dc4fd0, all four new client cases failed
+(0 pass / 4 fail): Astra's real-server differential kept 1 through three
+generation-2 polls while a direct read returned 2, one injected schema 503 never
+recovered, a stale-schema mock failed to catch up, and a held old query was not
+retired. The savepoint regression failed with `no such table: _sequences`
+(0 passed / 1 failed). After the fixes, the affected client suite passes 32/32
+and the affected core suite passes 32/32 (15 ephemeral + 17 sequence_by).
+Typecheck and package build pass. No existing expectation, fixture, wire form,
+or budget changed; the durable-only byte and zero-extra-schema tests pass
+unchanged. Evidence is in target/eph-fix2-evidence/. Full qualification follows.
+
+### 2026-09-26 — Fix round 2 final qualification
+
+At implementation checkpoint 3f5c74974, pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache, the complete `bash scripts/test.sh` returned
+`== 0 failure(s) in 841 s`, exit 0. Source stayed fixed throughout. Rust totals:
+3,569 passed, 0 failed, 19 ignored. JavaScript totals: 2,134 tests, 2,129 passed,
+0 failed, 5 existing optional skips, including all 78 model tests. All three
+published-0.2.33 capability fences and the capability-free byte/store control
+pass unchanged. The three literal `backend FAIL E_STORE` diagnostics are their
+expected negative checks, not suite failures. No timing failure or isolation
+rerun occurred. Wasm: `wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`;
+the unchanged ratchet has 1,036 B headroom.
+
+The required additional standalone ephemeral-e2e run passed 1/1, with all five
+isolated ephemeral trials below. Each first sight followed a typing-naming
+poll answer without a durable seq move. Every burst used two requests versus
+45 in the separately measured durable control.
+
+| Trial | Ephemeral first seen (ms) | Ephemeral gone after last call (ms) | Durable first seen (ms) | Durable gone after last call (ms) | Ephemeral requests | Durable requests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 34.155 | 3875.649 | 48.901 | 4016.611 | 2 | 45 |
+| 2 | 34.834 | 3846.749 | 14.771 | 4373.536 | 2 | 45 |
+| 3 | 32.804 | 3868.266 | 16.062 | 4012.117 | 2 | 45 |
+| 4 | 32.366 | 3853.058 | 17.052 | 4080.91 | 2 | 45 |
+| 5 | 35.398 | 3873.524 | 15.008 | 4357.01 | 2 | 45 |
+
+Evidence: target/eph-fix2-evidence/full-suite.log, full-suite-counts.log,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. The root EPH-REPORT-FIX2.md is deliberately uncommitted.
+All four requested fixes and their regressions are complete. No push, merge,
+rebase, stash, publication, other-worktree edit or other-process intervention
+was performed.
