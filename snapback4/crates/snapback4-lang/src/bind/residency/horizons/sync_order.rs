@@ -148,18 +148,24 @@ fn source_page(source: &ast::ReadExpr, name: &str, index: &Index, prefix: usize,
             page.keys.push(ast::KeyPart { column: Some(col.clone()), value, site: source.site.clone() });
         }
     }
+    let mut guards = Vec::new();
     for key in keys {
-        filters.push(comparison(key.column.as_ref()?, "=", key.value));
+        if !movable_operand(&key.value) { return None; }
+        guards.push(comparison(key.column.as_ref()?, "=", key.value));
     }
     let next = columns.get(page.keys.len());
-    page.seeks.retain(|seek| {
-        if next == Some(&seek.column) && !source.computed.contains_key(&seek.column) { true }
+    for seek in std::mem::take(&mut page.seeks) {
+        if next == Some(&seek.column) && !source.computed.contains_key(&seek.column) { page.seeks.push(seek); }
         else {
+            if !movable_operand(&seek.value) { return None; }
             // Calendar bounds compare the computed key, not a field named day.
-            filters.push(comparison(&seek.column, &seek.op, seek.value.clone()));
-            false
+            guards.push(comparison(&seek.column, &seek.op, seek.value));
         }
-    });
+    }
+    // The original keys and seeks excluded rows before the authored residual
+    // ran. Keep that order so its expressions cannot fail on excluded rows.
+    guards.extend(filters);
+    let filters = guards;
     // An unscoped residual would add N_SPARSE_FILTER. A lone next-key
     // comparison can add N_SEEK (or need a nullable endpoint guard). Leave
     // these shapes to prose rather than emit a newly diagnostic program.
@@ -174,4 +180,20 @@ fn source_page(source: &ast::ReadExpr, name: &str, index: &Index, prefix: usize,
     });
     range.order = ast::Order::Desc;
     Some(print::read_expr(&page))
+}
+
+// @ref LLP 3000.019#3.1 — moving an operand must not suppress a refusal on an empty group or repeat a fallible computation per row.
+fn movable_operand(value: &ast::Expr) -> bool {
+    match value {
+        ast::Expr::Literal { .. } => true,
+        ast::Expr::Name { name, .. } => name != "new",
+        ast::Expr::Member { base, .. } => movable_operand(base),
+        ast::Expr::Unary { op, value, .. } => op == "not" && movable_operand(value),
+        ast::Expr::Binary { op, left, right, .. } =>
+            matches!(op.as_str(), "=" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "??")
+                && movable_operand(left) && movable_operand(right),
+        // Arithmetic can divide by zero or overflow; calls can refuse or
+        // allocate. Already-bound locals keep that work at its original site.
+        _ => false,
+    }
 }

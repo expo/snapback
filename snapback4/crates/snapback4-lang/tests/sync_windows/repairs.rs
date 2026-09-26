@@ -275,10 +275,69 @@ fn count_applies_the_same_audience_page_repair_and_preserves_continuation() {
 fn moved_range_keeps_existing_residual_and_second_page() {
     let original = "messages[conversationId, ordinal > 0] first 2 by byOrdinal after c where .sender = viewer";
     let repaired = same_population(&named().replace(PAGE, original), original, true);
-    assert!(repaired.contains("where .sender = viewer and .ordinal > 0"));
+    assert!(repaired.contains("where .ordinal > 0 and .sender = viewer"));
     let rows = drain(&mut engine(&repaired), true);
     assert_eq!(rows.len(), 5);
     assert!(rows.iter().all(|r| r.field("ordinal").unwrap().as_int().unwrap() > 0 && r.field("sender").unwrap() == &id("alice")));
+}
+
+#[test]
+fn moved_range_guards_rows_before_a_fallible_authored_residual() {
+    let original = "messages[conversationId, ordinal > 0] first 2 by byOrdinal after c where 10 / .ordinal > 1";
+    let source = named().replace(PAGE, original);
+    // The highest-time row has ordinal zero. The original seek excludes it
+    // before division; a relocated guard must do the same, on every page.
+    let before = drain(&mut engine(&source), true);
+    assert_eq!(ids(&before), ["a", "b", "c", "d", "e"]);
+    let repaired = same_population(&source, original, true);
+    assert!(repaired.contains("where .ordinal > 0 and 10 / .ordinal > 1"));
+}
+
+#[test]
+fn fallible_moved_operands_get_words_even_for_an_empty_group() {
+    for operand in ["100 / divisor", "100 % divisor", "share(100, recipients, viewer)"] {
+        for op in [">", "="] {
+            let original = format!("messages[conversationId = conversationId, ordinal {op} {operand}] first 2 by byOrdinal after c");
+            let source = named().replace("query thread(", "query thread(divisor: int, recipients: [principal] <=8, ").replace(PAGE, &original);
+            let run_empty = |source: &str| {
+                let b = bind(source);
+                let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                e.query("thread", Context::new("alice", [
+                    ("conversationId".into(), id("room")), ("c".into(), Value::Null),
+                    ("divisor".into(), Value::Int(0)), ("recipients".into(), Value::Array(vec![])),
+                ].into()))
+            };
+            assert_eq!(run_empty(&source).unwrap_err().code, "E_DIV_ZERO", "{original}");
+            let bound = bind(&source);
+            for note in bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER") {
+                if note.rewrite.contains('`') {
+                    let repaired = apply_note_repair(&source, &original, note);
+                    assert_eq!(run_empty(&repaired).unwrap_err().code, "E_DIV_ZERO", "{note}");
+                }
+            }
+            words_only(&source);
+        }
+    }
+}
+
+#[test]
+fn fallible_endpoints_can_keep_their_original_evaluation_point() {
+    let original = "messages[conversationId, at > 100 / divisor] first 2 by byWindow after c";
+    let source = named().replace("query thread(", "query thread(divisor: int, ").replace(PAGE, original);
+    let repaired = apply_repair(&source, original);
+    assert!(repaired.contains("at > 100 / divisor]"));
+    for program in [&source, &repaired] {
+        let b = bind(program);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        assert_eq!(e.query("thread", Context::new("alice", [
+            ("conversationId".into(), id("room")), ("c".into(), Value::Null), ("divisor".into(), Value::Int(0)),
+        ].into())).unwrap_err().code, "E_DIV_ZERO");
+    }
+    // A named local was already evaluated outside the scan. Moving its
+    // value keeps the division at its authored point, including empty reads.
+    let original = "messages[conversationId, ordinal > floor] first 2 by byOrdinal after c";
+    let source = named().replace("  return ", "  floor = 100 / 100\n  return ").replace(PAGE, original);
+    same_population(&source, original, true);
 }
 
 fn two_sided_range(upper: &str) {
