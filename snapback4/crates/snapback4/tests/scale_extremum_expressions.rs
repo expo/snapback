@@ -1,6 +1,8 @@
 #[path = "../src/scale.rs"]
 mod scale;
 use scale::{Class, analyze};
+use snapback4_core::{Context, Engine, Value, value::object};
+use std::collections::BTreeMap;
 
 #[test]
 fn capped_expression_is_a_scan_and_uncapped_expression_grows() {
@@ -84,4 +86,92 @@ fn list_fixtures_price_every_projection_at_the_source_bound() {
         assert_eq!(c.bounds.rows_examined, rows, "{name}: {c:?}");
         if name == "argument" { assert_eq!(c.bounds.arguments["values"], 4); }
     }
+}
+
+const COLLECTION_TABLES: &str = "table t:\n  n: int\n  target: id\n  public\n  sync public\ntable secrets:\n  n: int\n  public\n  online only\n";
+
+fn check_collections(queries: &str, expected: &[(&str, u64)]) {
+    let b = snapback4_lang::compile(&[("schema.q".into(), format!("{COLLECTION_TABLES}{queries}"))]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut engine = Engine::memory(b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap();
+    engine.seed(["a", "b", "c"].map(|id| ("t".into(), object([
+        ("id", Value::Id(id.into())), ("n", Value::Int(1)), ("target", Value::Id("g".into())),
+    ]))).into_iter().chain([("secrets".into(), object([("id", Value::Id("g".into())), ("n", Value::Int(9))]))])).unwrap();
+    for &(name, examinations) in expected {
+        let program = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
+        let certificate = analyze(&b.schema, program);
+        assert_eq!(certificate.class, Class::Constant, "{name}: {certificate:?}");
+        assert_eq!(certificate.bounds.rows_examined, examinations, "{name}: {certificate:?}");
+        let args = program.args.keys().map(|name| (name.clone(), if name == "n" { Value::Int(3) }
+            else { Value::Array(vec![Value::Int(1); 4]) })).collect::<BTreeMap<_, _>>();
+        let result = engine.query(name, Context::new("alice", args)).unwrap();
+        assert_eq!(result.data, Value::Int(9), "{name}: {result:?}");
+        assert!(result.metered.examined <= examinations, "{name}: {result:?} exceeds {certificate:?}");
+        if examinations < 1_000_000 { assert_eq!(result.metered.examined, examinations, "{name}: {result:?}"); }
+    }
+}
+
+#[test]
+fn shaped_page_prices_the_same_five_examinations_as_its_unshaped_twin() {
+    check_collections("query shaped():\n  rows = t where .target = 'g' first 2 by .id { n, target }\n  return min(rows, secrets[.target].n ?? 0)\nquery unshaped():\n  rows = t where .target = 'g' first 2 by .id\n  return min(rows, secrets[.target].n ?? 0)\n", &[("shaped", 5), ("unshaped", 5)]);
+}
+
+#[test]
+fn bounded_pushes_multiply_nested_iterations_and_count_each_push() {
+    check_collections(r#"query ranges():
+  rows = []
+  for i in range(0, 2):
+    for j in range(0, 3):
+      rows = rows + [i]
+      rows = rows + [j]
+  copy = rows
+  return max(copy, secrets['g'].n ?? 0)
+query argument(values: [int] <=4):
+  rows = []
+  for value in values:
+    rows = rows + [value]
+    rows = rows + [value]
+  return min(rows, secrets['g'].n ?? 0)
+query derived():
+  input = [{ n: 1 }, { n: 2 }]
+  rows = input { n }
+  return max(rows, secrets['g'].n ?? 0)
+query sequential():
+  rows = []
+  for i in range(0, 2):
+    rows = rows + [i]
+  for i in range(0, 3):
+    rows = rows + [i]
+  return min(rows, secrets['g'].n ?? 0)
+query reset():
+  result = 0
+  for i in range(0, 2):
+    rows = []
+    for j in range(0, 3):
+      rows = rows + [j]
+    result = min(rows, secrets['g'].n ?? 0) ?? 0
+  return result
+"#, &[("ranges", 12), ("argument", 8), ("derived", 2), ("sequential", 5), ("reset", 6)]);
+}
+
+#[test]
+fn reassigned_and_open_pushed_lists_keep_the_step_ceiling_even_through_aliases() {
+    let steps = snapback4_core::Ceilings::default().steps;
+    check_collections(r#"query reassigned():
+  rows = []
+  rows = [1, 2]
+  copy = rows
+  return max(copy, secrets['g'].n ?? 0)
+query appended():
+  rows = [1]
+  rows = rows + [2]
+  copy = rows
+  return min(copy, secrets['g'].n ?? 0)
+query openRange(n: int):
+  rows = []
+  for i in range(0, n):
+    rows = rows + [i]
+  copy = rows
+  return min(copy, secrets['g'].n ?? 0)
+"#, &[("reassigned", steps), ("appended", steps), ("openRange", steps)]);
 }
