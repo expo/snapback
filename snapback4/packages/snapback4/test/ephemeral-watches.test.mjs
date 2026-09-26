@@ -94,26 +94,39 @@ for (const tier of ['online', 'wasm']) {
 
   test(`${tier}: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change`, async t => {
     const { url } = await ephemeralServer(t), queried = [];
-    let reachable = false, syncs = 0;
+    let syncs = 0, discovered = false;
     const fetch = async (input, init) => {
-      const path = new URL(input).pathname;
+      const parsed = new URL(input), path = parsed.pathname;
+      if (path === '/changes' && parsed.searchParams.get('ephi')) discovered = true;
       if (path === '/sync') syncs++;
+      // Cadence schedules requests, not response-body delivery. A slow body
+      // followed by a prompt one can arrive only milliseconds apart.
+      const query = path === '/q/typingIn' ? { at: performance.now(), reachable: queried.length >= 2 } : null;
+      if (query) queried.push(query);
       const response = await defaultFetch(input, init);
-      if (path !== '/q/typingIn') return response;
+      if (!query) return response;
       const json = await response.json();
-      queried.push({ at: performance.now(), version: json.ephemeral, seq: json.seq });
+      if (query === queried[1]) await delay(900);
+      Object.assign(query, { arrived: performance.now(), version: json.ephemeral, seq: json.seq });
       // Model an authorization-cut prefix whose hidden rows are silently
-      // reclaimed; neither notification counter nor nextExpiry changes.
-      return Response.json({ ...json, complete: reachable, data: reachable ? [{ principal: 'dev:alice' }] : [], nextExpiry: null });
+      // reclaimed before the third request; neither notification counter nor
+      // nextExpiry changes. Capture this at dispatch so the test runner need
+      // not toggle it in the short window between the delayed reply and a tick.
+      return Response.json({ ...json, complete: query.reachable, data: query.reachable ? [{ principal: 'dev:alice' }] : [], nextExpiry: null });
     };
-    const b = await open(t, tier, url, fetch), typing = watch(t, b, api.typingIn, { room: 'r' });
+    const b = await open(t, tier, url, fetch);
+    // Incarnation/schema discovery can also reissue a query; finish it before
+    // measuring the periodic refresh in the absence of changes.
+    const warm = watch(t, b, api.list);
+    await until(() => discovered && warm.getSnapshot().fresh === true, 'capability discovery');
+    const typing = watch(t, b, api.typingIn, { room: 'r' });
     await until(() => ready(typing)); const count = syncs;
-    await until(() => queried.length >= 2, 'first incomplete refresh');
-    const first = queried.at(-1).at;
-    reachable = true;
+    await until(() => queried[1]?.arrived !== undefined, 'first incomplete refresh');
+    const first = queried[1];
     await until(() => typing.getSnapshot().data?.length === 1, 'reachable row after silent reclamation');
     const last = queried.at(-1);
-    assert.ok(last.at - first >= 850 && last.at - first <= 1250, `cadence ${last.at - first}`);
+    assert.ok(last.at - first.at >= 850 && last.at - first.at <= 1250, `cadence ${last.at - first.at}`);
+    t.diagnostic(`request cadence ${(last.at - first.at).toFixed(1)} ms; response gap ${(last.arrived - first.arrived).toFixed(1)} ms`);
     assert.ok(queried.every(q => q.seq === last.seq && q.version.epoch === last.version.epoch));
     const calls = queried.length; await delay(1100); assert.equal(queried.length, calls, 'complete stops the cadence');
     assert.equal(syncs, count);
