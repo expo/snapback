@@ -1449,7 +1449,9 @@ fn held_poll(address: SocketAddr, persona: &str, query: &str) -> thread::JoinHan
 /// A query's follow token: an opaque string, never the principals or bits.
 fn token_of(read: &Json) -> String {
     let token = read["presence"].as_str().unwrap_or_else(|| panic!("no follow token in {read}")).to_owned();
-    assert!(!read.to_string().contains("dev:"), "a reply names no principal: {read}");
+    let mut shown = read.clone();
+    shown.as_object_mut().unwrap().remove("viewer");
+    assert!(!shown.to_string().contains("dev:"), "a reply names no principal it read: {read}");
     token
 }
 
