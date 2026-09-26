@@ -107,6 +107,16 @@ export interface MutateOptions {
    * Conflicting input is refused while this client or its outbox knows it;
    * otherwise a retained receipt or the server's original outcome wins. */
   readonly id?: string;
+  /** Seconds to wait for the server's outcome once this client has custody of
+   * the write: floored and clamped to 0–25 like `ActOptions`. Omitted keeps each
+   * tier's default: a device waits up to 4 s while online; an online client
+   * waits for its request. `0` returns at custody — `pending` with the write's
+   * id — or with the refusal that prevented custody, so a composer can clear its
+   * draft and take the next send. Custody is the device outbox, `createApp`'s
+   * online intent journal, or the online client's memory queue. Settlement still
+   * reaches `onWrite`, `client.write(id)` and a hook's `last`. */
+  // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — admission is its own boundary, before settlement.
+  readonly waitSeconds?: number;
 }
 
 /** The app's relationship to its server. While polling on a running host,
