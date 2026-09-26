@@ -169,8 +169,9 @@ export function createClient(options: ClientOptions): Client {
     if (closed || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
     backend = next;
     ephemeralAdvertised = Object.values(next.schema.tables).some(table => table.ephemeral);
-    // Only accepting the poll advances generation: discovery must not swallow
-    // its invalidation of already mounted durable watches.
+    // Seed the first known generation, but only the poll advances it afterward:
+    // discovery must not swallow invalidation of already mounted durable watches.
+    generation ??= next.generation;
     for (const watch of watches.values()) watchEphemeral(watch);
     return true;
   }

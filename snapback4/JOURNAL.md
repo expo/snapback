@@ -62012,3 +62012,14 @@ TypeScript-only fix and its package typecheck/build completed while the final
 suite was still in its Rust phase, before any client test started; no Rust
 semantic input changed. The suite's client phase therefore uses the corrected
 build, with its typecheck/build also recorded separately.
+
+The full client phase then exposed a second initialization edge in that fence:
+if a query supplies the first incarnation and cancels the initial poll, generation
+can still be undefined at a later adoption. The real online typing → viewing test
+failed and reproduced in isolation (so it was not dismissed as host timing).
+Schema discovery now seeds the first known generation with ??=; only accepted
+polls advance it afterward. All 21 adoption/read-order tests pass, and three
+additional runs of both the real adoption and the no-swallowed-invalidation case
+pass (6/6). Existing assertions are unchanged. The full run's one client failure
+is retained as diagnostic evidence; the complete suite is rerun from this fixed
+checkpoint with no source edits during qualification.
