@@ -165,7 +165,8 @@ Other paths:
   clarifies independent old-generation reads, updates Revised.
 - `../issues/20260926-snapback4-adoption-stalls-reads.md`: supplied ticket, first commit.
 - `JOURNAL.md`: one appended dated entry, extended with final evidence.
-- `reports/20260926-lane-ad-*`: this report and raw measurement/check outputs.
+- `reports/20260926-lane-ad-adoption.md`: this report. Raw measurement/check outputs
+  are now under ignored `target/lane-ad-evidence/` (round 1 cleanup).
 
 ## Forms that compile and run
 
@@ -303,8 +304,9 @@ fixture wrapper tests passed. Final production binary build and package build
 also passed after the scoped corrections. No changed source exceeds 1,500 lines
 (the largest is serve_tests.rs at 1,497); `git diff --check` passes.
 Full output (line endings/trailing whitespace normalized):
-`20260926-lane-ad-test-sh.log`. Additional final logs accompany
-this report. The suite result is retained as red; the scoped reruns do not turn it
+`target/lane-ad-evidence/20260926-lane-ad-test-sh.log`. All raw logs cited
+above are now under `target/lane-ad-evidence/` with the same filenames;
+unprefixed names use `20260926-lane-ad-` there. The suite result is retained as red; the scoped reruns do not turn it
 into a claimed clean full-suite run.
 
 Implementation commits: `5429a3d1f` (ticket), `5563a56c8` (baseline instrumentation),
@@ -312,3 +314,208 @@ Implementation commits: `5429a3d1f` (ticket), `5563a56c8` (baseline instrumentat
 commit adds this report, logs and the completed journal entry. All carry the
 requested Co-Authored-By trailer.
 No push, publication or external message. No subagent or review approval claimed.
+
+## Round 1 — 2026-09-26
+
+Read the lane prompt, this round-0 report, and both complete blind reviews.
+All changes below answer the eight round-1 findings. No push or publication.
+Raw logs, including all 18 former `reports/20260926-lane-ad-*.log` files, now live
+in ignored `snapback4/target/lane-ad-evidence/`; paths below are relative to it.
+The report retains the measurements, commands and failure classifications.
+
+### 1. Detached sync and the native Following failure
+
+Located `packages/snapback4/test/following-unfollow.test.mjs`, specifically
+`Following unfollow/repost repeats in one native session`. Eight concurrent
+Node/server/native-device test processes reproduced the unfixed comparison in
+**51/64 runs**, in 31.63 seconds (host load 12.18 at completion). The failure
+is an unequal-cut comparison, not a skipped row or an advanced sync cursor.
+
+Thirteen of sixteen instrumented runs reproduced it. In the `random-25` trace,
+the device watermark was **70**, the completed page's watermark and `images_at`
+were **70**, and the online query was at **71**. The sync request began four
+milliseconds before the explicit `client.sync()` call. That call joined the
+already-running round (`src/local.ts::syncOnce`); a subsequent sync returned the
+missing row. Every instrumented failed comparison matched after that subsequent
+sync. Some traces include a newer background response still being applied;
+none shows the device passing the missing delivery's sequence.
+
+Code evidence: `Store::read_transaction` pins identity before page reads;
+`Engine::{snapshot_acquisition_page_at,stream_at}` supplies one transaction to
+`partition::{snapshot_page,stream}`. First-page watermark, stream watermark,
+`images_at`, membership/log reads and row images use that transaction. Snapshot
+continuations retain the first watermark so subsequent streaming catches
+inserts that sort before the cursor. `/sync`'s earlier `read_head()` contributes
+only store identity, not the delivered position. Later acknowledgment lookups
+are bounded by the page's watermark/image head. No production sync change was
+necessary.
+
+- `tests/serve_sync/concurrent.rs`: 16 snapshot and 16 stream cases hold an
+  actual WAL snapshot with a SQLite authorizer, commit a row through HTTP,
+  then prove the old response retains its earlier position and acknowledges
+  no later write. Snapshot pages continue across the concurrent insertion;
+  the next stream contains the row and its acknowledgment.
+- `tests/serve_sync/mod.rs`: includes that regression.
+- `packages/snapback4/test/following-unfollow.test.mjs`: waits for the online
+  query's sequence before comparing replica rows; still fails if a row is
+  absent at that position. Also forces a sync response captured before a
+  concurrent remote post and its delivery.
+- **64/64 revised runs on both hosts = 128 passed cases**, eight processes
+  concurrently, 87.64 seconds (host load 19.02 at completion). These stress
+  runs used the round-0 production executable, isolating the harness fix.
+  The final full suite uses the rebuilt round-1 executable.
+- All **7 sync tests passed**. Replacing a snapshot response's watermark with
+  `reader.seq()` after materialization makes the concurrent regression fail
+  immediately (reports 3 while its snapshot was at 2).
+
+Evidence: `r1-following-before-*.log`, `r1-following-trace-*.log`,
+`following-trace.mjs.txt` (temporary instrumentation retained as text),
+`r1-following-after-*.log`, `r1-sync-all.log`, `r1-sync-watermark-mutant.log`.
+Reproduce the client case with
+`node --test packages/snapback4/test/following-unfollow.test.mjs`; the recorded
+stress runs invoked it 64 times with eight concurrent subprocesses.
+
+### 2–6. Validation, admission, transaction timing, authority and cleanup
+
+- `core/src/store/activation.rs`: rebuilt maintained targets run unchanged
+  uniqueness and cap validations as well as row validation.
+  `core/src/store/adoption_tests.rs` pairs optimized and full paths for both
+  an unchanged unique `value` index and a cap of one row per `value`. The
+  review's predicate removal would produce 2 and 2; both paths reject and
+  retain totals 1 and 2, generation, sequence, every row/index/log/commit and
+  generation record. Removing either validation fails its paired test.
+- `snapback4/src/serve.rs`: mutation admission and other short requests each
+  have 16 slots, retaining the existing total of 32. `saturation.rs` submits
+  32 mutations while the writer is held, proves excess mutations are bounded,
+  and obtains real query and sync responses within two seconds while the
+  admitted mutations still wait. Routing mutations back into `Short` makes
+  the query get EOF and fails the regression.
+- `core/tests/adoption_scale.rs`: signals from the SQLite authorizer after
+  `BEGIN IMMEDIATE`, holds that callback until the detached query finishes,
+  asserts it remains inside adoption and takes less than two seconds, and
+  reports microseconds plus the injected hold. `core/Cargo.toml` enables
+  SQLite authorizer hooks for tests only. The former 0 ms measurement had no
+  such proof; the corrected measurements are below.
+- `snapback4/src/serve.rs`: resolves the bearer on the executing store under
+  **both** locks, before replay and before mutation, returning HTTP 401 / E_AUTH
+  if expired or revoked. `authority.rs` drives requests past successful initial
+  authentication, holds the later lock through adoption, and expires/revokes
+  the session there. Six cases cover replay, idless execution, and fresh-id
+  execution after replay misses. Removing either check fails the regression.
+  `serve_tests.rs` supplies its test-only lock-gap hook.
+- `tests/serve_adoption/failure.rs`: publishes a candidate, holds and then denies
+  an activation index write, checks pending and old-generation reads while held,
+  then verifies rollback, an old query, E_OP rather than indefinite pending for
+  the rejected name, and a successful later adoption. Deleting
+  `finish_adoption`'s `candidate_queries.clear()` now fails. Shipping cleanup
+  was already correct; no production cleanup change was needed.
+- `tests/serve_adoption/mod.rs` wires the regressions; `reads.rs` exposes its two
+  existing fixture strings to them. No source exceeds 1,500 lines.
+
+Targeted results: core adoption **5/5**, canonical CLI **120 passed, 2 ignored**,
+legacy-key/row tests **all passed**, device legacy-key upgrade **5/5**, whole
+compiled guide **86/86**. See `r1-core-final.log`, `r1-http-canonical.log`,
+`r1-legacy-keys.log`, `r1-device-keys.log`, `r1-guide.log` and the six
+`r1-mutant-*.log` files. Mutants were restored before qualification.
+
+A preliminary CLI run at Cargo's default 96-thread parallelism had five
+**environmental** failures: saturation, foreign-origin/rebound-host rejection,
+route dev exception, saturated legacy waits, and maximum route names. Its
+1,024-descriptor soft limit was exhausted (`EMFILE` in tiny_http); resulting
+socket resets/EOF/timeouts caused the assertions. The canonical runner already
+uses one CLI test thread. That exact concurrency passed all 120 tests without
+raising an engine budget. The two ignored cases are the crash subprocess helper
+and opt-in HTTP scale witness; both were exercised separately. The full suite
+result below remains independent of these preliminary checks.
+
+### 7. Adoption cost and the remaining /changes wait
+
+Schema equality alone cannot prove legacy physical keys satisfy today's bound.
+`store/activation.rs` now persists a successful key validation bound against the
+activation hash, checks **every** newly generated key, and reuses the matching
+predecessor proof. Missing/stale proof still scans; device installs always scan.
+The proof and all changes commit together. Tests deny any index read during a
+program-only adoption, reject newly built oversized ordinary keys, and inject
+legacy keys with absent and obsolete proofs to verify refusal and rollback.
+This also closes the prerequisite hole where ordinary activation keys were
+unchecked even though contribution keys were checked.
+
+`engine/recorded.rs` still captures each new path once per source and persists
+nulls. It computes old/new keys only for indexes depending on newly captured
+fields. Existing captures are never re-resolved; source visits, validation,
+metering, log images and commit order remain intact. Capture falls by about
+1.43 seconds. Mandatory new historical facts are still stored atomically.
+
+Corrected fixture: **1,447,960 rows / 9,077,125 index entries** before adoption.
+All measurements use test-profile opt-level 1, eight Cargo jobs, dev/test debug
+information disabled, standard SQLite cache and FULL durability. Same host and
+synthetic population limitations as round 0. The preflight phase was broader
+than just the old-key scan; approximately 1.76 seconds of other preflight work
+remains after eliminating that scan.
+
+| Cost | Before round-1 optimization | Final round-1 run |
+|---|---:|---:|
+| Key check + remaining preflight | 3,023.356 ms | 0.095 + 1,762.355 ms |
+| Projection/index work | 484.386 ms | 462.765 ms |
+| Capture | 2,195.651 ms | 762.264 ms |
+| Derived, including capture | 2,891.503 ms | 1,430.361 ms |
+| Final validation | 475.201 ms | 459.450 ms |
+| Metadata | 2.790 ms | 1.844 ms |
+| Commit/checkpoint | 2,360.001 ms | 2,765.481 ms |
+| Adoption | **9,239 ms** | **6,884 ms** |
+| Query, proved inside transaction | **502 µs** | **531 µs** |
+| Injected authorizer hold | 525 µs | 574 µs |
+
+An earlier optimized run was **6,377 ms / 510 µs**. Final folds: dailyLikes
+12.436 ms / 5,008 visits; dailyPosts 220.259 ms / 50,228; originalTotals
+215.310 ms / 50,228; receivedLikes 11.866 ms / 5,008; receivedReplies
+204.718 ms / 50,228; receivedReposts 2.802 ms / 1,004. A writer-locked control
+waited **6,735.460 ms** for a **6,737 ms** adoption. The one-second adoption
+target remains unmet; these measurements do not establish a constant bound.
+
+The opt-in real HTTP witness (`tests/serve_adoption/scale.rs`) measured:
+
+| HTTP measurement | Optimizations disabled | Round 1 |
+|---|---:|---:|
+| Adoption | 9,709 ms | 6,299 ms |
+| Signed-in `/changes?since=0&wait=0` | **9,710 ms** | **6,302 ms** |
+| Query while adoption held | 4.344 ms | 5.607 ms |
+| Sync while adoption held | 10.685 ms | 9.573 ms |
+
+LLP 3000.019 §3.6, the maintains guide and `CLIENT-AND-OPERATIONS.md` now limit
+availability to query/sync snapshot reads and explicitly state `/changes`'s
+whole-adoption wait. `issues/20260926-snapback4-changes-waits-for-adoption.md`
+tracks bounded durable writer access, with the reproduction and crash constraint:
+acknowledging only in memory could leave an old presence-loss notification
+eligible after a crash. No such acknowledgment or chunked rebuild was added.
+
+The updated scale store still equals the retained legacy store exactly:
+**1,447,966 rows, 9,077,137 indexes, 1,973,177 log entries, 316,734 commits**.
+`r1-scale-equivalence.log` records all four matching SHA-256 digests.
+
+Reproduce from `snapback4/`, with `$HOME/.local/bin` and `$HOME/.cargo/bin` on PATH:
+
+```sh
+CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+  SNAPBACK4_ADOPTION_SCALE=1 SNAPBACK4_ADOPTION_DETACHED=1 \
+  cargo test -p snapback4-core --test adoption_scale -- --ignored --nocapture
+
+CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+  SNAPBACK4_ADOPTION_HTTP_DB="$PWD/crates/snapback4-core/target/adoption-scale/m7.db" \
+  cargo test -p snapback4 --bin snapback4 scale_changes_waits -- --ignored --nocapture
+
+python3 scripts/compare-adoption.py \
+  crates/snapback4-core/target/adoption-scale/baseline-corrected-m8.db \
+  crates/snapback4-core/target/adoption-scale/adopt.db
+```
+
+No Quarry syntax changed. All six view forms listed in the round-0 section
+still compile and run; `view totals: count items by .owner` and `query total()`
+reading `totals[viewer]` remain the HTTP availability example. No meter,
+wasm-size budget, authorization or durability rule was relaxed.
+
+### Round-1 full-suite result
+
+The required single final `scripts/test.sh` run follows these commits. Its exact
+result and wasm measurement will be appended here when it completes. No clean
+full-suite result is claimed in advance.

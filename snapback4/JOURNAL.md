@@ -64930,3 +64930,34 @@ The full suite was not rerun; its red summary is retained with the scoped green
 results rather than relabeled green. Final evidence is in reports/20260926-lane-ad-*.
 Commits so far: 5429a3d1f, 5563a56c8, 2e00cef93, 46bf41d23; the evidence commit
 completes this same dated entry. No push, package publication or delegated review.
+
+### 2026-09-26 — Lane AD round 1: adoption review findings
+
+Read both blind reviews and fixed rebuilt-target uniqueness/cap rollback,
+mutation/read admission (16 + 16 within the existing 32), and bearer checks
+inside both replay/execution locks. Regressions now cover failed candidate
+cleanup and concurrent commits during detached snapshot/stream reads. The
+native Following failure reproduced in 51/64 loaded runs: the device was at
+sequence 70 while the online comparison was at 71, after `sync()` joined an
+older round. Waiting for the observed sequence fixes that comparison; 64 runs
+on both native and wasm passed, including a forced overlapping remote write.
+A later-head watermark mutant and all six review-specific mutants fail.
+
+The scale read now runs inside a held SQLite transaction (531 µs). Validated
+key bounds are reused only with a matching activation proof; legacy/device
+checks and every newly generated key retain validation. Capture computes only
+keys depending on new facts, preserving all stored captures and nulls. Adoption
+measured 9,239 → 6,884 ms; capture 2,196 → 762 ms. Every row/index/log/commit
+still matches the retained legacy store. The actual HTTP reconnect wait was
+9,710 → 6,302 ms, while query/sync took 5.607/9.573 ms during the held adoption.
+The one-second target and bounded `/changes` writer access remain unmet. The
+new `/changes` ticket preserves durable reconnect acknowledgment across crashes;
+no chunks or in-memory acknowledgment were introduced. LLP/guide/operations
+claims now name only query and sync snapshot reads. Raw lane logs moved to
+ignored `target/lane-ad-evidence/`; the lane report retains commands and numbers.
+
+Affected core, canonical CLI, device upgrade and whole-guide checks pass.
+A default 96-thread CLI attempt exhausted its 1,024-descriptor process limit;
+the canonical runner's single CLI thread passes 120 tests (two intentional
+ignored helpers). The required single final full-suite run follows these
+commits; its exact result will complete this entry. No push or publication.
