@@ -52,3 +52,25 @@ for (const tier of ['online', 'wasm', 'app-online', 'app-wasm']) test(`${tier}: 
   assert.equal(requests.length, count); assert.deepEqual(written, []);
   assert.ok(!calls.includes('admit')); assert.equal(storeWrites, storeBefore);
 });
+
+for (const tier of ['app-online', 'app-wasm']) test(`${tier}: session storage waits stay inside the bounded lane`, async t => {
+  const { url } = await ephemeralServer(t), storage = memorySessionStore();
+  let hold, release, down = false;
+  const fetch = (url, init) => { if (down) throw Error('offline'); return defaultFetch(url, init); };
+  const app = createApp({ url, fetch, ...(tier === 'app-wasm' ? { device: device() } : {}),
+    sessionStore: { ...storage, async get(key) { if (hold) await hold; return storage.get(key); } } });
+  t.after(async () => { release?.(); await app.close(); });
+  await app.ready; assert.equal((await app.auth.guest()).ok, true);
+  if (app.client.sync) await app.client.sync();
+  await app.client.query(api.list, {});
+  hold = new Promise(resolve => { release = resolve; });
+  const first = app.mutate(api.stopTyping, { room: 'r' });
+  const waiting = Array.from({ length: 256 }, () => app.mutate(api.stopTyping, { room: 'r' }));
+  let overflow;
+  void app.mutate(api.stopTyping, { room: 'r' }).then(value => { overflow = value; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(overflow?.why.code, 'E_RATE_LIMIT', 'no asynchronous queue before the lane');
+  down = true; hold = undefined; release();
+  assert.equal((await first).why.code, 'E_OFFLINE');
+  assert.ok((await Promise.all(waiting)).every(value => value.why.code === 'E_OFFLINE'));
+});

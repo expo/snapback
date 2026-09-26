@@ -540,12 +540,12 @@ export function createClient(options: ClientOptions): Client {
         const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, ephemeralReads.parameters(), eph.signal);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
+        if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
         if (await obsoleteRefusal(json.denied, revision)) continue;
         if (closed || storeRefusal || !credentials) break;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
-        if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);

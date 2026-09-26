@@ -1,4 +1,4 @@
-import { routeMutations, failedSignal, ephemeralOffline } from "./ephemeral.ts";
+import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
 import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
@@ -80,15 +80,10 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
     },
-    mutate: routeMutations(async (op, args) => {
-      // Ephemeral calls never enter browser admission or the intent journal.
-      if (!valid()) return failedSignal(mintId(), why());
-      if (raw.link() !== "online") return failedSignal(mintId(), ephemeralOffline());
-      let snapshot: typeof args;
-      try { snapshot = JSON.parse(JSON.stringify(args)); }
-      catch { return failedSignal(mintId(), { code: "E_INPUT", family: "input", message: "ephemeral arguments must be JSON-serializable" }); }
-      const denied = await refusal();
-      return denied ? failedSignal(mintId(), denied) : raw.mutate(op, snapshot);
+    mutate: routeMutations((op, args) => {
+      // Enter the single bounded lane synchronously. The scoped transport
+      // checks the session epoch before dispatch, inside that ordered lane.
+      return valid() ? raw.mutate(op, args) : Promise.resolve(failedSignal(mintId(), why()));
     }, (op, args, options) => {
       if (browserAdmission() && admit) {
         const id = options?.id ?? mintId();

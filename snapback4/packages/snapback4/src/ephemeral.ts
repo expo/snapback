@@ -121,7 +121,7 @@ export function ephemeralLane(options: Options) {
       }
       const saved = !running && reusable(op, key);
       if (saved) return Promise.resolve(saved as Signal<R>);
-      const replace = op.renews ? waiting.findIndex(entry => entry.key === key) : -1;
+      const replace = op.renews ? waiting.findIndex(entry => entry.op.renews && entry.key === key) : -1;
       if (replace < 0 && waiting.length >= 256) return Promise.resolve(failedSignal(id,
         { code: "E_RATE_LIMIT", family: "auth", retryable: true, message: "the ephemeral lane already holds 256 waiting calls" }));
       const displaced = replace < 0 ? undefined : waiting.splice(replace, 1)[0];

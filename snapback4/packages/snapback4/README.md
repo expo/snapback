@@ -6,7 +6,7 @@ Rust interpreter as the server. The package carries the TypeScript client and th
 ## Start here: your first working account screen
 
 Follow this `README.md` through password signup, profile, avatar and reopen. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`).
-Typing and room viewing use `ephemeral` tables: `npx snapback4 guide ephemeral`; [client writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes).
+
 ### 1. Create and run the backend
 
 Use Node 24. In a new app directory, install the exact package and Expo starter:
@@ -280,7 +280,6 @@ query trending(c: cursor ?):
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
 cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite.
 Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
-
 | Need | One reference lookup |
 |---|---|
 | Quarry grammar | `guide language` |
@@ -290,6 +289,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
 | Following: `view following` / Global: planned view / Trending: predicate read / search | `guide feeds` / `guide search` |
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
+| Typing / scoped presence | [Ephemeral writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes) |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
 | Full client, auth / complete React list | [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
