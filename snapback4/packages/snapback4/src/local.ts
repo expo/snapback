@@ -243,7 +243,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
-  const ephemeralReads = new EphemeralReads(aborter.signal);
+  const ephemeralReads = new EphemeralReads(aborter.signal, () => answers.keptAnswers.clearEphemeral());
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
@@ -934,7 +934,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
 
   function watchEphemeral(watch: Watch) {
-    const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
+    const tables = watch.ephemeralTables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
       if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }

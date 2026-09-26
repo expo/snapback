@@ -1136,7 +1136,8 @@ store incarnation starts from it with `fresh: false` and re-reads immediately.
 A default watch never uses this memory. Credential/viewer changes, sign-out,
 store replacement or restore, adoption, `clear_rows` and `settle_exit` discard
 kept answers at once. An answer's expiry ends retention, even during loading or
-the 30-second idle window. Ephemeral resets still withdraw active answers. Closing the client discards the memory; it is not durable.
+the 30-second idle window. Ephemeral incarnation changes discard affected active
+and idle answers. Closing the client discards the memory; it is not durable.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.

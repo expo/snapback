@@ -21,7 +21,7 @@ export class EphemeralReads {
   private queries = new AbortController();
   private poll = new AbortController();
   private interests = new Map<object, Interest>();
-  constructor(lifetime: AbortSignal) {
+  constructor(lifetime: AbortSignal, private retireIdle = () => {}) {
     lifetime.addEventListener("abort", () => {
       this.queries.abort(); this.poll.abort();
       for (const interest of this.interests.values()) clearInterval(interest.incomplete);
@@ -59,6 +59,8 @@ export class EphemeralReads {
     // The accepting response belongs to the new revision. All other request
     // tags keep the retired revision, even if their transport ignores abort.
     request.revision = this.revision; request.signal = this.queries.signal;
+    // Retire idle answers before an active subscriber can synchronously remount one.
+    this.retireIdle();
     for (const [key, interest] of this.interests) {
       delete interest.answer;
       interest.floor = version;

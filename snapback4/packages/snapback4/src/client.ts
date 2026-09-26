@@ -170,7 +170,7 @@ export function createClient(options: ClientOptions): Client {
     for (const watch of watches.values()) if (watch.keep) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
     if (publish) for (const watch of watches.values()) if (watch.keep) notify(watch);
   };
-  const ephemeralReads = new EphemeralReads(aborter.signal);
+  const ephemeralReads = new EphemeralReads(aborter.signal, () => keptAnswers.clearEphemeral());
   let backend: BackendJson | undefined;
   let backendLoaded = false, ephemeralAdvertised = false, schemaLoading = false;
   const ephemeralTables = (op: Query<unknown, unknown>) => backend
@@ -305,6 +305,7 @@ export function createClient(options: ClientOptions): Client {
     if (viewer === next) return;
     viewer = next;
     resetKept();
+    if (credentials) for (const watch of watches.values()) if (watch.keep) void refresh(watch);
     for (const listener of viewerListeners) listener(next);
   };
 
@@ -530,7 +531,7 @@ export function createClient(options: ClientOptions): Client {
     && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
 
   function watchEphemeral(watch: Watch) {
-    const tables = ephemeralTables(watch.op);
+    const tables = watch.ephemeralTables = ephemeralTables(watch.op);
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
       if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }
