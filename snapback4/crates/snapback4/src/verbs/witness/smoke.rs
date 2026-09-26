@@ -156,22 +156,23 @@ mod tests {
         let row: String = engine.store().conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
         let before = engine.seq().unwrap();
         let identity = engine.store().meta("store_id").unwrap().unwrap();
+        drop(engine);
         {
             let mut owner = crate::store_owner::command(&path).unwrap();
             crate::store_owner::announce(&mut owner, "127.0.0.1:1234".parse().unwrap()).unwrap();
             let refused = barrier(&path, &identity, before).unwrap_err();
             assert!(refused.contains("E_STORE_BUSY") && refused.contains("http://127.0.0.1:1234"), "{refused}");
-            assert_eq!(engine.store().seq().unwrap(), before);
+            let store = owner.open_store(std::time::Duration::from_secs(5)).unwrap();
+            assert_eq!(store.seq().unwrap(), before);
         }
-        drop(engine);
         let seq = barrier(&path, &identity, before).unwrap();
         assert!(seq > before);
         let store = snapback4_core::Store::open(&path).unwrap();
         assert_eq!(store.seq().unwrap(), seq);
         assert_eq!(counts(&store), held);
         assert_eq!(store.conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get::<_, String>(0)).unwrap(), row);
-        assert!(barrier(&path, "wrong-store", seq).is_err());
         drop(store);
+        assert!(barrier(&path, "wrong-store", seq).is_err());
         let _ = fs::remove_dir_all(dir);
     }
 }

@@ -1097,6 +1097,7 @@ impl<S: DeviceStore> Device<S> {
         Backend { generation: self.generation, schema: self.schema.clone(), programs: self.programs.values().cloned().collect() }
     }
 
+    #[cfg(feature = "native")]
     pub fn residency(&mut self) -> Result<serde_json::Value, RuntimeError> {
         self.store.residency(&self.schema)
     }
