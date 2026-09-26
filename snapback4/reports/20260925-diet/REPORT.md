@@ -83,3 +83,7 @@ The narrow interface shares the real/recording applicator, history, boundaries a
 ## Candidate 2: compile-time server row-view boundary
 
 576,762 → **574,735 B gzip** (1,991,416 → **1,985,947 B raw**): **2,027 B gzip saved**. Server work deletion/updating, basis timestamps and cursor-prefix subtraction now require the SQLite feature. The bounded writer scan, public reservations and covered device recount remain. Native devices still compile the server feature but keep their runtime device checks; server execution is unchanged. The separate work-schema preparation candidate remains present at this stage.
+
+## Candidate 4: witness / aggregate / point consolidation
+
+574,735 → **574,660 B gzip** (1,985,947 → **1,985,645 B raw**): **75 B gzip saved**. One authorized-point completion tail and event-slot check; one contribution-selection predicate shared by lifetime and aggregate paths. An initial extra source lookup measured 574,699 and was removed. The two-seek server branch was already cfg-gated. The remaining decode loops differ materially: lifetime probes aggregate the latest alternative deadline and use physical authority work; scalar recounts charge ordinary examined/step work, authorize provisional candidates and accumulate totals. Their common selection is shared without merging those policies.

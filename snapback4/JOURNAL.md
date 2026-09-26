@@ -61652,3 +61652,17 @@ from 576,762. This attributes the runtime server branches separately from
 schema preparation, which is still present for the next candidate. Recount
 chunks, adoption rebuilds and Postgres seeks were already excluded, as the
 baseline symbols confirm. No runtime ceiling or serialized form changes.
+
+## 2026-09-25 — device diet: share authorized point completion and contribution selection
+
+The actual-size and reserved-scratch point paths now join at one live-aggregate
+completion tail and share the event-slot holding check. Witness lifetimes and
+live aggregate recounts share only their row-selection predicate, with the
+already-borrowed source table. Scanning, authorization, deadline selection and
+logical/physical meter charges stay in their original order and scopes.
+Same build: **1,985,645 B raw / 574,660 B gzip**, **75 B gzip saved** from
+574,735. A preliminary variant looked up the source again and saved only 36 B;
+the retained form avoids that extra lookup. The server's two-seek lifetime
+path was already behind the SQLite feature. The decode loops have different
+accounting and coverage semantics; merging their traversal would require a
+larger mode-driven routine for no demonstrated saving.

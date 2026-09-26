@@ -106,7 +106,7 @@ impl<'r> Runner<'r> {
     // @ref LLP 3000.015#1 — row and field authorization precede result pricing.
     pub(super) fn authorized_point(&mut self, read: &Read, index: &Index, key: &[Value], prepaid: bool, trusted: bool, prepaid_examined: bool, absent: &mut bool) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
         let table = &self.schema.tables[&read.table];
-        if crate::rows::disclosed::actual_size(table) {
+        let row = if crate::rows::disclosed::actual_size(table) {
             if !prepaid_examined && !self.read_charge(MeterKind::Examined,1)? { self.point_cut(read, key); return Ok(None); }
             let scratch = self.meter.mark();
             let row = self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,&read.table,&read.index,key,&Default::default(),crate::rows::Dir::Asc,1,&mut runner.meter))?.pop();
@@ -116,53 +116,60 @@ impl<'r> Runner<'r> {
                 self.point_miss(read, key);
                 return Ok(None);
             };
-            if self.device && !crate::schema::timeline::holds_event(self.schema, &read.table, &row) {
-                self.event_read_unknown(&read.table, &read.index, key, &read.site);
+            if !self.point_event_held(read, key, &row) {
                 return Ok(None);
             }
             if self.device && self.retained_row(&read.table,&row)? { self.components.note(|frame|frame.retained=true); }
             crate::schema::materialize_optional_fields(&mut row,table);
-            let row = if prepaid_examined { self.live_aggregate_prepaid(&read.table,row)? } else { self.live_aggregate(&read.table,row)? }.unwrap_or(Value::Null);
-            return Ok(Some(AuthorizedRow { projection:self.disclosed_row(table,row).for_query(),authority:RowAuthorization(()),expiry:Default::default() }));
-        }
-        let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
-        // @ref LLP 3000.014#5-what-derives-from-the-capture — a hidden, expired or absent candidate's deadlines are discarded with this scope.
-        let expiry = self.next_expiry.scope();
-        let authorized = self.authorized_scratch(bytes, &[(MeterKind::Examined, u64::from(!prepaid_examined))], |runner, scope| {
-            let Some(row) = runner.live_lookup(scope,&read.table, &read.index, index, key)? else {
-                *absent = true;
-                runner.point_miss(read, key);
+            row
+        } else {
+            let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
+            // @ref LLP 3000.014#5-what-derives-from-the-capture — a hidden, expired or absent candidate's deadlines are discarded with this scope.
+            let expiry = self.next_expiry.scope();
+            let authorized = self.authorized_scratch(bytes, &[(MeterKind::Examined, u64::from(!prepaid_examined))], |runner, scope| {
+                let Some(row) = runner.live_lookup(scope,&read.table, &read.index, index, key)? else {
+                    *absent = true;
+                    runner.point_miss(read, key);
+                    return Ok(None);
+                };
+                // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced answers nothing.
+                if !runner.point_event_held(read, key, &row) {
+                    return Ok(None);
+                }
+                if runner.expired(table, &row) { return Ok(None); }
+                let provisional = runner.is_provisional(&read.table, &row)?;
+                let allowed = if provisional && !runner.context.is_system() {
+                    runner.authorize_read(&read.table, &row, prepaid)?
+                } else { trusted || runner.check_rule(&read.table, Effect::Read, None, &row)? };
+                if !allowed { return Ok(None); }
+                // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
+                if runner.device && runner.retained_row(&read.table, &row)? { runner.components.note(|frame| frame.retained = true); }
+                runner.note_expiry(table, &row);
+                let projected = runner.disclosed_row(table, row).for_query();
+
+                let visible = projected.into_value(); // drop hidden storage before leaving the internal scope
+                Ok(Some(AuthorizedRow { projection: runner.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
+            })?;
+            // The live aggregate is an authorized result computation. It must keep
+            // its ordinary work budget and cannot publish a partial scalar value.
+            let Some(authorized) = authorized else {
+                if !*absent && self.read_capped() { self.point_cut(read, key); }
                 return Ok(None);
             };
-            // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced answers nothing.
-            if runner.device && !crate::schema::timeline::holds_event(runner.schema, &read.table, &row) {
-                runner.event_read_unknown(&read.table, &read.index, key, &read.site);
-                return Ok(None);
-            }
-            if runner.expired(table, &row) { return Ok(None); }
-            let provisional = runner.is_provisional(&read.table, &row)?;
-            let allowed = if provisional && !runner.context.is_system() {
-                runner.authorize_read(&read.table, &row, prepaid)?
-            } else { trusted || runner.check_rule(&read.table, Effect::Read, None, &row)? };
-            if !allowed { return Ok(None); }
-            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if runner.device && runner.retained_row(&read.table, &row)? { runner.components.note(|frame| frame.retained = true); }
-            runner.note_expiry(table, &row);
-            let projected = runner.disclosed_row(table, row).for_query();
-
-            let visible = projected.into_value(); // drop hidden storage before leaving the internal scope
-            Ok(Some(AuthorizedRow { projection: runner.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
-        })?;
-        // The live aggregate is an authorized result computation. It must keep
-        // its ordinary work budget and cannot publish a partial scalar value.
-        let Some(authorized) = authorized else {
-            if !*absent && self.read_capped() { self.point_cut(read, key); }
-            return Ok(None);
+            expiry.emit();
+            authorized.into_value()
         };
-        expiry.emit();
         // A maintained point read has already reserved its recount scratch (aggregate_point_scratch).
-        let row = if prepaid_examined { self.live_aggregate_prepaid(&read.table, authorized.into_value())? } else { self.live_aggregate(&read.table, authorized.into_value())? }.unwrap_or(Value::Null);
+        let row = if prepaid_examined { self.live_aggregate_prepaid(&read.table, row)? } else { self.live_aggregate(&read.table, row)? }.unwrap_or(Value::Null);
         Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, row).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
+    }
+
+    fn point_event_held(&mut self, read: &Read, key: &[Value], row: &Value) -> bool {
+        if self.device && !crate::schema::timeline::holds_event(self.schema, &read.table, row) {
+            self.event_read_unknown(&read.table, &read.index, key, &read.site);
+            return false;
+        }
+        true
     }
 
     /// A key-authorized synthetic aggregate image (its fields are the caller's

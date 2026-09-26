@@ -67,6 +67,14 @@ impl Runner<'_> {
         self.live_aggregate_inner(&maintain, row)
     }
 
+    // Shared selection only: witnesses and scalar recounts keep their distinct
+    // authorization, coverage, lifetime and metering behavior around it.
+    pub(super) fn live_contribution(&self, maintain: &Maintain, source: &crate::schema::Table, candidate: &Value, group: &[Value]) -> bool {
+        !self.expired(source, candidate)
+            && maintain.selected(candidate)
+            && maintain.source_key(candidate) == group
+    }
+
     pub(super) fn live_aggregate_inner(
         &mut self,
         maintain: &crate::schema::Maintain,
@@ -110,9 +118,7 @@ impl Runner<'_> {
                 if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? {
                     break 'sources;
                 }
-                if self.expired(source, &candidate)
-                    || !maintain.selected(&candidate)
-                    || maintain.source_key(&candidate) != group
+                if !self.live_contribution(maintain, source, &candidate, &group)
                 {
                     continue;
                 }
