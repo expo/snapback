@@ -346,6 +346,48 @@ fn revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock() 
 }
 
 #[test]
+fn bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock() {
+    for ephemeral in [false, true] {
+        let (mut h, dir) = host(true);
+        let dir = dir.unwrap();
+        let source = if ephemeral { source() } else { SCHEMA.to_owned() };
+        if !ephemeral {
+            drop(h);
+            h = Host::with_store(true, Store::open(&dir.join("store.sqlite")).unwrap(), &source);
+        }
+        let session = body(&h.request("POST", "/auth/guest", "", "{}"));
+        let token = session["session"]["token"].as_str().unwrap();
+        let reader = lock(&h.shared.engine).reader().unwrap();
+        assert!(snapback4_core::identity::resolve_read_only(reader.store(), token, h.shared.now(), Some("replaced-store")).unwrap().is_none());
+        let before = lock(&h.shared.engine).seq().unwrap();
+        // This fixture seeds through the core directly, outside HTTP commit publication.
+        h.shared.publish_engine(&lock(&h.shared.engine));
+        let url = if ephemeral { poll_url(&h, "typing") } else { format!("/changes?since={before}&wait=1") };
+        let (poll, _) = blocked_as(&h, url, format!("Authorization: Bearer {token}\r\n"));
+        let b = snapback4_lang::compile(&[("schema.q".into(), format!("{source}\nquery added():\n  return 1\n"))]);
+        let mut engine = lock(&h.shared.engine);
+        engine.adopt_at(b.schema.clone(), b.programs.iter().map(|p| p.program.clone()), h.shared.now()).unwrap();
+        let generation = engine.generation();
+        assert_eq!(engine.seq().unwrap(), before);
+        *lock(&h.shared.bound) = b;
+        h.shared.publish_engine(&engine);
+        let (done, result) = mpsc::channel();
+        thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
+        let reply = result.recv_timeout(Duration::from_millis(250));
+        drop(engine);
+        let reply = reply.expect("schema-only adoption must finish without the engine");
+        assert_eq!(status(&reply), 200, "{reply}");
+        let reply = body(&reply);
+        assert_eq!(reply["generation"], generation);
+        assert_eq!(reply["seq"], before);
+        assert_eq!(reply.get("ephemeral").is_some(), ephemeral);
+        drop(reader);
+        drop(h);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[test]
 fn every_ephemeral_refusal_uses_failed_http_200() {
     let (h, dir) = host(true);
     for (headers, input, code) in [

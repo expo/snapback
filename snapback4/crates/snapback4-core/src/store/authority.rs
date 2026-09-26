@@ -104,6 +104,24 @@ impl AuthorityTransaction for Tx<'_> {
 }
 
 impl Store {
+    /// A session walk does not read application rows or use the catalog. Polls
+    /// can retain this connection across a schema adoption, but never accept
+    /// a credential from a replaced store. Keep this transaction private to
+    /// the authority walk: ordinary row reads/writes still fence generation.
+    // @ref LLP 3000.017#3.3-change-notification — poll authentication is independent of application catalog generation.
+    pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+        let sql = self.conn.unchecked_transaction()?;
+        let identity: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
+        if expected_store_id.is_none() || identity.as_deref() != expected_store_id {
+            sql.rollback()?;
+            return Ok(None);
+        }
+        let tx = Tx { tx: sql, page_size: self.page_size, catalog: &self.catalog };
+        let resolved = crate::authority::live_session(&tx, digest, now)?.map(|session| (session.principal, session.kind));
+        tx.rollback()?;
+        Ok(resolved)
+    }
+
     /// Expiry pruning follows a completed authority snapshot. Keeping this
     /// best-effort cleanup outside the deferred read transaction avoids a
     /// read-to-write lock upgrade while rechecking the expiry predicate.

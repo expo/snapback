@@ -61700,3 +61700,21 @@ liveness check retains the existing engine fallback too. This is a narrow
 exception to the blanket no-engine-on-unchanged-sequence wording in §3.3, chosen
 to preserve revocation rather than cache authority across a held poll. Production
 disk stores have the lock property; both modes preserve authentication.
+
+The final held-poll audit also exercised a real `dev` schema-only adoption with
+a bearer. The old detached reader correctly fenced application generations, but
+its session recheck incorrectly reused that catalog fence and returned
+E_GENERATION. Session authority is independent of application tables. Its new
+private store snapshot performs only the existing authority walk, bound to the
+current wake state's store identity; it cannot expose an unfenced row transaction.
+It does not prune sessions or take a writer lock. Ordinary row transaction
+generation fences are unchanged. A mismatched store identity fails closed.
+
+A new HTTP test covers both a durable-only schema and one with ephemeral tables,
+adopts with the sequence unchanged, holds the serving engine mutex, and receives
+the current generation successfully. It also checks the identity mismatch.
+All 12 ephemeral HTTP tests pass. The real CLI reproduction now returns the
+generation-2 incarnation response, and the unchanged streaming revocation test
+still passes. This server-only correction leaves the wasm measurement unchanged.
+The full suite is rerun after this correction; its final source commit and exact
+counts are in the uncommitted lane report.
