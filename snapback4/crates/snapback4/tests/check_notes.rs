@@ -2,6 +2,30 @@
 use std::{fs, process::Command};
 
 #[test]
+fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
+    let dir = std::env::temp_dir().join(format!("sb4-check-sync-order-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let source = include_str!("../../snapback4-lang/tests/fixtures/sync-windows.q");
+    fs::write(dir.join("snapback/schema.q"), source.replace("sync last 10000 by .at, .ordinal", "sync last 10000 by .at")).unwrap();
+    let run = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    for _ in 0..2 {
+        let text = run(&["check"]);
+        assert_eq!(text.matches(" — N_SYNC_ORDER:").count(), 1, "{text}");
+        assert!(text.contains("schema.q:22:10") && text.contains("by bySyncWindow: conversationId, at, id"), "{text}");
+    }
+    let result: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
+    assert_eq!(result["notes"].as_array().unwrap().iter().filter(|note| note["code"] == "N_SYNC_ORDER").count(), 1);
+    assert!(run(&["why", "N_SYNC_ORDER"]).contains("newest-first"));
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    assert!(!run(&["check"]).contains("N_SYNC_ORDER"));
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
     let dir = std::env::temp_dir().join(format!("sb4-check-notes-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();

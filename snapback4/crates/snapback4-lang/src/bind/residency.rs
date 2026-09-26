@@ -9,7 +9,7 @@ mod inserts;
 mod horizons;
 mod components;
 mod effect_reads;
-pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition};
+pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition, sync_order_notes};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)

@@ -1,0 +1,509 @@
+//! Apply the diagnostic's actual text, then execute both complete populations.
+use super::{bind, SOURCE};
+use snapback4_core::{Context, Engine, Value, value::object};
+
+pub(super) const PAGE: &str = "messages where .conversationId = conversationId last 2 by .at, .ordinal after c";
+
+pub(super) fn apply_repair(source: &str, original: &str) -> String {
+    let bound = bind(source);
+    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").expect("order note");
+    apply_note_repair(source, original, note)
+}
+
+fn apply_note_repair(source: &str, original: &str, note: &snapback4_lang::Diagnostic) -> String {
+    let bound = bind(source);
+    let quoted: Vec<_> = note.rewrite.split('`').skip(1).step_by(2).collect();
+    let page = *quoted.last().expect("paste-ready page");
+    assert!(page.starts_with("messages["), "{note}");
+    assert!(!page.contains('$'), "{note}");
+    let mut repaired = source.to_string();
+    if quoted.len() == 3 {
+        repaired = repaired.replace("table messages:\n", &format!("table messages:\n  {}\n", quoted[0]));
+        let mut in_messages = false;
+        repaired = repaired.lines().map(|line| {
+            if line.starts_with("table ") { in_messages = line == "table messages:"; }
+            if in_messages && line.trim_start().starts_with("sync ") && let Some((before, _)) = line.split_once("last ") {
+                return format!("{before}{}", quoted[1]);
+            }
+            line.to_owned()
+        }).collect::<Vec<_>>().join("\n") + "\n";
+    } else { assert_eq!(quoted.len(), 1, "{note}"); }
+    assert!(repaired.contains(original), "missing replacement site: {original}");
+    repaired = repaired.replace(original, page);
+    if original.contains("after c") { assert!(page.contains("after c"), "cursor lost: {note}"); }
+    let fixed = bind(&repaired);
+    assert!(!fixed.notes.iter().any(|n| matches!(n.code.as_str(), "N_SYNC_ORDER" | "N_NEVER_COMPLETE")), "{note}: {:?}", fixed.notes);
+    // Existing independent notes may remain; no rewrite may introduce one.
+    assert!(fixed.notes.iter().all(|n| bound.notes.iter().any(|old| old.code == n.code)), "new note from {note}: {:?}", fixed.notes);
+    repaired
+}
+
+pub(super) fn words_only(source: &str) {
+    let bound = bind(source);
+    let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER").collect();
+    assert!(!notes.is_empty());
+    for note in notes {
+        assert!(!note.message.contains('$'), "{note}");
+        assert!(!note.rewrite.contains('`') && !note.rewrite.contains('$'), "{note}");
+        assert!(note.rewrite.contains("newest first") && note.rewrite.contains("index"), "{note}");
+        assert!(note.rewrite.contains("cursor") && note.rewrite.contains("predicates"), "{note}");
+    }
+}
+
+fn named() -> String {
+    SOURCE.replace("  at: time", "  by byWindow: conversationId, at, ordinal, id\n  by byOrdinal: conversationId, ordinal, id\n  sender: principal\n  at: time")
+        .replace("sync last 10000 by .at, .ordinal", "sync last 10000 by byWindow")
+}
+
+fn id(value: &str) -> Value { Value::Id(value.into()) }
+
+fn engine(source: &str) -> Engine {
+    let b = bind(source);
+    let sender = b.schema.tables["messages"].columns.contains_key("sender");
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut rows = vec![
+        ("conversations".into(), object([("id", id("room"))])),
+        ("conversations".into(), object([("id", id("other"))])),
+        ("members".into(), object([("id", id("m")), ("conversationId", id("room")), ("principal", id("alice"))])),
+        ("members".into(), object([("id", id("m2")), ("conversationId", id("other")), ("principal", id("alice"))])),
+    ];
+    // Time and ordinal order disagree. A second readable audience and a
+    // sender distractor expose dropped audience/residual predicates.
+    for (name, room, at, ordinal, who) in [
+        ("a", "room", 80, 1, "alice"), ("b", "room", 60, 2, "alice"),
+        ("c", "room", 70, 3, "alice"), ("d", "room", 40, 4, "alice"),
+        ("e", "room", 50, 5, "alice"), ("low", "room", 100, 0, "alice"),
+        ("sender", "room", 110, 6, "bob"), ("other", "other", 120, 7, "alice"),
+    ] {
+        let mut fields = vec![("id", id(name)), ("conversationId", id(room)), ("at", Value::Int(at * 86_400_000)), ("ordinal", Value::Int(ordinal))];
+        if sender { fields.push(("sender", id(who))); }
+        rows.push(("messages".into(), object(fields)));
+    }
+    e.seed(rows).unwrap();
+    e
+}
+
+fn page(e: &mut Engine, cursor: Value) -> snapback4_core::QueryOutcome {
+    page_with(e, cursor, &[])
+}
+
+fn page_with(e: &mut Engine, cursor: Value, extra: &[(&str, Value)]) -> snapback4_core::QueryOutcome {
+    let mut args = [("conversationId".into(), id("room")), ("c".into(), cursor)].into_iter().collect::<std::collections::BTreeMap<_, _>>();
+    args.extend(extra.iter().map(|(name, value)| ((*name).into(), value.clone())));
+    e.query("thread", Context::new("alice", args).at(1000)).unwrap()
+}
+
+fn drain(e: &mut Engine, second_page: bool) -> Vec<Value> {
+    drain_with(e, second_page, &[])
+}
+
+fn drain_with(e: &mut Engine, second_page: bool, extra: &[(&str, Value)]) -> Vec<Value> {
+    let mut cursor = Value::Null;
+    let mut rows = Vec::new();
+    let mut pages = 0;
+    loop {
+        let result = page_with(e, cursor, extra);
+        assert!(result.complete, "{result:?}");
+        rows.extend(result.data.as_array().unwrap().iter().cloned());
+        pages += 1;
+        assert!(pages < 12, "cursor failed to advance");
+        match result.next { Some(next) => cursor = Value::String(next), None => break }
+    }
+    if second_page { assert!(pages >= 2, "exercise continuation"); }
+    rows
+}
+
+fn canonical(rows: &[Value]) -> Vec<String> {
+    let mut values = rows.iter().map(|row| serde_json::to_string(row).unwrap()).collect::<Vec<_>>();
+    values.sort(); values
+}
+
+fn same_population(source: &str, original: &str, second_page: bool) -> String {
+    let repaired = apply_repair(source, original);
+    let fixed = bind(&repaired);
+    assert!(fixed.notes.is_empty(), "{:?}", fixed.notes);
+    let before = drain(&mut engine(source), second_page);
+    let after = drain(&mut engine(&repaired), second_page);
+    assert_eq!(canonical(&before), canonical(&after), "exact same rows across changed page order");
+    let ordered: Vec<_> = after.iter().map(|row| (row.field("at").unwrap().as_int().unwrap(), row.field("ordinal").unwrap().as_int().unwrap(), row.field("id").unwrap().as_str().unwrap())).collect();
+    assert!(ordered.windows(2).all(|pair| pair[0] > pair[1]), "window order: {ordered:?}");
+    repaired
+}
+
+#[test]
+fn optional_filter_variants_get_words_for_present_and_null_arguments() {
+    for (name, ty, predicate, present, expected) in [
+        ("sender", "principal", "sender = null or .sender = sender", id("alice"), vec!["low", "a", "b", "c", "d", "e"]),
+        ("lo", "int", "lo = null or .ordinal >= lo", Value::Int(2), vec!["b", "c", "d", "e", "sender"]),
+    ] {
+        let original = format!("messages where .conversationId = conversationId and ({predicate}) first 2 by .ordinal after c");
+        let source = named().replace("query thread(", &format!("query thread({name}: {ty} ?, ")).replace(PAGE, &original);
+        let bound = bind(&source);
+        let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER").collect();
+        assert!(!notes.is_empty());
+        for value in [present, Value::Null] {
+            let args = [(name, value.clone())];
+            let before = drain_with(&mut engine(&source), true, &args);
+            assert_eq!(ids(&before), if value == Value::Null { vec!["low", "a", "b", "c", "d", "e", "sender"] } else { expected.clone() });
+            for note in &notes {
+                if note.rewrite.contains('`') {
+                    let repaired = apply_note_repair(&source, &original, note);
+                    let after = drain_with(&mut engine(&repaired), true, &args);
+                    assert_eq!(canonical(&before), canonical(&after), "{name}={value:?}: {note}");
+                }
+            }
+        }
+        words_only(&source);
+    }
+}
+
+#[test]
+fn named_where_pages_lift_audience_and_keep_second_page() {
+    for original in [
+        "messages where .conversationId = conversationId last 2 by .ordinal after c",
+        "messages where .conversationId = conversationId first 2 by .at, .ordinal after c",
+        "messages where conversationId = .conversationId first 2 by .at, .ordinal after c",
+        "messages where .conversationId = conversationId and .sender = viewer first 2 by .ordinal after c",
+    ] {
+        let source = named().replace(PAGE, original);
+        let repaired = same_population(&source, original, true);
+        assert!(repaired.contains("messages[conversationId = conversationId] after c last 2 by byWindow"));
+    }
+}
+
+fn four_rows(source: &str) -> Engine {
+    seeded_rows(source, &[("a", 10, 1), ("b", 40, 2), ("c", 30, 3), ("d", 20, 4)])
+}
+
+fn seeded_rows(source: &str, entries: &[(&str, i64, i64)]) -> Engine {
+    let b = bind(source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut rows = vec![
+        ("conversations".into(), object([("id", id("room"))])),
+        ("members".into(), object([("id", id("m")), ("conversationId", id("room")), ("principal", id("alice"))])),
+    ];
+    for &(name, at, ordinal) in entries {
+        rows.push(("messages".into(), object([
+            ("id", id(name)), ("conversationId", id("room")), ("sender", id("alice")),
+            ("at", Value::Int(at)), ("ordinal", Value::Int(ordinal)),
+        ])));
+    }
+    e.seed(rows).unwrap();
+    e
+}
+
+fn ids(rows: &[Value]) -> Vec<&str> {
+    rows.iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect()
+}
+
+#[test]
+fn cursorless_partial_pages_in_another_order_get_words() {
+    // Grok's four-row counterexample: either ordinal direction selects a
+    // different slice from the window's newest two rows (b, c).
+    let base = named().replace("by byWindow: conversationId, at, ordinal, id", "by byWindow: conversationId, at, id");
+    for (order, expected) in [("first 2 by .ordinal", ["a", "b"]), ("last 2 by .ordinal", ["d", "c"]), ("first 2 by .at", ["a", "d"])] {
+        let original = format!("messages where .conversationId = conversationId {order}");
+        let source = base.replace(PAGE, &original);
+        let before = page(&mut four_rows(&source), Value::Null);
+        assert_eq!(ids(before.data.as_array().unwrap()), expected);
+        let unsafe_repair = source.replace(&original, "messages[conversationId = conversationId] last 2 by byWindow");
+        let after = page(&mut four_rows(&unsafe_repair), Value::Null);
+        assert_eq!(ids(after.data.as_array().unwrap()), ["b", "c"]);
+        assert_ne!(before.data, after.data, "this cursorless rewrite changes the result");
+        words_only(&source);
+    }
+    // Sharing the first order column is insufficient. Opposite ordinal/id
+    // ranks at the timestamp tie change which row the cursorless page keeps.
+    let original = "messages where .conversationId = conversationId last 2 by .at";
+    let source = named().replace("  at: time", "  by byAt: conversationId, at, id\n  at: time").replace(PAGE, original);
+    let entries = [("a", 100, 2), ("z", 100, 1), ("new", 200, 0), ("old", 50, 3)];
+    let bound = bind(&source);
+    assert_eq!(snapback4_core::ir::scans(&bound.programs[0].program)[0].index, "byAt");
+    let before = page(&mut seeded_rows(&source, &entries), Value::Null);
+    assert_eq!(ids(before.data.as_array().unwrap()), ["new", "z"]);
+    let unsafe_repair = source.replace(original, "messages[conversationId = conversationId] last 2 by byWindow");
+    let after = page(&mut seeded_rows(&unsafe_repair, &entries), Value::Null);
+    assert_eq!(ids(after.data.as_array().unwrap()), ["new", "a"]);
+    assert_ne!(before.data, after.data, "the tie-break changes the selected ids");
+    words_only(&source);
+}
+
+#[test]
+fn cursor_or_covering_cap_allows_the_four_row_order_change() {
+    let base = named().replace("by byWindow: conversationId, at, ordinal, id", "by byWindow: conversationId, at, id");
+    for direction in ["first", "last"] {
+        let original = format!("messages where .conversationId = conversationId {direction} 2 by .ordinal after c");
+        let source = base.replace(PAGE, &original);
+        let repaired = apply_repair(&source, &original);
+        let before = drain(&mut four_rows(&source), true);
+        let after = drain(&mut four_rows(&repaired), true);
+        let mut before_ids = ids(&before);
+        let mut after_ids = ids(&after);
+        before_ids.sort(); after_ids.sort();
+        assert_eq!(before_ids, ["a", "b", "c", "d"]);
+        assert_eq!(before_ids, after_ids);
+        assert_eq!(ids(&after), ["b", "c", "d", "a"]);
+
+        let original = original.replace(" 2 by", " 50 by").replace(" after c", "");
+        let source = base.replace("table messages:", "table messages:\n  cap 50 by conversationId").replace(PAGE, &original);
+        let repaired = apply_repair(&source, &original);
+        assert!(bind(&repaired).notes.is_empty());
+        let before = page(&mut four_rows(&source), Value::Null);
+        let after = page(&mut four_rows(&repaired), Value::Null);
+        let mut before_ids = ids(before.data.as_array().unwrap());
+        let mut after_ids = ids(after.data.as_array().unwrap());
+        before_ids.sort(); after_ids.sort();
+        assert_eq!(before_ids, ["a", "b", "c", "d"]);
+        assert_eq!(before_ids, after_ids);
+        assert_eq!(ids(after.data.as_array().unwrap()), ["b", "c", "d", "a"]);
+    }
+}
+
+#[test]
+fn cursorless_same_order_repair_keeps_the_identical_slice() {
+    let source = named().replace("  at: time", "  by byOther: conversationId, at, ordinal, id\n  at: time");
+    let original = "messages[conversationId] last 2 by byOther";
+    let source = source.replace(PAGE, original);
+    let repaired = apply_repair(&source, original);
+    let before = page(&mut four_rows(&source), Value::Null);
+    let after = page(&mut four_rows(&repaired), Value::Null);
+    assert_eq!(before.data, after.data);
+    assert_eq!(ids(after.data.as_array().unwrap()), ["b", "c"]);
+}
+
+#[test]
+fn count_applies_the_same_audience_page_repair_and_preserves_continuation() {
+    let original = "messages where .conversationId = conversationId first 2 by .at, .ordinal after c";
+    let source = named().replace(PAGE, &format!("count({original})"));
+    let repaired = apply_repair(&source, original);
+    assert!(bind(&repaired).notes.is_empty());
+    let mut counted = engine(&repaired);
+    assert_eq!(page(&mut engine(&source), Value::Null).data, Value::Int(2));
+    assert_eq!(page(&mut counted, Value::Null).data, Value::Int(2));
+    // Count consumes a page and does not return that page's cursor. Use a
+    // companion page of the identical source to supply its second cursor.
+    let page_source = repaired.replace("return count(", "return ").replace("by byWindow)\n", "by byWindow\n");
+    let first = page(&mut engine(&page_source), Value::Null);
+    let cursor = Value::String(first.next.unwrap());
+    assert_eq!(page(&mut counted, cursor).data, Value::Int(2));
+    same_population(&named().replace(PAGE, original), original, true);
+}
+
+#[test]
+fn moved_range_keeps_existing_residual_and_second_page() {
+    let original = "messages[conversationId, ordinal > 0] first 2 by byOrdinal after c where .sender = viewer";
+    let repaired = same_population(&named().replace(PAGE, original), original, true);
+    assert!(repaired.contains("where .ordinal > 0 and .sender = viewer"));
+    let rows = drain(&mut engine(&repaired), true);
+    assert_eq!(rows.len(), 5);
+    assert!(rows.iter().all(|r| r.field("ordinal").unwrap().as_int().unwrap() > 0 && r.field("sender").unwrap() == &id("alice")));
+}
+
+#[test]
+fn moved_range_guards_rows_before_a_fallible_authored_residual() {
+    let original = "messages[conversationId, ordinal > 0] first 2 by byOrdinal after c where 10 / .ordinal > 1";
+    let source = named().replace(PAGE, original);
+    // The highest-time row has ordinal zero. The original seek excludes it
+    // before division; a relocated guard must do the same, on every page.
+    let before = drain(&mut engine(&source), true);
+    assert_eq!(ids(&before), ["a", "b", "c", "d", "e"]);
+    let repaired = same_population(&source, original, true);
+    assert!(repaired.contains("where .ordinal > 0 and 10 / .ordinal > 1"));
+}
+
+#[test]
+fn fallible_moved_operands_get_words_even_for_an_empty_group() {
+    for operand in ["100 / divisor", "100 % divisor", "share(100, recipients, viewer)"] {
+        for op in [">", "="] {
+            let original = format!("messages[conversationId = conversationId, ordinal {op} {operand}] first 2 by byOrdinal after c");
+            let source = named().replace("query thread(", "query thread(divisor: int, recipients: [principal] <=8, ").replace(PAGE, &original);
+            let run_empty = |source: &str| {
+                let b = bind(source);
+                let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                e.query("thread", Context::new("alice", [
+                    ("conversationId".into(), id("room")), ("c".into(), Value::Null),
+                    ("divisor".into(), Value::Int(0)), ("recipients".into(), Value::Array(vec![])),
+                ].into()))
+            };
+            assert_eq!(run_empty(&source).unwrap_err().code, "E_DIV_ZERO", "{original}");
+            let bound = bind(&source);
+            for note in bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER") {
+                if note.rewrite.contains('`') {
+                    let repaired = apply_note_repair(&source, &original, note);
+                    assert_eq!(run_empty(&repaired).unwrap_err().code, "E_DIV_ZERO", "{note}");
+                }
+            }
+            words_only(&source);
+        }
+    }
+}
+
+#[test]
+fn fallible_endpoints_can_keep_their_original_evaluation_point() {
+    let original = "messages[conversationId, at > 100 / divisor] first 2 by byWindow after c";
+    let source = named().replace("query thread(", "query thread(divisor: int, ").replace(PAGE, original);
+    let repaired = apply_repair(&source, original);
+    assert!(repaired.contains("at > 100 / divisor]"));
+    for program in [&source, &repaired] {
+        let b = bind(program);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        assert_eq!(e.query("thread", Context::new("alice", [
+            ("conversationId".into(), id("room")), ("c".into(), Value::Null), ("divisor".into(), Value::Int(0)),
+        ].into())).unwrap_err().code, "E_DIV_ZERO");
+    }
+    // A named local was already evaluated outside the scan. Moving its
+    // value keeps the division at its authored point, including empty reads.
+    let original = "messages[conversationId, ordinal > floor] first 2 by byOrdinal after c";
+    let source = named().replace("  return ", "  floor = 100 / 100\n  return ").replace(PAGE, original);
+    same_population(&source, original, true);
+}
+
+fn two_sided_range(lower: &str, upper: &str) {
+    let original = format!("messages[conversationId, ordinal {lower}, ordinal {upper}] first 2 by byOrdinal after c where .sender = viewer");
+    // The seed has ordinals 0 and 1 below, 2/3/4 inside, and 5/6 above.
+    // The inside rows require continuation and differ in time/ordinal order.
+    let repaired = same_population(&named().replace(PAGE, &original), &original, true);
+    let rows = drain(&mut engine(&repaired), true);
+    assert_eq!(ids(&rows), ["c", "b", "d"]);
+    assert!(repaired.contains(&format!(".ordinal {upper}")));
+    assert!(rows.iter().all(|row| (2..=4).contains(&row.field("ordinal").unwrap().as_int().unwrap())));
+}
+
+#[test]
+fn two_sided_range_keeps_strict_upper_bound_across_pages() { two_sided_range("> 1", "< 5"); }
+
+#[test]
+fn two_sided_range_keeps_inclusive_upper_bound_across_pages() { two_sided_range("> 1", "<= 4"); }
+
+#[test]
+fn two_sided_range_keeps_inclusive_lower_bound_across_pages() { two_sided_range(">= 2", "<= 4"); }
+
+#[test]
+fn generated_indexes_calendar_ranges_and_named_locals_apply_and_run() {
+    // Every remaining printed repair shape also executes, including repairs
+    // that declare an explicit name for a generated window index.
+    for source in [
+        SOURCE.replace("sync last 10000 by .at, .ordinal", "sync last 10000 by .at"),
+        SOURCE.replace("  at: time", "  sender: principal\n  at: time")
+            .replace(PAGE, "messages where .conversationId = conversationId and .sender = viewer last 2 by .at, .ordinal after c"),
+        SOURCE.replace(".at, .ordinal", ".at, .id, .ordinal"),
+        named().replace("  at: time", "  by byOther: conversationId, at, ordinal, id\n  at: time")
+            .replace(PAGE, "messages[conversationId] last 2 by byOther after c"),
+    ] {
+        let original = source.lines().find_map(|line| line.strip_prefix("  return ")).unwrap();
+        same_population(&source, original, true);
+    }
+    let base = named().replace("  at: time", "  by byDay: conversationId, day(at), id\n  at: time");
+    for original in [
+        "messages[conversationId] last 2 by byDay after c",
+        "messages[conversationId, day > 0] first 2 by byDay after c",
+        "messages[conversationId, at > 0] first 2 by byWindow after c",
+    ] { same_population(&base.replace(PAGE, original), original, true); }
+    let original = "messages[conversationId, ordinal > floor] first 2 by byOrdinal after c where .sender = viewer";
+    let source = named().replace("  return ", "  floor = 0\n  return ").replace(PAGE, original);
+    same_population(&source, original, true);
+}
+
+#[test]
+fn capped_read_without_range_gets_last_from_its_bound() {
+    let original = "messages where .conversationId = conversationId and .sender = viewer";
+    let source = named().replace("table messages:", "table messages:\n  cap 50 by conversationId").replace(PAGE, original);
+    let repaired = same_population(&source, original, false);
+    assert!(repaired.contains("last 50 by byWindow"));
+}
+
+#[test]
+fn membership_and_explicit_merges_only_name_the_window_in_words() {
+    for nullable in [false, true] {
+        for predicate in [".sender in [viewer]", ".sender in [viewer, null]"] {
+            let mut source = named();
+            if nullable { source = source.replace("sender: principal", "sender: principal ?"); }
+            source = source.replace(PAGE, &format!("messages where .conversationId = conversationId and {predicate} first 2 by .at, .ordinal after c"));
+            words_only(&source);
+        }
+    }
+    let source = named().replace(PAGE, "merge messages after c first 2 by byOrdinal:\n    [conversationId]");
+    words_only(&source);
+}
+
+#[test]
+fn advice_falls_back_if_an_index_or_cap_cannot_preserve_continuation() {
+    let source = named().replace("by byWindow: conversationId, at, ordinal, id", "by byWindow: conversationId, at, ordinal")
+        .replace(PAGE, "messages where .conversationId = conversationId first 2 by .ordinal after c");
+    words_only(&source);
+    for original in [
+        "messages where .conversationId = conversationId and .sender = viewer",
+        "messages where .conversationId = conversationId and .sender = viewer first 50 by .ordinal",
+    ] {
+        let source = named().replace("table messages:", "table messages:\n  cap 50 by conversationId, sender")
+            .replace(PAGE, original);
+        words_only(&source);
+    }
+    // This predicate would become a lone explicit-index filter and introduce
+    // N_SEEK. It needs scope/type information to move safely into a key.
+    let source = named().replace(PAGE, "messages where .conversationId = conversationId and .at > 0 first 2 by .ordinal after c");
+    words_only(&source);
+}
+
+#[test]
+fn fully_pinned_window_gets_an_exact_page_or_words() {
+    let source = r#"
+table messages:
+  owner: principal
+  at: time
+  unique byOwner: owner
+  by byOther: owner, at, id
+  read <- .owner = viewer
+  sync to .owner last 100 by byOwner
+
+query thread(c: cursor ?):
+  return messages[viewer] first 2 by byOther after c
+"#;
+    let run = |source: &str| {
+        let b = bind(source);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed([("a", "alice"), ("b", "bob")].map(|(name, owner)| ("messages".into(), object([
+            ("id", id(name)), ("owner", id(owner)), ("at", Value::Int(10)),
+        ])))).unwrap();
+        e.query("thread", Context::new("alice", [("c".into(), Value::Null)].into())).unwrap()
+    };
+    let before = run(source);
+    assert!(before.complete);
+    assert_eq!(ids(before.data.as_array().unwrap()), ["a"]);
+    let bound = bind(source);
+    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
+    if bound.notes[0].rewrite.contains('`') {
+        // Apply whatever the diagnostic prints, including its declarations;
+        // the old repair fails here with E_QUARRY_TYPE (every key pinned).
+        let repaired = apply_repair(source, "messages[viewer] first 2 by byOther after c");
+        let after = run(&repaired);
+        assert!(after.complete);
+        assert_eq!(before.data, after.data);
+    } else { words_only(source); }
+}
+
+#[test]
+fn outer_threshold_stays_outer_and_never_becomes_a_candidate_filter() {
+    let source = r#"
+table messages:
+  at: time
+  ordinal: int
+  threshold: int
+  by byOrdinal: ordinal, id
+  by byWindow: at, ordinal, id
+  public
+  sync public last 100 by byWindow
+query outer(rowId: messages, c: cursor ?):
+  return messages[rowId] { *, later: messages[ordinal > .threshold] first 2 by byOrdinal after c }
+"#;
+    words_only(source);
+    let b = bind(source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([("outer", 0, 5), ("below", 3, 0), ("above", 6, 0)].map(|(name, ordinal, threshold)|
+        ("messages".into(), object([("id", id(name)), ("at", Value::Int(ordinal)), ("ordinal", Value::Int(ordinal)), ("threshold", Value::Int(threshold))])))).unwrap();
+    let result = e.query("outer", Context::new("alice", [("rowId".into(), id("outer")), ("c".into(), Value::Null)].into())).unwrap();
+    let later = result.data.field("later").unwrap().as_array().unwrap();
+    assert_eq!(later.len(), 1);
+    assert_eq!(later[0].field("id").unwrap(), &id("above"));
+    words_only(&source.replace("ordinal > .threshold", "ordinal > .ordinal"));
+}

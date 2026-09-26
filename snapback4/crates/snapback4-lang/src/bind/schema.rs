@@ -333,12 +333,13 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
         return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()), "sync  -- infer the audience from the read rule"));
     }
     let horizon = match &sync.horizon {
-        Some((last, by)) => {
+        Some((last, SyncOrder::Index(by))) => {
             if !info.indexes.iter().any(|index| &index.name == by) {
                 return Err(sync_error(&sync.site, format!("horizon names unknown index {}.{by}", info.decl.name), name_rewrite(by, info.indexes.iter().map(|i| i.name.as_str()), None)));
             }
             Some(Horizon { last: *last, by: by.clone() })
         }
+        Some((_, SyncOrder::Columns(_))) => unreachable!("intent planning resolves window columns"),
         None => None,
     };
     Ok(Sync { audience, horizon })

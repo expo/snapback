@@ -62626,6 +62626,52 @@ Did not raise the wasm budget, change runtime ceilings, push, publish packages,
 or author the supervisor-owned LLP 3000.019. The file-by-file handoff, examples,
 test proofs and reproduction commands are in
 [`reports/20260926-p2-extremum-expressions.md`](reports/20260926-p2-extremum-expressions.md).
+
+## 2026-09-26 — 0.4.4 lane P1: multi-column sync windows and query order advice
+
+On `sb4-intent/p1-sync-windows` from `0badac987`, implemented the supplied
+LLP 3000.019 §3.1 column-list window spelling. `sync last 10000 by .at,
+.ordinal` lowers to the existing audience-prefixed ordinary index with one
+explicit id tiebreaker. Duplicate and audience columns refuse with located
+E_QUARRY_SYNTAX repairs. N_SYNC_ORDER names incompatible device page and
+window orders, including ascending scans and distinct physical indexes;
+check text/JSON and why expose it. Held-query advice preserves its local-only
+meaning. The sync/language cards compile the spelling; writes distinguishes
+existing-column order from sequence-by server-arrival order. The varied-order
+from-SQL worked example is explicitly online, with its census updated.
+
+Measured wasm: **2,009,169 B raw / 577,903 B gzip**, against the unchanged
+**578,207 B** budget (304 B headroom), Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. Core/device runtime, wire forms, authorization, disclosure,
+durability and meters are unchanged. No independently rebuilt baseline delta
+is claimed. New memory and SQLite witnesses acquire the full ordered floor,
+reopen offline, reject other-order/ascending coverage, preserve private
+conversation scope and apply streamed keys at the same boundary. The boundary
+fixture uses three rows; the 10,000-row declaration is compiler-tested, not a
+new scale claim. All 84 guide tests and the affected compiler, device and CLI
+targets pass, including 15 new language regressions.
+
+The required complete script ran once with four Rust test processes and
+serial client files: **`== 1 failure(s) in 3026 s`**, exit 1 (`cargo test`).
+Its 17 Rust assertion failures are ours:
+the from-SQL census (one), ascending shape-page notes (one), legacy digest
+page notes (11), and retained-source timeline notes (four). They were fixed
+without removing runtime assertions; all 81 readauth, five shape, 12 digest
+and nine timeline-adoption tests pass on rerun. The final advisory refinements
+were made after the full run compiled its Rust binaries; the affected language
+and CLI targets were rerun successfully on the final source. Client tests
+passed 1,997 with zero failures and 10 pre-existing platform/opt-in skips;
+all 78 seeded model checks passed. No baseline or environmental failures
+were observed.
+
+Stopped two design portions for the supervisor: `online only` is not a query
+modifier (the proposed header refuses E_QUARRY_SYNTAX), and changing page
+order cannot establish word-search or whole-domain aggregate coverage. The
+note therefore offers supported order/index repairs and excludes nonplain
+indexes and whole-domain aggregate metadata, including capped literal domains.
+No new query execution modifier, runtime coverage rule, budget increase,
+package publication or push. Report, exact failures, reproductions and
+qualification commands: `reports/20260926-p1-sync-windows.md`.
 ### 2026-09-25 — LLP 3000.017, E1 ephemeral tables
 
 Implemented the compiler, core, engine, HTTP server and device boundary for
@@ -63229,6 +63275,64 @@ fixture wrappers 9/9; all 78 model checks passed, with the full 5,000 / 5,000 /
 Did not push, publish, raise a budget, change a runtime ceiling or rewrite an
 existing journal entry. Full dispositions, files, examples, measurements and
 logs are in `reports/20260926-p2-extremum-expressions.md` (Round 1).
+
+## 2026-09-26 — 0.4.4 lane P1 round 1: executable sync-order repairs and full-key stream witnesses
+
+Merged the requested main `99153132b` into `sb4-intent/p1-sync-windows`
+first, retaining both sides of the journal conflict. Read both blind reviews
+and fixed every finding. No finding was dismissed.
+
+N_SYNC_ORDER now includes calendar-index pages and describes their functions;
+only word indexes and whole-domain aggregates retain their separate coverage
+exception. Source AST retained as compiler-only metadata lets an index repair
+move incompatible range keys into residual predicates. A view repair names
+its source-table page, preserves branch predicates and the cursor parameter,
+and says to retain the projection and other branches. The Following-retirement
+tests apply the emitted declaration/horizon/page and require it to compile
+and clear the note. Query `online only` remains unsupported and is not advised.
+
+Both device stores now stream a row below the floor on its secondary column,
+a row tied on the order columns with a lower id, and a higher tied id. The
+first two are dropped and the third is kept. Real mutations move a held row
+below and an unheld row above the floor; after reopening, the held row is
+point-readable but outside the suffix, the raised row is in it, and the
+original floor still limits coverage. The calendar-index page is unknown;
+its matching-window repair answers completely offline. Runtime code is
+unchanged. Five temporary mutants all failed assertions: calendar exclusion,
+unexamined ranges, invalid view index advice, and floor comparisons omitting
+the secondary column or id. Both boundary mutants failed on both stores.
+
+The merged receipts card had real index/direction gaps. Its named unique
+conversation/ordinal index now serves acquisition and history; catch-up reads
+the next contiguous 100 ordinals newest first, preserving progress and the
+hook's run construction. Its prose states the no-deletion assumption and
+fallback below the acquired window. The ephemeral card removes a redundant
+id horizon from a one-row room scope. Both cards compile without N_SYNC_ORDER;
+all 85 guide tests pass. The 20 language regressions, two device witnesses,
+81 authorization-census tests, three CLI checks, nine timeline-adoption tests,
+12 digest tests and affected intent/residency/calendar/shape targets pass.
+
+The one required full script finished **`== 1 failure(s) in 3364 s`**, exit 1:
+`cargo test` (1277 s). Its sole failed case is **ours**:
+`ephemeral_compat::durable_schema_and_types_keep_base_bytes`, whose frozen
+fixture list did not yet include P1's new `sync-windows.q`. Fixed by building
+round-0 compiler `e1d84ebe7` independently and capturing this fixture's schema
+and emitted TypeScript; the merged compiler matches those bytes exactly.
+The original frozen records and all assertions remain. The corrected target
+passes (1/1). That test-only fix followed full-run compilation; the red full
+result is retained, and the script was not rerun. No baseline or environmental
+failures occurred. Full Rust result: 3,593 passed, one failed, 19 existing
+ignores; ordinary clients: 2,179 passed, zero failed, 10 existing skips;
+seeded models: 78 passed, zero failed/skipped. All other stages passed,
+including both app typechecks and nine fixture-wrapper tests.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, matching the merged-main recorded
+measurement, under its unchanged **582,094 B** budget (1,000 B headroom).
+No independent fresh-control wasm delta is claimed. No engine/device runtime,
+authorization, disclosure, durability, metering or budget changes; no query
+execution modifier, automatic union rewrite, package publication or push.
+Report with file-by-file changes, repairs, mutations, reproduction and exact
+qualification: `reports/20260926-p1-sync-windows.md`.
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
@@ -64192,3 +64296,171 @@ measurement, not per-symbol attribution. No open round-3 problem or design
 change. Did not push, publish, raise a budget or meter, relax authorization or
 disclosure, or rewrite prior journal entries. The report's round-3 section
 contains the file list, examples, mutation evidence and qualification logs.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 2: exact sync-order repairs or words
+
+Read both complete round-1 reviews and accepted every finding. Merged exactly
+`992cec75c` first (`cf47b8105`), retaining both sides of the journal conflict;
+a line-by-line subsequence check confirms every journal line from each parent
+survives. Post-merge targeted compiler, guide, compatibility, device and CLI
+checks passed before repairs.
+
+Named-index advice now prints a complete page with audience equalities in
+bracket keys, all predicates intact, the original cursor, and `last N`.
+Both old repair paths and count pages use this single path. A capped read
+without an authored range gets N from the bound scan. A generated window's
+repair includes its explicit declaration and horizon replacement. Independent
+incompatible seeks move into residual filters; compatible seeks remain keys.
+An existing residual beside a moved range and the next page are both tested.
+Outer-focal endpoints, generated membership lanes, nullable membership,
+explicit merges and projected views get the window order and index in words.
+No compiler binding is printed. One lane is not a replacement for a whole
+merge. The sync card and why entry describe this boundary.
+
+The compiler target has 28 tests. Emitted text is applied and compiled with
+no diagnostics, no N_SYNC_ORDER or N_NEVER_COMPLETE, and no new note; new
+executable fixtures have no notes at all. Runtime tests compare the complete
+row populations in the new order and follow second pages. The outer-threshold
+case (5 versus candidate ordinals 3 and 6 with thresholds 0) returns only 6
+and gets no false rewrite. Both device stores delete the floor row, stream
+its exact key back while unheld, and require it to be admitted. Temporary
+mutations changing >= to > fail on both stores; clearing a cursor only when
+a range moves fails the residual-plus-range test. Both mutations were restored.
+Engine/device runtime, wire, authorization, durability and meters are unchanged.
+
+The single complete script ended **`== 1 failure(s) in 2955 s`**, exit **1**,
+with **`client tests`** as the sole failed stage. Rust: **3,605 passed, zero
+failed, 19 existing ignores** (859 s). Ordinary clients: **2,214 passed,
+one failed, 10 existing skips** (1815 s). All **78 seeded models passed**
+(255 s), with the original sequence counts. Both app typechecks, all nine
+fixture-wrapper tests and every other stage passed.
+
+The one full-suite failure is environmental: `predicted expireMember: every
+commit clears the pending observation` timed out waiting for its dev server's
+URL in fixture startup, before executing the expiry scenario. The exact case
+passed unchanged in isolation (1/1); no timeout or expectation was relaxed.
+The test, client, runtime and window-free fixture match requested main.
+The cause of the delayed startup was not established; the red full result
+remains recorded. Full log: `/tmp/p1-r2-full-suite.log`.
+
+Final review found one additional cap case: an explicit cursorless first-50
+page can rely on a cap over the sender key being moved into its residual.
+The expanded regression failed before the final guard. That guard now leaves
+both implicit and explicit cap-losing pages as words. This compiler-only
+follow-up is after the full Rust stage: the 28 compiler, 86 guide, 40 residency,
+one compatibility, three CLI and nine timeline-adoption cases pass again;
+the full script was not repeated. Its logs and exact qualification boundary
+are in `reports/20260926-p1-sync-windows.md`.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, under the unchanged **582,094 B**
+budget by **1,000 B**. Runtime and budget files match `992cec75c`; no independent
+fresh-control delta is claimed. No query online-only modifier, whole-domain
+or word-search coverage change, automatic merge rewrite, push or publication.
+Commits: `193dc3e6b` (repairs and tests), `3b06badfd` (floor equality witness),
+`64ac359ac` (cursorless cap guard), each with the requested co-author trailer.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 3: preserve page slices and refuse invalid horizons
+
+Read both complete round-2 reviews, the lane prompt and report; accepted all
+four findings. N_SYNC_ORDER now prints a page only when its query has a
+cursor, a cap proves the whole group fits, or the query already reads the
+same ordered columns newest first. Existing exact-predicate and scope guards
+remain. Grok's four-row fixture proves cursorless first/last ordinal pages
+select different ids from the proposed time page; those repairs now stay in
+words. Positive controls apply the printed repairs for cursor traversal,
+covering caps and an identical cursorless slice under another index name.
+
+A window index fully pinned by its audience gets words, preserving the page
+result type. The reviewer's byOwner program executes correctly; the test
+applies any quoted repair, which failed to compile before this guard.
+Advisory generation checks the horizon prefix with get(..prefix), its actual
+audience columns and a nonzero window length. The short bad: at horizon now
+returns E_SYNC instead of panicking; wrong-prefix and zero-length cases also
+refuse without order advice. The sync card and why text state the narrower
+page boundary, within the existing output bound.
+
+Two-sided incompatible ranges now have executable strict and inclusive upper
+bound witnesses. Rows below, inside and above the interval are seeded; the
+actual printed repair is compiled and traversed across continuation pages,
+with identical full row populations and exactly c,b,d in window order. A
+real temporary mutation dropping < and <= residuals failed both comparisons
+by admitting above-range e (0 passed, 2 failed, exit 101). Restored controls
+pass all 35 compiler tests. The complete guide target passes 86/86. Before-fix
+controls also reproduced the cursorless mismatch, pinned-index type refusal
+and invalid-horizon panic. No mutation is committed.
+
+The single scripts/test.sh invocation, after all implementation and test
+commits, finished **`== 0 failure(s) in 2958 s`**, exit **0**. Rust stage:
+**3,611 passed, zero failed, 19 existing ignores** (884 s); docs budget also
+ran one passing guide case separately. Ordinary clients: **2,215 passed,
+zero failed, 10 existing skips** (1805 s). Seeded models: **78 passed**, zero
+failed/skipped (254 s), unchanged 5,000 / 5,000 / 3,000 sequences. Both app
+typechecks, nine fixture-wrapper tests and every other stage passed. Round
+2's expireMember startup timeout did not recur. No post-suite fix or rerun.
+Full log: /tmp/p1-r3-full-suite.log; details: reports/20260926-p1-sync-windows.md.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, under the unchanged **582,094 B**
+budget by **1,000 B**. No runtime, wire, authorization, durability or meter
+change; no new LLP, query online-only modifier, automatic merge repair,
+push or publication. No unresolved review finding or implementation deviation.
+The inherited local.ts source-length exception remains outside P1.
+Implementation commits: b5f7976f8, 82ab5b5a7, ac68fa04d, each with the requested
+GPT-6 Astra co-author trailer. This entry and the round-3 report record the
+qualification in the final documentation commit.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 4: preserve optional predicates and range failures
+
+Read both full round-3 reviews, the lane prompt and all prior report rounds.
+Fixed exactly the two Medium repair defects and two Low test gaps. Optional
+presence variants now require words: their reused scan-site metadata cannot
+supply a full predicate-preserving page. Present/null sender and lower-bound
+filters execute across continuation; any printed repair is applied and its
+complete population compared. The pre-fix sender repair admitted the excluded
+Bob row, and the new test failed on population equality.
+
+Relocated equality/range guards now precede the authored residual, so a row
+excluded by ordinal > 0 never reaches 10 / .ordinal. Potentially refusing
+moved operands get words: division, modulo, other arithmetic and calls are
+conservatively excluded. Compatible seeks retain their original evaluation
+point; already-bound locals remain usable. Empty-group tests preserve the
+original E_DIV_ZERO for division, modulo and share with empty recipients,
+including moved equalities. Both reviewer failure cases failed before the
+fix and now pass. Runtime evaluation and meters are unchanged.
+
+Added ordinal >= 2 with a row exactly at 2, comparing complete populations
+across pages. Its temporary >= to > mutation loses that row and fails. The
+cursorless tie-break witness uses byAt: conversationId, at, id versus the
+window's conversationId, at, ordinal, id. At equal timestamps a's ordinal
+ranks above z's while its id ranks below; the original selects new,z and the
+unsafe window page selects new,a. It gets words. Comparing only the first
+order column fails the regression. Both mutations were restored; none is
+committed. All 40 sync-window tests, 86 guide tests and the compatibility
+test pass in the final targeted control.
+
+The single scripts/test.sh invocation finished **`== 0 failure(s) in 2817 s`**,
+exit **0**. Rust: **3,616 passed, zero failed, 19 existing ignores** (769 s),
+plus the separately passing docs-budget guide case. Ordinary clients:
+**2,215 passed, zero failed/cancelled, 10 existing skips** (1,777 s). Seeded
+models: **78 passed**, zero failed/skipped (256 s), unchanged
+5,000 / 5,000 / 3,000 sequences. Both app typechecks, all nine fixture-wrapper
+tests and every other stage passed. The old expireMember startup timeout
+did not recur. Failure classification: ours zero, baseline zero,
+environmental zero. No post-suite fix or rerun was needed.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, under the unchanged **582,094 B**
+budget by **1,000 B**, matching round 3's measured size. No independent
+fresh-control delta is claimed. No runtime, wire, authorization, durability,
+meter, guide, compatibility record or budget changes; no new syntax, LLP,
+merge, push or publication. No round-4 deviation or unresolved finding.
+Earlier documented query-modifier, merge and coverage boundaries remain.
+
+Commits: eee731071 (variants), 7a5ca41ff (evaluation), dd57d9790 (inclusive
+lower bound), f3ba53b7c (tie-break), all with the requested GPT-6 Astra
+co-author trailer. Full log: /tmp/p1-r4-full-suite.log; final targeted log:
+/tmp/p1-r4-final-lang.log. The appended round-4 report in
+reports/20260926-p1-sync-windows.md records each fixture, applied repair,
+mutation and qualification result. This entry and that report section are
+the only post-suite edits.

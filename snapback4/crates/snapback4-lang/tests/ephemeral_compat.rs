@@ -21,6 +21,10 @@ fn durable_schema_and_types_keep_base_bytes() {
     // were captured at 0badac987; the original 26 expectations stay untouched.
     let main: BTreeMap<String, (String, String)> = serde_json::from_str(include_str!("fixtures/ephemeral-compat-main.json")).unwrap();
     for (name, bytes) in main { assert!(expected.insert(name, bytes).is_none()); }
+    // P1 added this fixture after E1's capture. Capture its independent bytes
+    // with the round-0 compiler at e1d84ebe7, before merging ephemeral tables.
+    let p1: BTreeMap<String, (String, String)> = serde_json::from_str(include_str!("fixtures/ephemeral-compat-p1.json")).unwrap();
+    for (name, bytes) in p1 { assert!(expected.insert(name, bytes).is_none()); }
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(schema, expected[&name].0, "schema bytes: {name}");

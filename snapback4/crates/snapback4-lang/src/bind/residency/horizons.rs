@@ -26,6 +26,9 @@ pub(in crate::bind) fn incompatible_horizon_pages(schema: &Schema, programs: &[s
         .map(|bound| bound.program.name.clone()).collect::<BTreeSet<_>>().into_iter().collect()
 }
 
+mod sync_order;
+pub(in crate::bind) use sync_order::sync_order_notes;
+
 pub(in crate::bind) fn guard_notes(schema: &Schema, programs: &[super::super::BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for bound in programs.iter().filter(|bound| bound.program.kind == ProgramKind::Mutation) {

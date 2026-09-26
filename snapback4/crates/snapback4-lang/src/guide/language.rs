@@ -11,7 +11,7 @@ table notes:
   at: time default now
   read <- .owner = viewer
   insert <- .owner = viewer
-  sync to .owner last 500 by .at
+  sync to .owner last 500 by .at, .id
 query myNotes(c: cursor ?):
   return notes where .owner = viewer last 20 by .at after c
 mutation addNote(body: text):

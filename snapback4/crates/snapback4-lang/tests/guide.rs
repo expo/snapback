@@ -344,7 +344,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("send", None, at("alice", 3_000, &[("conversation", id("solo")), ("text", text("alone"))]).with_ids(["s1".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "solo"), ["sent"]);
     // Back after 250 messages: progress pages forward from the watermark, and
-    // each acknowledgement turns exactly its page delivered, oldest first.
+    // each acknowledgement turns exactly its interval delivered, newest first within it.
     let long = || ("conversation", id("long"));
     let post = |engine: &mut Engine, n: i64| {
         let row = format!("l{n}");
@@ -366,7 +366,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     for (k, (from, to)) in [(1, 100), (101, 200), (201, 250)].into_iter().enumerate() {
         let now = 5_100 + 10 * k as i64;
         let bob = progress(&mut engine, "bob", now, "long");
-        assert_eq!((watermark(&bob, "delivered"), next(&bob)), (from - 1, (from..=to).collect::<Vec<_>>()), "the page after the watermark, at most 100");
+        assert_eq!((watermark(&bob, "delivered"), next(&bob)), (from - 1, (from..=to).rev().collect::<Vec<_>>()), "the page after the watermark, at most 100");
         sent(&engine.mutate("delivered", None, at("bob", now + 1, &run(long(), from, to))).unwrap());
         let all = everything(&mut engine);
         assert_eq!(states(&all, 1, to as usize), ["read"].into(), "through {to}, fetched and seen");
@@ -401,7 +401,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let all = every(&mut engine);
     assert_eq!((states(&all, 1, 100), states(&all, 101, 120), states(&all, 121, 200), states(&all, 201, 300)), (["sent"].into(), ["delivered"].into(), ["sent"].into(), ["delivered"].into()), "every fetched run is delivered at once, the gaps stay sent");
     let bob = progress(&mut engine, "bob", 6_506, "win");
-    assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (0, vec![(101, 120), (201, 300)], (1..=100).collect::<Vec<_>>()), "{:?}", stored(&bob));
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (0, vec![(101, 120), (201, 300)], (1..=100).rev().collect::<Vec<_>>()), "{:?}", stored(&bob));
     deliver(&mut engine, 6_510, 150, 210);
     let all = every(&mut engine);
     assert_eq!((states(&all, 121, 149), states(&all, 150, 300)), (["sent"].into(), ["delivered"].into()), "a run that meets a stored run merges with it");

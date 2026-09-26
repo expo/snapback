@@ -198,6 +198,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
+    notes.extend(residency::sync_order_notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
     index_diagnostics::authored(&catalog, &mut diagnostics);

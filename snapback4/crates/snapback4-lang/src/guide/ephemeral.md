@@ -6,7 +6,7 @@ Ephemeral tables hold short-lived rows in one server process, under ordinary tab
 table rooms:
   name: text <=80
   read <- exists members[.id, viewer]
-  sync to members[.id] last 100 by .id
+  sync to members[.id]
 
 table members:
   roomId: rooms

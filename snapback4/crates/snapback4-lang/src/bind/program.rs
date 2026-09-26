@@ -34,9 +34,11 @@ pub(crate) mod setup;
 pub struct BoundProgram {
     pub view_types: BTreeMap<String, Ty>,
     pub(crate) filters: BTreeMap<String, String>,
-    /// Source consumers for admission diagnostics only; absent from IR/wire.
+    /// Whole-domain consumers for diagnostics only; absent from IR/wire.
     pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
+    /// Source-table pages before binding filters, for executable horizon repairs only.
+    pub(crate) page_sources: BTreeMap<String, ReadExpr>,
     pub(crate) canonical_sources: BTreeMap<String, String>,
     pub(crate) selections: BTreeMap<String, String>,
     /// Scan sites the compiler generated for a timeline read: the only scans whose
@@ -68,6 +70,7 @@ pub struct Binder<'a> {
     view_types: BTreeMap<String, Ty>,
     constraint_domains: std::collections::BTreeSet<String>,
     sources: BTreeMap<String, (Site, String)>,
+    page_sources: BTreeMap<String, ReadExpr>,
     canonical_sources: BTreeMap<String, String>,
     selections: BTreeMap<String, String>,
     presence_sources: Vec<(Expr, Site, String)>,
@@ -125,7 +128,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -152,7 +155,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -234,7 +237,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -336,6 +339,18 @@ impl<'a> Binder<'a> {
         if range.take == 0 {
             return Err(type_error(&range.site, "a page holds at least one row", print::read_expr(&ReadExpr { range: Some(ast::RangeSpec { take: 50, ..range.clone() }), ..read.clone() })));
         }
+        let mut page_source = read.clone();
+        page_source.computed.extend(index.computed.iter().map(|(key, value)| {
+            let mut value = value.clone();
+            if let A::Call { args, .. } = &mut value
+                && let Some(A::Name { name, site }) = args.first().cloned() {
+                args[0] = A::Member { base: Box::new(A::Focal { site: site.clone() }), name, site };
+            }
+            (key.clone(), value)
+        }));
+        for (key, column) in page_source.keys.iter_mut().zip(&index.columns) {
+            key.column.get_or_insert_with(|| column.clone());
+        }
         let filter_text = read.filter.as_ref().map(|expr| self.catalog.source.expression(expr));
         let (read, filter) = self.scan_filter(read, &index)?;
         let read = &read;
@@ -384,6 +399,7 @@ impl<'a> Binder<'a> {
             prefix.push(IndexKeyExpr::WordPrefix(e));
         }
         let scan_site = self.site();
+        self.page_sources.insert(scan_site.clone(), page_source);
         let pins = read.keys.iter().enumerate().map(|(position, key)| {
             let column = key.column.as_ref().unwrap_or(&index.columns[position]);
             format!(".{column} = {}", self.catalog.source.operand(&key.value))

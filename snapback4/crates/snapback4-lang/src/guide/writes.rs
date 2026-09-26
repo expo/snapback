@@ -220,8 +220,10 @@ a constraint across all guests.
 
 ## Server-arrival order within a conversation
 
-`at` has millisecond ties; client-minted ids order creation, not arrival at
-the server. Declare an engine sequence. A client-supplied integer can pin
+For timestamp order with ties, use existing columns: `sync last 500 by .at, .id`
+and query `last 50 by .at, .id`. No ordinal or conversation-row rewrite is needed.
+For server-arrival order, client-minted ids and timestamps are insufficient.
+Declare an engine sequence. A client-supplied integer can pin
 the history forever by writing the largest value; `sequence by` refuses
 such values with E_SEQUENCE_SUPPLIED, including on updates and upserts.
 
@@ -352,10 +354,11 @@ write results, point rereads and pages carry `pending: true`.
 ### The application-counter spelling, which still compiles
 
 Before `sequence by`, the ordinal was an application counter. This older
-spelling still compiles; prefer the engine sequence above, which refuses a
-client-supplied position. `at` has millisecond ties; client-minted ids order creation, not arrival at
-the server. Keep a per-conversation ordinal in the same mutation as the
-message insert. Transactions serialize the increment, so committed ordinals
+spelling still compiles; for server-arrival order prefer the engine sequence
+above, which refuses a client-supplied position. For timestamp order use
+the existing columns as shown above. The legacy recipe keeps a
+per-conversation ordinal in the same mutation as the message insert.
+Transactions serialize the increment, so committed ordinals
 order accepted writes within that conversation; they do not order groups.
 
 ```quarry

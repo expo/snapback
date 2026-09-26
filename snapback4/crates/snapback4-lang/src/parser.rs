@@ -376,9 +376,26 @@ impl Parser {
             if !self.maybe("by") {
                 return Err(syntax_with(&site, "a horizon is `last N by index`", rewrite));
             }
-            let column = self.maybe(".");
-            let index = format!("{}{}", if column { "." } else { "" }, self.word()?.value);
-            horizon = Some((n, index));
+            // @ref LLP 3000.019#3.1 — a window can state several ordered columns.
+            let order = if self.at(".") {
+                let mut columns = Vec::new();
+                let mut duplicate = None;
+                loop {
+                    if !self.maybe(".") || !self.at_kind(Kind::Word) {
+                        return Err(syntax_with(&self.peek().site, "each window order column needs a leading dot", "last 500 by .at, .id"));
+                    }
+                    let column = self.word()?;
+                    if columns.contains(&column.value) { duplicate.get_or_insert(column); }
+                    else { columns.push(column.value); }
+                    if !self.maybe(",") { break; }
+                }
+                let order = SyncOrder::Columns(columns);
+                if let Some(column) = duplicate {
+                    return Err(syntax_with(&column.site, format!("window order names .{} twice", column.value), format!("last {n} by {order}")).guide("sync"));
+                }
+                order
+            } else { SyncOrder::Index(self.word()?.value) };
+            horizon = Some((n, order));
         }
         if !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) {
             return Err(syntax_with(&site, format!("unexpected {} after the sync line", self.peek().value), rewrite));
@@ -1254,7 +1271,7 @@ mod tests {
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();
         assert_eq!(sync.audience, SyncAudience::Inferred { principal: None });
-        assert_eq!(sync.horizon, Some((500, "byConvTime".into())));
+        assert_eq!(sync.horizon, Some((500, SyncOrder::Index("byConvTime".into()))));
         assert_eq!(messages.retain.as_ref().unwrap().0, "delivered-history");
         let markers = document.tables.iter().find(|table| table.name == "readMarkers").unwrap();
         assert!(markers.sync.is_none(), "the starter's read marker is not replicated");

@@ -369,7 +369,7 @@
     "id": "writes-21",
     "card": "writes",
     "home": "Details",
-    "text": "`at` has millisecond ties; client-minted ids order creation, not arrival at\nthe server. Keep a per-conversation ordinal in the same mutation as the\nmessage insert. Transactions serialize the increment, so committed ordinals\norder accepted writes within that conversation; they do not order groups."
+    "text": "For timestamp order with ties, use existing columns: `sync last 500 by .at, .id`\nand query `last 50 by .at, .id`. No ordinal or conversation-row rewrite is needed."
   },
   {
     "id": "writes-22",

@@ -12,7 +12,22 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     // Retiring the last materialization exposes the retained public source
     // partition note; this test intentionally preserves those source tables.
-    assert!(b.notes.iter().all(|n| n.code == "N_NO_HORIZON"), "{:?}", b.notes); b
+    // @ref LLP 3000.019#3.1 — retained-source pages expose their window-order mismatch.
+    assert!(b.notes.iter().all(|n| n.code == "N_NO_HORIZON" ||
+        (n.code == "N_SYNC_ORDER" && n.message.contains("reads posts") &&
+            (n.message.starts_with("query home ") || n.message.starts_with("query cards ")))), "{:?}", b.notes);
+    check_source_page_repairs(source, &b);
+    b
+}
+// A planned view is a merge of projected branches. Replacing one branch is
+// not an exact replacement of the view, so advice must stay prose-only.
+fn check_source_page_repairs(_source: &str, bound: &snapback4_lang::Bound) {
+    for note in bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER") {
+        assert!(!note.rewrite.contains('`'), "no incomplete branch rewrite: {note}");
+        assert!(!note.rewrite.contains('$'), "no compiler binding: {note}");
+        assert!(note.rewrite.contains("newest first") && note.rewrite.contains("index"), "{note}");
+        assert!(note.rewrite.contains("merge context"), "{note}");
+    }
 }
 fn engine(source: &str) -> Engine {
     let b = compile(source); Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()

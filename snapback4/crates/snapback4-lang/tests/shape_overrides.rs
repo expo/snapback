@@ -13,7 +13,11 @@ fn checked(source: &str) -> snapback4_lang::Bound {
 
 #[test]
 fn replacing_fields_determine_the_inferred_and_generated_types() {
-    let bound = checked(SOURCE);
+    let bound = compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    // @ref LLP 3000.019#3.1 — these two ascending pages still infer their shapes, and now explain their offline order mismatch.
+    assert_eq!(bound.notes.iter().map(|note| (note.code.as_str(), note.site.line)).collect::<Vec<_>>(),
+        [("N_SYNC_ORDER", 25), ("N_SYNC_ORDER", 30)]);
     let listing = Ty::RowShape(BTreeMap::from([
         ("title".into(), Ty::Text(10000)), ("city".into(), Ty::Text(10000)),
     ])).optional();
