@@ -63830,3 +63830,48 @@ test's startup-discovery assumption and prior reproduction remain recorded in
 round 3; its old assertion is unchanged. No engine, authorization, meter,
 outbox, API/syntax, package-version or wasm-budget change; no delegated agent,
 push or publication. local.ts remains under the source cap at 1,491 lines.
+
+## 2026-09-26 — 0.4.4 lane K, round 6: expiry withdrawal precedes callbacks and storage
+
+Addressed Astra's two round-5 high findings and the surviving rejoin mutation.
+Clock corrections now sample device/server time once and withdraw every due
+snapshot and expired remembered answer before any subscriber is notified.
+Online and both device clients share the two-phase sweep. A subscriber's clock
+rollback cannot save another expired lingering watch; newer unexpired memory,
+highest store-cut ordering and remembered local-wakeup semantics remain intact.
+The app facade now forwards source loading/denied synchronously while data
+publication still waits for asynchronous authority. Production rejoin timer
+cancellation was already correct; its new virtual-timer regression rejoins at
+29 seconds, crosses the old deadline and checks a full new 30-second window
+after the next unsubscribe.
+
+Seven new tests cover callback rollback on online/wasm/process, createApp with
+held sessionStore.get, synchronous loading/denied with data still gated, and
+rejoin timing. Before fixes: six expected failures, one pass. Focused tests:
+54/54; final affected tests: 304/304. Four mutations killed with nine expected
+assertion failures, including deletion of clearTimeout(watch.linger.timer).
+All generated mutations restored. Reference audit: 513 LLP docs, 9,448 refs in
+26,815 files, 0 errors, 0 unchecked. local.ts is 1,492 lines. Implementation
+commits: 4cec3819a, 2f30f5e7e, 4c462c3b9; each carries the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer.
+
+Required scripts/test.sh ran once, unmodified: `== 1 failure(s) in 960 s`,
+exit 1; failed group: client tests. Its sole failure was the unchanged online
+"mounting interest reissues a held poll" notification assertion, measuring
+500.4352399999998 ms against 500 ms. Classification: baseline timing-sensitive
+test; Astra's pre-round-6 review had independently measured the same limit's
+failure at 510.5 ms with an isolated pass. This round's unchanged affected
+file passed 6/6 on rerun; no production fix, test weakening or second full run.
+The full result remains red. Rust: 3,573 passed, 0 failed, 19 ignored; whole
+guide 86/86. Main client batch: 2,285 passed, 1 failed, 10 existing skips
+(2,296 tests); seven separate shards passed. Models: 78/78. All seven new
+regressions and Chromium cases passed. Wasm: 2,021,689 B raw / 581,094 B gzip,
+delta 0 B, 1,000 B below the unchanged 582,094 B budget. Node 24.13.1,
+Bun 1.3.14; eight Cargo build jobs and dev/test debug info disabled.
+
+No requested fix deferred or redesigned. No new answer store, engine,
+authorization, meter, outbox, API/syntax, version or budget change; no delegated
+agent, push or publication. Evidence: target/lane-k-round6-evidence/.
+Detailed report: reports/20260926-lane-k-answers-stay.md, round 6. The baseline
+notification-timing risk and the older distinct cadence-test startup risk remain
+recorded there, with reproduction commands and qualification limits.

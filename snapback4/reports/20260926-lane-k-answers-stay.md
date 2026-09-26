@@ -1040,3 +1040,165 @@ Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
 Full log and exit: `target/lane-k-round5-evidence/test-sh.log` and
 `test-sh.exit`. The final documentation commit adds this report and one dated
 round-5 journal entry; the qualified implementation is unchanged.
+
+## Round 6 — 2026-09-26: withdraw all expired watches before callbacks
+
+Read the lane prompt, rounds 0–5 report and Astra's complete round-5 review
+(`k2-r5.astra.md`, NOT READY). Addressed both high findings and the surviving
+rejoin mutation. The existing live-linger design and earlier fixes remain.
+No push or publication.
+
+### Findings and files
+
+Paths below are relative to `snapback4/`.
+
+- **High: one expiry callback could spare another expired watch.**
+  `packages/snapback4/src/read-expiry.ts` adds `correctReadExpiries`: sample
+  device and server time once, withdraw every due snapshot and remove its
+  expired recovery memory before delivering any notification, then notify and
+  refetch. Future deadlines are re-armed in their own clock domains.
+  `src/client.ts` and `src/local.ts` use this procedure for clock corrections;
+  their existing timer paths share the extracted withdrawal functions. Online
+  expiry resets every due snapshot, including default observations. Local
+  expiry uses the captured server sample for remembered-answer cleanup,
+  preserves newer unexpired memory and highest-cut ordering, and keeps a local
+  reobservation wakeup distinct from a server-answer deadline. Deferred delivery
+  and refetch skip watches a callback closed or replaced.
+- **High, inherited: the app facade delayed withdrawal behind storage.**
+  `packages/snapback4/src/app-client.ts` synchronously forwards and notifies a
+  source snapshot containing `loading` or `denied`. Data still waits for
+  `refusal()` and the current facade authority check. The facade's permanent
+  retirement fence remains in force.
+- **Low: missing rejoin timer-cancellation evidence.** Production cancellation
+  in `src/observe-watch.ts` was already correct and is unchanged. The new
+  virtual-timer test rejoins at 29 seconds, subscribes, crosses the original
+  30-second deadline, and verifies that the same live watch remains open. Its
+  next unsubscribe gets a full new 30 seconds: open at 29,999 ms, closed at
+  30,000 ms.
+- `packages/snapback4/test/keep-clock.test.mjs`: three regressions run Astra's
+  callback-rollback reproduction on online, real wasm and real process clients.
+  Two kept answers share a server deadline; one lingers and replacement reads
+  are held. The active subscriber rolls back the server clock, inspects the
+  lingering snapshot and remounts it inside the callback. Both must already
+  be loading. On both devices, releasing reads and a one-shot offline recovery
+  additionally prove the other expired remembered entry cannot return.
+- `packages/snapback4/test/keep-observation.test.mjs`: the rejoin test above,
+  the `createApp` reproduction with `sessionStore.get` held at expiry, and two
+  facade tests for synchronous `loading` and `denied`. Those two also hold the
+  authority check for data before and after withdrawal and prove replacement
+  data publishes only after authority resumes. The existing facade retirement
+  regression remains unchanged and passes.
+- This report and one appended dated `JOURNAL.md` entry record the round.
+
+The same forms compile and run; this round adds no public API or Quarry syntax:
+
+```tsx
+const query = useQuery(api.inbox, {}, { keep: true });
+const pages = usePage(api.thread, { conversationId }, { keep: true });
+const watch = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+### Tests and mutation evidence
+
+Seven new tests were added. Before the production fixes, the selected run had
+**six expected failures and one pass**: all three callback-rollback cases and
+all three facade cases failed; production rejoin cancellation already passed.
+After the fixes, the focused clock/observation/remembered-answer run passed
+**54/54**. The final broader affected run passed **304/304**, with no failures,
+skips or cancellations. It includes every keep test, app session/handle/
+retirement cases, clock regressions, memory ordering, publication and authority
+fences, and presence/composition/ephemeral refresh behavior.
+
+Four independent generated-JavaScript mutations were tested and restored in
+`finally`. **All four killed; nine expected assertion failures**:
+
+| Mutation | Failing tests |
+| --- | ---: |
+| Notify inside the expiry sweep, before withdrawing other watches | 3 |
+| Omit expired remembered-answer cleanup | 2 |
+| Make the facade await authority before forwarding withdrawal | 3 |
+| Delete `clearTimeout(watch.linger.timer)` on rejoin | 1 |
+
+Exact commands, diffs, logs and exits are in
+`target/lane-k-round6-evidence/` (`before.log`, `focused.log`, `affected.log`,
+`mutations.py`, `mutations.json`, and each named mutation `.diff` / `.log`).
+No mutation is committed. Package build/typecheck passed. Reference audit:
+**513 LLP docs, 9,448 refs in 26,815 files, 0 errors, 0 unchecked**.
+`local.ts` is **1,492 lines**, below the unchanged 1,500-line source limit.
+
+Implementation commits, each carrying the requested co-author trailer:
+`4cec3819a` (clock correction), `2f30f5e7e` (facade withdrawal),
+`4c462c3b9` (rejoin timer regression).
+
+### Scope, decisions and open problems
+
+No requested finding was rejected, deferred or redesigned. The helper shares
+withdrawal and clock-domain handling between the existing clients; it adds no
+answer store or new lifetime. No engine, authorization, meter, outbox, public
+API/syntax, version or wasm-budget change. No delegated agent, push or
+publication. No known unresolved requested finding remains.
+
+Orientation used the installed `llp-orient` skill at
+`/home/ccheever/lanes/enginefix/vendor/llp/skills/llp-orient/SKILL.md` because
+this lane's vendor link remains broken. Context: LLP 3000 §7 and LLP 2000.000
+§7.2; LLP 3000.001 repair B; LLP 3000.007 §18.2 and the existing expiry rule;
+LLP 3000.018 §3.2's ordered recovery; LLP 3000.019 §3.3 and the supervisor's
+round-4 live-linger ruling. The root and 3000.019 remain in `llp/current/`;
+none of these is in `llp/foundation/`. The current reads card and application
+facade were read before editing. No new LLP decision or hand-off is needed.
+The earlier recorded baseline cadence-test startup assumption remains described
+with its reproduction in round 3; its unchanged test passed the affected run.
+
+### Exact round-6 full qualification
+
+Required `scripts/test.sh` ran **once**, unmodified, and finished:
+
+```text
+== 1 failure(s) in 960 s
+   client tests
+```
+
+Exit **1**. Its sole failing test was **`online: mounting interest reissues a
+held poll, invalidates without sync, and refetches at expiry`**, at
+`packages/snapback4/test/ephemeral-watches.test.mjs:86`:
+**`500.4352399999998 ms`** against a **500 ms** notification limit.
+
+**Classification: baseline timing-sensitive test**, affected by host scheduling.
+Astra's round-5 review independently recorded the same 500 ms notification-limit
+failure at **510.5 ms** before these changes, followed by an isolated pass.
+The test and its assertion are unchanged in round 6. It passed this round's
+304-test affected run. After the full run's client batch failed, the unchanged
+entire affected file passed **6/6**, exit 0:
+
+```sh
+node --test packages/snapback4/test/ephemeral-watches.test.mjs
+```
+
+No production repair or test weakening was needed. No introduced product failure
+or separate environmental failure was observed. The baseline timing assertion
+remains an open test risk: run this named case in the full parallel client batch
+on the shared host to encounter the recorded failure; the isolated command above
+passes. The prior startup-cadence risk described in round 3 is distinct, and its
+unchanged test passed in this full run. **The full script was not repeated, and
+no green full-suite result is claimed.**
+
+- Rust: **3,573 passed, 0 failed, 19 ignored**; whole guide **86/86**.
+- Main client batch: **2,296 tests; 2,285 passed, 1 failed, 10 existing skips**.
+  All seven separate acquisition/server shards passed.
+- Models: **78 passed, 0 failed, 0 skipped**, including both 5,000-sequence
+  session models.
+- All **seven new regressions**, the unchanged facade-retirement case,
+  earlier withdrawal/publication/clock/memory-ordering guards, and Chromium
+  cases passed in the full run.
+- Build/typecheck, docs budget, release guard, both app typechecks and fixture
+  wrapper checks passed.
+- Wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B** from round 5;
+  unchanged budget **582,094 B**, headroom **1,000 B**. No budget increase.
+
+Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`.
+Full log and exit: `target/lane-k-round6-evidence/test-sh.log` and
+`test-sh.exit`; affected rerun: `ephemeral-rerun.log` and
+`ephemeral-rerun.exit` in the same directory. This final documentation commit
+adds only the report and one dated round-6 journal entry; qualified code and
+tests are unchanged.
