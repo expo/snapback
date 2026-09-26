@@ -72,8 +72,8 @@ After the last subscriber leaves, an opted-in watch keeps its answer for
 30 seconds. A matching operation and arguments under the same viewer and store
 incarnation starts from it and re-reads immediately. Credential or viewer
 changes, sign-out, store replacement or restore, adoption, `clear_rows` and
-`settle_exit` drop kept answers. Existing expiry and ephemeral reset fences
-still withdraw active answers. Without `keep`, behavior is unchanged.
+`settle_exit` drop kept answers. An answer's expiry ends retention even during
+loading or idle memory; ephemeral resets still withdraw active answers. Without `keep`, behavior is unchanged.
 
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,

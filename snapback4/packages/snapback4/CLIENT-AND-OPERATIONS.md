@@ -1135,8 +1135,8 @@ After the last subscriber leaves, the client keeps that answer in memory for
 store incarnation starts from it with `fresh: false` and re-reads immediately.
 A default watch never uses this memory. Credential/viewer changes, sign-out,
 store replacement or restore, adoption, `clear_rows` and `settle_exit` discard
-kept answers at once. Existing expiry and ephemeral reset fences still withdraw
-active answers. Closing the client discards the memory; it is not durable.
+kept answers at once. An answer's expiry ends retention, even during loading or
+the 30-second idle window. Ephemeral resets still withdraw active answers. Closing the client discards the memory; it is not durable.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.
@@ -1160,7 +1160,7 @@ export function InboxList() {
 }
 ```
 
-Unmounting a screen closes its observations; remounting starts from the client's
+Without `keep`, unmounting a screen closes its observations; remounting starts from the client's
 current answer. Only a local unavailable-read fallback may keep its previous answer
 while the server fetch is pending, marked `fresh: false` with `since`; settlement
 or a local state change clears that retention. Online reads retain no old answer.

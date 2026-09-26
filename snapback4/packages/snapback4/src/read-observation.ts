@@ -1,4 +1,5 @@
 import type { Read, Refusal } from "./contract.ts";
+import type { ReadDeadlines } from "./read-expiry.ts";
 
 /** Default fallback retention and explicit application keep share one publication
  * fence. Resets retire in-flight
@@ -9,6 +10,8 @@ export class ReadObservation<T> {
   snapshot: Read<T> = { loading: true };
   kept = false;
   resetVersion = 0;
+  deadlines: ReadDeadlines | undefined;
+  ephemeralTables: readonly string[] = [];
   private since: number | undefined;
   private revision = 0;
 

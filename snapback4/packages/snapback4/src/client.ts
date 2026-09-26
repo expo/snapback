@@ -1,3 +1,4 @@
+import { armReadExpiry } from "./read-expiry.ts";
 import { KeptAnswers, observeWatch } from "./kept-answers.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
@@ -163,10 +164,10 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
-  const keptAnswers = new KeptAnswers();
+  const keptAnswers = new KeptAnswers(clock);
   const resetKept = (publish = true) => {
     keptAnswers.clear();
-    for (const watch of watches.values()) if (watch.keep) watch.reset({ loading: true });
+    for (const watch of watches.values()) if (watch.keep) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
     if (publish) for (const watch of watches.values()) if (watch.keep) notify(watch);
   };
   const ephemeralReads = new EphemeralReads(aborter.signal);
@@ -210,8 +211,8 @@ export function createClient(options: ClientOptions): Client {
     queryEpoch++;
     for (const watch of watches.values()) {
       watch.reset("data" in watch.snapshot ? { ...watch.snapshot, fresh: false } : { loading: true });
-      scheduleExpiry(watch, null); notify(watch);
-      void refresh(watch);
+      if (!("data" in watch.snapshot)) scheduleExpiry(watch, null);
+      notify(watch); void refresh(watch);
     }
     const fallback = setInterval(() => {
       if (closed || storeRefusal || !credentials || !watches.size) { clearInterval(fallback); return; }
@@ -542,18 +543,11 @@ export function createClient(options: ClientOptions): Client {
   }
 
   function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
-    if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-    watch.expiryTimer = null;
-    if (nextExpiry == null || closed) return;
-    const delay = Math.min(clock.serverDelay(nextExpiry), 2_147_483_647);
-    watch.expiryTimer = setTimeout(() => {
-      watch.expiryTimer = null;
-      if (watches.get(watch.key) === watch) {
+    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false }, clock,
+      () => !closed && watches.get(watch.key) === watch, () => {
         if (watch.keep) { watch.reset({ loading: true }); notify(watch); }
         void refresh(watch);
-      }
-    }, delay);
-    (watch.expiryTimer as { unref?: () => void }).unref?.();
+      });
   }
 
   // @ref LLP 3000.018#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
@@ -583,7 +577,7 @@ export function createClient(options: ClientOptions): Client {
     watch.publish(result.read);
     watch.tables = new Set(result.tables);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-    scheduleExpiry(watch, result.nextExpiry);
+    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
     notify(watch);
     schedulePresence(watch, true, result.refresh);
   }
@@ -596,22 +590,29 @@ export function createClient(options: ClientOptions): Client {
       return;
     }
     watch.inFlight = true;
+    const resetVersion = watch.resetVersion;
     let exhausted = false;
     try {
-      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: result => currentRead(result, watch) });
-      const { tables, nextExpiry, retryExhausted } = result;
+      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: result => {
+        if (!currentRead(result, watch)) return false;
+        // Install deadlines before publication: a subscriber can close synchronously.
+        if (!(watch.keep && "data" in watch.snapshot && (result.transportOffline || "loading" in result.read))) scheduleExpiry(watch, result.nextExpiry);
+        return true;
+      } });
+      if (resetVersion !== watch.resetVersion) { watch.dirty = true; return; }
+      const { tables, retryExhausted } = result;
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
         if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.reload();
-        scheduleExpiry(watch, null);
+        if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
         notify(watch);
         return;
       }
       watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-      scheduleExpiry(watch, exhausted ? null : nextExpiry);
+      if (exhausted && !watch.kept) scheduleExpiry(watch, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } finally {
       watch.inFlight = false;
@@ -771,7 +772,7 @@ export function createClient(options: ClientOptions): Client {
   const stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
     if (closed || (!revised && Math.abs(shift) < 10)) return;
-    for (const watch of watches.values()) void refresh(watch);
+    for (const watch of watches.values()) { if (watch.deadlines) scheduleExpiry(watch, watch.deadlines.server); void refresh(watch); }
     scheduleRefresh();
   });
   const client: Client = {
@@ -794,7 +795,7 @@ export function createClient(options: ClientOptions): Client {
       const key = `${keep ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`;
       return observeWatch(watches, key, keptAnswers, () => JSON.stringify([viewer, storeIdentity]),
         () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null }),
-        watch => { watchEphemeral(watch); void refresh(watch); void poll(); },
+        watch => { watchEphemeral(watch); if (watch.deadlines) scheduleExpiry(watch, watch.deadlines.server); void refresh(watch); void poll(); },
         watch => ephemeralReads.remove(watch), () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {

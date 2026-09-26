@@ -1,21 +1,24 @@
 import type { Read, Observed, Refusal } from "./contract.ts";
 import type { ReadObservation } from "./read-observation.ts";
+import { answerExpired, wallExpiryClock, type ExpiryClock, type ReadDeadlines } from "./read-expiry.ts";
 
 type Answer = Extract<Read<unknown>, { data: unknown }>;
+type KeptAnswer = { read: Answer; deadlines: ReadDeadlines | undefined; ephemeral: boolean };
 // @ref LLP 3000.019#3.3 — opt-in presentation memory, independent of ordered server-answer recovery.
 export class KeptAnswers {
-  private entries = new Map<string, { read: Answer; until: number; timer: ReturnType<typeof setTimeout> }>();
-  take(key: string): Answer | undefined {
+  private entries = new Map<string, KeptAnswer & { until: number; timer: ReturnType<typeof setTimeout> }>();
+  constructor(private clock: ExpiryClock = wallExpiryClock) {}
+  take(key: string): KeptAnswer | undefined {
     const entry = this.entries.get(key);
     this.delete(key);
-    return entry && Date.now() < entry.until ? entry.read : undefined;
+    return entry && Date.now() < entry.until && !answerExpired(entry.deadlines, this.clock) ? entry : undefined;
   }
-  put(key: string, read: Read<unknown>): void {
+  put(key: string, read: Read<unknown>, deadlines?: ReadDeadlines, ephemeral = false): void {
     this.delete(key);
-    if (!("data" in read)) return;
+    if (!("data" in read) || answerExpired(deadlines, this.clock)) return;
     const timer = setTimeout(() => this.delete(key), 30_000);
     (timer as { unref?: () => void }).unref?.();
-    this.entries.set(key, { read, until: Date.now() + 30_000, timer });
+    this.entries.set(key, { read, deadlines, ephemeral, until: Date.now() + 30_000, timer });
   }
   delete(key: string): void {
     const entry = this.entries.get(key);
@@ -23,6 +26,7 @@ export class KeptAnswers {
     this.entries.delete(key);
   }
   clear(): void { for (const key of this.entries.keys()) this.delete(key); }
+  clearEphemeral(): void { for (const [key, entry] of this.entries) if (entry.ephemeral) this.delete(key); }
 }
 
 interface Watch extends ReadObservation<unknown> {
@@ -41,8 +45,8 @@ export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: s
     let watch = watches.get(key);
     if (!watch) {
       watch = make();
-      const read = watch.keep && !denied() ? memory.take(scope() + key) : undefined;
-      if (read) { watch.publish(read); watch.reload(); }
+      const kept = watch.keep && !denied() ? memory.take(scope() + key) : undefined;
+      if (kept) { watch.publish(kept.read); watch.reload(); watch.deadlines = kept.deadlines; }
       watches.set(key, watch);
       start(watch);
     }
@@ -54,7 +58,7 @@ export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: s
     if (own.subscribers.size || watches.get(key) !== own) return;
     if (own.keep && !denied()) {
       own.reload();
-      memory.put(scope() + key, own.snapshot);
+      memory.put(scope() + key, own.snapshot, own.deadlines, own.ephemeralTables.length > 0);
     }
     watches.delete(key);
     stop(own);
