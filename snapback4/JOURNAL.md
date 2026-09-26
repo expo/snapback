@@ -62151,3 +62151,34 @@ gaps are 27/51/101/201/401/501/501 ms (500 ms timer cap plus scheduling), close
 and unmount stop attempts, remount recovers, and auth/store termination stops
 discovery. Its generation probe now observes data 2 with `fresh: false` while
 schema is still failing. No timing failure or isolation rerun occurred.
+
+### 2026-09-26 — Fix round 3 final qualification
+
+At implementation checkpoint d274c02bd, using Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED tarball cache, `bash scripts/test.sh` completed with
+the literal summary `== 0 failure(s) in 748 s`, exit 0. Implementation source
+stayed fixed throughout. Rust: 3,569 passed, 0 failed, 19 ignored. JavaScript:
+2,138 tests, 2,133 passed, 0 failed, 5 existing optional skips; models passed
+78/78. All four new regressions and the existing N1/N2/N3 tests stay green.
+The three published-0.2.33 capability fences and the capability-free byte/store
+control pass unchanged. The three literal `backend FAIL E_STORE` diagnostics
+are expected legacy-decoder refusals, not suite failures.
+
+The suite's `bash scripts/build-wasm.sh` measured
+`wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`. Both the artifact size
+and ratchet are unchanged from fix round 2, leaving 1,036 B headroom.
+
+The one additional standalone ephemeral-e2e run passed 1/1. Five ephemeral
+trials first appeared in 22.247–35.496 ms and disappeared 3841.517–3876.299 ms
+after the last call. Each used two requests, against 45 for each separately
+measured durable control. All five proved first sight followed a typing-naming
+poll answer with the durable sequence unchanged. No failed qualification,
+timing isolation rerun, existing expected-output edit or unrelated defect was
+observed in this round.
+
+Evidence: target/eph-fix3-evidence/full-suite.log, full-suite-counts.log/json,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. EPH-REPORT-FIX3.md at the worktree root is deliberately
+uncommitted. Nothing remains undone in the requested fix round. No push,
+merge, rebase, stash, publication or other-process intervention was performed;
+the other checkout was used only for the explicitly supplied tarball cache.
