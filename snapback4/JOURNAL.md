@@ -64108,3 +64108,101 @@ wasm artifacts). The final report is
 `/Users/ccheever/projects/snapback-sb5-program/image-list-assets.final.md`.
 Previously unplaced rows are not backfilled; an authorized replacement with
 fresh uploads establishes their homes. No external calibration store changed.
+
+## 2026-09-26 — image-list fix round 2: release only this cell's home
+
+Astra's blind review of `99ef276d95` reproduced a legacy row referencing
+another row's asset: clearing or deleting the referencing row detached the
+foreign home. Release now carries the exact `(table, row, column)` through
+the server ledger interface and matches all three fields in the SQL update.
+A foreign or unplaced reference is a no-op, and the authorized row change
+still commits. No extra lookup, claim, backfill or meter charge is introduced
+by the predicate. Scalar columns share the guarded release.
+
+Added sixteen legacy regressions: list/scalar × placed/unplaced × clear/delete
+× memory/disk SQLite; disk cases reopen before checking access. All sixteen
+failed against the reviewed runtime because Alice lost asset access after
+Mallory changed her own row. They check the committed clear/delete, unchanged
+home and release timestamp, Alice's continued access, and Mallory's continued
+refusal. A direct ledger regression separately mismatches table, row and column,
+then releases the exact home and checks that a repeat cannot reset release time.
+
+Scalar compatibility required undoing part of the prior commit. Contrary to
+its accounting-correction rationale above, it had loosened two existing scalar
+tests: `feed_bridge` changed four receipted writes to six, and
+`write_authority` added four examinations to a ceiling. Both files are restored
+byte-for-byte to `99ef276d95^`. With those original tests, the reviewed runtime
+fails the four-write assertion (6 versus 4) and the intended rule-probe-boundary
+assertion (the new examination reservation refuses first). The extra scalar
+reservation is withdrawn: relative to the parent, added scalar allowance is
+zero; relative to `99ef276d95`, each scalar slot loses four examinations, two
+writes, eight steps and 16,384 bytes of transient scratch admission. Scratch
+is released at the attempt boundary, so this is admission headroom, not a
+promised 16,384-byte change in the final retained-heap receipt. List slots still
+reserve four examinations, two writes, eight steps and 16 KiB each, multiplied
+by declared caps, including empty/unchanged lists. Runtime ceilings are unchanged.
+
+The author-facing media card records both the scalar decision and the legacy
+no-backfill boundary: unplaced legacy list references still download as
+404 E_ASSET_UNKNOWN; replace them with fresh uploads. LLP 3000 §7 now states
+the matching-home rule and the list-only reservation. The inherited forged
+list-argument facts finding is recorded with Astra's reproduction in
+`issues/20260926-snapback4-list-argument-normalization-skips-asset-facts.md`;
+argument normalization is unchanged in this fix. Qualification follows below.
+
+The first wasm check exposed a shared-trait footprint: adding home arguments to
+`Rows::release_asset` on every host added a wasm function type (14 raw bytes,
+5 gzip bytes). The arguments now compile only with the server's `sqlite`
+feature; the device's no-ledger method keeps its prior signature. The rebuilt
+production web artifact is byte-identical to the preserved `99ef276d95` artifact:
+1,972,811 bytes raw / 569,966 bytes gzip; SHA-256
+`9bd30fd80cf9ff348c5449d345ebe2881146b086ff2d10323a3fb3aed7aad6c8`.
+The ratchet stays 570,966. The initial suite attempt was intentionally stopped
+for this correction; a complete suite was restarted on the corrected source.
+
+The complete run found a guide-ordering defect: placing the compatibility note
+before the defining asset paragraph made it the diagnostic excerpt's first
+`E_ASSET_UNKNOWN` mention. The existing definition/recovery test correctly
+refused that shortened explanation. The compatibility note now follows the
+existing definition; the diagnostic test and its pinned facts are unchanged.
+
+That full run finished `== 1 failure(s) in 3553 s` (exit 1): the guide-ordering
+test alone. Both restored scalar test files passed (35 write-authority tests,
+12 feed-bridge tests); all 20 asset-list tests, the other Rust targets and
+workspace doctests passed. Ordinary clients passed 2,222 tests with nine
+existing skips, and all 78 client models passed. After moving the note, all
+86 guide tests pass in isolation. The final complete run uses four build jobs
+on the 18-core host, two Rust test processes, and serial client files, with
+the requested Cargo and FORCE_COLOR settings unchanged.
+
+The next complete run finished `== 1 failure(s) in 3115 s` (exit 1): the
+witness driver alone. Its seven early CLI failures timed out launching the
+local Python fake `simctl` under the unchanged five-second limits; observed
+host load was about 21–22 on 18 CPUs. Every other Rust target, all 86 guide
+tests, workspace doctests, 2,222 ordinary clients (nine existing skips), and
+all 78 client models passed. The exact witness binary then passed all 24 tests
+in 63.24 seconds without any source, assertion, timeout or count change
+(`target/image-list-fix-2/witness-retry.log`). A fresh full run follows on the
+same source to obtain the required zero-failure suite result; the targeted
+retry is diagnostic evidence, not a substitute for that gate.
+
+Final qualification passed the exact requested blocking suite:
+`== 0 failure(s) in 3031 s` (exit 0). All 225 Rust test binaries / 937
+executions and workspace doctests passed, including the unchanged 24-test
+witness driver and both scalar test files restored to the pre-list parent.
+Ordinary clients passed 2,222 tests with nine existing skips; all 78 client
+models passed. The run used Node 24.18.0, four Cargo build jobs, two Rust test
+processes, and `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`, with `FORCE_COLOR` unset,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0` and
+`CARGO_PROFILE_DEV_DEBUG=0`. No assertion, timeout or runtime ceiling was
+relaxed. The completed temporary launch job was removed; the harness-only
+following fixture lock change was saved as evidence and restored.
+
+The final packaged wasm is byte-identical to the preserved reviewed artifact
+and the first corrected build: 1,972,811 bytes raw / 569,966 bytes production
+gzip, SHA-256 `9bd30fd80cf9ff348c5449d345ebe2881146b086ff2d10323a3fb3aed7aad6c8`;
+the ratchet remains 570,966. `./ref-check --verbose` passes. Final evidence is
+under `snapback4/target/image-list-fix-2/` (`suite-verified.log` and its exit
+receipt, counterfactual and targeted checks, and wasm measurements). The
+requested report is `/Users/ccheever/projects/snapback-sb5-program/image-list-fix-2.final.md`.
+The fix is committed locally on `sb4/image-list-assets`; it is not pushed.

@@ -578,10 +578,10 @@ impl Tx<'_> {
         Ok(asset)
     }
 
-    /// The home let go of the asset (the row is deleted, or the column
-    /// cleared or replaced): served no more, unlinked by the sweep.
-    pub fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
-        self.conn().execute("UPDATE _assets SET released_at = ?2, home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?1 AND released_at IS NULL", params![id, now])?;
+    /// Only the recorded home can let go of an asset. Legacy references in
+    /// another cell (or to an unplaced upload) leave its ledger untouched.
+    pub fn release_asset(&self, id: &str, table: &str, row_id: &str, column: &str, now: i64) -> Result<(), RuntimeError> {
+        self.conn().execute("UPDATE _assets SET released_at = ?2, home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?1 AND released_at IS NULL AND home_table = ?3 AND home_id = ?4 AND home_column = ?5", params![id, now, table, row_id, column])?;
         Ok(())
     }
 

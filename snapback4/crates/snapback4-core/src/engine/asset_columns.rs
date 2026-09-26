@@ -14,11 +14,11 @@ pub(super) fn leaf(kind: &ColumnType) -> &ColumnType {
     }
 }
 
-fn slots(kind: &ColumnType) -> u64 {
+fn slots(kind: &ColumnType, in_list: bool) -> u64 {
     match kind {
-        ColumnType::Optional(inner) => slots(inner),
-        ColumnType::List { of, max } => slots(of).saturating_mul(u64::from(*max)),
-        ColumnType::Image { .. } | ColumnType::Video { .. } => 1,
+        ColumnType::Optional(inner) => slots(inner, in_list),
+        ColumnType::List { of, max } => slots(of, true).saturating_mul(u64::from(*max)),
+        ColumnType::Image { .. } | ColumnType::Video { .. } if in_list => 1,
         _ => 0,
     }
 }
@@ -46,11 +46,11 @@ fn values<'a>(kind: &ColumnType, value: Option<&'a Value>, out: &mut BTreeMap<&'
 }
 
 impl Runner<'_> {
-    /// The same allowance for a scalar slot and each declared list slot, even
-    /// for empty/null/unchanged cells. No hidden list length selects a charge.
+    /// Reserve each declared list slot, even for empty/null/unchanged cells.
+    /// Scalar accounting stays unchanged; no hidden list length selects a charge.
     pub(super) fn reserve_assets(&mut self, table: &Table) -> Result<u64, RuntimeError> {
         if !self.tx.holds_assets() { return Ok(0); }
-        let count = table.columns.values().map(slots).fold(0_u64, u64::saturating_add);
+        let count = table.columns.values().map(|kind| slots(kind, false)).fold(0_u64, u64::saturating_add);
         // Fact lookup, system-placeholder lookup, claim lookup and GC lookup;
         // release plus claim writes. Facts, two identity maps and list copies
         // fit the existing 16 KiB asset decode allowance per slot.
@@ -134,7 +134,7 @@ impl Runner<'_> {
                 values(kind, old.and_then(|row| row.field(column).ok()), &mut before);
                 values(kind, new.and_then(|row| row.field(column).ok()), &mut after);
                 for released in before.keys().filter(|id| !after.contains_key(*id)) {
-                    self.tx.release_asset(released, now)?;
+                    self.tx.release_asset(released, table_name, id, column, now)?;
                 }
                 for claimed in after.keys().filter(|id| !before.contains_key(*id)) {
                     if self.context.is_system() && self.tx.asset(claimed)?.is_none() { continue; }
@@ -189,11 +189,31 @@ mod tests {
         assert_eq!(one,price(0,false,false));
         assert_eq!(one,price(1,false,true));
         assert_eq!(one,price(4,false,true));
-        assert_eq!(one.examined,scalar.examined*4);
-        assert_eq!(one.rows_written,scalar.rows_written*4);
-        assert_eq!(one.steps,scalar.steps*4);
-        assert_eq!(one.heap_bytes,scalar.heap_bytes*4);
-        assert!(scalar.examined>0 && scalar.rows_written>0 && scalar.heap_bytes>0);
+        assert_eq!(scalar,Metered::default(),"no added scalar reservation");
+        assert_eq!(scalar,price(1,true,true));
+        assert_eq!(one.examined,4*4);
+        assert_eq!(one.rows_written,2*4);
+        assert_eq!(one.steps,8*4);
+        assert_eq!(one.heap_bytes,16_384*4);
+    }
+    #[test]
+    fn release_requires_every_home_component_and_preserves_release_time() {
+        let (mut store, _) = fixture("image <=1000");
+        let tx = store.transaction().unwrap();
+        tx.claim_asset("a", "alice", "posts", "post", "photos").unwrap();
+        let home = Some(("posts".into(), "post".into(), "photos".into()));
+        for (table, row, column) in [("other", "post", "photos"),
+            ("posts", "other", "photos"), ("posts", "post", "other")] {
+            tx.release_asset("a", table, row, column, 10).unwrap();
+            let asset = tx.asset("a").unwrap().unwrap();
+            assert_eq!(asset.home, home, "mismatched {table}/{row}/{column}");
+            assert_eq!(asset.released_at, None);
+        }
+        tx.release_asset("a", "posts", "post", "photos", 20).unwrap();
+        tx.release_asset("a", "posts", "post", "photos", 30).unwrap();
+        let asset = tx.asset("a").unwrap().unwrap();
+        assert_eq!(asset.home, None);
+        assert_eq!(asset.released_at, Some(20));
     }
     #[test]
     fn list_reservation_refuses_before_any_claim_at_the_declared_boundary() {

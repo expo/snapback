@@ -94,3 +94,91 @@ fn readable_editor_can_retain_and_reorder_another_uploaders_elements() {
     assert_sent(edited.state);
     for id in ["a","b"] { assert!(e.asset_access("bob",id,3).is_ok()); }
 }
+
+// Restored pre-placement rows may name somebody else's upload. Clearing those
+// references must not mutate that upload's ledger, including its GC timestamp.
+fn legacy_release(scalar: bool, placed: bool, delete: bool, disk: bool) {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+        "../../target/image-list-fix-2/legacy-{scalar}-{placed}-{delete}-{disk}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let store = if disk { snapback4_core::Store::open(&dir.join("store.sqlite")).unwrap() }
+        else { snapback4_core::Store::memory().unwrap() };
+    let kind = if scalar { "image <=1000 ?" } else { "[image <=1000] <=4" };
+    let empty = if scalar { "null" } else { "[]" };
+    let source = format!(r#"
+use server
+table posts:
+  owner: principal
+  photo: image <=1000 ?
+  refs: {kind}
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  delete <- .owner = viewer
+mutation place(photo: image <=1000):
+  return insert posts {{ owner: viewer, photo, refs: {empty} }}
+mutation clear(post: posts):
+  update posts[post] {{ refs: {empty} }}
+mutation remove(post: posts):
+  delete posts[post]
+"#);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut e = Engine::new(store, bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    upload(&e, "foreign", "alice", AssetKind::Image, 24);
+    if placed {
+        let out = e.mutate("place", None, Context::new("alice", BTreeMap::from([
+            ("photo".into(), asset("foreign")),
+        ])).with_ids(["alice-row".into()]).at(1)).unwrap();
+        assert_sent(out.state);
+    }
+    let facts = e.store().asset("foreign").unwrap().unwrap().column_value();
+    let refs = if scalar { facts } else { Value::Array(vec![facts]) };
+    e.load_trusted([("posts".into(), Value::Row(BTreeMap::from([
+        ("id".into(), Value::Id("mallory-row".into())),
+        ("owner".into(), Value::Id("mallory".into())),
+        ("photo".into(), Value::Null), ("refs".into(), refs),
+    ]).into()))]).unwrap();
+    let before = e.store().asset("foreign").unwrap().unwrap();
+    assert!(e.asset_access("alice", "foreign", 2).is_ok());
+    assert_eq!(e.asset_access("mallory", "foreign", 2).unwrap_err().code(), "E_ASSET_UNKNOWN");
+    let out = e.mutate(if delete { "remove" } else { "clear" }, None,
+        Context::new("mallory", BTreeMap::from([("post".into(), Value::Id("mallory-row".into()))])).at(3)).unwrap();
+    assert_sent(out.state);
+    let rows = e.store().rows("posts").unwrap();
+    let own = rows.iter().find(|row| row.field("id").unwrap().as_str().unwrap() == "mallory-row");
+    if delete { assert!(own.is_none()); }
+    else { assert_eq!(own.unwrap().field("refs").unwrap(), &if scalar { Value::Null } else { Value::Array(vec![]) }); }
+    // Reopening the disk store also proves the no-op survives commit.
+    if disk {
+        drop(e);
+        e = Engine::open_at(snapback4_core::Store::open(&dir.join("store.sqlite")).unwrap(), 4).unwrap();
+    }
+    let after = e.store().asset("foreign").unwrap().unwrap();
+    assert!(e.asset_access("alice", "foreign", 4).is_ok(),
+        "owner lost access: scalar={scalar} placed={placed} delete={delete} disk={disk}");
+    assert_eq!(after.home, before.home, "a foreign home's placement must not change");
+    assert_eq!(after.released_at, before.released_at, "an unplaced upload must not be marked for collection");
+    assert_eq!(e.asset_access("mallory", "foreign", 4).unwrap_err().code(), "E_ASSET_UNKNOWN");
+    drop(e);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+macro_rules! legacy_test {
+    ($name:ident, $scalar:expr, $placed:expr, $delete:expr) => {
+        mod $name {
+            #[test]
+            fn memory() { super::legacy_release($scalar, $placed, $delete, false); }
+            #[test]
+            fn sqlite() { super::legacy_release($scalar, $placed, $delete, true); }
+        }
+    };
+}
+legacy_test!(legacy_list_clear_preserves_foreign_home, false, true, false);
+legacy_test!(legacy_list_delete_preserves_foreign_home, false, true, true);
+legacy_test!(legacy_list_clear_preserves_unplaced_upload, false, false, false);
+legacy_test!(legacy_list_delete_preserves_unplaced_upload, false, false, true);
+legacy_test!(legacy_scalar_clear_preserves_foreign_home, true, true, false);
+legacy_test!(legacy_scalar_delete_preserves_foreign_home, true, true, true);
+legacy_test!(legacy_scalar_clear_preserves_unplaced_upload, true, false, false);
+legacy_test!(legacy_scalar_delete_preserves_unplaced_upload, true, false, true);
