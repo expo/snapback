@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-26T01:17:06.300738+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.2",
+      "integrity": "sha512-C0yc76nbskRoBuzva3sZc7dENfA7d3uXtHTwgHg13vTeOanxx5+vQ67Z0+4MCOAopvAbbFuPZQy3uNFDecmgYg=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.2",
+      "integrity": "sha512-8xdEcltsy84cZa9qO5LK0aAVeYXS6hqFzQ+X7ZSeGhYda4a0ngHy9icG893JA/qR/wtLqOtvLEpqZuJ5Fg7MYg=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.2",
+      "integrity": "sha512-JCn0b5xe2u6nfk7G9qy9szMSFFs6ifO45oGJDJO6OaGoW+ylUr8ugJULsbb9ik0MHuEj1O3LwC1dAQWFXVwhiw=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "0.4.2: calibration #20 and the two-family comparative answered (LLP 3000.013 section 13). Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal20.",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-09-26T01:17:06.301072+00:00"
+  },
+  "load": "18:17  up 10:24, 30 users, load averages: 24.82 56.91 81.22",
+  "node": "v24.18.0",
+  "host": "Charlies-MacBook-Pro-M5Max-Black.local"
+}

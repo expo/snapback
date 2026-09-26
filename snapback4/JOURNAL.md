@@ -63020,3 +63020,66 @@ for every literal comparison survived before. Two guards proved to be dead
 code and were dropped: one for a name bound twice, which the IR never
 produces, and one for a copy of a reassigned local, which reads through to a
 non-argument either way.
+
+## 2026-09-26 — 0.4.3 integration: receipts in one query, presence that stays current
+
+Codex could not authenticate for part of this round. The supervisor integrated
+it by hand and had Grok review every delta blind. Astra rejoined once codex
+recovered and reviewed the rest.
+
+What it merges:
+
+- lane U rounds 11–13, where remembered answers keep their own expiry;
+- lane V rounds 12–16: outcome-qualified acknowledgements, receipt custody
+  through web upgrades, and a lookup that reads a verified shared correction,
+  while settlement reads only the device's own history;
+- the `receipts` guide card, nineteen rounds, ending on a delivered prefix,
+  a runs table, a `progress` catch-up page, and a hook that owes every run it
+  holds and every view, for the life of the signed-in client, until the server
+  shows it covered;
+- live presence (LLP 3000.018 revision 14): a presence answer asks for a
+  5-second refresh, a background reply publishes only what nothing overtook,
+  and remembered answers follow the store cut each reply names, the highest
+  cut named staying known, composed reads included;
+- the scale certificate's `backlog` class (LLP 3000.013 §14.4), granted only to
+  the compiler's own timeline scan, with presence variants that answer for
+  every site that can run with them and condition what follows a returning
+  branch;
+- `main` at its landing head, with LLP 3000.015's shared baseline (`written
+  by`, `sequence by`, row-keyed count views) and LLP 3000.017 (ephemeral
+  tables, a Draft).
+
+Merging `main` conflicted in four files, each resolved by keeping both sides:
+this journal, LLP 3000.013's revision line, the guide fact homes (main's
+spelling with the receipts card added) and the wasm budget (measured again
+below). Live presence was renumbered from LLP 3000.017 to 3000.018 first, since
+`main` took 3000.017 for ephemeral tables.
+
+Integration fixes:
+
+- **Test fakes.** Four client test files' fake devices now advertise
+  `receipt_outcomes`. Lane V refuses devices that do not.
+- **Census.** The readauth census lists the receipts card's mutations.
+- **Wasm.** Before the merge with `main`, the ratchet moved from 522,000 B to
+  525,000 B for V's outcome qualification and the query outcome's presence
+  map. Merged with main's baseline (578,207 B), the device measures 2,021,689 B
+  raw and 581,094 B gzip, and the ratchet moves to 582,094 B.
+- **Docs budget.** The scale certificate's README paragraph fits its three
+  lines again; the README's budget is 300 physical lines.
+
+Eight suite runs reached 0 failures. Every earlier red was an integration
+seam, not a product defect:
+
+- the wasm budget;
+- the fakes;
+- the census;
+- a clock advance that woke every held poll;
+- two meter pins moved by the presence memo;
+- the budgets, once `main` was merged.
+
+Supervisor probes measured Following delivery in tens of milliseconds on every
+tier, from a post to the follower's page. They found one platform defect,
+presence, which LLP 3000.018 fixes. It first did so by following presence
+through held polls, which four review rounds could not make safe, then by a
+refresh. The full record is
+`reports/20260926-intent-integration-043/REPORT.md`.
