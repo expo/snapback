@@ -1449,6 +1449,8 @@ fn a_presence_answer_asks_its_client_to_refresh() {
     }
     let gate = body(&host.request("POST", "/q/gate", alice, "{}"));
     assert_eq!(gate["denied"]["code"], "NOT_HERE", "a presence-controlled refusal keeps its refresh: {gate}");
+    // A refusal names the cut its evaluation read, so a client can order it against answers.
+    assert!(gate["seq"].is_u64() && gate["seq"] == gate["head"], "a refusal carries its evaluation's cut: {gate}");
     let plain = body(&host.request("POST", "/q/plain", alice, "{}"));
     assert!(plain.get("refresh").is_none(), "{plain}");
 }

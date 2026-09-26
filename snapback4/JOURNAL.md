@@ -59401,3 +59401,22 @@ test still treating the remembered answers as a map, so its assertions after the
 first never ran; that test and the prediction-routing fakes now use the ordered
 cache. A new local case shows that forgetting an expired answer, offline, leaves
 the next server answer free to be remembered.
+
+## 2026-09-26 — Live presence round 11: a refusal names its own cut
+
+Both reviews of round 10 found the store-cut order leaking in three places:
+
+- A refusal was labeled with the store head taken before its query ran, so a
+  commit in between made it look older than it was. The engine now returns
+  the cut its query transaction read beside the result (`Engine::query_at`),
+  and a refusal reply names it as `seq`.
+- A refetch after the credentials changed, and an expired device answer
+  re-routed to the server, reused the attempt's ticket. Each refetch now
+  renews it.
+- A reply with no cut was ordered as cut 0, so it could never replace a
+  remembered answer. A missing cut is now unknown, and then only when the
+  reads began decides.
+
+The later-cut test now refuses with `head` alone, as older servers do. New
+unit cases cover the order itself, both renewals through `evaluateLocal`, and
+a reply without a cut. The prediction-routing tests run on the real cache.

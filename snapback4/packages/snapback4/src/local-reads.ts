@@ -36,14 +36,14 @@ export type ServerAnswer = {
   tables: Set<string>;
 };
 
-/** Where a server's answer or refusal stands: the store cut the server read,
- * then when the read began. */
-export type AnswerOrder = { seq: number; ticket: number };
+/** Where a server's answer or refusal stands: the store cut the server read, if
+ * the reply named one, then when the read attempt began. */
+export type AnswerOrder = { seq: number | undefined; ticket: number };
 
 /** Remembered server answers, which a later recovery may show. A server's
  * answer, or its refusal, replaces what is remembered for its key only if it
- * is not older: a later store cut wins, and at the same cut the read that
- * began later wins (LLP 3000.017 §3.2). */
+ * is not older: a later store cut wins, and at the same cut, or when a reply
+ * names no cut, the read attempt that began later wins (LLP 3000.017 §3.2). */
 export class RememberedAnswers {
   private readonly answers = new Map<string, ServerAnswer>();
   private readonly written = new Map<string, AnswerOrder>();
@@ -63,18 +63,25 @@ export class RememberedAnswers {
   /** Local cleanup, of an expired answer or a composed query's: the order stands. */
   forget(key: string): void { this.answers.delete(key); }
   clear(): void { this.answers.clear(); this.written.clear(); }
-  /** The cache as one read attempt writes it: the server's cut, then the attempt's ticket. */
-  view(ticket = this.begin()) {
+  get size(): number { return this.answers.size; }
+  /** The cache as one read attempt writes it: the server's cut, then the attempt's
+   * ticket. A refetch within the attempt is a new read, so it renews the ticket. */
+  view() {
+    let ticket = this.begin();
     return {
       get: (key: string) => this.get(key),
-      set: (key: string, answer: ServerAnswer, seq: number) => this.set(key, answer, { seq, ticket }),
-      delete: (key: string, seq: number) => this.delete(key, { seq, ticket }),
+      set: (key: string, answer: ServerAnswer, seq?: number) => this.set(key, answer, { seq, ticket }),
+      delete: (key: string, seq?: number) => this.delete(key, { seq, ticket }),
       forget: (key: string) => this.forget(key),
+      renew: () => { ticket = this.begin(); },
     };
   }
   private current(key: string, order: AnswerOrder): boolean {
     const slot = this.written.get(key);
-    return !slot || order.seq > slot.seq || (order.seq === slot.seq && order.ticket >= slot.ticket);
+    if (!slot) return true;
+    // Cuts compare only when both replies name one.
+    if (order.seq === undefined || slot.seq === undefined) return order.ticket >= slot.ticket;
+    return order.seq > slot.seq || (order.seq === slot.seq && order.ticket >= slot.ticket);
   }
 }
 

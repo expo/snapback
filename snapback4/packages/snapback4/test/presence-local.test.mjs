@@ -226,9 +226,10 @@ for (const tier of ["wasm", "process"]) {
     const gate = deferred();
     const { client, reads, down } = await bob(t, tier, (n, body) => {
       if (n === 1) return answer(body, 1);
-      // The background refresh completes second; the one-shot read, held before the server, lands last at a later cut.
+      // The background refresh completes second; the one-shot read, held before the server, lands last at a
+      // later cut, named by `head` alone, as a refusal from a server before 0.4.3 names it.
       if (n === 2) return answer(body, 2, { refresh: undefined });
-      return { denied: refused, seq: body.seq + 5, tables: body.tables ?? [], refresh: 300 };
+      return { denied: refused, head: body.seq + 5, tables: body.tables ?? [], refresh: 300 };
     }, async entered => { if (entered === 2) await gate.promise; });
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => { gate.resolve(); mark.close(); });
@@ -292,6 +293,27 @@ for (const tier of ["wasm", "process"]) {
     await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
     assert.ok(seen.find(read => read.fresh === false).data?.v >= 2, `recovery lost the answer read after the forgotten one: ${JSON.stringify(seen)}`);
+  });
+
+  test(`${tier}: a reply that names no store cut is ordered by when its read began`, { timeout: 60_000 }, async t => {
+    const { client, down, commit } = await bob(t, tier, (n, body) => {
+      if (n === 1) return answer(body, 1);
+      const { seq, head, ...rest } = answer(body, n, { refresh: undefined });
+      return rest;
+    });
+    // A commit first, so the first answer names a cut above zero.
+    assert.equal((await commit()).state, "sent");
+    await client.sync();
+    const mark = client.observe(query, { p: "dev:alice" });
+    t.after(() => mark.close());
+    await until(() => mark.getSnapshot()?.data?.v === 2, `the refresh without a cut was not published: ${JSON.stringify(mark.getSnapshot())}`);
+    const seen = [];
+    const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+    down();
+    await until(() => client.link() === "offline", "the outage took the link offline");
+    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    stop();
+    assert.equal(seen.find(read => read.fresh === false).data?.v, 2, `a reply without a cut lost to an older one: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an accepted background reply does not undo a newer read's deletion of an absent answer`, { timeout: 60_000 }, async t => {

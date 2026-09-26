@@ -57,12 +57,14 @@ export interface QueryEnvironment {
 }
 
 /** Remembered server answers, which recovery may show (Rule 5), ordered by the
- * server's store cut: `set` and `delete` carry it, and `forget` is local cleanup. */
+ * server's store cut: `set` and `delete` carry it when the reply names one,
+ * `forget` is local cleanup, and `renew` starts a new read within an attempt. */
 export interface AnswerCache {
   get(key: string): ServerAnswer | undefined;
-  set(key: string, answer: ServerAnswer, seq: number): void;
-  delete(key: string, seq: number): void;
+  set(key: string, answer: ServerAnswer, seq?: number): void;
+  delete(key: string, seq?: number): void;
   forget(key: string): void;
+  renew(): void;
 }
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {
@@ -159,6 +161,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
         if (response.obsoleteAuth || credentials !== env.credentialRevision) {
           if (env.refreshing) { try { await env.refreshing; } catch {} checkpoint(); }
+          env.serverAnswers.renew();
           continue;
         }
         const json = response.json;
@@ -259,6 +262,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
           const refreshed = await local(); checkpoint();
           // Rule 5: an expired watch value cannot survive a server round trip.
           // A purely local retry publishes directly, without a loading reset.
+          env.serverAnswers.renew();
           candidate = await routeLocal(refreshed, false); checkpoint();
           continue;
         }
@@ -277,8 +281,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server") {
         if (!remember) env.serverAnswers.forget(key);
-        else if ("data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq ?? 0);
-        else env.serverAnswers.delete(key, result.seq ?? 0);
+        else if ("data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
+        else env.serverAnswers.delete(key, result.seq);
       }
       if (origin !== "local" || !("data" in result.read)) return { ...result, localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;

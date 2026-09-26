@@ -2,10 +2,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { evaluateLocal } from "../dist/local-query.js";
+import { RememberedAnswers } from "../dist/local-reads.js";
 import { createLocalClient } from "../dist/local.js";
 
 const op = { kind: "query", name: "read" }, input = { c: "original-cursor" };
 const prediction = { id: "own", predictable: true, observed_seq: null, predicted: ["posts/own", "feedFeed/own"] };
+// The production cache, as one read attempt writes it, with a test's view of its size.
+function remembered() {
+  const answers = new RememberedAnswers(), view = answers.view();
+  Object.defineProperty(view, "size", { get: () => answers.size });
+  view.clear = () => answers.clear();
+  return view;
+}
 function routing() {
   const program = { name: "read", kind: "Query", args: {}, body: [{ table: "posts" }], runs: "device" };
   const backend = { generation: 1, schema: { tables: {}, timelines: [{ name: "feed", posts: ["posts"], reposts: ["reposts"] }] }, programs: [program] };
@@ -20,7 +28,7 @@ function routing() {
     call: async request => { assert.equal(request.op, "query"); return { ok: outcome }; },
     post: async (path, body) => { requests.push({ path, body }); return { ok: true, json: { data: ["server"], tables: ["switches"], complete: true }, obsoleteAuth: false }; },
     installNative: async () => false, notify: () => {},
-    offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: Object.assign(new Map(), { forget(key) { this.delete(key); } }),
+    offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: remembered(),
   };
   return { env, program, requests, set entries(value) { entries = value; }, set outcome(value) { outcome = value; },
     read: async () => (await evaluateLocal(env, op, input, 0, 0)).read };

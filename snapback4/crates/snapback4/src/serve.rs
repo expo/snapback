@@ -999,15 +999,15 @@ fn handle(mut request: Request, shared: &Shared) {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let (outcome, metadata, reads_presence) = match reader {
+                let (outcome, cut, metadata, reads_presence) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
                         let reads_presence = presence_of(&reader);
-                        let outcome = reader.query(&op, context);
+                        let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        (outcome, metadata, reads_presence)
+                        (outcome, cut, metadata, reads_presence)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
@@ -1015,7 +1015,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
-                        (engine.query(&op, context), metadata, reads_presence)
+                        let (outcome, cut) = engine.query_at(&op, context);
+                        (outcome, cut, metadata, reads_presence)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1061,6 +1062,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(refusal) => {
                         let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        // @ref LLP 3000.017#3.2 — a refusal names the cut its evaluation read, which the head
+                        // taken before it may predate, so a client can order it against a remembered answer.
+                        if let Some(cut) = cut { reply["seq"] = json!(cut); }
                         // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.017 §3.2).
                         if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
                         respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
