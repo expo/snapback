@@ -34,6 +34,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "test-online-custody", replacement: join(root, "packages/snapback4/src/app-online.ts") },
+        { find: "test-guard-client", replacement: join(root, "packages/snapback4/src/app-client.ts") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
         { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
@@ -118,13 +119,14 @@ const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS
 const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
   .match(/function runsOf[\s\S]*?\nfunction useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
-import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
+import { StrictMode, act, useEffect, useLayoutEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
 import { onlineCustody } from "test-online-custody";
+import { guardClient } from "test-guard-client";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -1143,6 +1145,47 @@ cases["web sign-out reports completion only after durable clearing and offers re
   check(host.textContent.includes("Signed out") && host.textContent.includes("Continue as a guest"), "completion follows successful retry");
   await unmount();
 };
+
+for (const hook of ["useQuery", "usePage"]) for (const guarded of [false, true]) {
+  cases[hook + " lingering remount has data in its first committed render" + (guarded ? " through the app facade" : "")] = async () => {
+    let latest, queries = 0, commits = [];
+    const originalNow = performance.now;
+    let monotonic = originalNow.call(performance);
+    const raw = createClient({ url: "http://first-commit.test", persona: "alice", fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      if (path === "/q/read") { queries++; return Response.json({ data: ["secret"], complete: true, seq: 0 }); }
+      throw Error(path);
+    } });
+    const facade = guarded ? guardClient(raw, async () => true, () => true, () => ({ code: "ENDED", family: "auth", message: "ended" })) : null;
+    const client = facade?.client ?? raw;
+    function Probe() {
+      const value = hook === "useQuery" ? useQuery(query, {}, { keep: true }) : usePage(query, {}, { keep: true }).read;
+      latest = value;
+      useLayoutEffect(() => { commits.push({ read: value, html: host.innerHTML }); });
+      return value.loading ? h("span", null, "Loading") : h("input", { defaultValue: value.data?.[0] });
+    }
+    try {
+      await mount(h(Probe), client);
+      for (let n = 0; n < 200 && !latest.data; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      equal(latest.data, ["secret"], "initial query settled");
+      performance.now = () => monotonic;
+      await unmount();
+      const before = queries, snapshot = latest;
+      commits = [];
+      await mount(h(Probe), client);
+      equal(commits[0]?.read, snapshot, "first layout effect sees the lingering snapshot with unchanged metadata");
+      check(commits[0].html.includes('value="secret"') && !commits[0].html.includes("Loading"), "first committed DOM contains the editor");
+      check(commits.every(commit => !commit.read.loading), "subscription replay never commits loading either");
+      equal(queries, before, "remount joins the same live watch without another read");
+      await unmount();
+      monotonic += 30_000;
+      commits = [];
+      await mount(h(Probe), client);
+      check(commits[0]?.read.loading, "first commit at the exact linger cutoff starts loading, even before its timer fires");
+    } finally { performance.now = originalNow; await unmount(); facade?.fence()(); await raw.close(); }
+  };
+}
 
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
   cases[name + " composer preserves edits, immediate failure and offline admission"] = async () => {

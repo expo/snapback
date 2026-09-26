@@ -1,5 +1,5 @@
 import { armReadExpiry, correctReadExpiries, type ReadDeadlines } from "./read-expiry.ts";
-import { endLingering, observeWatch } from "./observe-watch.ts";
+import { bindWatchPeek, endLingering, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
@@ -1474,6 +1474,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     scheduleRefresh();
   };
   progress.bind(client);
+  bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) await start();

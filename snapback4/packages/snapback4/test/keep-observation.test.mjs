@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { ReadObservation } from "../dist/read-observation.js";
 import { LocalReads } from "../dist/local-reads.js";
-import { observeWatch } from "../dist/observe-watch.js";
+import { bindWatchPeek, peekObservation, observeWatch } from "../dist/observe-watch.js";
 import { guardClient } from "../dist/app-client.js";
 import { createClient } from "../dist/client.js";
 import { createApp } from "../dist/app.js";
@@ -14,6 +14,66 @@ const why = { code: "HIDDEN", family: "rule", message: "no longer visible" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 async function until(check) { for (let i = 0; i < 600; i++) { if (check()) return; await delay(5); } assert.fail("read did not settle"); }
 const q = { kind: "query", name: "secret" };
+
+test("peeking a lingering watch neither acquires it nor changes its timer or expiry boundary", t => {
+  let now = 0, closed = 0, blocked = false;
+  const timers = new Map(), watches = new Map();
+  t.mock.method(performance, "now", () => now);
+  t.mock.method(globalThis, "setTimeout", (callback, delay) => { const id = { unref() {} }; timers.set(id, { callback, delay }); return id; });
+  t.mock.method(globalThis, "clearTimeout", id => timers.delete(id));
+  const client = { observe() { assert.fail("peek must not acquire"); } };
+  bindWatchPeek(client, watches, () => blocked ? why : null);
+  const handle = observeWatch(watches, 'keep:secret:{}', () => Object.assign(new ReadObservation(true), {
+    key: 'keep:secret:{}', subscribers: new Set(), expiryTimer: null, presenceRefresh: null,
+  }), watch => watch.publish(ready("secret")), () => { closed++; }, () => null);
+  handle.close();
+  const watch = watches.values().next().value, linger = watch.linger, snapshot = handle.getSnapshot();
+  now = 29_999;
+  assert.equal(peekObservation(client, q, {}, { keep: true }), snapshot);
+  assert.equal(peekObservation(client, q, {}, { keep: false }), undefined);
+  assert.equal(peekObservation(client, q, { other: true }, { keep: true }), undefined);
+  blocked = true;
+  assert.equal(peekObservation(client, q, {}, { keep: true }), undefined);
+  assert.equal(watch.snapshot, snapshot, "peek never invokes the mutating read/refusal path");
+  blocked = false; now = 30_000;
+  assert.equal(peekObservation(client, q, {}, { keep: true }), undefined, "boundary holds before the timer runs");
+  assert.equal(watch.linger, linger);
+  assert.equal(timers.size, 1, "peek never cancels the linger timer");
+  assert.equal(closed, 0, "peek never closes or acquires a watch");
+  timers.get(linger.timer).callback();
+  assert.equal(closed, 1);
+  now = 0;
+  assert.equal(peekObservation(client, q, {}, { keep: true }), undefined);
+});
+
+test("app peek reuses only a live authorized snapshot and cannot cross withdrawal or retirement", async t => {
+  let hold = false;
+  const authority = deferred(), source = new ReadObservation(true), listeners = new Set();
+  source.publish(ready("secret"));
+  const raw = { observe: () => ({ getSnapshot: () => source.snapshot,
+    subscribe: notify => { listeners.add(notify); return () => listeners.delete(notify); }, close() {} }) };
+  bindWatchPeek(raw, new Map([['keep:secret:{}', source]]), () => null);
+  const facade = guardClient(raw, () => hold ? authority.promise : Promise.resolve(true), () => true, () => why);
+  const watch = facade.client.observe(q, {}, { keep: true });
+  t.after(() => { authority.resolve(true); watch.close(); facade.fence()(); });
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined, "unapproved data is never peeked");
+  await until(() => watch.getSnapshot().data === "secret");
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), source.snapshot);
+  hold = true;
+  const remount = facade.client.observe(q, {}, { keep: true });
+  source.reset({ loading: true });
+  for (const notify of listeners) notify();
+  assert.deepEqual(remount.getSnapshot(), { loading: true }, "an opening facade still sees synchronous withdrawal");
+  source.publish(ready("replacement"));
+  for (const notify of listeners) notify();
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined, "new data still needs authority");
+  authority.resolve(true);
+  await until(() => remount.getSnapshot().data === "replacement");
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), source.snapshot);
+  facade.fence()();
+  assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
+  remount.close();
+});
 
 for (const op of ["apply", "admit", "settle", "clear_rows", "settle_exit", "adopt", "observe_store"]) {
   test(`local keep: ${op} fences in-flight answers and ${["apply", "admit", "settle"].includes(op) ? "keeps" : "drops"} active and lingering data`, async () => {

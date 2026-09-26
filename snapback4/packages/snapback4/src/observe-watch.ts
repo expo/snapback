@@ -1,4 +1,4 @@
-import type { Read, Observed, Refusal } from "./contract.ts";
+import type { Client, ObserveOptions, Query, Read, Observed, Refusal } from "./contract.ts";
 import type { ReadObservation } from "./read-observation.ts";
 
 interface Watch extends ReadObservation<unknown> {
@@ -7,6 +7,24 @@ interface Watch extends ReadObservation<unknown> {
   expiryTimer: ReturnType<typeof setTimeout> | null;
   presenceRefresh: ReturnType<typeof setTimeout> | null;
   linger?: { until: number; timer: ReturnType<typeof setTimeout>; close(): void };
+}
+
+type Peek = (op: Query<unknown, unknown>, args: unknown, options?: ObserveOptions) => Read<unknown> | undefined;
+// Key by observe so write-only wrappers preserve the same read implementation.
+const peeks = new WeakMap<Client["observe"], Peek>();
+export function registerObservationPeek(client: Client, peek: Peek): void { peeks.set(client.observe, peek); }
+export function peekObservation<A, R>(client: Client, op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> | undefined {
+  return peeks.get(client.observe)?.(op as Query<unknown, unknown>, args, options) as Read<R> | undefined;
+}
+
+// @ref LLP 3000.019#3.3 — render can see a live watch before subscribing, without extending its lifetime.
+export function bindWatchPeek(client: Client, watches: Map<string, Watch>, denied: () => Refusal | null): void {
+  registerObservationPeek(client, (op, args, options) => {
+    if (denied()) return undefined;
+    const watch = watches.get(`${options?.keep === true ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`);
+    if (!watch || (watch.linger && performance.now() >= watch.linger.until)) return undefined;
+    return watch.snapshot;
+  });
 }
 
 /** A scope-ending reset closes unsubscribed watches before application callbacks. */

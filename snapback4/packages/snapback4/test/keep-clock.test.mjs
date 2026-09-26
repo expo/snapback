@@ -8,6 +8,7 @@ import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { ServerClock } from "../dist/clock.js";
 import { armReadExpiry } from "../dist/read-expiry.js";
+import { peekObservation } from "../dist/observe-watch.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { processDevice } from "../dist/native.js";
 import { server, binary, until } from "./helpers/app-server.mjs";
@@ -131,6 +132,7 @@ for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-cloc
   const active = f.client.observe(op, {}, { keep: true }), idle = f.client.observe({ ...op, name: "idle" }, {}, { keep: true });
   await until(() => active.getSnapshot().data === true && idle.getSnapshot().data === true);
   const initial = idle.getSnapshot(); idle.close(); f.hold();
+  assert.equal(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep: true }), initial, "render peek sees the same lingering watch on every tier");
   assert.equal(initial.fresh, true, "server answer is fresh even though issued time is past its server deadline");
   assert.ok(f.clock.deviceDelay(f.serverDeadline) === 0 && f.clock.serverDelay(f.serverDeadline) === 3_600_000);
   f.clock.sample(f.serverDeadline, f.wall, f.wall, "server:1");
@@ -138,6 +140,7 @@ for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-cloc
   for (let i = 0; i < 100 && !(active.getSnapshot().loading && idle.getSnapshot().loading); i++) await delay(5);
   assert.deepEqual(active.getSnapshot(), { loading: true }, "correction must re-arm the displayed answer's timer");
   assert.deepEqual(idle.getSnapshot(), { loading: true }, "a lingering watch keeps that same clock subscription");
+  assert.deepEqual(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep: true }), { loading: true });
   f.clock.sample(f.wall, f.wall, f.wall, "server:2");
   assert.ok(f.client.now() > f.clock.estimatedServerNow(), "server rollback does not lower issued device time");
   const remount = f.client.observe({ ...op, name: "idle" }, {}, { keep: true });

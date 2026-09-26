@@ -1136,7 +1136,9 @@ timers, and place in every reset, invalidation, ephemeral adoption and schema
 installation. A new opted-in subscriber with the same operation, arguments,
 viewer and store incarnation joins that watch and sees its current snapshot,
 with the `fresh` and `since` that snapshot has. After 30 seconds without a
-subscriber, the watch closes. Sign-out, credential or viewer changes, store
+subscriber, the watch closes. React remounts see that answer in their first
+committed render. The app facade reuses only a live answer it already authorized;
+a new answer still waits for its authority check. Sign-out, credential or viewer changes, store
 replacement or adoption, and client `close` end a lingering watch at once.
 `clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
 schema installation reset lingering observations just as they reset active

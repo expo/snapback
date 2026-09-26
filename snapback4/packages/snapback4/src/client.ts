@@ -1,5 +1,5 @@
 import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
-import { endLingering, observeWatch } from "./observe-watch.ts";
+import { bindWatchPeek, endLingering, observeWatch } from "./observe-watch.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
@@ -965,6 +965,7 @@ export function createClient(options: ClientOptions): Client {
     },
   };
   trackDispatch(client, dispatch);
+  bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
   const start = () => {
     if (closed) return;
     if (session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
