@@ -5,9 +5,14 @@ use crate::{
     error::{MeterKind, RuntimeError},
     rows::{Bounds, Dir},
     schema::{Maintain, row_image},
-    value::{Value, object},
+    value::Value,
 };
 
+#[cfg(feature = "sqlite")]
+use crate::value::object;
+
+// @ref LLP 3000.015#3 — devices predict from covered rows; durable recount
+// work and basis timestamps belong only to the server storage build.
 mod live;
 mod device;
 #[cfg(all(test, feature = "sqlite"))]
@@ -42,9 +47,7 @@ impl Runner<'_> {
                 m.row_key
                     .as_ref()
                     .is_some_and(|k| m.source == table || k.table == table)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+            });
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let result = (|| {
             for m in views {
@@ -53,11 +56,11 @@ impl Runner<'_> {
                 }
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
-                    self.reserve_row_view(&m, 1)?;
+                    self.reserve_row_view(m, 1)?;
                     // Reserve the same bounded scan even if the private predicate is unchanged.
                     // Execute against its original allowance, then retain only the public charge.
                     let scan = self.meter.clone();
-                    let limit = self.scan_room(&m).min(WRITER_RECOUNT) as u64;
+                    let limit = self.scan_room(m).min(WRITER_RECOUNT) as u64;
                     self.meter.charge(MeterKind::Examined, limit)?;
                     self.meter.step(limit * (key.predicate.steps() * 2 + 4))?;
                     let heap = self
@@ -69,15 +72,15 @@ impl Runner<'_> {
                     self.meter.used.heap_bytes -= heap;
                     let reserved = std::mem::replace(&mut self.meter, scan);
                     self.maintain_prepaid = true;
-                    let result = self.row_view_member(&m, old, new);
+                    let result = self.row_view_member(m, old, new);
                     self.meter = reserved;
                     self.maintain_prepaid = false;
                     result?;
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
-                    self.reserve_row_view(&m, key.fanout.saturating_mul(2))?;
+                    self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
                     self.maintain_prepaid = true;
-                    self.row_view_source(&m, old, new)?;
+                    self.row_view_source(m, old, new)?;
                     self.maintain_prepaid = false;
                 }
             }
@@ -371,14 +374,17 @@ impl Runner<'_> {
         let u = new.or(old).unwrap();
         let id = u.field("id")?.as_str()?;
         let existing = self.view_get(&m.target, id)?;
+        #[cfg(feature = "sqlite")]
         let work_name = m.work_table();
         if new.is_none() {
+            #[cfg(feature = "sqlite")]
             if !self.device && let Some(basis) = self.view_get(&format!("$basis:{}",m.target),id)? {
                 self.view_delete(&format!("$basis:{}",m.target),&basis,true)?;
             }
             if let Some(row) = existing {
                 self.view_delete(&m.target, &row, false)?;
             }
+            #[cfg(feature = "sqlite")]
             if !self.device {
                 if let Some(work) = self.view_get(&work_name, id)? {
                     self.view_delete(&work_name, &work, true)?;
@@ -475,8 +481,10 @@ impl Runner<'_> {
             0
         };
         let row = self.view_image(m, &u, if live && !complete { 0 } else { total }, !complete)?;
+        #[cfg(feature = "sqlite")]
         if !self.device && complete { self.set_view_basis(m, id)?; }
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
+        #[cfg(feature = "sqlite")]
         if !self.device {
             let work = self.view_get(&work_name, id)?;
             if complete {
@@ -543,11 +551,15 @@ impl Runner<'_> {
                     }
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
+                    #[cfg(feature = "sqlite")]
                     let at = r.view_basis(m, id)?;
+                    #[cfg(not(feature = "sqlite"))]
+                    let at = i64::MIN;
                     let contributes = |v: &Value| live::live_at(t,v,at) && k.matches(v,&member);
                     let delta=i64::from(new.as_ref().is_some_and(contributes))-i64::from(old.as_ref().is_some_and(contributes));
                     r.charge_maintain(MeterKind::Steps,k.predicate.steps()*2)?;
                     if existing.as_ref().is_some_and(pending) {
+                        #[cfg(feature = "sqlite")]
                         if !r.device {
                             let name=m.work_table();
                             if let Some(work)=r.view_get(&name,id)? {
@@ -570,12 +582,15 @@ impl Runner<'_> {
                     } else {
                         if existing.is_none() {
                             if r.device { return Err(RuntimeError::Prediction("the held member needs a settled view before predicting its delta".into())); }
-                            // Adoption and ordinary member writes create the value. Repair a missing
-                            // value through bounded work, never an unreserved hidden source scan.
-                            let row=r.view_image(m,&member,0,true)?;
-                            r.view_put(&m.target,&row,None,false)?;
-                            let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
-                            r.view_put(&m.work_table(),&work,None,true)?;
+                            #[cfg(feature = "sqlite")]
+                            {
+                                // Adoption and ordinary member writes create the value. Repair a missing
+                                // value through bounded work, never an unreserved hidden source scan.
+                                let row=r.view_image(m,&member,0,true)?;
+                                r.view_put(&m.target,&row,None,false)?;
+                                let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
+                                r.view_put(&m.work_table(),&work,None,true)?;
+                            }
                         }
                         else {
                             let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;

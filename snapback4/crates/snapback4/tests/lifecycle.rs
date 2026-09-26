@@ -17,7 +17,10 @@ use serde_json::{Value, json};
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SCHEMA: &str = "use personas alice\nquery alive():\n  return true\n";
 const MAIN_REACHED: &str = "SNAPBACK4_TEST_MAIN_REACHED";
-const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(30);
+// Fresh macOS executables can wait in the loader before reaching our code.
+// Keep that allowance separate from the unchanged 15-second readiness/exit
+// deadline, which starts only after the explicit main marker.
+const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(120);
 const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 

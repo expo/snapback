@@ -1,5 +1,6 @@
 # Snapback 4: a list of images compiles, but its assets are never placed (`E_ASSET_UNKNOWN` for authorized readers)
 
+**Target release:** 0.4.4 — the author asked (2026-09-26) that the 0.4.4 publish hold for this fix; LLP 3000.019 §6 records the hold. **Owner:** lane `sb4/image-list-assets` on the black M5 Max (Snapback 5 lead session).
 **Opened:** 2026-09-26 (calibration #22 on `snapback4@0.4.3`, M2; the builder attributed it `snapback4-defect`)
 **Severity:** High for media authoring: the compiler accepts a shape that the asset path cannot serve
 **Area:** asset placement for list-typed columns (`[image <=N] <=K`); `check`

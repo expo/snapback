@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 impl Runner<'_> {
     pub(super) fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         self.maintain_row_views(source, old, new)?;
-        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source && maintain.row_key.is_none()).cloned().collect();
+        let maintains = self.schema.maintains.iter().filter(|maintain| maintain.source == source && maintain.row_key.is_none());
         for maintain in maintains {
             if self.device && self.schema.tables[&maintain.target].sync.is_none() { continue; }
             let source_bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]);
@@ -23,7 +23,7 @@ impl Runner<'_> {
             let bytes = source_bytes.saturating_mul(2).saturating_add(super::write_target::row_copy_ceiling(target).saturating_mul(16 + 4 * target.indexes.len() as u64));
             let prepaid = self.maintain_prepaid;
             if maintain.private.is_some() && self.column_prepaid { self.maintain_prepaid = true; }
-            let result = self.maintain_scratch(bytes, |runner| runner.maintain_one(&maintain, old, new));
+            let result = self.maintain_scratch(bytes, |runner| runner.maintain_one(maintain, old, new));
             self.maintain_prepaid = prepaid;
             result?;
         }
@@ -40,12 +40,12 @@ impl Runner<'_> {
     }
 
     fn maintain_one(&mut self, maintain: &Maintain, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        let table = self.schema.table(&maintain.source).expect("validated").clone();
+        let table = self.schema.table(&maintain.source).expect("validated");
         let mut changes: Vec<(Vec<Value>, i128)> = Vec::new();
         for (image, direction) in [(old, -1), (new, 1)] {
             let Some(image) = image else { continue };
             self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps())?;
-            let image = crate::schema::row_image(image, &table);
+            let image = crate::schema::row_image(image, table);
             if !maintain.selected(&image) { continue; }
             let key = maintain.source_key(&image);
             let change = delta(maintain, &image, direction)?;
@@ -98,9 +98,9 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     fn rebuild_maintain_inner(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
         if maintain.row_key.is_some() { return self.rebuild_row_view(maintain); }
-        let target = self.schema.table(&maintain.target).expect("validated").clone();
+        let target = self.schema.table(&maintain.target).expect("validated");
         let mut bounds = Bounds::default();
-        let target_bytes = super::write_target::row_copy_ceiling(&target).saturating_mul(16 + 4 * target.indexes.len() as u64);
+        let target_bytes = super::write_target::row_copy_ceiling(target).saturating_mul(16 + 4 * target.indexes.len() as u64);
         self.meter.heap(target_bytes.saturating_mul(256))?;
         loop {
             let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.target, "byId", &[], &bounds, Dir::Asc, 256))?;
@@ -108,13 +108,13 @@ impl Runner<'_> {
             for (existing, key) in page {
                 bounds.after = crate::key::decode(&key);
                 self.refuse_timeline_write(&maintain.target, crate::schema::Effect::Delete)?;
-                let entries = self.tx.delete(&maintain.target, &target, &existing)?;
+                let entries = self.tx.delete(&maintain.target, target, &existing)?;
                 self.charge_maintain(MeterKind::IndexEntries, entries)?;
                 self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
             }
         }
-        let source = self.schema.table(&maintain.source).expect("validated").clone();
-        self.meter.heap(super::write_target::row_copy_ceiling(&source).saturating_mul(256))?;
+        let source = self.schema.table(&maintain.source).expect("validated");
+        self.meter.heap(super::write_target::row_copy_ceiling(source).saturating_mul(256))?;
         let mut totals: BTreeMap<String, (Vec<Value>, i128)> = BTreeMap::new();
         bounds = Bounds::default();
         loop {
@@ -122,7 +122,7 @@ impl Runner<'_> {
             if page.is_empty() { break; }
             for (mut image, key) in page {
                 bounds.after = crate::key::decode(&key);
-                materialize_optional_fields(&mut image, &source);
+                materialize_optional_fields(&mut image, source);
                 self.charge_maintain(MeterKind::Examined, 1)?;
                 self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps())?;
                 if !maintain.selected(&image) { continue; }
@@ -189,7 +189,7 @@ impl Runner<'_> {
             return Err(super::timeline::refusal("E_TIMELINE_OWNED", "timeline-owned tables cannot be aggregate targets; maintain a mapped application table instead"));
         }
         let id = maintained_id(&key);
-        let target = self.schema.table(&maintain.target).expect("validated").clone();
+        let target = self.schema.table(&maintain.target).expect("validated");
         self.charge_maintain(MeterKind::Examined, 1)?;
         let existing = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &maintain.target, &id))?;
         if self.device && existing.is_none() && !self.upsert_absence_proven(&maintain.target, "byGroup", &key)? {
@@ -208,7 +208,7 @@ impl Runner<'_> {
         if next == 0 && !keep_zero {
             if let Some(existing) = existing {
                 self.refuse_timeline_write(&maintain.target, crate::schema::Effect::Delete)?;
-                let entries = self.tx.delete(&maintain.target, &target, &existing)?;
+                let entries = self.tx.delete(&maintain.target, target, &existing)?;
                 self.charge_maintain(MeterKind::IndexEntries, entries)?;
                 self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
             }
@@ -221,7 +221,7 @@ impl Runner<'_> {
         }
         let row = Value::Row(row.into());
         if existing.as_ref() == Some(&row) { return Ok(()); }
-        let entries = self.tx.put(&maintain.target, &target, &row, existing.as_ref())?;
+        let entries = self.tx.put(&maintain.target, target, &row, existing.as_ref())?;
         self.charge_maintain(MeterKind::IndexEntries, entries)?;
         self.row_changed(&maintain.target, existing.as_ref(), Some(&row), Origin::Maintained)?;
         self.mirror_column(maintain, &key, next as i64)

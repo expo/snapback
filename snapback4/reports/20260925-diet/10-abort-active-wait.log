@@ -1,0 +1,18 @@
+Trial 1 target/debug/deps/lifecycle-f9b17c1c6c8eba90
+
+running 1 test
+test abort_profile_reports_an_off_thread_panic_to_redirected_stderr ...
+thread 'abort_profile_reports_an_off_thread_panic_to_redirected_stderr' (9381899) panicked at crates/snapback4/tests/lifecycle.rs:350:9:
+abort probe did not reach main after 30s; stderr:
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    abort_profile_reports_an_off_thread_panic_to_redirected_stderr
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 30.11s
+
+Result 101 seconds 30.113

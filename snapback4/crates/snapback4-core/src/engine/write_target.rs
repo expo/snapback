@@ -120,7 +120,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#20.5 — key absence is not insert authority: the materialized image and every colliding/counting population need the same held-group proof.
     pub(in crate::engine) fn prove_upsert_insert(&mut self, table: &str, addressed_index: &str, row: &Value) -> Result<(), RuntimeError> {
-        let definition = self.schema.tables[table].clone();
+        let definition = &self.schema.tables[table];
         let image_key = index_values(definition.index(addressed_index).expect("addressed index"), row);
         if !self.upsert_absence_proven(table, addressed_index, &image_key)? {
             return Err(self.write_miss(table, addressed_index, &image_key));
@@ -155,11 +155,11 @@ impl Runner<'_> {
         self.target_attempt(&target.table, |runner| {
             runner.refuse_engine_owned(&target.table, Effect::Delete)?;
             let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;
-            let table = runner.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
+            let table = runner.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?;
             let index = table.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
             if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
-            runner.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
-            runner.reserve_maintains(&target.table, &table)?;
+            runner.reserve_write_rules(table, &[Effect::Read, Effect::Delete])?;
+            runner.reserve_maintains(&target.table, table)?;
             runner.read_tables.insert(target.table.clone());
             let old = runner.lookup_stored(&target.table, &target.index, index, &key, false)?;
             if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
@@ -186,19 +186,19 @@ impl Runner<'_> {
         let patch = self.expr_input(patch)?;
         self.refuse_recorded(&target.table, &patch)?;
         crate::engine::sequences::refuse_fields(&self.schema.tables[&target.table], &target.table, &patch)?;
-        let definition = self.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
+        let definition = self.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?;
         let index = definition.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
         if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
-        self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
+        self.reserve_target_resolution(&target.table, definition, &patch, upsert)?;
         self.observe_sequence_selection(&target.table, &target.index, &key)?;
         let old = self.lookup_stored(&target.table, &target.index, index, &key, false)?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }
         let id = if let Some(mut old) = old {
-            materialize_optional_fields(&mut old, &definition);
+            materialize_optional_fields(&mut old, definition);
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
@@ -228,7 +228,7 @@ impl Runner<'_> {
         // Only an ordinary read of the final row can enter the author's program.
         if !valued { return Ok(Value::Null); }
         let value = self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })?;
-        Ok(crate::engine::columns::write_result(&definition, value))
+        Ok(crate::engine::columns::write_result(definition, value))
     }
 
     // @ref LLP 3000.007#17 — ruling 17 (a), third pass: hidden immutable fields are ignored, never compared, on update and upsert.

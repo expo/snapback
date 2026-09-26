@@ -62672,6 +62672,357 @@ indexes and whole-domain aggregate metadata, including capped literal domains.
 No new query execution modifier, runtime coverage rule, budget increase,
 package publication or push. Report, exact failures, reproductions and
 qualification commands: `reports/20260926-p1-sync-windows.md`.
+
+## 2026-09-25 — device diet: share the cold stream applicator
+
+On `sb4/diet-20260925` from `0badac9872`, twiggy top/dominators/monos
+attribute the post-bindgen device before edits. The top 40 and the six
+candidate priorities are in `reports/20260925-diet/REPORT.md`; shallow raw
+symbol sizes are distinct from measured whole-artifact gzip deltas.
+
+The real transaction and the rollback-only recording transaction now borrow
+one rows/metadata interface through the cold stream applicator, boundary,
+history and media helpers. No boxed allocation, storage order, wire format,
+publication procedure or runtime ceiling changes. On Rust 1.97.0 /
+wasm-bindgen 0.2.127, the unchanged `build-wasm.sh` measures **1,991,416 B raw /
+576,762 B gzip**, from **2,009,397 / 577,221**: **459 B gzip saved**.
+The script tries wasm-opt 132 and keeps the smaller unoptimized gzip.
+Full-interface erasure saved no gzip; additionally sharing generic
+prepaid-scan bookkeeping increased gzip by 194 B and was discarded. The
+42 device library tests pass. Final blocking qualification and the lowered
+ratchet follow after the remaining candidates.
+
+## 2026-09-25 — device diet: compile out server row-view bookkeeping
+
+The SQLite feature now owns row-view recount work writes, basis reads/writes,
+and cursor-prefix subtraction. Devices retain the existing fixed reservations,
+coverage checks and live recount/prediction paths; native server behavior is
+unchanged. Same build: **1,985,947 B raw / 574,735 B gzip**, down **2,027 B gzip**
+from 576,762. This attributes the runtime server branches separately from
+schema preparation, which is still present for the next candidate. Recount
+chunks, adoption rebuilds and Postgres seeks were already excluded, as the
+baseline symbols confirm. No runtime ceiling or serialized form changes.
+
+## 2026-09-25 — device diet: share authorized point completion and contribution selection
+
+The actual-size and reserved-scratch point paths now join at one live-aggregate
+completion tail and share the event-slot holding check. Witness lifetimes and
+live aggregate recounts share only their row-selection predicate, with the
+already-borrowed source table. Scanning, authorization, deadline selection and
+logical/physical meter charges stay in their original order and scopes.
+Same build: **1,985,645 B raw / 574,660 B gzip**, **75 B gzip saved** from
+574,735. A preliminary variant looked up the source again and saved only 36 B;
+the retained form avoids that extra lookup. The server's two-seek lifetime
+path was already behind the SQLite feature. The decode loops have different
+accounting and coverage semantics; merging their traversal would require a
+larger mode-driven routine for no demonstrated saving.
+
+## 2026-09-25 — device diet: borrow immutable execution descriptors
+
+The largest named wasm functions led to redundant schema clones in writes,
+maintains, read-through authorization and Following transitions/slots. The
+runner already borrows one immutable schema for its lifetime; those paths now
+borrow its table/maintain/timeline descriptors and iterate matching declarations
+without building owned copies. All explicit runtime charges, image copies,
+iteration order and refusal conditions remain. No schema or IR representation
+changes. Same build: **1,982,094 B raw / 573,320 B gzip**, **1,340 B gzip saved**
+from 574,660. The write/maintain portion measured 573,820; the additional
+read-through, target and Following borrows save another 500 B. This removes
+runtime allocations as well as bytes; no timing improvement is asserted.
+
+## 2026-09-25 — device diet: separate replica indexes from server work schema
+
+Row-view preparation now has an index-only part shared by every host and a
+SQLite-only work-schema constructor. The web still prepares all member/source
+lifetime and predicate indexes but does not synthesize `$recount` / `$basis`
+tables. Existing serialized work entries are left intact on offline reopen;
+server schema construction and the schema's serde representation are unchanged.
+The regression checks exact serialized bytes for both the public projection
+(with indexes removed then rebuilt) and a legacy schema already containing
+work tables. Same build: **1,976,372 B raw / 571,850 B gzip**, **1,470 B gzip
+saved** from 573,320. Work-table name recognizers remain necessary for the
+engine-owned table fence; their string presence alone is not code leakage.
+
+## 2026-09-25 — device diet: one maintained predicate evaluator
+
+`Predicate::matches` and `RowKey::matches` share the boolean/comparison walker.
+An optional member changes only `$row.` comparison-operand resolution; bare
+boolean fields, missing-as-null behavior, short circuiting, comparisons and
+predicate step charges retain their existing semantics. Same build:
+**1,975,906 B raw / 571,669 B gzip**, **181 B gzip saved** from 571,850.
+No predicate, schema or wire serialization changes.
+
+## 2026-09-25 — device diet: server-only diagnostic branches
+
+The normal web dependency graph contains no `snapback4-lang`; every core/device
+fixture include is inside a test-gated module, and the symbol census contains
+no test, fixture, guide-card or diagnostic-explanation module. Runtime action
+and route classification/guide branches now share their producers' SQLite
+gate; the structural-fanout rewrite shares the existing web admission gate.
+Device runtime diagnostics and received serialized refusal envelopes stay
+intact. Same build: **1,975,265 B raw / 571,525 B gzip**, **144 B gzip saved**.
+
+## 2026-09-25 — device diet: remaining server ledger and work paths
+
+The symbol census also retained `with_asset_facts` (2,443 shallow B),
+`reserve_columns` (839 B plus helpers), `timeline_enqueue` (1,387 B) and
+inlined asset placement/column birth work. Web device stores have no upload
+ledger, never mirror private maintained-column totals, and never enqueue
+Following delivery/purge jobs. Those bodies now compile only with SQLite;
+the device keeps received asset facts, synchronized column values, its own
+Following copy and all argument validation. Native device/server code is
+unchanged. The authoritative Feed duplicate lookup is likewise server-only.
+
+Same build: asset ledger and private-column separation measures **1,963,959 B
+raw / 568,043 B gzip**, saving **3,482 B** from 571,525. Adding Following work
+separation measures **1,960,083 B raw / 566,391 B gzip**, a further **1,652 B**.
+The combined stage saves **5,134 B gzip**. No meter, runtime ceiling, owned
+source slot, bounded Following, wire or stored format changes.
+
+## 2026-09-26 — device diet qualification: isolate host timing targets
+
+Qualification exposed host contention in the blocking harness: the born-row
+growth test failed in the parallel pool then passed three unchanged isolated
+runs; a later run's freshly compiled abort probe exceeded its 30-second
+pre-main allowance. The first run had passed that probe. Keep `born_perf`
+and `lifecycle` beside the already isolated simulator `witness` target,
+after the ordinary Rust pool drains. Every test, seed, assertion, deadline
+and runtime ceiling remains; the 220-binary / 932-execution inventory is
+unchanged. This is test scheduling only, outside the device artifact.
+The full qualification record, including failed runs and host-startup
+diagnostics, is in `reports/20260925-diet/REPORT.md`.
+
+## 2026-09-25 — device diet: final measurement and lowered ratchet
+
+The unchanged production build at source commit `855c778083` is **1,960,083 B
+raw / 566,391 B gzip / 429,066 B Brotli**. Rust 1.97.0, wasm-bindgen 0.2.127;
+wasm-opt 132 `-Os` was tried by the existing script and rejected as larger
+gzip. Baseline `0badac9872` was **2,009,397 raw / 577,221 gzip**. The
+**10,830 B gzip** reduction is attributed by successive production builds:
+
+| Measured component | Before gzip B | After gzip B | Saved B |
+|---|---:|---:|---:|
+| Borrowed cold stream transaction interface | 577,221 | 576,762 | 459 |
+| Server row-view work and basis paths | 576,762 | 574,735 | 2,027 |
+| Shared point tail and contribution selection | 574,735 | 574,660 | 75 |
+| Borrowed immutable execution descriptors | 574,660 | 573,320 | 1,340 |
+| Server work-schema construction | 573,320 | 571,850 | 1,470 |
+| Shared predicate evaluator | 571,850 | 571,669 | 181 |
+| Server-only diagnostic branches | 571,669 | 571,525 | 144 |
+| Server upload ledger and private-column setup | 571,525 | 568,043 | 3,482 |
+| Following background work and server duplicate lookup | 568,043 | 566,391 | 1,652 |
+| Total | 577,221 | 566,391 | 10,830 |
+
+Lower the ratchet from 578,207 to **567,391 B**, exactly measured + 1,000,
+with this component table in its reason. The before/after top 40,
+dominators, monomorphizations, raw component census, rejected experiments
+and checks are in `reports/20260925-diet/REPORT.md`. Symbol-bearing shallow
+raw sizes are a proxy; gzip contributions come from the builds above.
+
+The below-520,000 target remains unmet by **46,392 B**. Keep the filesystem
+ticket open. The retained shared interpreter, typed codecs and collection
+instantiations need a broader measured redesign to attack that gap; this
+pass found no additional safe change of that scale. Runtime ceilings,
+stored/wire/schema formats, guide contracts, `written by`, `sequence by`,
+row views, bounded Following, event slots, read-through and publication
+procedure remain unchanged. Work is committed on the diet branch only;
+no push or publication.
+
+## 2026-09-26 — device diet qualification: separate fixture launch from execution
+
+Isolation alone did not remove this host's pre-main delay. Fresh abort probes
+eventually emitted the required panic and SIGABRT records after 35.5 s and
+87.0 s; explicit signing also varied between 6.1 s and 35.1 s. Retain the
+original compiler settings and test bodies. The test-only process-launch
+allowance is now 120 s instead of 30 s; the lifecycle readiness/exit bound
+after main stays 15 s. The Expo Swift fixture emits an unbuffered main marker,
+so its Node harness likewise allows 120 s for OS launch and preserves its
+15-second execution deadline. Compilation still has its 40-second bound;
+the outer test timeout covers those three phases. All seven media assertions
+and every lifecycle assertion remain. No Snapback runtime ceiling, product
+timeout, format or feature contract changes. This fixture-only correction
+does not enter the device wasm. Failed and successful qualification attempts
+remain in `reports/20260925-diet/`.
+
+## 2026-09-26 — device diet: blocking qualification complete
+
+At executable/test source `804c2be2f7`, the requested blocking suite completed
+with **`== 0 failure(s) in 2304 s`**, exit 0. All 932 Rust executions and
+workspace doctests passed. The serial client suite passed 1,998 tests with
+9 existing skips, no failures and no cancellations; all 78 model tests
+passed, including the unchanged 5,000 online-session, 5,000 local-session
+and 3,000 client-interleaving sequences. The package/app, fixture, docs,
+release and wasm-budget checks passed. Root `./ref-check --verbose` passed
+with 510 LLP documents, 9,395 refs, 0 errors and 0 unchecked.
+
+Qualification uses Node 24.18.0, the specified test environment, the default
+18 Rust workers, process-local normal scheduling and `caffeinate -i` to
+prevent idle sleep. The two fixture-only scheduling/startup corrections
+above are explicit in the report; product ceilings, formats and contracts
+remain unchanged. Both earlier unsuccessful full attempts and all focused
+checks are retained in `reports/20260925-diet/`.
+
+The suite rebuilt the identical **566,391 B gzip** artifact (SHA-256
+`57a9e12d1aa5903e59cef131c6712a179ca3e79248e420ffdda451d6096d3ca2`).
+The ratchet is **567,391 B**. The **46,392 B** remainder to a strictly
+below-520,000 artifact stays open in the ticket; the report records the
+remaining codec/container/executor work needed. All work stays on
+`sb4/diet-20260925`, committed locally; no push or publication.
+
+## 2026-09-26 — device diet follow-up: preserve acquisition across legacy web work schemas
+
+The web work-schema separation left old stores carrying synthesized
+`$recount:<target>` and `$basis:<target>` tables. On a literal-default
+successor, both adoption and opening with a supplied backend compared raw
+table counts, so removing those invisible tables discarded acquisition
+boundaries and the acquired generation even though held images survived.
+Both checks now count `visible_tables()`, matching the existing image-retention
+predicate (LLP 3000.007 §18.3; row-view work is private under LLP 3000.015 §3).
+Backend identity hashing is unchanged. Offline reopening preserves the old
+backend and identity bytes; native still synthesizes its work tables.
+
+The existing real-wasm row-keyed-view test now obtains the legacy schema and
+identity from the native device's unchanged synthesis, persists a snapshot
+with a nonempty acquisition boundary, and exercises web adopt and
+open-with-successor. Both preserve acquisition and row images. A second
+case adds two public tables while removing the two work tables: those public
+additions still clear acquisition, even though the raw counts match. Offline
+reopen compares every persisted value byte-for-byte. Native adoption preserves
+its boundary and acquired generation, and the adopted web identity matches a
+fresh store of the same public successor. All seven tests in the focused file
+pass. The root reference check passes: 510 LLP documents, 9,395 references,
+0 errors and 0 unchecked.
+
+`scripts/measure-wasm.sh` passes the family and forbidden-symbol checks and
+measures **1,960,344 B raw / 566,500 B gzip / 429,423 B Brotli**, using Rust
+1.97.0, wasm-bindgen 0.2.127 and wasm-opt 132 (the optimized candidate was not
+selected). This is **+109 B gzip** for the public-table comparisons, within
+the unchanged **567,391 B** ratchet. Glue is unchanged at 14,057 B raw /
+3,497 B gzip / 3,102 B Brotli. The wasm SHA-256 is
+`2d0bbb9b6661f0a7a3f46eaaeb4cf64e8a22afde609cafa32a2253e974f03b9d`.
+The measurement record identifies base `053fee3fb6` with `dirty: true` for
+this fix. Work remains on `sb4/diet-20260925`, with no push or publication.
+
+The first complete qualification used the requested environment, Node 24.18.0
+and the default 18 Rust workers. It ended **`== 2 failure(s) in 4101 s`**:
+`replay` exceeded its five-second delivery deadline, the isolated `witness`
+target encountered mocked-command launch timeouts, and the local 5,000-sequence
+session model reached its existing 240-second timeout. The ordinary client
+suite passed 2,004 tests with 9 existing skips; the other 77 model tests passed.
+After the heavy Rust work drained, the unchanged replay case passed with
+900-follower delivery in 1,389 ms, and the unchanged witness target passed
+24/24 tests. The initial suite and diagnostic logs remain under
+`target/diet-adopt-*`. The complete retry uses the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` scheduling option and process-local normal
+Darwin I/O, latency and throughput settings from launch; no test inventory,
+assertion, seed count, deadline or source changes accompany that retry.
+
+The single-worker retry enumerated all 220 binaries / 932 executions and
+completed the Rust inventory plus doctests, but `check` observed a partial
+startup log, `replay` missed its five-second deadline, and `witness` again
+hit mocked-command launch timeouts. During this run, all 184 not-yet-run
+executables were warmed with `--list --format=terse` only; no test bodies
+were skipped. After 569 client checks had passed without a failure, this
+already-failed retry was stopped (exit 143) and its logs preserved as
+`target/diet-adopt-suite-second*`.
+
+The agent's children inherited nice 5. A temporary one-shot launch job at
+ordinary nice 0 with Interactive process scheduling ran the unchanged full
+`check`, `replay`, and `witness` targets with their normal runner thread counts:
+**71/71**, **15/15**, and **24/24** passed in 12.30 s, 1.48 s, and 66.82 s.
+That job was removed. The final complete qualification uses the same
+process-local scheduling, Node 24.18.0, the requested environment and
+`SNAPBACK4_RUST_TEST_PROCESSES=4`. No other jobs or machine-wide settings were
+changed, and no test assertions, deadlines, seeds, or harness code were edited.
+
+The ordinary-priority, four-worker complete run ended
+**`== 1 failure(s) in 2372 s`**. The sole failing target was `check`: its
+startup-adoption test read the error prefix before the recovery suffix had
+been written. Replay passed 15/15 and witness passed 24/24 in this full run.
+All 2,004 ordinary client tests passed (9 existing skips), including every
+new legacy-work regression, and all 78 model tests passed. The local
+5,000-sequence model completed in 85.84 s within its unchanged 240-second
+deadline. The complete log is `target/diet-adopt-suite-third.log`.
+The next complete run keeps ordinary process priority and uses one Rust
+worker; the unrelated partial-log test remains unchanged.
+
+The final complete run passed: **`== 0 failure(s) in 3244 s`**, exit 0.
+It used Node 24.18.0, the requested `env -u FORCE_COLOR CARGO_INCREMENTAL=0
+CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh`, and the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` scheduling option at ordinary nice 0 with
+Interactive process scheduling. All 220 Rust test binaries / 932 executions
+and workspace doctests passed; ordinary clients passed 2,004 tests with
+9 existing skips; all 78 model tests passed. The online and local
+5,000-sequence session models completed in 44.13 s and 105.10 s. The unrelated
+startup-log test, every assertion, seed count, deadline, and the test harness
+remain unchanged. The temporary launch job was removed. The final full log
+and exit receipt are `target/diet-adopt-suite.log` and
+`target/diet-adopt-suite.status.json`.
+
+### 2026-09-26 — Diet adoption follow-up 2: table sets and withheld successor reads
+
+The first repair (`f5d9fa3c3b`) already excluded private work tables in both
+explicit successor opening and adoption. This follow-up preserves that fix
+and shares `same_public_tables`: compare the ordered public table names on
+both sides, without allocating another collection. `visible_tables()`
+excludes the row-keyed view's `$recount:<target>` and `$basis:<target>` via
+`is_recount_work`, along with the existing private-column tables. The
+literal-default image predicate and acquired-generation check still gate
+retention. Native work-table synthesis and adoption behavior are unchanged.
+This makes the set requirement explicit; under the image predicate's
+requirement that every old public table survive, it agrees with the first
+repair's public-count comparison (LLP 3000.007 §18.3).
+
+Astra's two reproduction scripts were rerun using the retained pre-diet and
+unfixed diet wasm controls and compiler-produced backend fixtures, with
+only absolute paths adapted into `target/diet-adopt-fix-2/repro/`. Both
+reproduce the review's failure through both `adopt` and explicit successor
+open: the unfixed diet loses acquisition for a literal-default addition
+(`E_PREDICT` instead of complete unread count 2), and falsely certifies an
+empty page when that addition also introduces two synced tables. Both
+scripts exit 1 for the unfixed control and 0 against the rebuilt follow-up,
+matching the pre-diet control in all four cases. The first repair's retained
+before logs also pass both scripts. The withheld-read invariant remains
+LLP 3000.016 §2.2; no new acquisition protocol is introduced.
+
+The existing real-web-wasm regression now asserts the actual reads in all
+four cases, including the absence of both `data` and `complete` before new
+tables are acquired. A subsequent snapshot supplies a row and the same
+query returns it complete. Ordinary offline reopen still compares every
+persisted value byte-for-byte, including backend bytes and identity, and
+now checks the complete unread count. Native adoption also checks that
+count. Focused rerun: **7 passed, 0 failed**
+(`target/diet-adopt-fix-2/regression-relaunch.log`).
+
+The relaunched measurement repeats **1,960,518 B raw / 566,540 B gzip /
+429,121 B Brotli**, +40 B gzip from the first repair and 851 B below the
+unchanged **567,391 B** ratchet. Glue: 14,057 / 3,497 / 3,102 B;
+wasm-opt not selected; family and forbidden-symbol checks pass. Both the
+interrupted run's measurement and this rerun remain in `metrics/wasm.jsonl`.
+The production artifact's SHA-256 is
+`806a7182fa20a4a092e51dc76c5d9d4be220ec9c1aa5e8fdcf9abd8f303bcd88`.
+
+The first full-suite job survived the agent interruption but had already
+recorded SQLite failures while the host disk was full. Its logs were
+preserved under `target/diet-adopt-fix-2/disk-full-run/`, and the recorded
+job was stopped (exit 143). After disk space was freed, the full suite was
+restarted with the requested environment, Node 24.18.0 and the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` setting at ordinary nice 0 / Interactive
+process scheduling, as in the first repair's successful qualification.
+No test assertion, deadline, seed count or harness was changed.
+
+The fresh complete run passed: **`== 0 failure(s) in 2996 s`**, exit 0.
+All 220 Rust test binaries / 932 executions and workspace doctests passed;
+ordinary clients passed **2,004 tests with 9 existing skips**, including all
+legacy-work regressions, and **all 78 client model tests passed**. The
+full command was `env -u FORCE_COLOR CARGO_INCREMENTAL=0
+CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh` from `snapback4/`.
+The temporary launch job was removed after completion. Full log and exit
+receipt: `target/diet-adopt-fix-2/suite.log` and `suite.status.json`.
+`ref-check --verbose` passed: 510 LLP documents, 9,396 references, zero
+errors and zero unchecked references. `git diff --check` passed.
 ### 2026-09-25 — LLP 3000.017, E1 ephemeral tables
 
 Implemented the compiler, core, engine, HTTP server and device boundary for
@@ -65389,3 +65740,80 @@ qualification remains `== 0 failure(s) in 3119 s`, exit 0. The server walk and
 remembered-answer expiry remain outside scope. This entry and the round-3
 report append preserve all previous text. Local commit with the requested
 Astra co-author footer; no push or publication.
+
+
+### 2026-09-26 — Diet merges moved main: measured control and full qualification
+
+Merged fetched `origin/main` `c33fe3b59c61bf016fd81793e6cbdb3ccb2e21bd`
+(184 commits after the shared `0badac9872` base, including published 0.4.3,
+LLP 3000.008.002.000 and the implemented LLP 3000.019 lanes) into
+`sb4/diet-20260925` at `13f102e818`. Work stayed in the diet worktree;
+no stash, push or publication. Main's new behavior is the design of record.
+
+The merge had exactly two content conflicts. `JOURNAL.md` retains both
+complete conflicting appended blocks, alongside main's automatically merged
+history. `metrics/wasm-budget.json` retains main's explanation and the diet
+measurement history, then records the rebuilt control, merged artifact and
+new measured ratchet. Runtime code merged without manual edits. The diet's
+shared helpers, borrowed descriptors and public-table acquisition comparison
+survive alongside main's ephemeral, receipt and client behavior.
+
+Audited all **36 added cfg annotations** from the original diet delta:
+maintained columns (6), row-view work/basis branches (10), live row-view
+helpers (4), Following enqueue/duplicate lookup (3), asset ledgers (6),
+diagnostics (5), and work-schema preparation (2). Searched main's added
+core/device/web lines and its modified runtime files for every gated function
+and private work-table name. The only new asset delegation is inside the
+already sqlite-gated ephemeral server adapter. Ephemeral schema admission
+rejects durable derived work and assets, and device admission refuses its
+writes. New shared expiry/renewal/receipt paths remain outside the diet gates.
+No excluded function gained a required web caller. Both successor opening
+and adoption still use `same_public_tables`; the real-wasm regression passed
+all four old/new-public-table cases, along with legacy offline reopen and
+native adoption. The full web build emits exactly the same 26 warning
+headings as the recorded final diet build: no new unused or unreachable stubs.
+
+Both artifacts were independently rebuilt with Rust 1.97.0, wasm-bindgen
+0.2.127, wasm-opt 132 and `CARGO_INCREMENTAL=0`, using unchanged
+`build-wasm.sh` (`--no-default-features --features web`). Main was archived
+from the fetched commit inside this worktree's ignored target directory and
+built with a separate Cargo target. An initial shared-target measurement was
+discarded after cache reuse was detected; the merged core/device wasm cache
+was cleared and rebuilt. wasm-opt was tried but not selected for either
+artifact; fresh bindgen outputs confirm that result.
+
+| Artifact | Raw bytes | Gzip bytes | Ratchet |
+| --- | ---: | ---: | ---: |
+| Rebuilt main `c33fe3b59c` | 2,021,917 | 581,184 | 582,094 |
+| Merged diet | 1,972,811 | 569,967 | 570,967 |
+| Measured diet delta against main | -49,106 | -11,217 | |
+
+The new ratchet is **569,967 + 1,000 = 570,967 B**. These are measured
+whole-artifact deltas, not estimates or per-feature attribution. The merged
+artifact is 3,427 B gzip above the premerge diet's 566,540 B while preserving
+main's additions. No runtime meter ceiling was changed by merge resolution.
+Main wasm SHA-256: `a3274a213f075b42c8095c2869cc8779642f6dd54e79742d17db0e92d29712d2`.
+Merged wasm SHA-256: `24737c02eb6ad163e413a00f1abf5fa9f0c92be13f2e85a1b4290568d088055d`.
+The full suite reproduced the merged size under the new ratchet.
+
+Full blocking qualification: **`== 0 failure(s) in 3231 s`**, exit 0.
+Command from `snapback4/`: `env -u FORCE_COLOR CARGO_INCREMENTAL=0
+CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh`.
+Node 24.18.0; the prior successful run's existing
+`SNAPBACK4_RUST_TEST_PROCESSES=1` setting, nice 0 and Interactive scheduling.
+All 224 Rust binaries / 936 executions and workspace doctests passed;
+ordinary clients passed 2,222 tests with 9 existing skips; all 78 client
+models passed. No assertion, timeout, seed count or harness was changed.
+The test-generated following fixture lock version update was retained as
+evidence and restored to the merged index version after qualification.
+
+Evidence: `target/diet-merge-main/` contains the independent build logs,
+artifacts and hashes, complete boundary inventory/audit, warning comparison,
+full suite log and exit receipt, and reference/whitespace checks. The report
+is `/Users/ccheever/projects/snapback-sb5-program/diet-merge-main.final.md`.
+
+Final repository checks passed: `ref-check --verbose` reports 513 LLP
+documents, 9,442 references, zero errors and zero unchecked references;
+`git grep -n "^<<<<<<<"` is empty; `git diff --check` and the complete
+merge delta against main pass. The temporary suite launch job was removed.

@@ -1,0 +1,30 @@
+Existing final-suite executable: target/debug/deps/born_perf-48a183a0e850c765
+Trial 1
+
+running 2 tests
+born grants: 1,250 in 27.951541ms, 5,000 in 104.869709ms, growth 3.8x
+test born_grants_in_one_commit_grow_linearly ... ok
+born rows: 5,000 in 44.644917ms, 20,000 in 187.901125ms, growth 4.2x
+test born_rows_in_one_commit_grow_linearly ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+Trial 2
+
+running 2 tests
+born grants: 1,250 in 35.184625ms, 5,000 in 129.051625ms, growth 3.7x
+test born_grants_in_one_commit_grow_linearly ... ok
+born rows: 5,000 in 59.024417ms, 20,000 in 197.375292ms, growth 3.3x
+test born_rows_in_one_commit_grow_linearly ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+Trial 3
+
+running 2 tests
+born grants: 1,250 in 27.061834ms, 5,000 in 94.842041ms, growth 3.5x
+test born_grants_in_one_commit_grow_linearly ... ok
+born rows: 5,000 in 43.173708ms, 20,000 in 152.859625ms, growth 3.5x
+test born_rows_in_one_commit_grow_linearly ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s

@@ -195,10 +195,13 @@ if (interrupted !== null) {
   }
   if (interrupted !== null) executions.length = 0;
   console.log(`-- rust inventory: ${build.artifacts.length} test binaries, ${executions.length} executions; at most ${processLimit} concurrent processes`);
-  // The macOS witness target owns simctl and simulator lifecycle. Keep it out
-  // of the shared pool so host load cannot turn tool contention into a false
-  // product timeout; its own assertions still run one at a time.
-  const exclusive = executions.filter((artifact) => packageName(artifact.packageId) === "snapback4" && artifact.target === "witness");
+  // Wall-clock scaling and fresh process startup need the same quiet slot as
+  // the simulator witness. Concurrent test startup can turn linear born-row
+  // work into a false ratio regression or exhaust the abort probe's pre-main
+  // allowance. Keep every assertion, seed and deadline; drain the pool first.
+  const isolatedTargets = new Set(["snapback4-core::born_perf", "snapback4::lifecycle", "snapback4::witness"]);
+  const exclusive = executions.filter((artifact) => isolatedTargets.has(`${packageName(artifact.packageId)}::${artifact.target}`));
+  console.log(`-- rust isolated targets: ${exclusive.map((artifact) => `${packageName(artifact.packageId)}::${artifact.target}`).join(", ")}`);
   const regular = executions.filter((artifact) => !exclusive.includes(artifact));
   const results = await runPool(regular);
   for (const artifact of exclusive) {

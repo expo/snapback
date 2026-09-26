@@ -61,6 +61,8 @@ func decodeVideo(_ url: URL) async throws {
 
 @main enum MediaFilesTests {
   static func main() async throws {
+    // Unbuffered: the harness starts its execution deadline after the OS loader.
+    FileHandle.standardError.write(Data("SNAPBACK4_TEST_MAIN_REACHED\n".utf8))
     let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
     let directory = root.appendingPathComponent("backend%3Aalice store.sqlite.media", isDirectory: true)
     let files = MediaFiles(directory: directory), manager = FileManager.default

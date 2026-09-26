@@ -30,7 +30,7 @@ impl RowKey {
         fields
     }
     pub fn matches(&self, source: &Value, member: &Value) -> bool {
-        self.predicate.matches_member(source, Some(member))
+        self.predicate.matches_with_member(source, Some(member))
     }
 
     fn each_comparison<'a>(&'a self, out: &mut dyn FnMut(&'a str, &'a str, &'a str)) {
@@ -76,8 +76,15 @@ impl Maintain {
 }
 impl crate::schema::Schema {
     pub fn prepare_row_views(&mut self) {
-        use crate::schema::{ColumnType as C, Index, Rules, public_table};
-        use std::collections::BTreeMap;
+        self.prepare_row_view_indexes();
+        #[cfg(feature = "sqlite")]
+        self.prepare_row_view_work();
+    }
+
+    // @ref LLP 3000.015#3 — replicas need indexes over delivered rows, not
+    // server work tables. Existing serialized schema entries remain untouched.
+    pub fn prepare_row_view_indexes(&mut self) {
+        use crate::schema::Index;
         for m in &self.maintains {
             let Some(key) = &m.row_key else { continue };
             // @ref LLP 3000.014#5 — row views index the same effective lifetime as ordinary read-through witnesses.
@@ -116,6 +123,15 @@ impl crate::schema::Schema {
                     }
                 });
             }
+        }
+    }
+
+    #[cfg(feature = "sqlite")]
+    fn prepare_row_view_work(&mut self) {
+        use crate::schema::{ColumnType as C, Index, Rules, public_table};
+        use std::collections::BTreeMap;
+        for m in &self.maintains {
+            if m.row_key.is_none() { continue; }
             let mut work = public_table(
                 BTreeMap::from([
                     ("id".into(), C::Id),

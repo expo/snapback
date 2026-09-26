@@ -1,0 +1,59 @@
+   Compiling snapback4-device v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 17.59s
+     Running tests/bounded_following.rs (target/debug/deps/bounded_following-28fd463eb0174665)
+
+running 11 tests
+test known_event_absence_memory ... ok
+test prediction_memory ... ok
+test cards_memory ... ok
+test owned_event_examination_cut_withholds_card ... ok
+test prediction_sqlite ... ok
+test known_event_absence_sqlite ... ok
+test cards_sqlite ... ok
+test adoption_memory ... ok
+test adoption_sqlite ... ok
+test inbox_memory ... ok
+test inbox_sqlite ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
+     Running tests/event_slots.rs (target/debug/deps/event_slots-c180ebea179a8883)
+
+running 6 tests
+test source_transitions::memory ... ok
+test interrupted_activation::memory ... ok
+test source_transitions::sqlite ... ok
+test interrupted_activation::sqlite ... ok
+test residencies::memory ... ok
+test residencies::sqlite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-b66bd8407d3ba7b8)
+
+running 23 tests
+test metadata_witness_memory ... ok
+test held_member_source_predicts_past_other_member_horizon_memory ... ok
+test member_horizon_never_persists_excluded_note_or_attribution_in_view ... ok
+test covered_memory ... ok
+test expiry_memory ... ok
+test private_member_source_prediction_memory ... ok
+test member_horizon_memory ... ok
+test member_horizon_prefix_memory ... ok
+test source_horizon_memory ... ok
+test expiry_sqlite ... ok
+test held_member_source_predicts_past_other_member_horizon_sqlite ... ok
+test metadata_witness_sqlite ... ok
+test member_horizon_sqlite ... ok
+test covered_sqlite ... ok
+test covered_cut_memory ... ok
+test large_live_count_queues_and_settles_memory ... ok
+test private_member_source_prediction_sqlite ... ok
+test source_horizon_sqlite ... ok
+test member_horizon_prefix_sqlite ... ok
+test covered_cut_sqlite ... ok
+test large_live_count_queues_and_settles_sqlite ... ok
+test uncovered_memory ... ok
+test uncovered_sqlite ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
