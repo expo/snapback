@@ -66126,3 +66126,28 @@ made no changes; package build passed. Source files remain at or below 1,500
 lines. All evidence is under `target/lane-lt-evidence/r2-*`. No requested fix
 was deferred and no brief deviation, budget/version change, push or publication
 was made. Final reference/full-suite qualification follows in this entry.
+
+Final qualification: `./ref-check --verbose` passed before the full suite:
+`ref-check: ok — 515 LLP docs, 9538 refs in 27004 files, 0 errors, 0 unchecked`.
+Ran the required, unmodified `scripts/test.sh` **once**, after all affected
+checks and the whole guide. Exact result: **`== 1 failure(s) in 1280 s`**,
+exit **1**. Its only failure is **`wasm build` — inherited from integration**:
+**1,980,253 B raw / 571,839 B gzip**, against the unchanged **570,967 B**
+gzip budget (**872 B over**). This matches the supervisor-provided integration
+measurement exactly: **LT gzip delta 0 B**. Reproduce with
+`bash scripts/build-wasm.sh` from `snapback4/` on the toolchain above. This
+integration budget overage is the sole remaining qualification problem; it was
+not repaired or reassigned to this lane. No introduced or environmental
+failure occurred in the final full suite.
+
+Full Rust: **3,728 passed, 0 failed, 21 ignored**, **789 s**, including the
+whole guide and all new regressions. Main client batch: **2,459 passed,
+0 failed, 10 existing skips**; all seven separate acquisition/server shards
+also passed (**197 s** total client stage). Seeded models: **78/78**, **257 s**.
+Cargo build, docs budget, release guard, package typecheck/build, chat check,
+chat/Expo typechecks and fixture-wrapper tests passed. There was no generated
+tracked-file cleanup to perform. Evidence: `target/lane-lt-evidence/r2-test.log`
+and `r2-test.exit`; targeted checks, mutation logs and the reference check are
+beside them. Merge commit **211767588**, fixes/design/evidence **94374fb39**;
+this final verification append has its own co-authored commit. No push or
+publication.
