@@ -36,7 +36,7 @@ remain, because one signed contribution can expire before another.
 An ordinary maintained `view` over an
   expiring table subtracts its unswept expired backlog from the physical
   total on the server. Devices still recompute live contributions; a partial
-  device reports `complete: false`. If the meter interrupts a maintained
+  device reports `complete: false`. If the meter interrupts an ordinary aggregate
   lookup, backlog scan or device live group, the query returns `data: null,
   complete: false`, without substituting zero or a partial total.
   Value-order indexes over expiring sources are refused

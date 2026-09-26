@@ -41,3 +41,56 @@ fn a_nonuniform_source_stays_pending_even_if_a_synthetic_image_would_pass() {
     r.provisional_rows.insert(("members".into(),"b".into()));
     assert!(!r.row_view_source_readable(&schema.maintains[0],&member).unwrap());
 }
+
+struct CoveredRows(MemoryRows);
+impl Rows for CoveredRows {
+    fn current_row(&self, _: &str, _: &Value) -> Result<bool, RuntimeError> { Ok(true) }
+    fn acquired_boundary(&self, _: &str, _: &str, prefix: &[Value]) -> Result<Option<crate::rows::AcquiredBoundary>, RuntimeError> {
+        let mut floor = prefix.to_vec();
+        floor.extend([Value::Int(0), Value::Id("floor".into())]);
+        Ok(Some(crate::rows::AcquiredBoundary::Key(crate::key::encode(&floor))))
+    }
+    fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.0.get(t, id) }
+    fn lookup(&self, t: &str, n: &str, i: &crate::schema::Index, k: &[Value]) -> Result<Option<Value>, RuntimeError> { self.0.lookup(t, n, i, k) }
+    fn scan(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, n: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan(t, i, p, b, d, n) }
+    fn index_head(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir) -> Result<Option<Vec<Value>>, RuntimeError> { self.0.index_head(t, i, p, b, d) }
+    fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, n: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan_metered(t, i, p, b, d, n, scope, meter) }
+    fn count_prefix(&self, t: &str, i: &str, p: &[Value], n: u64) -> Result<u64, RuntimeError> { self.0.count_prefix(t, i, p, n) }
+    fn put(&self, t: &str, s: &crate::schema::Table, r: &Value, o: Option<&Value>) -> Result<u64, RuntimeError> { self.0.put(t, s, r, o) }
+    fn delete(&self, t: &str, s: &crate::schema::Table, r: &Value) -> Result<u64, RuntimeError> { self.0.delete(t, s, r) }
+}
+
+#[test]
+fn exhausted_provisional_rule_admission_keeps_a_covered_range_unknown() {
+    let (schema, rows, member) = fixture();
+    let rows = CoveredRows(rows);
+    for (id, ordinal, until) in [("settled", 1, Value::Null), ("pending", 2, Value::Null), ("expired", 3, Value::Int(1))] {
+        let row = object([("id", Value::Id(id.into())), ("conversationId", Value::Id("c".into())),
+            ("ordinal", Value::Int(ordinal)), ("at", Value::Int(ordinal)), ("senderId", Value::Id("alice".into())),
+            ("tombstone", Value::Bool(false)), ("until", until)]);
+        rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
+    }
+    for cut in [Cut::Cap, Cut::Abort] {
+        let mut r = Runner::new(&rows, &schema, Context::new("bob", Default::default()).at(1), Meter::new(Ceilings::default(), cut), 0);
+        r.device = true;
+        if cut == Cut::Abort { r.device_allowance = Some(Meter::new(Ceilings::default(), Cut::Abort)); }
+        r.provisional_rows.insert(("messages".into(), "pending".into()));
+        let m = &schema.maintains[0];
+        assert!(r.row_view_source_readable(m, &member).unwrap());
+        // With room, the provisional match counts and the expired image does not.
+        assert_eq!(r.device_live_count(m, &member).unwrap(), (2, true));
+        assert!(!r.beyond_horizon);
+        r.meter.used.rule_probes = r.meter.ceilings.rule_probes;
+        let result = r.device_live_count(m, &member);
+        if cut == Cut::Cap {
+            assert_eq!(result.unwrap(), (1, false), "unresolved row is not absent");
+        } else {
+            // The aborting meter still rejects its attempted probe charge;
+            // local::predict turns a bound with this missing fact into queued intent.
+            assert!(matches!(result, Err(RuntimeError::Bound { kind: MeterKind::RuleProbes, .. })));
+        }
+        assert!(r.beyond_horizon && r.missing_fact.as_ref().is_some_and(|s| s.contains("messages") && s.contains("source rule admission")));
+        assert!(!r.components.provenance().speculative);
+        if cut == Cut::Abort { assert!(matches!(r.pending_view_read(), Err(RuntimeError::Prediction(_)))); }
+    }
+}

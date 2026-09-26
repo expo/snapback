@@ -90,6 +90,8 @@ impl<'r> Runner<'r> {
                 let provisional = runner.is_provisional(name,&row)?;
                 let needs_rule = !runner.context.is_system() && (!trusted || provisional);
                 if needs_rule && !runner.device_work_active && !scope.admit_probes(super::rules::rule_probes(&table.rules.read)) {
+                    // @ref LLP 3000.020#3.2 — unresolved authority is unknown, not an absent contribution.
+                    if runner.device { runner.unknown_fact(name, index, prefix, "source rule admission"); }
                     return Ok(Some((None,key)));
                 }
                 let row = runner.authorize_image(name,row)?;
