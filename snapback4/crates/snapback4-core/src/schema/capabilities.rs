@@ -35,6 +35,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
     ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),

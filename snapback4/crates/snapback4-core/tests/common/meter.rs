@@ -17,7 +17,7 @@ pub fn context() -> Context { Context::new("alice", BTreeMap::new()).at(1) }
 
 pub fn schema() -> Schema {
     let mut table = Table {
-        sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None,
+        ephemeral: None,        sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None,
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         defaults: BTreeMap::new(),
         residency: Default::default(),

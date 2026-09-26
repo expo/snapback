@@ -81,7 +81,7 @@
     "id": "reads-13",
     "card": "reads",
     "home": "Details",
-    "text": "For example, this typing indicator lasts 4,500 ms after the last keystroke.\nRender `typingNow`'s ready held rows directly. For a server answer, use the\nrender-deadline filter above.\nThis is an application table, separate from the server's `connected[p]`."
+    "text": "For typing and viewing indicators, use an ephemeral table (`guide ephemeral`,\nalso `guide typing`). Keep its server query separate from the device-held\nchats list. The expiring-rows recipe above is for durable disappearing messages."
   },
   {
     "id": "reads-14",
@@ -573,7 +573,7 @@
     "id": "language-19",
     "card": "language",
     "home": "Details",
-    "text": "Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,\nassets, reads, shapes, writes, programs, jobs, native, feeds, search,\neffects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why\n<CODE>` explains a refusal."
+    "text": "Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,\nassets, reads, shapes, writes, programs, jobs, native, feeds, search,\neffects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why\n<CODE>` explains a refusal."
   },
   {
     "id": "language-20",

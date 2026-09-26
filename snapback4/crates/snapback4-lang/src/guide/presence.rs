@@ -8,6 +8,8 @@ query connections(p: principal):
   return connected[p]                    -- an int; `exists connected[p]` is the bool
 ```
 
+`connected[p]` is server-wide. For who is in a room, typing or viewing, use an ephemeral table (guide ephemeral).
+
 `connected[p]` is how many connections a principal holds open on the
 server now: a device following the stream keeps a long poll open
 (`GET /changes?wait=25&heartbeat=1`), and a poll that answered a moment ago still
@@ -19,6 +21,8 @@ authenticated `/probe` confirms recovery. Suspended hosts notify on resume.
 It is not a table: nothing
 syncs, nothing is written. A mutation uses it to defer an absence-guarded
 notification while a connected-looking client is unconfirmed (guide effects); a query reads it for an online mark.
+An observed query that may read it re-runs in the background 5 seconds after each answer, keeping
+the answer on screen, so an online mark turns about 5 seconds after a first poll or a grace ends.
 On a device the word is unknown: a query that reads it is `complete: false`, and the server answers it online.
 A mutation stays eligible to predict when presence decides only effects: connection state never changes its rows or result on a successful commit, but can change which effect arms run and therefore its charges, as live versus absent presence already could. The server commits the effects and defers unconfirmed absence decisions until their deadline. The paved `if not exists connected[p]: emit …` form charges the same whether the recipient is held, graced or absent.
 Shared boolean payloads and separate positive-presence emits can cost more for

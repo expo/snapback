@@ -109,7 +109,10 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     if diagnostics.is_empty() {
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
-            if issue.message.starts_with("written by:") {
+            if issue.message.starts_with("ephemeral:") {
+                let (message, fix) = issue.message.split_once("; ").unwrap_or((&issue.message, "keep that data in a durable table"));
+                diagnostics.push(Diagnostic::new(&site, "E_QUARRY_EPHEMERAL", message, fix).guide("ephemeral"));
+            } else if issue.message.starts_with("written by:") {
                 diagnostics.push(Diagnostic::new(&site, "E_FIELD_AUTHORITY", issue.message, "name a required principal column of this table; declare a default; use readable by audience before indexing or deriving from the field").guide("rules"));
             } else if issue.message.contains("E_VIEW_KEY") {
                 diagnostics.push(super::row_views::refusal(&site,issue.message));
@@ -243,6 +246,10 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         },
         None => None,
     };
+    if decl.ephemeral.is_some() {
+        columns.insert(core::through::DEADLINE.into(), core::ColumnType::Time);
+        indexes.insert("$expiry".into(), core::Index::of(&[core::through::DEADLINE, "id"], false));
+    }
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
     let mut sequences = BTreeMap::new();
@@ -261,7 +268,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     let written_by = decl.columns.iter().filter_map(|column| column.written_by.as_ref().map(|owner|
         (column.name.clone(), core::FieldAuthority { owner: owner.clone(), audience: column.readable_by_audience }))).collect();
     let update_transition = decl.rules.iter().any(|rule| rule.effect == Effect::Update && !rule.bindings.is_empty());
-    Table { sequences, written_by, update_transition, through: info.through.clone(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, written_by, update_transition, through: info.through.clone(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -513,6 +520,9 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
 }
 
 fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bindings: &RuleBindings, extras: bool) -> Fallible<(String, String, Vec<RuleTerm>, Vec<(String, RuleTerm)>)> {
+    if catalog.tables.get(&read.table).is_some_and(|t| t.decl.ephemeral.is_some()) {
+        return Err(Diagnostic::new(site, "E_QUARRY_EPHEMERAL", format!("a rule or after insert cannot probe ephemeral table {}", read.table), "probe a durable table instead").guide("ephemeral"));
+    }
     let normalized = catalog.tables.get(&read.table).map(|target| super::mixed_keys::read(target, read, catalog)).transpose()?;
     let read = normalized.as_deref().unwrap_or(read);
     super::validate_key_names(read)?;
@@ -678,6 +688,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         indexes.push(index);
     }
     Ok(TableDecl {
+        ephemeral: None,
         search: Vec::new(),
         name: maintain.name.clone(),
         columns,

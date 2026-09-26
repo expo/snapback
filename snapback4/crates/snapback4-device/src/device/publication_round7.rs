@@ -62,7 +62,7 @@ fn bind_receipts<S: DeviceStore>(mut store: S) {
     let tx = store.transaction().unwrap();
     for id in ["missing", "null", "foreign"] {
         let mut q: Queued = decoded(&format!(r#"{{"id":"{id}","seq":{},"op":"bump","args":{{}},"sent_seq":8}}"#, match id { "missing" => 1, "null" => 2, _ => 3 })).unwrap();
-        q.receipt_store = match id { "missing" => None, "null" => Some(ReceiptStore { id: None }), _ => Some(ReceiptStore { id: Some("old".into()) }) };
+        q.receipt_store = match id { "missing" => None, "null" => Some(ReceiptStore { id: None, success_seq: None }), _ => Some(ReceiptStore { id: Some("old".into()), success_seq: None }) };
         predictions::enqueue(&tx, &q).unwrap();
     }
     predictions::bind_legacy_receipts(&tx).unwrap();

@@ -84,7 +84,7 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
         }
     };
     let (mut run, replayed) = match admitted { Ok(run) => run, Err(error) => { let why = failure(&error); return respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); } };
-    shared.committed.notify_all();
+    shared.durable_committed(&lock(&shared.engine));
     let wait = query_params(request.url()).get("wait").and_then(|s| s.parse::<u64>().ok()).unwrap_or(25).min(25);
     let deadline = Instant::now() + Duration::from_secs(wait);
     while !matches!(run.state.as_str(), "done" | "failed" | "parked") && Instant::now() < deadline {
@@ -134,6 +134,7 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
             };
             (worker, claimed)
         };
+        if claimed.as_ref().is_ok_and(|runs| !runs.is_empty()) { shared.durable_committed(&lock(&shared.engine)); }
         match claimed {
             Ok(claims) if claims.is_empty() && Instant::now() < deadline => {
                 let seq = lock(&shared.seq);
@@ -150,7 +151,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
         let principal = match principal_of(&request, shared) { Ok(p) => p, Err(why) => return respond(request, 401, json!({ "denied": why })) };
         let answer = lock(&shared.engine).cancel_action(&id, &principal, shared.now());
         return match answer {
-            Ok(run) => { shared.committed.notify_all(); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
+            Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
             Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
         };
     }
@@ -181,7 +182,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
                             _ => Err(snapback4_core::RuntimeError::Input("step routes are begin, done or park".into())),
                         }
                     };
-                    shared.committed.notify_all();
+                    shared.durable_committed(&lock(&shared.engine));
                     return match answer {
                         Ok(answer) => respond(request, 200, answer),
                         Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
@@ -216,7 +217,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
     let Some(id) = decode_id(id) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "the action id must be percent-encoded UTF-8") })); };
     let answer = lock(&shared.engine).settle_action(&id, &worker, &token, settled, shared.now());
     match answer {
-        Ok(run) => { shared.committed.notify_all(); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
+        Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
         Err(error) => { let why = failure(&error); respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); }
     }
 }

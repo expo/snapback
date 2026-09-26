@@ -56,6 +56,8 @@ impl Runner<'_> {
         if upsert_index.is_none() && supplied_sequence.is_err() { return supplied_sequence.map(|_| false); }
         let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
+        if self.schema.tables[table_name].ephemeral.is_some() { self.meter.heap(row.heap_bytes())?; }
+        let row = row.ephemeral(&self.schema.tables[table_name], self.context.now.unwrap_or(0))?;
         // @ref LLP 3000.014#4-the-capture — reserve, then stamp the parent capture before any rule sees the image.
         self.reserve_capture(&self.schema.tables[table_name])?;
         let row = self.capture_insert(table_name, row)?;
@@ -281,6 +283,11 @@ impl Runner<'_> {
         }
         let mut new = new;
         self.schema.tables[table_name].recompute_deadline(&mut new)?;
+        // @ref LLP 3000.017#2.2 — extending life re-admits the new image.
+        if self.schema.tables[table_name].stamp_ephemeral(&mut new, self.context.now.unwrap_or(0))?
+            && !self.check_rule(table_name, Effect::Insert, None, &new)? {
+            return Err(if readable { RuntimeError::Rule { table: table_name.into(), effect: Effect::Update } } else { self.no_write_target() });
+        }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;

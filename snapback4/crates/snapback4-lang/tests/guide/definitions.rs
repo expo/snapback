@@ -118,6 +118,9 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the maximum int."),
     ("E_VIEW_KEY", "Every member-row reader must be able to read the whole counted parent group."),
 
+    ("E_QUARRY_EPHEMERAL", "E_QUARRY_EPHEMERAL refuses a declaration or operation that gives ephemeral rows durable custody"),
+    ("E_EPHEMERAL_FULL", "`E_EPHEMERAL_FULL` is retryable at 1,000 rows or 4 MiB per principal"),
+    ("N_EPHEMERAL_SERVER", "A query reading ephemeral rows runs on the server"),
     ("E_QUARRY_SELF_EQUALITY", "E_QUARRY_SELF_EQUALITY refuses comparisons of a filtered row column with itself"),
     ("E_READ_THROUGH", "read through .ref"),
     ("E_READ_THROUGH_ADOPT", "Reconcile the named table before adoption."),

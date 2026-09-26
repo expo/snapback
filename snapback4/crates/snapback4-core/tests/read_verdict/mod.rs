@@ -15,7 +15,7 @@ mod aggregate_cuts;
 mod expiry_candidates;
 
 fn table() -> Table {
-    Table { sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None, maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
+    Table { ephemeral: None, sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None, maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["roomId", "id"], false)), ("byRoomPrincipal".into(), Index::of(&["roomId", "principal"], true))]),
         rules: Rules { read: RuleExpr::Deny, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },

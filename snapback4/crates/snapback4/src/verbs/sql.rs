@@ -42,6 +42,10 @@ fn inspect(options: &Options) -> Result<()> {
     let mut views = BTreeSet::new();
     let mut backing = BTreeSet::new();
     for (name, table) in schema.visible_tables() {
+        if table.ephemeral.is_some() {
+            eprintln!("sql: skipping {name}: ephemeral rows live only in the serving process's memory");
+            continue;
+        }
         if internal(name) { continue; }
         let number: i64 = conn.query_row("SELECT num FROM _catalog WHERE name = ?1", [name], |row| row.get(0)).map_err(store_error)?;
         let private = format!("{PRIVATE}{number}");

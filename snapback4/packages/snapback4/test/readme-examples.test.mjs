@@ -19,10 +19,13 @@ const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./c
 
 // Each block is a separate module: no ambient client/api/any can hide a broken example.
 // The generated module stands for the app's schema; package imports always reach real source.
-const apiStub = `import type { Query, Mutation, Action, Cursor } from "snapback4/contract";
+const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from "snapback4/contract";
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  setTyping: Ephemeral<{ room: string }, null>;
+  stopTyping: Ephemeral<{ room: string }, null>;
+  typingIn: Query<{ room: string }, { principal: string }[]>;
   handleAvailable: Query<{ handle: string }, boolean>;
   myProfile: Query<{}, { id: string; principal: string; handle: string } | null>;
   createProfile: Mutation<{ handle: string }, { id: string; principal: string; handle: string }>;

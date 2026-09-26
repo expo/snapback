@@ -571,9 +571,9 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 ## Left out on purpose, and the idiom
 
-Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
+Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal. Also see from-sql (aliases sql, convex, rosetta).
 
 ## An ID belongs to one intent
@@ -772,5 +772,15 @@ query unread(chat: id):
   return unreadCounts[chat, viewer]
 query inbox(c: cursor ?):
   return unreadCounts where .principal = viewer first 20 after c
+```
+
+Short-lived server memory uses the ordinary table grammar (`guide ephemeral`):
+
+```quarry
+table typing:
+  principal: principal
+  read <- allow
+  insert <- .principal = viewer
+  ephemeral 4s
 ```
 "##;

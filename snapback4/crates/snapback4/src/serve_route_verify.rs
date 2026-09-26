@@ -42,7 +42,7 @@ pub(in crate::serve) fn claim(request: Request, shared: &Shared, body: &str) {
             }
             (worker, claimed)
         };
-        shared.committed.notify_all();
+        shared.durable_committed(&lock(&shared.engine));
         if !claimed.is_empty() || Instant::now() >= deadline || crate::lifecycle::stopping() {
             return respond(request, 200, json!({ "requests": claimed, "worker": worker }));
         }
@@ -84,7 +84,7 @@ pub(in crate::serve) fn settle(request: Request, shared: &Shared, path: &str, bo
             _ => false,
         }
     };
-    shared.committed.notify_all();
+    shared.durable_committed(&lock(&shared.engine));
     if answer { respond(request, 200, json!({ "ok": true })); }
     else { refuse(request, 409, "E_ROUTE_LEASE", "the verification ticket or claim fence is no longer live"); }
 }

@@ -45,12 +45,12 @@ impl Runner<'_> {
         if upsert && self.device && table.through.is_some() { return Err(RuntimeError::Prediction("upsert on a read-through child queues without a row".into())); }
         if upsert { self.reserve_capture(table)?; }
         let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
-            .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
+            .saturating_add(if upsert || table.ephemeral.is_some() { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
         let witness = self.rule_scratch(&table.rules.read).max(self.rule_scratch(&table.rules.update))
-            .max(if upsert { self.rule_scratch(&table.rules.insert) } else { 0 });
+            .max(if upsert || table.ephemeral.is_some() { self.rule_scratch(&table.rules.insert) } else { 0 });
         let copy = if crate::rows::disclosed::actual_size(table) { 0 } else { row_copy_ceiling(table).saturating_mul(2) };
         let heap = copy.saturating_add(patch.heap_bytes().saturating_mul(2))
             .max(crate::rows::disclosed::admission(table)).saturating_add(witness);

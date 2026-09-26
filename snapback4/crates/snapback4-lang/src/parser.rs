@@ -169,7 +169,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -231,6 +231,20 @@ impl Parser {
                 }
                 let retain = self.parse_retention()?;
                 table.retain = Some(retain);
+                Ok(())
+            }
+            "ephemeral" => {
+                let site = self.take("ephemeral")?.site;
+                let refuse = || Diagnostic::new(&site, "E_QUARRY_EPHEMERAL", "ephemeral requires one life between 1 second and 60 seconds inclusive", "use one ephemeral 4s line").guide("ephemeral");
+                if table.ephemeral.is_some() { return Err(refuse()); }
+                let amount = self.peek().value.parse::<u64>().map_err(|_| refuse())?;
+                self.position += 1;
+                let unit = self.peek().value.clone();
+                let unit = views::duration_unit(&unit).ok_or_else(refuse)? as u64;
+                self.position += 1;
+                let life_ms = amount.checked_mul(unit).filter(|ms| (1000..=60000).contains(ms)).ok_or_else(refuse)?;
+                self.end_line(&site)?;
+                table.ephemeral = Some(EphemeralDecl { life_ms, site });
                 Ok(())
             }
             "expire" => {

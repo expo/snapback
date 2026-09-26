@@ -96,13 +96,17 @@ fn foreign_receipt<H: Host>(h: &mut H, legacy: bool) {
     let mut replacement = initial.clone(); replacement.store_id = Some("new".into()); replacement.watermark = receipt;
     let observation = d.observe_store(&replacement).unwrap();
     assert!(observation.reset);
-    assert_eq!(observation.retired.get("q"), Some(&receipt), "replacement retires all known old-store executions");
+    assert_eq!(observation.retired.get("q"), if legacy { None } else { Some(&receipt) }, "only a qualified success can retire as sent");
     d.adopt(b).unwrap(); d.apply(&replacement, true).unwrap();
     assert_eq!(value(&mut d, "a"), Some(0));
-    assert!(d.queued().unwrap().is_empty());
+    assert_eq!(d.queued().unwrap().len(), usize::from(legacy));
     h.close("receipt", d);
     let mut d = h.open("receipt", None).unwrap();
-    assert!(d.queued().unwrap().is_empty());
+    assert_eq!(d.queued().unwrap().len(), usize::from(legacy));
+    if legacy {
+        assert_eq!(d.queued().unwrap()[0].receipt_store.as_ref().unwrap().id.as_deref(), Some("old"));
+        assert_eq!(d.meta("write-history").unwrap(), None, "legacy evidence cannot manufacture success");
+    }
     let mut third = replacement; third.store_id = Some("third".into());
     assert!(d.observe_store(&third).unwrap().retired.is_empty());
 }

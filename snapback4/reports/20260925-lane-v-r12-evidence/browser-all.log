@@ -1,0 +1,98 @@
+(node:3348954) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1396.248439ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (1233.861019ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (2087.26805ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2591.656484ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1494.183717ms)
+  ✔ a hide during the startup probe waits for its refused decision (1661.698181ms)
+  ✔ a hide during the startup probe waits for its restore decision (1503.63459ms)
+  ✔ a hide during the startup probe waits for its replacement decision (2070.210996ms)
+  ✖ a hide during the startup probe waits for its observed-replacement decision (3044.255332ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (2996.407449ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (3023.274089ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (3066.945277ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (2898.808323ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (3026.795281ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (3223.617631ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (3124.828999ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (3133.583408ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (3240.391383ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (3119.448834ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (2702.752316ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (1124.925173ms)
+  ✔ a successful reconnect enables exit after startup 503s (1634.800524ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5583.061773ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5500.528892ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (5730.330455ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (6470.746449ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1520.576958ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (1723.369706ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (1623.703816ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1754.180013ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (1731.336445ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1989.757187ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1754.58349ms)
+  ✔ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (1451.499867ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (1733.389684ms)
+  ✔ a legacy refused observation with no history remains pending until same-id replay (2891.45117ms)
+  ✔ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (998.27558ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (7620.897757ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (2369.64851ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (5911.401243ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (5898.696663ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (7013.569206ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (6560.444154ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6666.962522ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6745.096708ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6236.543368ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6309.888447ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1809.941633ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1976.891697ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6444.216689ms)
+  ✔ same-epoch logout tombstone refuses live admission (908.744277ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (921.476326ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (859.676033ms)
+✖ web admission review: recovery and transport respect the session boundary (171515.540595ms)
+ℹ {"mode":"held-sync","id":"01M3D5Z6BXD3WR4MS1BMXD8K04","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3D5Z7H0A81GBMDJ0NGXAPPT","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3D5ZCE2HGTDYQERJGGA84RP","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3D5ZE039Q4XERF0623AMCBA","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3D5ZFGW48PK54GTX3N8KA2A","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3D5ZH2PTGTFJB3F28ARFY1F","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3D635K0BDH1B9PPF5K8H1XG","originalStore":"5469f790db4100d4ff94840234f05ca4","refusal":"E_STORE_REPLACED","auditA":16,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3D63C4JZ1AH5DMQS23YKH0V","originalStore":"5469f790db4100d4ff94840234f05ca4","refusal":"E_STORE_REPLACED","auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D63JMS82SACHJXEJCJ96AV","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D63RSZ9HZH2FDDSQVYRT0B","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D63YZ3RWGQ26JSSDQY6AA8","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D640TN5KV2453B8D2XX98J","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ tests 54
+ℹ suites 0
+ℹ pass 52
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171623.380844
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a hide during the startup probe waits for its observed-replacement decision (3044.255332ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'pending' !== 'sent'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:410:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:380:97)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'pending',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

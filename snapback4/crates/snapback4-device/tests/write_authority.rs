@@ -31,6 +31,43 @@ mutation putId(target: counters):
 "#;
 
 #[test]
+fn an_old_page_cannot_qualify_a_refused_ops_record_as_success() {
+    fn run<H: Host>(host: &mut H) {
+        let source = SOURCE.replace("mutation edit(key: text <=30):", "mutation edit(key: text <=30):\n  require false else NOT_ADMIN");
+        let (mut engine, backend) = compile(&source);
+        let mut device = host.open("old-refusal-page", Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut engine, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        let entry: Queued = serde_json::from_value(json!({"id":"refused","seq":1,"op":"edit","args":{"key":"lookup"},"viewer":"bob","now":1000,
+            "new_ids":[],"predicted":[],"predictable":false})).unwrap();
+        device.enqueue(&entry).unwrap();
+        let refusal = engine.mutate("edit", Some("refused"), context("bob", &[("key", Value::String("lookup".into()))])).unwrap().receipt(Some("refused"));
+        assert_eq!(refusal["why"]["code"], "NOT_ADMIN");
+        let seq = engine.store().conn().query_row("SELECT seq FROM _ops WHERE principal = 'bob' AND id = 'refused'", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+        // Older servers included refused decisions in acknowledged and omitted
+        // sent entirely. Exercise apply, not an already-stamped queue fixture.
+        let page = serde_json::from_value(json!({"snapshot":false,"generation":device.backend().generation,"events":[],
+            "watermark":seq,"more":false,"acknowledged":{"refused":seq}})).unwrap();
+        device.apply(&page, false).unwrap();
+        let kept = &device.queued().unwrap()[0];
+        assert_eq!(kept.observed_seq, Some(seq));
+        assert_eq!(kept.receipt_store.as_ref().and_then(|r| r.success_seq), None, "a decision without its outcome is not success");
+        host.close("old-refusal-page", device);
+        let mut device = host.open("old-refusal-page", None).unwrap();
+        assert_eq!(device.queued().unwrap()[0].receipt_store.as_ref().and_then(|r| r.success_seq), None);
+        let replay = engine.mutate("edit", Some("refused"), context("bob", &[("key", Value::String("lookup".into()))])).unwrap().reply(Some("refused"));
+        assert_eq!(replay["replayed"], true); assert_eq!(replay["why"]["code"], "NOT_ADMIN");
+        device.keep_write(&replay.to_string()).unwrap(); device.settle("refused", None).unwrap();
+        host.close("old-refusal-page", device);
+        let mut device = host.open("old-refusal-page", None).unwrap();
+        assert!(device.queued().unwrap().is_empty());
+        assert_eq!(serde_json::from_str::<Json>(&device.meta("write-history").unwrap().unwrap()).unwrap()[0]["why"]["code"], "NOT_ADMIN");
+        host.close("old-refusal-page", device);
+    }
+    run(&mut Memory::new());
+    run(&mut Sqlite::new("old-refusal-page"));
+}
+
+#[test]
 fn only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal() {
     fn run<H: Host>(host: &mut H) {
         for code in ["E_STORE_REPLACED", "NOT_ADMIN"] {
@@ -48,7 +85,7 @@ fn only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal() {
                     new_ids: vec![], predicted: vec![], predictable: false, sent_seq: None, receipt_store: None, observed_seq: None };
                 device.admit(entry).unwrap();
                 if observed {
-                    let page = serde_json::from_value(json!({"snapshot":false,"generation":device.backend().generation,"events":[],"watermark":7,"more":false,"acknowledged":{"write":7}})).unwrap();
+                    let page = serde_json::from_value(json!({"snapshot":false,"generation":device.backend().generation,"events":[],"watermark":7,"more":false,"acknowledged":{"write":7},"sent":{"write":7}})).unwrap();
                     device.apply(&page, false).unwrap();
                 } else { device.settle("write", Some(7)).unwrap(); }
                 // The candidate sequence must match custody, not just its id.
@@ -66,6 +103,47 @@ fn only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal() {
     }
     run(&mut Memory::new());
     run(&mut Sqlite::new("acknowledgement-receipts"));
+}
+
+#[test]
+fn legacy_receipts_require_the_original_store_outcome_before_replacing_unknown_failure() {
+    fn run<H: Host>(host: &mut H) {
+        for code in ["E_STORE_REPLACED", "NOT_ADMIN", "NOT_FOUND", "CONFLICT"] {
+            for observed in [false, true] {
+                for success in [false, true] {
+                    let (_, backend) = compile(SOURCE);
+                    let name = format!("legacy-{code}-{observed}-{success}");
+                    let mut device = host.open(&name, Some(backend)).unwrap();
+                    let failed = json!({"state":"failed","id":"write","why":{"code":code}});
+                    device.keep_write(&failed.to_string()).unwrap();
+                    let mut entry: Queued = serde_json::from_value(json!({"id":"write","seq":1,"op":"edit","args":{"key":"lookup"},"viewer":"bob","now":1000,"new_ids":[],"predicted":[],"predictable":false,"receipt_store":{"id":"original"}})).unwrap();
+                    if observed { entry.observed_seq = Some(7); } else { entry.sent_seq = Some(7); }
+                    device.enqueue(&entry).unwrap();
+                    let outcome = if success { json!({"state":"sent","id":"write","seq":7,"replayed":true}) }
+                        else { json!({"state":"failed","id":"write","why":{"code":"NOT_ADMIN"}}) };
+                    let history = |device: &snapback4_device::device::Device<H::Store>| serde_json::from_str::<Json>(&device.meta("write-history").unwrap().unwrap()).unwrap();
+                    for proof in [None, Some("replacement")] {
+                        let mut candidate = outcome.clone();
+                        if let Some(proof) = proof { candidate["revalidated_store"] = json!(proof); }
+                        device.keep_write(&candidate.to_string()).unwrap();
+                        assert_eq!(history(&device), json!([failed]), "a legacy sequence or another store cannot resolve history");
+                    }
+                    let mut replay = outcome.clone(); replay["revalidated_store"] = json!("original");
+                    device.keep_write(&json!([replay]).to_string()).unwrap();
+                    assert_eq!(history(&device), json!([failed]), "adopted history cannot attest a fresh replay");
+                    device.keep_write(&replay.to_string()).unwrap();
+                    let expected = if code == "E_STORE_REPLACED" { outcome } else { failed };
+                    assert_eq!(history(&device), json!([expected]), "only the unknown replacement outcome may change; proof stays internal");
+                    host.close(&name, device);
+                    let device = host.open(&name, None).unwrap();
+                    assert_eq!(history(&device), json!([expected]));
+                    host.close(&name, device);
+                }
+            }
+        }
+    }
+    run(&mut Memory::new());
+    run(&mut Sqlite::new("legacy-revalidated-outcomes"));
 }
 
 #[test]

@@ -1,0 +1,58 @@
+(node:736530) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✖ adoption during lookup recomputes legacy custody (absent local history) (1344.978233ms)
+  ✖ adoption during lookup recomputes legacy custody (replacement local history) (1442.099324ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (3528.729435ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3631.346105
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ adoption during lookup recomputes legacy custody (absent local history) (1344.978233ms)
+  AssertionError [ERR_ASSERTION]: the first lookup must recompute after adoption
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:400:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:370:52)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:117:74
+✖ adoption during lookup recomputes legacy custody (replacement local history) (1442.099324ms)
+  AssertionError [ERR_ASSERTION]: the first lookup must recompute after adoption
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:400:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:370:52)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
