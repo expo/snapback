@@ -59495,3 +59495,17 @@ contradict its own. Unconditional sites contradict nothing. New tests cover a
 status-wide scan, an orthogonal input, a coarser variant beside a finer
 growing site, and an unconditional expiring scan that makes otherwise
 constant variants a backlog.
+
+## 2026-09-26 — Scale certificate round 4: conditions are bindings, not spellings
+
+Astra's review of round 3 found conditions matched by the name the author
+wrote. A helper's `assignee` parameter, called with the query's `a`, looked
+like the query's own `assignee`, so a variant promised cleanup while the
+helper's scan grew. And `selected = assignee` was treated as independent of
+`assignee`. Conditions now carry the binding they test. A binding that only
+copies another, and neither is ever reassigned, tests its source. Variants
+merge by those bindings, and each reads under the name of the binding it
+finally tests: the helper's parameter reads as `a`, and a copy of `status`
+as `status`. A reassigned copy stays its own binding. New tests cover the
+helper, the helper in a loop, the alias, a reassigned copy, two bindings
+that share a spelling, and conditional cleanup beside constant variants.

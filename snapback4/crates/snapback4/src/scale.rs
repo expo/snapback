@@ -92,6 +92,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
+        identities: Vec::new(), aliases: BTreeMap::new(), reassigned: reassigned(program),
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
@@ -151,18 +152,50 @@ struct Analysis<'a> {
     data: BTreeMap<String, bool>,
     labels: BTreeMap<String, String>,
     in_filter: bool,
+    /// The presence conditions in force, as the author names them (for `when`)
+    /// and as binding identities (for matching sites to variants).
     conditions: Vec<(String, bool)>,
+    identities: Vec<(String, bool)>,
+    /// Bindings that only copy another binding, neither ever reassigned.
+    aliases: BTreeMap<String, String>,
+    reassigned: BTreeSet<String>,
     has_variants: bool,
 }
 
+/// Every binding the program reassigns anywhere, statement bodies and expression
+/// blocks included: such a binding is never an alias.
+fn reassigned(program: &Program) -> BTreeSet<String> {
+    fn walk(value: &serde_json::Value, out: &mut BTreeSet<String>) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                if let Some(serde_json::Value::Object(assign)) = fields.get("Assign")
+                    && let Some(serde_json::Value::String(name)) = assign.get("name") { out.insert(name.clone()); }
+                for field in fields.values() { walk(field, out); }
+            }
+            serde_json::Value::Array(items) => { for item in items { walk(item, out); } }
+            _ => {}
+        }
+    }
+    let mut out = BTreeSet::new();
+    walk(&serde_json::to_value(&program.body).unwrap_or_default(), &mut out);
+    out
+}
+
 impl Analysis<'_> {
+    /// The binding a presence test finally reads, through any aliases.
+    fn identity(&self, name: &str) -> String {
+        let mut name = name.to_owned();
+        while let Some(next) = self.aliases.get(&name) { name = next.clone(); }
+        name
+    }
+
     fn scan_domain(&self, scan: &Scan) -> String {
         self.source.and_then(|p| p.domain_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::domain(self.schema, scan))
     }
 
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
         self.variant(Class::Grows, None);
-        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.conditions.clone() };
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
@@ -170,14 +203,17 @@ impl Analysis<'_> {
     /// backlog lasts, and absent once cleanup catches up.
     fn backlog(&mut self, site: &str, reason: String, rewrite: &str) {
         self.variant(Class::Backlog, None);
-        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.conditions.clone() };
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
     fn variant(&mut self, class: Class, index: Option<String>) {
         let Some(when) = display::conditions(&self.conditions) else { return; };
-        let at = self.result.variants.iter().position(|v| v.when == when).unwrap_or_else(|| {
-            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new(), conditions: self.conditions.clone() });
+        // One variant per combination of bindings, not per spelling: a helper's
+        // parameter and a query argument can share a name.
+        let same = |conditions: &[(String, bool)]| conditions.len() == self.identities.len() && conditions.iter().all(|c| self.identities.contains(c));
+        let at = self.result.variants.iter().position(|v| same(&v.conditions)).unwrap_or_else(|| {
+            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new(), conditions: self.identities.clone() });
             self.result.variants.len() - 1
         });
         let variant = &mut self.result.variants[at];
@@ -214,6 +250,12 @@ impl Analysis<'_> {
                     if name.starts_with("$intentNeedle") {
                         self.labels.insert(name.clone(), display::expr(value));
                     }
+                    // A binding that only copies another tests the same presence.
+                    if let Expr::Variable(source) = value && !matches!(stmt, Stmt::Assign { .. })
+                        && !self.reassigned.contains(name) && !self.reassigned.contains(source) {
+                        let root = self.identity(source);
+                        self.aliases.insert(name.clone(), root);
+                    }
                     let data = self.expr(value, times);
                     // Union assignments across branches and loop iterations;
                     // never clear a possible dependency on another path.
@@ -234,11 +276,17 @@ impl Analysis<'_> {
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
                     let presence = display::presence(condition, &self.labels).filter(|_| self.has_variants);
-                    if let Some((name, present)) = &presence { self.conditions.push((name.clone(), *present)); }
+                    if let Some((identity, name, present)) = &presence {
+                        // Name a binding by the one it copies, so a helper's parameter reads as the argument.
+                        let identity = self.identity(identity);
+                        let name = if identity.starts_with("search ") { name.clone() } else { display::author_name(&identity) };
+                        self.conditions.push((name, *present));
+                        self.identities.push((identity, *present));
+                    }
                     self.body(then_body, times);
-                    if presence.is_some() { self.conditions.last_mut().unwrap().1 ^= true; }
+                    if presence.is_some() { self.conditions.last_mut().unwrap().1 ^= true; self.identities.last_mut().unwrap().1 ^= true; }
                     self.body(else_body, times);
-                    if presence.is_some() { self.conditions.pop(); }
+                    if presence.is_some() { self.conditions.pop(); self.identities.pop(); }
                 }
                 Stmt::Require { condition, .. } => { self.expr(condition, times); }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }

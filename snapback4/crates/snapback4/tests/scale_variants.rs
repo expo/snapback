@@ -26,7 +26,8 @@ fn certificates_classify_each_presence_choice_and_name_residual_probes() {
     assert!(search.variants.iter().any(|v| v.when == "search q is absent" && v.class == Class::Constant));
     assert!(search.line().contains("when search q is present: grows with matching words"), "{}", search.line());
     let local = certificate("local");
-    assert!(local.line().contains("when selected is absent: constant"), "{}", local.line());
+    // `selected` copies `status`, so its condition reads as the argument a caller passes.
+    assert!(local.line().contains("when status is absent: constant"), "{}", local.line());
 }
 
 #[test]
@@ -113,4 +114,70 @@ fn unconditional_cleanup_makes_otherwise_constant_variants_a_backlog() {
     assert_eq!(c.variants.iter().filter(|v| v.class == Class::Backlog).count(), 2, "{:?}", c.variants);
     assert!(json["variants"].as_array().unwrap().iter().filter(|v| v["class"] == "backlog").count() == 2, "{json}");
     assert!(!c.line().contains(": constant"), "{}", c.line());
+}
+
+const EXPIRING: &str = "table t:\n  assignee: principal\n  at: time\n  until: time\n  expire at .until\n  read <- .assignee = viewer\n";
+
+fn certificate(source: &str) -> scale::Certificate {
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let program = &b.programs.iter().find(|p| p.program.name == "q").unwrap().program;
+    analyze(&b.schema, program)
+}
+
+#[test]
+fn a_helper_parameter_is_its_own_condition_whatever_its_name() {
+    // The helper's `assignee` is the query's `a`, not the query's `assignee`: with `a` absent and
+    // `assignee` present, the helper's scan grows by its read rule.
+    let source = format!("{EXPIRING}fn page(assignee: principal ?):\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\nquery q(a: principal ?, assignee: principal ?):\n  extra = page(a)\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
+    let c = certificate(&source);
+    assert!(c.variants.iter().filter(|v| v.when.contains("present")).all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    assert!(!c.line().contains("constant once background cleanup catches up"), "{}", c.line());
+    let json = serde_json::to_value(&c).unwrap();
+    assert!(json["variants"].as_array().unwrap().iter().all(|v| v["class"] == "grows"), "{json}");
+    // The same helper called in a loop over the argument and null.
+    let looped = format!("{EXPIRING}fn page(assignee: principal ?):\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\nquery q(assignee: principal ?):\n  for who in [assignee, null]:\n    extra = page(who)\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
+    let c = certificate(&looped);
+    assert!(c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    // The helper's parameter reads as the argument it copies.
+    let c = certificate(&source);
+    assert!(c.variants.iter().any(|v| v.when == "a is present") && c.variants.iter().any(|v| v.when == "assignee is present"), "{:?}", c.variants);
+    // Bound to an expression, the parameter keeps its own identity though it shares the
+    // argument's name: two bindings, two variants each, never merged by their spelling.
+    let valued = format!("{EXPIRING}fn page(assignee: principal ?):\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\nquery q(a: principal ?, assignee: principal ?):\n  extra = page(a ?? assignee)\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
+    let c = certificate(&valued);
+    assert_eq!(c.variants.iter().filter(|v| v.when == "assignee is present").count(), 2, "{:?}", c.variants);
+}
+
+#[test]
+fn a_reassigned_copy_is_not_an_alias() {
+    // `selected` starts as `assignee` but is cleared when the assignee is present, so with the
+    // assignee present the scan over `selected` is unpinned and grows.
+    let source = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  if assignee != null:\n    selected = null\n  extra = t where (selected = null or .assignee = selected) first 2 by .at\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
+    let c = certificate(&source);
+    let present: Vec<_> = c.variants.iter().filter(|v| v.when == "assignee is present").collect();
+    assert!(!present.is_empty() && present.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+}
+
+#[test]
+fn an_alias_tests_the_same_presence_as_its_source() {
+    // `selected` is `assignee`: with `assignee` present, `selected` cannot be absent, so both
+    // pinned scans are a cleanup backlog, not growth.
+    let source = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  extra = t where (selected = null or .assignee = selected) first 2 by .at\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
+    let c = certificate(&source);
+    let present: Vec<_> = c.variants.iter().filter(|v| v.when.contains("present")).collect();
+    assert!(!present.is_empty() && present.iter().all(|v| v.class == Class::Backlog), "{:?}", c.variants);
+}
+
+#[test]
+fn conditional_cleanup_beside_constant_variants_makes_them_a_backlog() {
+    // Both branches of the optional-label scan skip unswept expired rows; beside it the public,
+    // non-expiring optional-assignee scan is constant either way.
+    let source = "table e:\n  tag: text <=20\n  at: time\n  until: time\n  expire at .until\n  public\n  online only\ntable p:\n  assignee: principal\n  at: time\n  public\n  online only\nquery q(label: text <=20 ?, assignee: principal ?):\n  early = e where (label = null or .tag = label) first 2 by .at\n  return p where (assignee = null or .assignee = assignee) first 2 by .at\n";
+    let c = certificate(source);
+    assert_eq!(c.class, Class::Backlog, "{}", c.line());
+    assert!(c.variants.iter().all(|v| v.class == Class::Backlog), "{:?}", c.variants);
+    let json = serde_json::to_value(&c).unwrap();
+    assert!(json["variants"].as_array().unwrap().iter().all(|v| v["class"] == "backlog"), "{json}");
+    assert!(!c.line().contains("assignee is present: constant") && !c.line().contains("assignee is absent: constant"), "{}", c.line());
 }
