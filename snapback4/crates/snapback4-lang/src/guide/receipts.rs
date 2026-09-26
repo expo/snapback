@@ -74,7 +74,7 @@ query history(conversation: conversations, c: cursor ?):
   return messages where .conversation = conversation last 20 by .ordinal after c { *, receipt: receipt(.) }
 
 query membership(conversation: conversations):
-  return members[conversation, viewer]
+  return members[conversation, viewer] { *, runs: count(runs[conversation = conversation, principal = viewer]) }
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
@@ -147,10 +147,12 @@ The client reports each unbroken run of fetched, settled messages with
 `delivered`, and walks older pages toward its prefix. The mutation merges a run
 with every run it meets, and folds it into the prefix when it reaches it. So a
 receipt never claims a message the client did not fetch and never moves back,
-and every window a member fetched is delivered at once, however many gaps lie
-between. A member keeps at most 16 runs: a seventeenth waits, unrecorded, and
-the hook reports it again when the member's prefix moves. So no member's runs
-crowd out another's: a conversation holds at most 50 members' 16. `seen` records
+and every window a member fetched is delivered as soon as it fits, however many
+gaps lie between. A member keeps at most 16 runs. A seventeenth waits,
+unrecorded, and the hook reports every fetched run again whenever the member's
+prefix or run count moves; the messages the device fetched are the record of
+what to report. No member's runs crowd out another's: a conversation holds at
+most 50 members' 16. `seen` records
 the newest message on screen, online or offline, gap or not. A message is
 `read` for a recipient once it is fetched and `seen` reaches it. Both are the
 member's own report, bounded by the last message. Each message costs one scan
@@ -158,8 +160,9 @@ of at most 50 member rows, and a run lookup for each member not yet past it;
 `check --cost` prints the certificate.
 
 Run the hook for a conversation in the background (`visible: false`) as well as
-on screen, so `delivered` follows fetching. While it walks older pages it
-reports each longer run, one small write per page. Both mutations predict and
+on screen, so `delivered` follows fetching. It reports each unbroken run of
+settled messages above the prefix, again as a run grows during the walk, and a
+run the member already holds writes nothing. Both mutations predict and
 queue offline. A predicted row carries `pending: true` and its ordinal is not
 yet the server's, so it is never acknowledged:
 
@@ -172,19 +175,25 @@ function useReceipts(conversation: string, visible: boolean) {
   const page = usePage(api.history, { conversation });
   const me = useQuery(api.membership, { conversation });
   const mine = "data" in me ? me.data : null;
-  const settled = new Set(page.items.filter(m => !m.pending).map(m => m.ordinal));
-  const newest = settled.size ? Math.max(...settled) : null;
-  // The newest unbroken run of fetched messages: low through newest.
-  let low = newest;
-  while (low !== null && settled.has(low - 1)) low--;
-  // Walk older pages until the run meets the delivered prefix (from the join).
+  const settled = [...new Set(page.items.filter(m => !m.pending).map(m => m.ordinal))].sort((a, b) => a - b);
+  const newest = settled.length ? settled[settled.length - 1] : null;
+  // The unbroken runs of fetched messages above the delivered prefix (from the join).
   const prefix = mine && Math.max(mine.deliveredOrdinal, mine.joinedOrdinal);
-  const short = prefix !== null && low !== null && low > prefix + 1;
+  const runs: [number, number][] = [];
+  for (const ordinal of settled) {
+    if (prefix === null || ordinal <= prefix) continue;
+    const last = runs[runs.length - 1];
+    if (last && ordinal === last[1] + 1) last[1] = ordinal; else runs.push([ordinal, ordinal]);
+  }
+  // Walk older pages until the lowest run meets the prefix.
+  const short = runs.length > 0 && prefix !== null && runs[0][0] > prefix + 1;
   useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
-  // Report the run; the mutation merges it into the prefix or the member's runs.
+  // Report every run; one the member cannot hold yet is sent again when its prefix or run count moves.
+  const report = runs.map(([from, through]) => `${from}-${through}`).join(",");
+  const held = mine?.runs;
   useEffect(() => {
-    if (prefix !== null && low !== null && newest !== null && newest > prefix) void client.mutate(api.delivered, { conversation, from: low, through: newest });
-  }, [client, conversation, prefix, low, newest]);
+    for (const [from, through] of runs) void client.mutate(api.delivered, { conversation, from, through });
+  }, [client, conversation, report, prefix, held]); // eslint-disable-line react-hooks/exhaustive-deps
   // A view needs no watermark first: seen only moves forward.
   const shown = mine && Math.max(mine.seenOrdinal, mine.joinedOrdinal);
   useEffect(() => {

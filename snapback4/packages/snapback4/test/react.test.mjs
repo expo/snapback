@@ -250,7 +250,7 @@ const cases = {
     const joined = receiptsClient(new Map([[null, ready([{ ordinal: 104, pending: true }, ...ordinals(103, 85)], "older")], ["older", { loading: true }]]),
       ready({ joinedOrdinal: 100, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: true }), joined);
-    equal(acked(joined), ["delivered:85-103", "seen:103"], "a new member's run meets the join, and never includes a pending row");
+    equal(acked(joined), ["delivered:101-103", "seen:103"], "a new member's run starts after the join, and never includes a pending row");
     check(active(joined).filter(record => "c" in record.args).length === 1, "no page older than the join is loaded");
     await unmount();
     // Offline past the synced window: a stale page, then an incomplete one.
@@ -297,12 +297,29 @@ const cases = {
     equal(acked(beyond), ["delivered:401-500"], "a member with a prefix at 100 reports a run above the gap after it");
     await unmount();
     const waiting = receiptsClient(new Map([[null, ready(ordinals(80, 61), "p2")], ["p2", { loading: true }]]),
-      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0, runs: 16 }));
     await mount(h(Receipts, { visible: false }), waiting);
     const member = active(waiting).find(record => !("c" in record.args));
-    const before = waiting.acks.length;
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 40, seenOrdinal: 0 })));
-    check(waiting.acks.length === before + 1 && waiting.acks.at(-1) === "delivered:61-80", "a run that waited is sent again when the prefix moves: " + JSON.stringify(waiting.acks));
+    let before = waiting.acks.length;
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0, runs: 15 })));
+    check(waiting.acks.length === before + 1 && waiting.acks.at(-1) === "delivered:61-80", "a run that waited is sent again when the member's runs free room: " + JSON.stringify(waiting.acks));
+    before = waiting.acks.length;
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, seenOrdinal: 0, runs: 15 })));
+    check(waiting.acks.length === before + 1 && waiting.acks.at(-1) === "delivered:61-80", "and when the prefix reaches it: " + JSON.stringify(waiting.acks));
+    await unmount();
+    // Two fetched windows with a gap between (a device's two separate returns): both are reported.
+    const two = receiptsClient(new Map([[null, ready([...ordinals(100, 91), ...ordinals(80, 61)], "p2")], ["p2", { loading: true }]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), two);
+    equal(acked(two), ["delivered:61-80", "delivered:91-100"], "every fetched run is reported, not just the newest");
+    await unmount();
+    // A message arriving on a caught-up page is reported.
+    const live = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), ready({ joinedOrdinal: 0, deliveredOrdinal: 20, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), live);
+    equal(live.acks, [], "a caught-up page reports nothing");
+    const first = active(live).find(record => "c" in record.args);
+    await act(async () => first.set(ready(ordinals(21, 2))));
+    equal(acked(live), ["delivered:21-21"], "an arriving message is reported");
     await unmount();
   },
   async "the receipts card records a view before its membership arrives"() {

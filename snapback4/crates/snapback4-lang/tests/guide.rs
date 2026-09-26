@@ -373,13 +373,17 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("delivered", None, at("bob", 5_510, &run(long(), 512, 544))).unwrap());
     sent(&engine.mutate("delivered", None, at("bob", 5_520, &run(long(), 545, 545))).unwrap());
     assert_eq!(states(&everything(&mut engine), 512, 545), ["delivered"].into(), "the waiting run, sent again once room frees, is delivered");
-    // Leaving drops a member's runs, so a rejoin starts clean.
-    sent(&engine.mutate("leave", None, at("bob", 5_600, &[long()])).unwrap());
-    sent(&engine.mutate("add", None, at("alice", 5_610, &[long(), ("principal", id("bob"))]).with_ids(["lb2".into()])).unwrap());
-    for n in 547..=550 { post(&mut engine, n); }
-    sent(&engine.mutate("delivered", None, at("bob", 5_620, &run(long(), 549, 550))).unwrap());
+    // Leaving with 16 runs drops them, so a rejoin can start a run of its own.
+    for n in 547..=590 { post(&mut engine, n); }
+    for (k, n) in (552..=582).step_by(2).enumerate() { sent(&engine.mutate("delivered", None, at("bob", 5_600 + k as i64, &run(long(), n, n))).unwrap()); }
+    let row = engine.query("membership", at("bob", 5_650, &[long()])).unwrap().data;
+    assert_eq!(row.field("runs").ok(), Some(&Value::Int(16)), "membership counts the member's runs: {row:?}");
+    sent(&engine.mutate("leave", None, at("bob", 5_660, &[long()])).unwrap());
+    sent(&engine.mutate("add", None, at("alice", 5_670, &[long(), ("principal", id("bob"))]).with_ids(["lb2".into()])).unwrap());
+    for n in 591..=595 { post(&mut engine, n); }
+    sent(&engine.mutate("delivered", None, at("bob", 5_680, &run(long(), 593, 595))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 547, 548), states(&all, 549, 550)), (["sent"].into(), ["delivered"].into()), "a rejoined member starts a run of their own");
+    assert_eq!((states(&all, 591, 592), states(&all, 593, 595)), (["sent"].into(), ["delivered"].into()), "a rejoined member starts a run of their own");
     // Overlapping runs merge into one: a later, wider run swallows an earlier one.
     let lap = || ("conversation", id("lap"));
     for n in 1..=30 {
