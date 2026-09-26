@@ -465,7 +465,7 @@ pub fn run(options: &Options) -> i32 {
         Ok(owner) => owner,
         Err(error) => { eprintln!("{error}"); return 2; }
     };
-    let mut engine = match run_admission::open(&project, &bound, &source, op, now) {
+    let mut engine = match run_admission::open(&project, &_owner, &bound, &source, op, now) {
         Ok(engine) => engine,
         Err(error) => {
             eprintln!("cannot open the store: {error}");
@@ -858,7 +858,11 @@ pub fn test(options: &Options) -> i32 {
             Err(error) => { eprintln!("{error}"); return 1; }
         }
     };
-    let mut engine = match test_fixture::engine(&project, &bound, options) {
+    let opened = match &_owner {
+        Some(owner) => owner.open_engine(&bound, std::time::Duration::from_secs(5), snapback4_core::now_ms()).map_err(|e| e.to_string()),
+        None => test_fixture::engine(&project, &bound, options),
+    };
+    let mut engine = match opened {
         Ok(engine) => engine,
         Err(error) => { eprintln!("{error}"); return 1; }
     };
@@ -984,21 +988,16 @@ pub fn token(options: &Options) -> i32 {
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
     let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
         .unwrap_or_else(|| project_or_exit().store_path());
+    if !options.flags.contains_key("release") && !path.is_file() {
+        eprintln!("cannot open the store: no store at {}; run `snapback4 dev` first", path.display());
+        return 2;
+    }
     let _owner = match crate::store_owner::command(&path) {
         Ok(owner) => owner,
         Err(error) => { eprintln!("{error}"); return 2; }
     };
-    let (store_path, store) = match options.flags.get("release") {
-        Some(dir) => {
-            let path = Path::new(dir).join("store.sqlite");
-            let store = snapback4_core::Store::open(&path);
-            (path, store)
-        }
-        None => {
-            let project = project_or_exit();
-            (project.store_path(), project.open_store())
-        }
-    };
+    let store_path = &path;
+    let store = _owner.open_store(std::time::Duration::from_secs(5));
     let store = match store {
         Ok(store) => store,
         Err(error) => {
@@ -1041,7 +1040,14 @@ pub fn device(options: &Options) -> i32 {
         },
         None => snapback4_device::opening::Opening::Kept,
     };
-    let mut device = match snapback4_device::native::Device::open_with(Path::new(path), backend) {
+    // Shared device ownership preserves multiple native-process handles while
+    // excluding backend hosts and offline commands before any store writes.
+    let owner = match crate::store_owner::device(Path::new(path)) {
+        Ok(owner) => owner,
+        Err(error) => { eprintln!("{error}"); return 2; }
+    };
+    let opened = owner.path().and_then(|path| snapback4_device::native::Device::open_with(path, backend));
+    let mut device = match opened {
         Ok(device) => device,
         Err(error) => {
             println!("{}", json!({ "denied": error.refusal() }));

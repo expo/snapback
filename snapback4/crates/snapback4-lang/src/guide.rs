@@ -241,8 +241,9 @@ If the device host fails during this read, E_STORE at client.residency names
 the failure; restart the device host and reopen the client before retrying.
 
 Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
-fixture, `token`, `deploy`, `rollback`) take the host's lifetime lock. A live
-host causes E_STORE_BUSY before work, naming its address. Stop it, run the
+fixture, `token`, `deploy`, `rollback`) lock the database file for their lifetime.
+Device processes share ownership with each other and exclude backend writers.
+A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the
 command once, then restart it. Another CLI writer also refuses; wait for it.
 The HTTP /seed development door already runs through the host. `check`, `data`,
 `sql`, `doctor` and fixture tests remain usable beside it."##,

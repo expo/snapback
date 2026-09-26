@@ -263,7 +263,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STEP_PARKED", "E_STEP_PARKED means an external outcome is uncertain and the invocation needs reconciliation."),
     ("E_STEP_RESULT", "E_STEP_RESULT means the external step returned invalid or oversized JSON, or settlement conflicts with its recorded outcome."),
     ("E_STEP_UNKNOWN", "E_STEP_UNKNOWN means settlement or parking named a step that was never begun in this invocation."),
-    ("E_STORE_BUSY", "E_STORE_BUSY at serve.lock means a live host or another CLI owns this store."),
+    ("E_STORE_BUSY", "E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database."),
     ("E_STORE", "E_STORE means the database operation failed, such as a SQLite writer lock held by another process."),
     ("E_STORE_REPLACED", "The online client permanently denies reads and fails queued and in-flight writes on an identity change (`E_STORE_REPLACED`)"),
     ("E_STORE_RESTORE", "The client adopts `/schema` only when that watermark is a finite, nonnegative integer at or above its retained image-head evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing or invalid head is a retryable failure that neither adopts nor clears the evidence."),

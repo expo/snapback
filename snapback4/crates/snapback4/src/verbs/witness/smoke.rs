@@ -114,7 +114,7 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
     // @ref LLP 3000.019#3.4 — a restart witness writes only while the backend store is unowned.
     let _owner = crate::store_owner::command(path).map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let append = || -> std::result::Result<u64, snapback4_core::RuntimeError> {
-        let mut store = snapback4_core::Store::open(path)?;
+        let mut store = _owner.open_store(std::time::Duration::from_secs(5))?;
         if store.meta("store_id")?.as_deref() != Some(store_id) || store.seq()? < prime {
             return Err(snapback4_core::RuntimeError::Store("smoke backend identity/watermark changed since prime".into()));
         }

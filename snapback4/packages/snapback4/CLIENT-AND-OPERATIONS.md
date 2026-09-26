@@ -1650,10 +1650,13 @@ step.
   [--json]`** runs one operation against the local store (defaults to `dev:alice`; declared personas get the
   `dev:` prefix and other principal ids are used verbatim) and prints the result, the meter and, for a
   mutation, the partition events; a job runs whole as the system (`--as` is ignored) and prints its run.
-  Before opening SQLite, it takes the host's lifetime lock. A live dev/serve host or another CLI writer
+  Before opening SQLite, it locks the database file for its lifetime. A live dev/serve host or another CLI writer
   refuses `E_STORE_BUSY` with the store site and server address. Stop the host, run once, then restart it.
   The same rule covers `token`, `test` without a fixture, `deploy` and `rollback`; HTTP `/seed` already
-  runs through the dev host. Read-only inspection and fixture tests remain available beside the server.
+  runs through the dev host. Device processes share compatible ownership with each other, but refuse
+  a backend owner and exclude backend writers. `serve.lock` holds only an address hint; removing it
+  never releases ownership. SQLite opens and retries use the acquired canonical database path.
+  Read-only inspection and fixture tests remain available beside the server.
   `data` opens a read-only snapshot without writable store initialization. The native smoke driver's
   stopped-backend restart marker also takes the lifetime lock before advancing the commit clock.
   Without a competing lifetime owner, opening/adoption retries SQLite BUSY/LOCKED for up to 15 seconds,

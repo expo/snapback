@@ -176,7 +176,7 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
             let out = p.run(&args);
             let error = String::from_utf8(out.stderr).unwrap();
             assert!(!out.status.success(), "{args:?}");
-            assert!(error.contains("E_STORE_BUSY") && error.contains(&address) && error.contains("serve.lock") && error.contains("rerun"), "{error}");
+            assert!(error.contains("E_STORE_BUSY") && error.contains(&address) && error.contains("store.sqlite") && error.contains("rerun"), "{error}");
             assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
         }
         assert_eq!(p.jobs(), 0); assert_eq!(p.generation(), generation);
@@ -289,11 +289,11 @@ fn release_token_owns_the_resolved_database_before_sqlite_open() {
     let lock = database.parent().unwrap().join("serve.lock");
     wait(|| {
         assert!(token.child.try_wait().unwrap().is_none(), "{}", token.logs());
-        fs::File::open(&lock).is_ok_and(|file| matches!(file.try_lock(), Err(std::fs::TryLockError::WouldBlock)))
+        fs::metadata(&lock).is_ok_and(|metadata| metadata.len() == 0)
     });
     let b = b.to_str().unwrap();
     for args in [vec!["token", "--release", b, "--service", "other"], vec!["serve", b, "--port", "0"], vec!["deploy", b], vec!["rollback", b]] {
-        assert_owner_refusal(&p, &args, "owning CLI command");
+        assert_owner_refusal(&p, &args, "owned by another CLI command or a server starting up (address pending);");
     }
     conn.execute_batch("ROLLBACK").unwrap();
     assert!(token.finish().0.success(), "{}", token.logs());
@@ -357,3 +357,7 @@ fn unavailable_cli_body_remains_incomplete_for_exit_zero_consumers() {
     assert!(reply.get("data").is_some_and(serde_json::Value::is_null));
     assert_eq!(reply["complete"], false);
 }
+
+#[cfg(unix)]
+#[path = "run_admission/identity.rs"]
+mod identity;
