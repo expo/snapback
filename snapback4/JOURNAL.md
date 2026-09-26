@@ -63519,3 +63519,23 @@ the separator correction; the guide suite passed 86 tests. Final targeted
 counts and command logs will be recorded in the uncommitted CCP-REPORT-F2.md
 and /tmp/ccp-f2. No push, merge, rebase, stash, other-worktree edit, new Cargo
 target directory, node_modules copy or changes to other processes.
+
+Final F2 verification: package typecheck/build, Expo typecheck and chat check
+passed. Rust guide 86/86, readauth 81/81, and init 21/21; JavaScript targeted
+suites total 437 passed, 0 failed, 0 cancelled, 0 skipped in their final runs.
+A strict generated-web-template compile caught an introduced optional-body
+normalization error (`exactOptionalPropertyTypes`): omit a missing body instead
+of storing an explicit undefined. The rebuilt web-init case passed (1 passed,
+20 filtered); periphery 19/19, init-recipe 4/4 and React 34/34 passed again.
+Five app tests initially timed out starting test servers during CLI build/run;
+the isolated app rerun passed all 78. No persistent baseline failure was
+established or claimed. The report preserves those initial failures and the
+first separator-test failures, with the successful reruns.
+
+Zero-wait custody measured native 0.547 ms, web 0.405 ms, online 0.284 ms and
+createApp online 0.362 ms with the server reply held. The default local waits
+remained 4002.386/4003.594 ms; floored 1.9-second requests took
+1001.711–1003.557 ms. Each of the four local admit-reject/deny cases made one
+admission attempt and zero dispatches. Two public createApp owners recovered
+one execution's sent/replayed receipt through a journal save outage. These are
+targeted harness measurements, not cold-network or native-UI qualification.

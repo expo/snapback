@@ -18,7 +18,7 @@ export class ViewState {
       const value = JSON.parse(raw) as Saved;
       return {
         ...(typeof value.route === "string" ? { route: value.route } : {}),
-        intents: Array.isArray(value.intents) ? value.intents.filter(i => typeof i.id === "string" && typeof i.room === "string" && (i.operation === "send" || i.operation === "markRead")).map(i => ({ ...i, body: typeof i.body === "string" ? i.body : undefined })) : [],
+        intents: Array.isArray(value.intents) ? value.intents.filter(i => typeof i.id === "string" && typeof i.room === "string" && (i.operation === "send" || i.operation === "markRead")).map(({ body, ...i }) => ({ ...i, ...(typeof body === "string" ? { body } : {}) })) : [],
       };
     } catch { return { intents: [] }; }
   }
