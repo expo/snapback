@@ -44,12 +44,47 @@ fn failed_file_reader_refuses_without_waiting_for_the_writer() {
         assert!(sample.total.max > 0.0);
         assert!(sample.total.max >= sample.wait.max);
         assert_eq!(sample.wait.max == 0.0, after == 0, "only a successful checkout ends wait");
+        lock(&host.shared.readers).fail_open_after = None;
+        drop(engine);
+        // Use the same work path as periodic maintenance; never reinstall the
+        // factory from this test. Pending query names belong to the adoption.
+        assert_eq!(status(&host.request("POST", "/dev/clock/advance", "", r#"{"duration":"+1ms"}"#)), 200);
+        assert_eq!(status(&host.request("POST", "/q/who", &headers, "{}")), 200);
+    }
+}
+
+#[test]
+fn failed_reader_factory_recovers_on_maintenance() {
+    for startup in [true, false] {
+        let dir = ReaderTestDirectory::new();
+        let path = dir.0.join("reader.db");
+        let missing = dir.0.join("unavailable.db");
+        let host = Host::with_store(true, snapback4_core::Store::open(&path).unwrap(), reads::SOURCE);
+        let session = body(&host.request("POST", "/auth/guest", "", "{}"));
+        let headers = format!("Authorization: Bearer {}\r\n", session["session"]["token"].as_str().unwrap());
+        let engine = lock(&host.shared.engine);
+        // A real reader-open failure at both installation sites. The writer
+        // remains open; returning its original inode clears the external fault.
+        std::fs::rename(&path, &missing).unwrap();
         {
             let mut readers = lock(&host.shared.readers);
-            readers.fail_open_after = None;
-            readers.replace(&engine);
+            if startup { *readers = QueryReaders::new(&engine); }
+            else { readers.replace(&engine); }
+            assert!(readers.source.is_none());
         }
+        let started = Instant::now();
+        let response = host.request("GET", "/schema", &headers, "");
+        assert_eq!(status(&response), 503, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_STORE");
+        assert_eq!(body(&response)["denied"]["retryable"], true);
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(host.shared.engine.waiting(), 0);
+        std::fs::rename(&missing, &path).unwrap();
         drop(engine);
-        assert_eq!(status(&host.request("POST", "/q/who", &headers, "{}")), 200);
+        assert_eq!(status(&host.request("POST", "/dev/clock/advance", "", r#"{"duration":"+1ms"}"#)), 200);
+        assert_eq!(status(&host.request("GET", "/schema", &headers, "")), 200);
+        let response = host.request("POST", "/q/who", &headers, "{}");
+        assert_eq!(status(&response), 200, "{response}");
+        assert_eq!(body(&response)["data"], session["session"]["principal"]);
     }
 }

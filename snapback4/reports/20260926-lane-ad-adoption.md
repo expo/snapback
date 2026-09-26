@@ -1187,3 +1187,161 @@ No production code changed after that full run started. The only post-failure
 source correction is the ownership test's reconciliation; its full target was
 rerun successfully. No remaining introduced affected-test failure was found.
 The inherited wasm gate remains red. No push or publication.
+
+## Round 4 — 2026-09-27
+
+Read the lane prompt, this report and both full round-3 reviews. Fixed only
+those three failure paths on the merged integration base `122348198`.
+Orientation follows LLP 3000.019 §3.6, LLP 3000.007 §9.2 and LLP 3000.009 §5.3;
+`llp-orient` was read from the sibling lane-z vendor checkout because this
+lane's skill link remains broken. No design or LLP decision changed.
+
+### Changes, file by file
+
+Paths are relative to `snapback4/`.
+
+- `crates/snapback4/src/dev_worker.rs`: on detected child exit, close its session
+  before recording status. Revocation is now the first writer acquisition;
+  a claim queued behind exit detection cannot run ahead of it. Existing restart
+  backoff, revision handling and joined shutdown remain in place.
+- `crates/snapback4/tests/serve_adoption/worker.rs`: extend the real production
+  accept-loop/Node-child regression with a queued effect and that child's bearer.
+  Hold a deliberately rejected adoption, wait for supervision at `waiting() == 1`,
+  then submit `/effects/claim`. A third queued writer inspects and holds the
+  engine before supervision can finish status persistence or mint a replacement.
+  Require HTTP 401 / `E_AUTH`, zero surviving family sessions, the effect still
+  queued with zero attempts, `starts == 1`, and unchanged `worker_revision`.
+  Query/sync availability and latency assertions, subsequent restart and joined
+  shutdown remain covered. Rejected adoption deliberately excludes revision
+  fencing as an alternative explanation for the refused claim.
+- `crates/snapback4/src/serve_readers.rs`: `retry_missing` retries a missing
+  file-backed factory using the current writer engine. It leaves memory stores
+  alone and keeps a failed retry missing for the next maintenance pass.
+- `crates/snapback4/src/serve_maintenance.rs`: invoke that retry inside existing
+  writer-owned maintenance work. Startup and the periodic delivery/maintenance
+  loop already run this path; request reads still refuse immediately, without
+  acquiring or queuing for the writer. A new successful factory retains the
+  existing owner/inode, generation and native-module checks.
+- `crates/snapback4/tests/serve_adoption/reader_failure.rs`: remove the seven
+  failure cases' manual factory reinstall. They clear only the injected fault
+  and recover through `/dev/clock/advance`, which runs production maintenance.
+  Add real open failures for both `QueryReaders::new` and `replace` by temporarily
+  moving the database inode away from its path. While the writer is held,
+  bearer `/schema` must promptly refuse 503 / retryable `E_STORE` and queue no
+  writer. Restore the same inode, run maintenance, then require successful
+  schema and authenticated query reads without reinstalling the factory.
+- `packages/snapback4/src/local-backend.ts`: reserve `BackendAuthError` for
+  HTTP 401 or `E_AUTH` without `retryable`. Other denied bodies and HTTP failures
+  throw ordinary errors so local startup follows its existing offline path.
+- `packages/snapback4/test/schema-session.test.mjs`: seven startup cases restore
+  a saved bearer through the real local client constructor. Four non-auth cases
+  retain the exact stored bytes, viewer and session, perform no deletion, open
+  the kept device without installing the refused schema, and return offline.
+  They cover 503 / retryable `E_STORE`, 503 / retryable `E_AUTH`, 403 / non-auth,
+  and an HTTP-200 denied envelope. Three real auth cases still delete the session
+  and refuse before opening the replica: nonretryable `E_AUTH` on 403, HTTP 401
+  despite `retryable`, and HTTP 401 without a denied body.
+- `JOURNAL.md`: one appended dated round-4 entry. This report gains this section.
+
+The online client does **not** share `local-backend.ts`: `client.ts` owns
+`refreshBackend`/`loadBackend`, and `app.ts` constructs that tier directly.
+The requested conditional online-path change/regression therefore does not
+apply. Existing online session tests were run alongside the new local tests.
+No online implementation was changed.
+
+### Forms and affected checks
+
+No new Quarry syntax or diagnostic. Existing forms exercised here include:
+
+- `effect mail` and `mutation emitMail(): emit mail {n: 1}` (with normal Quarry
+  line breaks): queued work survives an old-token `POST /effects/claim {}`;
+  after exit detection that request returns `E_AUTH` before replacement.
+- Bearer `GET /schema`: temporary factory failure yields HTTP 503 with
+  `{"denied":{"code":"E_STORE","retryable":true,...}}`; maintenance after
+  fault removal restores HTTP 200 without adoption or restart.
+- `await createLocalClient({url, device, sessionStore})`: a saved bearer and that
+  503 response now open the kept device offline and preserve session bytes.
+
+After all mutation sources were restored: CLI **150 passed / 4 intentional
+ignores**; lifecycle **20/20**; latency **9/9**; whole guide **86/86**; client
+schema/session/sign-out files **30/30** (including the seven new cases). Package
+build and typecheck pass. Frozen Bun install made no changes. Reference audit:
+**515 LLP docs / 9,554 refs / zero errors or unchecked**. Whitespace and changed
+source-size checks pass; the largest changed source is 283 lines.
+
+### Mutation evidence
+
+Every mutation below was actually compiled and tested, then restored before
+final affected verification and the full suite. Rust mutants exited **101**
+with `test result: FAILED`; the client mutant exited **1** with four failed
+non-auth startup cases and three passing real-auth cases.
+
+| Mutation | Regression and observed failure |
+|---|---|
+| Restore status persistence before revocation | Production-loop worker test: one old-family session survives at the pre-replacement inspection; expected zero |
+| Delete only crash-path `close_child_session()` | Same test and failure, before any replacement or revision change; the review's survivor is killed |
+| Delete maintenance's factory retry | Factory recovery test: `/schema` still returns 503 after the fault clears and maintenance runs; expected 200 |
+| Restore the complete pre-fix `loadBackend` classification | Four startup tests throw `createLocalClient: E_STORE` or retryable `E_AUTH` instead of opening offline with the saved session |
+
+An initial auth-mutant construction left the new denied-body branch behind;
+TypeScript correctly rejected its now-unreachable narrowing. That was mutation
+setup, not a product test failure. The recorded failing client run restores the
+complete old loader, builds successfully and fails the regression at runtime.
+All exact edits, logs and exit receipts are retained in ignored
+`target/lane-ad-evidence/r4-mutations.py` and `r4-mutant-*`.
+
+### Scope and remaining limits
+
+No deviation from the round-4 brief. No push, publication, budget increase,
+new language surface, chunking, metering change or scale optimization. The
+one-second adoption target and accepted `/changes` wait are unchanged; scale
+was not rerun in this failure-path round. Reproduce those inherited limits with
+`SNAPBACK4_ADOPTION_SCALE=1 SNAPBACK4_ADOPTION_DETACHED=1 cargo test -p
+snapback4-core --test adoption_scale -- --ignored --nocapture`, and the prior
+HTTP witness command with `SNAPBACK4_ADOPTION_HTTP_DB` pointing to prepared M7.
+Historical synthetic-fixture and force-kill cleanup qualifications remain as
+recorded above. No unresolved affected-test failure was found.
+
+### Round-4 final full-suite result
+
+Ran `scripts/test.sh` **exactly once**, after all affected checks and restored
+mutation experiments. From `snapback4/`:
+
+```sh
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ulimit -n 65536
+bash scripts/test.sh > target/lane-ad-evidence/r4-test-sh.log 2>&1
+```
+
+Exact summary, **exit status 1**:
+
+```text
+== 1 failure(s) in 1012 s
+   wasm build
+```
+
+Every full-suite failure: **baseline — wasm build**, and no others.
+**1,980,253 B raw / 571,841 B gzip**, **875 B over** the unchanged **570,966 B**
+cap. Round-4 delta: **0 B raw, 0 B gzip**. The artifact is byte-identical to
+the preserved integration artifact; SHA-256
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+Reproduce with `bash scripts/build-wasm.sh`. No clean-full-suite claim or
+budget increase. **No introduced or environmental failure in this run.**
+
+- Rust workspace tests/doctests: **3,780 passed / 0 failed / 24 ignored**;
+  cargo-test phase **519 s**. CLI **150 passed / 4 ignored**; whole guide **86/86**.
+- Client main batch: **2,466 passed / 0 failed / 10 skipped**; seven separate
+  shards **56 passed**; client phase **194 s**. All seven new schema cases pass.
+- Seeded client models: **78/78**, **288 s**. Fixture wrappers: **9/9**.
+- Native build, docs budget, release guard, package build/typecheck, chat
+  check/typecheck and Expo typecheck all pass.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt;
+eight Cargo jobs, dev/test debug information disabled, file limit 65,536.
+No source or test changed after qualification started. No generated tracked
+file cleanup was needed. Raw output/exit status: `target/lane-ad-evidence/r4-test-sh.log`
+and `r4-test-sh.exit`; before/after wasm receipts and the preserved artifact are
+beside them. The implementation, tests, report and one dated journal entry are
+committed locally together with the requested co-author trailer. No push or
+publication.

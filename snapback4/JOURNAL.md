@@ -66778,3 +66778,63 @@ No new syntax, chunking, adoption scale claim, budget change, push or
 publication. The one-second target and documented /changes adoption wait remain
 as previously accepted. Report: reports/20260926-lane-ad-adoption.md; raw logs
 and exit status: ignored target/lane-ad-evidence/merge-*.
+
+### 2026-09-27 — Lane AD round 4: crash revocation and retryable read recovery
+
+Read both round-3 NOT READY reviews and the binding lane prompt on merged
+base `122348198`. Fixed only the three new failure paths. A detected dead
+worker now closes its child session on its first writer acquisition, before
+recording status. The production-loop regression submits the old bearer to
+`/effects/claim` at `waiting() == 1` during a deliberately rejected adoption.
+A third queued writer holds replacement off while the test requires E_AUTH,
+zero surviving family sessions, the effect queued with zero attempts, one
+child start and unchanged worker revision. Query/sync availability, latency,
+restart and joined shutdown stay covered.
+
+Existing writer-owned maintenance now retries a missing file-reader factory;
+requests still return immediate retryable E_STORE/503 without writer fallback.
+Both new() and replace() recovery are exercised through real open failures:
+move the database away, observe prompt bearer /schema refusal under the held
+writer, return the original inode, then run production maintenance through
+clock advance and read successfully. The earlier seven reader-failure cases
+also recover without the test reinstalling their factory.
+
+The local schema loader now raises BackendAuthError only for HTTP 401 or
+nonretryable E_AUTH. All other failures follow existing offline startup.
+Seven new client regressions preserve the exact saved session bytes in four
+non-auth cases and retain deletion/refusal in three auth cases. The online
+client owns a separate loader; its existing session tests were qualified,
+and its implementation is unchanged. No language or design decision changed.
+
+All four counterfactuals fail: restore status-before-revocation, delete only
+crash-path revocation, delete maintenance factory retry, and restore the old
+all-denials-auth schema loader. The first three compile and exit 101 with a
+failed Rust regression; the restored old loader compiles and exits 1 with
+four failed session-preservation tests. An initial partial loader mutation
+was rejected by TypeScript narrowing; the runtime evidence uses the complete
+old loader. Every mutation was restored before final affected checks.
+
+Affected results: CLI 150 passed / 4 intentional ignores; lifecycle 20/20;
+latency 9/9; whole guide 86/86; client schema/session/sign-out files 30/30.
+Package build/typecheck and frozen Bun installation pass. Reference audit:
+515 LLP docs / 9,554 refs / zero errors or unchecked. The new report section
+records file-by-file changes and reproductions. Raw evidence is ignored under
+`target/lane-ad-evidence/r4-*`. No chunking, new scale claim, meter or budget
+change, push or publication. The inherited one-second target and accepted
+/changes adoption wait remain. Final full-suite qualification follows below.
+
+Ran scripts/test.sh exactly once after the restored mutations and affected
+checks. Exact summary: `== 1 failure(s) in 1012 s`, exit 1; sole failure:
+`wasm build`, inherited. The artifact is 1,980,253 B raw / 571,841 B gzip,
+875 B over the unchanged 570,966 B cap. Both raw and gzip deltas are zero;
+byte-identical to the preserved integration artifact, SHA-256
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+No introduced or environmental full-suite failure. Rust tests/doctests:
+3,780 passed / 0 failed / 24 ignored (519 s). Client main: 2,466 passed /
+0 failed / 10 skipped; seven shards: 56 passed (194 s). Seeded models:
+78/78 (288 s); fixture wrappers: 9/9. Other build/typecheck/doc/release checks
+pass. No implementation or test changed after qualification began, and no
+generated tracked file cleanup was needed. Node 24.13.1 / Bun 1.3.14 /
+Rust 1.97.0; eight Cargo jobs, dev/test debug info off, file limit 65,536.
+This one entry, the report, implementation and tests are committed together
+with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push or publication.

@@ -157,8 +157,10 @@ impl DevWorker {
             }
             self.child = None;
             self.crashes += 1;
-            self.record_status("waiting");
+            // @ref LLP 3000.019#3.6 — revoke on the first writer turn: claims queued behind exit
+            // detection must not lease work to this dead child during backoff.
             self.close_child_session();
+            self.record_status("waiting");
             if self.started.elapsed() > Duration::from_secs(30) { self.backoff = Duration::from_millis(250); }
             self.restart = Instant::now() + self.backoff;
             self.backoff = (self.backoff * 2).min(Duration::from_secs(5));

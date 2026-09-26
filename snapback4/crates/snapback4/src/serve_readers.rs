@@ -60,6 +60,12 @@ impl QueryReaders {
         self.memory = engine.store().conn().path().is_none_or(str::is_empty);
         self.source = engine.reader().ok();
     }
+    // @ref LLP 3000.019#3.6 — retry a failed factory on existing writer work; reads still refuse immediately.
+    pub(super) fn retry_missing(&mut self, engine: &Engine) {
+        if !self.memory && self.source.is_none() {
+            self.source = engine.reader().ok();
+        }
+    }
     pub(super) fn begin_adoption(&mut self, candidate: &Bound) {
         self.candidate_queries = candidate
             .programs
