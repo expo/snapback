@@ -59577,3 +59577,19 @@ a returning branch is lowered with a `$returned` flag, which is not a presence
 test, so what follows is charged to every call. The README's certificate
 paragraph fits its three lines again, within the README's 300-line budget.
 Twelve mutants of rounds 6 and 7 fail the tests.
+
+## 2026-09-26 — Scale certificate round 8: copies known before the walk
+
+Astra's review of round 7 (READY WITH CHANGES) found two Lows, both on the safe
+side. A copy made inside a branch (`if assignee != null: selected = assignee;
+if selected != null: return …`) was not yet known when the outer branch's exit
+was judged, so what followed was charged to every call. That had been so since
+round 5. The copies are now read from the whole program before the walk. The
+IR names every binding once (`$selected1`), so a name is one binding, and a copy
+counts only if it is never reassigned. A test pins the two placements as
+equivalent. The refusal tests also now cover literal comparisons that hold
+(`1 = 1`, `1 != 0`) and one that does not (`1 != 1`), which a constant answer
+for every literal comparison survived before. Two guards proved to be dead
+code and were dropped: one for a name bound twice, which the IR never
+produces, and one for a copy of a reassigned local, which reads through to a
+non-argument either way.
