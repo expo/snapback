@@ -10,6 +10,8 @@ use crate::{
 
 mod live;
 mod device;
+#[cfg(all(test, feature = "sqlite"))]
+mod range_tests;
 
 pub const WRITER_RECOUNT: usize = 1024;
 #[cfg(feature = "sqlite")]
@@ -190,11 +192,12 @@ impl Runner<'_> {
         let Some(sync) = &t.sync else {
             return Ok(false);
         };
-        if self.retained_group(&m.source, &k.source_index(), &prefix)? {
+        let source_index = k.source_index();
+        if self.retained_group(&m.source, &source_index, &prefix)? {
             return Ok(false);
         }
         let Some(horizon) = &sync.horizon else {
-            return self.upsert_absence_proven(&m.source, &k.source_index(), &prefix);
+            return self.upsert_absence_proven(&m.source, &source_index, &prefix);
         };
         // An acquisition boundary proves a delivered suffix, independent of cached rows.
         // Only an audience pinned by the parent key can certify this whole source range.
@@ -208,12 +211,7 @@ impl Runner<'_> {
             }
             _ => return Ok(false),
         };
-        let expression = crate::ir::Expr::Literal(prefix[0].clone());
-        let pins = std::collections::BTreeMap::from([(&k.source_key, &expression)]);
-        let rule = t.rules.read.device_audience_rule();
-        if !super::rules::prefix_visibility(&m.source, t, &rule, &pins).uniform {
-            return Ok(false);
-        }
+        if !Self::view_source_uniform(&m.source, t, &k.source_key, &prefix[0]) { return Ok(false); }
         match self.tx.acquired_boundary(&m.source, &horizon.by, &group)? {
             Some(crate::rows::AcquiredBoundary::Whole) => Ok(true),
             Some(crate::rows::AcquiredBoundary::Key(floor)) => {
@@ -235,6 +233,12 @@ impl Runner<'_> {
             }
             None => Ok(false),
         }
+    }
+    fn view_source_uniform(name: &str, source: &crate::schema::Table, key: &String, parent: &Value) -> bool {
+        let expression = crate::ir::Expr::Literal(parent.clone());
+        let pins = std::collections::BTreeMap::from([(key, &expression)]);
+        let rule = source.rules.read.device_audience_rule();
+        super::rules::prefix_visibility(name, source, &rule, &pins).uniform
     }
     fn scan_room(&self, m: &Maintain) -> usize {
         let k = m.row_key.as_ref().unwrap();
@@ -268,6 +272,7 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         let prefix = std::slice::from_ref(u.field(&k.member_key)?);
         let device_live = self.device && live;
+        let expiring = live && self.schema.tables[&m.source].is_expiring();
         if device_live { self.observe_sequence_selection(&m.source, index, &prefix)?; }
         // Keep bounds/cursor storage outside the transient row allocation scope.
         let cursor_bytes = crate::rows::word_heap::key_decode(
@@ -312,7 +317,7 @@ impl Runner<'_> {
                     self.meter.step(k.predicate.steps() * 2 + 4)?;
                     Ok(Some((
                         i64::from(selected) - i64::from(before),
-                        if live && self.schema.tables[&m.source].is_expiring() {
+                        if expiring {
                             Value::Array(crate::key::decode(&position).unwrap().into_iter().skip(prefix.len()).collect())
                         } else { source.field("id")?.clone() },
                         position,
@@ -633,17 +638,13 @@ impl Runner<'_> {
                 || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
                 return Ok(false);
             }
-            let expression = crate::ir::Expr::Literal(member.field(&k.member_key)?.clone());
-            let pins = std::collections::BTreeMap::from([(&k.source_key, &expression)]);
-            let rule = source.rules.read.device_audience_rule();
-            if !super::rules::prefix_visibility(&m.source, source, &rule, &pins).uniform {
-                return Ok(false);
-            }
+            let parent = member.field(&k.member_key)?;
+            if !Self::view_source_uniform(&m.source, source, &k.source_key, parent) { return Ok(false); }
             if !source.rules.read.is_uniformly_readable() {
                 // Admission restricts this rule to the parent and viewer. Check
                 // current witnesses; never trust synthetic delivery provenance.
                 let row = object([("id", Value::Id(String::new())),
-                    (k.source_key.as_str(), member.field(&k.member_key)?.clone())]);
+                    (k.source_key.as_str(), parent.clone())]);
                 return Ok(self.read_authority(&m.source, &row, false)? == super::rules::Verdict::Readable);
             }
         }
@@ -697,7 +698,8 @@ impl Runner<'_> {
         };
         if !self.row_view_source_readable(m, &member)? {
             if self.device && self.schema.tables[&m.source].is_expiring()
-                && m.row_key.as_ref().unwrap().device_range(&self.schema.tables[&m.source]).is_some() {
+                && m.row_key.as_ref().unwrap().device_range(&self.schema.tables[&m.source])
+                    .is_some_and(|plan| plan.lower_bound(&member).is_some()) {
                 let k = m.row_key.as_ref().unwrap();
                 self.unknown_fact(&m.source, &k.source_index(), std::slice::from_ref(member.field(&k.member_key)?), "row-keyed source authority");
             }

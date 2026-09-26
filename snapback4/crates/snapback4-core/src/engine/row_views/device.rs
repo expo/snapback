@@ -5,27 +5,27 @@ impl Runner<'_> {
     // @ref LLP 3000.020#3.3 — a horizon miss asks the server; a covered meter cut only publishes its partial.
     pub(super) fn device_live_count(&mut self, m: &Maintain, member: &Value) -> Result<(i64, bool), RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
+        let writer = self.meter.cut == crate::meter::Cut::Abort;
         // @ref LLP 3000.020#3.2 — Whole keeps the expiry-index seek around expired backlog.
-        let whole = self.covered_view_source(m, member, &k.source_index(), &Bounds::default())?;
-        let selected = (!whole).then(|| k.device_range(&self.schema.tables[&m.source])
-            .and_then(|plan| plan.lower_bound(member).map(|(value, strict)| (plan.column, value, strict)))).flatten();
-        let mut bounds = Bounds::default();
-        let (index, range) = if let Some((column, value, strict)) = selected {
-            *(if strict { &mut bounds.gt } else { &mut bounds.gte }) = Some(value.clone());
-            (k.range_index(column), true)
-        } else { (k.source_index(), false) };
-        let covered = whole || self.covered_view_source(m, member, &index, &bounds)?;
-        if !covered {
-            if !range { return Ok((0, false)); }
-            self.unknown_fact(&m.source, &index, std::slice::from_ref(member.field(&k.member_key)?), "row-keyed view range");
-            if self.meter.cut == crate::meter::Cut::Abort {
-                self.pending_view_read()?;
-            }
+        if self.covered_view_source(m, member, &k.source_index(), &Bounds::default())? {
+            let limit = self.scan_room(m).min(if writer { WRITER_RECOUNT } else { usize::MAX });
+            let (n, complete, _) = self.live_basis_scan(m, member, None, limit)?;
+            return Ok((if complete { n } else { 0 }, complete && !self.beyond_horizon));
         }
-        let limit = self.scan_room(m).min(if self.meter.cut == crate::meter::Cut::Abort { WRITER_RECOUNT + usize::from(range) } else { usize::MAX });
-        let (n, complete, _) = if range {
-            self.view_scan(m, member, None, &index, bounds, limit, true)?
-        } else { self.live_basis_scan(m, member, None, limit)? };
-        Ok((if range || complete { n } else { 0 }, covered && complete && !self.beyond_horizon))
+        let Some(plan) = k.device_range(&self.schema.tables[&m.source]) else { return Ok((0, false)); };
+        let Some((value, strict)) = plan.lower_bound(member) else { return Ok((0, false)); };
+        let index = k.range_index(plan.column);
+        let mut bounds = Bounds::default();
+        *(if strict { &mut bounds.gt } else { &mut bounds.gte }) = Some(value.clone());
+        let covered = self.covered_view_source(m, member, &index, &bounds)?;
+        if !covered {
+            self.unknown_fact(&m.source, &index, std::slice::from_ref(member.field(&k.member_key)?), "row-keyed view range");
+            if writer { self.pending_view_read()?; }
+        }
+        // The final empty seek proves completion at exactly 1,024 candidates.
+        // A 1,025th candidate leaves complete=false and the prediction rolls back.
+        let limit = self.scan_room(m).min(if writer { WRITER_RECOUNT + 1 } else { usize::MAX });
+        let (n, complete, _) = self.view_scan(m, member, None, &index, bounds, limit, true)?;
+        Ok((n, covered && complete && !self.beyond_horizon))
     }
 }

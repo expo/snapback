@@ -332,3 +332,5 @@ fn guide_memory() {
 fn guide_sqlite() {
     guide_clique_unread_reloads_and_expires(&mut Sqlite::new("guide-unread"));
 }
+
+#[path = "unread_range/measured.rs"] mod measured;

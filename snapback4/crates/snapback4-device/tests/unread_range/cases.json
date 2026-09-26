@@ -872,5 +872,65 @@
         "kind": "refuse"
       }
     ]
+  },
+  {
+    "name": "null-source-authority-lost",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "seed": [
+      {
+        "table": "access",
+        "row": {
+          "id": "grant",
+          "conversationId": "c",
+          "principal": "bob"
+        }
+      }
+    ],
+    "replace": [
+      [
+        "table conversations:",
+        "table access:\n  conversationId: conversations\n  principal: principal\n  immutable conversationId, principal\n  unique conversationId, principal\n  read <- .principal = viewer\n  sync to .principal\ntable conversations:"
+      ],
+      [
+        "  read <- .principal = viewer\n  update <-",
+        "  read <- exists access[.conversationId, viewer]\n  update <-"
+      ],
+      [
+        "  sync to .principal\ntable messages:",
+        "  sync to access[.conversationId]\ntable messages:"
+      ],
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- exists access[.conversationId, viewer]"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync to access[.conversationId]"
+      ],
+      [
+        "return unread where .principal = viewer first 100",
+        "return unread where .conversationId = 'c' first 100"
+      ],
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "delete",
+        "table": "access",
+        "id": "grant"
+      },
+      {
+        "kind": "query",
+        "value": 0,
+        "complete": false,
+        "unknown": false
+      }
+    ],
+    "mark": null
   }
 ]
