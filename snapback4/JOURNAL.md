@@ -63227,3 +63227,27 @@ acceptance-extra.exit. EPH-REPORT-FIX3.md at the worktree root is deliberately
 uncommitted. Nothing remains undone in the requested fix round. No push,
 merge, rebase, stash, publication or other-process intervention was performed;
 the other checkout was used only for the explicitly supplied tarball cache.
+
+## 2026-09-26 — 0.4.3 published: ephemeral tables, with receipts and live presence
+
+`snapback4@0.4.3`, `snapback4-darwin-arm64@0.4.3` and `snapback4-expo@0.4.3`
+are on npm (`latest`), registry-verified byte for byte. The source is main
+`e9cca2d066` plus the version commit. It carries:
+
+- LLP 3000.017's ephemeral tables through fix round 3;
+- the sb4-intent 0.4.3 integration: receipts in one query, LLP 3000.018
+  live presence, and the scale certificate.
+
+The publication found and fixed a main defect: the iOS xcframework had not
+compiled since the Snapback 5 authorization landing (`native_input` was
+gated on `native` where the module is gated on `wasm-host`; `a371edf776`).
+
+- The dry run passed on its second try, with the published-0.2.33 fences:
+  0 failures in 1,039 s.
+- The first try lost only the witness-driver target, to `simctl` timeouts at
+  host load ~500. That target then passed 24/24 in isolation.
+- The native witness passed on its third run. The first two failed only on
+  screen-recorder finalization under the same load.
+
+Report: `reports/20260926-publication-0.4.3/REPORT.md`. Calibration #22 on
+0.4.3 started at 12:05Z (`~/clique-sb4-20260926-astra-cal22`).

@@ -1,0 +1,23 @@
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: offline-done
+witness: backend-ready
+witness: reconnect-signaled
+witness: waiting-done
+witness: done
+witness: backend-refuses-connections
+E_WITNESS_PROCESS: owned process did not stop within 10 seconds; killed it
+see snapback4 guide witness
+file:///Users/ccheever/projects/snapback-pub-043/snapback4/witness/expo.mjs:31
+    if (exit.code !== 0) throw new Error(`published witness ${segment} failed: ${JSON.stringify(exit)}; artifacts: ${artifacts}`);
+                               ^
+
+Error: published witness offline failed: {"code":1,"signal":null}; artifacts: /Users/ccheever/projects/snapback-pub-043/snapback4/reports/20260926-expo-0.4.3
+    at file:///Users/ccheever/projects/snapback-pub-043/snapback4/witness/expo.mjs:31:32
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.18.0

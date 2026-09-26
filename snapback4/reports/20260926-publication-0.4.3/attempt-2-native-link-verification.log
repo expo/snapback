@@ -1,0 +1,21 @@
+{
+  "linkedNativeArchive": {
+    "built": "/Users/ccheever/projects/snapback-pub-043/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+    "linked": "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-hkyylqzintfyfpeayrunedcchyrb/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/Snapback4Expo/libsnapback4_device.a",
+    "sha256": "599991df431d1f8e27aa44fa2bf226e55c97ead1b8c6eae4ffd1f628b0442742",
+    "matches": true
+  },
+  "app": {
+    "built": "/Users/ccheever/projects/snapback-pub-043/snapback4/target/expo-release/Snapback4chat.app",
+    "installed": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Bundle/Application/D3729EB5-EF99-4A16-BD2A-D6E79D6E9679/Snapback4chat.app",
+    "executable": "Snapback4chat",
+    "sha256": "26d80cc2850a13bcef95bf4212ce2c9625f14b181d471685fa7cfa7f686ce199",
+    "bundleSha256": "53b20cda77f6e2f442caf84baca8ce85857dac94952e32ad30150bb4716edcc1",
+    "installedMatches": true,
+    "bundleId": "dev.snapback4.chat"
+  },
+  "cli": {
+    "path": "/Users/ccheever/projects/snapback-pub-043/snapback4/target/debug/snapback4",
+    "sha256": "ab9120ccc90d451e923fd9e3cd4a4abbf6215d90475535bf4eb441670f7643e0"
+  }
+}
