@@ -957,12 +957,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(None) => {}
                 }
             }
-            let (signature, reads_presence) = {
-                let bound = lock(&shared.bound);
-                // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read: an answer discloses no branch.
-                let reads_presence = bound.schema.operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
-                (bound.programs.iter().find(|p| p.program.name == op).map(|p| (p.program.kind, p.program.args.clone())), reads_presence)
-            };
+            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
+                .map(|p| (p.program.kind, p.program.args.clone()));
+            // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read,
+            // and comes from the schema of the engine that evaluates it.
+            let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some((kind, arg_types)) = signature else {
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
@@ -1000,21 +999,23 @@ fn handle(mut request: Request, shared: &Shared) {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let (outcome, metadata) = match reader {
+                let (outcome, metadata, reads_presence) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
+                        let reads_presence = presence_of(&reader);
                         let outcome = reader.query(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        (outcome, metadata)
+                        (outcome, metadata, reads_presence)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
-                        (engine.query(&op, context), metadata)
+                        let reads_presence = presence_of(&engine);
+                        (engine.query(&op, context), metadata, reads_presence)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };

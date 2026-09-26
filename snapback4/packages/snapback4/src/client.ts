@@ -338,9 +338,11 @@ export function createClient(options: ClientOptions): Client {
     return false;
   }
 
-  function post(path: string, body: unknown, captured?: ClosingResponse) {
+  // A quiet request is a background presence refresh: its failure retries on the
+  // refresh timer and says nothing about the link (LLP 3000.017 §3.2).
+  function post(path: string, body: unknown, captured?: ClosingResponse, quiet = false) {
     let arrived = false;
-    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured), aborter.signal, () => arrived).then(result => {
+    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured, quiet), aborter.signal, () => arrived).then(result => {
       // A terminal store change owns outstanding effect outcomes: preserve its
       // explicit unknown-outcome refusal instead of an ordinary offline retry.
       if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
@@ -351,7 +353,7 @@ export function createClient(options: ClientOptions): Client {
     return request;
   }
 
-  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, quiet = false): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
     if (refreshing) await refreshing;
     if (closed || !credentials || storeRefusal) return { ok: false };
     const revision = credentialRevision;
@@ -382,28 +384,28 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
       if (storeRefusal) return { ok: false };
-      if (response.status >= 500) { setLink("offline"); return { ok: false }; }
+      if (response.status >= 500) { if (!quiet) setLink("offline"); return { ok: false }; }
       if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
         if (attempt === 3) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
-        return sendPost(path, body, attempt + 1, arrived, captured);
+        return sendPost(path, body, attempt + 1, arrived, captured, quiet);
       }
       if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
     } catch {
-      if (credentials) setLink("offline");
+      if (credentials && !quiet) setLink("offline");
       return { ok: false };
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; refresh?: number | undefined }> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A, quiet = false): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; refresh?: number | undefined }> {
     const epoch = queryEpoch;
     if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
-    const result = await post(`/q/${op.name}`, { args });
+    const result = await post(`/q/${op.name}`, { args }, undefined, quiet);
     if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
     if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
@@ -451,15 +453,18 @@ export function createClient(options: ClientOptions): Client {
     if (closed || storeRefusal || !credentials || watches.get(watch.key) !== watch) return;
     if (watch.inFlight) return; // The fetch in flight re-arms the refresh when it settles.
     const shown = watch.snapshot;
-    const result = await runQuery(watch.op, watch.args);
+    const result = await runQuery(watch.op, watch.args, true);
     if (closed || watches.get(watch.key) !== watch) return;
-    if (watch.snapshot === shown && !watch.inFlight && currentRead(result) && !("loading" in result.read) && !result.transportOffline) {
-      watch.publish(result.read);
-      watch.tables = new Set(result.tables);
-      scheduleExpiry(watch, result.nextExpiry);
-      notify(watch);
-    }
-    if (!watch.inFlight) schedulePresence(watch, !result.transportOffline, result.refresh);
+    // A reply that a newer publication or read overtook decides nothing: the newer one armed the timer.
+    if (watch.snapshot !== shown || watch.inFlight) return;
+    // A failed or stale reply keeps the answer and the interval, and retries.
+    if (result.transportOffline || !currentRead(result)) { schedulePresence(watch, false); return; }
+    // An accepted reply is published whatever it says, loading and refusals included.
+    watch.publish(result.read);
+    watch.tables = new Set(result.tables);
+    scheduleExpiry(watch, result.nextExpiry);
+    notify(watch);
+    schedulePresence(watch, true, result.refresh);
   }
 
   async function refresh(watch: Watch) {

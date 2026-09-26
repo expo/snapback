@@ -104,3 +104,44 @@ test("an interval a timer cannot hold is clamped, not wrapped to an immediate re
   clearTimeout(timer);
   assert.equal(fired, 0);
 });
+
+test("a background reply that a newer read overtook leaves the newer interval alone", async t => {
+  const held = deferred(), invalidate = deferred();
+  let polls = 0;
+  const { client, reads } = transport(async n => {
+    if (n === 1) return data("v1");
+    if (n === 2) { await held.promise; return data("v2", 0, 2); } // overtaken, and says no refresh
+    return data(`v${n}`, 250, 2);
+  }, async signal => (++polls === 1 ? (await invalidate.promise, Response.json({ seq: 2, tables: [], generation: 0 })) : blocked(signal)));
+  const mark = client.observe(query, { p: "dev:bob" });
+  t.after(async () => { held.resolve(); mark.close(); await client.close(); });
+  await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
+  await delay(400); // the background refresh is held
+  invalidate.resolve();
+  await until(() => mark.getSnapshot().data === "v3", "the invalidation re-ran the watch");
+  held.resolve();
+  const settled = reads.length;
+  await until(() => reads.length >= settled + 1, "the newer interval still refreshes after the overtaken reply lands", 2000);
+  assert.notEqual(mark.getSnapshot().data, "v2");
+});
+
+test("an accepted loading answer is published, and a background failure keeps the answer and the link", async t => {
+  const loading = transport(n => n === 1 ? data("v1") : { loading: true, seq: 1, tables: [], refresh: 300 });
+  const a = loading.client.observe(query, { p: "dev:bob" });
+  await until(() => a.getSnapshot().data === "v1", "the first answer arrived");
+  await until(() => "loading" in a.getSnapshot(), "the server's own loading answer is published");
+  a.close(); await loading.client.close();
+  const failing = transport(n => n === 1 ? data("v1") : n === 2 ? new Response("unavailable", { status: 503 }) : data("v3"));
+  const b = failing.client.observe(query, { p: "dev:bob" });
+  t.after(async () => { b.close(); await failing.client.close(); });
+  await until(() => b.getSnapshot().data === "v1", "the first answer arrived");
+  const seen = [];
+  const stop = b.subscribe(() => seen.push(b.getSnapshot()));
+  await until(() => failing.reads.length >= 2, "the background refresh failed");
+  await delay(50);
+  assert.equal(b.getSnapshot().data, "v1", "a failed background refresh keeps the answer on screen");
+  assert.equal(failing.client.link(), "online", "a failed background refresh says nothing about the link");
+  await until(() => b.getSnapshot().data === "v3", "the refresh retried at its interval");
+  stop();
+  assert.ok(seen.every(read => "data" in read), `the failure published something other than an answer: ${JSON.stringify(seen)}`);
+});

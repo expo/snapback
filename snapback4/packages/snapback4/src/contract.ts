@@ -44,6 +44,8 @@ export type ReadCut = "meter" | "words" | null;
  * not, `since` is the wall-clock time (ms) of the newest server state it does
  * reflect, so a screen can say "as of three minutes ago".
  * Online observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+ * A query that may read presence (`connected[p]`) is a sample: its answer is `fresh` when it arrives, and a
+ * background re-read about 5 seconds after each reply settles replaces it, keeping it on screen meanwhile.
  * A local observation may keep its last answer with `fresh: false` and `since`
  * only during an unavailable device read's server fallback, ending at fetch
  * settlement or any local commit, reset, adoption, generation, account change or close.

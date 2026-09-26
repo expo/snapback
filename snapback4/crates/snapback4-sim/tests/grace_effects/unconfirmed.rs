@@ -104,6 +104,9 @@ fn w15a_held_deadline_reconnect_and_replay_survive_restart() {
     }
 }
 
+/// The heap a run's presence memo charges for `bob`: its 3 bytes plus 64.
+const MEMO: u64 = 3 + 64;
+
 #[test]
 fn w15a_unchanged_forms_keep_base_values_arms_and_all_meter_fields() {
     for (label, body) in [
@@ -121,10 +124,12 @@ fn w15a_unchanged_forms_keep_base_values_arms_and_all_meter_fields() {
             let sent = engine.mutate("push", None, Context::new("alice", args(&[("p", id("bob")), ("force", Value::Bool(true))])).at(11_000)).unwrap();
             assert!(matches!(sent.state, WriteState::Sent { .. }));
             println!("w15a unchanged {label} live={live} deadline={deadline:?}: {:?}", fields(sent.metered));
+            // A guard read outside the effect path memoizes its principal once per
+            // run, charged to the heap meter: `bob`'s 3 bytes plus 64 (LLP 3000.017 §3.1).
             let (steps, heap) = match label {
                 "payload" => (6, 235),
-                "or" => (if live > 0 || deadline.is_some() { 15 } else { 13 }, 132),
-                "and-or" => (if live > 0 || deadline.is_some() { 23 } else { 21 }, 132),
+                "or" => (if live > 0 || deadline.is_some() { 15 } else { 13 }, 132 + MEMO),
+                "and-or" => (if live > 0 || deadline.is_some() { 23 } else { 21 }, 132 + MEMO),
                 "negated-and" => if live > 0 { (16, 1698) } else { (13, 1561) },
                 _ => unreachable!(),
             };
@@ -158,8 +163,9 @@ fn w15a_queries_and_row_or_result_decisions_keep_base_values_and_meters() {
         assert!(matches!(write.state, WriteState::Sent { .. }));
         assert_eq!(engine.store().rows("notes").unwrap().len(), usize::from(count > 0));
         println!("w15a unchanged decisions live={live} deadline={deadline:?}: query={:?} result={:?} write={:?}", fields(query.metered), fields(result.metered), fields(write.metered));
-        assert_eq!(fields(query.metered), [0, 0, 0, 3, 6, 9, 0]);
-        assert_eq!(fields(result.metered), [0, 0, 0, 3, 6, 9, 0]);
-        assert_eq!(fields(write.metered), if count == 0 { [0, 0, 0, 5, 6, 6, 0] } else { [0, 1, 0, 15, 432, 42, 1] });
+        // Each read of `connected[bob]` outside the effect path adds the run's memo (LLP 3000.017 §3.1).
+        assert_eq!(fields(query.metered), [0, 0, 0, 3, 6 + MEMO, 9, 0]);
+        assert_eq!(fields(result.metered), [0, 0, 0, 3, 6 + MEMO, 9, 0]);
+        assert_eq!(fields(write.metered), if count == 0 { [0, 0, 0, 5, 6 + MEMO, 6, 0] } else { [0, 1, 0, 15, 432 + MEMO, 42, 1] });
     }
 }

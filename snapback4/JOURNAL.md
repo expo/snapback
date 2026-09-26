@@ -59307,3 +59307,26 @@ Astra's review of the refresh was NOT READY, and Grok's found smaller gaps:
 A composed test finally exercises the composed path: retained history beside
 presence, on the wasm and process devices. Dropping the composed `refresh` copy
 fails it.
+
+## 2026-09-26 — Live presence round 7: what a background reply may decide
+
+Astra's review of round 6 confirmed the static decision and found five smaller
+gaps, all in what a background reply may change:
+
+- **An overtaken reply decides nothing.** It could clear the interval that a
+  newer read had set. Now a reply that a publication or another read overtook
+  touches neither the answer nor the timer.
+- **An accepted loading answer publishes.** A query whose authoritative answer
+  is loading no longer shows its previous value as fresh.
+- **A background failure is quiet.** A 503 marked the link offline and
+  withdrew answers. Background reads now use a quiet request that keeps the
+  answer and the interval and retries; the change feed notices a real outage.
+- **Eligibility comes from the evaluating schema.** It now comes from the
+  engine or reader that runs the query, not the schema looked up before an
+  adoption could land.
+- **The contract says a presence answer is a sample.**
+
+The per-run memo's heap charge moved the w15a meters by 67 bytes per guard read
+outside the effect path, and the pins now name that charge. The retained-row
+composition cannot be reached by a presence query, because a device evaluates
+no presence read, so it keeps its `refresh` copy untested.
