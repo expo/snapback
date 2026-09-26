@@ -30,3 +30,22 @@
 
 A decided test's `else` arm is also untested: requiring both branches there
 survives the variant tests. Grok's review has the repros.
+
+## Resolution (2026-09-26)
+
+Fixed on `sb4-intent/scale-precision`: the certificate's walk now returns
+whether a body leaves and judges every condition as a three-valued `Test`
+(known, an argument's presence, or unknown; `not`, `and`, `or`) under the facts
+in force (LLP 3000.013 §14.4). Each shape has a test in
+`crates/snapback4/tests/scale_variants.rs`:
+
+1. `facts_hold_in_order_inside_a_branch`
+2. `every_program_finds_what_never_runs`
+3. `a_refusal_leaves_where_its_test_fails`
+4. `not_and_and_or_state_presence_facts`
+5. `code_that_never_runs_keeps_the_lane_bound`
+6. `a_sweep_the_job_never_reaches_is_not_the_whole_job`
+
+The decided `else` has `a_decided_test_runs_only_its_matching_branch`.
+`a_binding_holds_its_test_only_where_the_walk_knows_it` guards the new
+flow-sensitive bindings. 23 mutants were killed.

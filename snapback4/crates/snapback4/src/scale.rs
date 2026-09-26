@@ -92,7 +92,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
-        identities: Vec::new(), aliases: copies(program), reassigned: reassigned(program),
+        identities: Vec::new(), aliases: copies(program), tests: BTreeMap::new(), swept: BTreeSet::new(), written: Vec::new(),
         arguments: program.args.keys().cloned().collect(), unreachable: 0,
     };
     for (name, kind) in &program.args {
@@ -117,8 +117,10 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
         }).collect();
         a.body(&body, 1);
         if program.kind == ProgramKind::Job {
+            // @ref LLP 3000.013#14.4 — a sweep after a `return` never runs, so the job does not grow with it.
             for stmt in &program.body {
-                if let Stmt::For { binding, domain: LoopDomain::Page(scan), .. } = stmt {
+                if let Stmt::For { binding, domain: LoopDomain::Page(scan), .. } = stmt
+                    && a.swept.contains(binding) {
                     let domain = source.and_then(|p| p.loop_source(binding)).map(str::to_owned).unwrap_or_else(|| a.scan_domain(scan));
                     a.result.whole_job.push(format!("rows visited/written by the sweep over `{domain}`"));
                 }
@@ -157,17 +159,24 @@ struct Analysis<'a> {
     identities: Vec<(String, bool)>,
     /// Bindings that only copy another binding, neither ever reassigned.
     aliases: BTreeMap<String, String>,
-    reassigned: BTreeSet<String>,
+    /// The test each boolean binding holds where the walk has reached.
+    tests: BTreeMap<String, Test>,
+    /// Page loops the walk reaches: a job's whole-job sweeps.
+    swept: BTreeSet<String>,
+    /// Every binding the walk has seen reassigned, in order.
+    written: Vec<String>,
     /// The operation's arguments: only their presence, fixed for a call, defines a variant.
     arguments: BTreeSet<String>,
-    /// Depth of branches an enclosing presence test rules out.
+    /// Depth of code no call reaches: after a way out, or under a test the facts in force contradict.
     unreachable: u32,
+    /// Only a program with a planner variant scan records variants; every program's
+    /// tests decide what never runs.
     has_variants: bool,
 }
 
-/// Every binding the program reassigns anywhere, statement bodies and expression
+/// Every binding a body reassigns anywhere, statement bodies and expression
 /// blocks included: such a binding is never an alias.
-fn reassigned(program: &Program) -> BTreeSet<String> {
+fn assigned(body: &[Stmt]) -> BTreeSet<String> {
     fn walk(value: &serde_json::Value, out: &mut BTreeSet<String>) {
         match value {
             serde_json::Value::Object(fields) => {
@@ -180,7 +189,7 @@ fn reassigned(program: &Program) -> BTreeSet<String> {
         }
     }
     let mut out = BTreeSet::new();
-    walk(&serde_json::to_value(&program.body).unwrap_or_default(), &mut out);
+    walk(&serde_json::to_value(body).unwrap_or_default(), &mut out);
     out
 }
 
@@ -208,59 +217,191 @@ fn copies(program: &Program) -> BTreeMap<String, String> {
     }
     let mut out = BTreeMap::new();
     walk(&serde_json::to_value(&program.body).unwrap_or_default(), &mut out);
-    let reassigned = reassigned(program);
+    let reassigned = assigned(&program.body);
     out.retain(|name, _| !reassigned.contains(name));
     out
 }
 
-/// A condition no call satisfies: `false`, or two literals compared so the
-/// comparison fails. A `require` of it always refuses, so it leaves as a
-/// `return` does.
-fn never_holds(condition: &Expr) -> bool {
-    match condition {
-        Expr::Literal(Value::Bool(false)) => true,
-        Expr::Binary { op: op @ (BinaryOp::Eq | BinaryOp::Ne), left, right } => match (left.as_ref(), right.as_ref()) {
-            (Expr::Literal(a), Expr::Literal(b)) => (a == b) == (*op == BinaryOp::Ne),
-            _ => false,
-        },
-        _ => false,
+/// What the walk knows of a condition: a constant, an argument's presence (its
+/// identity, its author's name, and the presence under which the test holds), or
+/// nothing, combined by `not`, `and` and `or`.
+#[derive(Clone, Debug, PartialEq)]
+enum Test {
+    Known(bool),
+    Present(String, String, bool),
+    Unknown,
+    Not(Box<Test>),
+    And(Box<Test>, Box<Test>),
+    Or(Box<Test>, Box<Test>),
+}
+
+/// A presence fact: an argument's identity, its author's name, and whether it is present.
+type Fact = (String, String, bool);
+
+impl Test {
+    /// Its value where the facts `known` hold, when they decide it.
+    fn value(&self, known: &[(String, bool)]) -> Option<bool> {
+        match self {
+            Test::Known(value) => Some(*value),
+            Test::Present(identity, _, present) => known.iter().find(|(name, _)| name == identity).map(|(_, value)| value == present),
+            Test::Unknown => None,
+            Test::Not(test) => test.value(known).map(|value| !value),
+            Test::And(a, b) => match (a.value(known), b.value(known)) {
+                (Some(false), _) | (_, Some(false)) => Some(false),
+                (Some(true), Some(true)) => Some(true),
+                _ => None,
+            },
+            Test::Or(a, b) => match (a.value(known), b.value(known)) {
+                (Some(true), _) | (_, Some(true)) => Some(true),
+                (Some(false), Some(false)) => Some(false),
+                _ => None,
+            },
+        }
+    }
+
+    /// The presence facts that hold wherever the test has `value`, given the facts `known`.
+    fn facts(&self, value: bool, known: &[(String, bool)], out: &mut Vec<Fact>) {
+        match self {
+            Test::Present(identity, name, present) => out.push((identity.clone(), name.clone(), *present == value)),
+            Test::Not(test) => test.facts(!value, known, out),
+            Test::And(a, b) | Test::Or(a, b) => {
+                let and = matches!(self, Test::And(..));
+                if value == and {
+                    // `a and b` holds, or `a or b` fails: so does each side.
+                    a.facts(value, known, out);
+                    b.facts(value, known, out);
+                } else if a == b {
+                    // `p or p` holds only where `p` does.
+                    a.facts(value, known, out);
+                } else {
+                    // `a and b` fails, or `a or b` holds: a side known to be `true` (`false` for
+                    // `or`) leaves the other to decide it.
+                    if a.value(known) == Some(and) { b.facts(value, known, out); }
+                    if b.value(known) == Some(and) { a.facts(value, known, out); }
+                }
+            }
+            Test::Known(_) | Test::Unknown => {}
+        }
     }
 }
 
+/// Whether a branch ends by assigning `name`, as the step of an `and` or `or` does.
+fn steps(branch: &[Stmt], name: &str) -> bool {
+    matches!(branch.last(), Some(Stmt::Assign { name: target, .. }) if target == name)
+}
+
+/// A value the interpreter computes from literals alone: a literal, or unary `-`,
+/// `+`, `-`, `*`, `/` and `%` of integers within Quarry's range (`engine::runner`);
+/// an overflow or a division by zero, which fails the call, stays unknown.
+fn literal(expr: &Expr) -> Option<Value> {
+    match expr {
+        Expr::Literal(value) => Some(value.clone()),
+        Expr::Field { base, name } if matches!(base.as_ref(), Expr::Builtin { builtin: Builtin::Divmod { .. }, .. }) => {
+            let Expr::Builtin { args, .. } = base.as_ref() else { unreachable!() };
+            let (Value::Int(a), Value::Int(b)) = (literal(&args[0])?, literal(&args[1])?) else { return None };
+            if b == 0 { return None; }
+            match name.as_str() { "quotient" => Some(Value::Int(a.div_euclid(b))), "remainder" => Some(Value::Int(a.rem_euclid(b))), _ => None }
+        }
+        Expr::Unary { op: UnaryOp::Neg, value } => match literal(value)? { Value::Int(n) => Value::int(-i128::from(n)).ok(), _ => None },
+        Expr::Binary { op: op @ (BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul), left, right } => {
+            let (Value::Int(a), Value::Int(b)) = (literal(left)?, literal(right)?) else { return None };
+            let (a, b) = (i128::from(a), i128::from(b));
+            Value::int(match op { BinaryOp::Add => a + b, BinaryOp::Sub => a - b, _ => a * b }).ok()
+        }
+        _ => None,
+    }
+}
+
+/// Two literals compared as the interpreter compares them (`engine::runner::binary`).
+fn compare(op: &BinaryOp, a: &Value, b: &Value) -> Test {
+    use std::cmp::Ordering::{Greater, Less};
+    Test::Known(match op {
+        BinaryOp::Eq => a == b,
+        BinaryOp::Ne => a != b,
+        BinaryOp::Lt => a.total_cmp(b) == Less,
+        BinaryOp::Lte => a.total_cmp(b) != Greater,
+        BinaryOp::Gt => a.total_cmp(b) == Greater,
+        BinaryOp::Gte => a.total_cmp(b) != Less,
+        _ => return Test::Unknown,
+    })
+}
+
 impl Analysis<'_> {
-    /// The presence fact a test states: the binding's identity, its author's
-    /// name, and the presence under which the test holds. Only an argument's
-    /// presence, fixed for the whole call, is a fact.
-    fn fact(&self, condition: &Expr) -> Option<(String, String, bool)> {
-        display::presence(condition).filter(|_| self.has_variants).and_then(|(binding, search, present)| {
+    /// What a condition tests. Only an argument's presence, fixed for the whole
+    /// call, is a fact; a boolean binding holds the test it was given, as far as
+    /// the walk has reached.
+    fn test(&self, condition: &Expr) -> Test {
+        let test = |expr: &Expr| Box::new(self.test(expr));
+        match condition {
+            Expr::Literal(Value::Bool(value)) => Test::Known(*value),
+            Expr::Variable(name) => self.tests.get(name).cloned().unwrap_or(Test::Unknown),
+            Expr::Unary { op: UnaryOp::Not, value } => match self.test(value) {
+                Test::Present(identity, name, present) => Test::Present(identity, name, !present),
+                test => Test::Not(Box::new(test)),
+            },
+            Expr::Binary { op: BinaryOp::And, left, right } => Test::And(test(left), test(right)),
+            Expr::Binary { op: BinaryOp::Or, left, right } => Test::Or(test(left), test(right)),
+            Expr::Binary { op, left, right } => match (literal(left), literal(right)) {
+                (Some(a), Some(b)) => compare(op, &a, &b),
+                _ => self.presence(condition),
+            },
+            _ => self.presence(condition),
+        }
+    }
+
+    /// A presence test of an argument, or of a search of one.
+    fn presence(&self, condition: &Expr) -> Test {
+        display::presence(condition).and_then(|(binding, search, present)| {
             let root = self.identity(&binding);
             // Quarry never reassigns an argument (locals cannot shadow one).
             self.arguments.contains(&root).then(|| {
                 let name = display::author_name(&root);
-                if search { (format!("search {root}"), format!("search {name}"), present) } else { (root, name, present) }
+                if search { Test::Present(format!("search {root}"), format!("search {name}"), present) } else { Test::Present(root, name, present) }
             })
-        })
+        }).unwrap_or(Test::Unknown)
     }
 
-    /// Whether every path through a body leaves it, under the facts `known`: a
-    /// `return`, `break` or `continue`, or a test each of whose possible branches
-    /// leaves. A loop may not run.
-    fn leaves(&self, body: &[Stmt], known: &[(String, bool)]) -> bool {
-        body.iter().any(|stmt| match stmt {
-            Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
-            Stmt::Require { condition, .. } => never_holds(condition),
-            Stmt::If { condition, then_body, else_body } => match self.fact(condition) {
-                None => self.leaves(then_body, known) && self.leaves(else_body, known),
-                Some((identity, _, present)) => match known.iter().find(|(name, _)| *name == identity).map(|(_, value)| *value) {
-                    Some(value) => self.leaves(if value == present { then_body } else { else_body }, known),
-                    None => {
-                        let under = |value: bool| [known, &[(identity.clone(), value)]].concat();
-                        self.leaves(then_body, &under(present)) && self.leaves(else_body, &under(!present))
-                    }
-                },
-            },
-            _ => false,
-        })
+    /// The facts a branch adds to those in force, where `test` has `value`; none at
+    /// all when no call reaches it, because the facts in force or its own contradict it.
+    fn assume(&self, test: &Test, value: bool) -> Option<Vec<Fact>> {
+        if test.value(&self.identities).is_some_and(|holds| holds != value) { return None; }
+        let mut facts = Vec::new();
+        test.facts(value, &self.identities, &mut facts);
+        let mut added: Vec<Fact> = Vec::new();
+        for (identity, name, present) in facts {
+            let known = self.identities.iter().map(|(known, value)| (known, *value))
+                .chain(added.iter().map(|(known, _, value)| (known, *value)))
+                .find(|(known, _)| **known == identity).map(|(_, value)| value);
+            match known {
+                Some(value) if value != present => return None,
+                Some(_) => {}
+                None => added.push((identity, name, present)),
+            }
+        }
+        // Its own facts can decide the test the other way: `(a or b) and (a = null and b = null)`.
+        let known: Vec<(String, bool)> = self.identities.iter().cloned()
+            .chain(added.iter().map(|(identity, _, present)| (identity.clone(), *present))).collect();
+        if test.value(&known).is_some_and(|holds| holds != value) { return None; }
+        Some(added)
+    }
+
+    /// Walks with `facts` added to those in force, or, without any, as code no call reaches.
+    fn under<T>(&mut self, facts: Option<&[Fact]>, walk: impl FnOnce(&mut Self) -> T) -> T {
+        let Some(facts) = facts else {
+            self.unreachable += 1;
+            let leaves = walk(self);
+            self.unreachable -= 1;
+            return leaves;
+        };
+        let depth = self.identities.len();
+        for (identity, name, present) in facts {
+            self.identities.push((identity.clone(), *present));
+            self.conditions.push((name.clone(), *present));
+        }
+        let leaves = walk(self);
+        self.identities.truncate(depth);
+        self.conditions.truncate(depth);
+        leaves
     }
 
     /// The binding a presence test finally reads, through any aliases.
@@ -278,25 +419,30 @@ impl Analysis<'_> {
         self.source.and_then(|p| p.domain_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::domain(self.schema, scan))
     }
 
-    fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
-        if self.unreachable > 0 { return; }
-        self.variant(Class::Grows, None);
-        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
-        if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
-    }
+    fn growth(&mut self, site: &str, reason: String, rewrite: &str) { self.site(false, site, reason, rewrite); }
 
     /// Rows a background sweep removes: bounded by the read meter while the
     /// backlog lasts, and absent once cleanup catches up.
-    fn backlog(&mut self, site: &str, reason: String, rewrite: &str) {
+    fn backlog(&mut self, site: &str, reason: String, rewrite: &str) { self.site(true, site, reason, rewrite); }
+
+    fn site(&mut self, backlog: bool, site: &str, reason: String, rewrite: &str) {
         if self.unreachable > 0 { return; }
-        self.variant(Class::Backlog, None);
-        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
+        self.variant(if backlog { Class::Backlog } else { Class::Grows }, None);
+        let when = self.when();
+        let conditions = if when.is_some() { self.identities.clone() } else { Vec::new() };
+        let growth = Growth { when, backlog, site: site.into(), reason, rewrite: rewrite.into(), conditions };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
+    }
+
+    /// The presence state the walk is in, as the author names it: a variant only
+    /// where a planner variant scan makes one.
+    fn when(&self) -> Option<String> {
+        if self.has_variants { display::conditions(&self.conditions) } else { None }
     }
 
     fn variant(&mut self, class: Class, index: Option<String>) {
         if self.unreachable > 0 { return; }
-        let Some(when) = display::conditions(&self.conditions) else { return; };
+        let Some(when) = self.when() else { return; };
         // One variant per combination of bindings, not per spelling: a helper's
         // parameter and a query argument can share a name.
         let same = |conditions: &[(String, bool)]| conditions.len() == self.identities.len() && conditions.iter().all(|c| self.identities.contains(c));
@@ -331,8 +477,14 @@ impl Analysis<'_> {
         match bound { Bound::Meter => self.result.bounds.meters.examined, _ => bound.maximum() }
     }
 
-    fn body(&mut self, body: &[Stmt], times: u64) {
+    /// Walks a body. `None` when every path through it leaves it: a `return`, `break`
+    /// or `continue`, a refusal where its test fails, or a test each of whose branches
+    /// leaves or never runs. Otherwise the presence facts, beyond those in force, that
+    /// hold wherever it falls through. A loop may not run, so it never leaves and
+    /// states nothing.
+    fn body(&mut self, body: &[Stmt], times: u64) -> Option<Vec<Fact>> {
         for (at, stmt) in body.iter().enumerate() {
+            let rest = &body[at + 1..];
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
                     if name.starts_with("$intentNeedle") {
@@ -342,13 +494,22 @@ impl Analysis<'_> {
                     // Union assignments across branches and loop iterations;
                     // never clear a possible dependency on another path.
                     *self.data.entry(name.clone()).or_default() |= data;
+                    // A binding holds the test it was last given, as far as the walk has reached;
+                    // after a branch or a loop that reassigns it, none (see `If` and `repeated`).
+                    // Code that never runs assigns nothing.
+                    if self.unreachable == 0 {
+                        if matches!(stmt, Stmt::Assign { .. }) { self.written.push(name.clone()); }
+                        let test = self.test(value);
+                        self.tests.insert(name.clone(), test);
+                    }
                 }
                 Stmt::Push { target, value } => {
                     let data = self.expr(value, times);
                     *self.data.entry(target.clone()).or_default() |= data;
                 }
                 // Nothing after a statement that leaves the body runs.
-                Stmt::Return(value) => { self.expr(value, times); self.never(&body[at + 1..], times); return; }
+                Stmt::Return(value) => { self.expr(value, times); self.never(rest, times); return None; }
+                Stmt::Break | Stmt::Continue => { self.never(rest, times); return None; }
                 Stmt::Emit { payload, once, .. } => {
                     self.expr(payload, times);
                     if let Some(key) = once {
@@ -358,59 +519,52 @@ impl Analysis<'_> {
                 }
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
-                    // @ref LLP 3000.013#14.4 — only an argument's presence, fixed for the whole call, defines a
-                    // variant. A test of anything else (a loop variable, a reassigned or computed binding) can
-                    // go both ways in one call, so its branches are recorded as unconditional.
-                    let fact = self.fact(condition);
-                    // What follows the test runs only after a branch that does not leave the body,
-                    // judged under the facts each branch runs with.
-                    let rest = &body[at + 1..];
-                    let under = |value: bool| match &fact {
-                        Some((identity, _, _)) if !self.identities.iter().any(|(known, _)| known == identity) => [self.identities.as_slice(), &[(identity.clone(), value)]].concat(),
-                        _ => self.identities.clone(),
-                    };
-                    let present = fact.as_ref().is_none_or(|(_, _, present)| *present);
-                    let (then_leaves, else_leaves) = (self.leaves(then_body, &under(present)), self.leaves(else_body, &under(!present)));
-                    match fact {
-                        None => {
-                            self.body(then_body, times); self.body(else_body, times);
-                            if then_leaves && else_leaves { self.never(rest, times); return; }
+                    // @ref LLP 3000.013#14.4 — only an argument's presence, fixed for the whole call, is a fact.
+                    // A test of anything else (a loop variable, a reassigned or computed binding) can go both
+                    // ways in one call. Each branch runs under the facts its test adds, or never, when they
+                    // contradict the facts in force.
+                    let test = self.test(condition);
+                    // Each arm starts from the bindings' tests as they stand here.
+                    let (incoming, written) = (self.tests.clone(), self.written.len());
+                    let (mut stays, mut combined) = (Vec::new(), None);
+                    for (branch, other, holds) in [(then_body, else_body, true), (else_body, then_body, false)] {
+                        self.tests = incoming.clone();
+                        let facts = self.assume(&test, holds);
+                        let end = self.under(facts.as_deref(), |a| a.body(branch, times));
+                        // An arm that runs and falls through keeps its test's facts and its own.
+                        if let (Some(facts), Some(end)) = (facts, end) { stays.push([facts, end].concat()); }
+                        // `x and y` binds `b = x; if b: b = y`, and `x or y` binds `b = x; if b: else: b = y`;
+                        // the step's value is the test its assignment recorded, where its arm ends.
+                        if let Expr::Variable(name) = condition && other.is_empty() && steps(branch, name)
+                            && let Some(before) = incoming.get(name) {
+                            let (before, after) = (Box::new(before.clone()), Box::new(self.tests.get(name).cloned().unwrap_or(Test::Unknown)));
+                            combined = Some((name.clone(), if holds { Test::And(before, after) } else { Test::Or(before, after) }));
                         }
-                        Some((identity, name, present)) => match self.identities.iter().find(|(known, _)| *known == identity).map(|(_, value)| *value) {
-                            // An enclosing test already decided it: one branch is that same case, the other never runs.
-                            Some(known) => {
-                                let (same, never, same_leaves) = if known == present { (then_body, else_body, then_leaves) } else { (else_body, then_body, else_leaves) };
-                                self.body(same, times);
-                                self.never(never, times);
-                                if same_leaves { self.never(rest, times); return; }
-                            }
-                            None => {
-                                self.conditions.push((name.clone(), present));
-                                self.identities.push((identity.clone(), present));
-                                self.body(then_body, times);
-                                self.conditions.last_mut().unwrap().1 ^= true;
-                                self.identities.last_mut().unwrap().1 ^= true;
-                                self.body(else_body, times);
-                                self.conditions.pop();
-                                self.identities.pop();
-                                if then_leaves && else_leaves { self.never(rest, times); return; }
-                                // @ref LLP 3000.013#14.4 — after one branch leaves, what follows runs only in the other's case.
-                                if then_leaves || else_leaves {
-                                    let value = present != then_leaves;
-                                    self.conditions.push((name, value));
-                                    self.identities.push((identity, value));
-                                    self.body(rest, times);
-                                    self.conditions.pop();
-                                    self.identities.pop();
-                                    return;
-                                }
-                            }
-                        },
                     }
+                    // After the `if`, a binding either arm reassigned holds either path's value, so no
+                    // test, except the `if`'s own step.
+                    self.tests = incoming;
+                    for name in self.written[written..].to_vec() { self.tests.insert(name, Test::Unknown); }
+                    if let Some((name, test)) = combined { self.tests.insert(name, test); }
+                    // @ref LLP 3000.013#14.4 — what follows runs only after an arm that can run and does
+                    // not leave, under the facts every such arm keeps.
+                    let mut stays = stays.into_iter();
+                    let Some(first) = stays.next() else { self.never(rest, times); return None; };
+                    let kept: Vec<Fact> = match stays.next() {
+                        Some(second) => first.into_iter().filter(|fact| second.contains(fact)).collect(),
+                        None => first,
+                    };
+                    if !kept.is_empty() { return self.after(kept, rest, times); }
                 }
                 Stmt::Require { condition, .. } => {
                     self.expr(condition, times);
-                    if never_holds(condition) { self.never(&body[at + 1..], times); return; }
+                    // A refusal leaves where its test fails, so what follows runs only where it holds.
+                    let test = self.test(condition);
+                    match self.assume(&test, true) {
+                        None => { self.never(rest, times); return None; }
+                        Some(facts) if !facts.is_empty() => return self.after(facts, rest, times),
+                        Some(_) => {}
+                    }
                 }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }
                 Stmt::For { binding, domain, body } => {
@@ -420,7 +574,8 @@ impl Analysis<'_> {
                     // Later iterations can carry a dependency backwards
                     // through assignments. Resolve it before pricing once.
                     dependencies::fixed_point(&mut self.data, body);
-                    self.body(body, times.saturating_mul(max));
+                    if self.unreachable == 0 && matches!(domain, LoopDomain::Page(_)) { self.swept.insert(binding.clone()); }
+                    self.repeated(body, times.saturating_mul(max));
                 }
                 Stmt::Insert { table, row } | Stmt::InsertIfAbsent { table, row, .. } => {
                     self.expr(row, times); self.write(table, "insert", times);
@@ -450,16 +605,34 @@ impl Analysis<'_> {
                     self.write(&target.table, if *upsert { "upsert" } else { "update" }, times);
                     if let Some(name) = result { self.data.insert(name.clone(), true); }
                 }
-                Stmt::Break | Stmt::Continue => { self.never(&body[at + 1..], times); return; }
             }
         }
+        Some(Vec::new())
+    }
+
+    /// Walks what follows under `facts`, which then also hold wherever it falls through.
+    fn after(&mut self, facts: Vec<Fact>, rest: &[Stmt], times: u64) -> Option<Vec<Fact>> {
+        let end = self.under(Some(&facts), |a| a.body(rest, times))?;
+        Some([facts, end].concat())
+    }
+
+    /// A body that runs again and again, or not at all: a binding it reassigns can
+    /// carry a later value back to its start, or keep its value from before it, so
+    /// the walk knows no test of it inside or after.
+    fn repeated(&mut self, body: &[Stmt], times: u64) {
+        let assigned = assigned(body);
+        let before: Vec<(String, Test)> = assigned.iter().filter_map(|name| self.tests.remove(name).map(|test| (name.clone(), test))).collect();
+        let written = self.written.len();
+        self.body(body, times);
+        let reassigned: BTreeSet<&String> = self.written[written..].iter().collect();
+        for name in &assigned { self.tests.remove(name); }
+        // A binding the loop only reassigns in code that never runs keeps its test after it.
+        for (name, test) in before { if !reassigned.contains(&name) { self.tests.insert(name, test); } }
     }
 
     /// Statements that never run: walked for their bindings, but no site of theirs counts.
     fn never(&mut self, body: &[Stmt], times: u64) {
-        self.unreachable += 1;
-        self.body(body, times);
-        self.unreachable -= 1;
+        self.under(None, |a| { a.body(body, times); });
     }
 
     fn domain(&mut self, domain: &LoopDomain, times: u64, spelling: Option<&str>) -> (u64, bool) {
@@ -560,7 +733,7 @@ impl Analysis<'_> {
                     self.result.bounds.lanes = self.result.bounds.lanes.zip(static_max).map(|(a, b)| a.saturating_add(b.saturating_mul(times)));
                     self.data.insert(lane.binding.clone(), lane.source.is_some());
                     if let Some(distinct) = &lane.distinct { self.expr(distinct, times.saturating_mul(count)); }
-                    self.body(&lane.setup, times.saturating_mul(count));
+                    self.repeated(&lane.setup, times.saturating_mul(count));
                     if let Some(position) = &merge.position {
                         // Projected views eagerly read take+1 per source lane,
                         // then project every authorized candidate before sorting.
@@ -676,7 +849,7 @@ impl Analysis<'_> {
         if scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
             self.growth(&scan.site, format!("matching words and candidate {} rows (additional search terms filter)", scan.table),
                 "use an equality-pinned domain for a fixed-cost read; word-prefix search remains data-dependent");
-            self.result.bounds.lanes = None;
+            if self.unreachable == 0 { self.result.bounds.lanes = None; }
             grows = true;
         }
         // A lazy lane can pop each of the `take` unique rows, including

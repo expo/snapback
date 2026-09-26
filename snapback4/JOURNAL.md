@@ -63607,3 +63607,168 @@ ignored across 942 result lines; Node 2,312 tests, 2,303 passed, 0 failed, 9
 skipped (the optional published-fence, managed-profile and pinned-binary
 qualifications). 0.4.3 was cut from `8442e53ede` and does not contain this
 landing; the next publication does.
+
+## 2026-09-26 — Scale certificate precision: every test judged under the facts in force
+
+Grok's review of round 7 left six shapes where the certificate charged work
+that never runs (`issues/closed/20260926-snapback4-scale-certificate-precision.md`).
+None claimed a constant that grows, but each weakened the proof a builder reads.
+Patching them one by one would have added a sixth special case to a walk that
+already had three kinds of `if`, a separate `leaves` pass that did not track
+facts in order, and a `never_holds` for literals. So the walk changed shape.
+
+`body()` now prices a body and returns whether every path through it leaves,
+so there is no second pass to fall out of step. A condition becomes a `Test`:
+known, an argument's presence, or unknown, combined by `not`, `and` and `or`.
+It is judged three-valued under the facts in force. A branch whose facts
+contradict them never runs. What follows runs only after a branch that stays,
+under its facts. A `require` is the same rule: it leaves where its test fails
+and states its facts for what follows. This one rule covers all six shapes and
+the decided `else`. It judges facts in order inside a branch, `require 1 > 2`
+and `require not true`, a presence refusal the facts contradict,
+`not (assignee = null)`, and `and`, `or` and `not` of presence tests.
+
+Two consequences needed care:
+
+- **Facts for every program, variants only where they exist.** Presence facts
+  were computed only when some scan was a planner variant, so a program without
+  one found no dead code. Facts now always decide reachability, and only
+  `when()` is gated, so such a program's certificate still names no variants.
+- **Boolean bindings are flow-sensitive.** The compiler lowers `a and b` to
+  `$b = a; if $b: $b = b`. A whole-program reading of `$b` would have been
+  wrong for a user's own `known = a; if known: …; if known: known = b`, whose
+  first test reads `a`. So a binding holds the test it was given, as far as the
+  walk has reached. After an `if`, every binding either branch reassigned holds
+  none, except the step the `if` itself is. At a loop's start, every binding
+  the body reassigns holds none, since a later pass can carry a value back. Two
+  tests pin the loop and branch cases. Each certified a scan as a cleanup
+  backlog when it can grow.
+
+Also: a dead `matching` no longer clears a live merge's lane bound, and a job
+that returns before its sweep no longer lists it under the whole job. Dead code
+still adds to the allowance, as before. The unused `reassigned` field is gone.
+
+Evidence: eight new tests in `scale_variants.rs` (23 in all), and 23 mutants,
+each killed, among them `<` read as `<=`, `not` keeping its facts, `and`
+dropping its right side, no loop or branch invalidation, and a never-run
+branch counted as staying. The scale, cost, check, expiry and fix targets pass:
+`check` 71, `check_cost_source` 10, `expiry_writes` 32, `fix` 27,
+`following_view` 2, `intent_issue_tracker` 4, `scale` 20, `scale_intent` 7,
+`scale_variants` 23, `scale_windows_expiry` 7.
+
+## 2026-09-26 — Scale certificate precision round 1: each branch starts from the tests before it
+
+Both families reviewed round 0. Astra returned NOT READY with two High soundness
+regressions, and Grok READY WITH CHANGES with three Lows. Both High findings
+came from boolean bindings, the one new mutable state in the walk:
+
+- **The `then` arm's bindings leaked into the `else` arm.** Arms were walked in
+  turn over one `tests` map, and the reassignments were invalidated only after
+  both. So `known = true; if flag: (if known: known = false) else: (if known:
+  return t first 2)` certified the `else` arm's scan as never running. The same
+  happened inside a helper's expression block. Each arm now starts from a
+  snapshot of the tests in force. The `and`/`or` step is read at the end of its
+  own arm. After the `if`, the snapshot returns, and every binding either arm
+  reassigned holds no test.
+- **A loop's rebuilt test survived the loop.** At entry, a loop's reassigned
+  bindings were cleared, but the body could rebuild one (`known = true; if
+  known: known = assignee != null`) and carry it out, although the loop can
+  run no times. They are now cleared again after the loop.
+
+Grok's Lows are precision:
+
+- **A constant side of `and`/`or` hid the other's facts.** `false or assignee
+  != null` stated nothing. `facts()` now lets a side the facts decide as its
+  operator's identity leave the other side to decide the whole. So
+  `assignee != null and (assignee = null or false)` never holds.
+- **A `require` inside an arm that always runs, or inside both arms, did not
+  condition what followed the `if`.** `body()` now returns the facts that hold
+  where it falls through, not only whether it leaves. After an `if`, what
+  follows runs under the facts every staying arm keeps.
+- **A dead assignment cleared a live binding.** Code that never runs now
+  assigns nothing, in an arm or in a loop.
+
+Astra's Low: nothing pinned `or` with a true operand, or `and` with a false one,
+beside an unknown. Four refusals now do.
+
+Evidence: 27 variant tests, 12 of them new. Astra's and Grok's repros are among
+them, including the sibling-arm case inside a helper, an empty loop, a weaker
+reassignment in an arm, dead assignments, constant sides, and refusals kept
+after an arm. Grok's surviving mutation, both sides' facts for a true `or`, now
+fails `a_constant_side_of_and_or_or_leaves_the_other_to_decide`.
+
+## 2026-09-26 — Scale certificate precision round 2: what a test states, rechecked
+
+Both families reviewed round 1 READY WITH CHANGES. Astra found no soundness
+failure across 1,200 generated queries and 28,800 interpreter calls, and full
+certificates identical to the base for 149 operations. Grok also found no
+soundness hole. Every remaining finding is precision, and round 2 takes all
+but one:
+
+- **A test's own facts can decide it the other way** (Astra).
+  `(a != null or b != null) and (a = null and b = null)` states `a` and `b`
+  absent, which makes the `or` false. `assume()` now evaluates the test again
+  under the facts it adds and rejects a branch they contradict. This is a
+  second three-valued evaluation, not a solver.
+- **A straight-line reassignment holds the test it was given** (Grok).
+  `known = false; known = assignee != null` read `known` as unknown. A
+  reachable assignment now records its value's test and still marks the name
+  written, so a branch or a loop that reassigns it still leaves it none after.
+- **Literal arithmetic folds** (Grok). `require 1 + 1 = 3` never passes.
+  `literal()` evaluates `+`, `-` and `*` of integers as the interpreter does.
+  An overflow, which fails the call, stays unknown.
+- **Tests** for `!=` between unequal literals in increasing order, `null != 1`,
+  subtraction, and an `and` with a false side (Grok's surviving mutation, both
+  sides' facts on a false `and`).
+
+Not taken: a dead assignment still keeps a copy from being an alias. `copies()`
+reads the whole program without the walk's reachability, so it over-charges
+only. Making it reachability-aware means walking copies inside `body()`. That is
+larger than the finding.
+
+## 2026-09-26 — Scale certificate precision round 3: a step reads its recorded test
+
+Astra's review of round 2 found a High that round 2 itself introduced. Round
+2 made a reachable assignment record its value's test. But the `and`/`or`
+step still evaluated its assignment's value again after the arm, against a
+map that already held the new test. A self-referential step (`known = true;
+if known: known = not known`) was negated twice. `if not known` then
+certified its scan as never running, although every call reaches it. That was
+a false `constant`, also inside a helper's block, a merge lane's setup and a
+`WriteTarget` condition. The step now takes the test its assignment recorded
+where its arm ends, and `steps()` only recognizes the final assignment. Two
+regressions pin the self-negation, one with a planner-variant scan. A passing
+`2 * 3 = 6` kills the survivor that read `*` as `+`.
+
+Grok's review of round 2 found the same High, and two more things. Unary minus
+now folds (`require -1 > 0` never passes). An `or` with a true side holds
+whatever the other side is, so its arm runs in both presence states. Tests
+pin `true or assignee != null` and `assignee != null or true`. The first
+lowers so the presence test never enters the `Test` at all. The second is
+the one that kills the mutation taking the other side's facts.
+
+## 2026-09-26 — Scale certificate precision round 4: the last precision Lows
+
+Both families reviewed round 3 READY WITH CHANGES and found no soundness
+defect. Astra ran 3,000 generated queries and 72,000 interpreter calls, and
+compared full certificates with the base for 204 fixture operations and 214
+guide operations: they matched, except for the intended dead-code reductions.
+Round 4 takes the remaining precision Lows, each with a test, and every
+mutation of the new code fails a test.
+
+- **A loop's dead assignment keeps the binding's test.** `repeated()` clears the
+  loop's reassigned bindings on entry and exit. It now restores, after the
+  loop, any binding the reachable walk never reassigned. A reachable
+  reassignment still leaves none, since the loop may have run.
+- **`p or p` states `p`.** A true `or` of equal sides takes that side's facts.
+  `not` of a presence test is now the opposite presence, so
+  `p or not (p = null)` is the same case.
+- **Integer division folds** with the interpreter's Euclidean `/` and `%`.
+- **A copy keeps its own test** when its source is reassigned (Astra's test gap).
+  An unknown side of a true `or` lends the other side nothing (Grok's surviving
+  mutation).
+
+One mutation survives by design. Folding `1 / 0` to `0` instead of unknown
+changes no sound certificate, because a division by zero fails the call either
+way. Declined, as in round 2: a dead assignment still keeps a copy from being an
+alias (`copies()` reads the whole program).
