@@ -64851,3 +64851,24 @@ or redesigned; added the review's missing timer-clamping evidence. No engine,
 authorization, meter, outbox, public API/syntax, version or budget change.
 No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
 no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.
+
+## 2026-09-26 — 0.4.4 lane AD: baseline for adding a view without stalling reads
+
+Committed the calibration #22 adoption-stall ticket. Before optimization, an
+ignored engine fixture compiled the actual M7/M8 program and built the requested
+source populations, with synthetic Following fanout: 1,447,960 physical rows,
+8,863,718 index entries. On expose-builder-pixel (96 logical CPUs), Rust 1.97.0,
+opt-level 1 tests, adoption took 171,946 ms and a read behind its engine mutex
+waited 171,948 ms. Projection/index replacement took 142,046.153 ms, validation
+12,850.041 ms, commit/checkpoint 6,776.048 ms, preflight 3,788.815 ms. Derived work
+was 6,481.720 ms, including 2,156.589 ms capturing reference paths and 3,612.381 ms
+rebuilding unread after source-index changes. The six M8 grouped folds together
+took 670.957 ms: they already group in memory and write each final row once.
+This directs the fix at unrelated activation work and read admission, not the
+aggregate evaluator. Timers include metering; perf is absent on this host.
+Fixture generation uses a larger cache and longer delivery slices; measured
+adoption reopens with the normal cache and FULL durability. The original replay
+history/distribution is not claimed. Evidence: reports/20260926-lane-ad-baseline.log
+and reports/20260926-lane-ad-adoption.md. Before optimization, pristine lane-base
+wasm is 2,025,652 B raw / 582,552 B gzip, 458 B above the unchanged budget;
+instrumentation changes gzip by +2 B. No budget increase or publication.

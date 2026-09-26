@@ -56,10 +56,12 @@ impl Store {
     }
 
     pub(crate) fn activate(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_at(schema, programs, reset, crate::now_ms(), build)
+        self.activate_at(schema, programs, reset, crate::now_ms(), |tx, changed, _| build(tx, changed))
     }
 
-    pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+    pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        let mut report = super::adoption_report::AdoptionReport::default();
+        let mut phase = std::time::Instant::now();
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
@@ -118,6 +120,7 @@ impl Store {
                 return Err(step.refusal(schema));
             }
         }
+        report.phase("preflight", &mut phase);
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.
@@ -168,6 +171,7 @@ impl Store {
                 })?;
             }
         }
+        report.phase("project and index", &mut phase);
         // Upgrade old stores and rebuild only when the schema changes. Counts
         // participate in the same activation transaction as rows and indexes.
         if cap_counts && tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash) {
@@ -179,7 +183,9 @@ impl Store {
             }
             tx.set_meta("cap_counts_schema", &schema_hash)?;
         }
-        build(&tx, changed)?;
+        report.phase("cap counts", &mut phase);
+        build(&tx, changed, &mut report)?;
+        report.phase("derived rebuild", &mut phase);
         if schema_changed {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 walk(&tx, catalog[name], |_, mut row| {
@@ -200,6 +206,7 @@ impl Store {
                 }
             }
         }
+        report.phase("validation", &mut phase);
         if schema_changed {
             // A removed asset home is retired in the same transaction as its
             // projection. The ordinary collector removes bytes after commit.
@@ -221,7 +228,10 @@ impl Store {
             }
         }
         let after = identity(&tx.tx)?;
+        report.phase("metadata", &mut phase);
         tx.commit()?;
+        report.phase("commit", &mut phase);
+        self.adoption_report = report;
         // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
         catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
         self.catalog = catalog;

@@ -93,12 +93,12 @@ pub(super) fn paths_changed(schema: &crate::schema::Schema, previous: Option<&cr
 
 #[cfg(feature = "sqlite")]
 impl Runner<'_> {
-    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain]) -> Result<(), RuntimeError> {
+    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain], report: &mut crate::store::adoption_report::AdoptionReport) -> Result<(), RuntimeError> {
         let saved = self.event_free;
         self.event_free = true;
         let result = (|| {
             for maintain in maintains {
-                if table_paths_changed(self.schema.table(&maintain.source), previous.and_then(|s| s.table(&maintain.source))) { self.rebuild_maintain(maintain)?; }
+                if table_paths_changed(self.schema.table(&maintain.source), previous.and_then(|s| s.table(&maintain.source))) { self.rebuild_maintain_reported(maintain, report)?; }
             }
             Ok(())
         })();

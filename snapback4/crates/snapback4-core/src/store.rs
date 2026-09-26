@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+pub mod adoption_report;
 mod activation_walk;
 mod event_slots;
 mod caps;
@@ -39,6 +40,7 @@ pub struct Store {
     /// runs on one machine, until listing the temp directory took minutes.
     ephemeral_assets: bool,
     identity: activation::Identity,
+    pub adoption_report: adoption_report::AdoptionReport,
 }
 
 impl Drop for Store {
@@ -79,7 +81,7 @@ impl Store {
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
+        Ok(Self { adoption_report: Default::default(), conn, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -234,7 +236,7 @@ impl Store {
         let identity = activation::identity(&opened)?;
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, page_size, catalog, assets_dir, ephemeral_assets, identity })
+        Ok(Self { adoption_report: Default::default(), conn, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
@@ -279,7 +281,7 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+        Ok(Self { adoption_report: Default::default(), conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {
