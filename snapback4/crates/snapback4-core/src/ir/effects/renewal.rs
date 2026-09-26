@@ -6,18 +6,26 @@ pub(super) fn prove(program: &Program) -> bool {
     if program.kind != ProgramKind::Mutation || program.native {
         return false;
     }
-    let Some((write, guards)) = program.body.split_last() else { return false };
+    let Some((write, guards)) = program.body.split_last() else {
+        return false;
+    };
     let args: BTreeSet<_> = program.args.keys().cloned().collect();
     let stable = |expr: &Expr| inputs(expr, false).is_some_and(|names| names.is_subset(&args));
     let one_write = match write {
         Stmt::Update { key, patch, .. } => stable(key) && stable(patch),
         Stmt::Upsert { key, row, .. } => stable(key) && stable(row),
-        Stmt::WriteTarget { target, patch, condition: None, result: None, .. } => {
-            !target.key.is_empty() && target.key.iter().all(stable) && stable(patch)
-        }
+        Stmt::WriteTarget {
+            target,
+            patch,
+            condition: None,
+            result: None,
+            ..
+        } => !target.key.is_empty() && target.key.iter().all(stable) && stable(patch),
         _ => false,
     };
-    if !one_write { return false; }
+    if !one_write {
+        return false;
+    }
     // Walk backwards: each local must feed a guard, possibly through another
     // local. Locals cannot shadow arguments or reach the key/patch. Refuse
     // control flow, helpers/blocks and opaque builtins rather than guessing.
@@ -27,10 +35,15 @@ pub(super) fn prove(program: &Program) -> bool {
         let value = match stmt {
             Stmt::Require { condition, .. } => condition,
             Stmt::Let { name, value } | Stmt::Const { name, value }
-                if !args.contains(name) && locals.insert(name) && needed.remove(name) => value,
+                if !args.contains(name) && locals.insert(name) && needed.remove(name) =>
+            {
+                value
+            }
             _ => return false,
         };
-        let Some(names) = inputs(value, true) else { return false };
+        let Some(names) = inputs(value, true) else {
+            return false;
+        };
         needed.extend(names);
     }
     needed.is_subset(&args)
@@ -50,6 +63,8 @@ fn inputs(expr: &Expr, reads: bool) -> Option<BTreeSet<String>> {
         _ => return None,
     };
     let mut names = BTreeSet::new();
-    for child in children { names.extend(inputs(child, reads)?); }
+    for child in children {
+        names.extend(inputs(child, reads)?);
+    }
     Some(names)
 }

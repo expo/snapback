@@ -98,7 +98,13 @@ impl Store {
             tx.tx.execute_batch("CREATE TABLE IF NOT EXISTS _cap_counts (t INTEGER NOT NULL, k BLOB NOT NULL, n INTEGER NOT NULL CHECK(n >= 0), PRIMARY KEY(t, k)) WITHOUT ROWID;")?;
             if reset { tx.tx.execute_batch("DELETE FROM _cap_counts;")?; }
         }
-        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _sequences;")?; }
+        if schema.tables.values().any(|t| !t.sequences.is_empty()) {
+            tx.ensure_sequence_table()?;
+        }
+        if reset {
+            tx.tx.execute_batch("DELETE FROM r; DELETE FROM i;")?;
+            if tx.has_sequence_table()? { tx.tx.execute_batch("DELETE FROM _sequences;")?; }
+        }
         if schema_changed && programs.is_some() && !reset {
             let previous: Option<String> = tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;

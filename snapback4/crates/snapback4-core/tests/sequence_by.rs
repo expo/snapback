@@ -503,3 +503,34 @@ fn denied_sequence_targets_have_identical_refusals_and_meters() {
         assert_eq!(worlds[0], worlds[1], "{op}: code, message, detail and every meter field must be byte-identical");
     }
 }
+
+
+#[test]
+fn sequence_table_is_lazy_and_its_creation_rolls_back() {
+    let mut store = Store::memory().unwrap();
+    let exists = |store: &Store| -> bool {
+        store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_sequences')", [], |r| r.get(0)).unwrap()
+    };
+    assert!(!exists(&store), "opening a store must not add sequence custody");
+    store.install(&Default::default()).unwrap();
+    assert!(!exists(&store), "ordinary activation must not add sequence custody");
+    let tx = store.read_transaction().unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 0);
+    tx.rollback().unwrap();
+    assert!(!exists(&store), "an absent counter read is read-only");
+    let tx = store.transaction().unwrap();
+    tx.set_sequence("parents", "p", 7).unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 7);
+    tx.rollback().unwrap();
+    assert!(!exists(&store), "failed first write rolls back DDL too");
+    let tx = store.transaction().unwrap();
+    tx.set_sequence("parents", "p", 9).unwrap();
+    tx.commit().unwrap();
+    assert!(exists(&store));
+    let tx = store.read_transaction().unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 9);
+    tx.rollback().unwrap();
+    let mut declared = Store::memory().unwrap();
+    declared.install(&bound(SOURCE).schema).unwrap();
+    assert!(exists(&declared), "sequence activation creates custody before allocation");
+}
