@@ -59377,3 +59377,27 @@ keeps the `fresh: false` it arrived with. New local cases: an accepted
 background reply is what recovery shows, and it replaces an older one-shot
 answer that landed while it ran; an older refusal landing later does not erase
 it; and the accepted loading and refusal cases run through an outage.
+
+## 2026-09-26 — Live presence round 10: the server's cut orders what recovery remembers
+
+Astra's review of round 9 confirmed its fixes and found request-start order
+insufficient on its own. A one-shot read held before reaching the server, then
+refused at a later store cut, lost to an earlier answer because its read began
+first. A read retried after the store changed kept its first ticket, so it lost
+to reads that began while it waited. Now a server's answer or refusal carries
+the store cut it read (`seq`), and a remembered answer is replaced only by one
+that is not older: a later cut wins, and at the same cut the attempt that began
+later wins. Every evaluation attempt, a retry included, takes a new ticket.
+Local cleanup of an expired or composed answer forgets it without changing the
+order.
+
+Astra also showed the online credentials gate was testable after all. A barrier
+on the observation's fetch holds a completed read while a change-feed `E_AUTH`
+ends the credentials, and a timer spy then sees no presence timer. The latency
+bound in RFC §3.3 now counts the read in flight when presence changed.
+
+Grok's review of round 9 was READY WITH CHANGES. It found the local-reads unit
+test still treating the remembered answers as a map, so its assertions after the
+first never ran; that test and the prediction-routing fakes now use the ordered
+cache. A new local case shows that forgetting an expired answer, offline, leaves
+the next server answer free to be remembered.

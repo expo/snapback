@@ -872,6 +872,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false) {
+    // @ref LLP 3000.017#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
+    let answerCache = answers.serverAnswers.view();
     const queryEnvironment = {
       get backend() { return backend!; },
       get partitionDenied() { return partitionDenied; },
@@ -889,8 +891,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
       post: quiet ? (path: string, body: unknown, captured?: ClosingResponse) => post(path, body, captured, true) : post,
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
-      // @ref LLP 3000.017#3.2 — remembered answers are ordered by when each read began.
-      offline, serverAnswers: answers.serverAnswers.view(),
+      offline, get serverAnswers() { return answerCache; },
     };
     const work = (async () => {
       while (true) {
@@ -899,6 +900,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
         if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
+        answerCache = answers.serverAnswers.view();
       }
     })();
     active.add(work);

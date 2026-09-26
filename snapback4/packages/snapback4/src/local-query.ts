@@ -23,7 +23,7 @@ import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 
-type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean };
+type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -56,11 +56,13 @@ export interface QueryEnvironment {
   serverAnswers: AnswerCache;
 }
 
-/** Remembered server answers, which recovery may show (Rule 5). */
+/** Remembered server answers, which recovery may show (Rule 5), ordered by the
+ * server's store cut: `set` and `delete` carry it, and `forget` is local cleanup. */
 export interface AnswerCache {
   get(key: string): ServerAnswer | undefined;
-  set(key: string, answer: ServerAnswer): void;
-  delete(key: string): void;
+  set(key: string, answer: ServerAnswer, seq: number): void;
+  delete(key: string, seq: number): void;
+  forget(key: string): void;
 }
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {
@@ -112,7 +114,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (stopped) return localCandidate();
     let last = env.serverAnswers.get(key);
     if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) {
-      env.serverAnswers.delete(key); last = undefined;
+      env.serverAnswers.forget(key); last = undefined;
     }
     if (last) for (const table of last.tables) tables.add(table);
     const read: Read<R> = last ? { ...last.read, fresh: false, since: Math.min(last.at, Date.now()) } as Read<R>
@@ -164,7 +166,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
-        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true }, origin: "server" };
+        const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
+        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
@@ -181,7 +184,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
     const retainedRows = !!first.outcome.unknown && hasRetainedRows(first.outcome.retainedRows);
-    if (composed || retainedRows) { remember = false; env.serverAnswers.delete(key); }
+    if (composed || retainedRows) { remember = false; env.serverAnswers.forget(key); }
     if (!withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
@@ -264,7 +267,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (attempt > 0 && watch) watch.dirty = true;
         if (origin === "remembered") {
           const last = env.serverAnswers.get(key);
-          if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) env.serverAnswers.delete(key);
+          if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) env.serverAnswers.forget(key);
         }
         // Recovery still needs any future local branch wakeup after memory
         // expires; only the expired server deadline is retired here.
@@ -273,8 +276,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server") {
-        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) });
-        else env.serverAnswers.delete(key);
+        if (!remember) env.serverAnswers.forget(key);
+        else if ("data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq ?? 0);
+        else env.serverAnswers.delete(key, result.seq ?? 0);
       }
       if (origin !== "local" || !("data" in result.read)) return { ...result, localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;

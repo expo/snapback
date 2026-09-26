@@ -20,7 +20,7 @@ function routing() {
     call: async request => { assert.equal(request.op, "query"); return { ok: outcome }; },
     post: async (path, body) => { requests.push({ path, body }); return { ok: true, json: { data: ["server"], tables: ["switches"], complete: true }, obsoleteAuth: false }; },
     installNative: async () => false, notify: () => {},
-    offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: new Map(),
+    offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: Object.assign(new Map(), { forget(key) { this.delete(key); } }),
   };
   return { env, program, requests, set entries(value) { entries = value; }, set outcome(value) { outcome = value; },
     read: async () => (await evaluateLocal(env, op, input, 0, 0)).read };

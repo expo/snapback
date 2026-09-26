@@ -35,8 +35,9 @@ mutation note():
 
 // Bob's local client. `plan(n, body)` scripts the nth /q/presenceOf reply from
 // the server's own body: it returns a body, a Response, or a promise of either.
-// `down()` then fails every request, as an outage would.
-async function bob(t, tier, plan) {
+// `down()` then fails every request, as an outage would. `hold(n)` may delay the
+// nth /q/presenceOf request before it reaches the server.
+async function bob(t, tier, plan, hold = async () => {}) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-presence-local-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -48,10 +49,11 @@ async function bob(t, tier, plan) {
   await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, "server did not listen", 30_000);
   const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
   const reads = [];
-  let outage = false;
+  let outage = false, entered = 0;
   const device = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
   client = await createLocalClient({ url, persona: "bob", device, waitSeconds: 1, fetch: async (input, init) => {
     if (outage) throw new TypeError("fetch failed");
+    if (new URL(input).pathname === "/q/presenceOf") await hold(++entered);
     const response = await fetch(input, init);
     if (new URL(input).pathname !== "/q/presenceOf") return response;
     reads.push(Date.now());
@@ -59,7 +61,8 @@ async function bob(t, tier, plan) {
     return reply instanceof Response ? reply : Response.json(reply);
   } });
   await client.sync();
-  return { client, reads, down: () => { outage = true; } };
+  const commit = async () => (await fetch(url + "/m/note", { method: "POST", headers: { "x-snapback-persona": "bob" }, body: JSON.stringify({ id: `note-${Date.now()}`, args: {} }) })).json();
+  return { client, reads, down: () => { outage = true; }, up: () => { outage = false; }, entries: () => entered, commit };
 }
 // The server's answer, marked with the read that produced it, refreshing every 300 ms unless `extra` says otherwise.
 const answer = (body, v, extra = {}) => ({ ...body, data: { ...body.data, v }, refresh: 300, ...extra });
@@ -217,6 +220,78 @@ for (const tier of ["wasm", "process"]) {
     stop();
     assert.equal(seen.find(read => read.fresh === false).data?.v, 3, `an older refusal erased the newer answer: ${JSON.stringify(seen)}`);
     assert.ok(reads.length >= 3, "the refresh ran after the one-shot read began");
+  });
+
+  test(`${tier}: a refusal read at a later store cut outranks an answer remembered before it landed`, { timeout: 60_000 }, async t => {
+    const gate = deferred();
+    const { client, reads, down } = await bob(t, tier, (n, body) => {
+      if (n === 1) return answer(body, 1);
+      // The background refresh completes second; the one-shot read, held before the server, lands last at a later cut.
+      if (n === 2) return answer(body, 2, { refresh: undefined });
+      return { denied: refused, seq: body.seq + 5, tables: body.tables ?? [], refresh: 300 };
+    }, async entered => { if (entered === 2) await gate.promise; });
+    const mark = client.observe(query, { p: "dev:alice" });
+    t.after(() => { gate.resolve(); mark.close(); });
+    await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
+    const older = client.query(query, { p: "dev:alice" });
+    await until(() => mark.getSnapshot()?.data?.v === 2, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
+    gate.resolve();
+    assert.equal((await older).denied?.code, "NOT_HERE", "the one-shot read was refused at the later cut");
+    const seen = [];
+    const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+    down();
+    await until(() => client.link() === "offline", "the outage took the link offline");
+    await delay(300);
+    stop();
+    assert.ok(!seen.some(read => read.fresh === false && read.data?.v === 2), `recovery showed an answer a later refusal replaced: ${JSON.stringify(seen)}`);
+    assert.equal(reads.length, 3);
+  });
+
+  test(`${tier}: a read retried after its store changed takes a new place in the order`, { timeout: 60_000 }, async t => {
+    const gate = deferred();
+    let refusing = false;
+    const { client, down, entries, commit } = await bob(t, tier, (n, body) => refusing
+      ? { denied: refused, seq: body.seq, tables: body.tables ?? [], refresh: 300 }
+      : answer(body, n, n === 1 ? {} : { refresh: undefined }), async entered => { if (entered === 2) await gate.promise; });
+    const mark = client.observe(query, { p: "dev:alice" });
+    t.after(() => { gate.resolve(); mark.close(); });
+    await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
+    const older = client.query(query, { p: "dev:alice" });
+    await until(() => entries() >= 2, "the one-shot read began and is held");
+    // A synced commit clears the remembered answers; the watch reads again and is remembered first.
+    assert.equal((await commit()).state, "sent");
+    await client.sync();
+    await until(() => "data" in mark.getSnapshot() && mark.getSnapshot().data.v >= 2, `the watch did not read again: ${JSON.stringify(mark.getSnapshot())}`);
+    refusing = true;
+    gate.resolve();
+    assert.equal((await older).denied?.code, "NOT_HERE", "the one-shot read, retried under the new store, was refused");
+    const seen = [];
+    const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+    down();
+    await until(() => client.link() === "offline", "the outage took the link offline");
+    await delay(300);
+    stop();
+    assert.ok(!seen.some(read => read.fresh === false && "data" in read), `recovery showed an answer the retried read's refusal replaced: ${JSON.stringify(seen)}`);
+  });
+
+  test(`${tier}: forgetting an expired answer leaves the next server answer free to be remembered`, { timeout: 60_000 }, async t => {
+    const { client, down, up } = await bob(t, tier, (n, body) => n === 1 ? answer(body, 1, { nextExpiry: Date.now() + 2_500, refresh: undefined }) : answer(body, n, { refresh: undefined }));
+    const mark = client.observe(query, { p: "dev:alice" });
+    t.after(() => mark.close());
+    await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
+    // Offline at the deadline: recovery finds the answer expired, forgets it, and shows loading.
+    down();
+    await until(() => client.link() === "offline", "the outage took the link offline");
+    await until(() => "loading" in mark.getSnapshot(), `the expired answer was not withdrawn: ${JSON.stringify(mark.getSnapshot())}`, 10_000);
+    up();
+    await until(() => (mark.getSnapshot()?.data?.v ?? 0) >= 2, `the watch did not read again once online: ${JSON.stringify(mark.getSnapshot())}`, 15_000);
+    const seen = [];
+    const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+    down();
+    await until(() => client.link() === "offline", "the second outage took the link offline");
+    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    stop();
+    assert.ok(seen.find(read => read.fresh === false).data?.v >= 2, `recovery lost the answer read after the forgotten one: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an accepted background reply does not undo a newer read's deletion of an absent answer`, { timeout: 60_000 }, async t => {
