@@ -725,7 +725,8 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
                 lock(&shared.readers).put(&epoch, reader);
                 result
             }
-            Err(_) => snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()),
+            Err(_) if shared.memory_store() => snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()),
+            Err(error) => return Err(error.refusal()),
         } } else { snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()) };
         return match resolved {
             Ok(Some((principal, _))) => Ok(principal),
@@ -837,17 +838,17 @@ fn handle(mut request: Request, shared: &Shared) {
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
-            return reject(request, 401, refusal);
+            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
     if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
-            return reject(request, 401, refusal);
+            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
     if method == Method::Get && matches!(path.as_str(), "/" | "/schema" | "/api.ts" | "/native.wasm" | "/changes") {
         if let Err(refusal) = principal_of(&request, shared) {
-            return reject(request, 401, refusal);
+            return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
     let _upload_permit = if method == Method::Post && path == "/assets" {
@@ -918,7 +919,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error) })),
                 }
             },
-            Err(refusal) => respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
+            Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
             let auth = lock(&shared.bound).schema.auth.clone();
@@ -979,7 +980,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let principal = match principal_of(&request, shared) {
                 Ok(principal) => principal,
                 Err(refusal) => {
-                    respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+                    respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
                     return;
                 }
             };
@@ -1073,8 +1074,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
                         (outcome, cut, metadata, reads_presence)
                     },
-                    // Embedded in-memory test hosts have no detached connection.
-                    // File-backed dev/serve readers normally take the path above.
+                    // Only memory stores lack detached readers by construction.
+                    Err(error) if !shared.memory_store() => {
+                        return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
+                    }
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
@@ -1290,8 +1293,8 @@ mod poison_tests {
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
-            engine: FairMutex::new(engine),
-            readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
+            readers: Mutex::new(QueryReaders::new(&engine)),
+            engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(Bound { view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
             worker_revision: AtomicUsize::new(0),

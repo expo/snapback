@@ -22,8 +22,6 @@ mod sync_generation_tests;
 mod timeline_tests;
 #[path = "../tests/serve_store/mod.rs"]
 mod store_tests;
-
-
 #[test]
 fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
     for dev in [true, false] {
@@ -1395,7 +1393,7 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     {
         let mut engine = lock(&host.shared.engine);
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        lock(&host.shared.readers).invalidate();
+        lock(&host.shared.readers).replace(&engine);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }
@@ -1412,8 +1410,11 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     // A native-only replacement also invalidates loans even if the stored
     // schema generation stays equal. This checks the epoch boundary only;
     // it does not claim to execute a native-module rebuild.
-    lock(&host.shared.readers).invalidate();
-    assert_eq!(lock(&host.shared.engine).generation(), generation);
+    {
+        let engine = lock(&host.shared.engine);
+        lock(&host.shared.readers).replace(&engine);
+        assert_eq!(engine.generation(), generation);
+    }
     lock(&host.shared.readers).put(&epoch, reader);
     assert!(lock(&host.shared.readers).idle.is_empty());
     assert_eq!(version()["data"], 2);

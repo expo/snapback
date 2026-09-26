@@ -8,7 +8,10 @@ use super::*;
 pub(super) struct QueryReaders {
     pub(super) epoch: Arc<()>,
     pub(super) idle: Vec<Engine>,
-    source: Option<Engine>,
+    pub(super) source: Option<Engine>,
+    memory: bool,
+    #[cfg(test)]
+    pub(super) fail_open_after: Option<usize>,
     candidate_queries: BTreeSet<String>,
 }
 
@@ -17,6 +20,7 @@ impl QueryReaders {
         &mut self,
         engine: &Engine,
     ) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
+        self.memory = engine.store().conn().path().is_none_or(str::is_empty);
         if self.source.is_none() {
             self.source = engine.reader().ok();
         }
@@ -47,11 +51,13 @@ impl QueryReaders {
     pub(super) fn new(engine: &Engine) -> Self {
         Self {
             source: engine.reader().ok(),
+            memory: engine.store().conn().path().is_none_or(str::is_empty),
             ..Self::default()
         }
     }
     pub(super) fn replace(&mut self, engine: &Engine) {
         self.invalidate();
+        self.memory = engine.store().conn().path().is_none_or(str::is_empty);
         self.source = engine.reader().ok();
     }
     pub(super) fn begin_adoption(&mut self, candidate: &Bound) {
@@ -69,6 +75,14 @@ impl QueryReaders {
         self.candidate_queries.contains(name)
     }
     fn detached(&mut self) -> Option<Result<(Arc<()>, Engine), snapback4_core::RuntimeError>> {
+        #[cfg(test)]
+        if let Some(remaining) = &mut self.fail_open_after {
+            if *remaining == 0 {
+                self.idle.clear();
+                return Some(Err(snapback4_core::RuntimeError::Store("injected reader-open failure; retry the request".into())));
+            }
+            *remaining -= 1;
+        }
         let source = self.source.as_ref()?;
         Some(match self.idle.pop() {
             Some(reader) => Ok((self.epoch.clone(), reader)),
@@ -84,9 +98,12 @@ impl Shared {
         if let Some(result) = lock(&self.readers).detached() {
             return result;
         }
-        let engine = lock(&self.engine);
-        lock(&self.readers).take(&engine)
+        // A missing factory can also mean opening a file-backed reader failed.
+        // Never acquire the writer to repair that failure under a read permit.
+        Err(snapback4_core::RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()))
     }
+    pub(super) fn memory_store(&self) -> bool { lock(&self.readers).memory }
+
     pub(super) fn read_head(&self) -> Result<(String, u64), Refusal> {
         match self.reader() {
             Ok((epoch, mut reader)) => {
@@ -94,7 +111,8 @@ impl Shared {
                 lock(&self.readers).put(&epoch, reader);
                 head
             }
-            Err(_) => response_head(&mut lock(&self.engine)),
+            Err(_) if self.memory_store() => response_head(&mut lock(&self.engine)),
+            Err(error) => Err(error.refusal()),
         }
     }
 }

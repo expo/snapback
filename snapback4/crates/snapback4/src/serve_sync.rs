@@ -36,7 +36,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     let principal = match principal_of(&request, shared) {
         Ok(principal) => principal,
         Err(refusal) => {
-            respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+            respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
             return;
         }
     };
@@ -62,6 +62,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
+                Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
@@ -91,6 +92,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
                 }
+                Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
