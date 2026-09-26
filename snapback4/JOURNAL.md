@@ -59185,3 +59185,37 @@ around it.
 
 `NOT-DOING.md` keeps a presence API, last-seen storage and multi-server
 presence out.
+
+## 2026-09-26 — Live presence rounds 2–3: no lost wakes, and tokens instead of bits
+
+Grok's first review, of the design before grants, was NOT READY, and so was
+Astra's first, of the version with grants. Both found that the bits were a
+disclosure, and each found wake races.
+
+- **Opaque tokens.** A query now answers an opaque token bound to its viewer,
+  and never the principals or bits. The bits behind an aggregate such as
+  `connected[bob] + connected[carol]` stay on the server. A poll follows only
+  its own viewer's tokens, answers only which of them moved, and drops a token
+  that lapses mid-wait. Tokens replace grants, and remove the comma problem in
+  principal names.
+- **No lost wakes.** A presence generation moves under the change lock, so a
+  wake between a poll's checks and its wait is never lost.
+- **No spurious answers.** A presence wake answers only a poll whose tokens
+  moved, so unrelated polls and absence-guarded pushes are undisturbed.
+- **Consistent reads.** One run reads each principal once, so an answer's reads
+  agree with its token.
+- **Composed reads.** Composed local answers carry the server's token.
+
+The server tests cover:
+
+- a token that moves and answers;
+- an already-moved token answering at once;
+- a grace that ends on its own deadline (a test that deleting the deadline arm
+  now fails);
+- a bystander poll surviving presence wakes;
+- a foreign or unknown token following nothing;
+- an aggregate disclosing no principal;
+- a lapsed token staying quiet.
+
+The three-tier client test still turns Alice's mark true about 20 ms after Bob
+connects.
