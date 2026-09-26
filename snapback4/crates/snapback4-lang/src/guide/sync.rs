@@ -80,11 +80,18 @@ or `whole` when fewer than N readable rows exist, including an empty group.
 A descending page on that index is complete while it stays at or above that
 boundary by key; crossing it returns only the known suffix with `complete: false`
 and unknown coverage, so the online client asks the server. Without a boundary
-the group is unknown. Ascending reads and other indexes have unknown coverage.
+the group is unknown.
+
+Ascending reads and other indexes have unknown coverage.
 N_SYNC_ORDER notes these query orders at their source sites and names the
 window's order for ordinary pages, including calendar-index pages. A printed
 page repair keeps audience equalities in bracket keys, every other predicate,
-and the cursor. A range can move to a filter only with the same meaning;
+and the cursor. It is printed only when the query has a cursor, a cap proves
+the page covers the whole group, or the query already reads newest first on
+the same ordered columns. A cursorless partial page in another order gets
+words: changing its order could select different rows. After changing the
+order, restart pagination; the full traversal keeps the same rows.
+A range can move to a filter only with the same meaning;
 outer-row endpoints, generated membership lanes and merges get words naming
 the window order and index instead of a paste-ready replacement. This also
 applies to projected views: one branch is not the whole result. Whole-domain
@@ -95,6 +102,7 @@ audience predicate and cursor. A query on the window's own index, newest first,
 can answer offline within the acquired boundary, including timestamp ties.
 Other orders need the server; a held query stays local with incomplete coverage.
 `online only` currently applies to tables and views, not query headers.
+
 An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
 A put moving above the boundary joins the suffix. Continuous renewal keeps the

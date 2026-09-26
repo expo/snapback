@@ -128,6 +128,88 @@ fn named_where_pages_lift_audience_and_keep_second_page() {
     }
 }
 
+fn four_rows(source: &str) -> Engine {
+    let b = bind(source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut rows = vec![
+        ("conversations".into(), object([("id", id("room"))])),
+        ("members".into(), object([("id", id("m")), ("conversationId", id("room")), ("principal", id("alice"))])),
+    ];
+    for (name, at, ordinal) in [("a", 10, 1), ("b", 40, 2), ("c", 30, 3), ("d", 20, 4)] {
+        rows.push(("messages".into(), object([
+            ("id", id(name)), ("conversationId", id("room")), ("sender", id("alice")),
+            ("at", Value::Int(at)), ("ordinal", Value::Int(ordinal)),
+        ])));
+    }
+    e.seed(rows).unwrap();
+    e
+}
+
+fn ids(rows: &[Value]) -> Vec<&str> {
+    rows.iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect()
+}
+
+#[test]
+fn cursorless_partial_pages_in_another_order_get_words() {
+    // Grok's four-row counterexample: either ordinal direction selects a
+    // different slice from the window's newest two rows (b, c).
+    let base = named().replace("by byWindow: conversationId, at, ordinal, id", "by byWindow: conversationId, at, id");
+    for (order, expected) in [("first 2 by .ordinal", ["a", "b"]), ("last 2 by .ordinal", ["d", "c"]), ("first 2 by .at", ["a", "d"])] {
+        let original = format!("messages where .conversationId = conversationId {order}");
+        let source = base.replace(PAGE, &original);
+        let before = page(&mut four_rows(&source), Value::Null);
+        assert_eq!(ids(before.data.as_array().unwrap()), expected);
+        let unsafe_repair = source.replace(&original, "messages[conversationId = conversationId] last 2 by byWindow");
+        let after = page(&mut four_rows(&unsafe_repair), Value::Null);
+        assert_eq!(ids(after.data.as_array().unwrap()), ["b", "c"]);
+        assert_ne!(before.data, after.data, "this cursorless rewrite changes the result");
+        words_only(&source);
+    }
+}
+
+#[test]
+fn cursor_or_covering_cap_allows_the_four_row_order_change() {
+    let base = named().replace("by byWindow: conversationId, at, ordinal, id", "by byWindow: conversationId, at, id");
+    for direction in ["first", "last"] {
+        let original = format!("messages where .conversationId = conversationId {direction} 2 by .ordinal after c");
+        let source = base.replace(PAGE, &original);
+        let repaired = apply_repair(&source, &original);
+        let before = drain(&mut four_rows(&source), true);
+        let after = drain(&mut four_rows(&repaired), true);
+        let mut before_ids = ids(&before);
+        let mut after_ids = ids(&after);
+        before_ids.sort(); after_ids.sort();
+        assert_eq!(before_ids, ["a", "b", "c", "d"]);
+        assert_eq!(before_ids, after_ids);
+        assert_eq!(ids(&after), ["b", "c", "d", "a"]);
+
+        let original = original.replace(" 2 by", " 50 by").replace(" after c", "");
+        let source = base.replace("table messages:", "table messages:\n  cap 50 by conversationId").replace(PAGE, &original);
+        let repaired = apply_repair(&source, &original);
+        assert!(bind(&repaired).notes.is_empty());
+        let before = page(&mut four_rows(&source), Value::Null);
+        let after = page(&mut four_rows(&repaired), Value::Null);
+        let mut before_ids = ids(before.data.as_array().unwrap());
+        let mut after_ids = ids(after.data.as_array().unwrap());
+        before_ids.sort(); after_ids.sort();
+        assert_eq!(before_ids, ["a", "b", "c", "d"]);
+        assert_eq!(before_ids, after_ids);
+        assert_eq!(ids(after.data.as_array().unwrap()), ["b", "c", "d", "a"]);
+    }
+}
+
+#[test]
+fn cursorless_same_order_repair_keeps_the_identical_slice() {
+    let source = named().replace("  at: time", "  by byOther: conversationId, at, ordinal, id\n  at: time");
+    let original = "messages[conversationId] last 2 by byOther";
+    let source = source.replace(PAGE, original);
+    let repaired = apply_repair(&source, original);
+    let before = page(&mut four_rows(&source), Value::Null);
+    let after = page(&mut four_rows(&repaired), Value::Null);
+    assert_eq!(before.data, after.data);
+    assert_eq!(ids(after.data.as_array().unwrap()), ["b", "c"]);
+}
+
 #[test]
 fn count_applies_the_same_audience_page_repair_and_preserves_continuation() {
     let original = "messages where .conversationId = conversationId first 2 by .at, .ordinal after c";

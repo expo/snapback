@@ -60,7 +60,10 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
                 let old_columns = query_index.columns().into_iter().take(scan.prefix.len()).collect::<Vec<_>>();
                 let relies_on_cap = scan.after.is_none() && schema.group_bound(&scan.table, &old_columns)
                     .is_some_and(|cap| u64::from(cap) <= scan.take.maximum());
-                if (!relies_on_cap || cap_covers) && (source.range.is_some() || cap_covers)
+                // @ref LLP 3000.019#3.1 — a cursorless partial page must keep its slice; only a cursor or a covering cap permits reordering.
+                let preserves_rows = scan.after.is_some() || cap_covers
+                    || scan.order == ir::Order::Desc && ordered_columns(query_index, scan.prefix.len()) == columns;
+                if preserves_rows && (!relies_on_cap || cap_covers) && (source.range.is_some() || cap_covers)
                     && let Some(page) = source_page(source, &name, index, prefix, scan.take.maximum() as u32) {
                     rewrite = format!("{declaration}use `{page}`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order");
                 }
