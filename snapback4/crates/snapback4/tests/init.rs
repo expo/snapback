@@ -54,6 +54,14 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
         if flag == "--expo" { assert_eq!(after["scripts"]["start"], "expo start"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
         assert!(dir.0.join("snapback/schema.q").exists());
         if flag == "--expo" {
+            for file in ["src/intents.ts", "src/intent-store.ts", "src/intent-store.web.ts", "src/intent-store.native.ts"] {
+                assert!(dir.0.join(file).exists(), "{file}");
+            }
+            let web_store = fs::read_to_string(dir.0.join("src/intent-store.web.ts")).unwrap();
+            assert!(web_store.contains("localStorage"));
+            assert!(!web_store.contains("expo-sqlite"));
+            let native_store = fs::read_to_string(dir.0.join("src/intent-store.native.ts")).unwrap();
+            assert!(native_store.contains("expo-sqlite/kv-store"));
             assert!(dir.0.join("metro.config.cjs").exists());
             assert!(dir.0.join("babel.config.cjs").exists());
             assert!(!dir.0.join("metro.config.js").exists());

@@ -8,7 +8,7 @@ import { mockSignals } from "./mock-ephemeral.ts";
 
 import { ServerClock } from "./clock.ts";
 import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { WriteHistory } from "./writes.ts";
+import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 
 export type Row = Record<string, unknown> & { id: string; pending?: boolean };
 export type Tables = Record<string, Map<string, Row>>;
@@ -67,9 +67,11 @@ export function createMockClient(options: MockOptions): MockClient {
   const linkListeners = new Set<(link: Link) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = new WriteHistory();
+  const ids = new MutationIds();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
+    if (ids.knows(write.id)) ids.finish(write.id);
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -139,31 +141,39 @@ export function createMockClient(options: MockOptions): MockClient {
         close() { listeners.delete(listener); subs.clear(); },
       };
     },
-    mutate: routeMutations(signals.mutate, async function<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
+    mutate: routeMutations(signals.mutate, async function<A, R>(op: Mutation<A, R>, args: A, mutateOptions?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const fn = options.ops.mutations[op.name];
-      const id = mockId();
-      if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
-      if (link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
-      const outcome = fn(tables, args as never, viewer, () => id);
-      if (isRefusal(outcome)) {
-        const failed = { state: "failed", id, why: outcome } as const;
-        return emitWrite(failed);
-      }
-      const table = op.name.split(".")[0] ?? "";
-      for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
-      bump();
-      history.remember({ state: "pending", id });
-      if (link === "offline") {
-        // Durable admission without a server: the write stays pending until the link returns.
+      const id = mutateOptions?.id ?? mockId();
+      const submit = async (snapshot: unknown): Promise<Write<R>> => {
+        if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
+        if (link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
+        const outcome = fn(tables, snapshot as never, viewer, () => id);
+        if (isRefusal(outcome)) {
+          const failed = { state: "failed", id, why: outcome } as const;
+          return emitWrite(failed);
+        }
+        const table = op.name.split(".")[0] ?? "";
+        for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
+        bump();
+        history.remember({ state: "pending", id });
+        if (link === "offline") {
+          // Durable admission without a server: the write stays pending until the link returns.
+          return await new Promise<Write<R>>((resolve) => {
+            queue.push({ id, touched: outcome, table, resolve: () => {} });
+            resolve({ state: "pending", id });
+          });
+        }
         return await new Promise<Write<R>>((resolve) => {
-          queue.push({ id, touched: outcome, table, resolve: () => {} });
-          resolve({ state: "pending", id });
+          const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
+          setTimeout(() => { settleOne(entry); bump(); }, delay);
+          const wait = mutationWaitSeconds(mutateOptions?.waitSeconds);
+          if (wait === 0) resolve({ state: "pending", id });
+          else if (wait !== undefined) { const timer = setTimeout(() => resolve({ state: "pending", id }), wait * 1_000);
+            const finish = entry.resolve; entry.resolve = write => { clearTimeout(timer); finish(write); }; }
         });
-      }
-      return await new Promise<Write<R>>((resolve) => {
-        const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
-        setTimeout(() => { settleOne(entry); bump(); }, delay);
-      });
+      };
+      return mutateOptions?.id === undefined ? submit(args)
+        : ids.run(id, op.name, args, () => client.write(id), snapshot => submit(snapshot));
     }),
     async write(id) { const receipt = await history.read(id); return link === "signed-out" ? undefined : receipt; },
     acquired: false,

@@ -63184,3 +63184,486 @@ fixture wrappers 9/9; all 78 model checks passed, with the full 5,000 / 5,000 /
 Did not push, publish, raise a budget, change a runtime ceiling or rewrite an
 existing journal entry. Full dispositions, files, examples, measurements and
 logs are in `reports/20260926-p2-extremum-expressions.md` (Round 1).
+### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
+
+Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
+online backend installation advances the query epoch, discards mounted answers
+and expiry timers, and reruns watches before seeding generation. Both an already
+published durable answer and a late in-flight answer are covered. Discovery is
+complete only after a successful installation. Failed requests and schema facts
+older than the poll's generation retry before another long poll can hold them
+up. The local choice where the RFC is silent is 25/50/100/200/400 ms exponential
+backoff capped at 500 ms, continuing while the client has credentials and mounted
+watches; close aborts the wait. Stale facts never replace operation interests.
+The scratch candidate's initial reset was retained, with seeding ordered after
+the reset; its retry-on-next-poll alone was insufficient for bounded recovery.
+Tx::rollback_to clears the lazy sequence-table existence cache after successful
+rollback, so rolled-back DDL can be allocated again in the same transaction.
+
+Added ephemeral-capability.test.mjs and the sequence_by savepoint regression.
+With production sources still at 1c5dc4fd0, all four new client cases failed
+(0 pass / 4 fail): Astra's real-server differential kept 1 through three
+generation-2 polls while a direct read returned 2, one injected schema 503 never
+recovered, a stale-schema mock failed to catch up, and a held old query was not
+retired. The savepoint regression failed with `no such table: _sequences`
+(0 passed / 1 failed). After the fixes, the affected client suite passes 32/32
+and the affected core suite passes 32/32 (15 ephemeral + 17 sequence_by).
+Typecheck and package build pass. No existing expectation, fixture, wire form,
+or budget changed; the durable-only byte and zero-extra-schema tests pass
+unchanged. Evidence is in target/eph-fix2-evidence/. Full qualification follows.
+
+### 2026-09-26 — Fix round 2 final qualification
+
+At implementation checkpoint 3f5c74974, pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache, the complete `bash scripts/test.sh` returned
+`== 0 failure(s) in 841 s`, exit 0. Source stayed fixed throughout. Rust totals:
+3,569 passed, 0 failed, 19 ignored. JavaScript totals: 2,134 tests, 2,129 passed,
+0 failed, 5 existing optional skips, including all 78 model tests. All three
+published-0.2.33 capability fences and the capability-free byte/store control
+pass unchanged. The three literal `backend FAIL E_STORE` diagnostics are their
+expected negative checks, not suite failures. No timing failure or isolation
+rerun occurred. Wasm: `wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`;
+the unchanged ratchet has 1,036 B headroom.
+
+The required additional standalone ephemeral-e2e run passed 1/1, with all five
+isolated ephemeral trials below. Each first sight followed a typing-naming
+poll answer without a durable seq move. Every burst used two requests versus
+45 in the separately measured durable control.
+
+| Trial | Ephemeral first seen (ms) | Ephemeral gone after last call (ms) | Durable first seen (ms) | Durable gone after last call (ms) | Ephemeral requests | Durable requests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 34.155 | 3875.649 | 48.901 | 4016.611 | 2 | 45 |
+| 2 | 34.834 | 3846.749 | 14.771 | 4373.536 | 2 | 45 |
+| 3 | 32.804 | 3868.266 | 16.062 | 4012.117 | 2 | 45 |
+| 4 | 32.366 | 3853.058 | 17.052 | 4080.91 | 2 | 45 |
+| 5 | 35.398 | 3873.524 | 15.008 | 4357.01 | 2 | 45 |
+
+Evidence: target/eph-fix2-evidence/full-suite.log, full-suite-counts.log,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. The root EPH-REPORT-FIX2.md is deliberately uncommitted.
+All four requested fixes and their regressions are complete. No push, merge,
+rebase, stash, publication, other-worktree edit or other-process intervention
+was performed.
+
+### 2026-09-26 — LLP 3000.017 fix round 3: schema retry boundaries
+
+N4/N5 are fixed in the online client. An observed generation change now
+retires mounted snapshots and their expiry timers before awaiting schema.
+Schema loading also retires outstanding query publications and withdraws
+freshness. The RFC does not prescribe discovery-failure delivery: the local
+choice is to re-query mounted watches every 500 ms while schema loading
+suspends `/changes`. Those answers carry `fresh: false`; they deliver durable
+updates even if every schema request fails or one stays held. This keeps the
+existing stale-generation fence: no new poll starts with obsolete operation
+interests. Successful installation restores ordinary notification-driven
+refreshes. The fallback stops on close, last-watch removal, credential refusal
+or terminal store refusal. Schema retries retain 25/50/100/200/400 ms backoff
+and the 500 ms cap.
+
+Schema `E_AUTH` now uses `obsoleteRefusal`, like query/poll refusals. A current
+bearer refusal ends credentials with no further schema attempt; an obsolete
+bearer refusal waits for an in-flight rotation and retries with its successor.
+Schema dispatch also waits for rotation. Close can release the schema wait
+even if a supplied fetch ignores its abort signal.
+
+The three real-server Astra reproductions are now repository regressions in
+ephemeral-capability.test.mjs, strengthened to require delivery of the durable
+insert, immediate generation invalidation, and withdrawn freshness. A fourth
+regression holds rotation across an obsolete schema refusal. All four fail
+against a44b11b51 (0 pass / 4 fail); the original client build reproduced the
+three real-server failures, and transpiling only that commit's client.ts into
+the current package reproduced all four. No existing expectation changed.
+The first corrected capability run passes 7/7; the expanded affected run and
+complete qualification are recorded below. Evidence: target/eph-fix3-evidence/.
+
+Only client.ts, its capability regression file, and this journal change.
+There is no RFC semantic deviation, schema/type/wire-format change or budget
+change. The checkout's llp-orient links target an uninitialized vendor/llp;
+no skill was available there or in local skill discovery. Per the round's
+continue rule, orientation used the governing RFC, root, command sheet,
+rules, scope exclusions, current client documentation and journal directly.
+
+Pre-qualification: package typecheck/build pass; the affected client run passes
+113/113 and the terminal-entrypoint/store run passes 34/34. Astra's six scratch
+retry/lifecycle probes pass 6/6 against this worktree's client: observed retry
+gaps are 27/51/101/201/401/501/501 ms (500 ms timer cap plus scheduling), close
+and unmount stop attempts, remount recovers, and auth/store termination stops
+discovery. Its generation probe now observes data 2 with `fresh: false` while
+schema is still failing. No timing failure or isolation rerun occurred.
+
+### 2026-09-26 — Fix round 3 final qualification
+
+At implementation checkpoint d274c02bd, using Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED tarball cache, `bash scripts/test.sh` completed with
+the literal summary `== 0 failure(s) in 748 s`, exit 0. Implementation source
+stayed fixed throughout. Rust: 3,569 passed, 0 failed, 19 ignored. JavaScript:
+2,138 tests, 2,133 passed, 0 failed, 5 existing optional skips; models passed
+78/78. All four new regressions and the existing N1/N2/N3 tests stay green.
+The three published-0.2.33 capability fences and the capability-free byte/store
+control pass unchanged. The three literal `backend FAIL E_STORE` diagnostics
+are expected legacy-decoder refusals, not suite failures.
+
+The suite's `bash scripts/build-wasm.sh` measured
+`wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`. Both the artifact size
+and ratchet are unchanged from fix round 2, leaving 1,036 B headroom.
+
+The one additional standalone ephemeral-e2e run passed 1/1. Five ephemeral
+trials first appeared in 22.247–35.496 ms and disappeared 3841.517–3876.299 ms
+after the last call. Each used two requests, against 45 for each separately
+measured durable control. All five proved first sight followed a typing-naming
+poll answer with the durable sequence unchanged. No failed qualification,
+timing isolation rerun, existing expected-output edit or unrelated defect was
+observed in this round.
+
+Evidence: target/eph-fix3-evidence/full-suite.log, full-suite-counts.log/json,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. EPH-REPORT-FIX3.md at the worktree root is deliberately
+uncommitted. Nothing remains undone in the requested fix round. No push,
+merge, rebase, stash, publication or other-process intervention was performed;
+the other checkout was used only for the explicitly supplied tarball cache.
+
+### 2026-09-26 — CCP L1: mutation admission and starter intent ownership
+
+Implemented the lead's LLP 3000.008.002.000 lane brief on base 78bbe7b349.
+`MutateOptions.waitSeconds` now floors/clamps like actions in local device,
+raw online, journaled online and mock clients. Zero returns after custody;
+default device waits remain four seconds, and omitted online waits remain
+request-bound. Online journal dispatch continues with guarded rejection
+handling, retained durable intent and existing terminal persistence/events.
+No prediction routing, receipt history, hook latest-call semantics, contract,
+wasm device source or other lane's docs/compiler files changed.
+
+The Expo starter saves each send's ID, room, operation and text before dispatch,
+scoped to backend and principal. Each saved reference has its own receipt hook;
+reopen only observes, never resends. Pending includes its reason, refusal keeps
+text with Edit/Dismiss, unknown stays unknown, and sent references retire.
+Metro platform modules use localStorage on web and expo-sqlite/kv-store on
+native/Expo Go. The SDK's own online journal also contains message arguments:
+its `.writes` keys go to that store, with copy-before-delete migration from
+legacy SecureStore custody; credentials stay in SecureStore. This is a small
+scope choice needed to avoid the same text-size limit below the UI journal.
+
+Both composers submit with zero wait and guard one admission synchronously.
+They remove a still-present submitted prefix, including original whitespace,
+and preserve appended text; a replaced draft stays as edited. Expo preserves
+the header/composer and selected route through read gaps, renders only current
+read rows, distinguishes initial Loading from Updating, displays denial and
+incompleteness, and uses a dash for an unavailable count. The reference app's
+ordinary signed-in tree follows useAuth; its witness/persona door is retained.
+Navigation remains read-only. The new modules are embedded in init outputs;
+each starter stays independent.
+
+Focused evidence: native/web/raw online/app online zero-wait returns measured
+3.562/5.253/0.742/0.659 ms, respectively. Native/web defaults were
+4001.939/4001.741 ms; online defaults waited for release at 172.494/172.720 ms.
+All four positive waits (1.9 floored to 1) returned in 1000.639–1004.623 ms.
+Four live-host tier probes passed, including same-ID online close/reopen and
+one authoritative row. React probes cover early release, saved IDs, three
+sends/reopen, older refusal after newer send, unknown receipts, account fences,
+storage failure, appended typing and protected-row removal during loading.
+The simulator witness cannot be run in this lane; final blocking-suite and
+browser-witness results will be appended below and in CCP-REPORT-L1.md.
+
+Verification follow-up for this entry: the supplied `~/.local/node24/bin`
+path is absent on this host; that literal PATH resolved to Homebrew Node
+25.9.0. The initial full-suite attempt was interrupted before completion,
+and its browser witness timed out waiting for acquisition during shared
+compilation. Neither qualifies the lane. Explicitly selecting the installed
+`~/.volta/tools/image/node/24.18.0/bin` fixes the runtime selection. On 24.18.0,
+the four zero-wait probes returned in 4.678/4.817/0.559/0.688 ms
+(native/web/raw/app); device defaults remained 4002.071/4001.469 ms and online
+defaults waited for release at 175.257/175.427 ms. Six admission/normalization/
+background-error cases and all 27 React tests passed. A final review also
+prunes Expo's in-memory outcome when its saved reference is dismissed, so
+retiring sent references retires their transient results as well.
+
+The Node 24 isolated production-web-starter witness also times out after
+30,000 ms at its initial `Local data acquired` wait, before any composer
+interaction. An exact-source baseline probe restored all tracked Snapback 4
+files to 78bbe7b349, verified a clean diff against that commit, rebuilt its
+CLI and SDK with Node 24 and reproduced the identical timeout. It restored
+the lane afterward; evidence and the restore procedure are under
+`/tmp/ccp-l1/base-witness.*` and `baseline-witness.py`. This inherited witness
+failure does not block the lane under the brief, and no later witness stage
+is claimed as passed.
+
+The broader storage tests exposed their old promise-rejection expectations
+and their VM harness's missing new imports. Four assertion sites now require
+an E_STORE failed Write for both omitted and zero waits, preserving their
+no-dispatch/data-preservation checks. The generated-native adapter tests load
+the actual helper and platform module with separate credential and KV stores.
+Quarantined `.writes.damaged.*` copies also stay in KV, since they can contain
+message text. All 19 affected adapter/template tests pass on Node 24, including
+fresh Expo/web output typechecks and account/backend isolation. The interim
+full run was stopped before completion to include this final storage repair
+in a clean full run; final counts follow.
+
+Final qualification for this L1 entry: Node 24.18.0 `bash scripts/test.sh`
+completed at source ea1dae2b72 in 2,093 s, exit 1, with two failing phases
+(`cargo test`, `client tests`). Summed printed Rust results, including the
+budget probe and doctests: 3,556 passed / 10 failed / 19 ignored. All Node
+groups: 2,134 tests / 2,123 passed / 2 failed / 9 optional skips; all 78
+client model tests passed. Package and both app typechecks, init output,
+recipes, first-account, React, guide and budgets passed. Wasm remained
+578,894 B gzip against 579,833 B and the README remained 300/300 lines.
+
+The full-run reds were the reader p95 ratio (3.5755 > 3), the 900-follower
+replay deadline, eight mock witness-driver checks (mostly xcrun timeouts),
+one local global-logout assertion, and one ephemeral expiry timing trial.
+All five affected targets/files passed in isolation at the lane revision:
+3/3, 15/15, 24/24, 7/7 and 1/1 respectively. The same isolated runs passed
+at exact tracked base 78bbe7b349, with source identity checked and the lane
+restored afterward. Thus these are unresolved concurrent-run failures,
+not proven baseline defects; no assertion, timeout or gate was weakened.
+The separately documented browser acquisition timeout did fail at the base.
+
+Affected-scope LLP audit: the client-custody, same-ID recovery, backend/account
+ownership and protected-read lifetime references still apply; this lane
+implements the lead's brief where the parallel RFC revision is pending.
+No additional design-document edits are needed from L1. The full report,
+verbatim failure lines, timing probes and baseline procedures are recorded
+in the uncommitted root CCP-REPORT-L1.md and /tmp/ccp-l1. The native simulator
+witness remains unrun as directed. No publication or integration was attempted.
+
+### 2026-09-26 — CCP L2: client patterns on the published path
+
+LLP 3000.008.002.000 lane L2, under the lead's R1–R7 brief (which overrides
+its still-unrevised Draft): added `guide client` and the react/hooks/composer/
+receipts/unread aliases; kept typing on ephemeral. Corrected the reads fence,
+submission gating, first-page loading, initial profile routing and one-view
+asset ownership in the README, CLIENT-AND-OPERATIONS and guide cards. The
+README stays at 300 lines; the new card has 129. No SDK, compiler binder,
+starters, contract, routing rules, device code or budgets changed.
+
+Smallest-design choices: `client` is a keyword rather than a redundant alias
+(the registry forbids aliases shadowing keywords). Receipt membership joins
+and messages share engine sequence ordinals. The creator can independently
+read a membership candidate, allowing its sequence allocation; new grants
+require either a created room or an existing member plus room ownership.
+The engine test executes the published receipt block through late joins,
+removal, rejoin, self-leave, older acknowledgements and an outsider's attempt.
+An empty remaining recipient set has no outstanding requirement (state 2).
+The short viewer opens only from a user event, latches terminal closure,
+keeps its deadline through loading, and revokes a late response after unmount;
+its host keys it by backend/account/message/asset above the list. The routing
+example stores only the initial route, never a protected profile answer.
+Existing guide fact fixtures changed with the corrected facts. The existing
+README TypeScript harness also compiles both new React examples. No new gate
+or runtime abstraction was added; lane L1 supplies waitSeconds behavior and
+the saved-intent starter reference. Final qualification is appended below.
+
+Qualification: the final complete `bash scripts/test.sh` used Node 24.18.0
+from `~/.volta/tools/image/node/24.18.0/bin` (`~/.local/node24/bin` was absent)
+and `SNAPBACK4_RUST_TEST_PROCESSES=4` on the loaded host. Its literal summary
+was `== 1 failure(s) in 2400 s`: the existing born-grant timing test measured
+9.9x growth for 4x the work, against its unchanged 9x limit. Cargo's stage
+reported 3,566 passed, 1 failed and 19 ignored (the separate docs-budget test
+also passed); all JavaScript processes together reported 2,122 tests,
+2,113 passed, 0 failed and 9 optional skips, including all 78 client models.
+The guide target passed 86 tests and read-authority passed 81, including the
+single added census item `card/client/1:acknowledge | never` (324 mutation
+occurrences, still 55 private prediction sites). Wasm remained 578,894 B gzip
+against 579,833 B. No guard, threshold or test was weakened.
+
+For attribution, temporarily checked out the exact base 78bbe7b349 in this
+worktree, preserving all checkpoints, then restored sb4/ccp-l2. Five base
+born-perf trials all passed (grant growth 2.9x, 3.6x, 3.5x, 3.7x, 3.7x);
+the restored lane's isolated grant test passed at 3.8x. A prior 30s lifecycle
+startup timeout in the interrupted Node-25 run also passed in isolation,
+on base, and as all 20 lifecycle tests in the final suite. Thus no persistent
+baseline failure was reproduced; the complete suite's timing failure remains
+reported as observed, rather than claimed to fail at base. The earlier new-card
+census omission was introduced by this lane and fixed with one fixture line.
+
+The final prose nests saved operation arguments under `{ id: mintId(), args }`
+so a message argument named `id` cannot overwrite a write's identity. After
+that two-line clarification and restoration, all 86 guide tests passed again,
+the Node-24 docs-budget check passed at 300/300, and the rebuilt CLI printed
+identical client/react/receipts/hooks/composer/unread cards; typing still prints
+ephemeral. The full run launched at c896d9e1ce; the subsequent prose-only
+clarification is b68455a5f0. Evidence, complete counts and transient timing
+measurements are in `/tmp/ccp-L2/` and the uncommitted `CCP-REPORT-L2.md`.
+L1 integration supplies waitSeconds runtime behavior and the saved-intent
+starter reference; L2 makes no new native-media or cold-builder qualification
+claim. No push, merge, rebase, new worktree or extra Cargo target directory.
+
+### 2026-09-26 — CCP L3 query withholding investigation
+
+LLP 3000.008.002.000 lane L3 takes the brief's report-only disposition: no
+diagnostic or product change. Ordinary horizon scans on a different order return
+partial data; they do not alone withhold the answer. Streaming scalar totals,
+extrema, speculative point/rule reads, and Following-specific coverage can
+withhold the whole composition. Runtime input coverage and evaluated branches
+matter. Calibration's inbox withholds while inboxLocal completes, but the
+unchanged jobs-card inbox has the same horizon scalar decoration and also
+withholds. A useful scalar-consumer predicate would truthfully name both,
+conflicting with the brief's requirement that every card remain silent.
+
+This is a scope conflict, not a claim that no static risk predicate exists.
+A narrower expiring-maintained-view scalar predicate could catch calibration's
+first failing sum and avoid the jobs card's direct count, but misses the same
+failure in direct-count decorations. The chosen minimal outcome records that
+option for the lead rather than adding source/name exceptions or changing cards.
+No new N_ code, routing rule, schema, protected-result lifetime, or wasm byte was
+introduced. No query warning is justified by order mismatch alone.
+
+Base and published 0.4.2 produced identical outcomes across 26 real-device query
+observations. All 104 routing probes passed; all 26 intersecting-prediction cases
+made zero server calls. The compiler census covered 81 guide/language contexts,
+452 device-query occurrences and 47 Horizon point-site occurrences. Full findings,
+source citations, verbatim check outputs and probe logs are in the intentionally
+uncommitted root CCP-REPORT-L3.md and /tmp/ccp-l3/.
+
+All tests and retries ran at untouched base 78bbe7b349 with Node 24.18.0, before
+this journal entry. Full suite: `== 2 failure(s) in 2769 s` (`cargo test`,
+`client tests`), exit 1. Rust: 3,549 passed, 17 failed, 19 ignored. JavaScript:
+2,121 tests, 2,106 passed, 3 failed, 3 cancelled, 9 skipped; all 78 models passed.
+A timed-out browser test required terminating only its verified owned processes
+to let the suite finish; its isolated four-test rerun passed. Isolated lifecycle,
+worker, ephemeral, page-observation and typing retries passed. Witness still
+failed (11 passed, 13 failed); the native Swift media helper still timed out.
+The initial lang-only run hit a reader timing ratio; its exact retry passed and
+the complete serialized package rerun passed 860 tests, with 4 ignored. Sim
+residency passed 17/17; guide passed 84/84. The report preserves every failure,
+base-state evidence and retry result without claiming a green full suite.
+Wasm stayed 2,014,270 B raw / 578,894 B gzip against 579,833 B; README stayed
+300/300 lines. No push, merge, rebase, stash, or other-worktree edit occurred.
+
+### 2026-09-26 — CCP F1 client, jobs and reads card corrections
+
+Applied the five fix-round rulings for LLP 3000.008.002.000 §§3–5 on
+`sb4/ccp-f1` from integration base `f4bd80f612`. The composer's string draft
+now removes only its submitted prefix after non-failed admission, matching
+both starters; appended typing survives, replacement edits stay intact and
+pre-custody refusal clears nothing. Send still follows `inFlight`.
+Conversation-view receipts acknowledge the newest message while open and
+foregrounded and each newer arrival; the contiguous-observation rule belongs
+only to an app that explicitly chooses per-message visibility.
+
+The recipe now requires both a readable message and membership. Chose the
+existing `NOT_FOUND` code for both guards so hidden and missing messages share
+the same refusal without a new code or existence disclosure; old progress
+still succeeds without regression. Chose a separate paged `unreadTotals`
+query over the same memberships and periods, keeping the inbox independent of
+history coverage without adding a per-conversation observation. The digest
+helper, job and schedule are unchanged. Both read-boundary cards now name
+horizon-crossing totals/extrema and point reads as whole-answer withholding
+shapes, and distinguish an order mismatch's partial data. No routing law,
+SDK contract, runtime or device byte changed.
+
+The client card stays 129 lines; jobs 301 → 303 and reads stays 212, net +2.
+Extended the existing tests for composer admission races, identical
+hidden/missing refusal envelopes and unchanged member progress, and a real
+device snapshot whose inbox completes while its separate unread total is
+unavailable. Only the revised reads-06 prose fact changes in the fact-home
+fixture; the prediction census remains subject to the requested readauth
+check. Full-suite execution is reserved for the lead per the F1 brief.
+
+Requested checks passed on Node 24.18.0: guide 86 passed / 0 failed,
+readauth 81 passed / 0 failed (including the unchanged authoring census),
+and README/first-account Node tests 9 passed / 0 failed; 29 TypeScript blocks
+compiled against 46 public functions. The device probe returned one complete
+inbox row while the separate unread query withheld; the server and digest
+both counted 125, with digest heap 22,236 and one write. Composer coverage
+includes six admission/edit outcomes. Initial test-only mistakes (a Result
+assertion spelled as Option, and not draining the VM's async continuation)
+were corrected; no pre-existing product failure was observed. The uncommitted
+`CCP-REPORT-F1.md` records exact summaries, CLI verification and file sizes.
+
+### 2026-09-26 — CCP F2 review corrections
+
+Applied the F2 brief for LLP 3000.008.002.000 on `sb4/ccp-f2`, from
+`def8935a08`. The brief supersedes the RFC's earlier prefix-clearing and
+receipt-recipe wording. Both starters clear the composer at submit, after the
+saved-intent journal accepts the reference and before zero-wait dispatch.
+Immediate refusal restores only an empty field; failed intents retain their
+text and Edit/Dismiss. Web now saves the body, tolerates old references without
+it (`text not kept`), and keeps its input mounted through room loading. Edit
+uses a space to append to an occupied single-line field: a newline was stripped
+by the browser in the first regression run. Unknown receipts show saved text
+and Dismiss only after submission and lookup finish. `usePendingWrite` exposes
+`restoring`, ended by a resolved/rejected lookup or a live receipt for that id.
+Expo retains page one's current rows while page two loads; first-page gaps and
+denial still hide protected rows.
+
+Existing online intent/receipt lookup skips an unchanged journal save, so a
+storage outage cannot replace known custody with a fresh-admission refusal.
+Fresh admission still fails with E_STORE on save failure. The mock reserves
+supplied ids through MutationIds, compares input, and recovers the original
+pending write or receipt; its internal mock-id format stays unchanged. Nullish
+wait values preserve tier defaults. The only contract edit is the lead's exact
+network-before-first-online-custody note.
+
+The reads/client cards distinguish withheld answers from local partial data
+under the unchanged prediction fence, including unknown predicted footprints.
+The client card delegates receipts to `guide receipts`, removes its competing
+Quarry and engine test/census entry, and names acquisition-gated background
+hooks and foreground newest-message `seen`. PendingSend is a single-send
+example; reload-safe observation points to the client card. README stays at
+300 lines and no budget, device Rust, wasm artifact, outbox, retention law or
+local-query rule changes. LLP 3000.019 P3 and per-caller wait policy for
+simultaneous same-id calls remain the lead's deferred work. The existing
+`state.ts` export already carries the expanded web Intent type; init sources
+include the reference composer/journal directly, with the separate web-app
+room owner corrected too.
+
+Verification is targeted, per the explicit F2 override: no scripts/test.sh.
+Focused React, docs, online custody and mock regressions passed 56 tests after
+the separator correction; the guide suite passed 86 tests. Final targeted
+counts and command logs will be recorded in the uncommitted CCP-REPORT-F2.md
+and /tmp/ccp-f2. No push, merge, rebase, stash, other-worktree edit, new Cargo
+target directory, node_modules copy or changes to other processes.
+
+Final F2 verification: package typecheck/build, Expo typecheck and chat check
+passed. Rust guide 86/86, readauth 81/81, and init 21/21; JavaScript targeted
+suites total 437 passed, 0 failed, 0 cancelled, 0 skipped in their final runs.
+A strict generated-web-template compile caught an introduced optional-body
+normalization error (`exactOptionalPropertyTypes`): omit a missing body instead
+of storing an explicit undefined. The rebuilt web-init case passed (1 passed,
+20 filtered); periphery 19/19, init-recipe 4/4 and React 34/34 passed again.
+Five app tests initially timed out starting test servers during CLI build/run;
+the isolated app rerun passed all 78. No persistent baseline failure was
+established or claimed. The report preserves those initial failures and the
+first separator-test failures, with the successful reruns.
+
+Zero-wait custody measured native 0.547 ms, web 0.405 ms, online 0.284 ms and
+createApp online 0.362 ms with the server reply held. The default local waits
+remained 4002.386/4003.594 ms; floored 1.9-second requests took
+1001.711–1003.557 ms. Each of the four local admit-reject/deny cases made one
+admission attempt and zero dispatches. Two public createApp owners recovered
+one execution's sent/replayed receipt through a journal save outage. These are
+targeted harness measurements, not cold-network or native-UI qualification.
+
+## 2026-09-26 — LLP 3000.008.002.000 landed: admission boundary, starter intents, the client card (lead)
+
+Charlie asked for a three-family direction check of LLP 3000.008.002.000 and then
+its implementation. Opus 5.5 max, Grok 4.7 xhigh and GPT-6 Astra max each said
+RIGHT WITH CORRECTIONS: the RFC's Clique receipt rule inverted the brief (d-01
+was a grader misreading; leavers drop out), the read gaps were the client's own
+fence and commit resets, and calibration 21's builder worked from the README, C&O
+and cards on the Expo tier, several of whose examples taught its mistakes.
+Revision 3 records both review rounds (llp/reviews/3000.008.002.000-*).
+
+What landed: `MutateOptions.waitSeconds` (0 returns at custody: native 0.55 ms,
+web 0.41 ms versus 4,002 ms by default) and `run(args, options)` on the React
+write hooks; `usePendingWrite(...).restoring`; per-intent outcomes with saved text
+in both starters (web and `init --expo`), clear-at-submit composers that give
+refused text back, loading-stable thread shells that keep earlier pages; the
+`client` card (`guide client`, 82 lines) deferring receipts to the `receipts`
+card; the reads card's fence split into withheld versus partial answers; the jobs
+card's inbox split so a withholding total no longer hides it; README/C&O example
+fixes; the mock and `createApp` online custody fixes from the code reviews.
+
+Overlap: LLP 3000.019 (sb4-intent program) was filed in parallel from the same
+run and owns read retention (P3(1)–(3)), the outbox view (P3(4)) and
+`N_SYNC_ORDER` (P1). Lane L3's device measurements for P1 — an order mismatch is
+partial data; totals, extrema and point misses past the horizon withhold — are in
+`issues/20260926-snapback4-query-withholding-shapes.md`. Ticketed: the same-id
+wait policy (`issues/20260926-snapback4-same-id-wait-policy.md`) and the Clique
+grader's d-01 (`issues/20260926-clique-grader-d01-departure-clause.md`).
+
+Owed: the full `scripts/test.sh` on the landed commit once the 0.4.3 publication
+frees this host (lanes' full suites were red only with load-sensitive cases that
+pass isolated and at base; the web starter witness times out at `Local data
+acquired` at the exact base too); a publication; the RFC's §8 cold build and
+native witness.
