@@ -184,17 +184,56 @@ fn reassigned(program: &Program) -> BTreeSet<String> {
     out
 }
 
-/// Whether every path through a body leaves it: a `return`, `break` or
-/// `continue`, or a test both of whose branches leave. A loop may not run.
-fn leaves(body: &[Stmt]) -> bool {
-    body.iter().any(|stmt| match stmt {
-        Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
-        Stmt::If { then_body, else_body, .. } => leaves(then_body) && leaves(else_body),
+/// A condition no call satisfies: `false`, or two literals compared so the
+/// comparison fails. A `require` of it always refuses, so it leaves as a
+/// `return` does.
+fn never_holds(condition: &Expr) -> bool {
+    match condition {
+        Expr::Literal(Value::Bool(false)) => true,
+        Expr::Binary { op: op @ (BinaryOp::Eq | BinaryOp::Ne), left, right } => match (left.as_ref(), right.as_ref()) {
+            (Expr::Literal(a), Expr::Literal(b)) => (a == b) == (*op == BinaryOp::Ne),
+            _ => false,
+        },
         _ => false,
-    })
+    }
 }
 
 impl Analysis<'_> {
+    /// The presence fact a test states: the binding's identity, its author's
+    /// name, and the presence under which the test holds. Only an argument's
+    /// presence, fixed for the whole call, is a fact.
+    fn fact(&self, condition: &Expr) -> Option<(String, String, bool)> {
+        display::presence(condition).filter(|_| self.has_variants).and_then(|(binding, search, present)| {
+            let root = self.identity(&binding);
+            // Quarry never reassigns an argument (locals cannot shadow one).
+            self.arguments.contains(&root).then(|| {
+                let name = display::author_name(&root);
+                if search { (format!("search {root}"), format!("search {name}"), present) } else { (root, name, present) }
+            })
+        })
+    }
+
+    /// Whether every path through a body leaves it, under the facts `known`: a
+    /// `return`, `break` or `continue`, or a test each of whose possible branches
+    /// leaves. A loop may not run.
+    fn leaves(&self, body: &[Stmt], known: &[(String, bool)]) -> bool {
+        body.iter().any(|stmt| match stmt {
+            Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
+            Stmt::Require { condition, .. } => never_holds(condition),
+            Stmt::If { condition, then_body, else_body } => match self.fact(condition) {
+                None => self.leaves(then_body, known) && self.leaves(else_body, known),
+                Some((identity, _, present)) => match known.iter().find(|(name, _)| *name == identity).map(|(_, value)| *value) {
+                    Some(value) => self.leaves(if value == present { then_body } else { else_body }, known),
+                    None => {
+                        let under = |value: bool| [known, &[(identity.clone(), value)]].concat();
+                        self.leaves(then_body, &under(present)) && self.leaves(else_body, &under(!present))
+                    }
+                },
+            },
+            _ => false,
+        })
+    }
+
     /// The binding a presence test finally reads, through any aliases.
     fn identity(&self, name: &str) -> String {
         let mut name = name.to_owned();
@@ -281,7 +320,8 @@ impl Analysis<'_> {
                     let data = self.expr(value, times);
                     *self.data.entry(target.clone()).or_default() |= data;
                 }
-                Stmt::Return(value) => { self.expr(value, times); }
+                // Nothing after a statement that leaves the body runs.
+                Stmt::Return(value) => { self.expr(value, times); self.never(&body[at + 1..], times); return; }
                 Stmt::Emit { payload, once, .. } => {
                     self.expr(payload, times);
                     if let Some(key) = once {
@@ -294,17 +334,16 @@ impl Analysis<'_> {
                     // @ref LLP 3000.013#14.4 — only an argument's presence, fixed for the whole call, defines a
                     // variant. A test of anything else (a loop variable, a reassigned or computed binding) can
                     // go both ways in one call, so its branches are recorded as unconditional.
-                    let fact = display::presence(condition).filter(|_| self.has_variants).and_then(|(binding, search, present)| {
-                        let root = self.identity(&binding);
-                        // Quarry never reassigns an argument (locals cannot shadow one).
-                        self.arguments.contains(&root).then(|| {
-                            let name = display::author_name(&root);
-                            if search { (format!("search {root}"), format!("search {name}"), present) } else { (root, name, present) }
-                        })
-                    });
-                    // What follows the test runs only after a branch that does not leave the body.
+                    let fact = self.fact(condition);
+                    // What follows the test runs only after a branch that does not leave the body,
+                    // judged under the facts each branch runs with.
                     let rest = &body[at + 1..];
-                    let (then_leaves, else_leaves) = (leaves(then_body), leaves(else_body));
+                    let under = |value: bool| match &fact {
+                        Some((identity, _, _)) if !self.identities.iter().any(|(known, _)| known == identity) => [self.identities.as_slice(), &[(identity.clone(), value)]].concat(),
+                        _ => self.identities.clone(),
+                    };
+                    let present = fact.as_ref().is_none_or(|(_, _, present)| *present);
+                    let (then_leaves, else_leaves) = (self.leaves(then_body, &under(present)), self.leaves(else_body, &under(!present)));
                     match fact {
                         None => {
                             self.body(then_body, times); self.body(else_body, times);
@@ -342,7 +381,10 @@ impl Analysis<'_> {
                         },
                     }
                 }
-                Stmt::Require { condition, .. } => { self.expr(condition, times); }
+                Stmt::Require { condition, .. } => {
+                    self.expr(condition, times);
+                    if never_holds(condition) { self.never(&body[at + 1..], times); return; }
+                }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }
                 Stmt::For { binding, domain, body } => {
                     let spelling = self.source.and_then(|p| p.loop_source(binding));
@@ -381,7 +423,7 @@ impl Analysis<'_> {
                     self.write(&target.table, if *upsert { "upsert" } else { "update" }, times);
                     if let Some(name) = result { self.data.insert(name.clone(), true); }
                 }
-                Stmt::Break | Stmt::Continue => {}
+                Stmt::Break | Stmt::Continue => { self.never(&body[at + 1..], times); return; }
             }
         }
     }

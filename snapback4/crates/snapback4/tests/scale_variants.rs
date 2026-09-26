@@ -195,12 +195,18 @@ fn what_follows_a_branch_that_leaves_runs_only_in_the_other_case() {
     let classes = |c: &scale::Certificate| c.variants.iter().map(|v| (v.when.clone(), v.class)).collect::<Vec<_>>();
     assert_eq!(classes(&after), vec![("assignee is present".to_owned(), Class::Backlog), ("assignee is absent".to_owned(), Class::Grows)], "{}", after.line());
     assert_eq!(classes(&after), classes(&within));
+    // The same work either way, not only the same classes (Astra, scale round 6).
+    let work = |c: &scale::Certificate| (c.bounds.rows_examined, c.bounds.probes, c.bounds.lanes);
+    assert_eq!(work(&after), work(&within));
     assert!(after.line().contains("when assignee is present: constant once background cleanup catches up"), "{}", after.line());
     let json = serde_json::to_value(&after).unwrap();
     assert!(json["growth_sites"].as_array().unwrap().iter().all(|g| g["when"].is_string()), "no site runs in every call: {json}");
     // The mirror: after `if assignee = null: return …`, what follows has the assignee.
     let mirrored = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee = null:\n{unpinned}  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
     assert_eq!(classes(&certificate(&mirrored)), vec![("assignee is absent".to_owned(), Class::Grows), ("assignee is present".to_owned(), Class::Backlog)]);
+    // A branch leaves through a nested test its own condition decides (Astra, scale round 6).
+    let redundant = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee != null:\n  {pinned}  return t first 2 by .at\n");
+    assert_eq!(classes(&certificate(&redundant)), classes(&within));
     // Inside a decided test, what follows a branch that leaves never runs.
     let decided = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee != null:\n  {pinned}    return t first 2 by .at\n  return []\n");
     let c = certificate(&decided);
@@ -226,6 +232,34 @@ fn every_way_out_of_a_body_conditions_what_follows() {
     let c = certificate(&nested);
     assert!(c.growth_sites.iter().all(|g| g.when.is_some()), "no site runs in every call: {:?}", c.growth_sites);
     assert!(c.growth_sites.iter().any(|g| g.when.as_deref() == Some("assignee is absent") && !g.backlog), "{:?}", c.growth_sites);
+}
+
+#[test]
+fn a_refusal_or_a_return_ends_what_it_leaves() {
+    let pinned = "return t where (assignee = null or .assignee = assignee) first 2 by .at";
+    // A refusal no call can pass leaves as a return does (Grok, scale round 6).
+    for refusal in ["require false else STOP", "require 1 = 0 else STOP"] {
+        let source = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {pinned}\n  else:\n    {refusal}\n  return t first 3 by .at\n");
+        let c = certificate(&source);
+        assert_eq!(c.class, Class::Backlog, "{refusal}: {}", c.line());
+    }
+    // A refusal a call can pass does not.
+    let passing = format!("{EXPIRING}query q(assignee: principal ?):\n  require assignee != null else STOP\n  return t first 3 by .at\n");
+    assert_eq!(certificate(&passing).class, Class::Grows);
+    // What follows a return in the same body never runs.
+    let dead = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {pinned}\n  return []\n  return t first 4 by .at\n");
+    let c = certificate(&dead);
+    assert_eq!(c.class, Class::Backlog, "{}", c.line());
+    // Inside one body too: nothing after a certain refusal, `continue` or `break` runs.
+    for exit in ["require false else STOP", "continue", "break"] {
+        let source = format!("{EXPIRING}query q():\n  for k in [1, 2]:\n    {exit}\n    extra = t first 2 by .at\n  return []\n");
+        let c = certificate(&source);
+        assert_eq!(c.class, Class::Constant, "{exit}: {}", c.line());
+    }
+    // A loop whose body returns can run no times, so it does not leave.
+    let looped = format!("{EXPIRING}query q(assignee: principal ?, xs: [int] <=4):\n  if assignee != null:\n    for k in xs:\n      {pinned}\n  return t first 2 by .at\n");
+    let c = certificate(&looped);
+    assert!(c.variants.iter().any(|v| v.when == "assignee is present") && c.variants.iter().filter(|v| v.when == "assignee is present").all(|v| v.class == Class::Grows), "{:?}", c.variants);
 }
 
 #[test]

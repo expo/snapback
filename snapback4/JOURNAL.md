@@ -59550,3 +59550,30 @@ Ten mutants of the change fail the tests. Four of them needed a new test of
 every way out of a body: both branches returning, `continue` in a loop, and
 a nested test whose branches both return. Quarry accepts code after such a
 test, so the certificate must not charge it.
+
+## 2026-09-26 — Scale certificate round 7: leaving, judged under the facts in force
+
+Astra reviewed round 6 (READY WITH CHANGES). Deciding whether a branch leaves
+its body was purely syntactic. A branch that returns through a nested test of
+the same argument, `if assignee != null: if assignee != null: return …`, was
+judged able to fall through, so what followed it was charged to every call. A
+test's exit is now judged under the presence facts each branch runs with. A
+decided nested test leaves exactly when its selected branch does. The
+fall-through test also compares the work (rows, probes and lanes) with its
+explicit-`else` twin, not only the classes: charging what follows at zero
+iterations survived before.
+
+Grok's review of round 6 (READY WITH CHANGES) found two more ways a scan that
+never runs was charged, both making a backlog operation read as growing. A
+`require` that no call can pass (`require false`, or two literals compared so
+the comparison fails) now leaves as a `return` does. Nothing after a `return`,
+`break`, `continue` or such a refusal in the same body is charged: it is
+walked for its bindings and its rows still count toward the bounds, but it
+adds no site. A loop whose body returns can run no times, so it never leaves.
+A test now pins that, since treating it as leaving survived before.
+
+One pessimism is left as it was in round 5: a helper that falls through after
+a returning branch is lowered with a `$returned` flag, which is not a presence
+test, so what follows is charged to every call. The README's certificate
+paragraph fits its three lines again, within the README's 300-line budget.
+Twelve mutants of rounds 6 and 7 fail the tests.
