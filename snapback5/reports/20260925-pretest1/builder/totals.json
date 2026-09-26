@@ -1,0 +1,64 @@
+{
+  "do_body": {
+    "n": 13,
+    "raw": 9,
+    "post": 9,
+    "classes": {
+      "refused": 9,
+      "admitted": 4
+    }
+  },
+  "plpgsql_body": {
+    "n": 333,
+    "raw": 210,
+    "post": 201,
+    "classes": {
+      "rewritten": 14,
+      "admitted": 118,
+      "refused": 201
+    }
+  },
+  "signature": {
+    "n": 37,
+    "raw": 36,
+    "post": 32,
+    "classes": {
+      "rewritten": 4,
+      "refused": 32,
+      "admitted": 1
+    }
+  },
+  "sql_body": {
+    "n": 18,
+    "raw": 14,
+    "post": 14,
+    "classes": {
+      "refused": 14,
+      "rewritten": 3,
+      "admitted": 1
+    }
+  },
+  "table_child": {
+    "n": 989,
+    "raw": 275,
+    "post": 234,
+    "classes": {
+      "refused": 234,
+      "admitted": 701,
+      "canonicalized": 12,
+      "rewritten": 42
+    }
+  },
+  "top": {
+    "n": 354,
+    "raw": 191,
+    "post": 152,
+    "classes": {
+      "refused": 152,
+      "admitted": 79,
+      "rewritten": 45,
+      "canonicalized": 11,
+      "ignored": 67
+    }
+  }
+}

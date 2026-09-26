@@ -1,0 +1,65 @@
+[
+  {
+    "file": "astra-supabase/schema.sql",
+    "original_sha256": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756",
+    "expanded_sha256": "02431660c98991a7accaa483926696aea6d17db99ca0e49c62d9846cdfb10756",
+    "substitutions": 0,
+    "top_level": 83
+  },
+  {
+    "file": "astra-supabase/scripts/mutations.sql",
+    "original_sha256": "a84963b377a2335249e27affa592c2102eb9f93ff715bde2087a5c67d6f11a93",
+    "expanded_sha256": "a84963b377a2335249e27affa592c2102eb9f93ff715bde2087a5c67d6f11a93",
+    "substitutions": 0,
+    "top_level": 2
+  },
+  {
+    "file": "astra-supabase/scripts/m7-migration.sql",
+    "original_sha256": "a5c0fd41ac8563e4736af3f6d7063e83ab72cb81c85202e0bcaf845b6efff3c6",
+    "expanded_sha256": "a5c0fd41ac8563e4736af3f6d7063e83ab72cb81c85202e0bcaf845b6efff3c6",
+    "substitutions": 0,
+    "top_level": 20
+  },
+  {
+    "file": "grok-supabase/server/schema.sql",
+    "original_sha256": "b23cece193f6159b6e4cba11dda22d4e6b5ebf645fa21d03b9897b7502cf9757",
+    "expanded_sha256": "b23cece193f6159b6e4cba11dda22d4e6b5ebf645fa21d03b9897b7502cf9757",
+    "substitutions": 0,
+    "top_level": 43
+  },
+  {
+    "file": "muse-supabase/db/schema.sql",
+    "original_sha256": "0d79ea2989a573195048a2f7ce622b0eab4b9d8f7314fefaaf8a87c51c3c66ec",
+    "expanded_sha256": "f5f4f7ced671d7eb89cb6065a910fe28c8038a297a9d716af3d4ba706fe57e38",
+    "substitutions": 46,
+    "top_level": 27
+  },
+  {
+    "file": "muse-supabase/db/rls.sql",
+    "original_sha256": "9a377ea01ca41d62c2b94e6a350fbb4af811afba4b2755d14d6200d5cb9f3a09",
+    "expanded_sha256": "3172f6decc4cf1fc57008ceb5d0596240a75b977a099bd4025a64192cfe26975",
+    "substitutions": 191,
+    "top_level": 98
+  },
+  {
+    "file": "muse-supabase/db/functions.sql",
+    "original_sha256": "5695413ce5821ad53c8a69127d8b8d67e36e2257bdcd5e3fc780c64dc73cdf06",
+    "expanded_sha256": "d5861a2a50686359eca69e487dd9080fc78389689017c8df5ed1cfb8576150ed",
+    "substitutions": 57,
+    "top_level": 21
+  },
+  {
+    "file": "muse-supabase/db/rpcs.sql",
+    "original_sha256": "627307bfcf8e6d0a3e3d09bb860c8bcc54073f2b49e13811e12df1e131f51423",
+    "expanded_sha256": "052a669c758fa0a4de2cc971f78459ccf4c356b70769299adc59bd0712524a51",
+    "substitutions": 79,
+    "top_level": 14
+  },
+  {
+    "file": "muse-supabase/db/migrate-m7.sql",
+    "original_sha256": "d49fad12aff4ce16af3f6a6e784ec37c9e30a60bfb258aa95f606fb3d4290034",
+    "expanded_sha256": "fb617919fad830ab5c6d37c38f659cbd031ba4c303a2de4c2d340b06b67649a8",
+    "substitutions": 136,
+    "top_level": 46
+  }
+]
