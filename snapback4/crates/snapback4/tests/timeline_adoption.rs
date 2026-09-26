@@ -15,7 +15,30 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     // @ref LLP 3000.019#3.1 — retained-source pages expose their window-order mismatch.
     assert!(b.notes.iter().all(|n| n.code == "N_NO_HORIZON" ||
         (n.code == "N_SYNC_ORDER" && n.message.contains("reads posts") &&
-            (n.message.starts_with("query home ") || n.message.starts_with("query cards ")))), "{:?}", b.notes); b
+            (n.message.starts_with("query home ") || n.message.starts_with("query cards ")))), "{:?}", b.notes);
+    check_source_page_repairs(source, &b);
+    b
+}
+// Apply every source-page repair produced during Following retirement. A bad
+// view-only rewrite must fail here, even if the advisory code is still right.
+fn check_source_page_repairs(source: &str, bound: &snapback4_lang::Bound) {
+    for note in bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER") {
+        assert!(note.rewrite.contains("page the source table posts"), "{note}");
+        let parts: Vec<_> = note.rewrite.split('`').collect();
+        assert_eq!(parts.len(), 7, "declaration, horizon and complete source page: {note}");
+        let page = parts[5];
+        assert!(page.contains("after c"), "retain the cursor parameter: {note}");
+        assert!(page.starts_with("posts["), "never select an index on activity: {note}");
+        assert!(page.contains(".parentId = null") && page.contains(".removed = false"), "preserve both branch predicates: {note}");
+        // Qualify this source branch independently; the note tells a builder to
+        // retain its projection and the other branch when composing the result.
+        let repaired = source.replace("table posts:\n", &format!("table posts:\n  {}\n", parts[1]))
+            .replacen("sync public last 1000 by .at", &format!("sync public {}", parts[3]), 1)
+            .replace("activity last 20 by .at after c", &format!("{page} {{ post: .id, actor: .authorId, at, repost: false }}"));
+        let fixed = snapback4_lang::compile(&[("schema.q".into(), repaired)]);
+        assert!(fixed.diagnostics.is_empty(), "repair {note}: {:?}", fixed.diagnostics);
+        assert!(!fixed.notes.iter().any(|n| n.code == "N_SYNC_ORDER"), "{:?}", fixed.notes);
+    }
 }
 fn engine(source: &str) -> Engine {
     let b = compile(source); Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()

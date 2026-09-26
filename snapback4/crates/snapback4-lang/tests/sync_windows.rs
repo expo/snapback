@@ -204,3 +204,85 @@ fn capped_whole_domain_aggregates_do_not_get_page_order_advice() {
     assert!(!bound.notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
     assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "retain the independent authorization advice");
 }
+
+#[test]
+fn calendar_pages_get_order_advice_and_the_window_repair_clears_it() {
+    let source = SOURCE.replace("  at: time", "  by byDay: conversationId, day(at), id\n  by byWindow: conversationId, at, ordinal, id\n  at: time")
+        .replace("sync last 10000 by .at, .ordinal", "sync last 10000 by byWindow")
+        .replace("messages where .conversationId = conversationId last 2 by .at, .ordinal after c", "messages[conversationId] last 2 by byDay after c");
+    let bound = bind(&source);
+    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").expect("calendar order differs from the window");
+    assert!(note.message.contains("day(.at)"), "{note}");
+    assert!(!note.message.contains("by .day,"), "calendar keys are functions, not row fields: {note}");
+    let page = note.rewrite.split('`').nth(1).unwrap();
+    assert_eq!(page, "last 2 by byWindow");
+    assert!(!bind(&source.replace("last 2 by byDay", page)).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+}
+
+#[test]
+fn index_repair_moves_an_incompatible_explicit_range_into_a_residual_filter() {
+    let original = "messages[conversationId, ordinal > 0] first 2 by byOrdinal after c";
+    let source = SOURCE.replace("  at: time", "  by byOrdinal: conversationId, ordinal, id\n  by byWindow: conversationId, at, ordinal, id\n  at: time")
+        .replace("sync last 10000 by .at, .ordinal", "sync last 10000 by byWindow")
+        .replace("messages where .conversationId = conversationId last 2 by .at, .ordinal after c", original);
+    let bound = bind(&source);
+    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
+    let page = note.rewrite.split('`').nth(1).unwrap();
+    assert!(page.starts_with("messages[conversationId = conversationId]"), "{note}");
+    assert!(page.contains("where .ordinal > 0"), "{note}");
+    let repaired = bind(&source.replace(original, page));
+    assert!(!repaired.notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+    let scans = snapback4_core::ir::scans(&repaired.programs[0].program);
+    assert_eq!(scans[0].index, "byWindow");
+    assert!(scans[0].range.is_none() && scans[0].filter.is_some());
+    // The reviewer's exact supported spelling also remains valid.
+    assert!(!bind(&source.replace(original, "messages[conversationId] last 2 by byWindow after c where .ordinal > 0"))
+        .notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+}
+
+#[test]
+fn view_repair_names_an_executable_source_page_with_its_predicates() {
+    let source = SOURCE.replace("  at: time", "  sender: principal\n  at: time")
+        .replace("query thread(", "view activity:\n  messages where .sender = viewer { conversationId, at, ordinal }\n\nquery thread(")
+        .replace("return messages where", "return activity where");
+    let bound = bind(&source);
+    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
+    assert!(note.rewrite.contains("page the source table messages"), "{note}");
+    let quotes: Vec<_> = note.rewrite.split('`').collect();
+    let repaired = source.replace("  at: time", &format!("  {}\n  at: time", quotes[1]))
+        .replace("last 10000 by .at, .ordinal", quotes[3])
+        .replace("activity where .conversationId = conversationId last 2 by .at, .ordinal after c", quotes[5]);
+    assert!(quotes[5].contains("after c"), "retain the cursor parameter: {note}");
+    assert!(quotes[5].contains(".sender = viewer"), "keep branch predicates: {note}");
+    assert!(!bind(&repaired).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+}
+
+#[test]
+fn replacement_preserves_compatible_ranges_and_moves_calendar_ranges() {
+    let base = SOURCE.replace("  at: time", "  by byDay: conversationId, day(at), id\n  by byWindow: conversationId, at, ordinal, id\n  at: time")
+        .replace("sync last 10000 by .at, .ordinal", "sync last 10000 by byWindow");
+    let original = "messages where .conversationId = conversationId last 2 by .at, .ordinal after c";
+    let compatible = "messages[conversationId, at > 0] first 2 by byWindow after c";
+    let source = base.replace(original, compatible);
+    let bound = bind(&source);
+    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
+    let order = note.rewrite.split('`').nth(1).unwrap();
+    assert!(!bind(&source.replace("first 2 by byWindow", order)).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+
+    let calendar = "messages[conversationId, day > 0] first 2 by byDay after c";
+    let source = base.replace(original, calendar);
+    let bound = bind(&source);
+    let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").unwrap();
+    let page = note.rewrite.split('`').nth(1).unwrap();
+    assert!(page.contains("where day(.at) > 0"), "{note}");
+    assert!(!bind(&source.replace(calendar, page)).notes.iter().any(|n| n.code == "N_SYNC_ORDER"));
+}
+
+#[test]
+fn word_search_keeps_its_separate_coverage_requirement() {
+    let source = SOURCE.replace("  at: time", "  body: text <=100\n  search body\n  at: time")
+        .replace("c: cursor ?):", "q: text <=100, c: cursor ?):")
+        .replace("last 2 by .at, .ordinal", "matching q last 2 by .at, .ordinal");
+    let bound = bind(&source);
+    assert!(!bound.notes.iter().any(|n| n.code == "N_SYNC_ORDER"), "{:?}", bound.notes);
+}

@@ -82,7 +82,11 @@ boundary by key; crossing it returns only the known suffix with `complete: false
 and unknown coverage, so the online client asks the server. Without a boundary
 the group is unknown. Ascending reads and other indexes have unknown coverage.
 N_SYNC_ORDER notes these query orders at their source sites and names the
-window's order for ordinary pages. Whole-domain aggregates and word searches
+window's order for ordinary pages, including calendar-index pages. Move a range
+predicate to a residual filter if its column is no longer the next index key.
+For a view, the repair names a source-table page: keep that branch's predicates
+and projection and compose it with the other branches. Views cannot name a
+physical index. Whole-domain aggregates and word searches
 have separate coverage requirements; this ordering note does not cover them.
 Use `last N by .at, .id` for the example above, keeping the
 audience predicate and cursor. A query on the window's own index, newest first,

@@ -26,73 +26,8 @@ pub(in crate::bind) fn incompatible_horizon_pages(schema: &Schema, programs: &[s
         .map(|bound| bound.program.name.clone()).collect::<BTreeSet<_>>().into_iter().collect()
 }
 
-// @ref LLP 3000.019#3.1 — mirror by_boundary's index identity and descending direction; advice changes no execution facts.
-pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[super::super::BoundProgram]) -> Vec<Diagnostic> {
-    let mut notes = Vec::new();
-    for bound in programs.iter().filter(|bound| bound.program.kind == ProgramKind::Query) {
-        let Some(fact) = schema.operations.get(&bound.program.name).filter(|fact| fact.runs.as_deref() == Some("device")) else { continue; };
-        for scan in ir::scans(&bound.program).into_iter().filter(|scan| !scan.existence) {
-            let Some(table) = schema.tables.get(&scan.table) else { continue; };
-            // Word search and whole-domain aggregates have separate coverage
-            // requirements: changing their page order cannot establish them.
-            let Some(query_index) = table.index(&scan.index).filter(|index| index.is_plain()) else { continue; };
-            // An aggregate domain can also have a literal bound from a cap;
-            // its source metadata distinguishes it from an authored page.
-            if matches!(scan.take, ir::Bound::Meter) || bound.constraint_domains.contains(&scan.site) { continue; }
-            let Some(sync) = &table.sync else { continue; };
-            let Some(window) = &sync.horizon else { continue; };
-            if scan.index == window.by && scan.order == ir::Order::Desc { continue; }
-            let Some(index) = table.index(&window.by).filter(|index| index.is_plain()) else { continue; };
-            let prefix = match &sync.audience { Audience::Public => 0, Audience::Column(_) => 1, Audience::Target { prefix, .. } => prefix.len() };
-            let columns = ordered_columns(index, prefix);
-            let window_order = columns.join(", ");
-            let query_order = ordered_columns(query_index, scan.prefix.len()).join(", ");
-            let direction = if scan.order == ir::Order::Desc { "newest first" } else { "oldest first" };
-            let location = bound.sources.get(&scan.site).map_or(&bound.site, |(location, _)| location);
-            let spelling = bound.sources.get(&scan.site).map(|(_, spelling)| format!(" `{spelling}`")).unwrap_or_default();
-            let outcome = if fact.held { "this held query stays on the device with unknown coverage" }
-                else { "the client needs the server for this read; offline coverage is unknown" };
-            let describe = |name: &str, index: &snapback4_core::schema::Index| {
-                let name = if name.starts_with("$intent:") { String::new() } else { format!("{name} ") };
-                format!(" (index {name}[{}])", index.columns().join(", "))
-            };
-            // A named index rewrite preserves its physical identity, even if
-            // another declared index happens to have identical columns.
-            let by = if window.by.starts_with("$intent:") { window_order.clone() } else { window.by.clone() };
-            let mut rewrite = format!("order this page by the window's columns, newest first: `last {} by {by}`; keep its audience predicate and cursor", scan.take.maximum());
-            let window_columns = index.columns();
-            let query_columns = query_index.columns();
-            if scan.prefix.len() != prefix || query_columns.get(..prefix) != window_columns.get(..prefix)
-                || (scan.index != window.by && ordered_columns(query_index, 0) == ordered_columns(index, 0))
-                || window_columns.iter().position(|column| column == "id").is_some_and(|at| at + 1 < window_columns.len()) {
-                // Extra equality pins, a legacy implicit-id index, or order
-                // keys after intrinsic id can select another index again.
-                // Give an explicit physical-index rewrite for those cases.
-                let mut name = window.by.clone();
-                let mut declaration = String::new();
-                if name.starts_with("$intent:") {
-                    name = "bySyncWindow".into();
-                    while table.index(&name).is_some() { name.push('_'); }
-                    declaration = format!("declare `by {name}: {}` on {}; set its sync horizon to `last {} by {name}`; ", window_columns.join(", "), scan.table, window.last);
-                }
-                rewrite = format!("{declaration}use `last {} by {name}` for this page, newest first; pin only the audience columns in its keys, keep remaining predicates as filters and retain its cursor", scan.take.maximum());
-            }
-            notes.push(Diagnostic::new(location, "N_SYNC_ORDER",
-                format!("query {}{spelling} reads {} by {query_order}, {direction}{}; its sync window is last {} by {window_order}, newest first{}; {outcome}",
-                    bound.program.name, scan.table, describe(&scan.index, query_index), window.last, describe(&window.by, index)), rewrite)
-                .guide("sync"));
-        }
-    }
-    notes.sort_by(|a, b| (&a.site.file, a.site.line, a.site.col, &a.message).cmp(&(&b.site.file, b.site.line, b.site.col, &b.message)));
-    notes.dedup();
-    notes
-}
-
-fn ordered_columns(index: &snapback4_core::schema::Index, prefix: usize) -> Vec<String> {
-    let mut columns: Vec<_> = index.columns().iter().skip(prefix).map(|column| format!(".{column}")).collect();
-    if !columns.iter().any(|column| column == ".id") { columns.push(".id".into()); }
-    columns
-}
+mod sync_order;
+pub(in crate::bind) use sync_order::sync_order_notes;
 
 pub(in crate::bind) fn guard_notes(schema: &Schema, programs: &[super::super::BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
