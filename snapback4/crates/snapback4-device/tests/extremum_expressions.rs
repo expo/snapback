@@ -4,7 +4,7 @@ use serde_json::json;
 use snapback4_core::{Value, value::object};
 use snapback4_device::device::Queued;
 
-const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/extremum-expressions.q");
+const SOURCE: &str = include_str!("../../snapback4-lang/tests/extremum_expressions/schema.q");
 const SAVE: &str = r#"
 table summaries:
   owner: principal

@@ -2,7 +2,7 @@ use snapback4_core::{Ceilings, Context, Engine, Value, ir, value::object};
 use snapback4_lang::{Bound, compile, types::Ty};
 use std::collections::BTreeMap;
 
-const SOURCE: &str = include_str!("fixtures/extremum-expressions.q");
+const SOURCE: &str = include_str!("extremum_expressions/schema.q");
 fn bound(source: &str) -> Bound {
     let b = compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:#?}", b.diagnostics);

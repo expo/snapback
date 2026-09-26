@@ -4,7 +4,7 @@ use scale::{Class, analyze};
 
 #[test]
 fn capped_expression_is_a_scan_and_uncapped_expression_grows() {
-    let source = include_str!("../../snapback4-lang/tests/fixtures/extremum-expressions.q");
+    let source = include_str!("../../snapback4-lang/tests/extremum_expressions/schema.q");
     for (cap, expected) in [(true, Class::Constant), (false, Class::Grows)] {
         let source = if cap { source.to_owned() } else { source.replace("  cap 50 by conversation\n", "") };
         // The explicit loop intentionally needs a cap; only test the aggregates.
@@ -55,7 +55,7 @@ fn enclosing_iterations_multiply_projection_reads() {
 }
 
 fn non_domain_fixture_certificates() -> std::collections::BTreeMap<String, scale::Certificate> {
-    let source = include_str!("../../snapback4-lang/tests/fixtures/extremum-expressions.q")
+    let source = include_str!("../../snapback4-lang/tests/extremum_expressions/schema.q")
         .replace("max(rows, .n + ordinal if .n != null else null)", "max(rows, details['r'].n ?? 0)")
         .replace("min(rows, .n + 1 if .n != null else null)", "min(rows, details['r'].n ?? 0)")
         .replace("max(rows, .n ?? 0)", "max(rows, details['r'].n ?? 0)");
