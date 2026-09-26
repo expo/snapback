@@ -1,3 +1,4 @@
+import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
 import { prepareAdmissionAuthority } from "./admission-authority.ts";
 import { mintId } from "./client.ts";
@@ -198,8 +199,8 @@ export function createApp(options: AppOptions): App {
   const listeners = new Set<() => void>();
   const anonymous = () => {
     const client = createClient({ url, fetch: fetcher });
-    if (browserAdmission()) client.mutate = (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
-      admissionRefusal("session restoration or sign-in is incomplete; mutation was not admitted", "app.mutate", "await app.ready; await app.auth.login(email, password); retry with the same id"));
+    if (browserAdmission()) client.mutate = routeMutations(client.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
+      admissionRefusal("session restoration or sign-in is incomplete; mutation was not admitted", "app.mutate", "await app.ready; await app.auth.login(email, password); retry with the same id")));
     return client;
   };
   let current = anonymous();
@@ -761,7 +762,7 @@ export function createApp(options: AppOptions): App {
   return {
     auth, ready,
     get client() { return current; },
-    mutate: (op, args, options) => current.mutate(op, args, options),
+    mutate: routeMutations((op, args) => current.mutate(op, args), (op, args, options) => current.mutate(op, args, options)),
     close: closeApp,
   };
 }

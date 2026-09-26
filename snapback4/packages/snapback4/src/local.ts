@@ -1,3 +1,5 @@
+import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
+import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
@@ -237,6 +239,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
+  const ephemeralReads = new EphemeralReads(aborter.signal);
+  const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
+    link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
+    unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
+
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
@@ -374,6 +381,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    ephemeral.linkChanged();
     if (next !== "online") {
       identityChecked = false;
       for (const watch of watches.values()) {
@@ -523,18 +531,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
 
-  function post(path: string, body: unknown, captured?: ClosingResponse) {
-    const work = sendPost(path, body, captured);
+  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) {
+    const work = sendPost(path, body, captured, eph);
     active.add(work);
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
-  async function sendPost(path: string, body: unknown, captured?: ClosingResponse): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
-      const reply = await postForCaller(doFetch, base, path, request.headers, body, aborter.signal, (json, status) => captured?.capture(json, status));
-      if (!reply) return { ok: false };
+      const reply = await postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status));
+      if (!reply || (eph && !ephemeralReads.current(eph))) return { ok: false };
       const { response, json } = reply;
       // I12: delivered mutation/action outcomes still belong to their callers
       // after close. Reads continue to require the live view at delivery.
@@ -546,7 +554,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (link !== "online") setLink("online");
       return { ok: true, json, obsoleteAuth };
     } catch {
-      setLink("offline");
+      if (!eph || ephemeralReads.current(eph)) setLink("offline");
       return { ok: false };
     }
   }
@@ -811,18 +819,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return false;
     }
     if (!identityChecked) { await probe(); return !caughtUp; }
+    const eph = ephemeralReads.pollRequest();
     try {
       const request = requestCredentials();
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture) return false;
-      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity);
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, ephemeralReads.parameters(), eph.signal);
+      if (!ephemeralReads.current(eph)) return false;
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
       if (closed || changeIncarnation !== incarnation || request.revision !== credentialRevision) return false;
+      if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
@@ -837,7 +848,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
       return changed;
     } catch {
-      if (closed) return false;
+      if (closed || !ephemeralReads.current(eph)) return false;
       setLink("offline");
       await new Promise((r) => setTimeout(r, 1000));
       return false;
@@ -882,14 +893,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       set nativeReady(value: boolean) { nativeReady = value; },
       principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify,
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
-      offline, serverAnswers: answers.serverAnswers,
+      offline, serverAnswers: answers.serverAnswers, ephemeralReads,
     };
     const work = (async () => {
-      while (true) {
+      for (let attempt = 0; ; attempt++) {
         const revision = incarnation, authority = answers.revision;
         const result = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
+        if (result.ephemeralStale || (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest))) {
+          if (attempt >= 3) return { ...result, read: { loading: true } as Read<R>, incarnation: revision, authority };
+          await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
+          continue;
+        }
         if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
       }
     })();
@@ -898,6 +914,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   }
 
+
+  function watchEphemeral(watch: Watch) {
+    const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? watch.op.ephemeralReads ?? [];
+    if (!tables.length) return;
+    ephemeralReads.add(watch, tables, reset => {
+      if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }
+      void rerun(watch);
+    });
+  }
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
@@ -935,9 +960,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, serverExpiry, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, ephemeralRequest, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
+      if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
+      ephemeralReads.incomplete(watch, "data" in read && !read.complete);
       watch.incarnation = revision;
       watch.tables = tables;
       scheduleExpiry(watch, nextExpiry, serverExpiry);
@@ -1112,6 +1139,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = await runLocal(op, args);
         const denied = unavailable(); // Rule 1: immediately before returning to the caller.
         if (denied) return { denied };
+        if (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest)) continue;
         if ((result.incarnation === incarnation && result.authority === answers.revision) || closed) return result.read;
       }
     },
@@ -1121,6 +1149,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!watch) {
         watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
         watches.set(key, watch);
+        watchEphemeral(watch);
         void rerun(watch);
       }
       const own = watch;
@@ -1132,6 +1161,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           own.subscribers.add(notifyMe);
           if (watches.get(own.key) !== own) {
             watches.set(own.key, own);
+            watchEphemeral(own);
             void rerun(own);
           }
           return () => {
@@ -1143,13 +1173,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           for (const s of mine) own.subscribers.delete(s);
           if (own.subscribers.size === 0) {
             watches.delete(own.key);
+            ephemeralReads.remove(own);
             if (own.expiryTimer) clearTimeout(own.expiryTimer);
             own.expiryTimer = null;
           }
         },
       };
     },
-    mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+    mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
       const unavailableWhy = unavailable();
       if (unavailableWhy) {
@@ -1202,7 +1233,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         finally { clearTimeout(timer); settled.delete(id); }
         })();
       });
-    },
+    }),
     async write(id) {
       if (unavailable()) return undefined;
       const entry = (await queued()).find(entry => entry.id === id);

@@ -18,10 +18,10 @@ export const until = async (read, label = "condition") => {
   }
   assert.fail(`timed out: ${label}`);
 };
-export async function server(t, residency = "sync to .owner") {
+export async function server(t, residency = "sync to .owner", source) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));
-  writeFileSync(join(dir, "snapback/schema.q"), `use identity
+  writeFileSync(join(dir, "snapback/schema.q"), source ?? `use identity
  tablePlaceholder` .replace(' tablePlaceholder', `table notes:
   owner: principal
   body: text <=200

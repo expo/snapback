@@ -1,11 +1,12 @@
 // The link watchdog belongs to the transport, shared by both client tiers.
 // A stalled fetch must not depend on the host eventually rejecting it.
 import { sampleChanges } from "./clock.ts";
+import type { EphemeralVersion } from "./ephemeral-reads.ts";
 import type { Refusal } from "./contract.ts";
 
 const SILENCE_MS = 4000;
 const HEARTBEAT_SECONDS = 2;
-interface Change { serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
+interface Change { ephemeral?: EphemeralVersion & { tables: string[] }; serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
 
 export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortSignal, offline: () => void, online: () => void) {
   const active = new Set<AbortController>();
@@ -24,9 +25,11 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     }
   };
   lifetime.addEventListener("abort", close, { once: true });
-  return async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string) => {
+  return async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string, ephemeral?: { epoch: number; incarnation: string; tables: string[] }, restart?: AbortSignal) => {
     const controller = new AbortController();
     active.add(controller);
+    const reissue = () => controller.abort();
+    restart?.addEventListener("abort", reissue, { once: true });
     let timer: ReturnType<typeof setTimeout> | undefined;
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     const aborted = new Promise<never>((_, reject) => {
@@ -43,9 +46,10 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     const seconds = streaming ? wait : Math.min(wait, HEARTBEAT_SECONDS);
     arm();
     try {
-      if (lifetime.aborted) controller.abort(lifetime.reason);
+      if (lifetime.aborted || restart?.aborted) controller.abort();
+      const parameters = ephemeral ? `&eph=${ephemeral.epoch}&ephi=${encodeURIComponent(ephemeral.incarnation)}&ephTables=${encodeURIComponent(ephemeral.tables.join(","))}` : "";
       const work = (async () => {
-        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}`, { headers, signal: controller.signal });
+        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal });
         if (controller.signal.aborted) throw controller.signal.reason;
         arm();
         let json: Change;
@@ -73,6 +77,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
       controller.abort();
       void reader?.cancel().catch(() => {});
       active.delete(controller);
+      restart?.removeEventListener("abort", reissue);
     }
   };
 }
