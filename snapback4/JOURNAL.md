@@ -63132,3 +63132,55 @@ earlier finding fixed and one gap: nothing showed a kept view staying kept
 across a loading answer, so honoring the kept mark only when the member's row
 is present survived. A case publishes a loading answer and then the same row,
 and requires no second `seen`.
+
+
+## 2026-09-26 — 0.4.4 P2 round 1: projection cuts, coverage, pricing and device size
+
+Merged the requested `99153132b` into `sb4-intent/p2-extremum-expressions`
+(`7fec1c171`), retaining both journal histories and main's presence, receipts,
+backlog and ephemeral-table work. Rebuilt and passed 118 affected tests on
+that merged tree before changing implementation code.
+
+Accepted every finding in the Astra and Grok round-0 reviews. Projections now
+live in `args[1]` under non-recursive `ExtremumOf { max, domain }`, so the
+ordinary operand walkers suffice. Totals and extrema share projection
+binding/evaluation/restoration; a projection cut takes precedence over an
+application error. Component proofs scope the implicit row locally and retain
+real outside dependencies. Physical caps include hidden/rejected candidates
+without dropping rule probes. Non-domain projections use page/list bounds,
+including immutable aliases and list arguments, with enclosing iterations.
+Existing column encoding and one-row seeks remain unchanged.
+
+Added nine regression tests for nested-read cut boundaries, null-row winners,
+component scope and both-store coverage after reopen, hidden-row cap pricing,
+enclosing iterations and the page/list fixtures. All four trial mutations
+fail assertions: skipping null rows, dropping `times`, zeroing non-domain
+projection work and restoring its step-ceiling price. The restored affected
+targets pass; the full guide target passes all 85 tests. A direct compiled-wasm
+smoke passes five server/device comparisons.
+
+Final suite wasm: **2,024,130 B raw / 581,998 B gzip**, versus main's recorded
+**2,021,689 / 581,094**: **+2,441 raw / +904 gzip**. The merged round-0 artifact
+was 2,036,400 / 585,695; this round saves 3,697 B gzip. The unchanged 582,094 B
+ratchet passes with **96 B headroom**, zero bytes over. Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt, `CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0`.
+No budget, runtime meter, authorization or disclosure constraint was weakened.
+
+Ran `scripts/test.sh` exactly once on the final runtime implementation with
+four Rust processes and serial client files. Exact result: **`== 1 failure(s)
+in 3263 s`**, exit 1, **`cargo test`**. Its sole failure was **ours**:
+`ephemeral_compat::durable_schema_and_types_keep_base_bytes` found P2's added
+fixture key in the frozen flat fixture corpus. After the run, moved that
+fixture byte-for-byte to `tests/extremum_expressions/schema.q` and updated the
+three test includes. The compatibility test and both frozen snapshots remain
+unchanged. All **22** affected compatibility/language/device/certificate tests
+pass after this test-only fix. No second complete run was made; the original
+failure remains the full-run result. No baseline or environmental failure.
+
+Full-run counts: Rust 3,592 passed / one failed / 19 existing ignores; client
+2,179 passed / zero failed / 10 existing platform or optional-fixture skips;
+fixture wrappers 9/9; all 78 model checks passed, with the full 5,000 / 5,000 /
+3,000 sequence counts. Builds, typechecks, docs budget and release guard pass.
+Did not push, publish, raise a budget, change a runtime ceiling or rewrite an
+existing journal entry. Full dispositions, files, examples, measurements and
+logs are in `reports/20260926-p2-extremum-expressions.md` (Round 1).

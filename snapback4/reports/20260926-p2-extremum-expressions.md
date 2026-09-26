@@ -199,3 +199,207 @@ The suite's original failure remains recorded despite the isolated pass.
 Local logs: `/tmp/lane-p2-suite.log`, `/tmp/lane-p2-final-affected.log`,
 `/tmp/lane-p2-clique-retry.log`, `/tmp/lane-p2-wasm-base.log` and
 `/tmp/lane-p2-wasm.log` and `/tmp/lane-p2-wasm-smoke.log`.
+
+## Round 1 — 2026-09-26
+
+This section supersedes round 0's IR layout, wasm blocker, and qualification.
+Read both blind reviews in full and accepted every finding. No finding was
+rejected. The user authorized the non-recursive IR layout as an amendment to
+LLP 3000.019 §3.2; the merged main now contains that supervisor-owned RFC.
+
+### Integration and constraints
+
+Fetched origin and merged the specifically requested `99153132b`, even though
+`origin/main` had advanced to `ffe420f77`. Merge commit: `7fec1c171`.
+Only `JOURNAL.md` conflicted; both complete append histories were preserved.
+The merged code retains main's live presence, receipts card, backlog class and
+ephemeral tables. Before changing implementation code, rebuilt and passed
+**118 tests**: language extrema 9, guide 85, device extrema 2, scale 20 and
+expression scale 2. Log: `/tmp/lane-p2-r1-merged-tests.log`.
+
+Scoped `llp-orient` context: LLP 3000 §4 (the independent Snapback 4 fence),
+LLP 3000.013 §5.1 and §14.4 (streaming coverage/meters and backlog classes),
+LLP 3000.001's component eligibility and coverage frames, and LLP 3000.019
+§3.2 (expression extrema). The language card remains the current authoring
+surface. Runtime authorization/disclosure, scalar completeness, the old field
+encoding/seek, and the fixed wasm ratchet remain constraints. No new design
+LLP or approval was needed; the user explicitly authorized this round.
+
+### Review dispositions
+
+| Finding | Change and evidence |
+| --- | --- |
+| Astra 1: projection cuts become application errors | Shared `aggregate_projection` binds/restores `$filter`, then calls `require_uncapped()` before propagating the expression result. The exact division-by-zero cut reproduced before the fix. Both min/max now withhold at the nested-read boundary, including after an earlier winner and before a default. An ordinary missing divisor with no cut still reports `E_DIV_ZERO`. |
+| Astra 2: lost independent components | Analyze the source in its existing scope and the projection with a temporary local `$filter`; restore all prior locals. Apply the same scope handling to streaming sum and scan predicates. External reads/names still count. Binder tests cover named inputs, nested aggregates and escaped bindings; memory and SQLite tests compare column/expression coverage after reopen, preserving the complete local field beside an unknown remote field. |
+| Astra 3: hidden rows defeat physical caps | Pass the physical candidate bound into scan pricing, including authorization rejects and residual filters, while preserving complete-rule probe accounting. A global cap 3 prices four candidate examinations and, with a per-row existence rule, eight reserved/evaluated probe units. Runtime nonuniform-domain refusal is unchanged. Expiry, maintained work and word-prefix fanout do not gain an unsound physical-row bound. |
+| Astra 4 / Grok wasm finding | `ExtremumOf { max, domain }` stores the projection in `args[1]`; remove `operands()` and restore the original argument walkers. Share projection evaluation with totals and dispatch with column extrema. The unchanged ratchet now passes. |
+| Grok non-domain pricing | A compiler-side census recovers immutable page/list lengths and aliases, literal lengths and list-argument maxima. Projection reads use that count multiplied by enclosing iterations. Reassigned/pushed lists fail closed to a conservative meter allowance. Tests price the actual page/list fixtures with added point-read projections, plus direct pages, direct arrays and a bounded list-argument alias. |
+| Both reviewers' surviving mutations | All named mutants are killed by assertions: skipping null rows, dropping `times`, and zeroing non-domain projection cost. A fourth mutant restores the old step-ceiling price; both the page and list tests fail. Sources were restored and the affected tests passed afterward. |
+
+### Round-1 file changes
+
+All paths below are relative to `snapback4/`.
+
+- `crates/snapback4-core/src/ir.rs`: non-recursive new builtin, arity two,
+  ordinary read/scan walks; old `Extremum` serialization unchanged.
+- `crates/snapback4-core/src/engine/extrema.rs`: shared row binding,
+  restoration, evaluation and projection-cut precedence for totals/extrema.
+- `crates/snapback4-core/src/engine/runner.rs`: shared field/expression
+  dispatch and operand-count validation.
+- `crates/snapback4-lang/src/bind/program/extrema.rs`: emit projection in
+  `args[1]`.
+- `crates/snapback4-lang/src/bind/residency/components.rs`: scoped row
+  analysis for projections and predicates without erasing outside dependencies.
+- `crates/snapback4/src/scale.rs`: physical candidate cap passed through
+  scan pricing; non-domain projection counts and enclosing multipliers.
+- `crates/snapback4/src/scale/collections.rs`: compiler-only immutable
+  collection-bound recovery, rejecting reassigned and pushed definitions.
+- `crates/snapback4-lang/tests/extremum_expressions.rs`: projection-cut
+  boundary and null-source-row regressions.
+- `crates/snapback4-lang/tests/components.rs`: row-scope, nested-expression,
+  external-dependency and escaped-binding proof tests.
+- `crates/snapback4-device/tests/extremum_expressions.rs`: independent
+  field coverage on both stores after reopen.
+- `crates/snapback4/tests/scale_extremum_expressions.rs`: physical cap/rule
+  probes, enclosing iterations, page fixture and list fixture tests.
+- Restored ordinary argument traversal in core `engine/admission.rs`,
+  `engine/page_collectors.rs`, `engine/prefetch.rs`, `engine/presence.rs`,
+  `engine/read_only.rs`, `engine/write_target.rs`; language `bind/mod.rs`,
+  `bind/program/expr.rs`, `bind/program/returned_shapes.rs`, `bind/residency.rs`,
+  `bind/residency/effect_reads/walk.rs`, `bind/residency/horizons.rs`,
+  `bind/residency/presence.rs`; and `scale/dependencies.rs`. Most are now
+  byte-identical to main; the necessary new-builtin match arms remain.
+- `crates/snapback4-lang/tests/extremum_expressions/schema.q`: move the P2
+  fixture unchanged from `tests/fixtures/extremum-expressions.q`, outside the
+  frozen durable compatibility corpus; update the three test targets' includes.
+- `JOURNAL.md`: one appended round-1 entry. This report: this round-1 section.
+
+### Forms and regression evidence
+
+All round-0 forms remain supported. The amended encoding changes no Quarry
+spelling. Representative forms covered by the tests:
+
+```quarry
+min(members where .conversation = m.conversation and .joinedOrdinal < m.ordinal, 2 if .seenOrdinal >= m.ordinal else 1)
+max(members where .conversation = m.conversation and .joinedOrdinal < m.ordinal, 2 if .seenOrdinal >= m.ordinal else 1)
+min(t, .n)                         -- the original column seek
+min(t, .n + 0)                     -- expression scan
+max(rows, .n ?? 0)                 -- null source rows are evaluated
+max(t, 10 / (details[.target].n ?? 0)) -- a cut withholds, not E_DIV_ZERO
+```
+
+Nine new round-1 tests (the scale fixture cases are separate tests):
+
+1. `projection_read_cuts_withhold_even_after_a_previous_winner`: both
+   extrema, one/two rows, complete controls, cut before default, true error control.
+2. `null_source_rows_still_evaluate_the_projection`: a null source row supplies
+   the winning max/min fallback, so skipping it fails.
+3. `expression_extrema_scope_rows_but_keep_external_dependencies`: column,
+   expression and sum plans; nested row-scope restoration; external names/reads;
+   no `$filter` escape into a sibling field.
+4. `expression_extrema_memory_independent_components`: fully synced local
+   aggregate stays complete while the online sibling remains unknown, after reopen.
+5. `expression_extrema_sqlite_independent_components`: the same on SQLite.
+6. `physical_caps_bound_hidden_candidates_and_keep_rule_probes`: a physical
+   cap includes hidden/residual-rejected candidates and retains rule probe cost.
+7. `enclosing_iterations_multiply_projection_reads`: four iterations cost
+   28 examinations, not the mutant's 19.
+8. `page_fixtures_price_every_projection_at_the_source_bound`: two selected
+   rows plus scan lookahead cost five examinations, for a bound page and direct page.
+9. `list_fixtures_price_every_projection_at_the_source_bound`: two projections
+   over four fixture items cost eight reads; list-argument alias costs four;
+   direct two-item literal costs two.
+
+Before the final suite, the affected targets passed **165 tests** across the
+successful runs (including 85 guide tests and all 20 existing scale tests).
+The last restoration run passed all 11 expression and six certificate tests.
+The earlier combined affected run had 164 tests before splitting the page/list
+assertions into separate tests. No existing assertion was weakened.
+
+Mutation evidence: `/tmp/lane-p2-r1-mutations.log` and
+`/tmp/lane-p2-r1-mutant-{null-row,times,non-domain-zero,non-domain-steps}.log`.
+Each mutation exited 101 with an assertion failure, not a build failure.
+The zero and step-ceiling mutants each failed both page and list tests.
+
+### Wasm
+
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt; measured from the merged tree:
+
+```sh
+CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 bash scripts/build-wasm.sh
+```
+
+| Artifact | Raw B | gzip B |
+| --- | ---: | ---: |
+| Main `99153132b`, supplied integration measurement | 2,021,689 | 581,094 |
+| Round 0 merged onto that main | 2,036,400 | 585,695 |
+| Non-recursive operands and shared projection evaluation | 2,024,772 | 582,640 |
+| Shared column/expression dispatch | 2,024,170 | 581,930 |
+| Final visitor cleanup, full-suite rebuild | 2,024,130 | 581,998 |
+
+The final runtime is **+2,441 B raw / +904 B gzip versus main**, and **3,697 B
+gzip smaller than the merged round-0 implementation**. The unchanged
+**582,094 B** ratchet has **96 B headroom**; **zero bytes remain over**.
+Forcing the shared evaluator out of line measured identically and was removed.
+These are whole-artifact measurements, not independent symbol attribution.
+Logs: `/tmp/lane-p2-r1-{merged,compact,shared,dispatch}-wasm.log`.
+
+### Final qualification
+
+Implementation checkpoint: `6e410ecc5f6fa02abfed2e3fff0e2f94f4da8213`.
+The round ran `scripts/test.sh` exactly once on the final runtime implementation,
+with source fixed throughout. The test-only fixture relocation below followed it. Bun's frozen install succeeded without dependency
+changes. Node 24.13.1, Bun 1.3.14, Linux x86_64.
+
+```sh
+env -u FORCE_COLOR CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 \
+  CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 \
+  SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 \
+  bash scripts/test.sh
+```
+
+Exact `scripts/test.sh` result, **exit 1**:
+
+```text
+== 1 failure(s) in 3263 s
+   cargo test
+```
+
+Every full-suite failure:
+
+- **Ours, fixed after the suite:**
+  `snapback4-lang::ephemeral_compat::durable_schema_and_types_keep_base_bytes`
+  failed its fixture-key comparison because P2 added `extremum-expressions.q`
+  to the flat, frozen `tests/fixtures` directory. The same source was moved
+  byte-for-byte into `tests/extremum_expressions/schema.q`, and the language,
+  device and certificate tests' includes updated. The existing compatibility
+  test and both frozen byte snapshots are unchanged. An affected follow-up
+  passed **22 tests**: compatibility 1, language extrema 11, device extrema 4,
+  certificate extrema 6. The original full-suite failure remains recorded;
+  no second full run was made. Runtime/binder/certificate implementation and
+  measured wasm did not change after the suite.
+- **Baseline failures: none. Environmental failures: none.** The round-0
+  `clique_03` timing target passed all three tests in this run.
+
+Full run: **3,592 Rust tests passed, one failed, 19 existing ignores** across
+227 binaries / 939 executions plus doctests; fixture wrappers **9/9**;
+ordinary clients **2,179 passed, zero failed, 10 existing skips**; seeded
+models **78/78**, including both 5,000-sequence session models and the
+3,000-interleaving online model. The skips are the macOS media case and nine
+optional legacy-binary/identity-fixture cases; no new skip or waiver.
+Workspace/wasm/package builds, all typechecks, docs budget and release guard
+passed. The suite's wasm rebuild is the final measurement above.
+
+The direct compiled-wasm smoke passed all five server/device comparisons.
+Logs: `/tmp/lane-p2-r1-suite.log`, `/tmp/lane-p2-r1-fixture-fix.log`,
+`/tmp/lane-p2-r1-wasm-smoke.log`. The relocated fixture's SHA-256 is
+`055ac2d7185139e7468f74b26d336c646ab4d5b607b2d55ade64b33173058f16`,
+identical before and after the move. No review finding remains open. The
+qualification limitation is explicit: the single complete run recorded the
+fixture-list failure, and its repair received affected verification only.
+
+The user-authorized IR amendment is the only design deviation: new projections
+live in `args[1]`, not recursively inside `Builtin`. Old column encodings and
+one-row seeks stay intact. No budget or runtime ceiling was raised; no
+publication, push, authorization/disclosure relaxation, or second interpreter.
+The largest changed source file remains 1,410 lines. `git diff --check` passes.
