@@ -61622,3 +61622,47 @@ prevention, including every earlier failed case. The assertion was removed
 after qualification. `./ref-check --verbose` and `git diff --check` pass.
 The external `fix-forward-1.final.md` report retains the before/after regression
 logs, both failed suite attempts, the successful suite and the wasm measurement.
+
+
+## 2026-09-26 — 0.4.4 P2: min/max of scalar row expressions
+
+Implemented the supplied LLP 3000.019 §3.2 in lane
+`sb4-intent/p2-extremum-expressions`. `min(source, expression)` and
+`max(source, expression)` bind `.field` to each authorized source row, including
+conditional receipt values, nullable expressions, helpers and nested reads.
+The new `Builtin::ExtremumOf` preserves the existing column-extremum encoding
+and one-row index seek. Optional predicates and inferred enum lanes preserve
+an unpaged domain until typed overload selection. The shared interpreter
+serves the server and both device stores; cuts and incomplete coverage withhold
+the scalar. Certificates price projections as scans, constant under applicable
+physical caps, with nested reads multiplied by the row bound. The receipt card
+and its two deliberate text/hash pins changed with the implementation.
+
+Measured 186 passing affected tests after the planner follow-up, including the
+whole 84-test guide target; the 18 existing scale tests also passed earlier.
+Added nine language/engine tests, two memory/SQLite device tests and two scale
+certificate tests. A temporary direct server/compiled-wasm smoke passed all
+five receipt, fastest, nullable, defaulted and nested comparisons.
+
+Wasm on Linux, Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt:
+**2,023,872 B raw / 582,597 B gzip**, versus the untouched base's
+**2,009,169 B raw / 577,903 B gzip**. The delta is **+14,703 B raw / +4,694 B
+gzip**. The unchanged **578,207 B** ceiling is exceeded by **4,390 B**;
+this is an open landing blocker. No budget, runtime meter, authorization,
+disclosure or durability constraint was weakened.
+
+Ran the full `scripts/test.sh` once with four Rust test processes and serial
+client files. Its exact result was **`== 2 failure(s) in 2921 s`** (exit 1):
+**ours**, the wasm overrun above; **environmental timing variance**, the
+`clique_03::application_fixture` reader ratio of 3.5417372088989985 against 3.
+That isolated test passed unchanged on retry (ratios 1.0175986729207183 and
+0.9728921176066812); the original suite failure remains recorded. Client tests
+finished with 1,997 passes, zero failures and 10 pre-existing platform/fixture
+skips; all 78 seeded-model checks passed. No baseline content failure was
+identified. The full run began at `c8f1eaac9`; compiler-only follow-up
+`8d353ceee` received the separate final 186-test affected validation.
+
+Did not raise the wasm budget, change runtime ceilings, push, publish packages,
+or author the supervisor-owned LLP 3000.019. The file-by-file handoff, examples,
+test proofs and reproduction commands are in
+[`reports/20260926-p2-extremum-expressions.md`](reports/20260926-p2-extremum-expressions.md).
