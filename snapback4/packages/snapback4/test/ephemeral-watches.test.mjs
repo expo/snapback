@@ -15,6 +15,47 @@ async function open(t, tier, url, fetch) {
 }
 const watch = (t, client, op, args = {}) => { const value = client.observe(op, args); t.after(() => value.close()); return value; };
 const ready = value => 'data' in value.getSnapshot();
+for (const lingering of [false, true]) test(`online keep: 1.15 s replies publish on the incomplete 1 s cadence (${lingering ? 'lingering' : 'active'})`, async t => {
+  const { url } = await ephemeralServer(t);
+  let slow = false, replies = 0, discovered = false;
+  const queried = [];
+  const fetch = async (input, init) => {
+    const parsed = new URL(input), path = parsed.pathname;
+    if (path === '/changes' && parsed.searchParams.get('ephi')) discovered = true;
+    const response = await defaultFetch(input, init);
+    if (path !== '/q/typingIn') return response;
+    const json = await response.json();
+    if (!slow) return Response.json({ ...json, data: [], complete: false, nextExpiry: null });
+    const began = performance.now();
+    queried.push(began);
+    await delay(1150);
+    replies++;
+    return Response.json({ ...json, data: [{ principal: 'dev:alice' }], complete: true, nextExpiry: null });
+  };
+  const client = await open(t, 'online', url, fetch);
+  // Finish capability discovery before starting the cadence being measured.
+  const warm = watch(t, client, api.list);
+  await until(() => discovered && warm.getSnapshot().fresh === true);
+  const typing = client.observe(api.typingIn, { room: 'r' }, { keep: true });
+  await until(() => ready(typing) && typing.getSnapshot().fresh === true);
+  assert.equal(typing.getSnapshot().complete, false);
+  const notifications = [];
+  if (lingering) typing.close();
+  else typing.subscribe(() => notifications.push(typing.getSnapshot()));
+  slow = true;
+  await until(() => typing.getSnapshot().complete === true || replies >= 3, 'slow replacement replies');
+  assert.deepEqual(typing.getSnapshot().data, [{ principal: 'dev:alice' }], 'periodic refresh must not discard successful slow replies');
+  assert.equal(typing.getSnapshot().complete, true);
+  assert.ok(queried.length > 0);
+  assert.ok(notifications.every(read => !('loading' in read)), 'the kept answer stays during refresh');
+  if (lingering) {
+    const calls = queried.length;
+    const joined = client.observe(api.typingIn, { room: 'r' }, { keep: true });
+    assert.equal(joined.getSnapshot().complete, true, 'remount joins the complete replacement');
+    assert.equal(queried.length, calls, 'joining does not add a read');
+  }
+});
+
 for (const tier of ['online', 'wasm']) {
   test(`${tier}: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry`, async t => {
     const { url } = await ephemeralServer(t), polls = [];

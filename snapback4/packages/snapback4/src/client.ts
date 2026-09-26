@@ -589,11 +589,12 @@ export function createClient(options: ClientOptions): Client {
 
   async function refresh(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    if (watch.keep) { watch.reload(); notify(watch); }
     if (watch.inFlight) {
       watch.dirty = true;
       return;
     }
+    // @ref LLP 3000.019#3.3 — a cadence tick queues work without fencing the current answer; commits and resets still fence it.
+    if (watch.keep) { watch.reload(); notify(watch); }
     watch.inFlight = true;
     const resetVersion = watch.resetVersion;
     let exhausted = false;
