@@ -5,8 +5,8 @@ const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SOURCE: &str = "use personas alice\nquery fast():\n  return 1\nquery idle():\n  return 2\n";
 struct Fixture(PathBuf);
 impl Fixture {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!("sb4-latency-{}", std::process::id()));
+    fn new(label: &str) -> Self {
+        let path = std::env::temp_dir().join(format!("sb4-latency-{}-{label}", std::process::id()));
         fs::create_dir_all(path.join("snapback")).unwrap();
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
@@ -38,7 +38,7 @@ fn success(output: Output) -> String {
 
 #[test]
 fn doctor_latency_json_default_summary_all_operations_and_reset() {
-    let fixture = Fixture::new();
+    let fixture = Fixture::new("small");
     let host = fixture.start();
     for _ in 0..5 { assert_eq!(host.request("POST", "/q/fast", json!({"args":{}}))["data"], 1); }
     let started = Instant::now();
@@ -66,4 +66,19 @@ fn doctor_latency_json_default_summary_all_operations_and_reset() {
     assert!(!fixture.command(&["doctor", "--latency", "--release", "."]).status.success());
     drop(host);
     assert!(!fixture.command(&["doctor", "--latency"]).status.success());
+}
+
+#[test]
+fn doctor_latency_reads_and_resets_snapshots_above_the_http_chunk_threshold() {
+    let fixture = Fixture::new("large");
+    let source = format!("{SOURCE}{}", (0..300).map(|n| format!("query sample{n}():\n  return {n}\n")).collect::<String>());
+    fs::write(fixture.0.join("snapback/schema.q"), source).unwrap();
+    let _host = fixture.start();
+    for args in [vec!["doctor", "--latency", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
+        let text = success(fixture.command(&args));
+        assert!(text.len() > 32768, "exercise the server's chunking threshold");
+        let snapshot: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(snapshot["operations"].as_object().unwrap().len(), 309);
+        assert_eq!(snapshot["operations"]["/q/sample299"]["n"], 0);
+    }
 }

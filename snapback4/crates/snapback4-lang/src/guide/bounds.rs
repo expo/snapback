@@ -122,8 +122,9 @@ few; `--json` gives milliseconds. Reset between phases with
 `snapback4 doctor --latency --reset` (dev only). Timings cover completed HTTP
 requests, including action waits and held change polls, since startup or reset;
 they describe the load you ran, not a latency guarantee. Requests that never
-acquire the engine have zero wait. `GET /dev/latency` is also available on
-`serve` with a live service token; reset remains dev-only.
+acquire the engine have zero wait. Doctor discovery needs a persisted dev
+store. `GET /dev/latency` also works with `dev --fresh`, or on `serve` with
+a live service token; reset remains dev-only.
 
 ```sh
 snapback4 doctor --latency --reset

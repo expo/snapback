@@ -47,9 +47,11 @@ pub(super) fn request(project: &Project, method: &str, path: &str) -> Option<ser
     let mut stream = TcpStream::connect_timeout(&(Ipv4Addr::LOCALHOST, port).into(), Duration::from_millis(200)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(1))).ok()?;
-    write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost:{port}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
+    // The complete latency registry can exceed tiny_http's chunk threshold.
+    // HTTP/1.0 requests a length-delimited reply for this close-only reader.
+    write!(stream, "{method} {path} HTTP/1.0\r\nHost: localhost:{port}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
     let mut reply = String::new(); stream.take((16 << 20) + 4096).read_to_string(&mut reply).ok()?;
     let (head, body) = reply.split_once("\r\n\r\n")?;
-    if !head.starts_with("HTTP/1.1 200 ") { return None; }
+    if !head.starts_with("HTTP/1.0 200 ") && !head.starts_with("HTTP/1.1 200 ") { return None; }
     serde_json::from_str(body).ok()
 }
