@@ -40,7 +40,9 @@ impl Supplied {
 impl Value {
     #[cfg(feature = "sqlite")]
     pub(crate) fn import_input(self, _: &crate::engine::ImportInput) -> Supplied { Supplied(self) }
-    #[cfg(feature = "native")]
+    // The native module compiles under `wasm-host` (engine/mod.rs); the
+    // iOS device enables `wasm-host` without the server-only `native` jobs.
+    #[cfg(feature = "wasm-host")]
     pub(crate) fn native_input(self, _: &crate::engine::native::NativeInput) -> Supplied { Supplied(self) }
     pub(crate) fn expression_input(self, _: crate::engine::runner::ExpressionAccess) -> Supplied { Supplied(self) }
     pub(crate) fn timeline_input(self, _: &crate::engine::timeline::TimelineInput) -> Supplied { Supplied(self) }
