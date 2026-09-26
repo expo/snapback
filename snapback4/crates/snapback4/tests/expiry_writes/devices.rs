@@ -11,7 +11,7 @@ mod review;
 fn queued(op: &str, write_id: &str, args: serde_json::Value, now: i64) -> Queued {
     Queued { id: write_id.into(), seq: 0, op: op.into(), args, new_ids: vec!["new".into()],
         predicted: vec![], viewer: "alice".into(), now, predictable: true,
-        sent_seq: None, receipt_store: None, observed_seq: None }
+        sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }
 }
 
 fn agree<H: Host>(host: &mut H, cold: bool) {

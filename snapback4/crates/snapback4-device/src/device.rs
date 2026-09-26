@@ -42,6 +42,7 @@ pub struct Backend {
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
     pub receipt_outcomes: bool,
+    pub outbox_status: bool,
     pub acquired: bool,
     pub backend_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -162,6 +163,11 @@ pub struct Queued {
     pub receipt_store: Option<ReceiptStore>,
     #[serde(default)]
     pub observed_seq: Option<u64>,
+    /// Presentation only: absent before dispatch, empty after dispatch starts,
+    /// or the last retryable refusal's code. Never receipt/replay authority.
+    // @ref LLP 3000.019#3.3 — pending status travels with durable outbox custody.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispatch: Option<String>,
 }
 
 /// A receipt binds only to an advertised incarnation. Missing outer or inner
@@ -588,8 +594,13 @@ impl<S: DeviceStore> Device<S> {
     /// Persist before starting a POST, so another owner of the store
     /// cannot apply an older sync response that omitted the write being sent.
     pub fn begin_send(&mut self) -> Result<u64, RuntimeError> {
+        self.begin_send_for(None)
+    }
+
+    pub fn begin_send_for(&mut self, id: Option<&str>) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
         store_identity::require_healthy(&tx)?;
+        if let Some(id) = id { predictions::dispatch(&tx, id, "")?; }
         let revision = meta_u64(&tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
         // A send invalidates snapshot paging, but a terminal snapshot already
@@ -600,6 +611,12 @@ impl<S: DeviceStore> Device<S> {
         tx.commit()?;
         if paging { self.snapshot_owner = None; }
         Ok(revision)
+    }
+
+    pub fn hold_write(&mut self, id: &str, reason: &str) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        predictions::dispatch(&tx, id, reason)?;
+        tx.commit()
     }
 
     /// What a sync request is made from: the watermark, the generation,
@@ -625,7 +642,7 @@ impl<S: DeviceStore> Device<S> {
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { receipt_outcomes: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let mut state = SyncState { receipt_outcomes: true, outbox_status: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
         Ok(state)

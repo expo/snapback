@@ -937,6 +937,37 @@ Pending writes have no predicted result: their predicted rows carry `pending`.
 returns at custody; omitted keeps the tier's default wait. Settlement still
 reaches `onWrite`, `write(id)` and the latest call's `last`.
 
+`await client.pendingWrites()` lists admitted, unsettled writes in submission
+order, even when they have no predicted row. Each entry is
+`{ id, op, args, state, reason?, predicted }`: `op` is the mutation name,
+`args` is the submitted JSON, and `predicted` lists `table/id` names.
+`queued` means dispatch has not begun; `sent` means dispatch began but the
+outcome is unknown, including an interrupted send; `held` means a retryable
+refusal holds the queue, with its code in `reason`. Only `queued` can carry a
+prediction sentence in `reason`; `sent` has no reason and is not a receipt.
+A bounded custody wait returning `pending` keeps the entry in its current outbox
+state. Settlement removes the entry and still emits `onWrite`. Subscribe with
+`client.onPendingWrites(notify)` and read again on notification; call the
+returned function to unsubscribe. Local and `createApp` custody survives
+reload; the raw `createClient` queue is in memory only. Closed and signed-out
+handles return `[]`. Legacy entries without dispatch metadata start queued
+unless retained sequence evidence proves dispatch.
+Notification failures do not undo a committed admission. A dispatch subscriber
+that signs out or closes its client prevents transport from starting, including
+pagehide keepalive; admitted intent retains its existing custody. If a local or
+online hold cannot be saved, its owning client still lists `held` with the refusal
+code until a newer persisted dispatch or hold, settlement, or a client lifetime
+fence supersedes it. Other clients and reloads can only read the status that storage kept.
+
+```tsx
+import { usePendingWrites } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function PendingSends() {
+  const sends = usePendingWrites(api.send); // omit the operation to list all writes
+  return <>{sends.map(write => <p key={write.id}>{write.args.body}: {write.state}</p>)}</>;
+}
+```
+
 Writes that do not predict show pending with `usePendingWrite(op)`. Its
 `pending` flag starts at `run(args)` and stays true until `sent` or `failed`,
 including the interval before admission returns an id; it must not gate the

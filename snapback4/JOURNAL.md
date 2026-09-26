@@ -63090,6 +63090,51 @@ across a loading answer, so honoring the kept mark only when the member's row
 is present survived. A case publishes a loading answer and then the same row,
 and requires no second `seen`.
 
+
+## 2026-09-26 — Lane O: show pending writes from existing custody
+
+Implemented LLP 3000.019 §3.3 part 4 on `sb4-intent/o-pending-writes`.
+`client.pendingWrites()` lists ids, operation names, copied arguments,
+queued/sent/held status, optional reasons and predicted row keys, oldest first.
+`onPendingWrites()` and React’s `usePendingWrites(op?)` observe that list.
+The local device stores dispatch status on its existing outbox entry; the raw
+online client exposes its in-memory queue, and createApp’s online client uses
+its existing durable journal. Terminal writes leave the list and still notify
+`onWrite`. Account changes fence both list reads and observers. The native
+installer moved to its own file to keep `local.ts` at 1,482 lines.
+
+The new lifecycle tests cover HTTP 409 and 503 holds, both local hosts and both
+online forms, copied arguments, prediction keys, FIFO, sent/held reloads,
+settlement, reentrant subscribers and account fencing. React and page-exit
+cases cover subscriptions, filtering, stale responses and keepalive holds.
+The device scenario checks legacy decoding, reopen, unchanged intent/order and
+late holds that cannot resurrect a settled entry. All guide tests passed
+(85/85); affected client/React tests passed 107/107 and navigation passed 16/16.
+
+The required complete `scripts/test.sh` run ended exactly:
+`== 1 failure(s) in 1520 s` (exit 1, client tests). Its 937 Rust executions,
+workspace doctests, builds, guide, budgets, fixtures, app typechecks and all
+78 client model cases passed. Nine client failures were ours: eight revealed
+an online flush completion race, and one existing snapshot witness compared
+the newly mutable dispatch status. The flush now releases ownership before
+its completion promise settles; the witness still compares every original
+intent field. The repair run passed 109/109 tests, including all nine failures.
+Post-repair online models passed 35/35, including 5,000 online-session sequences
+and 3,000 raw/createApp interleavings. The full script was not rerun after these
+TypeScript/test-only repairs; unchanged Rust evidence was retained.
+
+Wasm was rebuilt at baseline and lane head: 2,021,689 / 581,094 B raw/gzip
+became 2,023,103 / 581,523 B, a +1,414 / +429 B change. The gzip ceiling remains
+582,094 B with 571 B headroom. No engine meter or wasm budget was raised.
+
+The list is asynchronous; its hook starts empty and retains a previous list
+if storage cannot be read. A pre-0.4.4 outbox record cannot reveal an
+unacknowledged send it never recorded, so it displays queued absent sequence
+evidence. New records preserve sent/held status across reload. No other part
+of §3.3, package version, calibration, Expo binary packaging, push or publication
+was performed. The complete file-by-file report, all nine failure names and
+the legacy reproduction are in
+[the lane report](reports/20260926-lane-o-pending-writes.md).
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
@@ -63772,3 +63817,192 @@ One mutation survives by design. Folding `1 / 0` to `0` instead of unknown
 changes no sound certificate, because a division by zero fails the call either
 way. Declined, as in round 2: a dead assignment still keeps a copy from being an
 alias (`copies()` reads the whole program).
+
+## 2026-09-26 — Lane O round 1: pending writes agree with custody across exit and shared journals
+
+Merged the requested main commit `992cec75c` first (`b3c95fee9`), preserving
+both journal histories and both the pending-write API and the bounded mutation
+custody work. Fixed all four findings from the blind Astra/Grok reviews.
+Exit dispatch now records a synchronous, store-bound marker in the existing
+browser journal before keepalive may start; recovery updates only the original
+outbox row. An acknowledgement shares the status commit before cleanup, so
+failed marker removal cannot overwrite a later hold. Online journal changes
+invalidate all owners of the key, including other browser tabs, and detach at
+custody pause. Sent entries have no reason; prediction sentences belong to
+queued entries. A local restore halt hides the list and preserves the stored
+outbox for reconciliation. Bounded waits, saved ids/arguments and known terminal
+outcomes keep main's custody behavior.
+
+The merged tree passed 68 targeted tests. The review-fix integration run passed
+224/224; the final navigation/journal/restore run passed 92/92, known-outcome
+custody passed 12/12, and final exit-only tests passed 2/2. Chromium tests cover
+B's admission reaching A's hook and B's settlement clearing A's remounted hook,
+in one page and across two pages. Both requested mutants now fail: removing the
+exit `begin_send` id fails both durable-status cases; turning a dropped
+connection into held fails raw and journaled online cases. No production source
+was changed for the mutation trials.
+
+The single full `bash scripts/test.sh` run ended exactly
+`== 1 failure(s) in 1017 s` (exit 1, client tests). Builds, budgets, the 86-test
+guide target, Rust targets/doctests, fixtures, app typechecks and all 78 models
+passed. The main client invocation had 2,196 tests: 2,184 passed, two failed and
+10 existing optional skips. Both failures are inherited timing-sensitive tests:
+identity cancellation can precede the expected provider token request, and
+local sign-out returns before background server logout completes. Both pass in
+isolation on this lane and on main's `992cec75c` client sources; delaying
+`/token` by 150 ms and `/auth/logout` by 1,000 ms reproduces both exact assertions
+on the baseline. Neither assertion nor its product code was changed. The full
+run is recorded as red, and these baseline test assumptions remain open for
+the integration owner. No full-suite rerun was performed.
+
+Wasm rebuilt at 2,023,103 B raw / 581,523 B gzip, unchanged from round 0 and
+571 B below the unchanged 582,094 B budget. No engine meter, Rust runtime,
+package version or publication changed. The historical pre-0.4.4 record without
+dispatch evidence still cannot reveal an old unacknowledged send. No other part
+of LLP 3000.019 was implemented, and nothing was pushed or published. The
+round-1 section of [the lane report](reports/20260926-lane-o-pending-writes.md)
+records every changed file, test, mutant and baseline-failure reproduction;
+local logs are under `target/lane-o-r1-evidence/`.
+
+## 2026-09-26 — Lane O round 2: notification failures and unsaved holds preserve custody
+
+Read both round-1 blind reviews and fixed every finding. Commits `a116ddedd`
+and `346497f52` broadcast journal invalidations before local callbacks can
+close the last owner, keep notification exceptions from refusing an already
+committed admission, retain the owning online runtime's unsaved hold code in
+its list without changing shared FIFO, and capture exit evidence before
+mutating device send status. Successful dispatch/hold persistence, settlement
+and pause clear the presentation fallback. The client reference documents its
+runtime-only scope. No public spelling changed.
+
+The affected client/navigation/React run passed 94/94 with no skips, including
+six new cases. Real clients cover closing/throwing listeners, a closed channel,
+and one failed hold save followed by three failed dispatch-binding retries.
+Two Chromium pages prove B's listener can unsubscribe and close at admission
+while B returns pending and A's mounted hook receives the queued intent. The
+new first-exit setItem failure starts no keepalive, leaves no phantom mutation
+for a later device drain, and reopens an independent persisted copy as queued.
+Both requested capture mutants fail (return true on capture failure; ignore
+false). Restoring late capture, removing the hold fallback and restoring the
+old notification path also fail their regressions. Mutation loaders did not
+change source or generated artifacts.
+
+Ran `bash scripts/test.sh` once at `346497f52`; its exact summary is
+`== 1 failure(s) in 1035 s`, exit 1, failed step `client tests`. Rust targets
+and doctests passed (562 s), the complete guide passed 86/86, and builds,
+budgets, fixture tests and both app typechecks passed. The main client run
+reported 2,202 tests: 2,191 passed, one failed, ten existing optional/host skips.
+All 78 seeded-model tests passed. Both round-1 inherited timing races passed.
+
+The one failure is an environmental port collision in unchanged
+`native-e2e.test.mjs`: its initial 30-row assertion already saw “hello from the
+module,” before this test's own send. Its port pool is only
+`4550 + (process.pid % 20)`, and readiness accepts another server's response.
+The affected test passes alone on the lane and the `992cec75c` baseline. A
+controlled occupied-port run of that baseline reproduces the same assertion
+and logs `Address already in use`. This newly observed inherited harness
+hazard remains for the integration owner; it is not either prior timing race.
+No assertion or native product path was changed, and no full-suite rerun was
+performed. The report records the reproduction and individual evidence logs.
+
+Wasm is unchanged: 2,023,103 B raw / 581,523 B gzip, 571 B below the unchanged
+582,094 B budget. No Rust runtime, meter, diagnostic, package version or other
+release lane changed. There is no scope deviation or unfixed review finding;
+the pre-0.4.4 missing-dispatch-information limit remains. This journal entry
+and the round-2 section of
+[the lane report](reports/20260926-lane-o-pending-writes.md) are the durable
+record; local evidence is under `target/lane-o-r2-evidence/`. Nothing was
+pushed or published.
+
+## 2026-09-26 — Lane O round 3: dispatch shutdown, peer status and exit cleanup
+
+Read both round-2 blind reviews in full and accepted every finding. Commits
+`0276dc934`, `aa57ce6b2` and `294cb664b` recheck closed/session/credential fences
+after dispatch notification on both clients and the exit path; bind runtime-only
+unsaved holds to the intent's persisted status revision so a newer peer dispatch
+or hold supersedes them; and cancel captured exit records plus staged entries
+when begin_send refuses or throws. The existing durable acknowledgement removal
+now has assertions after a later drain and reopen. The client reference documents
+shutdown during notification and peer supersession. No public spelling changed.
+
+Fourteen focused regressions and all 146 affected tests passed, with no skips.
+Ten new cases cover real-server dispatch subscribers that sign out/close on
+online, wasm and process clients, both pagehide shutdown paths, and transient
+exit device denial/throw. Copied stores reopen queued after failed exit starts;
+a later drain preserves the original outbox/send revision and stores no staged
+acknowledgement. The two-owner outage now drives B's dispatch and held/E_RATE
+while A's failed-save E_BUSY remains in its raw queue. FIFO settlement is intact.
+Both requested mutants fail: ignoring started.denied (0/1) and omitting durable
+acknowledgement removal (0/2). Removing cancellation, revision supersession or
+final shutdown checks also fails the corresponding regressions. Mutation loaders
+changed neither source nor generated package artifacts.
+
+Ran bash scripts/test.sh once at `294cb664b`, without source changes during the
+run. Exact result: `== 1 failure(s) in 1077 s`, exit 1, failed step `client tests`.
+Rust targets/doctests passed (594 s), the full guide passed 86/86, builds and all
+budgets/typechecks/fixtures passed, and all 78 models passed (268 s). The main
+client run had 2,212 tests: 2,199 passed, three failed, ten existing optional skips
+(194 s). All round-3 regressions passed. No complete-suite rerun was performed.
+
+The failures are two assertions plus the browser assertion's parent. The known
+inherited strict-admission/session-lock assertion, already reproduced at baseline
+by Astra's round-2 review, failed again; lane and baseline focused browser runs
+both pass. The newly observed residency assertion waited eight seconds for an
+offline remembered answer to become fresh:false. Its test and query path are
+unchanged, and it invokes none of round 3's dispatch/hold/exit paths. It passes
+alone on this lane and baseline and in eight concurrent baseline probes; its
+exact race remains unresolved. Both remain open for integration, with the exact
+assertions, source comparison, focused commands and logs in the report. No
+assertion was weakened or post-suite product fix needed. The earlier identity,
+session-restoration and native port-collision cases all passed in this run.
+
+Wasm remains 2,023,103 B raw / 581,523 B gzip, 571 B below the unchanged 582,094 B
+budget. No Rust runtime, meter, diagnostic, package version, other release lane,
+push or publication changed. There is no scope deviation or unfixed review
+finding; old records without dispatch evidence and holds never saved retain their
+previous information limits. The round-3 section of
+[the lane report](reports/20260926-lane-o-pending-writes.md) and local evidence in
+`target/lane-o-r3-evidence/` record the work and the full red result.
+
+## 2026-09-26 — Lane O round 4: cancellation under storage failure and local held status
+
+Fixed the remaining storage-failure Lows from both round-3 blind reviews, and
+added Astra's repeated-exit sequence. Commits `4de79595f`, `46cf4ab20` and
+`06bfcaa88` replace an unremovable refused-exit marker with an ignored
+cancellation; keep the staged acknowledgement if that replacement also fails;
+and retain a received local hold at runtime when its status save throws or
+refuses. The local fallback notifies subscribers and expires against the device's
+send revision, newer persisted status, settlement and client lifetime fences.
+The client reference records its runtime-only scope. No public spelling changed.
+
+Seventeen added cases cover both denied/throwing exit starts under removal and
+replacement failures, local failed-save/refused-save holds and six supersession
+events, and two exit cycles with blocked cleanup and a stalled second status
+commit. The real persistence-provider case receives E_BUSY after one POST, fails
+the hold save and still publishes held/E_BUSY. Copied stores reopen queued after
+cancelled exit starts; when both cancellation writes fail, the next independent
+commit must acknowledge the marker first. A second interrupted exit reopens sent
+despite the first exit's acknowledgement and later held status. Removing the
+unique token now fails that assertion. All four mutation trials were killed:
+old cancellation, missing local fallback, missing send-revision supersession,
+and missing unique token.
+
+The affected client/React run passed 201/201 with no skips. Ran
+`bash scripts/test.sh` once at `06bfcaa88`, with no implementation/test edits
+during it. Exact result: `== 0 failure(s) in 1109 s`, exit 0. Rust targets and
+workspace doctests passed (615 s), the full guide passed 86/86, the main client
+run had 2,219 passes, no failures and ten existing skips out of 2,229 tests
+(client step 205 s), the separate acquisition/server shards passed, and all
+78 model tests passed (272 s). Builds, typechecks, fixtures and budgets passed.
+No inherited or environmental failure occurred in this run, and no post-suite
+repair or rerun was needed. The earlier intermittent failures remain documented
+in the prior reports; this green run does not replace that evidence.
+
+Wasm is unchanged: 2,023,103 B raw / 581,523 B gzip, 571 B under the unchanged
+582,094 B budget. No Rust runtime, meter, diagnostic, package version, other
+release lane or supervisor-owned design changed. No scope deviation or unfixed
+requested finding remains. Unsaved status is runtime-only, and cancellation
+cannot survive losing the page before any cancellation/acknowledgement write
+succeeds. The round-4 section of [the lane report](reports/20260926-lane-o-pending-writes.md)
+and local `target/lane-o-r4-evidence/` hold the full record. Nothing was pushed
+or published.

@@ -35,7 +35,7 @@ fn run<H: Host>(host: &mut H) {
     }
     for (n, liked) in [true, true, false, false].into_iter().enumerate() {
         let entry = device.admit(Queued { id: format!("q{n}"), seq:n as u64 + 1, op:"setLike".into(), args:json!({"postId":"quiet-00","liked":liked}),
-            viewer:"bob".into(), now:f::NOW, new_ids:vec![format!("local-{n}")], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
+            viewer:"bob".into(), now:f::NOW, new_ids:vec![format!("local-{n}")], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
         assert!(entry.predictable, "{}: {entry:?}", host.label());
         let result = device.query("trending", "bob", &json!({"c":null}), f::NOW).unwrap();
         assert_eq!(result.data,read.data,"source prediction never changes a parent count");
@@ -118,7 +118,7 @@ fn ties<H: Host>(host: &mut H) {
         let before=device.query("trending","bob",&json!({"c":null}),f::TIE_NOW).unwrap().data;
         let from=server.seq().unwrap();
         let entry = device.admit(Queued { id: format!("w15c-{n}"), seq: n as u64 + 1, op: "setLike".into(), args: json!({"postId":"tie-00","liked":liked}),
-            viewer: "bob".into(), now: f::TIE_NOW, new_ids: vec![format!("w15c-like-{n}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None, receipt_store: None }).unwrap();
+            viewer: "bob".into(), now: f::TIE_NOW, new_ids: vec![format!("w15c-like-{n}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None, dispatch: None, receipt_store: None }).unwrap();
         assert!(entry.predictable, "{entry:?}");
         assert_eq!(device.query("trending","bob",&json!({"c":null}),f::TIE_NOW).unwrap().data,before);
         f::set_like(&mut server, "bob", "tie-00", liked, f::TIE_NOW, &format!("w15c-server-{n}"));

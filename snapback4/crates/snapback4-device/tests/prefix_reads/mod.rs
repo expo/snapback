@@ -48,7 +48,7 @@ fn w13c_capped_roster_predicts_and_prefix_existence_has_precise_horizon_coverage
                 assert_eq!(merge["complete"], true, "{merge}");
                 assert_eq!(rows(&merge).len(), 2);
             }
-            ok(device.call(json!({"op":"admit", "entry":Queued { id: "bump".into(), seq: 1, op: "bump".into(), args: json!({"roomId":"r1"}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }})));
+            ok(device.call(json!({"op":"admit", "entry":Queued { id: "bump".into(), seq: 1, op: "bump".into(), args: json!({"roomId":"r1"}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }})));
             let roster = query(&mut *device, "roster", "dev:alice", json!({"roomId":"r1"}), now);
             assert_eq!(rows(&roster).iter().map(|m| m["unread"].as_i64().unwrap()).sum::<i64>(), 10);
             assert!(rows(&roster).iter().all(|m| m["pending"] == true), "{roster}");

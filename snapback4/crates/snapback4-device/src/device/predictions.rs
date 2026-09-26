@@ -50,6 +50,17 @@ pub(super) fn enqueue<T: DeviceTx>(tx: &T, entry: &Queued) -> Result<(), Runtime
     keep_issued_floor(tx, entry.now)
 }
 
+// @ref LLP 3000.019#3.3 — annotate the existing entry, without changing order,
+// predictions, receipts or settlement. A late hold cannot resurrect a write.
+pub(super) fn dispatch<T: DeviceTx>(tx: &T, id: &str, reason: &str) -> Result<(), RuntimeError> {
+    if let Some(data) = tx.outbox_get(id)? {
+        let mut entry: Queued = decoded(&data)?;
+        entry.dispatch = Some(reason.chars().take(128).collect());
+        enqueue(tx, &entry)?;
+    }
+    Ok(())
+}
+
 pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry: &Queued) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
     // Missing acquisition is missing evidence, never an authored refusal.
     // Admission already handles E_PREDICT by durably queueing without a row.

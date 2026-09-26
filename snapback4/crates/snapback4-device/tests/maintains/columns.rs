@@ -6,7 +6,7 @@ use serde_json::json;
 
 const SOURCE: &str = include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q");
 fn queued(name: &str, op: &str, args: serde_json::Value, n: u64) -> Queued {
-    Queued { id:name.into(),seq:n,op:op.into(),args,viewer:"alice".into(),now:1000,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None }
+    Queued { id:name.into(),seq:n,op:op.into(),args,viewer:"alice".into(),now:1000,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None }
 }
 
 fn public_page(page: &StreamPage) -> &StreamPage {

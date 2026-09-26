@@ -48,7 +48,7 @@ fn pair_devices<H: Host>(host: &mut H, pair: &Pair) -> Transcript {
                     id: format!("operation-{n}"), seq: n as u64 + 1,
                     op: op.name.clone(), args: op.args.clone(), viewer: op.principal.clone(),
                     now, new_ids: vec![format!("new-{n}")], predicted: vec![], predictable: true,
-                    sent_seq: None, receipt_store: None, observed_seq: None,
+                    sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
                 });
                 observation.insert("admission".into(), match admission { Ok(q) => json!(q), Err(e) => json!({"refusal":e.refusal()}) });
             }

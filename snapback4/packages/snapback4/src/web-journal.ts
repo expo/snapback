@@ -2,6 +2,7 @@ import { admissionRefusal, browserAdmission } from "./admission.ts";
 import { sameAdmissionAuthority, type AdmissionAuthority, type AdmissionAuthorityContext } from "./admission-authority.ts";
 import { storeLock } from "./app-storage.ts";
 // Synchronous custody until the web device's ordinary admission commits.
+// Exit dispatch evidence also survives until its ordinary status commit.
 // No transport, result, or server settlement lives here.
 import type { Change } from "./web.ts";
 import type { Refusal } from "./contract.ts";
@@ -96,6 +97,8 @@ function records(name: string, cleanup = false): AdmissionRecord[] {
 export class AdmissionJournal {
   authority: AdmissionAuthorityContext | undefined;
   private transfers = new Map<string, Transfer>();
+  private exits = new Map<string, string>();
+  private stagedExits = new Map<string, string>();
   private storeId: string | undefined;
   private sequence = 0;
   constructor(private readonly name: string, private readonly exclusive: boolean) {}
@@ -106,6 +109,7 @@ export class AdmissionJournal {
 
   load(saved: Change[]): void {
     this.transfers.clear();
+    this.exits.clear(); this.stagedExits.clear();
     this.storeId = undefined;
     this.remember(saved);
     for (const record of records(this.name, this.exclusive)) this.sequence = Math.max(this.sequence, record.entry.seq);
@@ -115,9 +119,68 @@ export class AdmissionJournal {
     for (const c of changes) {
       if (c.s === "m" && c.k === "device:store_id") this.storeId = c.v ?? undefined;
       if (c.s === "j") {
+        if (c.k.startsWith("exit:")) {
+          if (c.v === null) this.exits.delete(c.k);
+          else this.exits.set(c.k, c.v);
+          if (this.stagedExits.get(c.k) === c.v) this.stagedExits.delete(c.k);
+          continue;
+        }
         if (c.v === null) this.transfers.delete(c.k);
         else this.transfers.set(c.k, JSON.parse(c.v));
       }
+    }
+  }
+
+  // @ref LLP 3000.019#3.3 — page teardown cannot await IDB. Keep dispatch
+  // evidence synchronously before allowing the request, on the existing journal.
+  captureExit(id: string): boolean {
+    try {
+      const store = storage();
+      if (!store) return !browserAdmission();
+      const key = `${prefix(this.name)}exit:${id}`;
+      const value = JSON.stringify({ key, id, storeId: this.boundStore(id), token: crypto.randomUUID() });
+      store.setItem(key, value);
+      this.stagedExits.set(`exit:${id}`, value);
+      return true;
+    } catch { return false; }
+  }
+
+  cancelExit(id: string): void {
+    const key = `${prefix(this.name)}exit:${id}`;
+    remove(key);
+    if (!absent(key)) {
+      // A refused dispatch is not send evidence. If both attempts fail, keep
+      // the staged acknowledgement for the next ordinary commit to retire it.
+      try {
+        const store = storage();
+        if (!store) return;
+        const cancelled = JSON.stringify({ key, cancelled: true });
+        store.setItem(key, cancelled);
+        if (store.getItem(key) !== cancelled) return;
+      } catch { return; }
+    }
+    this.stagedExits.delete(`exit:${id}`);
+  }
+
+  recoverExits(device: WebDevice): void {
+    const store = storage();
+    if (!store || !this.exclusive) return;
+    const entries = new Set((invoke(device, { op: "queued" }).ok as Entry[]).map(e => e.id));
+    for (const key of keys(store).filter(key => key.startsWith(`${prefix(this.name)}exit:`))) {
+      const value = store.getItem(key);
+      if (!value || bytes(value) > RECORD_BYTES) continue;
+      let record: { key: string; id: string; storeId?: string };
+      try { record = JSON.parse(value); } catch { continue; }
+      if (!record || record.key !== key || typeof record.id !== "string" || key !== `${prefix(this.name)}exit:${record.id}`) continue;
+      const marker = `exit:${record.id}`;
+      if (this.exits.get(marker) === value) continue;
+      // Recovery changes only the original outbox row. Never re-admit an id
+      // after settlement, nor apply a marker to another backend's intent.
+      if (entries.has(record.id) && record.storeId === this.boundStore(record.id)) {
+        const reply = invoke(device, { op: "begin_send", id: record.id });
+        if (reply.denied) continue;
+      }
+      this.stagedExits.set(marker, value);
     }
   }
 
@@ -163,6 +226,12 @@ export class AdmissionJournal {
   cleanup(queued: ReadonlyMap<string, unknown>): Change[] {
     const changes: Change[] = [];
     if (!this.exclusive) return changes;
+    for (const [id, value] of this.exits) {
+      const key = `${prefix(this.name)}${id}`;
+      try { if (storage()?.getItem(key) === value) remove(key); } catch { /* Retry cleanup on the next commit. */ }
+      if (absent(key)) changes.push({ s: "j", k: id, v: null });
+    }
+    for (const [id, value] of this.stagedExits) changes.push({ s: "j", k: id, v: value });
     for (const [id, transfer] of this.transfers) {
       remove(transfer.key);
       if (absent(transfer.key) && !queued.has(id)) changes.push({ s: "j", k: id, v: null });
@@ -188,6 +257,8 @@ export class AdmissionJournal {
 
   async recover(device: WebDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
     if (!this.exclusive) return;
+    this.recoverExits(device);
+    if (this.stagedExits.size) await settle([...this.stagedExits].map(([k, v]) => ({ s: "j", k, v })));
     const state = invoke(device, { op: "sync_state", capture: false }).ok;
     if (!state?.store_id || state.restore_refusal || state.backend_required) return;
     for (const record of records(this.name, true)) {

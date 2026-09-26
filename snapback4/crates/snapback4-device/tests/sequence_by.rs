@@ -21,7 +21,7 @@ fn queued(n: u64) -> Queued {
         predictable: true,
         sent_seq: None,
         receipt_store: None,
-        observed_seq: None,
+        observed_seq: None, dispatch: None,
     }
 }
 fn scenario<H: Host>(host: &mut H, offline: bool) {

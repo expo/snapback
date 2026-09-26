@@ -159,6 +159,17 @@ export class WriteHistory {
 
   hasUnpersisted(id?: string): boolean { return id === undefined ? this.unpersisted.size > 0 : this.unpersisted.has(id); }
 
+  /** One receipt-window read for a whole outbox listing. Never consult shared
+   * history to retire an entry owned by this device. */
+  async settledIds(): Promise<Set<string>> {
+    const saved = await this.storage?.read();
+    return new Set([
+      ...(saved ? (JSON.parse(saved) as Terminal[]).map(write => write.id) : []),
+      ...this.unpersisted.keys(),
+      ...(!this.storage ? [...this.values.values()].filter(write => write.state !== "pending").map(write => write.id) : []),
+    ]);
+  }
+
   async acknowledged(id: string, seq: number, qualified = false): Promise<Terminal | undefined> {
     // A replacement refusal says execution is unknown. A correlated outbox
     // acknowledgement proves it; discard the speculative refusal before read

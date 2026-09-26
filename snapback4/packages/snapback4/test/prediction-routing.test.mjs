@@ -223,7 +223,7 @@ for (const mode of ["reset", "install failure"]) {
         switch (request.op) {
           case "backend": return { ok: backend };
           case "state": return { ok: { watermark: 0, generation, native: mode === "reset" ? "fixture" : null } };
-          case "sync_state": return { ok: { receipt_outcomes: true, acquired: false, backend_required: false, store_id: null, watermark: 0, generation, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: ["own"], send_revision: 0 } };
+          case "sync_state": return { ok: { receipt_outcomes: true, outbox_status: true, acquired: false, backend_required: false, store_id: null, watermark: 0, generation, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: ["own"], send_revision: 0 } };
           case "observe_store": { const changed = reset; reset = false; return { ok: { reset: changed, backend_required: false, send_revision: request.page.send_revision, retired: {}, adoption_capture: {} } }; }
           case "next_submission": return { ok: 2 };
           case "meta": return { ok: null };

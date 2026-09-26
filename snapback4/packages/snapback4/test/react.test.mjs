@@ -34,6 +34,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "test-online-custody", replacement: join(root, "packages/snapback4/src/app-online.ts") },
+        { find: "test-online-dispatch", replacement: join(root, "packages/snapback4/src/online-dispatch.ts") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
         { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
@@ -91,7 +92,8 @@ test("React hooks and reference-app lifetimes", async (t) => {
     });
     await server.listen();
     browser = await chromium.launch({ executablePath, headless: true });
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(server.resolvedUrls.local[0]);
@@ -105,6 +107,50 @@ test("React hooks and reference-app lifetimes", async (t) => {
         assert.equal(result, null);
       });
     }
+    await t.test("shared online journal invalidates pending hooks across browser tabs", async () => {
+      const peer = await page.context().newPage();
+      try {
+        await peer.goto(server.resolvedUrls.local[0]);
+        await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
+        await page.evaluate(async () => { localStorage.clear(); window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.mount(); });
+        await peer.evaluate(async () => { window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.submit(); });
+        await page.waitForFunction(() => window.pendingPeer.snapshot()[0]?.state === "sent");
+        await page.evaluate(async () => { await window.pendingPeer.unmount(); await window.pendingPeer.mount(); });
+        await page.waitForFunction(() => window.pendingPeer.snapshot()[0]?.state === "sent");
+        await peer.evaluate(() => window.pendingPeer.settle());
+        await page.waitForFunction(() => window.pendingPeer.snapshot().length === 0);
+        assert.deepEqual(await page.evaluate(() => window.pendingPeer.client.pendingWrites()), []);
+        await page.evaluate(() => window.pendingPeer.pause());
+        const notices = await page.evaluate(() => window.pendingPeer.notices());
+        await peer.evaluate(() => window.pendingPeer.submit());
+        await page.waitForTimeout(50);
+        assert.equal(await page.evaluate(() => window.pendingPeer.notices()), notices, "paused custody detaches shared invalidations");
+      } finally {
+        await page.evaluate(() => window.pendingPeer?.close());
+        await peer.evaluate(() => window.pendingPeer?.close());
+        await peer.close();
+      }
+    });
+    await t.test("closing the last journal owner during admission still invalidates another tab", async () => {
+      const peer = await page.context().newPage();
+      try {
+        await peer.goto(server.resolvedUrls.local[0]);
+        await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
+        await page.evaluate(async () => { localStorage.clear(); window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.mount(); });
+        const admitted = await peer.evaluate(async () => {
+          window.pendingPeer = await window.openPendingPeer();
+          return window.pendingPeer.closeOnAdmission();
+        });
+        assert.equal(admitted.state, "pending", "closing on notification cannot refuse committed custody");
+        await page.waitForFunction(id => window.pendingPeer.snapshot().some(w => w.id === id), admitted.id);
+        assert.deepEqual(await page.evaluate(async () => (await window.pendingPeer.client.pendingWrites()).map(w => [w.id, w.state])),
+          [[admitted.id, "queued"]], "A's hook and durable list see B's admission after B closes");
+      } finally {
+        await page.evaluate(() => window.pendingPeer?.close());
+        await peer.evaluate(() => window.pendingPeer?.close());
+        await peer.close();
+      }
+    });
     assert.deepEqual(errors, []);
   } finally {
     await browser?.close();
@@ -120,11 +166,12 @@ const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapba
 const harness = `
 import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
+import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
 import { onlineCustody } from "test-online-custody";
+import { identifyDispatch } from "test-online-dispatch";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -1186,6 +1233,47 @@ cases["web composer fences old account callbacks and preserves saved write ident
   check(otherBackend.read().intents.length === 0, "references do not cross backends");
   await unmount();
 };
+cases["pending-write lists filter, update, fence old reads, and release StrictMode subscriptions"] = async () => {
+  const listeners = new Set(), reads = [];
+  let values = [], current;
+  const client = controlled();
+  client.onPendingWrites = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+  client.pendingWrites = () => { const read = deferred(); reads.push(read); return read.promise; };
+  function List({ op }) { current = usePendingWrites(op); return h("div", null, current.map(w => w.id + ":" + w.state).join(",")); }
+  await mount(h(List, { op: mutation }), client);
+  equal(listeners.size, 1, "StrictMode leaves one listener");
+  const queued = { id: "one", op: "write", args: { text: "typed" }, state: "queued", predicted: [] };
+  await act(async () => { for (const read of reads.splice(0)) read.resolve([queued]); });
+  equal(current, [queued], "initial queue is visible without a predicted row");
+  await act(async () => { for (const notify of listeners) notify(); });
+  const older = reads.pop();
+  await act(async () => { for (const notify of listeners) notify(); });
+  const sent = { ...queued, state: "sent" };
+  await act(async () => { reads.pop().resolve([sent, { ...queued, id: "other", op: "edit" }]); });
+  equal(current, [sent], "filter retains only this operation");
+  await act(async () => { older.resolve([queued]); });
+  equal(current, [sent], "overtaken list cannot regress dispatch");
+  const held = { ...sent, state: "held", reason: "E_BUSY" };
+  await act(async () => { for (const notify of listeners) notify(); });
+  await act(async () => { reads.pop().resolve([held]); });
+  equal(current, [held], "retryable hold is visible");
+  await render(h(List), client);
+  await act(async () => { reads.pop().resolve([held, { ...queued, id: "other", op: "edit" }]); });
+  equal(current.length, 2, "omitting the filter lists every mutation");
+  await act(async () => { for (const notify of listeners) notify(); });
+  await act(async () => { reads.pop().resolve([]); });
+  equal(current, [], "settlement removes writes");
+  await act(async () => { for (const notify of listeners) notify(); });
+  const detached = reads.pop();
+  await unmount();
+  equal(listeners.size, 0, "unmount releases listeners");
+  await act(async () => detached.resolve([held]));
+  await mount(h(List), client);
+  equal(current, [], "remount cannot publish the old lifetime");
+  await act(async () => { for (const read of reads.splice(0)) read.resolve([]); });
+  await unmount();
+};
+
 
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
   cases[name + " receipt labels separate admission, restoration and unknown; late refusal offers text"] = async () => {
@@ -1250,6 +1338,68 @@ cases["web room loading keeps the same input and legacy intents disclose missing
   await mount(h(Composer, { view, conversationId: "c" }), client);
   check(host.textContent.includes("text not kept") && host.textContent.includes("Outcome unknown"), "legacy journal opens without a body");
   await unmount();
+};
+// Real custody plus a controlled wire; both pages share browser storage.
+window.openPendingPeer = async () => {
+  const store = { get: async key => localStorage.getItem(key), set: async (key, value) => localStorage.setItem(key, value), remove: async key => localStorage.removeItem(key) };
+  let gate, latest = [], notices = 0;
+  const raw = createClient({ url: "https://pending-shared.invalid", persona: "alice", fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/probe") return Response.json({ ok: true, store_id: "shared", seq: 0 });
+    if (path === "/changes") return new Promise(() => {});
+    if (path === "/m/write") { gate = deferred(); return gate.promise; }
+    throw Error(path);
+  } });
+  const custody = await onlineCustody(raw, "https://pending-shared.invalid", store, error => { throw error; }, false);
+  custody.client.onPendingWrites(() => notices++);
+  function List() { latest = usePendingWrites(); return h("div", null, latest.map(w => w.state).join(",")); }
+  return {
+    client: custody.client, snapshot: () => latest, notices: () => notices,
+    mount: () => mount(h(List), custody.client), unmount,
+    async closeOnAdmission() {
+      await identifyDispatch(raw); await custody.client.pendingWrites();
+      let closing;
+      const stop = custody.client.onPendingWrites(() => { stop(); closing = custody.client.close(); });
+      const write = await custody.client.mutate(mutation, { body: "close at admission" }, { waitSeconds: 0 });
+      await closing;
+      return write;
+    },
+    async submit() {
+      gate = undefined;
+      const write = await custody.client.mutate(mutation, { body: "shared intent" }, { waitSeconds: 0 });
+      for (let n = 0; n < 100 && !gate; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      check(gate, "the admitted write dispatched"); return write;
+    },
+    async settle() {
+      gate.resolve(Response.json({ state: "sent", seq: 0 }));
+      for (let n = 0; n < 100 && (await custody.client.pendingWrites()).length; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      equal(await custody.client.pendingWrites(), [], "B settled its journal entry");
+    },
+    pause: custody.pause,
+    async close() { await unmount(); await custody.client.close(); },
+  };
+};
+cases["shared online journal updates A's hook on B's admission and settlement after remount"] = async () => {
+  localStorage.clear();
+  const a = await window.openPendingPeer(), b = await window.openPendingPeer();
+  async function wait(checkState) {
+    for (let n = 0; n < 100 && !checkState(); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+    check(checkState(), "A hook follows shared custody");
+  }
+  try {
+    await a.mount();
+    await act(async () => { await b.submit(); });
+    await wait(() => a.snapshot()[0]?.state === "sent");
+    await a.unmount(); await a.mount();
+    await wait(() => a.snapshot()[0]?.state === "sent");
+    await act(async () => { await b.settle(); });
+    await wait(() => a.snapshot().length === 0);
+    equal(await a.client.pendingWrites(), [], "A direct read agrees with its hook");
+    await act(async () => { a.pause(); });
+    const before = a.notices();
+    await b.submit();
+    equal(a.notices(), before, "paused custody receives no journal invalidation");
+  } finally { await a.close(); await b.close(); }
 };
 window.reactCases = cases;
 `;

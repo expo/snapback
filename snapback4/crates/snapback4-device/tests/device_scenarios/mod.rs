@@ -1,6 +1,44 @@
 use super::*;
 
 #[test]
+fn outbox_status_survives_reopen_without_changing_intent_or_order() {
+    on_both(|host| {
+        let (_, backend) = server();
+        let mut device = host.open("pending-status", Some(backend)).unwrap();
+        // Legacy JSON has no dispatch field and remains admissible.
+        for (seq, id) in [(1, "z"), (2, "a")] {
+            ok(device.call(serde_json::json!({ "op": "enqueue", "entry": {
+                "id": id, "seq": seq, "op": "send", "args": { "conversationId": "c1", "body": id },
+                "new_ids": [format!("row-{id}")], "predicted": [format!("messages/row-{id}")]
+            }})));
+        }
+        let original = ok(device.call(serde_json::json!({"op":"queued"})));
+        assert!(original[0].get("dispatch").is_none());
+        let send = ok(device.call(serde_json::json!({"op":"begin_send", "id":"z"})));
+        assert_eq!(send["send_revision"], 1);
+        assert_eq!(ok(device.call(serde_json::json!({"op":"queued"})))[0]["dispatch"], "");
+        ok(device.call(serde_json::json!({"op":"hold_write", "id":"z", "reason":"E_BUSY"})));
+        device.close();
+        let mut device = host.open("pending-status", None).unwrap();
+        let mut held = ok(device.call(serde_json::json!({"op":"queued"})));
+        assert_eq!(held[0]["dispatch"], "E_BUSY");
+        held[0].as_object_mut().unwrap().remove("dispatch");
+        assert_eq!(held, original, "status must not change input, row ids, prediction set, order or receipts");
+        // The old unkeyed form still advances only its revision.
+        ok(device.call(serde_json::json!({"op":"begin_send"})));
+        assert_eq!(ok(device.call(serde_json::json!({"op":"queued"})))[0]["dispatch"], "E_BUSY");
+        ok(device.call(serde_json::json!({"op":"begin_send", "id":"z"})));
+        assert_eq!(ok(device.call(serde_json::json!({"op":"queued"})))[0]["dispatch"], "");
+        ok(device.call(serde_json::json!({"op":"settle", "id":"z"})));
+        ok(device.call(serde_json::json!({"op":"hold_write", "id":"z", "reason":"E_BUSY"})));
+        let remaining = ok(device.call(serde_json::json!({"op":"queued"})));
+        assert_eq!(remaining.as_array().unwrap().len(), 1, "a late hold cannot resurrect settled intent");
+        assert_eq!(remaining[0]["id"], "a");
+        device.close();
+    });
+}
+
+#[test]
 fn the_device_follows_the_server_and_answers_locally() {
     on_both(|host| {
         let label = host.label();
@@ -31,7 +69,7 @@ fn the_device_follows_the_server_and_answers_locally() {
         assert_eq!(rows(&query(&mut *device, "inbox", "dev:bob", serde_json::json!({}), 2_000))[0]["count"], 121, "{label}");
         // The outbox keeps it in submission order until the server answers.
         let seq = ok(device.call(serde_json::json!({ "op": "next_submission" }))).as_u64().unwrap();
-        let entry = Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: vec!["messages/msgNEW".into()], viewer: String::new(), now: 0, predictable: false, sent_seq: None, receipt_store: None, observed_seq: None };
+        let entry = Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: vec!["messages/msgNEW".into()], viewer: String::new(), now: 0, predictable: false, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
         ok(device.call(serde_json::json!({ "op": "enqueue", "entry": entry })));
         assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 1, "{label}");
         assert!(device.call(serde_json::json!({ "op": "enqueue", "entry": entry })).get("denied").is_some(), "{label}: a duplicate submission is refused");
@@ -202,7 +240,7 @@ fn durable_rejection_rebase_preserves_confirmed_images() {
             ok(apply(&mut *device, page, n == 0));
         }
         let watermark = state(&mut *device).0;
-        let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2000, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
+        let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2000, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
         let read = |device: &mut dyn AnyDevice, key: &str| query(device, "row", "dev:alice", serde_json::json!({ "id": key }), 2000)["data"]["value"].clone();
         ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("first", 1) })));
         ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("later", 2) })));
@@ -298,7 +336,7 @@ fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_host
         let person_args = serde_json::json!({ "person": "alice" });
         for (n, (op, input)) in commands.iter().enumerate() {
             let seq = n as u64 + 1;
-            ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: format!("write-{seq}"), seq, op: (*op).into(), args: input.clone(), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: seq as i64, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None } })));
+            ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: format!("write-{seq}"), seq, op: (*op).into(), args: input.clone(), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: seq as i64, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None } })));
             let person = query(&mut *device, "person", "dev:alice", person_args.clone(), 10);
             assert_eq!(person["data"]["pending"], true, "{label}: mutation reads must not erase the card");
             if n >= 2 {
@@ -527,4 +565,3 @@ fn extra_probe_equalities_run_on_both_device_stores() {
         device.close();
     });
 }
-

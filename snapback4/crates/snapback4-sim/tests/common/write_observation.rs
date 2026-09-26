@@ -166,7 +166,7 @@ fn observe_lifecycle(e: &mut Engine, name: &str, viewer: &str, values: Json, op:
     let seq = e.seq().unwrap();
     let backend = backend(e);
     let ids: Vec<String> = (0..2200).map(|n| match n { 0 => "fresh".into(), 1 => "effect".into(), _ => format!("effect{n}") }).collect();
-    let entry = Queued { id: op.into(), seq: 1, op: name.into(), args: values.clone(), viewer: viewer.into(), now: 1000, new_ids: ids.clone(), predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
+    let entry = Queued { id: op.into(), seq: 1, op: name.into(), args: values.clone(), viewer: viewer.into(), now: 1000, new_ids: ids.clone(), predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
     let mut sqlite = Sqlite::new("w2-observation");
     let mut memory = Memory::new();
     let (sqlite_device, sqlite_before) = prepare(&mut sqlite, &backend, &initial, &entry, &query);

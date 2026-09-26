@@ -87,6 +87,19 @@ export type Write<R = unknown> =
   | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 
+/** An admitted intent, oldest first. `sent` here means dispatch began and the
+ * outcome is unknown; only Write.sent is a receipt. Held reasons are refusal
+ * codes; predictions name rows as `table/id`, never row contents. */
+// @ref LLP 3000.019#3.3 — an outbox list also represents writes without predicted rows.
+export interface PendingWrite<A = unknown> {
+  readonly id: string;
+  readonly op: string;
+  readonly args: A;
+  readonly state: "queued" | "sent" | "held";
+  readonly reason?: string;
+  readonly predicted: readonly string[];
+}
+
 /** An action's server outcome. A denial precedes admission; a pending id
  * may already be running. Retry with that same id, never predict or queue
  * an action on the device. This new card word needs the author's ruling. */
@@ -213,6 +226,11 @@ export interface Client {
   /** Recover a write by mutation id. Unknown ids return undefined. Local
    * clients keep terminal receipts with their store, without historical results. */
   write(id: string): Promise<Write | undefined>;
+  /** Current admitted, unsettled writes. Local/createApp queues survive reopen;
+   * the raw online queue lasts only for that client. Closed/signed-out: []. */
+  pendingWrites(): Promise<readonly PendingWrite[]>;
+  /** Invalidate the pending-write list; read pendingWrites() again. */
+  onPendingWrites(notify: () => void): () => void;
   act<A, R>(op: Action<A, R>, args: A, options?: ActOptions): Promise<Act<R>>;
   /** Send the bytes of a photo or video; place `asset.id` in a mutation's
    * `image`/`video` argument. Online only: an upload waits for no link. */

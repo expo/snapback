@@ -14,7 +14,7 @@ export interface PendingSend {
 const KEEPALIVE_BYTES = 64 * 1024;
 const EXIT_WAIT_MS = 1000;
 let inflightBytes = 0;
-export function exitTransport(doFetch: typeof fetch, base: string, closed?: AbortSignal, refused?: (entry: PendingSend, why: Refusal) => Promise<void>) {
+export function exitTransport(doFetch: typeof fetch, base: string, closed?: AbortSignal, refused?: (entry: PendingSend, why: Refusal) => Promise<void>, held?: (entry: PendingSend, why: Refusal) => Promise<void>) {
   let active: Promise<void> | undefined;
   // @ref LLP 3000.007#20.4 — exit retries only the oldest head, including an ordinary send whose outcome may be unknown after teardown.
   return (entries: readonly PendingSend[], headers: Record<string, string>, isCurrent = () => true): Promise<void> | undefined => {
@@ -36,6 +36,9 @@ export function exitTransport(doFetch: typeof fetch, base: string, closed?: Abor
       const done = doFetch(`${base}/m/${entry.op}`, { method: "POST", headers: { ...headers }, body, keepalive: true })
         .then(async response => {
           const json = await response.json(), why = json.why ?? json.denied;
+          // @ref LLP 3000.019#3.3 — a live page can show the exit send's hold,
+          // without changing keepalive's existing receipt/settlement policy.
+          if (why?.retryable) await held?.(entry, why);
           if (why?.code === "E_STORE_REPLACED" && !why.retryable) await refused?.(entry, why);
         })
         .catch(() => {})

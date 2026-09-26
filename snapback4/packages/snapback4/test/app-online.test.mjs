@@ -3,9 +3,108 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { onlineCustody } from "../dist/app-online.js";
 import { memorySessionStore } from "../dist/auth.js";
-import { mintId } from "../dist/client.js";
+import { createClient, mintId } from "../dist/client.js";
 import { MutationIds, WRITE_HISTORY_LIMIT } from "../dist/writes.js";
-import { trackDispatch } from "../dist/online-dispatch.js";
+import { identifyDispatch, trackDispatch } from "../dist/online-dispatch.js";
+import { storeKey } from "../dist/app-storage.js";
+
+for (const fault of ["closing owner", "closed channel", "throwing listener"]) test(`committed admission survives notification from a ${fault}`, async t => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+  t.after(() => previous ? Object.defineProperty(globalThis, "window", previous) : delete globalThis.window);
+  const url = "https://notification.invalid", store = memorySessionStore(), key = storeKey("writes", url, "dev:alice");
+  const raw = createClient({ url, persona: "alice", fetch: async input => {
+    if (new URL(input).pathname === "/probe") return Response.json({ ok: true, store_id: "A", seq: 0 });
+    return new Promise(() => {});
+  } });
+  await identifyDispatch(raw);
+  const { client } = await onlineCustody(raw, url, store, error => { throw error; }, false);
+  await client.pendingWrites(); // Finish the initial store observation before subscribing.
+  const peer = new BroadcastChannel(key), messages = [];
+  peer.onmessage = event => messages.push(event.data);
+  let closing, notices = 0;
+  t.after(async () => { peer.close(); await closing; await client.close(); });
+  if (fault === "closed channel") t.mock.method(BroadcastChannel.prototype, "postMessage", function () {
+    this.close(); throw new DOMException("Channel is closed", "InvalidStateError");
+  });
+  const logged = [];
+  if (fault === "throwing listener") {
+    t.mock.method(console, "error", (...args) => logged.push(args));
+    client.onPendingWrites(() => { throw Error("listener failed"); });
+  }
+  const stop = client.onPendingWrites(() => {
+    notices++;
+    if (fault === "closing owner") { stop(); closing = client.close(); }
+  });
+  const admitted = await client.mutate({ kind: "mutation", name: "write" }, { body: "durable" }, { waitSeconds: 0 });
+  assert.equal(admitted.state, "pending", "a committed admission never becomes E_STORE");
+  assert.ok(notices > 0, "local invalidation survives the notification fault");
+  if (fault === "throwing listener") assert.ok(logged.length > 0, "the throwing listener was exercised");
+  assert.equal(JSON.parse(await store.get(key)).pending[0].id, admitted.id);
+  if (fault !== "closed channel") {
+    for (let n = 0; n < 500 && !messages.length; n++) await delay(1);
+    assert.ok(messages.length > 0, "the other realm receives an invalidation before local teardown");
+    assert.ok(messages.every(message => message === null), "notifications disclose no intent");
+  }
+});
+
+test("unsaved online hold stays visible through failed retries in shared journal order", async t => {
+  const url = "https://held.invalid", memory = memorySessionStore(), errors = [], requests = [];
+  let fail = false, failures = 0;
+  const store = { ...memory, async set(key, value) {
+    if (fail) { failures++; throw Error("journal save unavailable"); }
+    await memory.set(key, value);
+  } };
+  const make = async (ownerStore = store) => {
+    const raw = createClient({ url, persona: "alice", fetch: async (input, init) => {
+      if (new URL(input).pathname === "/probe") return Response.json({ ok: true, store_id: "A", seq: 0 });
+      if (new URL(input).pathname === "/m/write") return new Promise(resolve => requests.push({ id: JSON.parse(init.body).id, resolve }));
+      return new Promise(() => {});
+    } });
+    await identifyDispatch(raw);
+    const custody = await onlineCustody(raw, url, ownerStore, error => errors.push(error), false);
+    await custody.client.pendingWrites();
+    return { ...custody, raw };
+  };
+  const a = await make(), b = await make(memory);
+  t.after(async () => { fail = false; await a.client.close(); await b.client.close(); });
+  const until = async check => {
+    for (let n = 0; n < 1000; n++) { if (await check()) return; await delay(10); }
+    assert.fail("hold/retry/settlement did not arrive");
+  };
+  const tail = mintId(), head = mintId(), op = { kind: "mutation", name: "write" };
+  await a.client.mutate(op, { body: "first" }, { id: head, waitSeconds: 0 });
+  await until(() => requests.length === 1);
+  await a.client.mutate(op, { body: "second" }, { id: tail, waitSeconds: 0 });
+  const expected = [[head, "held", "E_BUSY"], [tail, "queued", undefined]];
+  const view = client => client.pendingWrites().then(list => list.map(w => [w.id, w.state, w.reason]));
+  fail = true;
+  requests[0].resolve(Response.json({ denied: { code: "E_BUSY", family: "store", message: "retry later", retryable: true } }, { status: 409 }));
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    await until(() => failures >= attempt && errors.length >= 1);
+    assert.deepEqual(await view(a.raw), expected, "raw queue retains live hold custody");
+    assert.deepEqual(await view(a.client), expected, "owning wrapper retains the unsaved hold across retry binding failures");
+    assert.deepEqual(await view(b.client), [[head, "sent", undefined], [tail, "queued", undefined]], "another owner sees only persisted status in the same FIFO order");
+    assert.equal(requests.length, 1, "failed dispatch binding cannot start another POST");
+  }
+  await b.client.mutate(op, { body: "first" }, { id: head, waitSeconds: 0 });
+  await until(() => requests.length === 2);
+  assert.deepEqual(await view(a.client), [[head, "sent", undefined], [tail, "queued", undefined]], "another owner's dispatch supersedes the unsaved hold even while A's saves still fail");
+  requests[1].resolve(Response.json({ denied: { code: "E_RATE", family: "store", message: "rate limited", retryable: true } }, { status: 409 }));
+  await until(async () => (await b.client.pendingWrites())[0]?.reason === "E_RATE");
+  assert.deepEqual(await view(a.client), [[head, "held", "E_RATE"], [tail, "queued", undefined]], "another owner's persisted hold supersedes the unsaved refusal code");
+  assert.deepEqual(await view(a.raw), expected, "A's older live hold does not overwrite B's newer shared status");
+  await until(() => requests.length === 3);
+  assert.equal(requests[2].id, head, "B retries the held head");
+  requests[2].resolve(Response.json({ state: "sent", seq: 0 }));
+  await until(async () => (await a.client.pendingWrites()).length === 1);
+  fail = false;
+  await until(() => requests.length === 4);
+  assert.equal(requests[3].id, tail, "the tail dispatches only after head settlement");
+  requests[3].resolve(Response.json({ state: "sent", seq: 0 }));
+  await until(async () => (await a.client.pendingWrites()).length === 0);
+  assert.deepEqual(await b.client.pendingWrites(), [], "shared settlement removes both intents");
+});
 
 test("asynchronous settlement bounds online argument reservations, including another owner's retirement", async t => {
   const store = memorySessionStore(), instances = new Set(), emitted = [], callbacks = [];
@@ -69,6 +168,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
     if (source === "mutate") assert.deepEqual(first, outcome);
     else {
       assert.equal(first.state, "pending");
+      assert.deepEqual((await client.pendingWrites()).map(write => [write.id, write.state]), [[id, "queued"]], "custody without dispatch remains listed");
       if (source === "lookup") { available = outcome; assert.deepEqual(await client.write(id), outcome); }
       else {
         callback(outcome);
@@ -76,6 +176,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
       }
     }
     assert.deepEqual(notifications, [outcome], "a known outcome notifies even when its receipt cannot be saved");
+    assert.deepEqual(await client.pendingWrites(), [], "known terminal custody leaves the list even while receipt persistence fails");
     const receipt = state === "sent" ? { state, id, seq: 3, replayed: true }
       : { state, id, why: { code: "E_INPUT", family: "input", message: "write refused: E_INPUT" } };
     available = undefined; // The lower client's bounded receipt history may evict this id.

@@ -51,7 +51,7 @@ fn counterexample<H: Host>(host: &mut H) {
         id: "alice-1".into(), seq: 1, op: "bumpSelected".into(),
         args: serde_json::json!({}), new_ids: vec![], predicted: vec![],
         viewer: "dev:alice".into(), now: 1000, predictable: true,
-        sent_seq: None, receipt_store: None, observed_seq: None,
+        sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
     }).unwrap();
     assert_eq!(admitted.predicted, ["counters/a"]);
     assert_eq!((value(&mut device, "a"), value(&mut device, "b")), (1, 0));
@@ -102,7 +102,7 @@ fn counterexample<H: Host>(host: &mut H) {
     assert_eq!((value(&mut reopened, "a"), value(&mut reopened, "b")), (0, 2));
     reopened.admit(Queued { id: "alice-2".into(), seq: 0, op: "bumpSelected".into(),
         args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(),
-        now: 1000, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }).unwrap();
+        now: 1000, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
     assert_eq!((value(&mut reopened, "a"), value(&mut reopened, "b")), (0, 3), "the deferred selector must survive");
     host.close("counterexample", reopened);
 }

@@ -126,7 +126,7 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
         device.apply(page, n == 0).unwrap();
     }
     let mut sender = Device::open(&path, None).unwrap();
-    sender.admit(Queued { id: "pending-inc".into(), seq: 1, op: "inc".into(), args: serde_json::json!({ "id": "z" }), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }).unwrap();
+    sender.admit(Queued { id: "pending-inc".into(), seq: 1, op: "inc".into(), args: serde_json::json!({ "id": "z" }), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
     sender.begin_send().unwrap();
     let capture = device.sync_state().unwrap();
     let (events, pinned, mut after) = engine.snapshot_page("dev:alice", None, 1).unwrap();
@@ -201,7 +201,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     let person_args = serde_json::json!({"person":"alice"});
     for (n, (op, input)) in commands.iter().enumerate() {
         let seq = n as u64 + 1;
-        device.admit(Queued { id:format!("write-{seq}"),seq,op:(*op).into(),args:input.clone(),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:seq as i64,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None }).unwrap();
+        device.admit(Queued { id:format!("write-{seq}"),seq,op:(*op).into(),args:input.clone(),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:seq as i64,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None, dispatch: None }).unwrap();
         let person = device.query("person", "dev:alice", &person_args, 10).unwrap().data;
         assert_eq!(person.field("pending").unwrap(), &Value::Bool(true), "mutation reads must not erase the card");
         if n >= 2 {

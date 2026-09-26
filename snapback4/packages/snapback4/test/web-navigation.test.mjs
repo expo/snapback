@@ -6,7 +6,9 @@ import { readFileSync } from "node:fs";
 import { webDevice, memoryPersistence, indexedDbPersistence } from "../dist/web.js";
 import { createLocalClient } from "../dist/local.js";
 import { exitTransport } from "../dist/local-exit.js";
+import { prepareClient } from "../dist/client-start.js";
 import { devServer } from "../../../witness/lib.mjs";
+import { WebDevice } from "../dist/wasm/snapback4_device.js";
 
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 const send = { kind: "mutation", name: "send" };
@@ -29,7 +31,7 @@ function page(t) {
   }
   return { window, document };
 }
-async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
+async function fixture(t, { stallExitBody = false, applyExit = true, holdExit = false } = {}) {
   const events = page(t);
   const server = await devServer({ seed });
   const clients = [];
@@ -47,7 +49,8 @@ async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
     if (init?.keepalive) {
       requests.push({ input, init });
       const send = async () => {
-        const response = applyExit ? await fetch(input, init) : new Response("{}");
+        const response = holdExit ? Response.json({ denied: { code: "E_BUSY", family: "store", message: "retry later", retryable: true } }, { status: 409 })
+          : applyExit ? await fetch(input, init) : new Response("{}");
         if (applyExit) responses.push(await response.clone().json());
         if (!stallExitBody) return response;
         await response.arrayBuffer();
@@ -71,7 +74,7 @@ async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
   await client.sync();
   assert.equal(client.link(), "offline");
   const rows = async () => (await fetch(server.api + "/q/thread", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c1" } }) }).then(r => r.json())).data;
-  return { ...events, client, open, persist, requests, responses, cores, rows, stalledBodies, ordinaryRequests, online() { offline = false; }, ordinary, count() { return ordinaryCount; }, holdExit() { pauseExit = true; }, releaseExit() { pauseExit = false; exits.splice(0).forEach(f => f()); }, pause() { pauseOrdinary = true; }, resume() { pauseOrdinary = false; ordinary.splice(0).forEach(f => f()); } };
+  return { ...events, url: server.api, client, open, persist, requests, responses, cores, rows, stalledBodies, ordinaryRequests, online() { offline = false; }, ordinary, count() { return ordinaryCount; }, holdExit() { pauseExit = true; }, releaseExit() { pauseExit = false; exits.splice(0).forEach(f => f()); }, pause() { pauseOrdinary = true; }, resume() { pauseOrdinary = false; ordinary.splice(0).forEach(f => f()); } };
 }
 
 async function within(work, ms, message) {
@@ -188,6 +191,25 @@ test("pagehide sends committed writes synchronously and reopen is deduped by the
   console.log("navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay");
 });
 
+test("pagehide dispatch and retryable hold invalidate the pending-write list", async t => {
+  const f = await fixture(t, { holdExit: true });
+  const write = await f.client.mutate(send, { conversationId: "c1", body: "held on exit" });
+  await tick(); // Release the ordinary offline attempt's settlement ownership.
+  let notices = 0;
+  f.client.onPendingWrites(() => notices++);
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(f.requests.length, 1);
+  assert.ok(notices > 0, "exit dispatch must notify mounted pending-write hooks");
+  await until(async () => (await f.client.pendingWrites())[0]?.state === "held");
+  const list = await f.client.pendingWrites();
+  assert.equal(list[0].id, write.id); assert.equal(list[0].reason, "E_BUSY");
+  assert.equal((await f.rows()).length, 0);
+  assert.equal((await f.client.write(write.id)).state, "pending");
+  await f.client.close();
+  const saved = [...f.persist.stores.values()].flatMap(s => [...s.values()]).filter(c => c.s === "o").map(c => JSON.parse(c.v));
+  assert.equal(saved.find(entry => entry.id === write.id).dispatch, "E_BUSY");
+});
+
 test("hidden flushes, visible does not, and close removes page hooks", async t => {
   const f = await fixture(t);
   await f.client.mutate(send, { conversationId: "c1", body: "hidden" });
@@ -210,7 +232,8 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   const save = f.persist.save.bind(f.persist);
   let release, saving = false;
   f.persist.save = async (name, changes) => {
-    if (changes.some(c => c.s === "o")) {
+    // Stall admission only. Dispatch now also updates that durable entry.
+    if (!saving && changes.some(c => c.s === "o")) {
       saving = true; await new Promise(resolve => { release = resolve; });
     }
     await save(name, changes);
@@ -228,6 +251,212 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   f.window.dispatchEvent(new Event("pagehide"));
   assert.equal(f.requests.length, 1);
   await until(() => f.responses.length === 1);
+});
+
+for (const blockedCleanup of [false, true]) test(`first pagehide dispatch survives a stalled status save (cleanup blocked=${blockedCleanup})`, async t => {
+  const f = await fixture(t, { stallExitBody: true, applyExit: false });
+  let storage = new Map(), cleanupFails = blockedCleanup;
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const localStorage = { get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
+    getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem(key) { if (cleanupFails) throw Error("cleanup unavailable"); storage.delete(key); } };
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: localStorage });
+  t.after(() => previous ? Object.defineProperty(globalThis, "localStorage", previous) : delete globalThis.localStorage);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "first dispatch at exit" }, { waitSeconds: 0 });
+  assert.equal((await f.client.pendingWrites())[0].state, "queued");
+  const save = f.persist.save.bind(f.persist);
+  let release, saving = false, stall = true;
+  f.persist.save = async (name, changes) => {
+    // A send revision commits even if begin_send loses its id (the mutant).
+    if (stall && !saving && changes.some(c => c.s === "m" && c.k === "device:send_revision")) {
+      saving = true; await new Promise(resolve => { release = resolve; });
+    }
+    await save(name, changes);
+  };
+  try {
+    await tick();
+    f.window.dispatchEvent(new Event("pagehide"));
+    await until(() => saving);
+    assert.equal(f.requests.length, 1, "the keepalive request has started before IDB finishes");
+    assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "dispatch evidence precedes the request");
+    const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
+    assert.ok(name);
+    assert.equal(JSON.parse((await f.persist.load(name)).find(c => c.s === "o" && c.k === admitted.id).v).dispatch, undefined);
+    async function reopenCopy(state = "sent", cleaned = false) {
+      const copy = memoryPersistence();
+      for (const [name, entries] of f.persist.stores) copy.stores.set(name, new Map(structuredClone([...entries])));
+      const options = { url: f.requests[0].input.split("/m/")[0], persona: "alice", device: webDevice({ wasm, persist: copy }),
+        fetch: () => Promise.reject(new TypeError("reopen offline")) };
+      const originalStorage = storage; storage = new Map(storage);
+      const opened = await prepareClient(options, () => createLocalClient(options));
+      try {
+        assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, state]]);
+        if (cleaned) assert.ok((await copy.load(name)).every(c => c.s !== "j" || !c.k.startsWith("exit:")), "reopen retains no durable exit acknowledgements");
+      }
+      finally { await opened.client.close(); storage = originalStorage; }
+    }
+    await reopenCopy();
+    assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "crash copy did not clean the original journal");
+    release(); await call({ op: "queued" });
+    assert.equal(JSON.parse((await f.persist.load(name)).find(c => c.s === "o" && c.k === admitted.id).v).dispatch, "",
+      "the keyed begin_send itself must persist sent before journal cleanup");
+    if (blockedCleanup) {
+      assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "failed cleanup retains its acknowledged marker");
+      assert.ok((await f.persist.load(name)).some(c => c.s === "j" && c.k === `exit:${admitted.id}`), "failed synchronous cleanup keeps the durable acknowledgement");
+      await call({ op: "hold_write", id: admitted.id, reason: "E_BUSY" });
+      await reopenCopy("held"); // An acknowledged marker must not regress a later refusal.
+      cleanupFails = false; await call({ op: "queued" });
+    }
+    assert.equal([...storage.keys()].some(k => k.includes(":exit:")), false);
+    await call({ op: "queued" });
+    assert.ok((await f.persist.load(name)).every(c => c.s !== "j" || !c.k.startsWith("exit:")), "a later drain removes durable exit acknowledgements after synchronous cleanup");
+    await reopenCopy(blockedCleanup ? "held" : "sent", true);
+  } finally { stall = false; release?.(); }
+});
+
+test("a second exit before its status commit supersedes the first acknowledged exit and later hold", async t => {
+  const f = await fixture(t, { holdExit: true });
+  let storage = new Map();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
+    getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value),
+    removeItem() { throw Error("cleanup unavailable"); },
+  } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "localStorage", previous) : delete globalThis.localStorage);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "two exits" }, { waitSeconds: 0 });
+  await tick();
+  f.window.dispatchEvent(new Event("pagehide"));
+  await until(async () => (await f.client.pendingWrites())[0]?.reason === "E_BUSY");
+  await tick(); // The first exit releases its active transport slot.
+  const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
+  assert.ok(name);
+  const first = (await f.persist.load(name)).find(c => c.s === "j" && c.k === `exit:${admitted.id}`).v;
+  assert.equal(storage.get(JSON.parse(first).key), first, "blocked cleanup retains the acknowledged first marker");
+  const save = f.persist.save.bind(f.persist);
+  let release, saving = false;
+  f.persist.save = async (name, changes) => {
+    if (!saving && changes.some(c => c.s === "m" && c.k === "device:send_revision")) {
+      saving = true; await new Promise(resolve => { release = resolve; });
+    }
+    await save(name, changes);
+  };
+  try {
+    f.holdExit();
+    f.window.dispatchEvent(new Event("pageshow"));
+    f.window.dispatchEvent(new Event("pagehide"));
+    await until(() => saving);
+    assert.equal(f.requests.length, 2);
+    const saved = await f.persist.load(name);
+    assert.equal(saved.find(c => c.s === "j" && c.k === `exit:${admitted.id}`).v, first);
+    assert.equal(JSON.parse(saved.find(c => c.s === "o" && c.k === admitted.id).v).dispatch, "E_BUSY");
+    const copy = memoryPersistence();
+    for (const [key, entries] of f.persist.stores) copy.stores.set(key, new Map(structuredClone([...entries])));
+    const options = { url: f.url, persona: "alice", device: webDevice({ wasm, persist: copy }), fetch: () => Promise.reject(new TypeError("reopen offline")) };
+    const originalStorage = storage; storage = new Map(storage);
+    const opened = await prepareClient(options, () => createLocalClient(options));
+    try {
+      assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state, w.reason]), [[admitted.id, "sent", undefined]],
+        "the first acknowledgement cannot swallow a second exit whose status never committed");
+    } finally { await opened.client.close(); storage = originalStorage; }
+    assert.deepEqual(f.ordinaryRequests, []);
+  } finally { release?.(); f.persist.save = save; f.releaseExit(); }
+});
+
+for (const fault of ["failed marker capture", "denied begin_send", "throwing begin_send"])
+for (const cleanup of (fault === "failed marker capture" ? ["available"] : ["available", "remove throws", "remove and overwrite throw"]))
+test(`first pagehide dispatch with ${fault} starts no keepalive and reopens queued (cleanup ${cleanup})`, async t => {
+  const f = await fixture(t, { stallExitBody: true, applyExit: false });
+  let storage = new Map(), captures = 0, exitCalls = 0, cleanupFails = cleanup !== "available";
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
+    getItem: key => storage.get(key) ?? null,
+    removeItem(key) { if (cleanupFails) throw Error("cleanup unavailable"); storage.delete(key); },
+    setItem(key, value) {
+      if (JSON.parse(value).cancelled) {
+        if (cleanupFails && cleanup === "remove and overwrite throw") throw Error("overwrite unavailable");
+      } else if (key.includes(":exit:")) {
+        captures++;
+        if (fault === "failed marker capture") throw new DOMException("storage full", "QuotaExceededError");
+      }
+      storage.set(key, value);
+    },
+  } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "localStorage", previous) : delete globalThis.localStorage);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "capture must precede send" }, { waitSeconds: 0 });
+  assert.equal(admitted.state, "pending");
+  assert.equal((await f.client.pendingWrites())[0].state, "queued");
+  const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
+  assert.ok(name);
+  const before = await f.persist.load(name);
+  const deviceCall = WebDevice.prototype.call;
+  t.mock.method(WebDevice.prototype, "call", function (request) {
+    if (JSON.parse(request).op === "begin_send" && exitCalls++ === 0 && fault !== "failed marker capture") {
+      if (fault === "throwing begin_send") throw Error("transient device call failure");
+      return JSON.stringify({ denied: { code: "E_STORE", family: "store", message: "transient send refusal" } });
+    }
+    return deviceCall.call(this, request);
+  });
+  await tick();
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(captures, 1, "exit capture was attempted before begin_send");
+  assert.equal(exitCalls, fault === "failed marker capture" ? 0 : 1);
+  assert.equal(f.requests.length, 0, "failed exit dispatch must prevent keepalive");
+  assert.deepEqual(f.ordinaryRequests, [], "ordinary transport never started either");
+  const marker = [...storage.values()].find(value => JSON.parse(value).key.includes(":exit:"));
+  if (cleanup === "available") assert.equal(marker, undefined, "cancellation removes the captured marker");
+  else if (cleanup === "remove throws") assert.deepEqual(JSON.parse(marker), { key: JSON.parse(marker).key, cancelled: true });
+  else {
+    assert.equal(JSON.parse(marker).id, admitted.id, "both failures leave the original marker");
+    await call({ op: "queued" });
+    assert.ok((await f.persist.load(name)).some(c => c.s === "j" && c.k === `exit:${admitted.id}` && c.v === marker),
+      "the next commit acknowledges the staged cancellation without calling begin_send");
+    assert.equal(exitCalls, 1);
+  }
+  // Copy before a living page drains, unless both cancellation writes failed:
+  // that case can recover only after the independent durable acknowledgement.
+  const copy = memoryPersistence();
+  for (const [key, entries] of f.persist.stores) copy.stores.set(key, new Map(structuredClone([...entries])));
+  const options = { url: f.url, persona: "alice", device: webDevice({ wasm, persist: copy }),
+    fetch: () => Promise.reject(new TypeError("reopen offline")) };
+  const originalStorage = storage; storage = new Map(storage);
+  const opened = await prepareClient(options, () => createLocalClient(options));
+  try { assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]); }
+  finally { await opened.client.close(); storage = originalStorage; }
+  cleanupFails = false;
+  await call({ op: "queued" }); // A living hidden page drains any accidental VM mutation or staged acknowledgement.
+  await call({ op: "queued" }); // Retire an acknowledgement after its synchronous marker is removed.
+  assert.deepEqual(await f.persist.load(name), before, "failed dispatch cannot change outbox, send revision or staged exit acknowledgements on a later drain");
+  assert.deepEqual((await f.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]);
+});
+
+for (const end of ["signOut", "close"]) test(`pagehide dispatch subscriber ${end} prevents keepalive and POST`, async t => {
+  const f = await fixture(t);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "must not execute after shutdown" }, { waitSeconds: 0 });
+  assert.equal((await f.client.pendingWrites())[0].state, "queued");
+  await tick();
+  let ending, notices = 0;
+  const stop = f.client.onPendingWrites(() => { notices++; stop(); ending = f.client[end](); });
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(notices, 1, "the dispatch callback ran synchronously");
+  if (end === "signOut") assert.equal(f.client.viewer(), null);
+  await ending;
+  assert.equal(admitted.state, "pending");
+  assert.equal(f.requests.length, 0, "no keepalive starts after the dispatch callback ends the client");
+  assert.deepEqual(f.ordinaryRequests, [], "no ordinary POST starts either");
+  assert.deepEqual(await f.rows(), [], "the real server never receives the cancelled dispatch");
 });
 
 test("IndexedDB save resolves on transaction completion, not request success", async t => {

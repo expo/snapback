@@ -113,6 +113,12 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       if (await refusal()) return undefined;
       return raw.write(id);
     },
+    async pendingWrites() {
+      if (await refusal()) return [];
+      const entries = await raw.pendingWrites();
+      return valid() ? entries : [];
+    },
+    onPendingWrites: listener => listen(notify => raw.onPendingWrites(() => notify(undefined)), listener, undefined),
     async act(op, args, options) {
       const denied = await refusal();
       if (denied) return { denied, id: options?.id ?? mintId() };

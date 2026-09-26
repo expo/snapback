@@ -74,7 +74,7 @@ fn private_replacement<H: Host>(h: &mut H) {
     // page uses a restored predictable outbox entry to exercise private folding.
     let q = Queued { id:"q".into(), seq:1, op:"bump".into(), args:json!({"k":"a"}), new_ids:vec![],
         predicted:vec![], viewer:"dev:alice".into(), now:100, predictable:true,
-        sent_seq:None, receipt_store:None, observed_seq:None };
+        sent_seq:None, receipt_store:None, observed_seq:None, dispatch: None };
     d.enqueue(&q).unwrap(); d.sync_state().unwrap();
     let p: StreamPage = serde_json::from_value(json!({"snapshot":false,"store_id":"A","watermark":1,"more":true,"images_at":2,"committed_above":{"q":2},
         "events":[{"table":"counters","kind":"put","id":"a","data":{"id":"a","n":7}}]})).unwrap();

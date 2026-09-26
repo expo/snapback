@@ -65,7 +65,7 @@ fn pair_devices<H: Host>(host: &mut H, pair: &Pair) {
                 id: "operation-0".into(), seq: 1, op: op.name.clone(), args: op.args.clone(),
                 new_ids: vec!["new-0".into(), "gate-0".into()], predicted: vec![],
                 viewer: op.principal.clone(), now: NOW, predictable: true,
-                sent_seq: None, receipt_store: None, observed_seq: None,
+                sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
             });
             observation.insert("admission".into(), match admission { Ok(entry) => json!(entry), Err(e) => json!({"refusal": e.refusal()}) });
         }
@@ -144,7 +144,7 @@ fn generated_author_lookups_keep_intents_until_settlement() {
         }
         let entry = d.admit(Queued {
             id: "intent".into(), seq: 1, op: op.name.clone(), args: op.args.clone(), new_ids: vec!["new-0".into()], predicted: vec![],
-            viewer: "alice".into(), now: NOW, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None,
+            viewer: "alice".into(), now: NOW, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
         }).unwrap();
         assert_eq!(entry.predictable, case.ordinal == 1, "{}", case.label);
         assert_eq!(d.queued().unwrap(), vec![entry.clone()]);
@@ -197,7 +197,7 @@ fn generated_readable_insert_admission_and_server_dispositions() {
         let op = &pair.operations[0];
         let entry = d.admit(Queued {
             id: "intent".into(), seq: 1, op: op.name.clone(), args: op.args.clone(), new_ids: vec!["new-0".into()], predicted: vec![],
-            viewer: who.into(), now: NOW, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None,
+            viewer: who.into(), now: NOW, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
         }).unwrap();
         let held = d.store().raw_rows("messages");
         if entry.predictable {
