@@ -63621,3 +63621,55 @@ including the client models and server/device disclosure tests; it was not
 repeated after the fixes. The full commands, failure reproductions and
 file-by-file record are in `reports/20260926-p5-unread-range.md`.
 This lane made local commits only; no push or publication.
+
+## 2026-09-26 — P5 round 1: revision 2 preserves Whole and certifies the suffix
+
+Adopted the supervisor's revision 2 of LLP 3000.020 verbatim, retaining its
+Revised history after reading both revision-1 reviews. Whole coverage keeps
+the expiry-index live-basis scan; the 9,000-expired/3-live backlog certifies 3.
+Window coverage extends beyond Whole. Null is the weakest bound, so a non-null
+sibling on the horizon's first free column still selects; all-null operands
+retain the whole-group rule. The writer proves completion at exactly 1,024
+candidates and queues at 1,025. Authority remains uncertain when unresolved;
+expired and retained-only images never contribute. Every counted deadline,
+including a lower-bound contribution, remains visible to offline expiry.
+
+The certificate now distinguishes server certification, each device case and
+metadata-only witnesses from expression/numeric probes. `check` names all
+candidates, greatest-bound selection, indexes and fallback. All three guide
+meter-cut sentences are corrected and generic costs name ordinary aggregates.
+Covered cuts keep their partial without unknown; coverage misses keep their
+lower bound with unknown; neither is speculative. Actual-client evidence
+covers held/prediction fallback fences, empty provisional ranges and successful
+versus refusing dependent mutations. No production client change was needed.
+
+Evidence: 48 shared scenarios on memory, SQLite and wasm, including cold
+reopen; 12 independently applied mutants all killed by behavioral failures.
+Measured native source visits are exactly 3 for 3 unread in 20,000 rows. Three
+badges share 8,168 candidate visits, yielding 4,000 / 4,000 / 168 on both native
+stores and wasm. The server's 20,000-live/3-unread receipts and successful
+count-dependent writer are identical with 0 or 10,000 unswept expired rows.
+Existing server disclosure tests pass unchanged. Pending numeric probes and
+non-uniform-source defenses are tested at the raw core boundary because those
+public spellings are rejected by admission. Visit instrumentation is confined
+to native test-store wrappers; wasm checks the same counts and flags.
+
+Final wasm: 2,024,555 B raw / 582,024 B gzip, +134 / +507 B from round 0;
+70 B below the unchanged 582,094 B budget. Borrowed authority metadata and
+source-index reuse avoid an overrun without changing meters, indexes, server
+certification, private allowance or durable recount cursors. All changed
+source files remain below 1,500 lines. Targeted checks and root ref-check pass.
+
+The one complete round-1 `scripts/test.sh` run exited 0 with the exact summary
+`== 0 failure(s) in 3319 s`. Every stage passed. Client tests: 2,270 passed,
+0 failed, 10 existing platform/optional-fixture skips. Client models: 78 passed,
+including 5,000 online session sequences, 5,000 local session sequences and
+3,000 integrated client interleavings. No post-run repair or rerun was needed.
+The prior round's two memory readiness-timeout cases passed in this full run.
+
+No design deviation or open revision-2 implementation problem. The server's
+unmetered live-group traversal and remembered-answer expiry remain outside this
+lane. The unavailable `llp-orient` skill was replaced by direct corpus/guide
+orientation. Commands, conditional skips, forms, mutants and file-by-file
+changes are in `reports/20260926-p5-unread-range.md`. Local commits only;
+no push or publication.
