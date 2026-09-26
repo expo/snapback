@@ -237,7 +237,15 @@ query selfAppend():
   for n in rows:
     rows = rows + [n]
   return max(rows, secrets['g'].n ?? 0)
-"#, &[("copied", steps), ("shaped", steps), ("selfAppend", steps)]);
+query loopReads(n: int):
+  rows = []
+  for i in range(0, n):
+    rows = rows + [i]
+  result = 0
+  for value in rows:
+    result = secrets['g'].n ?? 0
+  return result
+"#, &[("copied", steps), ("shaped", steps), ("selfAppend", steps), ("loopReads", steps)]);
 }
 
 #[test]
