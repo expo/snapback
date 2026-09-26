@@ -649,3 +649,117 @@ orientation, as recorded in round 1. No new index or store migration, push or
 publication. Round-2 implementation commits are `1439977a3`, `7a7d252e5`,
 `743ae0f52` and `a5948761b`; the report and exactly one appended dated journal
 entry follow in a documentation commit. All carry the requested Astra footer.
+
+## Round 3 — 2026-09-26: complete member costs and strict-first ties
+
+Read the lane prompt, the previous report and both round-2 reviews in full.
+Both READY WITH CHANGES findings are fixed. This section supersedes round 2's
+claim that its certificate covered every member read. The only production
+change is certificate arithmetic; server execution and accounting are unchanged.
+
+### Changes, file by file
+
+- `crates/snapback4/src/scale.rs`: `row_view_work` charges one member fetch
+  for every evaluated row-keyed read, plus one certification unit only when
+  the source expires. It prices the member read rule per evaluated row as
+  well as the existing source rule. Point reads and pages share this helper.
+- `crates/snapback4/tests/scale_row_ranges.rs`: extends
+  `live_view_page_and_point_certificates_cover_real_receipts` with the
+  non-expiring source and the public expiring source whose 100 members share
+  one conversation and use `read <- exists grants[.conversationId, viewer]`.
+  Its page pins that conversation. All three variants assert complete results,
+  every returned count, the exact existing receipt, and certificate bounds
+  at least as large as the receipt for both examined rows and probes.
+- `crates/snapback4-device/tests/unread_range/cases.json`: adds
+  `strict-wins-equal-bound-first`, bringing the shared inventory to 54.
+  `.ordinal > m.readUpTo` precedes `.ordinal >= m.joinedAt`; both member
+  operands are 4. The existing `last 3` acquisition over ordinals 1–6 has
+  its full floor at ordinal 4. The scenario requires count 2, complete and
+  not unknown, before and after reopen on memory, SQLite and wasm. The
+  existing strict-last scenario remains.
+- `JOURNAL.md`: exactly one appended dated round-3 entry.
+- This report: exactly one appended round-3 section.
+
+### Forms and real receipts
+
+No new syntax. The existing point form `unread[member]` and page form
+`unread where .principal = viewer first 100` retain their counts with or
+without `expire at .until`. The grant-protected form reads
+`unread where .conversationId = conversationId first 100` over a public source.
+The reversed equal-bound predicate above certifies exact 2 on all three runners.
+
+Every pair below is **examined / probes**:
+
+| Fixture | Read | Certificate | Real receipt |
+|---|---|---:|---:|
+| Original expiring source | 100-row page | 303 / 202 | 300 / 100 |
+| Original expiring source | Point | 3 / 2 | 3 / 1 |
+| Non-expiring source | 100-row page | 202 / 202 | 200 / 100 |
+| Non-expiring source | Point | 2 / 2 | 2 / 1 |
+| Expiring public source, member grant rule | 100-row page | 303 / 204 | 300 / 101 |
+| Expiring public source, member grant rule | Point | 3 / 4 | 3 / 2 |
+
+### Mutation evidence
+
+Temporarily replaced `strict |= candidate_strict` with
+`strict = candidate_strict` in `maintain/row_key.rs`, then ran:
+
+```sh
+SNAPBACK4_UNREAD_CASE=strict-wins-equal-bound-first CARGO_BUILD_JOBS=8 cargo test -p snapback4-device --test unread_range native_ -- --nocapture
+```
+
+Both native runners failed behaviorally after a successful compile: count 2
+became `complete: false, unknown: true`. Exact result:
+`test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 5 filtered out;`.
+The mutant was restored byte-for-byte before final checks; `row_key.rs` has
+no round-3 diff. Log: `/tmp/p5-r3-strict-mutant.log`.
+
+### Final affected checks and wasm
+
+Commands ran from `snapback4/`, with `$HOME/.local/bin` and `$HOME/.cargo/bin`
+on PATH and `CARGO_BUILD_JOBS=8` for Cargo/build commands.
+`bun install --frozen-lockfile` checked 507 installs with no changes.
+
+| Command | Result |
+|---|---|
+| `cargo test -p snapback4 --test scale_row_ranges -- --nocapture` | 5 passed; all six receipt comparisons above pass. |
+| `cargo test -p snapback4-device --test unread_range -- --nocapture` | 7 passed; all 54 shared scenarios on memory and SQLite, both guide executions and all measured-work tests. |
+| `cargo test -p snapback4-lang --test guide` | 86 passed. |
+| `bash scripts/build-wasm.sh` | Passed unchanged budget. |
+| `node --test --test-concurrency=1 packages/snapback4/test/unread-range.test.mjs` | 62 passed, 0 failed, 0 skipped; 28.476 s. Includes all 54 shared wasm scenarios, reopen, guide and client fallback checks. |
+
+Wasm is **2,024,909 B raw / 582,036 B gzip**, unchanged from round 2, with
+**58 B** remaining under the unchanged **582,094 B** budget. The final wasm
+runner uses that rebuilt artifact. No toolchain, profile or budget change.
+
+The first certificate-test compile exposed a test-only `Option`/`Result`
+comparison typo in the new returned-count assertion. Corrected before the
+successful run; no product failure or environmental failure remains. The
+strictness mutant's two failures are expected evidence, not qualification reds.
+Logs are `/tmp/p5-r3-certificate.log`, `/tmp/p5-r3-unread-native.log`,
+`/tmp/p5-r3-guide.log`, `/tmp/p5-r3-wasm-build.log` and
+`/tmp/p5-r3-unread-wasm.log`.
+
+Final `git diff --check` passes. The append-only audit confirms both documents
+retain their original bytes and add exactly one section. All changed source
+files remain below 1,500 lines. Root `./ref-check --verbose` passes:
+
+```text
+ref-check: ok — 514 LLP docs, 9452 refs in 26813 files, 0 errors, 0 unchecked
+```
+
+### Qualification and scope
+
+Per the final-round instruction, **did not rerun `scripts/test.sh`**. Round 2's
+green run remains the qualification, exit 0 with the exact summary:
+
+```text
+== 0 failure(s) in 3119 s
+```
+
+No design deviation or unresolved round-3 finding. The existing unmetered
+server walk and remembered-answer-expiry exclusions remain outside this lane;
+their reproductions are recorded above. No server accounting, selector
+implementation, index, migration, guide text or budget change. The prior
+report and journal contents remain intact. Local commit only, with
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push or publication.
