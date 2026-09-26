@@ -87,7 +87,7 @@ export class EphemeralReads {
     if (!replaced) {
       const tables = new Set((value as EphemeralVersion & { tables?: string[] }).tables ?? []);
       for (const interest of this.interests.values()) if ([...interest.tables].some(table => tables.has(table))) {
-        interest.floor = version;
+        if (interest.floor?.incarnation !== version.incarnation || interest.floor.epoch < version.epoch) interest.floor = version;
         interest.invalidate(false);
       }
     }

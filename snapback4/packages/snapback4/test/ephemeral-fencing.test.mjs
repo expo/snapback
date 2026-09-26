@@ -15,6 +15,8 @@ test('poll coverage uses the smallest watch answer, and stale revisions precede 
   const oldQ = reads.request(), oldPoll = reads.pollRequest();
   assert.ok(reads.accept(reads.request(), { incarnation: 'A', epoch: 55 }, b));
   assert.equal(reads.parameters().epoch, 50);
+  assert.ok(reads.changed(reads.pollRequest(), { incarnation: 'A', epoch: 51, tables: ['viewing'] }));
+  assert.equal(reads.accept(reads.request(), { incarnation: 'A', epoch: 54 }, b), false, 'an older poll cannot lower the floor of a newer query answer');
   assert.equal(reads.accept(reads.request(), { incarnation: 'A', epoch: 49 }, a), false);
   assert.ok(reads.accept(reads.request(), { incarnation: 'B', epoch: 1 }, b));
   assert.equal(reads.accept(oldQ, { incarnation: 'A', epoch: 50 }, a), false);
