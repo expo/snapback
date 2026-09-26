@@ -1,48 +1,32 @@
-// A live client follows the presence its watches read (LLP 3000.017 §3.2).
+// A live client follows the presence its watches read, by opaque tokens the
+// server issued with each answer (LLP 3000.017 §3.2, §3.5).
 
-/** At most this many principals ride on one held poll; the server takes as many. */
+/** At most this many tokens ride on one held poll; the server takes as many. */
 export const FOLLOW_LIMIT = 64;
-/** A query read lets its viewer follow a principal for 10 minutes; watches that
- * read presence re-run at half that, so an honest client never lapses (§3.5). */
+/** A token lives 10 minutes; watches that read presence re-run at half that,
+ * so an honest client never lapses (§3.5). */
 export const PRESENCE_RENEW_MS = 300_000;
 
-/** The newest connected bit this client has seen for each principal. */
-export class PresenceFollow {
-  private readonly bits = new Map<string, boolean>();
-
-  /** Records bits from a query answer or a change answer. Returns the
-   * principals whose bit moved, so watches that read them re-run. */
-  observe(presence: Readonly<Record<string, boolean>> | undefined): string[] {
-    const moved: string[] = [];
-    for (const [principal, bit] of Object.entries(presence ?? {})) {
-      if (this.bits.has(principal) && this.bits.get(principal) !== bit) moved.push(principal);
-      this.bits.set(principal, bit);
+/** The tokens to send on the next poll: those the live watches hold. */
+export function followTokens(watches: Iterable<{ readonly presence: ReadonlySet<string> }>): string[] {
+  const tokens: string[] = [];
+  for (const watch of watches) {
+    for (const token of watch.presence) {
+      if (tokens.includes(token)) continue;
+      if (tokens.length === FOLLOW_LIMIT) return tokens;
+      tokens.push(token);
     }
-    return moved;
   }
-
-  /** The bits to send on the next poll: principals some live watch read. */
-  follow(watches: Iterable<{ readonly presence: ReadonlySet<string> }>): Map<string, boolean> {
-    const followed = new Map<string, boolean>();
-    for (const watch of watches) {
-      for (const principal of watch.presence) {
-        const bit = this.bits.get(principal);
-        if (bit === undefined || followed.has(principal)) continue;
-        if (followed.size === FOLLOW_LIMIT) return followed;
-        followed.set(principal, bit);
-      }
-    }
-    return followed;
-  }
+  return tokens;
 }
 
-/** Whether two follow lists carry the same principals and bits. */
-export function sameFollow(a: ReadonlyMap<string, boolean>, b: ReadonlyMap<string, boolean>): boolean {
-  return a.size === b.size && [...a].every(([principal, bit]) => b.get(principal) === bit);
+/** Whether two follow lists carry the same tokens. */
+export function sameFollow(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((token) => b.includes(token));
 }
 
-/** Re-runs watches that read presence on a timer while any exist, renewing the
- * server's grants; returns a stop function for close. */
+/** Re-runs watches that read presence on a timer while any exist, renewing
+ * their tokens; returns a stop function for close. */
 export function presenceRenewal(watches: () => Iterable<{ readonly presence: ReadonlySet<string> }>, rerun: (watch: { readonly presence: ReadonlySet<string> }) => void) {
   let timer: ReturnType<typeof setInterval> | undefined;
   const any = () => { for (const watch of watches()) if (watch.presence.size) return true; return false; };

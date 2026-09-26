@@ -1722,10 +1722,10 @@ tables. A different identity or a head below `since` answers immediately; a regr
 response starts immediately and sends JSON whitespace every 2 seconds before the final JSON object. Proxies
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
 `denied`, including `E_AUTH` if the session ended while waiting. A query that reads `connected[p]` answers
-`presence: { p: bit }` beside its data. `follow=p:1,q:0` (URL-encoded principals, at most 64) makes the poll
-answer too when one of those bits moves: at once if it already differs, on `p`'s first poll, or when the
-grace after `p`'s last poll ends. That answer carries `presence` with each moved principal's new bit and may
-keep `seq`; the clients re-run the watches that read those principals (LLP 3000.017). `POST /assets` (the file's bytes as the body,
+an opaque `presence` token beside its data. `follow=<token>,…` (at most 64, only the caller's own tokens)
+makes the poll answer too when presence behind a token moves: at once if it already moved, on a followed
+principal's first poll, or when a followed grace ends. That answer carries `presence: [<token>, …]` and may
+keep `seq`; the clients re-run the watches holding those tokens (LLP 3000.017). `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
 uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{
