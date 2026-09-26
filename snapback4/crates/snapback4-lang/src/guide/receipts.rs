@@ -34,35 +34,43 @@ table messages:
   conversation: conversations
   sender: principal
   ordinal: int
+  recipients: int
   text: text <=2000
   at: time
   unique conversation, ordinal
-  immutable conversation, sender, ordinal, at
+  immutable conversation, sender, ordinal, recipients, at
   read <- exists members[.conversation, viewer]
   insert <- .sender = viewer and exists members[.conversation, viewer]
   sync to members[.conversation] last 500 by .ordinal
 
 fn receipt(m: messages):
   state = 'read'
-  recipients = 0
+  remaining = 0
   for member in members where .conversation = m.conversation:
     if member.principal != m.sender and member.joinedOrdinal < m.ordinal:
-      recipients = recipients + 1
+      remaining = remaining + 1
       if member.deliveredOrdinal < m.ordinal:
         return 'sent'
       if member.readOrdinal < m.ordinal:
         state = 'delivered'
-  return state if recipients > 0 else 'sent'
+  return state if remaining > 0 or m.recipients > 0 else 'sent'
 
 query history(conversation: conversations, c: cursor ?):
   return messages where .conversation = conversation last 20 by .ordinal after c { *, receipt: receipt(.) }
+
+query membership(conversation: conversations):
+  return members[conversation, viewer]
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
   chat = conversations[conversation] ! else NOT_FOUND
   ordinal = chat.lastOrdinal + 1
+  recipients = 0
+  for member in members where .conversation = conversation:
+    if member.principal != viewer:
+      recipients = recipients + 1
   update conversations[chat] { lastOrdinal: ordinal }
-  m = insert messages { conversation, sender: viewer, ordinal, text, at: now }
+  m = insert messages { conversation, sender: viewer, ordinal, recipients, text, at: now }
   return m.id
 
 mutation add(conversation: conversations, principal: principal):
@@ -98,38 +106,48 @@ last ordinal when they join. So commit order, not the clock, decides a
 message's recipients: the members other than its sender who joined before it.
 A member who joined later is not a recipient. One who leaves drops out of every
 message they had not reached, and a rejoin starts after the messages already
-sent. A message with no recipients stays `sent`.
+sent. A message records how many recipients it had. Once all of them leave, the
+requirement is met; a message sent to nobody stays `sent`. So a receipt only
+ever moves forward.
 
-A watermark names the newest message the member's client fetched (`delivered`)
-or showed (`seen`). It only moves forward, and never past the conversation's
-last ordinal. A member who returns after more than the 500 synced messages
-acknowledges the newest ones, so older ones their client never held count as
-delivered. Each message costs one scan of at most 50 member rows; `check
---cost` prints the certificate.
+A watermark claims every message through an ordinal, so a client acknowledges
+only an unbroken run of messages it fetched after its delivered watermark:
+`delivered` while the conversation is in the background, and `seen` while it is
+on screen. Where a page leaves a gap, the client loads older pages first, which
+fetches them. Both are the member's own report. The recipe bounds them by the
+last message, not by what a client really consumed. Each message costs one
+scan of at most 50 member rows; `check --cost` prints the certificate.
 
-The client reports `delivered` when a complete, fresh page brings a newer
-settled message, and `seen` while the conversation is on screen. A predicted
-row carries `pending: true` and its ordinal is not yet the server's:
+The client acknowledges from complete pages, offline too, since both mutations
+predict and queue. A predicted row carries `pending: true` and its ordinal is
+not yet the server's, so it is never acknowledged:
 
 ```ts
 import { useEffect } from "react";
-import { useClient, usePage } from "snapback4/react";
+import { useClient, usePage, useQuery } from "snapback4/react";
 import { api } from "./snapback/generated/api";
 function useReceipts(conversation: string, visible: boolean) {
   const client = useClient();
   const page = usePage(api.history, { conversation });
-  const settled = page.items.filter(m => !m.pending);
-  const ready = "data" in page.read && page.read.complete && page.read.fresh;
-  const newest = ready && settled.length ? Math.max(...settled.map(m => m.ordinal)) : null;
+  const me = useQuery(api.membership, { conversation });
+  const settled = new Set(page.items.filter(m => !m.pending).map(m => m.ordinal));
+  const ready = "data" in page.read && page.read.complete && "data" in me && me.data !== null;
+  // An unbroken run of fetched messages after the delivered watermark.
+  const floor = ready ? me.data.deliveredOrdinal : null;
+  let through = floor;
+  while (through !== null && settled.has(through + 1)) through++;
+  const newest = settled.size ? Math.max(...settled) : null;
+  const gap = through !== null && newest !== null && through < newest;
+  useEffect(() => { if (gap && page.hasMore) page.loadMore(); }, [gap, page.hasMore]);
+  const mark = ready ? (visible ? me.data.readOrdinal : me.data.deliveredOrdinal) : null;
   useEffect(() => {
-    if (newest !== null) void client.mutate(visible ? api.seen : api.delivered, { conversation, through: newest });
-  }, [client, conversation, newest, visible]);
+    if (through !== null && mark !== null && through > mark) void client.mutate(visible ? api.seen : api.delivered, { conversation, through });
+  }, [client, conversation, through, mark, visible]);
   return page;
 }
 ```
 
-Render `receipt` as one tick (`sent`), two ticks (`delivered`) or two colored
-ticks (`read`). On a device both mutations predict and queue offline, and the
-sender's ticks move when the member's watermark syncs. A typing indicator is an
-expiring table (`guide reads`); who is connected now is `connected[p]`
-(`guide presence`)."##;
+Render a clock while a message is `pending`; after settlement render `receipt`
+as one tick (`sent`), two ticks (`delivered`) or two colored ticks (`read`). A
+typing indicator is an expiring table (`guide reads`); who is connected now is
+`connected[p]` (`guide presence`)."##;

@@ -253,7 +253,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let member = |row: &str, chat: &str, principal: &str| ("members".to_owned(), snapback4_core::value::object([("id", id(row)), ("conversation", id(chat)), ("principal", id(principal)), ("joinedOrdinal", Value::Int(0))]));
     let chat = |row: &str| ("conversations".to_owned(), snapback4_core::value::object([("id", id(row)), ("creatorId", id("alice")), ("lastOrdinal", Value::Int(0))]));
-    engine.seed([chat("c"), chat("solo"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice")]).unwrap();
+    engine.seed([chat("c"), chat("solo"), chat("pair"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob")]).unwrap();
     let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
     let receipts = |engine: &mut Engine, conversation: &str| -> Vec<String> {
         let page = engine.query("history", at("alice", 9_000, &[("conversation", id(conversation))])).unwrap();
@@ -282,6 +282,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     send(&mut engine, "alice", 2_000, "m4");
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"]);
     assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_100, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "no watermark past the last message");
+    assert_eq!(failed(&engine.mutate("seen", None, at("bob", 2_110, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "seen is bounded too");
     sent(&engine.mutate("seen", None, at("bob", 2_200, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "read", "read", "read"], "dave is a recipient of m4 only");
     sent(&engine.mutate("seen", None, at("dave", 2_300, &[c(), through(4)])).unwrap());
@@ -291,6 +292,15 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     sent(&engine.mutate("delivered", None, at("bob", 2_500, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "watermarks only move forward");
+    // A receipt never moves back: once every recipient leaves, the requirement is met.
+    let pair = || ("conversation", id("pair"));
+    sent(&engine.mutate("send", None, at("alice", 2_600, &[pair(), ("text", text("p1"))]).with_ids(["p1".into()])).unwrap());
+    sent(&engine.mutate("seen", None, at("bob", 2_700, &[pair(), through(1)])).unwrap());
+    assert_eq!(receipts(&mut engine, "pair"), ["read"]);
+    sent(&engine.mutate("leave", None, at("bob", 2_800, &[pair()])).unwrap());
+    assert_eq!(receipts(&mut engine, "pair"), ["read"], "the only recipient leaving does not undo read");
+    sent(&engine.mutate("add", None, at("alice", 2_900, &[pair(), ("principal", id("bob"))]).with_ids(["pb2".into()])).unwrap());
+    assert_eq!(receipts(&mut engine, "pair"), ["read"], "a rejoin starts after p1");
     // A message with no recipients stays sent.
     sent(&engine.mutate("send", None, at("alice", 3_000, &[("conversation", id("solo")), ("text", text("alone"))]).with_ids(["s1".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "solo"), ["sent"]);
