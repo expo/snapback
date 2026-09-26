@@ -450,3 +450,235 @@ No known product defect or unresolved failed affected test remains. The
 qualification limitation is explicit: the sole full run is red from the
 subsequently repaired documentation example. The supervisor still owns
 integration of the revised RFC. No push or publication was performed.
+
+## Round 3 — 2026-09-26: an answer never outlives its deadlines
+
+Read both blind reviews in full and accepted every finding. Fetched origin and
+merged the requested `992cec75c` before changing implementation. Merge
+`bd80dd6c3` keeps both journal histories, both import additions in `client.ts`
+and `react.tsx`, the keep option and the custody `waitSeconds` API, and both
+sets of reads-guide and client-reference corrections. The reads fact fixture
+matches the combined card. Main's `app-online.ts`, `contract.ts`, `local.ts`,
+`mock.ts`, `writes.ts`, starter intents, draft handling and known-outcome
+preservation remain integrated. No push or publication.
+
+### Findings, file by file
+
+Paths below are relative to `snapback4/`.
+
+- **Active expiry (both reviewers).** `src/local-reads.ts` keeps a displayed
+  kept answer's expiry timer armed through `apply`, `admit` and `settle`.
+  `src/local.ts` preserves it when a replacement is loading or throws, and
+  expiry still calls `reset` before re-reading, fencing the held local result
+  with `resetVersion`. `src/client.ts` preserves the displayed deadline through
+  loading, transport failure, stale responses and retry exhaustion. Accepted
+  replacement deadlines are installed before subscriber notification, so a
+  synchronous close cannot cache a new answer with its predecessor's deadline.
+  Schema-discovery loading also preserves a deadline when it preserves data.
+- **Idle expiry (Astra).** `src/kept-answers.ts` stores the answer's device and
+  server deadlines with the snapshot. `take` checks those clocks as well as the
+  30-second wall-time lifetime, and rejects an expired answer synchronously.
+  Both clients re-arm the original withdrawal deadline on an unexpired remount.
+  `src/read-observation.ts` carries the internal deadline and ephemeral-interest
+  metadata. New `src/read-expiry.ts` shares the timer mechanics and deadline
+  predicate, including long-timer clamping and clock rechecks. A local wakeup
+  of a remembered server answer remains distinct from that answer's expiry;
+  its server deadline still ends retention. Clock corrections re-arm active
+  deadlines in their original domains.
+- **Ephemeral idle memory (Astra).** `src/ephemeral-reads.ts` invokes an idle
+  retirement callback inside incarnation adoption, before iterating active
+  interests. Both clients wire it to `KeptAnswers.clearEphemeral()`. Affected
+  idle entries disappear before any subscriber can synchronously remount one;
+  durable-only idle entries keep their ordinary lifetime.
+- **Viewer discovery (Astra).** `src/client.ts` schedules kept watches after
+  `setViewer`, including the null-to-viewer transition for `createClient({
+  token })`. An in-flight watch is marked dirty and retries when its fenced
+  response settles. A reset response cannot install obsolete expiry metadata.
+  Live viewer changes still reset active and idle data while credentials stay
+  valid. Replacement retries stop when credentials end.
+- **Contradictory prose (Grok).** `CLIENT-AND-OPERATIONS.md` opens the default
+  withdrawal paragraph with **“Without `keep`”**. It and
+  `crates/snapback4-lang/src/guide/reads.rs` now say expiry ends active and idle
+  retention, and ephemeral incarnation changes retire both. The existing
+  `guide-fact-homes.json` reads fact is updated; no new inventory or gate.
+
+Source paths above are under `packages/snapback4/` unless stated otherwise.
+The largest changed source, `local.ts`, is 1,481 lines; none exceeds 1,500.
+
+### Forms that still compile and run
+
+```tsx
+const inbox = useQuery(api.inbox, {}, { keep: true });
+const thread = usePage(api.thread, { conversationId }, { keep: true });
+const watch = client.observe(api.inbox, {}, { keep: true });
+const ordinary = useQuery(api.inbox, {});
+const submitted = await client.mutate(api.send, args, { waitSeconds: 0 });
+```
+
+The first three opt into stale presentation within the answer's lifetime;
+the fourth keeps default withdrawal. The last is the merged custody boundary:
+return at custody while the write's known outcome and saved draft remain owned
+by the existing write/application machinery. No new authoring form is added
+in round 3. The README check compiled 30 blocks covering 46 public functions.
+
+### Regression tests and mutation evidence
+
+`packages/snapback4/test/keep-expiry.test.mjs` adds **18 tests**:
+
+- real wasm/process `apply`, `admit` and `settle` with an expiring row and the
+  replacement held: withdrawal occurs at expiry, direct device reads are
+  null, and releasing the pre-expiry payload cannot restore it (6);
+- a real-server online change notification with its replacement held (1);
+- throwing local re-reads on both devices, and online loading without
+  `nextExpiry` and transport failure, all preserving the old deadline (4);
+- each of wasm, process and online remounting before expiry with its original
+  timer re-armed, or after expiry with synchronous rejection (6);
+- separate device/server clock limits and remembered local-wakeup provenance
+  in idle memory (1).
+
+`packages/snapback4/test/keep-incarnation.test.mjs` adds **9 tests**:
+
+- wasm, process and online incarnation replacement: capture an idle remount's
+  snapshot *inside* the active notification callback, then require both
+  watches to reach incarnation B when held reads are released (3);
+- real wasm/process local reads evaluated before `refreshSession`, held
+  through the credential reset and released while rotation is pending: their
+  payload never publishes, even transiently; later reads recover (2);
+- token-only initial queries with default and kept observations (2);
+- a live online `setViewer` transition with credentials still up, active/idle
+  withdrawal and replacement reads (1);
+- a bounded child-process check that signed-out observations settle instead
+  of starving the event loop with reset retries (1).
+
+Executed mutations against generated JavaScript, restoring the original file
+in `finally` after every experiment. **All eight killed; 16 expected assertion
+failures, no surviving mutation**:
+
+| Mutation | Expected failing tests |
+| --- | ---: |
+| Local `scheduleExpiry`: `reload()` instead of `reset()` for keep | 2 |
+| Remove the local `resetVersion` conjunct | 2 |
+| Local ephemeral callback: `if (reset && !watch.keep)` | 2 |
+| Online ephemeral callback: `if (reset && !watch.keep)` | 1 |
+| Remove `resetKept()` from live `setViewer` | 1 |
+| Ordinary local commits disarm all expiry timers | 2 |
+| Idle `take` ignores the answer's deadline | 3 |
+| Incarnation adoption leaves idle answers | 3 |
+
+The last extra mutation initially survived because the test checked the remount
+after the active-interest iteration could reset it. Capturing the snapshot
+inside the callback closes that blind spot. No mutant is committed. Exact
+mutations, assertion logs and exit statuses are in
+`target/lane-k-round3-evidence/` (`mutations.py`, `mutations.json`, named `.diff`
+and `.log` files).
+
+### Targeted verification and corrections during development
+
+- On the merged tree before fixes: **189 passed**, covering keep/withdrawal,
+  custody seams, online intent storage, React and README examples.
+- Expanded read/expiry/reset/publication run: **111 passed**.
+- Presence, remembered-answer ordering and capability discovery: **53 passed**.
+- Final combined expiry/incarnation/React/README/capability run:
+  **78 passed, 0 failed, 0 cancelled, 0 skipped**.
+- Package build/typecheck and documentation budget passed. Reference audit:
+  **513 LLP docs, 9,443 refs in 26,813 files, 0 errors, 0 unchecked**.
+- During development, the new online reset retry initially applied to signed-out
+  default observations and caused the Chromium AppProvider case to loop. The
+  hung targeted run was terminated; a diagnostic run hit its 30-second limit.
+  This was introduced here, fixed before the required full run, and covered by
+  the new child-process regression plus the existing Chromium account-switch
+  case. The final React harness passed all 36 tests including its parent.
+- Test-only corrections: settlement may already display the admitted prediction;
+  assertions about late payloads start after observed withdrawal; refresh
+  fixtures need a session `kind`; the signed-out watchdog unsubscribes before
+  close changes its refusal from `E_AUTH` to `E_CLOSED`. These are not waived
+  failures or changed product requirements.
+
+### Decisions, deviations and open problems
+
+No requested finding was rejected, deferred or stopped. No design deviation:
+explicit keep remains a presentation choice, expiry ends it, and default
+withdrawal, engine authorization, meters, ordered remembered-server recovery,
+write custody and publication fences remain in force. The internal expiry
+helper keeps clock provenance explicit and keeps `local.ts` below the source
+limit. Ephemeral eviction is restricted to affected ephemeral observations.
+
+Orientation used the installed `llp-orient` skill from
+`/home/ccheever/lanes/enginefix/vendor/llp/skills/llp-orient/SKILL.md` because
+the lane's link is broken. Governing context: LLP 3000 §7, LLP 3000.001 repair
+B, LLP 3000.007 §18.2, LLP 3000.016 §2.2, LLP 3000.017 §3.3, LLP 3000.018
+§3.2 and LLP 3000.019 §3.3; the merged LLP 3000.008.002.000 supplies the
+custody boundary. The merged supervisor RFC now contains the explicit-keep
+revision, superseding round 2's note about its old wording. No LLP redesign,
+new syntax, diagnostic, engine/meter change, budget increase, outbox feature,
+version change, delegated agent, push or publication.
+
+Implementation commits: `bd80dd6c3` (merge), `122cbdc30` (deadlines and idle
+memory), `b6e0960e3` (incarnation/viewer recovery), `58f2c7578` (signed-out
+retry termination). Guide-fixture repair: `a96152221` restores main's `writes-04` custody wording
+and `language-19` client-card addition, both omitted in the first conflict
+resolution. The full guide test exposed that merge error; its repair run passed
+86/86. All commits end with the requested co-author trailer.
+
+### Exact full-run qualification
+
+Required `scripts/test.sh` ran **once**, unmodified, and finished:
+
+```text
+== 2 failure(s) in 1033 s
+   cargo test
+   client tests
+```
+
+Exit **1**. Every failure and its disposition:
+
+1. **Introduced here: merge fixture omission.** Rust test
+   `familiar::every_moved_fact_has_its_why_or_details_home` reported
+   `writes-04 lost its Details home`. Inspection also found the omitted
+   `language-19` update. The merge resolution had taken the old fixture wholesale
+   and then replaced `reads-06`, losing those two nonconflicting main updates.
+   Commit `a96152221` restores both verbatim from `992cec75c`, retaining the
+   combined reads fact. Affected repair check:
+   `cargo test -p snapback4-lang --test guide` — **86 passed, 0 failed,
+   0 ignored**. Log: `target/lane-k-round3-evidence/guide-repair.log`.
+2. **Baseline timing-sensitive test: incomplete ephemeral refresh.**
+   `online: incomplete ephemeral answers refresh on a fixed 1 s cadence without
+   a change` (`ephemeral-watches.test.mjs:54`) measured **15.16348 ms**, outside
+   its 850–1,250 ms assertion. The test counts initial capability-discovery
+   re-reads as cadence reads before schema installation settles. The unchanged
+   affected file subsequently passed **4/4** on the final client. To establish
+   attribution, built the exact `992cec75c` client sources in an isolated
+   directory under this lane's `target/`, using the unchanged server/wasm
+   artifacts. Its unmodified online cadence case passed **20/20** isolated
+   attempts; adding only a **100 ms delay before `/schema`** in the copied
+   test's fetch wrapper reproduced the same assertion on that baseline:
+   **`cadence 105.211412`**, **1 test failed**, exit **1**. No lane production
+   code was used in that client build and no test assertion was changed.
+   The initial-discovery retry is legitimate; the test's assumption that its
+   second and third requests must be timer-driven is not stable. No production
+   cadence change or test weakening was made for this baseline issue.
+
+The cadence assertion is the remaining **open baseline test problem**. A
+concrete reproduction is to insert
+`if (path === '/schema') await delay(100);` immediately before
+`defaultFetch(input, init)` in that test's fetch wrapper and run only its
+`online: incomplete` case on `992cec75c`. The executable copied reproduction
+is at `target/lane-k-round3-evidence/baseline/snapback4/packages/snapback4/test/ephemeral-cadence-delay.mjs`;
+its log is `baseline-cadence-delay.log`. `ephemeral-cadence-rerun.log` records
+the final-tree 4/4 pass. This is an inherited timing assumption, not an
+unresolved lane retention defect; no separate environmental failure was found.
+
+Full-run Rust: **3,572 passed, 1 failed, 19 ignored**. Main client batch:
+**2,264 tests, 2,253 passed, 1 failed, 10 existing skips**; all separate shards
+passed. Models: **78 passed, 0 failed, 0 skipped**. All **27 new round-3
+regressions** passed in the full run. The existing keep cases, withdrawal
+guards, and Chromium cases passed too. Build/typecheck, docs budget, release
+guard, both app typechecks and fixture wrappers passed.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B** from round 2;
+unchanged budget **582,094 B**, headroom **1,000 B**. No budget increase.
+Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`.
+Full log and exit: `target/lane-k-round3-evidence/test-sh.log` and
+`test-sh.exit`. The full script was not repeated. The repaired final tree has
+passing affected checks; **no green full-suite result is claimed**.

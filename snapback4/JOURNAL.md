@@ -63214,6 +63214,7 @@ No interpreter, wire, authorization, meter, version or wasm-budget change;
 no outbox work, push or publication. The supervisor-owned RFC in this checkout
 still has its earlier wording; the explicit revision-4 instruction governed
 this implementation. Previous journal entries are untouched.
+
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
@@ -63697,3 +63698,48 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+## 2026-09-26 — 0.4.4 lane K, round 3: expiry bounds kept answers
+
+Merged the requested main at `992cec75c` into `sb4-intent/k-answers-stay`,
+preserving both journal histories, custody wait options, known write outcomes,
+starter drafts, and the explicit keep option. Accepted all Astra/Grok findings.
+Kept answers carry device/server deadlines through ordinary commits, failed or
+loading re-reads, and idle memory; expired entries cannot remount, and unexpired
+ones re-arm withdrawal. A shared expiry helper preserves remembered local-wakeup
+provenance and keeps local.ts at 1,481 lines. Ephemeral adoption clears affected
+idle entries before active notifications. Viewer discovery schedules replacement
+reads, including a token-only client's first query and live viewer changes.
+The contradictory default paragraph now starts “Without `keep`”.
+
+Added 27 regression tests: real wasm/process apply/admit/settle at expiry with
+held reads, failed/loading replacements, remounts on both sides of the deadline,
+synchronous idle remount during ephemeral reset, pre-refresh local payloads,
+token discovery and live viewer changes. Eight mutations were killed with 16
+expected assertion failures, including every surviving mutation the reviewers
+named. The extra idle-eviction mutant required capturing the snapshot inside
+the callback. A signed-out retry loop introduced during this round was caught
+by Chromium, fixed before the full run, and given a bounded subprocess test.
+Targeted runs passed 189 after the merge, 111 read regressions, 53 presence and
+memory-ordering cases, and 78 final combined cases. No tests were weakened to
+hide product failures. Report: reports/20260926-lane-k-answers-stay.md, round 3.
+
+No engine, authorization, meter, outbox, version or wasm-budget change. No push,
+publication or delegated agent. The report records exact full-run qualification
+and any failures below.
+
+Required scripts/test.sh ran once, unmodified: `== 2 failure(s) in 1033 s`,
+exit 1 (cargo test; client tests). Ours: the merge omitted main's writes-04
+custody fact and language-19 client-card fact; restored both in a96152221,
+then the entire affected guide suite passed 86/86. Baseline: the online
+incomplete-ephemeral cadence test observed a 15 ms discovery re-read as a
+1 s timer tick. The unchanged affected file passed 4/4 isolated; exact main
+992cec75c reproduces the assertion with only a 100 ms schema-response delay
+(cadence 105.211412 ms). The report records that open test-timing problem and
+its executable reproduction. No production cadence change or test weakening.
+Full-run Rust: 3,572 passed, 1 failed, 19 ignored. Main client batch: 2,253
+passed, 1 failed, 10 existing skips; separate shards passed. Models: 78/78.
+All 27 new regressions passed. Wasm: 2,021,689 B raw / 581,094 B gzip, delta
+0 B, 1,000 B below the unchanged 582,094 B budget. Affected repairs are green;
+no second full run and no green final full-suite claim. All commits carry
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
