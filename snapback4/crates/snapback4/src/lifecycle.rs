@@ -87,8 +87,8 @@ extern "C" fn signal_received(signal: libc::c_int) {
     if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) && WORKER_CLEANUP.load(Ordering::Acquire) {
         SIGNAL.store(signal, Ordering::Release);
     } else {
-        // Preserve immediate termination when there is no child to clean up,
-        // and preserve fatal signals' OS status/crash report in every mode.
+        // Terminate immediately when there is no cleanup, and preserve fatal
+        // signals' OS status/crash report in every mode.
         unsafe { libc::signal(signal, libc::SIG_DFL); libc::raise(signal); }
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]

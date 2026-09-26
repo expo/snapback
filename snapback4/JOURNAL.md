@@ -65250,6 +65250,222 @@ authorization, meter, outbox, public API/syntax, version or budget change.
 No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
 no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.
 
+## 2026-09-26 — 0.4.4 lane LT: the server knows its own p95
+
+Implemented LLP 3000.019 §3.7 on `sb4-intent/lt-latency`, from `cfa35e161`.
+The HTTP host records query, mutation and action paths, sync, change polls,
+and asset upload/download in fixed histogram pairs, with counts, refusals,
+nearest-rank p50/p95/p99 and exact maxima. Each operation's statistics use
+7,720 bytes, plus its name/map entry. The 480 integer logarithmic buckets
+cover zero through every u64 nanosecond value, including 10 µs to 10 minutes,
+with at most 5% relative percentile error; no samples or row data are retained.
+Invalid operation names share three fixed entries. Successful adoption keeps
+surviving entries and drops retired names, bounding the registry by the active
+program and seven fixed entries.
+
+Acceptance is timestamped in the vendored HTTP parser after headers and before
+body prebuffering. Total ends at response write/flush; a streamed asset's later
+one-view bookkeeping is excluded. Wait ends at the first engine acquisition,
+including authentication; a request that never acquires it has zero wait.
+Later acquisitions remain in total. One separate mutex records the sample;
+recording never acquires the engine. Refusals include top-level denials, failed
+write/action envelopes, HTTP errors and failed/aborted transports, but not
+nested user data or incomplete reads. These are HTTP request timings, including
+held polls and action pending responses, not asynchronous handler durations.
+Reset excludes requests accepted before the new window, even if they finish
+later. Timings use monotonic time and a real Unix-millisecond `since`, independent
+of the development clock.
+
+Added `/dev/latency` and dev-only `/dev/latency/reset`. Dev inspection does not
+take the engine; production inspection uses the existing live service-token
+check, which still acquires the engine for authentication. Ordinary doctor
+shows the three slowest observed total p95s and the worst wait; `--latency`
+shows every entry, `--json` emits the snapshot, and `--latency --reset` starts a
+new window. Reset is bound to the store identity doctor inspected, so a reused
+listener port cannot reset another store's metrics. Doctor uses HTTP/1.0 for
+its bounded close-only reader: an audit found that snapshots above 32 KiB
+otherwise use chunked framing. The added 300-operation regression proves both
+read and reset past that threshold. The bounds card owns the command recipe;
+its lead and Quarry blocks remain unchanged. No new diagnostic code.
+
+Targeted evidence: nine histogram/HTTP regressions pass, including 200,000
+random samples, all bucket boundaries, bounded unknown names, request counts
+and logical refusals, held-engine attribution with independent inspection,
+in-flight reset, service authorization and expiry, admission refusal, and
+successful asset streams plus range refusal. Two real-process CLI tests pass;
+the final HTTP-framing fix also passes all four existing adoption/doctor
+regressions. Whole guide: 86/86. Both ignored measurement tests were explicitly
+run and passed. One million recordings measured 81.4 ns/request. Alternating
+2,000 real HTTP reads per mode measured off p50/p95 269.364/376.144 µs and on
+270.185/373.280 µs: median +0.821 µs (0.30%), with no visible p95 regression on
+this fixture. This shared-host measurement is not a latency guarantee.
+
+Required `scripts/test.sh` ran once, unmodified: `== 2 failure(s) in 1372 s`,
+exit 1. Both failures are retained as failures:
+
+- **wasm build — baseline on this host.** The before-change build and required
+  suite both measured 2,025,652 B raw / 582,552 B gzip, 458 B over the unchanged
+  582,094 B budget. Delta: 0 B raw and gzip; identical wasm SHA-256
+  `14fe563acc6ce7743674b034f7d0a7a2914cad172db7e18b8dc5e1d4abe98a64`.
+  Reproduce with `bash scripts/build-wasm.sh` from `snapback4/` on this toolchain.
+- **client tests — baseline timing-sensitive assertion.**
+  `ephemeral-watches.test.mjs:86`, online "mounting interest reissues a held poll,
+  invalidates without sync, and refetches at expiry", observed 559.575638 ms
+  against 500 ms. The earlier lane K round-6 journal entry records the same
+  unchanged assertion failing at 500.435240 ms and an independent 510.5 ms
+  failure. Reproduce the contention-sensitive condition through `scripts/test.sh`;
+  `node --test packages/snapback4/test/ephemeral-watches.test.mjs` then passed
+  unchanged, 6/6, in isolation. No assertion or product behavior was weakened.
+
+Full Rust: 3,672 passed, zero failed, 21 ignored (878 s), including guide 86/86.
+Main client batch: 2,376 passed, one failed, ten existing skips; all seven
+separate acquisition/server shards passed. Models: 78/78 (258 s). Native build,
+release guard, package typecheck/build, chat/Expo typechecks and fixture tests
+passed. The large-snapshot fix was made while that full run was in progress;
+its final CLI and adoption tests above qualify the final transport change.
+No introduced failure or separate environmental failure was observed.
+Evidence is in `target/lane-lt-evidence/`, including the exact full output and
+exit status, before-change wasm result, targeted runs and measurements. Node
+24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt; eight Cargo
+build jobs, dev/test debug info disabled. Restored only the fixture lockfile
+version rewrite produced by the suite.
+
+Inherited discovery limitation, reproduced: start `snapback4 dev --fresh
+--no-watch --port 4400` in a fresh project, then `snapback4 doctor --latency
+--json` there. Doctor exits 1 because `--fresh` has no persisted-store lifetime
+lock; `GET http://127.0.0.1:4400/dev/latency` works. The guide records this and
+the HTTP alternative. No discovery redesign, asynchronous action/job timing,
+client API, execution meter, authorization, durability or device change; no
+budget/version change, push or package publication. The unavailable
+`skills/llp-orient` symlink was replaced by direct orientation in the supplied
+rules, governing LLPs, bounds card and server sources, without delegating work.
+Implementation commits: `f5bc3daab`, `e4fc2cb27`, `3714a34bd`, with the requested
+GPT-6 Astra co-author trailer. Final evidence/documentation follows in this
+entry's commit; the supervisor owns integration and blind review.
+
+## 2026-09-26 — 0.4.4 lane LT round 1: completion, snapshot contention, temporary dev discovery
+
+Addressed both blind round-0 reviews and the supervisor's four scoped requests
+on `sb4-intent/lt-latency`. Read both reviews in full, the binding lane prompt,
+the round-0 journal entry and LLP 3000.019 §3.7. The missing `llp-orient` skill
+remains unavailable at both linked paths; orientation used the governing
+LLPs, rules, command sheet, bounds card and sources directly. No delegation.
+
+**Changes, by file.** `vendor/tiny_http/src/request.rs` exposes checked response
+completion callbacks immediately after final write/flush, before request-reader
+disposal or transport cleanup. `serve.rs` uses them for draining-body JSON and
+close-after-refusal paths; `assets.rs` uses them for asset bodies and range
+refusals. `serve_changes.rs` stamps immediately after the final frame, before
+`finish_stream` can drain an unread body. This corrects round 0's stated
+write-boundary claim; the older implementation sometimes included cleanup.
+
+`latency.rs` separates immutable topology (one Arc capture under a short
+mutex) from each operation's fixed histogram pair and mutex. Snapshot
+formatting and percentile scans run outside the statistics locks; topology
+construction for adoption/reset runs outside the recording mutex. Snapshot
+consistency is per operation, not a simultaneous all-operation cut. Recording
+now uses two bounded critical sections, with no whole-registry copy in either;
+statistics remain 7,720 bytes/operation plus locks/Arcs and names/map entries.
+
+`dev_address.rs`, wired through `main.rs` and `serve.rs`, writes independent
+project-local `.snapback4/dev-address-<port>.json` records with canonical
+project, port, store identity and temporary-store status. Both sides use
+`O_NOFOLLOW`, owned regular single-link files, inode checks and a separate
+lifetime lock. Doctor rejects stale/unlocked and mismatched records; multiple
+hosts coexist, with the newest live project host preferred unless `--store`
+selects one. `verbs/adoption.rs`, `verbs/latency.rs` and `verbs.rs` use that
+record; ordinary doctor reports the live temporary store without trying to
+inspect a nonexistent persisted database. `lifecycle.rs` allows orderly address
+cleanup and preserves the old signal exit status. Fatal/uncatchable exits can
+leave an ignored stale record. Store ownership records are not rewritten;
+this record is independent of lane AD's eventual temporary WAL placement.
+The bounds card and LLP 3000.019 §3.7 describe the changed design.
+
+**Forms exercised.** Start `snapback4 dev --fresh --no-watch --port 0` or
+`snapback4 dev --memory --no-watch --port 0`; in that same project,
+`snapback4 doctor` and `snapback4 doctor --json` now include latency,
+`snapback4 doctor --latency --json` returns the complete snapshot, and
+`snapback4 doctor --latency --reset --json` resets the discovered server.
+Persisted dev and direct HTTP forms retain their existing meaning. No Quarry,
+client, authorization, execution-meter, storage policy or package surface change.
+
+**New tests.** `tests/latency/duration.rs` checks both of Astra's unread-body
+cases, a 150-ms query engine-work hold using the existing hook, a held poll
+with a first heartbeat, final-frame wake and later unread-body drain, and a
+32-MiB asset with socket reads withheld for 200 ms. `tests/latency/histogram.rs`
+adds the 10,000-operation snapshot/record concurrency test: one snapshot is
+blocked on its first operation while an unrelated record must finish within
+100 ms; three unblocked snapshots then run while records must stay below
+10 ms. These are regression witnesses on this host, not OS scheduling bounds.
+`tests/latency/discovery.rs` covers symlinks, hardlinks, directories, FIFOs,
+wrong projects, stale records and replacement-inode cleanup. `tests/latency.rs`
+adds both temporary spellings, ordinary doctor, reset, SIGTERM cleanup, a
+simultaneous persisted host, crash leftovers and HTTP identity mismatch.
+`tests/latency/serve.rs` includes the new duration tests.
+
+Final targeted measurements before the full suite:
+
+| Witness | Observed |
+| --- | --- |
+| `/changes?wait=0`, 2,048-byte body withheld 500 ms | response complete 1.129 ms; total 0.830 ms |
+| Asset download, 2,048-byte body withheld 300 ms | response complete 0.734 ms; total 0.378 ms |
+| Query engine work held 150 ms | total 150.803 ms |
+| Held heartbeat poll, then body withheld another 300 ms | final frame 181.397 ms after heartbeat; total 181.989 ms |
+| 32-MiB asset, socket reads withheld 200 ms | total 270.179 ms |
+| Snapshot blocked on another operation | record 3.896 µs |
+| Three 10,000-operation snapshots | 23.911 ms; 24,190 concurrent records; worst record 6.439 µs |
+| 1,000,000 uncontended recordings | 69.6 ns/record |
+| Alternating real HTTP reads, 2,000 per mode | off p50/p95 329.614/463.264 µs; on 327.802/440.991 µs; median delta −1.812 µs |
+
+**Mutation evidence.** Applied and restored each mutation separately; each
+compiled and failed exactly its intended test (Cargo exit 101):
+
+- Zero `finished` elapsed time: the held query recorded 0.000 ms and failed
+  the `total >= 150 ms` assertion.
+- Finish after the first heartbeat: total 0.788 ms, final frame after
+  182.145 ms; failed `total >= 180 ms`.
+- Finish before the asset response write: total 0.550 ms; failed
+  `total >= 200 ms` while delivering the 32-MiB body.
+
+Restored tests pass: the focused latency set is 14 passed, 0 failed, 2 ignored;
+both ignored measurement tests were explicitly run and passed. The complete
+affected CLI/server unit target is 127 passed, 0 failed, 2 ignored; real CLI
+latency 5/5, HTTP framing 2/2, lifecycle 20/20, whole guide 86/86. Discovery's
+single unit test also passed separately. Evidence is under
+`target/lane-lt-evidence/r1-*`. The required final full-suite and reference
+results follow below. No unrelated changes, budget/version changes, push or
+publication; the supervisor retains integration and review custody.
+
+Final qualification: all four existing `check` target `w8c_` adoption/doctor
+regressions passed (10.58 s). `./ref-check --verbose` passed:
+`ref-check: ok — 513 LLP docs, 9502 refs in 26964 files, 0 errors, 0 unchecked`.
+
+Ran the required `scripts/test.sh` **once**, unmodified, after the affected
+checks and whole guide: **`== 1 failure(s) in 975 s`**, exit **1**. Its sole
+failure is **`wasm build` — baseline on this host**, not introduced here:
+2,025,652 B raw / 582,552 B gzip against the unchanged 582,094 B gzip budget,
+**458 B over**. Raw/gzip delta from round 0: **0 / 0 B**, with exactly the same
+SHA-256 `14fe563acc6ce7743674b034f7d0a7a2914cad172db7e18b8dc5e1d4abe98a64`.
+Reproduce from `snapback4/` with `bash scripts/build-wasm.sh` on this toolchain.
+No introduced or separate environmental test failure was observed.
+
+Full Rust: **3,683 passed, 0 failed, 21 ignored**, 507 s (including every new
+regression and the whole guide). Main client batch: **2,377 passed, 0 failed,
+10 existing skips**, 197 s; all seven separate acquisition/server shards also
+passed. Models: **78 passed, 0 failed**, 259 s. Native build, docs budget,
+release guard, package typecheck/build, chat check and both app typechecks,
+and fixture-wrapper tests all passed. The round-0 ephemeral-watch timing
+failure did not recur. Exact output and exit status:
+`target/lane-lt-evidence/r1-test.log` and `r1-test.exit`.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo build
+jobs, dev/test debug info disabled. `bun install --frozen-lockfile` reported
+no changes. Restored only the suite-generated `native-fixtures/following/Cargo.lock`
+0.4.2→0.4.3 rewrite. No source file exceeds 1,500 lines. No scope deviation;
+the topology/per-operation locking and newest-live-host choice are the design
+changes recorded above. The existing wasm budget is the only open qualification
+problem; no push or publication.
+
 ## 2026-09-26 — Lane R round 1: release aliases and measured residency regressions
 
 Merged the requested main commit `992cec75c` in `b90a195f4`, preserving both
@@ -65817,3 +66033,239 @@ Final repository checks passed: `ref-check --verbose` reports 513 LLP
 documents, 9,442 references, zero errors and zero unchecked references;
 `git grep -n "^<<<<<<<"` is empty; `git diff --check` and the complete
 merge delta against main pass. The temporary suite launch job was removed.
+
+## 2026-09-26 — 0.4.4 lane LT round 2: discovery trust and completion regressions
+
+Read both round-1 reviews in full, the binding lane prompt, the round-0/1
+entries and LLP 3000.019 §3.7. Merged `sb4-intent/integration-044` first in
+`211767588`, retaining both journal/LLP histories, lane R's database ownership,
+`serve.lock` placement and `announce`, and LT's separate discovery record.
+Committed the merge before building; `cargo build` passed. The local
+`llp-orient` symlink was broken; used the same skill from lane-r2's populated
+vendor checkout for read-only orientation. No delegation.
+
+**Changes, by file.** `dev_address.rs` opens `.snapback4` with
+`O_DIRECTORY | O_NOFOLLOW` and verifies ownership before opening a record.
+Enumeration, record opens, identity checks and cleanup stay relative to that
+verified descriptor through `openat`, `fdopendir`, `fstatat` and `unlinkat`.
+Replacing the directory's name cannot redirect a later operation. Existing
+regular-file, single-link, uid, inode and lifetime-lock checks remain.
+`serve.rs` remembers the canonical project and temporary-store flag and returns
+both from `/dev/status`. `verbs/adoption.rs` requires the server's project to
+match doctor's own project and leaves the server's temporary flag intact;
+`verbs.rs` prints the temporary store id through `as_str`.
+
+`latency.rs` supplies a fallback guard that calls `finished(true)` only when
+there is no earlier stamp. `vendor/tiny_http/src/request.rs` drops that guard
+before unanswered-request cleanup, including body drain on panic; the common
+JSON path transfers it to the response writer so consuming the request does
+not stamp before the write. Attaching it to the request in `serve.rs` preserves
+it across moves into nested handlers. `serve_tests.rs` initializes the new
+server metadata and test-only request hook. LLP 3000.019 §3.7 records those
+changes. Lane R's `store_owner.rs`, its tests and native-opening test are
+unchanged from integration; asset production code is unchanged.
+
+**New regression evidence.** `tests/latency/discovery.rs` adds rejection of a
+symlinked/foreign-owned parent and proves that enumeration, reads, creation
+and cleanup use the original directory after replacement. `tests/latency.rs`
+adds real-process startup/doctor/SIGTERM symlink cases preserving external
+contents, a locked planted record from project A pointing at B (neither
+inspection nor reset reaches B's counters), and flipped temporary flags in
+both directions with persisted health and unquoted store identity assertions.
+`tests/latency/duration.rs` adds the panicking-handler case with a 2-KiB body
+withheld 300 ms, a 16-KiB common JSON response with socket reads withheld
+200 ms, and a TCP reset during a 32-MiB asset yielding exactly one sample and
+one refusal. The JSON test constrains the TCP receive window before the
+handshake, as changing it after connection left enough advertised credit for
+the entire reply. It uses the real common responder and real TCP writes.
+
+**Mutation evidence.** Each mutation compiled, failed its intended assertion
+(Cargo exit 101), and was restored separately:
+
+- JSON stamp before write: total **0.360 ms**, failing the **≥200 ms** bound;
+  restored witness **200.830 ms**.
+- Asset callback `finished(false)`: **0 refusals instead of 1**, with one sample.
+- Remove the fallback guard: total **300.774 ms**, including the withheld
+  body; restored panic witness **0.445 ms**, response arrived at **0.891 ms**.
+
+**Forms exercised.** `snapback4 dev --fresh --no-watch --port 0` and
+`snapback4 dev --memory --no-watch --port 0` remain discoverable through
+`snapback4 doctor`, `snapback4 doctor --json`, `snapback4 doctor --latency`,
+`snapback4 doctor --latency --json`, and
+`snapback4 doctor --latency --reset --json`. `GET /dev/status` now includes
+`project` and `temporary` from server memory. Persisted dev retains its store
+health inspection even if the address file claims it is temporary. No new
+Quarry form, diagnostic, authorization, meter or client surface.
+
+Affected verification on the restored implementation: server/CLI unit tests
+**135 passed, 2 ignored**; real CLI latency **8/8**; HTTP framing **2/2**;
+lifecycle **20/20**; adoption/doctor `w8c_` **4/4**; whole guide **86/86**;
+`native-opening.test.mjs` **6/6**, including “names a live server's published
+address”. The two ignored latency measurements were run explicitly and passed:
+**69.8 ns/record**, **7,720 bytes/operation**; alternating 2,000 real HTTP reads
+per mode gave off p50/p95 **335.693/452.448 µs**, on **336.213/446.469 µs**,
+median delta **+0.520 µs**. This is a shared-host witness, not a scheduling
+or latency guarantee.
+
+The first broad targeted run used Cargo's default test parallelism and hit
+this shell's **1,024-file-descriptor** limit. Five environmental failures were
+retained in `r2-affected.log`: `upload_disk_work_is_bounded_and_does_not_hold_the_query_engine`
+and `saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution`
+logged **EMFILE** in tiny_http; `unsupported_http_versions_release_connection_slots`
+failed with connection refused; `route_development_exception_does_not_expose_core_doors_or_personas`
+and `mutation_wire_query_version_and_no_sqlite_writer_lock` timed out. The entire
+affected set passed unchanged with `--test-threads=1`, matching the canonical
+suite's server/lifecycle concurrency (`r2-affected-serial.log`). No product
+assertion or timeout was weakened. Initial test-construction compile errors
+and the first JSON test's unblocked socket were corrected before this final
+qualification; deliberate mutation failures above are expected evidence.
+
+Node **24.13.1**, Bun **1.3.14**, Rust **1.97.0**, wasm-bindgen **0.2.127**;
+eight Cargo build jobs and dev/test debug info disabled. Frozen Bun install
+made no changes; package build passed. Source files remain at or below 1,500
+lines. All evidence is under `target/lane-lt-evidence/r2-*`. No requested fix
+was deferred and no brief deviation, budget/version change, push or publication
+was made. Final reference/full-suite qualification follows in this entry.
+
+Final qualification: `./ref-check --verbose` passed before the full suite:
+`ref-check: ok — 515 LLP docs, 9538 refs in 27004 files, 0 errors, 0 unchecked`.
+Ran the required, unmodified `scripts/test.sh` **once**, after all affected
+checks and the whole guide. Exact result: **`== 1 failure(s) in 1280 s`**,
+exit **1**. Its only failure is **`wasm build` — inherited from integration**:
+**1,980,253 B raw / 571,839 B gzip**, against the unchanged **570,967 B**
+gzip budget (**872 B over**). This matches the supervisor-provided integration
+measurement exactly: **LT gzip delta 0 B**. Reproduce with
+`bash scripts/build-wasm.sh` from `snapback4/` on the toolchain above. This
+integration budget overage is the sole remaining qualification problem; it was
+not repaired or reassigned to this lane. No introduced or environmental
+failure occurred in the final full suite.
+
+Full Rust: **3,728 passed, 0 failed, 21 ignored**, **789 s**, including the
+whole guide and all new regressions. Main client batch: **2,459 passed,
+0 failed, 10 existing skips**; all seven separate acquisition/server shards
+also passed (**197 s** total client stage). Seeded models: **78/78**, **257 s**.
+Cargo build, docs budget, release guard, package typecheck/build, chat check,
+chat/Expo typechecks and fixture-wrapper tests passed. There was no generated
+tracked-file cleanup to perform. Evidence: `target/lane-lt-evidence/r2-test.log`
+and `r2-test.exit`; targeted checks, mutation logs and the reference check are
+beside them. Merge commit **211767588**, fixes/design/evidence **94374fb39**;
+this final verification append has its own co-authored commit. No push or
+publication.
+
+## 2026-09-27 — 0.4.4 lane LT round 3: persisted discovery, explicit temporary-server URLs
+
+Read the lane prompt, rounds 0–2, LLP 3000.019 §3.7, and both round-2
+reviews (Astra READY; Grok NOT READY). Applied the supervisor's final-round
+ruling on `sb4-intent/lt-latency`. Read-only `llp-orient` used the populated
+sibling lane-r2 skill because this checkout's link is still broken. The
+context is LLP 3000 §4/§7, LLP 3000.019 §3.4 for database ownership and §3.7
+for timing and inspection. No delegation, integration merge or publication.
+
+**Changes, by file.** Deleted `src/dev_address.rs` and its obsolete unit
+suite, `tests/latency/discovery.rs`. Removed the module and registration from
+`main.rs` and `serve.rs`; `lifecycle.rs` removes only LT's address-cleanup
+signal branch. Persisted dev still uses lane R's unchanged `store_owner.rs`,
+resolved database inode and `serve.lock` announcement. All three dev modes
+write no additional discovery file. Symlinked `.snapback4` startup again has
+lane R's behavior: an existing target store reopens and serves successfully.
+Creating a new database through a symlinked data directory was already refused
+by lane R's `private_fs::directory`; that pre-LT behavior is unchanged.
+
+`verbs/adoption.rs` restores persisted lookup via `store_owner::inspector_port`
+and the persisted store identity, and adds explicit `--url` selection. Both
+paths read `/dev/status`, require the server's canonical project to equal
+doctor's own, and retain its `temporary` flag. A wrong project is named in the
+refusal before latency inspection or reset. Literal IPv4/IPv6 loopback and
+`localhost` HTTP origins are accepted; localhost maps directly to 127.0.0.1,
+without DNS. Credentials, non-root paths, queries, fragments, non-loopback
+addresses and non-HTTP schemes are refused with an `E_INPUT` rewrite. This
+is local inspection with consistency checks, not process authentication.
+
+`verbs.rs` shares that selection for ordinary doctor, retains unquoted
+temporary-store identity and persisted-store health, and explains `--url` when
+there is no persisted host. `verbs/latency.rs` sends inspection/reset to the
+selected address, retaining response store-identity and reset precondition
+checks. `main.rs` lists `--url` in help. The bounds card and LLP 3000.019 §3.7
+teach the printed URL for fresh and memory servers; the card's lead and Quarry
+blocks are unchanged. No new diagnostic code, meter, authorization rule or client API.
+
+**Forms exercised.** Persisted `snapback4 dev --no-watch --port 0` remains
+inspectable with `snapback4 doctor`, `snapback4 doctor --json`,
+`snapback4 doctor --latency`, `snapback4 doctor --latency --json`, and
+`snapback4 doctor --latency --reset --json`. After
+`snapback4 dev --fresh --no-watch --port 0` or the `--memory` spelling, use
+its printed address, for example `snapback4 doctor --url http://127.0.0.1:4400`,
+`snapback4 doctor --latency --url http://127.0.0.1:4400`,
+`snapback4 doctor --latency --json --url http://127.0.0.1:4400`, and
+`snapback4 doctor --latency --reset --json --url http://127.0.0.1:4400`.
+The URL can also inspect a persisted host. A fresh server can coexist with
+persisted dev: plain doctor selects persisted dev; its explicit URL selects
+the temporary server. No Quarry forms changed.
+
+**Regression evidence.** `tests/latency.rs` retains the original default,
+all-operation, reset and >32-KiB snapshot cases. It replaces record-specific
+cases with printed-URL inspection of both temporary spellings; no-file
+assertions for all three modes; simultaneous hosts and server-reported
+lifetime; stale `serve.lock` store identity; cross-project refusal through
+both address sources for ordinary/JSON/read/reset forms; non-loopback URL
+refusal and localhost; actual IPv6 loopback inspection/reset; and reopening
+an existing symlinked store with its original identity and a successful query.
+The URL parser's unit test includes userinfo, misleading hostname, alternative
+IP spelling and control-character cases.
+
+`tests/latency/duration.rs` shares the existing constrained-TCP helper with a
+new real changes-handler test. A held poll emits its heartbeat, wakes on a
+seed commit, and sends a **17,324-byte** final table-invalidation frame. The
+client reads one byte of that frame, then withholds reads for **200 ms**.
+The unchanged production completion stamp measured **205.037 ms**. Moving
+`finished(refused)` before `write_response_frame` compiled and failed the new
+regression with **4.169 ms**, Cargo exit **101**; the original file was restored
+byte for byte, and the entire binary unit target passed afterward. Production
+`serve_changes.rs` is unchanged. The previous post-frame body-drain test stays.
+
+Targeted verification: binary unit suite **134 passed, 0 failed, 2 ignored**;
+CLI latency **9/9**; HTTP framing **2/2**; lifecycle **20/20**; lane R ownership
+and run admission **23/23**; whole guide **86/86**; native-opening **6/6** after
+the package build. Frozen Bun install made no changes. The first CLI test
+construction incorrectly expected `storeId` in the CLI's typed snapshot
+(the HTTP envelope alone carries it) and attempted symlinked creation instead
+of reopening an existing store; both fixture assumptions were corrected.
+The final CLI set passes. The two ignored measurement tests were not rerun:
+this round changes discovery and tests, not histogram recording. No source
+file exceeds 1,500 lines. No requested change was deferred.
+
+Toolchain: Node **24.13.1**, Bun **1.3.14**, Rust **1.97.0**, wasm-bindgen
+**0.2.127**; eight Cargo build jobs, dev/test debug info disabled, affected
+server tests serial as in the canonical suite. Evidence is in
+`target/lane-lt-evidence/r3-*`. The supervisor-selected scope leaves Grok's
+separate inherited observation about a chunked asset's terminal-chunk write
+outside this change: `chunked_transfer::Encoder`'s destructor ignores that
+write error. A transport failing only on `0\r\n\r\n` can evade refusal
+classification; the mid-body disconnect regression covers a different point.
+No terminal-chunk-only reproduction was executed here and no fix is claimed.
+Reference, adoption and final full-suite results follow in this same entry.
+
+Final qualification: adoption/doctor `w8c_` **4/4**.
+`./ref-check --verbose` passed before the full suite:
+`ref-check: ok — 515 LLP docs, 9536 refs in 27002 files, 0 errors, 0 unchecked`.
+Ran the required, unmodified `scripts/test.sh` **once**, after the affected
+checks and whole guide. Exact summary: **`== 1 failure(s) in 953 s`**,
+exit **1**. The only failure is **`wasm build` — inherited integration
+baseline**, not introduced by LT: **1,980,253 B raw / 571,839 B gzip** against
+**570,967 B**, **872 B over**. This equals the supervisor's integration and
+round-2 measurements: **0 B raw/gzip delta**. Budget unchanged. Wasm SHA-256:
+`3ad0d7215e220d0417e0be0c74ea8bcc69d22b2912356f0b994423ee552cc47f`.
+Reproduce from `snapback4/` with `bash scripts/build-wasm.sh` on the recorded
+toolchain. No introduced or environmental failure occurred in the final suite.
+
+Full Rust: **3,728 passed, 0 failed, 21 ignored**, **490 s**. Main client batch:
+**2,459 passed, 0 failed, 10 existing skips**, with all seven separate server/
+acquisition shards green (**193 s** client stage). Seeded models: **78/78**,
+**257 s**. Native build, docs budget, release guard, package typecheck/build,
+chat check, chat/Expo typechecks and fixture-wrapper tests passed. Exact full
+output and exit status are in `target/lane-lt-evidence/r3-test.log` and
+`r3-test.exit`; focused and mutation logs are beside them. No generated tracked
+file cleanup was needed. No deviation from the final-round brief, budget or
+version change, push or publication. This round's implementation, design,
+tests and this single dated journal entry are committed together with the
+requested GPT-6 Astra co-author trailer.

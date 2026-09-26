@@ -22,6 +22,7 @@ pub use sql::sql;
 mod residency;
 mod test_fixture;
 mod adoption;
+mod latency;
 mod run_admission;
 
 pub struct Options {
@@ -41,7 +42,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -643,10 +644,12 @@ fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<
 }
 
 pub fn doctor(options: &Options) -> i32 {
+    if options.flags.contains_key("latency") || options.flags.contains_key("reset") { return latency::doctor(options); }
     let started = Instant::now();
     let mut lines = Vec::new();
     let mut ok = true;
     let mut storage: Option<snapback4_core::store::Sizes> = None;
+    let mut latency_snapshot = None;
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
@@ -688,6 +691,22 @@ pub fn doctor(options: &Options) -> i32 {
         };
         lines.push(format!("native    {} declared: {}; {built}; {toolchain}", if native_jobs.len() == 1 { "program" } else { "programs" }, native_jobs.join(", ")));
     }
+    let host = match adoption::host(&project, options) {
+        Ok(host) => host,
+        Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
+    };
+    if host.is_none() && !options.flags.contains_key("release") {
+        lines.push(format!("latency   {}", adoption::NO_HOST));
+    }
+    if let Some(host) = host.as_ref().filter(|host| host["temporary"] == true) {
+        lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"].as_str().unwrap_or("unknown"), host["generation"]));
+        latency_snapshot = latency::read(host, false);
+        if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
+        if let Some(reason) = host["adoption"].as_str() {
+            ok = false;
+            lines.push(format!("adoption  pending: {reason}; serving the previous generation"));
+        }
+    } else {
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.
     match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
@@ -695,9 +714,14 @@ pub fn doctor(options: &Options) -> i32 {
             if let Ok(Some(status)) = store.meta("worker:status") { lines.push(format!("worker    last report: {status}")); }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
-            let host = store.meta("store_id").ok().flatten().and_then(|id| adoption::host(&project, &id));
+            if host.as_ref().is_some_and(|host| store.meta("store_id").ok().flatten().as_deref() != host["storeId"].as_str()) {
+                eprintln!("E_INPUT at doctor: the dev server serves a different persisted store; run doctor in that server's project with its current store");
+                return 1;
+            }
             let now = host.as_ref().and_then(|h| h["now"].as_i64()).unwrap_or_else(snapback4_core::now_ms);
             if let Some(host) = &host {
+                latency_snapshot = latency::read(host, false);
+                if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
                 if let Some(active) = host["generation"].as_u64() {
                     if active.to_string() != generation {
                         ok = false;
@@ -767,12 +791,13 @@ pub fn doctor(options: &Options) -> i32 {
             lines.push(format!("store     FAIL {error}"));
         }
     }
+    }
     lines.push(format!("types     {}", if project.generated_dir().join("api.ts").is_file() { "generated" } else { "not generated yet (`snapback4 check` writes them)" }));
     if !personas.is_empty() {
         lines.push(format!("personas  {}", personas.join(", ")));
     }
     if options.json {
-        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "ms": started.elapsed().as_millis() }));
+        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "latency": latency_snapshot, "ms": started.elapsed().as_millis() }));
     } else {
         println!("snapback4 {version}");
         for line in lines {
