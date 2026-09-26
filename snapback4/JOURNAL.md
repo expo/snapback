@@ -66269,3 +66269,235 @@ file cleanup was needed. No deviation from the final-round brief, budget or
 version change, push or publication. This round's implementation, design,
 tests and this single dated journal entry are committed together with the
 requested GPT-6 Astra co-author trailer.
+
+## 2026-09-26 — bounded asset lists get their home and read authority
+
+Fixed calibration #22's accepted-but-unservable `[image <=10000000] <=4`
+shape on `sb4/image-list-assets`, in the image-list worktree. Chose element
+placement: LLP 1006's one-home contract already includes lists, and the
+builder wanted that form. The server now stamps each element's upload facts,
+claims its row/column home, and follows that row's read rule when serving it.
+Reconciliation uses asset identities: reorder retains homes and view history,
+removing an element releases it, and deleting a row releases every element.
+Optional/nested lists and video lists use the same traversal; `once` remains
+per image and principal. Upload admission also recognizes a backend with only
+list asset columns. Existing refusal codes and transactional claims are reused.
+
+Asset ledger work is reserved before write-target lookup, including for an
+empty or unchanged cell. A scalar slot reserves four examinations, two writes,
+eight steps and 16 KiB scratch; each list cap multiplies the same allowance.
+System retirement outside a write attempt pays the same reservation. No runtime
+ceiling is raised. Asset placement remains server-side and sqlite-gated.
+
+Added real HTTP upload/GET regressions for authorized and unauthorized viewers,
+reorder, removal, deletion of two elements together, and per-element once/Range
+behavior. Core regressions cover authoritative facts, ownership/kind/size/home
+refusals and rollback, optional/nested/video lists, and a readable editor
+retaining another uploader's elements. Meter tests compare 0/1/4 elements with
+four scalar slots and refuse before any claim at the declared boundary. The
+four core and two initial HTTP regressions all fail against the restored base
+runtime; they pass with the fix. The media card's compiled `sendPhotos` example
+and its two authoring-census entries landed with the implementation.
+
+The first complete suite caught a synthetic timeline target absent from the
+table map and the new example's missing census entries. Reservation now checks
+for a real table declaration; both existing regressions pass in isolation.
+Neither assertion nor any test count/timeout was relaxed.
+
+The same pass also found two expectations tied to the old, uncharged scalar
+ledger. The feed fixture now asserts both exactly four physical application
+rows and six logical writes (four plus the declared claim/release pair). The
+rule-probe exhaustion fixture leaves four examinations for the scalar slot so
+it still isolates the exhausted rule-probe boundary; both hidden worlds have
+the same control allowance. Its unchanged heap-receipt assertion exposed
+unallocated scratch retained after refusal. Heap admission now preflights room;
+the new list boundary regression covers that refusal as well as examinations.
+These are accounting corrections and test isolation, not raised product ceilings.
+
+Code inspection found a separate device boundary: its offline media home index
+still handles scalar columns only. The media card now says that ordinary list
+assets serve online but are not retained offline. Follow-up:
+`issues/20260926-snapback4-list-asset-offline-cache.md`; no device runtime change
+or executed offline-list witness is claimed here.
+
+Final qualification of the unchanged implementation passed the required suite:
+`== 0 failure(s) in 3832 s` (exit 0), with `FORCE_COLOR` unset, incremental
+compilation off, test/dev debug info off, and serial client files. All 225 Rust
+test binaries / 937 executions and workspace doctests passed; ordinary clients
+passed 2,222 tests with 9 existing skips; all 78 client models passed. Node
+24.18.0 was on PATH; two Rust test processes and two build jobs bounded local
+concurrency. The temporary user launch job was removed after completion.
+The harness-generated following fixture lock version change was preserved as
+evidence and restored to the base version; no product lock change belongs here.
+
+Same-worktree production wasm builds measured the base at 1,972,811 bytes raw /
+569,967 bytes gzip and the fix at 1,972,811 bytes raw / 569,966 bytes gzip. The
+full suite reproduced the fixed measurement. All sections except data are
+byte-identical, including code: server asset placement adds no web code.
+The one-byte smaller compressed artifact lowers the ratchet to measured + 1,000
+= 570,966 bytes, with the reason recorded in the budget and commit message.
+
+Evidence is under `snapback4/target/image-list-assets/` (including the complete
+`suite-final.log`, exit receipt, counterfactual tests, targeted checks and both
+wasm artifacts). The final report is
+`/Users/ccheever/projects/snapback-sb5-program/image-list-assets.final.md`.
+Previously unplaced rows are not backfilled; an authorized replacement with
+fresh uploads establishes their homes. No external calibration store changed.
+
+## 2026-09-26 — image-list fix round 2: release only this cell's home
+
+Astra's blind review of `99ef276d95` reproduced a legacy row referencing
+another row's asset: clearing or deleting the referencing row detached the
+foreign home. Release now carries the exact `(table, row, column)` through
+the server ledger interface and matches all three fields in the SQL update.
+A foreign or unplaced reference is a no-op, and the authorized row change
+still commits. No extra lookup, claim, backfill or meter charge is introduced
+by the predicate. Scalar columns share the guarded release.
+
+Added sixteen legacy regressions: list/scalar × placed/unplaced × clear/delete
+× memory/disk SQLite; disk cases reopen before checking access. All sixteen
+failed against the reviewed runtime because Alice lost asset access after
+Mallory changed her own row. They check the committed clear/delete, unchanged
+home and release timestamp, Alice's continued access, and Mallory's continued
+refusal. A direct ledger regression separately mismatches table, row and column,
+then releases the exact home and checks that a repeat cannot reset release time.
+
+Scalar compatibility required undoing part of the prior commit. Contrary to
+its accounting-correction rationale above, it had loosened two existing scalar
+tests: `feed_bridge` changed four receipted writes to six, and
+`write_authority` added four examinations to a ceiling. Both files are restored
+byte-for-byte to `99ef276d95^`. With those original tests, the reviewed runtime
+fails the four-write assertion (6 versus 4) and the intended rule-probe-boundary
+assertion (the new examination reservation refuses first). The extra scalar
+reservation is withdrawn: relative to the parent, added scalar allowance is
+zero; relative to `99ef276d95`, each scalar slot loses four examinations, two
+writes, eight steps and 16,384 bytes of transient scratch admission. Scratch
+is released at the attempt boundary, so this is admission headroom, not a
+promised 16,384-byte change in the final retained-heap receipt. List slots still
+reserve four examinations, two writes, eight steps and 16 KiB each, multiplied
+by declared caps, including empty/unchanged lists. Runtime ceilings are unchanged.
+
+The author-facing media card records both the scalar decision and the legacy
+no-backfill boundary: unplaced legacy list references still download as
+404 E_ASSET_UNKNOWN; replace them with fresh uploads. LLP 3000 §7 now states
+the matching-home rule and the list-only reservation. The inherited forged
+list-argument facts finding is recorded with Astra's reproduction in
+`issues/20260926-snapback4-list-argument-normalization-skips-asset-facts.md`;
+argument normalization is unchanged in this fix. Qualification follows below.
+
+The first wasm check exposed a shared-trait footprint: adding home arguments to
+`Rows::release_asset` on every host added a wasm function type (14 raw bytes,
+5 gzip bytes). The arguments now compile only with the server's `sqlite`
+feature; the device's no-ledger method keeps its prior signature. The rebuilt
+production web artifact is byte-identical to the preserved `99ef276d95` artifact:
+1,972,811 bytes raw / 569,966 bytes gzip; SHA-256
+`9bd30fd80cf9ff348c5449d345ebe2881146b086ff2d10323a3fb3aed7aad6c8`.
+The ratchet stays 570,966. The initial suite attempt was intentionally stopped
+for this correction; a complete suite was restarted on the corrected source.
+
+The complete run found a guide-ordering defect: placing the compatibility note
+before the defining asset paragraph made it the diagnostic excerpt's first
+`E_ASSET_UNKNOWN` mention. The existing definition/recovery test correctly
+refused that shortened explanation. The compatibility note now follows the
+existing definition; the diagnostic test and its pinned facts are unchanged.
+
+That full run finished `== 1 failure(s) in 3553 s` (exit 1): the guide-ordering
+test alone. Both restored scalar test files passed (35 write-authority tests,
+12 feed-bridge tests); all 20 asset-list tests, the other Rust targets and
+workspace doctests passed. Ordinary clients passed 2,222 tests with nine
+existing skips, and all 78 client models passed. After moving the note, all
+86 guide tests pass in isolation. The final complete run uses four build jobs
+on the 18-core host, two Rust test processes, and serial client files, with
+the requested Cargo and FORCE_COLOR settings unchanged.
+
+The next complete run finished `== 1 failure(s) in 3115 s` (exit 1): the
+witness driver alone. Its seven early CLI failures timed out launching the
+local Python fake `simctl` under the unchanged five-second limits; observed
+host load was about 21–22 on 18 CPUs. Every other Rust target, all 86 guide
+tests, workspace doctests, 2,222 ordinary clients (nine existing skips), and
+all 78 client models passed. The exact witness binary then passed all 24 tests
+in 63.24 seconds without any source, assertion, timeout or count change
+(`target/image-list-fix-2/witness-retry.log`). A fresh full run follows on the
+same source to obtain the required zero-failure suite result; the targeted
+retry is diagnostic evidence, not a substitute for that gate.
+
+Final qualification passed the exact requested blocking suite:
+`== 0 failure(s) in 3031 s` (exit 0). All 225 Rust test binaries / 937
+executions and workspace doctests passed, including the unchanged 24-test
+witness driver and both scalar test files restored to the pre-list parent.
+Ordinary clients passed 2,222 tests with nine existing skips; all 78 client
+models passed. The run used Node 24.18.0, four Cargo build jobs, two Rust test
+processes, and `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`, with `FORCE_COLOR` unset,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0` and
+`CARGO_PROFILE_DEV_DEBUG=0`. No assertion, timeout or runtime ceiling was
+relaxed. The completed temporary launch job was removed; the harness-only
+following fixture lock change was saved as evidence and restored.
+
+The final packaged wasm is byte-identical to the preserved reviewed artifact
+and the first corrected build: 1,972,811 bytes raw / 569,966 bytes production
+gzip, SHA-256 `9bd30fd80cf9ff348c5449d345ebe2881146b086ff2d10323a3fb3aed7aad6c8`;
+the ratchet remains 570,966. `./ref-check --verbose` passes. Final evidence is
+under `snapback4/target/image-list-fix-2/` (`suite-verified.log` and its exit
+receipt, counterfactual and targeted checks, and wasm measurements). The
+requested report is `/Users/ccheever/projects/snapback-sb5-program/image-list-fix-2.final.md`.
+The fix is committed locally on `sb4/image-list-assets`; it is not pushed.
+
+
+## 2026-09-26 — image-list fix round 3: release across the row before claiming
+
+Grok's remaining placement finding was column-order dependence: moving an
+upload into an earlier-sorted asset column claimed before the old column
+released it. A row write now queues added ids while releasing all removed ids,
+then performs the claims. Every release still carries the exact table, row and
+column and uses round 2's matching-home predicate. An upload still homed on
+another row is refused with E_ASSET_PLACED; a failed claim rolls back both the
+row and earlier releases. The change stays in the server-only asset module,
+with the existing declaration reservation and scalar accounting unchanged.
+LLP 3000 §7 records the ordering.
+
+The assets card now states the legacy boundary in one short paragraph beside
+removal/reorder/deletion: stored pre-placement list ids are not backfilled, a
+same-id rewrite does not claim them, readers still get E_ASSET_UNKNOWN while
+the upload owner can preview, and placing fresh uploads establishes homes.
+These sentences follow the existing error definition so diagnostic excerpts
+retain their full definition and recovery facts.
+
+Eight new regressions cover both move directions for list and scalar columns
+on memory and disk SQLite, with disk reopen before final assertions. Each
+also attempts a cross-row replacement, expects E_ASSET_PLACED, and checks that
+the destination's earlier release and row change roll back. Against round 2's
+placement runtime, the four earlier-column cases fail with E_ASSET_PLACED;
+the later-column cases and all cross-row refusals pass. With the fix, all 28
+asset-list tests pass. The sixteen legacy tests now create the old reference
+before any new claim, prove that a same-id rewrite leaves it unplaced and
+previewable only by the owner, then (for placed cases) claim on a new row
+before clearing/deleting the old row. This directly covers Grok's temporal
+variant of the round 2 regression. Qualification follows below.
+
+Removing only round 2's release predicate made all sixteen revised legacy
+regressions fail: the owner lost access after the old reference was cleared
+or deleted. The guarded source was then restored byte-for-byte. All 86 guide
+tests pass, including the unchanged diagnostic definition/recovery assertions;
+`./ref-check --verbose` reports 0 errors and 0 unchecked references.
+
+The required suite's production wasm build is byte-identical to the starting
+round 2 artifact: 1,972,811 bytes raw / 569,966 bytes gzip, SHA-256
+`9bd30fd80cf9ff348c5449d345ebe2881146b086ff2d10323a3fb3aed7aad6c8`.
+The ratchet stays 570,966. Both artifacts, the production gzip measurement,
+and the counterfactual logs are under `snapback4/target/image-list-fix-3/`.
+
+Final qualification passed the exact requested blocking suite:
+`== 0 failure(s) in 3180 s` (exit 0). All 225 Rust test binaries / 937
+executions and workspace doctests passed, including the 28 asset-list tests
+and unchanged scalar meter tests. Ordinary clients passed 2,222 tests with
+nine existing skips; all 78 client models passed. The run used Node 24.18.0,
+four Cargo build jobs and two Rust test processes, with `FORCE_COLOR` unset,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0` and `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`.
+No assertion, timeout or runtime ceiling was relaxed. The harness-only
+following fixture lock change was saved as evidence and restored; the
+completed temporary launch job was removed. Evidence is under
+`snapback4/target/image-list-fix-3/`, including `suite.log`, `suite.exit`,
+targeted/counterfactual logs and both wasm artifacts. The requested report is
+`/Users/ccheever/projects/snapback-sb5-program/image-list-fix-3.final.md`.
+This fix is committed locally on `sb4/image-list-assets`; it is not pushed.

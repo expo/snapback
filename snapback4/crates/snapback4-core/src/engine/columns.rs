@@ -126,6 +126,9 @@ impl Runner<'_> {
         for (kind,amount) in [(MeterKind::Steps,steps),(MeterKind::IndexEntries,entries),(MeterKind::Examined,4*count),
             (MeterKind::RowsWritten,4*count),(MeterKind::HeapBytes,heap)] { self.meter.charge(kind,amount)?; }
         self.column_heap = heap;
+        let assets = if let Some(table) = self.schema.table(source) { self.reserve_assets(table)? } else { 0 };
+        self.column_heap = self.column_heap.saturating_add(assets);
+        self.assets_prepaid = true;
         self.column_prepaid = count > 0;
         Ok(())
     }

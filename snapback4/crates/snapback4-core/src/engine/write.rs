@@ -4,13 +4,9 @@
 
 use super::runner::Runner;
 use super::validate::validate_row;
-#[cfg(feature = "sqlite")]
-use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{Constraint, Effect, Table, materialize_optional_fields};
-#[cfg(feature = "sqlite")]
-use crate::schema::ColumnType;
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{Value, Supplied, canonical_json};
@@ -404,91 +400,6 @@ impl Runner<'_> {
     #[cfg(not(feature = "sqlite"))]
     fn with_asset_facts(&mut self, _table_name: &str, row: Value, _old: Option<&Value>, _hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
         Ok(row)
-    }
-
-    #[cfg(feature = "sqlite")]
-    fn with_asset_facts(&mut self, table_name: &str, row: Value, old: Option<&Value>, hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
-        if !self.tx.holds_assets() {
-            // A device: the row keeps the asset value as sent; the server
-            // establishes the facts when the write arrives.
-            return Ok(row);
-        }
-        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if !table.columns.values().any(|kind| matches!(kind.required(), ColumnType::Image { .. } | ColumnType::Video { .. })) {
-            return Ok(row);
-        }
-        let mut fields = row.as_object()?.clone();
-        for (column, kind) in &table.columns {
-            let (wanted, max) = match kind.required() {
-                ColumnType::Image { max, .. } => (AssetKind::Image, *max),
-                ColumnType::Video { max } => (AssetKind::Video, *max),
-                _ => continue,
-            };
-            // @ref LLP 3000.007#17 — omitted placements survive; an explicit hidden assignment proves upload ownership even when its id matches.
-            let explicit = hidden_patch.is_some_and(|patch| patch.as_object().is_ok_and(|fields| fields.contains_key(column)));
-            if let Some(before) = old.and_then(|row| row.field(column).ok())
-                && !explicit && asset_id(Some(before)).is_some() && asset_id(Some(before)) == asset_id(fields.get(column)) {
-                fields.insert(column.clone(), before.clone());
-                continue;
-            }
-            let Some(id) = asset_id(fields.get(column)).map(str::to_owned) else { continue };
-            let Some(asset) = self.tx.asset(&id)? else {
-                if self.context.is_system() {
-                    // A fixture's placeholder: keep it, in the asset shape.
-                    let mut map = fields.get(column).and_then(|value| value.as_object().ok()).cloned().unwrap_or_default();
-                    for fact in crate::assets::FACTS {
-                        map.entry(fact.to_owned()).or_insert(Value::Null);
-                    }
-                    fields.insert(column.clone(), Value::Map(map.into()));
-                    continue;
-                }
-                return Err(RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table_name}.{column} names an upload {id} that is not yours or does not exist; upload the bytes first (POST /assets) and place the id it returns") });
-            };
-            if asset.owner != self.context.viewer && !self.context.is_system() {
-                return Err(RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table_name}.{column} names an upload {id} that is not yours or does not exist; upload the bytes first (POST /assets) and place the id it returns") });
-            }
-            if asset.kind != wanted {
-                return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{table_name}.{column} takes {} and {id} is {}", wanted.word(), asset.kind.word()) });
-            }
-            if asset.bytes > u64::from(max) {
-                return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("{table_name}.{column} takes at most {max} bytes; {id} is {}", asset.bytes) });
-            }
-            fields.insert(column.clone(), asset.column_value());
-        }
-        Ok(Value::Row(fields.into()))
-    }
-
-    /// One asset, one home: the column that now names an upload claims it
-    /// for this row; the one it no longer names releases it, and the bytes
-    /// are served no more. Part of every physical row change.
-    #[cfg(feature = "sqlite")]
-    fn place_assets(&mut self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        if !self.tx.holds_assets() {
-            return Ok(());
-        }
-        let now = self.context.now.unwrap_or(0);
-        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned();
-        for (column, kind) in &table.columns {
-            if !matches!(kind.required(), ColumnType::Image { .. } | ColumnType::Video { .. }) {
-                continue;
-            }
-            let before = asset_id(old.and_then(|old| old.field(column).ok())).map(str::to_owned);
-            let after = asset_id(new.and_then(|new| new.field(column).ok())).map(str::to_owned);
-            // Equal explicit hidden assignments already passed with_asset_facts ownership validation.
-            if before == after {
-                continue;
-            }
-            if let Some(released) = before {
-                self.tx.release_asset(&released, now)?;
-            }
-            if let Some(claimed) = after {
-                if self.context.is_system() && self.tx.asset(&claimed)?.is_none() {
-                    continue;
-                }
-                self.tx.claim_asset(&claimed, &self.context.viewer, table_name, &id, column)?;
-            }
-        }
-        Ok(())
     }
 
     pub(super) fn refuse_upsert_owned(&self, table: &str) -> Result<(), RuntimeError> {

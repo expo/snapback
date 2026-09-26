@@ -19,7 +19,11 @@ impl Runner<'_> {
         let previous_heap = std::mem::take(&mut self.maintain_heap);
         let column_prepaid = std::mem::replace(&mut self.column_prepaid, false);
         let column_heap = std::mem::take(&mut self.column_heap);
+        #[cfg(feature = "sqlite")]
+        let assets_prepaid = std::mem::replace(&mut self.assets_prepaid, false);
         let result = self.reserve_columns(table).and_then(|_|attempt(self));
+        #[cfg(feature = "sqlite")]
+        { self.assets_prepaid = assets_prepaid; }
         self.capture_prepaid = capture_prepaid;
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.column_heap);
         self.column_prepaid = column_prepaid;

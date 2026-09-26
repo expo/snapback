@@ -24,6 +24,8 @@ mod sync_generation_tests;
 mod timeline_tests;
 #[path = "../tests/serve_store/mod.rs"]
 mod store_tests;
+#[path = "../tests/serve_assets/mod.rs"]
+mod asset_list_tests;
 
 
 #[test]

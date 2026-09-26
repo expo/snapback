@@ -347,6 +347,7 @@ table clips:
   ownerId: principal
   photo: image <=10000000 once ?           -- `once`: one view per principal, never cached
   clip: video <=50000000 ?
+  photos: [image <=10000000] <=4 ?         -- each upload belongs to this row
   at: time
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
@@ -359,13 +360,28 @@ mutation sendClip(clip: video <=50000000):
   require duration != null else DURATION_UNKNOWN
   require duration <= 60000 else TOO_LONG
   return insert clips { ownerId: viewer, clip, at: now }
+
+mutation sendPhotos(photos: [image <=10000000] <=4):
+  return insert clips { ownerId: viewer, photos, at: now }
 ```
+
+Upload each image first, then pass the list of `{ id }` values to `sendPhotos`.
+Each element inherits the row's read rule.
+`[image <=10000000 once] <=4` applies one view per principal to each image.
+List placement and release reserve four examinations, two writes, eight steps
+and 16 KiB scratch per declared element slot (nested caps multiply), even for
+an empty or unchanged list; file bytes are not copied by placement.
+Scalar receipts retain their previous accounting: the proposed extra allowance
+of four examinations, two writes, eight steps and 16 KiB scratch per scalar slot
+was withdrawn because it broke existing scalar meter boundaries.
 
 The local client keeps server upload facts for prediction: `{ id }` works
 offline after upload, including reads of duration and dimensions. Without
 those facts the write queues unpredicted and the server judges it.
 With `createLocalClient({ assets: { keep: "viewed", maxBytes: 67108864 }, ... })`,
-ordinary viewed images and videos survive offline reopen in device storage.
+ordinary viewed images and videos in scalar columns survive offline reopen in
+device storage. List elements are served online; offline list retention is not
+implemented yet.
 `keep: "none"` (the default) retains no media. The byte bound evicts least
 recently used assets. Home-row deletion, clearing, expiry and partition leave
 purge the bytes; `once` is never stored. Online reads always revalidate.
@@ -398,7 +414,15 @@ for a second home. Fetch a once asset without Range; a consumed view cannot be
 retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
-a readable home row does not grant upload ownership."##,
+a readable home row does not grant upload ownership.
+
+Removing an element releases it; reordering keeps its home and view history;
+deleting the row releases all.
+
+Stored list ids from before list placement are not backfilled, and rewriting
+the cell with the same ids does not claim them. Readers still get
+E_ASSET_UNKNOWN (the upload owner can still preview) until a write places and
+claims fresh uploads in the cell."##,
         "client" => include_str!("guide/client.md"),
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,

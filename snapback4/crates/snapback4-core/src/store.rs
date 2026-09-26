@@ -951,8 +951,8 @@ impl crate::rows::Rows for Tx<'_> {
     fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<crate::assets::Asset, RuntimeError> {
         Tx::claim_asset(self, id, by, table, row_id, column)
     }
-    fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
-        Tx::release_asset(self, id, now)
+    fn release_asset(&self, id: &str, table: &str, row_id: &str, column: &str, now: i64) -> Result<(), RuntimeError> {
+        Tx::release_asset(self, id, table, row_id, column, now)
     }
 }
 

@@ -198,6 +198,8 @@ pub struct Runner<'a> {
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
     pub(crate) column_heap: u64,
     pub(crate) column_prepaid: bool,
+    #[cfg(feature = "sqlite")]
+    pub(super) assets_prepaid: bool,
 }
 
 impl<'a> Runner<'a> {
@@ -306,6 +308,8 @@ impl<'a> Runner<'a> {
             timeline_authority: None,
             column_heap: 0,
             column_prepaid: false,
+            #[cfg(feature = "sqlite")]
+            assets_prepaid: false,
         }
     }
 
