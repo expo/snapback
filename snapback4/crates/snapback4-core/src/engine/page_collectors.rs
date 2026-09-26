@@ -126,7 +126,7 @@ fn selected_names(value: &Expr, selected: &[String], live: &mut Names) {
         }
         Expr::Unary { value, .. } => names(value, live),
         Expr::Array(values) => { for value in values { names(value, live); } }
-        Expr::Builtin { builtin, args: values } => { for value in builtin.operands(values) { names(value, live); } }
+        Expr::Builtin { args: values, .. } => { for value in values { names(value, live); } }
         Expr::Object(fields) => field_names(fields, selected, live),
         Expr::Shape { base, fields } => { names(base, live); field_names(fields, selected, live); }
         Expr::Binary { left, right, .. } => { names(left, live); names(right, live); }

@@ -531,7 +531,7 @@ impl Analysis<'_> {
             }
             // @ref LLP 3000.019#3.2 — expression extrema price every source row,
             // including the reads performed by the value expression per row.
-            Expr::Builtin { builtin: Builtin::ExtremumOf { value, max, domain }, args } => {
+            Expr::Builtin { builtin: Builtin::ExtremumOf { max, domain }, args } => {
                 let count = if let Some(Expr::Scan(scan)) = args.first().filter(|_| *domain) {
                     self.result.aggregates.push(format!("{}({}, expression): metered scan of the domain on {}.{}; nulls skipped; a cut has no scalar answer",
                         if *max { "max" } else { "min" }, self.scan_domain(scan), scan.table, scan.index));
@@ -553,13 +553,13 @@ impl Analysis<'_> {
                         self.result.bounds.meters.examined
                     }
                 } else {
-                    for arg in args { self.expr(arg, times); }
+                    self.expr(&args[0], times);
                     match args.first() { Some(Expr::Array(values)) => values.len() as u64, _ => self.result.bounds.meters.steps }
                 };
-                self.expr(value, times.saturating_mul(count));
+                self.expr(&args[1], times.saturating_mul(count));
                 true
             }
-            Expr::Builtin { builtin, args } => builtin.operands(args).fold(matches!(builtin, Builtin::Connected), |d, e| self.expr(e, times) | d),
+            Expr::Builtin { builtin, args } => args.iter().fold(matches!(builtin, Builtin::Connected), |d, e| self.expr(e, times) | d),
             Expr::Get(read) | Expr::Exists(read) => { self.point(read, times, true); true }
             Expr::Block { body, value } => { self.body(body, times); self.expr(value, times) }
             Expr::Scan(scan) => { self.scan(scan, times, false); true }

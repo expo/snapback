@@ -762,9 +762,9 @@ impl<'a> Runner<'a> {
                     if args.len() != 1 { return Err(RuntimeError::Input("column min/max takes one source".into())); }
                     return self.extremum(&args[0], field, None, *max, *domain);
                 }
-                if let Builtin::ExtremumOf { value, max, domain } = builtin {
-                    if args.len() != 1 { return Err(RuntimeError::Input("expression min/max takes one source".into())); }
-                    return self.extremum(&args[0], "", Some(value), *max, *domain);
+                if let Builtin::ExtremumOf { max, domain } = builtin {
+                    if args.len() != 2 { return Err(RuntimeError::Input("expression min/max takes a source and projection".into())); }
+                    return self.extremum(&args[0], "", Some(&args[1]), *max, *domain);
                 }
                 if matches!(builtin, Builtin::Count | Builtin::Sum) && let Some(Expr::Scan(scan)) = args.first()
                     && (scan.take == Bound::Meter || scan.existence) && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)))

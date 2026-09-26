@@ -309,7 +309,7 @@ fn pure_expr(expr: &Expr) -> bool {
         Expr::Block { body, value } => pure(body) && pure_expr(value),
         Expr::Shape { base, fields } => pure_expr(base) && fields.values().all(pure_expr),
         Expr::Array(items) => items.iter().all(pure_expr),
-        Expr::Builtin { builtin, args } => pure_builtin(builtin) && builtin.operands(args).all(pure_expr),
+        Expr::Builtin { builtin, args } => pure_builtin(builtin) && args.iter().all(pure_expr),
         Expr::Object(fields) => fields.values().all(pure_expr),
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => pure_expr(base),
         Expr::Binary { left, right, .. } => pure_expr(left) && pure_expr(right),

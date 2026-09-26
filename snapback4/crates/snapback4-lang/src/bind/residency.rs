@@ -308,7 +308,7 @@ fn expr(schema: &Schema, value: &Expr, codes: &mut BTreeSet<String>, sites: &mut
         Expr::Block { body, value } => { inspect(schema, body, codes, sites); expr(schema, value, codes, sites); }
         Expr::Builtin { builtin, args } => {
             if *builtin == ir::Builtin::Connected { sites.push(ResidencySite { site: "connected".into(), table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server, reason: "connected[principal] is known only by the server".into(), rewrite: "remove connected from this query; observe presence separately online".into() }); }
-            for value in builtin.operands(args) { expr(schema, value, codes, sites); }
+            for value in args.iter() { expr(schema, value, codes, sites); }
         }
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(schema, base, codes, sites),
         Expr::Array(values) => for value in values { expr(schema, value, codes, sites); },

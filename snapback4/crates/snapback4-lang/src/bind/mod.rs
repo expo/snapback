@@ -491,7 +491,7 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
             }
             Expr::Field { base, .. } => in_expr(base, out),
             Expr::Array(items) => items.iter().for_each(|item| in_expr(item, out)),
-            Expr::Builtin { builtin, args: items } => builtin.operands(items).for_each(|item| in_expr(item, out)),
+            Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
             Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),
             Expr::Binary { left, right, .. } => {
                 in_expr(left, out);

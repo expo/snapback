@@ -98,7 +98,7 @@ fn expr(data: &mut Locals, value: &Expr) -> bool {
             fields.values().fold(dependent, |d, e| expr(data, e) | d)
         }
         Expr::Binary { left, right, .. } => expr(data, left) | expr(data, right),
-        Expr::Builtin { builtin, args } => builtin.operands(args).fold(matches!(builtin, Builtin::Connected), |d, e| expr(data, e) | d),
+        Expr::Builtin { builtin, args } => args.iter().fold(matches!(builtin, Builtin::Connected), |d, e| expr(data, e) | d),
         Expr::Get(r) | Expr::Exists(r) => { read(data, r); true }
         Expr::Block { body: statements, value } => { body(data, statements); expr(data, value) }
         Expr::Scan(s) => { scan(data, s); true }

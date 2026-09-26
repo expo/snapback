@@ -153,3 +153,37 @@ fn optional_filters_and_inferred_lanes_remain_whole_domains() {
     e.set_ceilings(Ceilings { examined: 5, ..Ceilings::default() });
     assert_eq!(e.query("member", Context::new("alice", BTreeMap::new())).unwrap().data, Value::Null);
 }
+
+#[test]
+fn projection_read_cuts_withhold_even_after_a_previous_winner() {
+    let schema = "table t:\n  target: id\n  cap 3\n  public\n  sync public\ntable details:\n  n: int\n  public\n  sync public\n";
+    for aggregate in ["min", "max"] {
+        let source = format!("{schema}query q():\n  return {aggregate}(t, 10 / (details[.target].n ?? 0)) ?? 99\n");
+        for count in [1, 2] {
+            let mut e = engine(&source);
+            e.seed((0..count).flat_map(|i| [
+                ("t".into(), object([("id", Value::Id(format!("r{i}"))), ("target", Value::Id(format!("d{i}")))])),
+                ("details".into(), object([("id", Value::Id(format!("d{i}"))), ("n", Value::Int(5))])),
+            ])).unwrap();
+            let run = |e: &mut Engine| e.query("q", Context::new("alice", BTreeMap::new()));
+            let complete = run(&mut e).unwrap();
+            assert!(complete.complete);
+            assert_eq!(complete.data, Value::Int(2));
+            e.set_ceilings(Ceilings { examined: (count * 2 - 1) as u64, ..Ceilings::default() });
+            let cut = run(&mut e).unwrap_or_else(|error| panic!("{aggregate}, {count} rows: {error:?}"));
+            assert!(!cut.complete && cut.capped_at.is_some(), "{aggregate}: {cut:?}");
+            assert_eq!(cut.data, Value::Null, "no previous winner or default survives");
+        }
+    }
+    let mut e = engine(&format!("{schema}query q():\n  return max(t, 10 / (details[.target].n ?? 0))\n"));
+    e.seed([("t".into(), object([("id", Value::Id("r".into())), ("target", Value::Id("missing".into()))]))]).unwrap();
+    assert_eq!(e.query("q", Context::new("alice", BTreeMap::new())).unwrap_err().code, "E_DIV_ZERO");
+}
+
+#[test]
+fn null_source_rows_still_evaluate_the_projection() {
+    let result = engine("query q():\n  rows = [null, { n: -2 }]\n  return { high: max(rows, .n ?? 0), low: min(rows, .n ?? -3) }\n")
+        .query("q", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(result.complete);
+    assert_eq!(result.data, object([("high", Value::Int(0)), ("low", Value::Int(-3))]));
+}

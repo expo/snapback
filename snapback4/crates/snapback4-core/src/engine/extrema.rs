@@ -16,10 +16,7 @@ impl<'a> Aggregate<'a> {
         match self {
             Self::Total { value, projection } => {
                 let amount = if let Some(projection) = projection {
-                    let prior = runner.env.insert("$filter".into(), row.clone());
-                    let amount = runner.expr(projection);
-                    match prior { Some(value) => { runner.env.insert("$filter".into(), value); }, None => { runner.env.remove("$filter"); } }
-                    i128::from(amount?.as_int()?)
+                    i128::from(runner.aggregate_projection(row, projection)?.as_int()?)
                 } else { 1 };
                 *value += amount;
                 Ok(false)
@@ -31,10 +28,7 @@ impl<'a> Aggregate<'a> {
                 let projected;
                 let next = if let Some(projection) = projection {
                     runner.meter.heap(row.expression_copy(ExpressionAccess(())))?;
-                    let prior = runner.env.insert("$filter".into(), row.clone());
-                    let result = runner.expr(projection);
-                    match prior { Some(value) => { runner.env.insert("$filter".into(), value); }, None => { runner.env.remove("$filter"); } }
-                    projected = result?;
+                    projected = runner.aggregate_projection(row, projection)?;
                     &projected
                 } else if *row == Value::Null { row } else { row.field(field)? };
                 if *next == Value::Null { return Ok(false); }
@@ -61,6 +55,17 @@ impl<'a> Aggregate<'a> {
 }
 
 impl Runner<'_> {
+    // @ref LLP 3000.019#3.2 — sums and extrema bind projections identically.
+    // A cut point read's null placeholder must not escape as an application
+    // error (for example 10 / (details[.target].n ?? 0)). Restore scope first.
+    fn aggregate_projection(&mut self, row: &Value, projection: &Expr) -> Result<Value, RuntimeError> {
+        let prior = self.env.insert("$filter".into(), row.clone());
+        let result = self.expr(projection);
+        match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
+        self.meter.require_uncapped()?;
+        result
+    }
+
     // @ref LLP 3000.013#5.1 — an extremum is unavailable on a cut or unknown
     // domain; one locally held endpoint never proves domain completeness.
     pub(in crate::engine) fn extremum(&mut self, source: &Expr, field: &str, projection: Option<&Expr>, max: bool, domain: bool) -> Result<Value, RuntimeError> {

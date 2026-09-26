@@ -82,7 +82,7 @@ fn in_expr(expr: &Expr, visit: &mut impl FnMut(&Expr, &str)) {
         Expr::Binary { left, right, .. } => { in_expr(left, visit); in_expr(right, visit); }
         Expr::Object(fields) => for value in fields.values() { in_expr(value, visit); },
         Expr::Array(values) => for value in values { in_expr(value, visit); },
-        Expr::Builtin { builtin, args: values } => for value in builtin.operands(values) { in_expr(value, visit); },
+        Expr::Builtin { args: values, .. } => for value in values { in_expr(value, visit); },
         Expr::Shape { base, fields } => { in_expr(base, visit); for value in fields.values() { in_expr(value, visit); } }
         Expr::Get(read) | Expr::Exists(read) => for key in &read.key { in_expr(key, visit); },
         _ => {}

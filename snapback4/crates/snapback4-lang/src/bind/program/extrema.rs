@@ -60,7 +60,7 @@ impl Binder<'_> {
                 format!("{name}({}, .column + 1)", print::expression(&args[0]))));
         }
         let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
-        Ok(Some((Expr::Builtin { builtin: Builtin::ExtremumOf { value: Box::new(value), max: name == "max", domain }, args: vec![source] }, ty.optional())))
+        Ok(Some((Expr::Builtin { builtin: Builtin::ExtremumOf { max: name == "max", domain }, args: vec![source, value] }, ty.optional())))
     }
 
     // @ref LLP 3000.013#5.1 — domains retain aggregate admission and coverage.

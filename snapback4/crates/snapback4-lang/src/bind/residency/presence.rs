@@ -210,7 +210,7 @@ impl Flow<'_> {
             Expr::Literal(_) | Expr::Input(_) => Origins::new(),
             Expr::Builtin { builtin, args } => {
                 let mut origins = Origins::new();
-                for arg in builtin.operands(args) { origins.extend(self.expr(arg, env, control, site)); }
+                for arg in args.iter() { origins.extend(self.expr(arg, env, control, site)); }
                 if *builtin == ir::Builtin::Connected {
                     self.seen = true;
                     self.reject(&origins, "a presence read key", site);
