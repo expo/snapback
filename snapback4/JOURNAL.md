@@ -63083,3 +63083,9 @@ presence, which LLP 3000.018 fixes. It first did so by following presence
 through held polls, which four review rounds could not make safe, then by a
 refresh. The full record is
 `reports/20260926-intent-integration-043/REPORT.md`.
+
+Round 21 is a test. Grok's review of round 20 (READY WITH CHANGES) found every
+earlier finding fixed and one gap: nothing showed a kept view staying kept
+across a loading answer, so honoring the kept mark only when the member's row
+is present survived. A case publishes a loading answer and then the same row,
+and requires no second `seen`.
