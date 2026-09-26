@@ -340,8 +340,8 @@ fn fallible_endpoints_can_keep_their_original_evaluation_point() {
     same_population(&source, original, true);
 }
 
-fn two_sided_range(upper: &str) {
-    let original = format!("messages[conversationId, ordinal > 1, ordinal {upper}] first 2 by byOrdinal after c where .sender = viewer");
+fn two_sided_range(lower: &str, upper: &str) {
+    let original = format!("messages[conversationId, ordinal {lower}, ordinal {upper}] first 2 by byOrdinal after c where .sender = viewer");
     // The seed has ordinals 0 and 1 below, 2/3/4 inside, and 5/6 above.
     // The inside rows require continuation and differ in time/ordinal order.
     let repaired = same_population(&named().replace(PAGE, &original), &original, true);
@@ -352,10 +352,13 @@ fn two_sided_range(upper: &str) {
 }
 
 #[test]
-fn two_sided_range_keeps_strict_upper_bound_across_pages() { two_sided_range("< 5"); }
+fn two_sided_range_keeps_strict_upper_bound_across_pages() { two_sided_range("> 1", "< 5"); }
 
 #[test]
-fn two_sided_range_keeps_inclusive_upper_bound_across_pages() { two_sided_range("<= 4"); }
+fn two_sided_range_keeps_inclusive_upper_bound_across_pages() { two_sided_range("> 1", "<= 4"); }
+
+#[test]
+fn two_sided_range_keeps_inclusive_lower_bound_across_pages() { two_sided_range(">= 2", "<= 4"); }
 
 #[test]
 fn generated_indexes_calendar_ranges_and_named_locals_apply_and_run() {
