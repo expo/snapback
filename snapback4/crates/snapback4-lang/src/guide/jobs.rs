@@ -89,13 +89,13 @@ A schedule may also target an action: `schedule renewal every 1m as service:bill
 
 ## A digest is a job that reads
 
-Seek the period, filter the ordinal. The helper below serves both the UI's
-`inbox(periodStart, periodEnd)` as the viewer and the scheduled job as the
-system. Compare them for the same period and row state: an all-history inbox
-can quite properly show more unread than this period's digest. A job may
-read a table with expiry; an expired row is absent from its expiry instant,
-even before the sweep deletes it. Tombstoned, own, already-read and
-out-of-period messages do not contribute.
+Seek the period, filter the ordinal. The helper serves the UI's separate
+`unreadTotals(periodStart, periodEnd)` query as the viewer and the scheduled
+job as the system; compare the same period and row state. An all-history total
+can exceed this period's digest. Keep `inbox` locally complete: an unavailable
+unread total is unknown, not zero, and must not hide the conversation.
+Expired rows are absent from their expiry instant, even before deletion;
+tombstoned, own, already-read and out-of-period messages do not contribute.
 
 Authorization is structural here: the loop walks each principal's own
 memberships. A job passes every rule, so a digest reading messages by any
@@ -154,7 +154,9 @@ table messages:
 fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, periodStart: time, periodEnd: time):
   return count(messages where .conversationId = conversationId and .at >= periodStart and .at < periodEnd and not .tombstone and .senderId != reader and .ordinal > readOrdinal)
 
-query inbox(periodStart: time, periodEnd: time, c: cursor ?):
+query inbox(c: cursor ?):
+  return members where .principal = viewer first 20 by .conversationId after c { conversationId }
+query unreadTotals(periodStart: time, periodEnd: time, c: cursor ?):
   return members where .principal = viewer first 20 by .conversationId after c { conversationId, unread: unreadIn(.conversationId, viewer, .readOrdinal, periodStart, periodEnd) }
 
 job digest(periodStart: time, periodEnd: time):

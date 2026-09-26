@@ -144,7 +144,7 @@ function Profile() {
   const profile = useQuery(api.myProfile, {}), save = useMutation(api.saveProfile), place = useMutation(api.placeAvatar);
   const avatar = useAsset("data" in profile ? profile.data?.avatar?.id : null);
   const [handle, setHandle] = useState(""), [uri, setUri] = useState(""), [problem, setProblem] = useState("");
-  const busy = save.inFlight || save.last?.state === "pending" || place.inFlight || place.last?.state === "pending";
+  const busy = save.inFlight || place.inFlight;
   const upload = async () => {
     try {
       const result = await client.upload(await (await fetch(uri)).blob());
@@ -155,7 +155,7 @@ function Profile() {
   return <View style={{ padding: 32, gap: 12 }}>
     <Text>{"denied" in profile ? profile.denied.message : "loading" in profile ? "Loading…" : profile.data ? `@${profile.data.handle}; avatar ${profile.data.avatar?.id ?? "not placed"}` : "Choose your handle"}</Text>
     {avatar.status === "ready" && <Image source={{ uri: avatar.url }} style={{ width: 96, height: 96 }} />}
-    <Text>{problem || (save.last?.state === "failed" ? save.last.why.message : save.last?.state)}</Text>
+    <Text>{problem || (save.last?.state === "failed" ? save.last.why.message : save.last?.state === "pending" ? "queued" : save.last?.state)}</Text>
     <Text>{place.last?.state === "failed" ? place.last.why.message : place.last?.state}</Text>
     <TextInput placeholder="Handle" value={handle} onChangeText={setHandle} autoCapitalize="none" />
     <Button title="Save profile" disabled={busy} onPress={() => void save.run({ handle })} />
@@ -292,7 +292,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Typing / scoped presence | `guide ephemeral` / [Ephemeral writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes) |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
-| Full client, auth / complete React list | [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
+| Client patterns / auth / React list | `guide client` / [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
 | Development and wire | [§5](./CLIENT-AND-OPERATIONS.md#5-development) |
 | Release | [§6](./CLIENT-AND-OPERATIONS.md#6-release) |
 | Expo | [§7](./CLIENT-AND-OPERATIONS.md#7-expo) |

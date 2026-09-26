@@ -15,7 +15,7 @@ import { deferStart, trackRotation } from "./client-start.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
-import { MutationIds, WriteHistory } from "./writes.ts";
+import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
@@ -835,10 +835,15 @@ export function createClient(options: ClientOptions): Client {
         pending.push(entry);
         history.remember(write);
         const attempt = flush();
-        if (link !== "online") return write;
-        const outcome = await Promise.race([settled, attempt.then((): Write => write)]) as Write<R>;
-        if (outcome.state === "pending" && closed) { await closingResponses.done; return entry.response.write(outcome); }
-        return outcome;
+        const wait = mutationWaitSeconds(options?.waitSeconds);
+        if (link !== "online" || wait === 0) return write;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const timeout = wait === undefined ? [] : [new Promise<Write>(resolve => { timer = setTimeout(() => resolve(write), wait * 1_000); })];
+          const outcome = await Promise.race([settled, attempt.then((): Write => write), ...timeout]) as Write<R>;
+          if (outcome.state === "pending" && closed) { await closingResponses.done; return entry.response.write(outcome); }
+          return outcome;
+        } finally { clearTimeout(timer); }
       });
     }),
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },

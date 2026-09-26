@@ -93,3 +93,75 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
     await client.close(); assert.equal(await client.write(id), undefined, "closing fences the retained outcome");
   });
 }
+
+test("CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal", async t => {
+  const memory = memorySessionStore(), errors = [];
+  let failStore = false;
+  const store = { ...memory, async set(key, value) { if (failStore) throw Error("disk full"); await memory.set(key, value); } };
+  const raw = { viewer: () => "alice", onWrite: () => () => {},
+    mutate: async () => { throw Error("transport exploded"); }, write: async () => undefined,
+    close: async () => {}, signOut: async () => {} };
+  trackDispatch(raw, { store: "test-store" });
+  const { client } = await onlineCustody(raw, "https://admission.invalid", store, error => errors.push(error));
+  t.after(() => client.close());
+  const op = { kind: "mutation", name: "write" };
+  const pending = await client.mutate(op, { body: "kept" }, { waitSeconds: 0 });
+  assert.equal(pending.state, "pending"); await delay(0);
+  assert.equal(errors.length, 1); assert.equal((await client.write(pending.id)).state, "pending");
+  failStore = true;
+  const failed = await client.mutate(op, { body: "not kept" }, { waitSeconds: 0 });
+  assert.equal(failed.state, "failed"); assert.equal(failed.why.code, "E_STORE");
+});
+
+test("CCP mutation waits use the action clamp and preserve omitted defaults", async () => {
+  const { mutationWaitSeconds } = await import("../dist/writes.js");
+  for (const [input, expected] of [[undefined, undefined], [null, undefined], [0, 0], [-2, 0], [.9, 0], [1.9, 1], [26, 25], [NaN, 25], [Infinity, 25], [-Infinity, 25]])
+    assert.equal(mutationWaitSeconds(input), expected);
+});
+
+for (const waitSeconds of [undefined, 0]) test(`CCP existing custody is not replaced by a redundant save refusal (wait=${waitSeconds})`, async t => {
+  const memory = memorySessionStore(); let fail = false, dispatches = 0;
+  const store = { ...memory, async set(key, value) { if (fail) throw Error("disk full"); await memory.set(key, value); } };
+  const raw = () => {
+    const client = { viewer: () => "alice", onWrite: () => () => {},
+      mutate: async (_op, _args, { id }) => { dispatches++; return { state: "pending", id }; },
+      write: async () => undefined, close: async () => {}, signOut: async () => {} };
+    trackDispatch(client, { store: "original-store" }); return client;
+  };
+  const id = mintId(), op = { kind: "mutation", name: "send" }, args = { body: "original" };
+  const first = await onlineCustody(raw(), "https://reopen.invalid", store, () => {}, false);
+  assert.equal((await first.client.mutate(op, args, { id, waitSeconds: 0 })).state, "pending");
+  await first.client.close();
+  const second = await onlineCustody(raw(), "https://reopen.invalid", store, () => {}, false);
+  t.after(() => second.client.close()); fail = true;
+  assert.equal((await second.client.mutate(op, args, { id, waitSeconds })).state, "pending");
+  assert.equal((await second.client.write(id)).state, "pending");
+  assert.equal((await second.client.mutate(op, { body: "conflicting" }, { id, waitSeconds })).why.code, "E_WRITE_ID_REUSE");
+  assert.equal(dispatches, 2, "recovery keeps the original intent");
+});
+
+test("CCP two createApp instances recover the known receipt when journal saves fail", async t => {
+  const { createApp } = await import("../dist/app.js");
+  const { keepSession } = await import("../dist/auth.js");
+  const url = "http://shared-custody.invalid", memory = memorySessionStore();
+  await keepSession(url, { principal: "alice", kind: "user", token: "local-test-token", expiresAt: Date.now() + 7 * 86400_000 }, memory);
+  let fail = false, executions = 0;
+  const store = { ...memory, async set(key, value) { if (fail && key.endsWith(".writes")) throw Error("disk full"); await memory.set(key, value); } };
+  const transport = async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/probe") return Response.json({ ok: true, store_id: "A", seq: executions });
+    if (path === "/m/send") { executions++; const { id } = JSON.parse(init.body); return Response.json({ state: "sent", id, seq: executions, store_id: "A", head: executions }); }
+    if (path === "/changes") return new Promise(() => {});
+    throw Error(path);
+  };
+  const a = createApp({ url, sessionStore: store, fetch: transport }), b = createApp({ url, sessionStore: store, fetch: transport });
+  t.after(async () => { fail = false; await a.close(); await b.close(); });
+  await a.ready; await b.ready;
+  const op = { kind: "mutation", name: "send" }, args = { body: "already executed" }, id = mintId();
+  const original = await a.mutate(op, args, { id }); assert.equal(original.state, "sent");
+  fail = true;
+  const returned = await b.mutate(op, args, { id, waitSeconds: 0 });
+  assert.deepEqual(returned, { state: "sent", id, seq: original.seq, replayed: true });
+  assert.deepEqual(await b.client.write(id), returned); assert.equal(executions, 1);
+  t.diagnostic(`shared journal: ${executions} execution, recovered=${returned.state}, replayed=${returned.replayed}`);
+});
