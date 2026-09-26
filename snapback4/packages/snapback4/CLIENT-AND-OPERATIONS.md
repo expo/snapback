@@ -949,9 +949,9 @@ A predicted write has no such reason; predictions remain visible on rows.
 ```tsx
 import { useAcquired, usePendingWrite } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-export function PendingSend({ conversationId, savedId }: { conversationId: string; savedId?: string }) {
+export function PendingSend({ conversationId }: { conversationId: string }) {
   const acquired = useAcquired();
-  const send = usePendingWrite(api.send, savedId);
+  const send = usePendingWrite(api.send);
   return <>
     <button disabled={send.inFlight} onClick={() => void send.run({ conversationId, body: "hi" }, { waitSeconds: 0 })}>Send</button>
     {!acquired && <small>Local data is still acquiring.</small>}

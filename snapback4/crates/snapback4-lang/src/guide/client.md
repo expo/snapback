@@ -10,21 +10,22 @@ import { api } from "../snapback/generated/api";
 export function Composer({ conversationId }: { conversationId: string }) {
   const [draft, setDraft] = useState("");
   const send = useMutation(api.send);
+  const [submitted, setSubmitted] = useState("");
   async function submit() {
-    const submitted = draft;
-    const write = await send.run({ conversationId, body: submitted }, { waitSeconds: 0 });
-    if (write.state !== "failed") setDraft(current => current.startsWith(submitted) ? current.slice(submitted.length) : current);
+    const text = draft; setSubmitted(text); setDraft("");
+    const write = await send.run({ conversationId, body: text }, { waitSeconds: 0 });
+    if (write.state === "failed") setDraft(current => current || text);
   }
   return <><input value={draft} onChange={e => setDraft(e.target.value)} />
     <button disabled={send.inFlight} onClick={() => void submit()}>Send</button>
-    {send.last?.state === "failed" && <p role="alert">{send.last.why.message}</p>}</>;
+    {send.last?.state === "failed" && submitted && <p role="alert">Not sent: {submitted} <button onClick={() => setDraft(current => current ? current + " " + submitted : submitted)}>Edit</button> <button onClick={() => setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
 
 `waitSeconds: 0` returns at custody; `inFlight` covers the call, while `pending` lasts until settlement and must not disable the next send.
-A refusal before custody keeps the draft; text typed meanwhile survives. Predicted rows carry `pending: true`: show “Sending…”.
+Clear the field at submit; on refusal, restore it only if still empty, otherwise offer the saved text with Edit (append to a non-empty draft). Text typed meanwhile survives. Predicted rows carry `pending: true`: show “Sending…”.
 For earlier sends and reload, save `{ id: mintId(), args }` in account-and-backend-scoped storage **before** `run(args, { id, waitSeconds: 0 })`.
-Observe each saved id with `usePendingWrite(op, savedId)`; `failed` shows its refusal and saved text to edit. An `undefined` receipt is unknown, never failed or automatically resent.
+Observe each saved id with `usePendingWrite(op, savedId)`; `failed` shows its refusal and saved text to edit. Show “Saving…” during submission and “Checking…” while `restoring` is true; only then is an `undefined` receipt unknown, never failed or automatically resent. Unknown and failed rows show the saved text; only settled lookups offer Dismiss.
 A deliberate new attempt gets a new id; never mint one to recover a lost acknowledgement. A replay confirms execution without a historical result.
 The reference saved-intent journal is in the starters: `snapback4 init --expo` / `--web`; it is not another outbox or resend loop.
 
@@ -33,64 +34,16 @@ The reference saved-intent journal is in the starters: `snapback4 init --expo` /
 The signed-in tree follows `useAuth().state`, not a profile query. Decide the first route once per account/backend; subsequent `loading` never unmounts that tree, a route or draft.
 Keep headers and composers mounted through `loading`; rows follow the current read, never a saved previous answer. Reset user-owned state on account/backend change.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
-A query the device cannot complete goes `loading` while your predictable writes to its tables are pending; see `guide reads` and `snapback4 why <query>`.
-A total or extremum (`count`, `sum`, `min`, `max`) over input past the sync horizon, or a point read past it (a quoted message, a joined row), withholds the whole answer on the device; an order differing from the horizon's order alone gives partial data (`complete: false`).
+While this device holds a predictable pending write to a table a query reads, that query asks no server; a write with an unknown predicted footprint blocks every query. Writes to unrelated tables do not hold it.
+A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>` and `prediction-routing.test.mjs` (Rules 1–5, unchanged).
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
 
 ## Acknowledgements and receipts
 
-Keep server-owned monotonic progress per member. When the conversation is open and the app foregrounded, acknowledge the newest message and each newer arrival while it stays open; “read through” marks every earlier message too.
-Only an app whose declared policy is per-message visibility must acknowledge a contiguous observed prefix without crossing unloaded gaps.
-Keep admitted progress and an in-flight guard in refs **above the list**, keyed by backend, account, room and delivery/read kind.
-After `const write = await ack.run(args, { waitSeconds: 0 })`, remember the submitted progress only if `write.state !== "failed"`; a pre-custody refusal leaves it retryable.
-A later failed receipt clears that suppression; on reload reconcile against server progress and saved ids, never blindly resend an unknown receipt.
-Start **one** delivery observation after `useAcquired()` is true, not a live `usePage` for every conversation row.
-
-The recipient set is membership at send time, excluding the sender; later joins never enter it. Leaving/removal drops a recipient from the requirement (rejoining does not restore it).
-The aggregate is the minimum remaining progress: 0 sent, 1 delivered, 2 read (2 if none remain). Member progress only moves forward.
-This schema uses the shared `sequence by room` counter (`guide writes`); receipt shaping is a separate decoration query.
-
-```quarry
-table rooms:
-  creator: principal
-  read <- .creator = viewer or exists members[.id, viewer]
-  insert <- .creator = viewer
-table members:
-  room: rooms
-  principal: principal
-  joined: sequence by room
-  delivered: int default 0
-  readThrough: int default 0
-  unique room, principal
-  immutable room, principal
-  read <- exists rooms[id = .room, creator = viewer] or exists members[.room, viewer]
-  insert <- created rooms[.room] or (exists members[.room, viewer] and exists rooms[id = .room, creator = viewer])
-  update <- .principal = viewer
-  delete <- .principal = viewer or exists rooms[id = .room, creator = viewer]
-table messages:
-  room: rooms
-  sender: principal
-  ordinal: sequence by room
-  body: text <=2000
-  immutable room, sender
-  read <- exists members[.room, viewer]
-  insert <- .sender = viewer and exists members[.room, viewer]
-  sync to members[.room] last 100 by .ordinal
-fn receipt(m: messages):
-  state = 2
-  for member in members where .room = m.room:
-    if member.principal != m.sender and member.joined <= m.ordinal:
-      state = min(state, 2 if member.readThrough >= m.ordinal else 1 if member.delivered >= m.ordinal else 0)
-  return state
-mutation acknowledge(id: messages, kind: enum('delivered', 'read')):
-  m = messages[id]
-  require m != null else NOT_FOUND
-  member = members[m.room, viewer]
-  require member != null else NOT_FOUND
-  update members[member] { delivered: max(member.delivered, m.ordinal), readThrough: max(member.readThrough, m.ordinal) if kind = 'read' else member.readThrough }
-query messageReceipt(id: messages):
-  return messages[id] { id, receipt: receipt(.) }
-```
+Use `snapback4 guide receipts` for the schema, `delivered`/`seen` mutations and `useReceipts` hook; keep that recipe's server-owned progress and lifecycle together.
+Start its background (`visible: false`) delivery hooks only after `useAcquired()` is true. Deferring them took calibration 21's cold acquisition from 69.9 s to 5.6 s at 100 conversations.
+“Read” follows `seen` of the newest message on screen while the conversation is open and the app foregrounded; keep the hook above transient rows and follow its visibility input.
+The recipient set is membership at send time: later joins never enter it, and leaving/removal drops a recipient from the requirement, without recording that they read.
 
 ## One-view photos
 

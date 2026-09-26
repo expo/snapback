@@ -92,20 +92,18 @@ for (const starter of ["expo", "web"]) test(`CCP ${starter} generated intent tra
   const open = (url = "https://one.invalid", account = "alice") => starter === "web" ? new mod.ViewState(client, url, account)
     : new mod.IntentJournal(storage, url, account, () => viewer === account);
   const entries = journal => { const saved = journal.read(); return Array.isArray(saved) ? saved : saved.intents; };
-  const intent = n => starter === "web" ? { id: `id-${n}`, room: "room", operation: "send" }
+  const intent = n => starter === "web" ? { id: `id-${n}`, room: "room", operation: "send", body: `text ${n}` }
     : { id: `id-${n}`, room: "room", op: "send", body: `text ${n}` };
   const journal = open(); let draft = "kept draft";
   fails = true;
-  assert.throws(() => { journal.remember(intent(0)); dispatches++; draft = mod.clearSubmitted(draft, draft); }, /disk full/);
+  assert.throws(() => { journal.remember(intent(0)); dispatches++; draft = ""; }, /disk full/);
   assert.equal(dispatches, 0); assert.equal(draft, "kept draft"); assert.equal(values.size, 0);
   fails = false;
   for (let n = 1; n <= 3; n++) { journal.remember(intent(n)); dispatches++; }
   const reopened = open();
   assert.deepEqual(entries(reopened).map(i => i.id), ["id-1", "id-2", "id-3"]);
   assert.equal(dispatches, 3, "opening never resubmits");
-  assert.equal(mod.clearSubmitted("hello next", "hello"), " next");
-  assert.equal(mod.clearSubmitted("new draft", "hello"), "new draft");
-  assert.equal(mod.clearSubmitted(" hello ", " hello "), "");
+  assert.deepEqual(entries(reopened).map(i => i.body), ["text 1", "text 2", "text 3"]);
   assert.deepEqual(entries(open("https://other.invalid")), []);
   viewer = "bob"; assert.deepEqual(entries(open("https://one.invalid", "bob")), []);
   assert.throws(() => journal.remember(intent(4)), /no longer active/);

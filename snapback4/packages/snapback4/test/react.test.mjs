@@ -80,7 +80,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
             export const View = ({ children }) => h("div", null, children);
             export const SafeAreaView = View;
             export const Text = ({ children }) => h("span", null, children);
-            export const FlatList = ({ data, renderItem, ListEmptyComponent }) => h("div", null, data.length ? data.map((item, index) => h("div", { key: index }, renderItem({ item }))) : ListEmptyComponent);
+            export const FlatList = ({ data, renderItem, ListEmptyComponent, onEndReached }) => h("div", null, data.length ? data.map((item, index) => h("div", { key: index }, renderItem({ item }))) : ListEmptyComponent, onEndReached && h("button", { onClick: onEndReached }, "Load more"));
             export const Pressable = ({ children, onPress }) => h("button", { onClick: onPress }, children);
             export const TextInput = ({ value, onChangeText, placeholder }) => h("input", { value, onChange: e => onChangeText(e.target.value), placeholder });
             export const Button = ({ title, disabled, onPress }) => h("button", { disabled, onClick: onPress }, title);
@@ -1088,7 +1088,7 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
 }
 
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
-  cases[name + " admission removes the submitted prefix and storage failure keeps the draft"] = async () => {
+  cases[name + " submit owns a fresh field and storage failure keeps the draft"] = async () => {
     localStorage.clear(); const client = controlled();
     const view = new ViewState(client, "http://starter-test", client.viewer());
     await mount(h(Component, { backend: "http://starter-test", conversationId: "c", view, onBack: () => {} }), client);
@@ -1098,10 +1098,12 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
     try { await submit(); } finally { Storage.prototype.setItem = save; }
     check(client.writes.length === 0 && host.querySelector("input").value === "hello", "storage failure cannot dispatch or clear");
     check(localStorage.length === 0, "storage failure saved nothing");
-    await submit(); await edit("hello next");
+    check(host.textContent.includes("Not sent: could not save it on this device; your draft is kept."), "storage failure explains that nothing was sent");
+    await submit(); equal(host.querySelector("input").value, "", "clear at submit");
+    await edit(""); await edit("hello again");
     equal(client.writes[0].options.waitSeconds, 0, "composer returns at custody");
     await act(async () => client.writes[0].resolve({ state: "pending", id: client.writes[0].options.id }));
-    equal(host.querySelector("input").value, " next", "only submitted prefix is removed");
+    equal(host.querySelector("input").value, "hello again", "clear-and-retype keeps the whole new draft");
     await unmount();
   };
 }
@@ -1136,9 +1138,12 @@ cases["Expo observes every saved ID across reload, late refusal, unknown receipt
 };
 cases["Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete"] = async () => {
   localStorage.clear();
-  const client = controlled(() => ready([{ id: "m", body: "protected body", authorId: "dev:test", at: 1 }]));
+  const client = controlled(() => ready([{ id: "m", body: "protected body", authorId: "dev:test", at: 1 }], "older"));
   await mount(h(Thread, { backend: "http://starter-test", conversationId: "c", onBack: () => {} }), client);
   await edit("my draft"); const input = host.querySelector("input");
+  await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Load more").click());
+  await act(async () => client.records.at(-1).set({ loading: true }));
+  check(host.textContent.includes("protected body"), "page two loading keeps page one's current rows");
   await act(async () => { for (const record of client.records.filter(r => r.closes === 0)) record.set({ loading: true }); });
   check(host.querySelector("input") === input && input.value === "my draft", "same mounted composer and draft");
   check(host.textContent.includes("Updating…") && !host.textContent.includes("protected body"), "read gap hides all previous rows");
@@ -1179,6 +1184,71 @@ cases["web composer fences old account callbacks and preserves saved write ident
   check(refused, "a delayed A callback cannot admit another reference");
   const otherBackend = new ViewState(a, "http://different-backend", a.viewer());
   check(otherBackend.read().intents.length === 0, "references do not cross backends");
+  await unmount();
+};
+
+for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
+  cases[name + " receipt labels separate admission, restoration and unknown; late refusal offers text"] = async () => {
+    localStorage.clear(); const client = controlled();
+    const view = new ViewState(client, "http://starter-test", client.viewer());
+    const props = { backend: "http://starter-test", conversationId: "c", view, onBack: () => {} };
+    let lookup = deferred(); client.write = () => lookup.promise;
+    await mount(h(Component, props), client);
+    await edit("saved text"); await submit();
+    check(host.textContent.includes("Saving…") && !host.textContent.includes("Outcome unknown"), "admitting label");
+    check(![...host.querySelectorAll("button")].some(b => b.textContent.startsWith("Dismiss")), "admission cannot be dismissed");
+    await edit("next draft");
+    const id = client.writes[0].options.id;
+    await act(async () => client.writes[0].resolve({ state: "pending", id }));
+    equal(host.querySelector("input").value, "next draft", "typing during admission survives");
+    await unmount(); await mount(h(Component, props), client);
+    check(host.textContent.includes("Checking…") && !host.textContent.includes("Outcome unknown"), "restoring label");
+    check(![...host.querySelectorAll("button")].some(b => b.textContent.startsWith("Dismiss")), "lookup cannot be dismissed");
+    await act(async () => lookup.resolve(undefined));
+    check(host.textContent.includes("Outcome unknown — check the conversation before sending again") && host.textContent.includes("saved text"), "unknown has saved text after lookup");
+    check([...host.querySelectorAll("button")].some(b => b.textContent.startsWith("Dismiss")), "unknown can be dismissed");
+    await act(async () => client.emitWrite(failed(id)));
+    check(host.textContent.includes("saved text") && host.textContent.includes("message refused"), "late refusal has saved text");
+    await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Edit").click());
+    equal(host.querySelector("input").value, "saved text", "Edit fills an empty draft");
+    await edit("new typing");
+    await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Edit").click());
+    equal(host.querySelector("input").value, "new typing saved text", "Edit appends to current typing");
+    await unmount();
+  };
+}
+cases["saved write restoration ends on reject or live outcome and restarts for another id"] = async () => {
+  const client = controlled(), lookups = [];
+  client.write = () => { const d = deferred(); lookups.push(d); return d.promise; };
+  let latest;
+  function Probe({ id }) { latest = usePendingWrite(mutation, id); return null; }
+  await mount(h(Probe, { id: "saved" }), client);
+  check(latest.restoring, "given id restores from mount");
+  await act(async () => client.emitWrite(sent("saved")));
+  check(!latest.restoring && latest.last.state === "sent", "live outcome ends restoration");
+  await act(async () => { for (const lookup of lookups) lookup.resolve(undefined); });
+  check(latest.last.state === "sent", "late lookup cannot replace live outcome");
+  await render(h(Probe, { id: "other" }), client);
+  check(latest.restoring && latest.last === undefined, "new saved id restores separately");
+  await act(async () => lookups.at(-1).reject(Error("read unavailable")));
+  check(!latest.restoring && latest.last === undefined, "rejection is unknown after lookup");
+  await render(h(Probe, {}), client); check(!latest.restoring, "no id never restores");
+  await unmount();
+};
+cases["web room loading keeps the same input and legacy intents disclose missing text"] = async () => {
+  localStorage.clear(); location.hash = "room=c";
+  const client = controlled(() => ready({ conversation: { title: "Private room" }, membership: { id: "member" } }));
+  globalThis.openClient = async () => client;
+  await mount(h(WebApp), client); await act(async () => {});
+  await edit("draft through loading"); const input = host.querySelector("input");
+  await act(async () => { for (const record of active(client)) record.set({ loading: true }); });
+  check(host.querySelector("input") === input && input.value === "draft through loading", "room loading preserves input ownership");
+  check(!host.textContent.includes("Private room"), "protected title is not retained");
+  await unmount(); location.hash = "";
+  const view = new ViewState(client, "http://starter-test", client.viewer());
+  view.remember({ id: "legacy", room: "c", operation: "send" });
+  await mount(h(Composer, { view, conversationId: "c" }), client);
+  check(host.textContent.includes("text not kept") && host.textContent.includes("Outcome unknown"), "legacy journal opens without a body");
   await unmount();
 };
 window.reactCases = cases;

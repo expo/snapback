@@ -26,11 +26,15 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
-  const change = <T>(work: (journal: Journal) => T): Promise<T> => {
+  const change = <T>(work: (journal: Journal) => T, recoverExisting = false): Promise<T> => {
     const result = locked(key, async () => {
       const journal = await read(true);
+      const before = recoverExisting ? JSON.stringify(journal) : undefined;
       const value = work(journal);
-      await store.set(key, JSON.stringify(journal));
+      const after = JSON.stringify(journal);
+      // Reading an existing intent/receipt needs no new custody. A redundant
+      // save must not turn that known outcome into an admission refusal.
+      if (after !== before) await store.set(key, after);
       return value;
     });
     writes = result;
@@ -140,7 +144,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           if (identity) observeJournalStore(journal, identity);
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false });
           return undefined;
-        }); } catch (error) {
+        }, true); } catch (error) {
           return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
         }
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
