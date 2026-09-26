@@ -261,7 +261,7 @@ fn capacity_refusals_restore_rows_and_sweep_before_admission() {
 #[test]
 fn paired_world_capacity_depends_on_declared_size_not_private_payload() {
     fn world(payload: &str) -> (String, u64) {
-        let mut e = engine(SOURCE);
+        let mut e = engine(&SOURCE.replace("read <- exists members[.roomId, viewer]", "read <- .principal = viewer"));
         seed(&mut e);
         let size = snapback4_core::engine::ephemeral::declared_size(&e.schema().tables["typing"]);
         limits(
@@ -283,6 +283,8 @@ fn paired_world_capacity_depends_on_declared_size_not_private_payload() {
             ),
         )
         .unwrap();
+        assert_eq!(e.query("typingOne", ctx("bob", 1001, &[("roomId", id("r")), ("who", id("alice"))])).unwrap().data, Value::Null,
+            "the varying payload is private to Alice in both worlds");
         let code = e
             .mutate_ephemeral("setTyping", ctx("bob", 1001, &args("r")))
             .err()

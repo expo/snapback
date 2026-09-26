@@ -61718,3 +61718,19 @@ generation-2 incarnation response, and the unchanged streaming revocation test
 still passes. This server-only correction leaves the wasm measurement unchanged.
 The full suite is rerun after this correction; its final source commit and exact
 counts are in the uncommitted lane report.
+
+The complete final E1 suite at `5e8ed418f` reports `== 1 failure(s) in 701 s`:
+`-- FAIL rust target: snapback4-lang::guide (8.9 s)` and
+`-- FAIL: cargo test (360 s)`, both the same `the_keywords_are_one_list`
+assertion: the E2-owned README guide line still lacks `ephemeral`. Its existing
+assertion is unchanged. Rust totals are 3,553 passed, 1 failed and 19 ignored;
+the 108-test server target and 24-test witness pass. All client tests and all
+78 seeded client-model tests pass. Wasm repeats 2,013,288 raw / 578,833 gzip.
+
+After that complete run, the new paired-world capacity test was strengthened:
+the varied payload is now behind an owner-only read rule, and the other
+principal's point read is asserted null in both worlds before checking identical
+admission. The affected core ephemeral target passes all 15 tests. This final
+follow-up changes only that test and this journal; implementation source and
+the measured artifact are unchanged from the full suite. The exact full-run
+summary/counts and this affected rerun are retained with EPH-REPORT-E1.md.
