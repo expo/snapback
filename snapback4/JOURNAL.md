@@ -62105,3 +62105,49 @@ acceptance-extra.exit. The root EPH-REPORT-FIX2.md is deliberately uncommitted.
 All four requested fixes and their regressions are complete. No push, merge,
 rebase, stash, publication, other-worktree edit or other-process intervention
 was performed.
+
+### 2026-09-26 — LLP 3000.017 fix round 3: schema retry boundaries
+
+N4/N5 are fixed in the online client. An observed generation change now
+retires mounted snapshots and their expiry timers before awaiting schema.
+Schema loading also retires outstanding query publications and withdraws
+freshness. The RFC does not prescribe discovery-failure delivery: the local
+choice is to re-query mounted watches every 500 ms while schema loading
+suspends `/changes`. Those answers carry `fresh: false`; they deliver durable
+updates even if every schema request fails or one stays held. This keeps the
+existing stale-generation fence: no new poll starts with obsolete operation
+interests. Successful installation restores ordinary notification-driven
+refreshes. The fallback stops on close, last-watch removal, credential refusal
+or terminal store refusal. Schema retries retain 25/50/100/200/400 ms backoff
+and the 500 ms cap.
+
+Schema `E_AUTH` now uses `obsoleteRefusal`, like query/poll refusals. A current
+bearer refusal ends credentials with no further schema attempt; an obsolete
+bearer refusal waits for an in-flight rotation and retries with its successor.
+Schema dispatch also waits for rotation. Close can release the schema wait
+even if a supplied fetch ignores its abort signal.
+
+The three real-server Astra reproductions are now repository regressions in
+ephemeral-capability.test.mjs, strengthened to require delivery of the durable
+insert, immediate generation invalidation, and withdrawn freshness. A fourth
+regression holds rotation across an obsolete schema refusal. All four fail
+against a44b11b51 (0 pass / 4 fail); the original client build reproduced the
+three real-server failures, and transpiling only that commit's client.ts into
+the current package reproduced all four. No existing expectation changed.
+The first corrected capability run passes 7/7; the expanded affected run and
+complete qualification are recorded below. Evidence: target/eph-fix3-evidence/.
+
+Only client.ts, its capability regression file, and this journal change.
+There is no RFC semantic deviation, schema/type/wire-format change or budget
+change. The checkout's llp-orient links target an uninitialized vendor/llp;
+no skill was available there or in local skill discovery. Per the round's
+continue rule, orientation used the governing RFC, root, command sheet,
+rules, scope exclusions, current client documentation and journal directly.
+
+Pre-qualification: package typecheck/build pass; the affected client run passes
+113/113 and the terminal-entrypoint/store run passes 34/34. Astra's six scratch
+retry/lifecycle probes pass 6/6 against this worktree's client: observed retry
+gaps are 27/51/101/201/401/501/501 ms (500 ms timer cap plus scheduling), close
+and unmount stop attempts, remount recovers, and auth/store termination stops
+discovery. Its generation probe now observes data 2 with `fresh: false` while
+schema is still failing. No timing failure or isolation rerun occurred.
