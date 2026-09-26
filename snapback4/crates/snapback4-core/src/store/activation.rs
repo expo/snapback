@@ -65,8 +65,10 @@ impl Store {
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+        index_key_guards(&sql)?;
         // @ref LLP 3000.019#3.6 — reuse an admitted key bound, never assume a legacy store was checked.
-        // Ordinary writes cannot grow an oversized key. Every activation key
+        // Physical INSERT/UPDATE triggers invalidate the proof on oversized keys,
+        // including direct SQL. Every activation key
         // below is checked too. Bind the proof to the predecessor so an older
         // binary's adoption invalidates it; device installation always scans.
         let key_proof = before.1.as_ref().map(|hash| format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES));
@@ -268,6 +270,29 @@ impl Store {
         self.identity = after;
         Ok(generation)
     }
+}
+
+// @ref LLP 3000.019#3.6 — a key-bound proof must be invalidated even by direct SQL edits.
+fn index_key_guards(conn: &Connection) -> Result<(), RuntimeError> {
+    let limit = crate::rows::MAX_INDEX_KEY_BYTES;
+    let insert = format!("_index_keys_insert_{limit}");
+    let update = format!("_index_keys_update_{limit}");
+    let installed: i64 = conn.query_row(
+        "SELECT count(*) FROM sqlite_schema WHERE type = 'trigger' AND name IN (?1, ?2)",
+        params![insert, update], |r| r.get(0),
+    )?;
+    if installed != 2 {
+        // A predecessor without both guards could have retained a proof across
+        // physical edits. Install and revalidate in this activation transaction.
+        conn.execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
+        conn.execute_batch(&format!(
+            "CREATE TRIGGER IF NOT EXISTS {insert} AFTER INSERT ON i WHEN length(NEW.k) > {limit}
+             BEGIN DELETE FROM _meta WHERE key = 'index_keys_validated'; END;
+             CREATE TRIGGER IF NOT EXISTS {update} AFTER UPDATE OF k ON i WHEN length(NEW.k) > {limit}
+             BEGIN DELETE FROM _meta WHERE key = 'index_keys_validated'; END;"
+        ))?;
+    }
+    Ok(())
 }
 
 /// Equal prefixes are adjacent in an index. Validate uniqueness and caps

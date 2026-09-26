@@ -277,8 +277,8 @@ fn validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not() {
     // an obsolete proof, still receive the same physical-key refusal.
     for stale in [None,Some("2048:obsolete-activation")] {
         e.store().conn().execute("DELETE FROM _meta WHERE key='index_keys_validated'",[]).unwrap();
-        if let Some(value)=stale {e.store().set_meta("index_keys_validated",value).unwrap();}
         e.store().conn().execute("INSERT INTO i SELECT num, ?1, 'legacy' FROM _catalog WHERE name='notes.byId'",[vec![b'x';3000]]).unwrap();
+        if let Some(value)=stale {e.store().set_meta("index_keys_validated",value).unwrap();}
         assert_eq!(e.adopt_at(b.schema.clone(),b.programs.clone(),5).unwrap_err().code(),"E_INDEX_KEY_BYTES");
         assert_eq!(e.generation(),generation);
         assert_eq!(e.store().meta("index_keys_validated").unwrap().as_deref(),stale);
@@ -286,4 +286,38 @@ fn validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not() {
     }
     e.adopt_at(b.schema,b.programs,6).unwrap();
     assert!(e.store().meta("index_keys_validated").unwrap().is_some());
+}
+
+#[test]
+fn physical_key_edits_invalidate_a_matching_proof() {
+    let source = "table notes:\n  public\n  online only\n";
+    for update in [false, true] {
+        for legacy in [false, true] {
+            let b = compile(source);
+            let mut e = Engine::new_at(Store::memory().unwrap(), b.schema, b.programs, 1).unwrap();
+            e.seed_at([("notes".into(), object([("id", Value::Id("row".into()))]))], 2).unwrap();
+            let generation = e.generation();
+            let seq = e.seq().unwrap();
+            let proof = e.store().meta("index_keys_validated").unwrap();
+            assert!(proof.is_some());
+            if legacy {
+                // Simulate a store blessed by the unguarded predecessor binary.
+                e.store().conn().execute_batch("DROP TRIGGER _index_keys_insert_2048; DROP TRIGGER _index_keys_update_2048;").unwrap();
+            }
+            // Leave the matching proof alone: only the physical key changes.
+            let sql = if update { "UPDATE i SET k = ?1 WHERE id = 'row'" }
+                else { "INSERT INTO i SELECT num, ?1, 'corrupt' FROM _catalog WHERE name = 'notes.byId'" };
+            assert_eq!(e.store().conn().execute(sql, [vec![b'x'; 3000]]).unwrap(), 1);
+            assert_eq!(e.store().meta("index_keys_validated").unwrap(), if legacy { proof.clone() } else { None });
+            let before: Vec<_> = ["r", "i", "_log", "_commits", "_generations"].map(|t| rows(&e, t)).into();
+            let next = compile(&format!("{source}query one():\n  return 1\n"));
+            assert_eq!(e.adopt_at(next.schema, next.programs, 3).unwrap_err().code(), "E_INDEX_KEY_BYTES");
+            assert_eq!(e.generation(), generation);
+            assert_eq!(e.seq().unwrap(), seq);
+            for (table, previous) in ["r", "i", "_log", "_commits", "_generations"].into_iter().zip(before) {
+                assert_eq!(rows(&e, table), previous, "{table} rollback");
+            }
+            assert_eq!(e.store().meta("index_keys_validated").unwrap(), if legacy { proof } else { None });
+        }
+    }
 }

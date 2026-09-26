@@ -89,6 +89,13 @@ fn m7_to_m8() {
     let engine=Engine::open_at(Store::open(&working).unwrap(),NOW).unwrap();
     let counts:(i64,i64)=engine.store().conn().query_row("SELECT (SELECT count(*) FROM r), (SELECT count(*) FROM i)",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
     eprintln!("fixture rows={} indexes={}",counts.0,counts.1);
+    let key_cost = std::env::var("SNAPBACK4_ADOPTION_KEY_GUARD_COST").as_deref() == Ok("1");
+    if key_cost {
+        // Collect the actual insertion workload separately from normal timings.
+        engine.store().conn().execute_batch("CREATE TEMP TABLE rebuilt_keys (ti INTEGER, k BLOB, id TEXT);
+            CREATE TEMP TRIGGER collect_rebuilt_keys AFTER INSERT ON main.i
+            BEGIN INSERT INTO rebuilt_keys VALUES (NEW.ti, NEW.k, NEW.id); END;").unwrap();
+    }
     let mut detached = std::env::var("SNAPBACK4_ADOPTION_DETACHED").ok().map(|_|engine.reader().unwrap());
     let hold_inside = detached.is_some();
     let inside = Arc::new(AtomicBool::new(false));
@@ -137,4 +144,49 @@ fn m7_to_m8() {
     drop(detached);
     // End a mutex loan before joining its writer.
     drop(held); adoption.join().unwrap();
+    if key_cost { measure_key_guards(&shared.lock().unwrap()); }
+}
+
+// Replay the fixture's exact rebuilt keys with identical prepared INSERTs,
+// alternating guarded/unguarded runs. Every sample rolls back its index edits.
+// This measures per-insert trigger cost, separately from evaluation and fsync.
+fn measure_key_guards(engine: &Engine) {
+    use rusqlite::{config::DbConfig, params};
+    let conn = engine.store().conn();
+    conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
+    conn.execute_batch("DROP TRIGGER collect_rebuilt_keys;").unwrap();
+    let keys: Vec<(i64, Vec<u8>, String)> = conn.prepare("SELECT ti, k, id FROM rebuilt_keys ORDER BY rowid").unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().collect::<Result<_, _>>().unwrap();
+    assert!(!keys.is_empty());
+    // M8 inserts only twelve grouped-view keys. Repeat the same rebuild keys
+    // to amortize clock noise; both variants include identical deletion work.
+    let repeats = 1000;
+    let inserts = keys.len() * repeats;
+    let mut off = Vec::new();
+    let mut on = Vec::new();
+    for round in 0..6 {
+        for enabled in if round % 2 == 0 { [false, true] } else { [true, false] } {
+            conn.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, enabled).unwrap();
+            conn.execute_batch("BEGIN IMMEDIATE; DELETE FROM i WHERE (ti, k) IN (SELECT ti, k FROM rebuilt_keys);").unwrap();
+            let elapsed = {
+                let mut insert = conn.prepare("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)").unwrap();
+                let mut clear = conn.prepare("DELETE FROM i WHERE (ti, k) IN (SELECT ti, k FROM rebuilt_keys)").unwrap();
+                let start = Instant::now();
+                for _ in 0..repeats {
+                    clear.execute([]).unwrap();
+                    for (ti, key, id) in &keys { insert.execute(params![ti, key, id]).unwrap(); }
+                }
+                start.elapsed().as_nanos()
+            };
+            conn.execute_batch("ROLLBACK;").unwrap();
+            eprintln!("key_guard_sample enabled={enabled} rebuilt_keys={} inserts={inserts} elapsed_ns={elapsed}", keys.len());
+            if enabled { on.push(elapsed); } else { off.push(elapsed); }
+        }
+    }
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true).unwrap();
+    on.sort(); off.sort();
+    let median = |v: &[u128]| (v[2] + v[3]) / 2;
+    let delta = median(&on) as i128 - median(&off) as i128;
+    eprintln!("key_guard_cost rebuilt_keys={} inserts={inserts} off_median_ns={} on_median_ns={} delta_ns_per_insert={:.1}",
+        keys.len(), median(&off), median(&on), delta as f64 / inserts as f64);
 }
