@@ -63089,3 +63089,52 @@ earlier finding fixed and one gap: nothing showed a kept view staying kept
 across a loading answer, so honoring the kept mark only when the member's row
 is present survived. A case publishes a loading answer and then the same row,
 and requires no second `seen`.
+
+
+## 2026-09-26 — Lane R: device residency and store ownership (LLP 3000.019 §3.4)
+
+Implemented the supplied 0.4.4 design on `sb4-intent/r-residency` from
+`99153132b`. `client.residency()` reports physical local row counts and UTF-8
+stored payload bytes per visible table. Native SQLite keeps transactional
+counters, upgrades old stores in metered 512-key chunks, and reports allocated
+database pages. The web host accounts for committed persistence deltas and
+reports logical record bytes plus the realm's allocated wasm linear memory.
+Local/app calls retain session ownership checks; online and mock clients
+return null. The residency card defines the units beside its sync window.
+
+Selected the design's refusal alternative for offline CLI writers. The host,
+`run`, `token`, non-fixture `test`, deployment/rollback and the native smoke
+restart marker share lifetime store ownership. A live owner yields
+`E_STORE_BUSY`, its site/address and a concrete stop/run/restart rewrite before
+admission. `data` now opens read-only, including beside a held SQLite writer.
+External writers that ignore the lifetime protocol retain the existing
+bounded SQLite retry and generation fences. Updated affected fixtures to mint
+credentials offline or stop/run/restart, preserving their authority, clock,
+replay and durability assertions. Split two files to respect 1,500 lines.
+
+Measured wasm before and after: 2,021,689 B raw and 581,094 B gzip, **+0/+0 B**,
+with the unchanged 582,094 B gzip ceiling. Native known-row/byte fixtures,
+20,000-row upgrade, rollback/reopen/multiple-owner cases, real wasm persistence
+and public offline web/native clients pass. CLI refusal in both ownership
+directions, stale lock recovery, aliases and read-only inspection pass. The
+complete guide passes 85/85. Final `bash scripts/test.sh` exited 0 with the
+exact summary **`== 0 failure(s) in 1436 s`**; all 78 client-model tests pass.
+Ten existing client cases require unavailable platform/external artifacts and
+were explicitly skipped; none of this lane's new tests was skipped.
+
+The first full run reported `== 2 failure(s) in 1435 s` (`cargo test`,
+`client tests`), with 16 failed assertions, all treated as this lane's work:
+a standalone-contract import, old live CLI fixtures and a replay fixture
+whose sync receipt could beat its HTTP retry. They are fixed and individually
+listed in the handoff. An intermediate rerun was deliberately interrupted
+(exit 143) to fix the inspection opener and fence the smoke marker; it made
+no complete-suite claim.
+
+No authorization/disclosure rule, meter ceiling or wasm budget was weakened.
+No RPC job endpoint, Quarry syntax, package publication or native iOS/Android
+application qualification was added. Web logical bytes are not IndexedDB
+physical disk allocation, and wasm memory is not process RSS. No known open
+lane defect remains. Local implementation commits and the file-by-file test,
+choice, failure and skip record are in
+[the Lane R report](reports/20260926-lane-r-residency.md); supervisor review and
+integration remain pending. Nothing was pushed or published.
