@@ -131,3 +131,25 @@ fn constants_helpers_all_nulls_and_empty_sources() {
     let result = engine(source).query("q", Context::new("alice", BTreeMap::new())).unwrap();
     assert_eq!(result.data, object([("empty", Value::Null), ("absent", Value::Null), ("constant", Value::Int(7)), ("helper", Value::Int(9))]));
 }
+
+#[test]
+fn optional_filters_and_inferred_lanes_remain_whole_domains() {
+    let source = "table t:\n  n: int\n  kind: enum('a', 'b', 'c')\n  public\n  online only\nfn bump(n: int):\n  return n + 1\nquery optional(threshold: int ?):\n  return max(t where (threshold = null or .n >= threshold), .n + 1)\nquery member():\n  return max(t where .kind != 'a', bump(.n))\n";
+    let mut e = engine(source);
+    e.seed((0..30).map(|n| ("t".into(), object([("id", Value::Id(format!("r{n:02}"))), ("n", Value::Int(n)), ("kind", Value::String("b".into()))])))).unwrap();
+    for threshold in [Value::Null, Value::Int(20)] {
+        let result = e.query("optional", Context::new("alice", BTreeMap::from([("threshold".into(), threshold)]))).unwrap();
+        assert!(result.complete, "{result:?}");
+        assert_eq!(result.data, Value::Int(30));
+    }
+    let result = e.query("member", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(result.complete);
+    assert_eq!(result.data, Value::Int(30));
+    let b = bound(source);
+    for p in &b.programs {
+        assert!(snapback4_lang::bind::merges(&p.program.body).is_empty(), "{} materializes lanes", p.program.name);
+        assert!(ir::scans(&p.program).iter().all(|s| s.take == ir::Bound::Meter));
+    }
+    e.set_ceilings(Ceilings { examined: 5, ..Ceilings::default() });
+    assert_eq!(e.query("member", Context::new("alice", BTreeMap::new())).unwrap().data, Value::Null);
+}

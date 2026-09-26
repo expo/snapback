@@ -54,6 +54,24 @@ pub(super) fn order(catalog: &mut Catalog) -> Contexts {
     contexts
 }
 
+// @ref LLP 3000.019#3.2 — defer overload selection to the typed binder.
+// Optional filters and inferred lanes may materialize an ordinary read before
+// then. Keep the unpaged domain as an alternative for a scalar projection;
+// a binary collection comparison still receives its original page plan.
+pub(super) fn remember_domains(catalog: &mut Catalog) {
+    for doc in &mut catalog.documents {
+        intent_walk::document(doc, &mut |expr| {
+            if let Expr::Call { name, args, .. } = expr
+                && matches!(name.as_str(), "min" | "max") && args.len() == 2
+                && !catalog.functions.contains_key(name) && intent::column(&args[1]).is_none()
+                && let Expr::Read(read) = &args[0]
+                && read.range.is_none() && read.matching.is_none() && catalog.tables.contains_key(&read.table) {
+                catalog.extremum_domains.insert(read.site.to_string(), read.clone());
+            }
+        });
+    }
+}
+
 fn required_args(args: &[ArgDecl]) -> BTreeSet<String> {
     args.iter().filter(|arg| !arg.type_.optional).map(|arg| arg.name.clone()).collect()
 }

@@ -8,7 +8,9 @@ impl Binder<'_> {
         if matches!(&args[1], A::Member { base, .. } if matches!(base.as_ref(), A::Focal { .. })) {
             return self.column_extremum(name, args, out);
         }
-        let domain = if let Some(read) = self.aggregate_domain(&args[0]) {
+        let candidate = self.aggregate_domain(&args[0]).or_else(||
+            self.catalog.extremum_domains.get(&args[0].site().to_string()).cloned());
+        let domain = if let Some(read) = candidate {
             self.is_page(&read, ReadMode::FilteredPoint)?.then_some(read)
         } else { None };
         let mut probe = self.clone();

@@ -63,6 +63,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     catalog.feed_views = feeds;
     mixed_keys::normalize(&mut catalog);
     intent::table_order(&mut catalog);
+    intent_aggregates::remember_domains(&mut catalog);
     intent_variants::expand(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
