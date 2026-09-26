@@ -47,14 +47,14 @@ fn range_whole_group_non_expiring_and_witness_costs_are_distinct() {
             for text in [
                 "whole live basis",
                 "one examined unit and one step",
-                "the walk itself is not metered",
+                "the walk is not metered",
             ] {
                 assert!(line.contains(text), "{line}");
             }
             assert_eq!(line.contains(".ordinal > member.readUpTo"), range, "{line}");
             assert_eq!(
-                line.contains("exact only when it holds the whole group"),
-                !range,
+                line.contains("When every range operand is null"),
+                range,
                 "{line}"
             );
             assert!(!line.contains("the examined meter bounds the backlog"));
@@ -103,4 +103,26 @@ fn count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness() {
     let result = analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == "guarded").unwrap().program);
     assert_eq!(result.class, Class::Grows, "{result:?}");
     assert!(result.line().contains("whole live basis"), "{result:?}");
+}
+
+#[test]
+fn certificate_uses_the_guide_plan_and_actual_fields_without_invented_backlog() {
+    let guide = snapback4_lang::guide::card("maintains").unwrap();
+    let example = snapback4_lang::guide::quarry(guide.split("## A value per member: Clique unread").nth(1).unwrap()).remove(0);
+    for source in [example, SOURCE.replace("readUpTo", "seenThrough").replace("ordinal", "position").replace(".position > m.seenThrough", ".position >= m.seenThrough")] {
+        let b=bound(&source);
+        let query=b.programs.iter().find(|p|["badge","myUnread"].contains(&p.program.name.as_str())).unwrap();
+        let result=analyze(&b.schema,&query.program);
+        let line=result.line();
+        for text in ["parent/expiry index", "unswept expired rows are not visited", "reserving one examined unit and one step", "does not use the private-walk allowance", "Member lookup, authorization and the result cost more", "source group is readable by its audience", "full floor key", "and the scan finishes", "online client takes the server's count when permitted", "partial and does not ask", "expired rows in the range cost device work", "every range operand is null"] {
+            assert!(line.contains(text),"missing {text}: {line}");
+        }
+        if source.contains("seenThrough") {
+            assert!(line.contains(".position >= member.seenThrough"),"{line}");
+            assert!(!line.contains("readUpTo") && !line.contains(".ordinal"));
+        }
+        assert_eq!(result.class,Class::Grows);
+        assert!(result.growth_sites.iter().all(|g| !g.backlog),"{result:?}");
+        assert!(result.bounds.rows_examined < 8192);
+    }
 }

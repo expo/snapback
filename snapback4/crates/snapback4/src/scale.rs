@@ -599,11 +599,14 @@ impl Analysis<'_> {
             if witness {
                 self.result.aggregates.push(format!("{name}: reads the member's indexed existence and lifetime; does not certify the count"));
             } else if let Some(source) = self.schema.table(&m.source).filter(|t| t.is_expiring()) {
+                let whole = "Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.";
                 let device = if let Some(range) = k.device_range(source) {
                     let predicate = range.lower().iter().map(|(field, strict)| format!(".{} {} member.{field}", range.column, if *strict { ">" } else { ">=" })).collect::<Vec<_>>().join(" and ");
-                    format!("device: exact when its window holds every row with {predicate} (the acquired floor key on this {} prefix is at or below the encoded bound); otherwise the current rows it holds, pending, and online the server's count; a null bound requires the whole group", k.source_key)
-                } else { "device: exact only when it holds the whole group; otherwise pending".into() };
-                self.growth(site, format!("server: certifies the member's whole live basis on the internal ledger (unswept expired rows skipped), charging one examined unit and one step; the walk itself is not metered. {device}"), "");
+                    format!("Device: Whole keeps the live-basis scan. Otherwise scans rows with {predicate} (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this {} prefix's, the horizon's first free column is .{}, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: {whole}", k.source_key, range.column)
+                } else { whole.into() };
+                self.growth(site, format!("Server: certifies the member's whole live basis on the internal ledger through the parent/expiry index (null expiry and expiry after now; unswept expired rows are not visited), reserving one examined unit and one step; the walk is not metered and does not use the private-walk allowance. Member lookup, authorization and the result cost more. {device}"), "");
+            } else {
+                self.result.aggregates.push(format!("{name}: reads the stored value by member. An unfinished recount remains pending; a pending last-settled value is not a lower bound."));
             }
             return;
         }

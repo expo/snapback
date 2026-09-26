@@ -252,7 +252,7 @@ pub fn check(options: &Options) -> i32 {
     if !options.json { for m in &bound.schema.maintains { if let Some(k)=&m.row_key {
         println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= {} examined source rows within remaining meter, then pending/background chunks <= {}",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout,snapback4_core::engine::row_views::WRITER_RECOUNT,snapback4_core::engine::row_views::RECOUNT_CHUNK);
         if let Some(range) = row_view_range(&bound.schema, m) {
-            println!("    device range: {}; index {}; horizon {} by {}; encoded lower bound on the same parent prefix; otherwise pending", range["predicate"].as_str().unwrap(), range["index"].as_str().unwrap(), range["horizon"]["last"], range["horizon"]["index"].as_str().unwrap());
+            println!("    device range: {}; index {}; horizon {} by {}; {}; {}", range["predicate"].as_str().unwrap(), range["index"].as_str().unwrap(), range["horizon"]["last"], range["horizon"]["index"].as_str().unwrap(), range["selection"].as_str().unwrap(), range["fallback"].as_str().unwrap());
         }
     } } }
     if !options.json && !options.flags.contains_key("residency") {
@@ -1016,10 +1016,11 @@ fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::s
     let horizon = source.sync.as_ref()?.horizon.as_ref()?;
     Some(json!({
         "column": range.column, "index": k.range_index(range.column),
-        "bounds": range.lower().iter().map(|(field, strict)| json!({"memberField": field, "operator": if *strict { ">" } else { ">=" }})).collect::<Vec<_>>(),
+        "bounds": range.lower().iter().map(|(field, strict)| json!({"column": range.column, "memberField": field, "operator": if *strict { ">" } else { ">=" }})).collect::<Vec<_>>(),
         "predicate": range.lower().iter().map(|(field, strict)| format!(".{} {} member.{field}", range.column, if *strict { ">" } else { ">=" })).collect::<Vec<_>>().join(" and "),
         "horizon": {"index": horizon.by, "last": horizon.last},
-        "fallback": "whole group when any candidate is null; otherwise greatest encoded lower bound on the same parent prefix"
+        "selection": "greatest encoded lower bound; strict wins equal values; null is weakest",
+        "fallback": "whole group when every range operand is null; Whole keeps the live-basis scan"
     }))
 }
 

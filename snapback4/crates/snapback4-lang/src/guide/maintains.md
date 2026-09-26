@@ -693,18 +693,21 @@ expiry field. Stored counts carry an internal basis timestamp. Physical sweeps s
 contributions present in that basis, so a sweep after a mark cannot subtract
 an expired input twice.
 
-The device scans only `.ordinal > m.readUpTo`, still testing sender, tombstone
-and expiry. Its `last 500` window certifies the badge exactly when the encoded
+With whole-group coverage the device keeps its live-basis scan, seeking past
+expired backlog. Otherwise it scans `.ordinal > m.readUpTo`, still testing
+sender, tombstone and expiry; unswept expired candidates cost device work. Its `last 500` window certifies the badge exactly when the encoded
 lower bound lies at or above this conversation's acquired floor key, and the
 scan finishes within the read allowance. This works offline and after a cold
 reload; expiry removes contributions at their deadline without a sync. Deleting
 or expiring the floor row never moves that saved floor. With two lower bounds
-on ordinal it uses the greatest; any null candidate requires the whole group.
+on ordinal it uses the greatest; null is the weakest bound. Only when every
+range operand is null does it require the whole group.
 
 If the unread range extends below the floor, `value` is the number of current,
 authorized, live matching rows examined locally, with `recountPending: true`
 and `complete: false`. Show it as `L+`; online, the client asks the server for
-its exact count. Retained history never contributes. This bound describes the
+its exact count when permitted: an unobserved predicted write or a `held` query
+still blocks replacement. The pending bound is not speculative. Retained history never contributes. This bound describes the
 evaluated replica, including its usual optimistic writes, not settled server
 truth. A covered scan cut by the meter also returns its pending partial, but
 asks nothing. Without a range the device still requires the whole group.

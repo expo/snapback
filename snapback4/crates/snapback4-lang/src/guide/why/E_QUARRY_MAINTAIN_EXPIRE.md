@@ -29,11 +29,11 @@ it would have to refuse on devices, whose snapshots deliver live values rather
 than physical upper bounds. Signed sums have no such upper bound.
 A partial device counts only held live
 sources and says `complete: false`. A meter cut of an ordinary aggregate returns `data: null, complete: false`.
-An expiring row-keyed range read instead returns its pending row with the
-current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
+An expiring row-keyed range read returns `{ value: L, recountPending: true }`
+with `complete: false`, the current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another.
 
-A maintained `view` over an
+An ordinary maintained `view` over an
   expiring table subtracts its unswept expired backlog from the physical
   total on the server. Devices still recompute live contributions; a partial
   device reports `complete: false`. If the meter interrupts a maintained

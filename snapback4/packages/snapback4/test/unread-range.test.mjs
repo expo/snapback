@@ -45,7 +45,7 @@ async function serverFor(t, c) {
   const backend = await (await fetch(url + '/schema', { headers: { 'x-snapback-persona': 'bob' } })).json();
   const rows = c.rows ?? [{ table: 'conversations', row: { id: 'c', title: 'chat' } }, { table: 'members', row: member(c) }];
   for (let i = 1; i <= (c.n ?? 6); i++) {
-    const row = { ...message(i), ...c.overrides?.[i] }; if (row.senderId === 'bob') row.senderId = viewer;
+    const row = { ...message(i), ...(i <= (c.expireFirst ?? 0) ? { until: 4102444800000 } : {}), ...c.overrides?.[i] }; if (row.senderId === 'bob') row.senderId = viewer;
     if (text.includes("ordinal: sequence")) delete row.ordinal;
     rows.push({ table: 'messages', row });
   }
@@ -59,6 +59,8 @@ function check(call, c) {
   const q = result.ok;
   assert.equal(q?.complete, c.complete, JSON.stringify(result));
   assert.equal(q.unknown, c.unknown, JSON.stringify(result));
+  assert.notEqual(q.speculative, true, JSON.stringify(result));
+  if (c.nextExpiry) assert.equal(q.nextExpiry, c.nextExpiry);
   if (c.value === 'partial') assert.ok(q.data > 0 && q.data < 8300, JSON.stringify(result));
   else assert.equal(q.data, c.value, JSON.stringify(result));
   const rows = call({ op: 'query', name: 'badgeRows', viewer, now: c.now ?? 1 });
@@ -105,10 +107,10 @@ for (const c of cases) test(`unread range wasm: ${c.name}`, { timeout: 120000 },
         const r = ok({ op: 'admit', entry: { id: `mark-${i}`, seq: i + 1, op: 'mark', viewer, args: { member: 'b', readUpTo: a.mark }, now: 1, predictable: true } });
         assert.equal(r.predictable, a.predictable, JSON.stringify(r)); if (!a.predictable) assert.deepEqual(r.predicted, []); break;
       }
-      case 'send': case 'refuse': {
+      case 'send': case 'refuse': case 'succeed': {
         const send = a.kind === 'send';
-        const r = ok({ op: 'admit', entry: { id: `intent-${i}`, seq: i + 1, op: send ? 'send' : 'countThenRefuse', viewer, args: send ? { conversationId: 'c' } : { member: 'b' }, now: 1, new_ids: send ? ['pred'] : [], predictable: true } });
-        assert.equal(r.predictable, send, JSON.stringify(r)); break;
+        const r = ok({ op: 'admit', entry: { id: `intent-${i}`, seq: i + 1, op: send ? 'send' : a.kind === 'succeed' ? 'depend' : 'countThenRefuse', viewer, args: send ? { conversationId: 'c' } : { member: 'b' }, now: 1, new_ids: send ? ['pred'] : [], predictable: true } });
+        assert.equal(r.predictable, a.kind !== 'refuse', JSON.stringify(r)); break;
       }
       case 'acquiring': page([], {}, [{ at: 0, table: 'messages', index: horizon, group: ['c'] }]); break;
       case 'leave': page([{ table: 'messages', id: '', kind: 'scope', data: ['c'] }]); break;
@@ -126,10 +128,10 @@ test('unread range check names the chosen predicates, index and horizon', { time
   const checked = JSON.parse(execFileSync(binary, ['check', '--json', '--cost'], { cwd: s.dir, encoding: 'utf8' }));
   const range = checked.rowViews[0].range;
   assert.equal(range.column, 'ordinal'); assert.equal(range.index, '$view:conversationId:ordinal');
-  assert.deepEqual(range.bounds, [{ memberField: 'readUpTo', operator: '>' }]);
+  assert.deepEqual(range.bounds, [{ column: 'ordinal', memberField: 'readUpTo', operator: '>' }]);
   assert.equal(range.horizon.last, 3); assert.ok(range.horizon.index);
   const plain = execFileSync(binary, ['check', '--cost'], { cwd: s.dir, encoding: 'utf8' });
-  for (const text of ['device range:', '.ordinal > member.readUpTo', range.index, range.horizon.index, 'the walk itself is not metered']) assert.ok(plain.includes(text), text);
+  for (const text of ['device range:', '.ordinal > member.readUpTo', range.index, range.horizon.index, 'the walk is not metered']) assert.ok(plain.includes(text), text);
   const badge = checked.scale.find(c => c.operation === 'badge');
   assert.equal(badge.class, 'grows'); assert.ok(badge.bounds.rows_examined < 8192);
   assert.ok(!badge.growth_sites.some(g => g.reason.includes('unswept expired messages contributions')));
@@ -181,4 +183,72 @@ test('the guide Clique program certifies and expires on wasm after reopen', { ti
   const kept = d.drain(); d.free(); d = new WebDevice(undefined, kept);
   const q = read(Date.now()); assert.equal(q.data, 2); assert.equal(q.complete, true); assert.ok(q.nextExpiry);
   const expired = read(q.nextExpiry + 1000); assert.equal(expired.data, 0); assert.equal(expired.complete, true);
+});
+
+for (const fence of ['held', 'prediction']) test(`unread fallback respects ${fence}`, { timeout: 120000 }, async t => {
+  const s = await serverFor(t, { mark: 0,
+    replace: fence === 'held' ? [['query badge(member: members):', 'query badge(member: members) held:']] : [],
+    rows: [
+      { table: 'conversations', row: { id: 'c', title: 'chat' } },
+      { table: 'conversations', row: { id: 'other', title: 'other' } },
+      { table: 'members', row: member({ mark: 0 }) },
+      { table: 'members', row: { ...member({ mark: 0 }), id: 'other-member', conversationId: 'other' } },
+    ],
+  });
+  let requests = 0, predicted = false;
+  const opener = webDevice({ wasm, persist: memoryPersistence() });
+  const client = await createLocalClient({ url: s.url, persona: 'bob', waitSeconds: 0,
+    device: { open: async (...args) => {
+      const core = await opener.open(...args);
+      return { close: () => core.close(), call: async request => {
+        const result = await core.call(request);
+        if (request.op === 'admit') predicted = result.ok?.predictable === true;
+        return result;
+      } };
+    } },
+    fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path.startsWith('/q/')) requests++;
+      if (path === '/m/mark') return new Promise((resolve, reject) => {
+        if (init.signal.aborted) reject(init.signal.reason);
+        else init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true });
+      });
+      return fetch(input, init);
+    },
+  });
+  t.after(() => client.close());
+  if (fence === 'prediction') {
+    const pending = await client.mutate({ kind: 'mutation', name: 'mark' }, { member: 'other-member', readUpTo: 1 });
+    assert.equal(pending.state, 'pending'); assert.equal(predicted, true);
+  }
+  const q = await client.query({ kind: 'query', name: 'badge' }, { member: 'b' });
+  assert.equal(q.data, 3); assert.equal(q.complete, false); assert.equal(requests, 0);
+});
+
+test('several wasm badges share one request allowance', { timeout: 120000 }, async t => {
+  const s = await serverFor(t, { n: 20000, mark: 16000,
+    replace: [['last 3 by .ordinal', 'last 19999 by .ordinal']],
+    program: source + '\nquery many(member: members):\n  a = unread[member]\n  b = unread[member]\n  c = unread[member]\n  return { a, b, c }\n',
+  });
+  const d = new WebDevice(JSON.stringify(s.backend), '[]'); t.after(() => d.free());
+  const call = r => JSON.parse(d.call(JSON.stringify(r)));
+  let after = null;
+  do { const page = await s.post('/sync', { after, limit: 512 }); assert.ok(call({ op: 'apply', first: after === null, page }).ok); after = page.next; } while (after);
+  const q = call({ op: 'query', name: 'many', viewer, args: { member: 'b' }, now: 1 }).ok;
+  assert.equal(q.complete, false); assert.equal(q.unknown, false); assert.notEqual(q.speculative, true);
+  assert.deepEqual(q.data, { a: 4000, b: 4000, c: 168 });
+});
+
+test('check enumerates every range candidate and its fallback in text and JSON', { timeout: 120000 }, async t => {
+  const s = await serverFor(t, cases.find(c => c.name === 'strongest-bound'));
+  const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: s.dir, encoding: 'utf8' }));
+  const r = checked.rowViews[0].range;
+  assert.deepEqual(r.bounds, [
+    { column: 'ordinal', operator: '>', memberField: 'readUpTo' },
+    { column: 'ordinal', operator: '>', memberField: 'joinedAt' },
+  ]);
+  assert.match(r.selection, /greatest encoded lower bound.*strict.*null is weakest/);
+  assert.match(r.fallback, /every range operand is null/);
+  const text = execFileSync(binary, ['check'], { cwd: s.dir, encoding: 'utf8' });
+  for (const part of [r.index, r.horizon.index, r.selection, r.fallback, '.ordinal > member.joinedAt']) assert.ok(text.includes(part), part);
 });
