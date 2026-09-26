@@ -59420,3 +59420,30 @@ Both reviews of round 10 found the store-cut order leaking in three places:
 The later-cut test now refuses with `head` alone, as older servers do. New
 unit cases cover the order itself, both renewals through `evaluateLocal`, and
 a reply without a cut. The prediction-routing tests run on the real cache.
+
+## 2026-09-26 — Live presence round 12: a cut once named stays known
+
+Astra's round-11 review found two more ways an older reply could replace a
+newer one, and a server test too weak to catch the round-10 defect:
+
+- The order compared each reply only with the one remembered. A refusal at
+  cut 8, then a loading reply with no cut, let an answer read at cut 7 win on
+  its ticket. Each query now keeps the highest cut any reply has named, kept
+  or not, and a reply below it is older. An answer remembered with a cut is
+  therefore always at the highest cut named. A brute-force check of every
+  arrival order of 20,000 small reply sets found no lower-cut answer
+  remembered. Replies without a cut are still ordered only by their reads, so
+  the final state can depend on arrival order.
+- A composed read, which remembers no whole answer, erased memory
+  unconditionally: its cleanup when it composed, and its reply when it
+  arrived. Both are now ordered deletions, so a later read's answer stays.
+- The server test required `seq == head` on an uncontended store, which the
+  round-10 defect also satisfies. A test hook now commits between the reply's
+  metadata and the query's own read, and the refusal must name the cut one
+  past its head.
+
+New client cases: Astra's three-reply schedule, a cut named by a reply that
+lost on its ticket, both composed-read paths through `evaluateLocal`, and a
+refusal carrying `seq` and an older `head`. Of nine mutants, one survived: a
+composed read's whole answer could be remembered with no test noticing, a gap
+older than this round. A case now requires that nothing is remembered.

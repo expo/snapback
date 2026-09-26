@@ -58,7 +58,8 @@ export interface QueryEnvironment {
 
 /** Remembered server answers, which recovery may show (Rule 5), ordered by the
  * server's store cut: `set` and `delete` carry it when the reply names one,
- * `forget` is local cleanup, and `renew` starts a new read within an attempt. */
+ * `forget` is cleanup of an expired answer, and `renew` starts a new read within
+ * an attempt. */
 export interface AnswerCache {
   get(key: string): ServerAnswer | undefined;
   set(key: string, answer: ServerAnswer, seq?: number): void;
@@ -187,7 +188,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
     const retainedRows = !!first.outcome.unknown && hasRetainedRows(first.outcome.retainedRows);
-    if (composed || retainedRows) { remember = false; env.serverAnswers.forget(key); }
+    // A composed read remembers no whole answer, in the same order as every reply.
+    if (composed || retainedRows) { remember = false; env.serverAnswers.delete(key); }
     if (!withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
@@ -280,8 +282,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server") {
-        if (!remember) env.serverAnswers.forget(key);
-        else if ("data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
+        // @ref LLP 3000.017#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
+        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
       if (origin !== "local" || !("data" in result.read)) return { ...result, localWakeup: origin === "remembered" };

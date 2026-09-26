@@ -89,6 +89,8 @@ pub struct Shared {
     pub effect_wait: WorkHook,
     #[cfg(test)]
     pub poll_wait: WorkHook,
+    #[cfg(test)]
+    pub query_wait: WorkHook,
 }
 
 impl Shared {
@@ -302,6 +304,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
+        #[cfg(test)] query_wait: Mutex::new(None),
     });
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -1004,6 +1007,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
+                        #[cfg(test)]
+                        test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
                         let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
@@ -1242,6 +1247,7 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            query_wait: Mutex::new(None),
         });
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {
