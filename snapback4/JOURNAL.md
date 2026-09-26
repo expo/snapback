@@ -61976,3 +61976,30 @@ message text. All 19 affected adapter/template tests pass on Node 24, including
 fresh Expo/web output typechecks and account/backend isolation. The interim
 full run was stopped before completion to include this final storage repair
 in a clean full run; final counts follow.
+
+Final qualification for this L1 entry: Node 24.18.0 `bash scripts/test.sh`
+completed at source ea1dae2b72 in 2,093 s, exit 1, with two failing phases
+(`cargo test`, `client tests`). Summed printed Rust results, including the
+budget probe and doctests: 3,556 passed / 10 failed / 19 ignored. All Node
+groups: 2,134 tests / 2,123 passed / 2 failed / 9 optional skips; all 78
+client model tests passed. Package and both app typechecks, init output,
+recipes, first-account, React, guide and budgets passed. Wasm remained
+578,894 B gzip against 579,833 B and the README remained 300/300 lines.
+
+The full-run reds were the reader p95 ratio (3.5755 > 3), the 900-follower
+replay deadline, eight mock witness-driver checks (mostly xcrun timeouts),
+one local global-logout assertion, and one ephemeral expiry timing trial.
+All five affected targets/files passed in isolation at the lane revision:
+3/3, 15/15, 24/24, 7/7 and 1/1 respectively. The same isolated runs passed
+at exact tracked base 78bbe7b349, with source identity checked and the lane
+restored afterward. Thus these are unresolved concurrent-run failures,
+not proven baseline defects; no assertion, timeout or gate was weakened.
+The separately documented browser acquisition timeout did fail at the base.
+
+Affected-scope LLP audit: the client-custody, same-ID recovery, backend/account
+ownership and protected-read lifetime references still apply; this lane
+implements the lead's brief where the parallel RFC revision is pending.
+No additional design-document edits are needed from L1. The full report,
+verbatim failure lines, timing probes and baseline procedures are recorded
+in the uncommitted root CCP-REPORT-L1.md and /tmp/ccp-l1. The native simulator
+witness remains unrun as directed. No publication or integration was attempted.
