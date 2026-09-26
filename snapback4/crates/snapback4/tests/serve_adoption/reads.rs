@@ -2,8 +2,8 @@
 //! still authenticate and evaluate against the old committed generation.
 use super::*;
 
-const SOURCE: &str = "use identity\ntable items:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\nquery who():\n  return viewer\nquery item(id: items):\n  return items[id]\nmutation add(id: id):\n  insert items { id, owner: viewer, n: 1 }\n";
-const VIEWS: &str =
+pub(super) const SOURCE: &str = "use identity\ntable items:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\nquery who():\n  return viewer\nquery item(id: items):\n  return items[id]\nmutation add(id: id):\n  insert items { id, owner: viewer, n: 1 }\n";
+pub(super) const VIEWS: &str =
     "\nview totals: count items by .owner\nquery total():\n  return totals[viewer]\n";
 
 #[test]

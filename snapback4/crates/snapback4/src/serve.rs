@@ -98,6 +98,8 @@ pub struct Shared {
     pub poll_wait: WorkHook,
     #[cfg(test)]
     pub query_wait: WorkHook,
+    #[cfg(test)]
+    pub mutation_wait: WorkHook,
 }
 
 impl Shared {
@@ -288,6 +290,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
         #[cfg(test)] query_wait: Mutex::new(None),
+        #[cfg(test)] mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
@@ -355,26 +358,28 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
 }
 
 const REQUEST_WORKERS: usize = 32;
+// Reserve half of the existing short-request budget for reads and discovery.
+const MUTATION_WORKERS: usize = REQUEST_WORKERS / 2;
 const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
 const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
 
 #[derive(Clone, Copy)]
-enum RequestClass { Short, Wait, Route, Registry, Verifier }
+enum RequestClass { Short, Mutation, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
-        match class { RequestClass::Short => &self.short, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
+        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS - MUTATION_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
@@ -386,6 +391,8 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
+        // @ref LLP 3000.019#3.6 — queued mutations cannot occupy the read reservation during adoption.
+        else if request.method() == &Method::Post && path.starts_with("/m/") { RequestClass::Mutation }
         else if is_waiter(request.method(), path) { RequestClass::Wait } else { RequestClass::Short };
     let Some(permit) = admission.acquire(class) else { request.abort(); return; };
     if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
@@ -657,6 +664,10 @@ pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
 
 /// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
 pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
+    principal_with_owner(request, shared, None)
+}
+
+fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engine>) -> Result<String, Refusal> {
     dev_request(request, shared)?;
     let mut persona = None;
     let mut bearer = None;
@@ -697,7 +708,9 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
         let path = request.url().split('?').next().unwrap_or("");
         let read = request.method() == &Method::Post && (path.starts_with("/q/") || path == "/sync")
             || request.method() == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm");
-        let resolved = if read { match shared.reader() {
+        let resolved = if let Some(engine) = owner {
+            snapback4_core::identity::resolve(engine.store(), &token, shared.now())
+        } else if read { match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
                 let result = snapback4_core::identity::resolve_read_only(reader.store(), &token, shared.now(), identity.as_deref());
@@ -713,6 +726,12 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
         };
     }
     Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
+}
+
+// @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.
+fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+    if principal_with_owner(request, shared, Some(engine))? == principal { Ok(()) }
+    else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
 }
 
 fn query_params(url: &str) -> BTreeMap<String, String> {
@@ -965,8 +984,13 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
+                #[cfg(test)] test_work(&shared.mutation_wait);
                 let (replay, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
+                        drop(engine);
+                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
+                    }
                     // Adoption may have changed the operation after the early
                     // route check. Classify again under the executing owner.
                     if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
@@ -1020,7 +1044,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
             let viewer = principal.clone();
-            let mut context = Context::new(principal, args).at(shared.now());
+            let mut context = Context::new(&principal, args).at(shared.now());
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
                 if provenance { context = context.with_row_provenance(); }
@@ -1118,8 +1142,13 @@ fn handle(mut request: Request, shared: &Shared) {
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
+                #[cfg(test)] test_work(&shared.mutation_wait);
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
+                    if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
+                        drop(engine);
+                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
+                    }
                     if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
@@ -1276,6 +1305,7 @@ mod poison_tests {
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
             query_wait: Mutex::new(None),
+            mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let poisoned = shared.clone();

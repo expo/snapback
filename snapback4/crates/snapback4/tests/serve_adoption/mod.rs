@@ -188,3 +188,11 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
 }
 
 mod reads;
+
+mod saturation;
+
+mod authority;
+
+mod failure;
+
+mod scale;

@@ -1653,6 +1653,11 @@ step.
   the diagnostics); the store lives in `.snapback4/store.sqlite` and persists across runs, and `--fresh`
   (alias `--memory`) starts an empty private temporary WAL store, removed on orderly exit. Each launch
   starts from nothing; an unclean exit can leave its private temporary directory for OS cleanup.
+  During schema adoption, query and sync snapshot reads use the previous committed backend;
+  newly introduced queries answer pending until their views are complete. Queued mutations have
+  separate bounded admission, preserving query and sync capacity. Signed-in `GET /changes` waits
+  for the entire adoption to record its durable presence reconnect. This wait grows with the store;
+  adoption does not yet yield bounded writer chunks. A reconnect is never acknowledged only in memory.
   The stderr banner prints `store: temporary — discarded on exit` for either flag, or `store: <SQLite
   path>` for persistent dev. For dev and serve, readiness is the first stdout line: the listening URL, emitted
   after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. For a

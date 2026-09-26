@@ -46,11 +46,15 @@ both null. Pages return existing groups, using `first`/`last`, `by .column`
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 
-During adoption, queries and sync keep reading the previous backend. A newly
+During adoption, query and sync snapshot reads keep reading the previous backend. A newly
 added query answers pending until the views are complete. Writes wait for
 adoption, then execute once. Dev and serve report rebuilt view names, source
 row counts and milliseconds. A failed or interrupted adoption keeps the previous
 backend; restart retries the complete build.
+Signed-in `GET /changes` waits for the whole adoption because reconnecting
+requires a durable presence write. That wait grows with the store; it is not
+bounded by a rebuild chunk. Query and sync reads have reserved admission capacity
+so queued mutations cannot occupy all their request slots.
 
 Omit `read` to derive readability: a public/allow source gives `read <- allow`;
 otherwise every field in its read rule must survive as a bare group key, and
