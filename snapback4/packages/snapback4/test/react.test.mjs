@@ -315,6 +315,20 @@ const cases = {
     await act(async () => stream(failing).set(progressOf(0, 0, [], [[101, 150]])));
     check(failing.acks.filter(ack => ack === "delivered:161-181").length === once + 1, "and a kept one does not: " + JSON.stringify(failing.acks));
     await unmount();
+    // What is owed outlives a remount: a run dropped at capacity goes again once room frees,
+    // though its page is gone and the screen was remounted.
+    const cap = Array.from({ length: 64 }, (_, k) => [2 + 2 * k, 2 + 2 * k]);
+    const held = new Map([[null, ready(ordinals(600, 581), "p2")], ["p2", { loading: true }]]);
+    const again = receiptsClient(held, progressOf(0, 0, [], cap));
+    await mount(h(Receipts, { visible: false }), again);
+    check(again.acks.includes("delivered:581-600"), "the run is reported: " + JSON.stringify(again.acks));
+    held.set(null, ready(ordinals(700, 681), "p2"));
+    await unmount();
+    await mount(h(Receipts, { visible: false }), again);
+    const dropped = again.acks.filter(ack => ack === "delivered:581-600").length;
+    await act(async () => stream(again).set(progressOf(0, 0, [], cap.slice(1))));
+    check(again.acks.filter(ack => ack === "delivered:581-600").length === dropped + 1, "a run owed before a remount goes again once room frees: " + JSON.stringify(again.acks.slice(-4)));
+    await unmount();
     // While a run is owed, another conversation and another signed-in client owe nothing of it.
     const scoped = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
     const one = receiptsClient(scoped, progressOf(0, 0, [], [[101, 150]]));

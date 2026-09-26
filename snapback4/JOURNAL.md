@@ -59268,3 +59268,10 @@ alone.
 New React cases: an unkept view goes again after a remount, hidden; a
 replaced client, another viewer of the same client and another conversation
 owe no view of the first. All ten mutants of the change fail the tests.
+
+Round 20 is a test. Astra's round-19 review (READY WITH CHANGES) found the
+round-18 and round-19 findings fixed and one gap: only views were tested
+across a remount, so giving the owed runs back a per-mount memory survived.
+A case now drops a run at the 64-run cap, replaces its page, remounts the
+screen on the same client and frees capacity, and requires the run to go
+again.
