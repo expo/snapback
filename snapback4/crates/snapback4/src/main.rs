@@ -41,7 +41,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
-  doctor                           say what is and is not in place
+  doctor [--latency [--reset]]      health, or operation latency (--json for JSON)
   witness ios (--smoke | --segment NAME) --bundle-id ID --artifacts DIR [--udid ID] [--port N] [--prime] [--relaunch] [--timeout 120]
                                       record an installed iOS app cold-offline, then reconnect its owned backend
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line

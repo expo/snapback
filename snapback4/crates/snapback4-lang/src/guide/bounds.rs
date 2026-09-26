@@ -115,6 +115,22 @@ cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
 the client read `loading`, as other query heap cuts do. A mutation rolls
 back on either cut.
 
+After a load, `snapback4 doctor --latency` shows every server operation's
+p50, p95, p99 and maximum total time, count and refusals, plus time from
+acceptance to its first engine acquisition. `doctor` summarizes the slowest
+few; `--json` gives milliseconds. Reset between phases with
+`snapback4 doctor --latency --reset` (dev only). Timings cover completed HTTP
+requests, including action waits and held change polls, since startup or reset;
+they describe the load you ran, not a latency guarantee. Requests that never
+acquire the engine have zero wait. `GET /dev/latency` is also available on
+`serve` with a live service token; reset remains dev-only.
+
+```sh
+snapback4 doctor --latency --reset
+# Run your application's load, then inspect the new window:
+snapback4 doctor --latency --json
+```
+
 ### The scale certificate
 
 Every successful `check` summarizes how many operations are constant, which

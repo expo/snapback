@@ -22,6 +22,7 @@ pub use sql::sql;
 mod residency;
 mod test_fixture;
 mod adoption;
+mod latency;
 mod run_admission;
 
 pub struct Options {
@@ -41,7 +42,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -635,10 +636,12 @@ fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<
 }
 
 pub fn doctor(options: &Options) -> i32 {
+    if options.flags.contains_key("latency") || options.flags.contains_key("reset") { return latency::doctor(options); }
     let started = Instant::now();
     let mut lines = Vec::new();
     let mut ok = true;
     let mut storage: Option<snapback4_core::store::Sizes> = None;
+    let mut latency_snapshot = None;
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
@@ -690,6 +693,8 @@ pub fn doctor(options: &Options) -> i32 {
             let host = store.meta("store_id").ok().flatten().and_then(|id| adoption::host(&project, &id));
             let now = host.as_ref().and_then(|h| h["now"].as_i64()).unwrap_or_else(snapback4_core::now_ms);
             if let Some(host) = &host {
+                latency_snapshot = latency::read(&project, host, false);
+                if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
                 if let Some(active) = host["generation"].as_u64() {
                     if active.to_string() != generation {
                         ok = false;
@@ -764,7 +769,7 @@ pub fn doctor(options: &Options) -> i32 {
         lines.push(format!("personas  {}", personas.join(", ")));
     }
     if options.json {
-        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "ms": started.elapsed().as_millis() }));
+        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "latency": latency_snapshot, "ms": started.elapsed().as_millis() }));
     } else {
         println!("snapback4 {version}");
         for line in lines {

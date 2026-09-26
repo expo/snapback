@@ -37,15 +37,19 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
 /// Read the live host through its existing lifetime lock's listener port. A
 /// store identity check prevents a stale port from inspecting another project.
 pub(super) fn host(project: &Project, store_id: &str) -> Option<serde_json::Value> {
+    let status = request(project, "GET", "/dev/status")?;
+    (status["storeId"].as_str() == Some(store_id)).then_some(status)
+}
+
+pub(super) fn request(project: &Project, method: &str, path: &str) -> Option<serde_json::Value> {
     use std::{io::{Read, Write}, net::{Ipv4Addr, TcpStream}, time::Duration};
     let port: u16 = std::fs::read_to_string(project.data_dir().join("serve.lock")).ok()?.trim().parse().ok()?;
     let mut stream = TcpStream::connect_timeout(&(Ipv4Addr::LOCALHOST, port).into(), Duration::from_millis(200)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(1))).ok()?;
-    write!(stream, "GET /dev/status HTTP/1.1\r\nHost: localhost:{port}\r\nConnection: close\r\n\r\n").ok()?;
-    let mut reply = String::new(); stream.take(65_536).read_to_string(&mut reply).ok()?;
+    write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost:{port}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
+    let mut reply = String::new(); stream.take((16 << 20) + 4096).read_to_string(&mut reply).ok()?;
     let (head, body) = reply.split_once("\r\n\r\n")?;
     if !head.starts_with("HTTP/1.1 200 ") { return None; }
-    let status: serde_json::Value = serde_json::from_str(body).ok()?;
-    (status["storeId"].as_str() == Some(store_id)).then_some(status)
+    serde_json::from_str(body).ok()
 }
