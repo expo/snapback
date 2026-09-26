@@ -191,3 +191,16 @@ fn legacy_implicit_id_index_gets_a_repair_that_selects_the_window_index() {
     assert!(!corrected.notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
     assert!(corrected.notes.iter().any(|note| note.code == "N_NO_CURSOR"), "the separate missing cursor advice remains");
 }
+
+#[test]
+fn capped_whole_domain_aggregates_do_not_get_page_order_advice() {
+    let source = SOURCE.replace("  at: time", "  cap 50\n  at: time")
+        .replace("messages where .conversationId = conversationId last 2 by .at, .ordinal after c", "count(messages)");
+    let bound = bind(&source);
+    assert_eq!(bound.schema.operations["thread"].runs.as_deref(), Some("device"));
+    let scans = snapback4_core::ir::scans(&bound.programs[0].program);
+    assert!(scans.iter().any(|scan| scan.table == "messages" && scan.take == snapback4_core::ir::Bound::Literal(50)),
+        "a schema cap can make a whole-domain aggregate finite");
+    assert!(!bound.notes.iter().any(|note| note.code == "N_SYNC_ORDER"));
+    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "retain the independent authorization advice");
+}

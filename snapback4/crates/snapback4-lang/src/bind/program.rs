@@ -34,7 +34,7 @@ pub(crate) mod setup;
 pub struct BoundProgram {
     pub view_types: BTreeMap<String, Ty>,
     pub(crate) filters: BTreeMap<String, String>,
-    /// Source consumers for admission diagnostics only; absent from IR/wire.
+    /// Whole-domain consumers for diagnostics only; absent from IR/wire.
     pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub(crate) canonical_sources: BTreeMap<String, String>,

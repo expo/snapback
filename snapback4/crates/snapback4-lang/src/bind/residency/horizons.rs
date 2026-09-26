@@ -36,7 +36,9 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[super::supe
             // Word search and whole-domain aggregates have separate coverage
             // requirements: changing their page order cannot establish them.
             let Some(query_index) = table.index(&scan.index).filter(|index| index.is_plain()) else { continue; };
-            if matches!(scan.take, ir::Bound::Meter) { continue; }
+            // An aggregate domain can also have a literal bound from a cap;
+            // its source metadata distinguishes it from an authored page.
+            if matches!(scan.take, ir::Bound::Meter) || bound.constraint_domains.contains(&scan.site) { continue; }
             let Some(sync) = &table.sync else { continue; };
             let Some(window) = &sync.horizon else { continue; };
             if scan.index == window.by && scan.order == ir::Order::Desc { continue; }
