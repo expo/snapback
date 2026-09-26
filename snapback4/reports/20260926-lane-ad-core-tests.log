@@ -1,0 +1,11 @@
+   Compiling snapback4-core v0.4.3 (/home/ccheever/sb4-intent/lane-ad/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.3 (/home/ccheever/sb4-intent/lane-ad/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 16.93s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-2985bad73485d71d)
+
+running 3 tests
+test store::adoption_tests::an_added_view_does_not_touch_an_unrelated_index ... ok
+test store::adoption_tests::changed_defaults_rebuild_unique_and_word_keys_from_legacy_absent_fields ... ok
+test store::adoption_tests::optimized_activation_equals_full_rows_indexes_log_images_and_sequence ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 130 filtered out; finished in 0.10s

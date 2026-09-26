@@ -64905,3 +64905,28 @@ its durable write, followed by a crash, could leave a loss notification eligible
 despite acknowledging reconnection; that shortcut was not taken. The report gives
 the held-adoption reproduction and preserves this limitation alongside the
 nine-second adoption cost. No claim that safe chunking is impossible is made.
+
+Validation: required scripts/test.sh ran once unmodified and ended exactly
+`== 2 failure(s) in 1389 s`, exit 1; groups `wasm build` and `cargo test`.
+Rust was 3,665 passed / 3 failed / 21 ignored. The three failures were mine:
+`failed_materialization_is_not_counted_and_unreadable_head_fails_discovery`
+(masked the actual storage error), `stale_generation_reader_snapshot` and
+`stale_generation_reader_stream` (their manual adoption omitted the reader
+factory handoff). Corrected the error propagation and test adoption plumbing,
+retaining every existing assertion. Final CLI unit run: 116 passed, 1 ignored,
+including a new witness that a write queued during adoption loses expired bearer
+authority. Core equivalence 3/3; row-view accounting/legacy/witness 10/10; replay
+15/15; whole guide 86/86; reference audit 513 LLPs / 9,495 refs / zero errors or
+unchecked. All modified source files are within 1,500 lines (largest 1,497).
+
+Client main batch passed 2,377 with 10 skips; all separate shards passed; models
+78/78. Package typecheck/build, fixture wrappers and app checks passed. Final
+binary/package builds passed after the scoped fixes. Full-suite wasm was
+582,553 B gzip (459 B over); after the final instrumentation cleanup the rebuild
+is 2,025,652 B raw / 582,551 B gzip, one byte below the pristine baseline but still
+457 B over the unchanged 582,094 B budget. This is the remaining inherited gate
+failure, not an authorized budget increase. No environmental failure was found.
+The full suite was not rerun; its red summary is retained with the scoped green
+results rather than relabeled green. Final evidence is in reports/20260926-lane-ad-*.
+Commits so far: 5429a3d1f, 5563a56c8, 2e00cef93, 46bf41d23; the evidence commit
+completes this same dated entry. No push, package publication or delegated review.

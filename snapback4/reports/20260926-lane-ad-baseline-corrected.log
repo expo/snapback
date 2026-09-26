@@ -1,0 +1,76 @@
+
+running 1 test
+fixture rows=1447960 indexes=9077125
+test m7_to_m8 has been running for over 60 seconds
+adoption_ms=167083 report=AdoptionReport {
+    phases: [
+        (
+            "preflight",
+            2.958054522s,
+        ),
+        (
+            "project and index",
+            141.201321589s,
+        ),
+        (
+            "cap counts",
+            148.773µs,
+        ),
+        (
+            "capture recorded paths",
+            2.186869012s,
+        ),
+        (
+            "derived rebuild",
+            2.873072733s,
+        ),
+        (
+            "validation",
+            12.880452104s,
+        ),
+        (
+            "metadata",
+            2.118205ms,
+        ),
+        (
+            "commit",
+            7.166406762s,
+        ),
+    ],
+    views: [
+        ViewBuild {
+            name: "dailyLikes",
+            rows: 5008,
+            elapsed: 12.925182ms,
+        },
+        ViewBuild {
+            name: "dailyPosts",
+            rows: 50228,
+            elapsed: 225.818016ms,
+        },
+        ViewBuild {
+            name: "originalTotals",
+            rows: 50228,
+            elapsed: 220.23585ms,
+        },
+        ViewBuild {
+            name: "receivedLikes",
+            rows: 5008,
+            elapsed: 12.248509ms,
+        },
+        ViewBuild {
+            name: "receivedReplies",
+            rows: 50228,
+            elapsed: 211.106385ms,
+        },
+        ViewBuild {
+            name: "receivedReposts",
+            rows: 1004,
+            elapsed: 2.920978ms,
+        },
+    ],
+}
+read_wait_ms=167084
+test m7_to_m8 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 172.94s
