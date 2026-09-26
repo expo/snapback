@@ -63662,3 +63662,32 @@ them, including the sibling-arm case inside a helper, an empty loop, a weaker
 reassignment in an arm, dead assignments, constant sides, and refusals kept
 after an arm. Grok's surviving mutation, both sides' facts for a true `or`, now
 fails `a_constant_side_of_and_or_or_leaves_the_other_to_decide`.
+
+## 2026-09-26 — Scale certificate precision round 2: what a test states, rechecked
+
+Both families reviewed round 1 READY WITH CHANGES. Astra found no soundness
+failure across 1,200 generated queries and 28,800 interpreter calls, and full
+certificates identical to the base for 149 operations. Grok also found no
+soundness hole. Every remaining finding is precision, and round 2 takes all
+but one:
+
+- **A test's own facts can decide it the other way** (Astra).
+  `(a != null or b != null) and (a = null and b = null)` states `a` and `b`
+  absent, which makes the `or` false. `assume()` now evaluates the test again
+  under the facts it adds and rejects a branch they contradict. This is a
+  second three-valued evaluation, not a solver.
+- **A straight-line reassignment holds the test it was given** (Grok).
+  `known = false; known = assignee != null` read `known` as unknown. A
+  reachable assignment now records its value's test and still marks the name
+  written, so a branch or a loop that reassigns it still leaves it none after.
+- **Literal arithmetic folds** (Grok). `require 1 + 1 = 3` never passes.
+  `literal()` evaluates `+`, `-` and `*` of integers as the interpreter does.
+  An overflow, which fails the call, stays unknown.
+- **Tests** for `!=` between unequal literals in increasing order, `null != 1`,
+  subtraction, and an `and` with a false side (Grok's surviving mutation, both
+  sides' facts on a false `and`).
+
+Not taken: a dead assignment still keeps a copy from being an alias. `copies()`
+reads the whole program without the walk's reachability, so it over-charges
+only. Making it reachability-aware means walking copies inside `body()`. That is
+larger than the finding.

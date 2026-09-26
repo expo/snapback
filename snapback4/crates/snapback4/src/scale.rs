@@ -287,6 +287,21 @@ fn step<'a>(branch: &'a [Stmt], name: &str) -> Option<&'a Expr> {
     match branch.last() { Some(Stmt::Assign { name: target, value }) if target == name => Some(value), _ => None }
 }
 
+/// A value the interpreter computes from literals alone: a literal, or `+`, `-` and
+/// `*` of integers within Quarry's range (`engine::runner::binary`); an overflow,
+/// which fails the call, stays unknown.
+fn literal(expr: &Expr) -> Option<Value> {
+    match expr {
+        Expr::Literal(value) => Some(value.clone()),
+        Expr::Binary { op: op @ (BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul), left, right } => {
+            let (Value::Int(a), Value::Int(b)) = (literal(left)?, literal(right)?) else { return None };
+            let (a, b) = (i128::from(a), i128::from(b));
+            Value::int(match op { BinaryOp::Add => a + b, BinaryOp::Sub => a - b, _ => a * b }).ok()
+        }
+        _ => None,
+    }
+}
+
 /// Two literals compared as the interpreter compares them (`engine::runner::binary`).
 fn compare(op: &BinaryOp, a: &Value, b: &Value) -> Test {
     use std::cmp::Ordering::{Greater, Less};
@@ -313,8 +328,8 @@ impl Analysis<'_> {
             Expr::Unary { op: UnaryOp::Not, value } => Test::Not(test(value)),
             Expr::Binary { op: BinaryOp::And, left, right } => Test::And(test(left), test(right)),
             Expr::Binary { op: BinaryOp::Or, left, right } => Test::Or(test(left), test(right)),
-            Expr::Binary { op, left, right } => match (left.as_ref(), right.as_ref()) {
-                (Expr::Literal(a), Expr::Literal(b)) => compare(op, a, b),
+            Expr::Binary { op, left, right } => match (literal(left), literal(right)) {
+                (Some(a), Some(b)) => compare(op, &a, &b),
                 _ => self.presence(condition),
             },
             _ => self.presence(condition),
@@ -350,6 +365,10 @@ impl Analysis<'_> {
                 None => added.push((identity, name, present)),
             }
         }
+        // Its own facts can decide the test the other way: `(a or b) and (a = null and b = null)`.
+        let known: Vec<(String, bool)> = self.identities.iter().cloned()
+            .chain(added.iter().map(|(identity, _, present)| (identity.clone(), *present))).collect();
+        if test.value(&known).is_some_and(|holds| holds != value) { return None; }
         Some(added)
     }
 
@@ -462,11 +481,12 @@ impl Analysis<'_> {
                     // Union assignments across branches and loop iterations;
                     // never clear a possible dependency on another path.
                     *self.data.entry(name.clone()).or_default() |= data;
-                    // A binding holds the test it is defined with. Reassigned, it holds none from
-                    // here, except the step of an `and` or `or`, which its `if` recovers. Code that
-                    // never runs assigns nothing.
+                    // A binding holds the test it was last given, as far as the walk has reached;
+                    // after a branch or a loop that reassigns it, none (see `If` and `repeated`).
+                    // Code that never runs assigns nothing.
                     if self.unreachable == 0 {
-                        let test = if matches!(stmt, Stmt::Assign { .. }) { self.written.push(name.clone()); Test::Unknown } else { self.test(value) };
+                        if matches!(stmt, Stmt::Assign { .. }) { self.written.push(name.clone()); }
+                        let test = self.test(value);
                         self.tests.insert(name.clone(), test);
                     }
                 }
