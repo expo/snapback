@@ -56829,3 +56829,54 @@ Two new mutants, `settlement-overlay` (round 14's defect) and `custody-lookup`,
 fail that case. The three earlier mutants still fail theirs. The affected files
 pass 91 of 91 and adoption 12 of 12. TypeScript only. Report:
 `reports/20260926-lane-v-r15.md`.
+
+## 2026-09-26 — Lane V round 16: strictly local settlement and lookup custody
+
+Implemented in `f026cfff6`, after reading both supervisor reports and all three
+round-14/15 reviews. Ordinary `meta write-history` now returns only this device's
+history, even when the id is absent. Shared-only history remains available to an
+explicit caller lookup; `WriteHistory.lookup` handles both absent history and
+`E_STORE_REPLACED`. `client.write` rechecks the outbox after that read and
+recomputes through local custody if orphan adoption added an entry. Extracted
+that sequence to `local-receipts.ts`; `local.ts` is 1,490 lines. The opener keeps
+an explicit shared id scan because those ids route retries through lookup;
+it remembers no shared outcomes and cannot use the window for settlement.
+
+Added seven real-browser scenarios, bringing the upgrade fixture to 13 plus its
+parent: absent-history custody, shared-only recovery and id remembrance, legacy
+same-id replay despite a shared refusal, two actual-adoption interleavings, and
+two local terminal corrections committed between history reads. The first
+lookup after adoption stays pending, source removal leaves committed outbox
+custody, and between-read `NOT_FOUND`/`sent` corrections beat shared `NOT_ADMIN`.
+The legacy case posts once to the original store, receives replayed NOT_ADMIN,
+keeps audit 0 and survives offline reopen. Updated existing host-level tests to
+request the lookup view explicitly, and asserted that settlement never even
+reads an existing shared receipt database.
+
+All seven negative controls fail: restoring shared-only settlement fallback,
+skipping the custody recheck, returning only shared history, disabling absent-
+history lookup, omitting shared ids from the opener, and the two earlier
+settlement-overlay/custody-lookup mutants. Targeted checks pass 14/14 browser,
+98/98 affected client, and 19/19 adoption. The reader audit and exact mutant-to-
+case mapping are in `reports/20260926-lane-v-r16.md`.
+
+The only full-suite run passed: **`== 0 failure(s) in 752 s`**, exit 0.
+Invocation: `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+Rust: 891 targets / 351 s. Client: 1,638 passes / 10 platform or optional-fixture
+skips / 154 s; the original 54 admission checks passed in 122.4 s and the upgrade
+fixture in 19.7 s. Models: 78 passes / 13,000 seeded sequences / 233 s. No
+full-suite failures (ours, baseline or environmental); the supplied baseline
+Cargo failure was not reproduced. The one development failure was our test
+fixture waiting for startup while holding its send preflight: the 90-second
+timeout closed the browser and caused four follow-on failures. The corrected
+fixture releases the gate before awaiting readiness; no timeout or production
+scheduling change. Mutant failures are deliberate and recorded separately.
+
+Wasm unchanged: 1,779,595 B raw / 496,604 B gzip, within the unchanged 497,000 B
+budget. No language/API form, refusal code, protocol/storage format, meter,
+authorization/disclosure or acquisition change. No scale remeasurement, release
+version bump, push or publication. No deviation from round 16. The historical
+manufactured-sent ambiguity remains the previously deferred supervisor migration
+question; this round introduces no new open finding and makes no repair claim
+for that old case. Evidence lives beside the report in
+`reports/20260926-lane-v-r16-evidence/`.
