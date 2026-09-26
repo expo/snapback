@@ -105,9 +105,9 @@
     "mark": null
   },
   {
-    "name": "null-does-not-fall-through",
-    "value": 0,
-    "complete": false,
+    "name": "null-sibling-is-weakest",
+    "value": 2,
+    "complete": true,
     "unknown": false,
     "replace": [
       [
@@ -256,7 +256,8 @@
         "complete": true,
         "unknown": false
       }
-    ]
+    ],
+    "nextExpiry": 4102444800000
   },
   {
     "name": "floor-expiry",
@@ -425,12 +426,12 @@
     "value": "partial",
     "complete": false,
     "unknown": false,
-    "n": 8300,
-    "mark": 0,
+    "n": 8301,
+    "mark": 2,
     "replace": [
       [
         "last 3 by .ordinal",
-        "last 9000 by .ordinal"
+        "last 8300 by .ordinal"
       ]
     ]
   },
@@ -467,16 +468,16 @@
     ]
   },
   {
-    "name": "short-range-large-whole",
-    "value": 2,
+    "name": "short-range-large-window",
+    "value": 3,
     "complete": true,
     "unknown": false,
-    "n": 8300,
-    "mark": 8298,
+    "n": 20000,
+    "mark": 19997,
     "replace": [
       [
         "last 3 by .ordinal",
-        "last 9000 by .ordinal"
+        "last 19999 by .ordinal"
       ]
     ]
   },
@@ -573,6 +574,9 @@
     "actions": [
       {
         "kind": "send"
+      },
+      {
+        "kind": "succeed"
       },
       {
         "kind": "refuse"
@@ -697,6 +701,175 @@
         "value": 0,
         "complete": true,
         "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "null-no-other-column",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "mark": null,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "readUpTo: int default 0",
+        "readUpTo: int ?"
+      ],
+      [
+        "and not .tombstone",
+        "and not .tombstone and .at > m.joinedAt"
+      ]
+    ]
+  },
+  {
+    "name": "other-column-only",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "replace": [
+      [
+        ".ordinal > m.readUpTo",
+        ".at > m.readUpTo"
+      ]
+    ]
+  },
+  {
+    "name": "public-whole",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "n": 2,
+    "mark": 0,
+    "replace": [
+      [
+        "read <- exists members[.conversationId, viewer]",
+        "read <- allow"
+      ],
+      [
+        "sync to members[.conversationId]",
+        "sync public"
+      ]
+    ]
+  },
+  {
+    "name": "whole-expired-backlog",
+    "value": 0,
+    "complete": false,
+    "unknown": false,
+    "n": 9003,
+    "mark": 0,
+    "expireFirst": 9000,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 10000 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "query",
+        "now": 4102444800000,
+        "value": 3,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "lower-bound-expiry",
+    "value": 3,
+    "complete": false,
+    "unknown": true,
+    "mark": 0,
+    "overrides": {
+      "6": {
+        "until": 4102444800000
+      }
+    },
+    "nextExpiry": 4102444800000,
+    "actions": [
+      {
+        "kind": "query",
+        "now": 4102444800000,
+        "value": 2,
+        "complete": false,
+        "unknown": true
+      }
+    ]
+  },
+  {
+    "name": "prediction-1024",
+    "value": 1024,
+    "complete": true,
+    "unknown": false,
+    "n": 1026,
+    "mark": 2,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 1025 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 2,
+        "predictable": true
+      }
+    ]
+  },
+  {
+    "name": "prediction-1025",
+    "value": 1025,
+    "complete": true,
+    "unknown": false,
+    "n": 1027,
+    "mark": 2,
+    "replace": [
+      [
+        "last 3 by .ordinal",
+        "last 1026 by .ordinal"
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "predict",
+        "mark": 2,
+        "predictable": false
+      },
+      {
+        "kind": "query",
+        "value": 1025,
+        "complete": true,
+        "unknown": false
+      }
+    ]
+  },
+  {
+    "name": "provisional-nonempty-range-refusal",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "replace": [
+      [
+        "ordinal: int",
+        "ordinal: sequence by conversationId"
+      ],
+      [
+        "ordinal: 10, ",
+        ""
+      ]
+    ],
+    "actions": [
+      {
+        "kind": "send"
+      },
+      {
+        "kind": "succeed"
+      },
+      {
+        "kind": "refuse"
       }
     ]
   }

@@ -633,6 +633,12 @@ impl Runner<'_> {
                 || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
                 return Ok(false);
             }
+            let expression = crate::ir::Expr::Literal(member.field(&k.member_key)?.clone());
+            let pins = std::collections::BTreeMap::from([(&k.source_key, &expression)]);
+            let rule = source.rules.read.device_audience_rule();
+            if !super::rules::prefix_visibility(&m.source, source, &rule, &pins).uniform {
+                return Ok(false);
+            }
             if !source.rules.read.is_uniformly_readable() {
                 // Admission restricts this rule to the parent and viewer. Check
                 // current witnesses; never trust synthetic delivery provenance.

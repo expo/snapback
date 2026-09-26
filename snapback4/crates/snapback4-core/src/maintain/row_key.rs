@@ -346,18 +346,16 @@ impl<'a> SuffixRange<'a> {
     pub fn lower_bound<'m>(&self, member: &'m Value) -> Option<(&'m Value, bool)> {
         let mut value = &Value::Null;
         let mut strict = false;
-        let mut valid = true;
         self.each_bound(&mut |field, candidate_strict| {
             let candidate = member.field(field).unwrap_or(&Value::Null);
-            // Any null candidate disables the range, rather than falling through.
-            if *candidate == Value::Null { valid = false; }
+            // Null is the weakest bound, never a veto on a non-null sibling.
             match candidate.total_cmp(value) {
                 std::cmp::Ordering::Greater => { value = candidate; strict = candidate_strict; }
                 std::cmp::Ordering::Equal => strict |= candidate_strict,
                 std::cmp::Ordering::Less => {}
             }
         });
-        if !valid || *value == Value::Null { return None; }
+        if *value == Value::Null { return None; }
         Some((value, strict))
     }
 }

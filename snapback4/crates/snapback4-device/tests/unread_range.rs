@@ -25,6 +25,8 @@ fn check<S: DeviceStore>(d: &mut Device<S>, spec: &Json, name: &str) {
     let q = &result["ok"];
     assert_eq!(q["complete"], spec["complete"], "{name}: {result}");
     assert_eq!(q["unknown"], spec["unknown"], "{name}: {result}");
+    assert_ne!(q["speculative"], true, "{name}: {result}");
+    if let Some(deadline) = spec.get("nextExpiry") { assert_eq!(&q["nextExpiry"], deadline, "{name}: {result}"); }
     if spec["value"] == "partial" {
         let n = q["data"].as_i64().expect("partial count");
         assert!(n > 0 && n < 8300, "{name}: {result}");
@@ -68,6 +70,7 @@ fn run<H: Host>(h: &mut H, spec: &Json) {
     ];
     for i in 1..=n {
         let mut row = message(i);
+        if i <= spec["expireFirst"].as_i64().unwrap_or(0) { row["until"] = json!(4102444800000_i64); }
         if source.contains("ordinal: sequence") {
             row.as_object_mut().unwrap().remove("ordinal");
         }
@@ -187,13 +190,13 @@ fn run<H: Host>(h: &mut H, spec: &Json) {
                     assert_eq!(result["ok"]["predicted"], json!([]));
                 }
             }
-            "send" | "refuse" => {
+            "send" | "refuse" | "succeed" => {
                 let send = action["kind"] == "send";
                 let result = call::call(
                     &mut d,
-                    json!({"op":"admit","entry":{"id":format!("intent-{i}"),"seq":i+1,"op":if send{"send"}else{"countThenRefuse"},"viewer":"bob","args":if send{json!({"conversationId":"c"})}else{json!({"member":"b"})},"now":1,"new_ids":if send{vec!["pred"]}else{vec![]},"predictable":true}}),
+                    json!({"op":"admit","entry":{"id":format!("intent-{i}"),"seq":i+1,"op":if send{"send"}else if action["kind"] == "succeed" {"depend"} else {"countThenRefuse"},"viewer":"bob","args":if send{json!({"conversationId":"c"})}else{json!({"member":"b"})},"now":1,"new_ids":if send{vec!["pred"]}else{vec![]},"predictable":true}}),
                 );
-                assert_eq!(result["ok"]["predictable"], send, "{name}: {result}");
+                assert_eq!(result["ok"]["predictable"], action["kind"] != "refuse", "{name}: {result}");
             }
             "acquiring" => page(
                 &mut d,
