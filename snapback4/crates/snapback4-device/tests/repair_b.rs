@@ -49,7 +49,7 @@ fn value<S: DeviceStore>(d: &mut Device<S>, k: &str) -> Option<i64> {
 }
 fn admit<S: DeviceStore>(d: &mut Device<S>, id: &str, op: &str, args: serde_json::Value) {
     d.admit(Queued { id:id.into(), seq:0, op:op.into(), args, new_ids:vec![], predicted:vec![], viewer:"dev:alice".into(), now:100,
-        predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
+        predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
 }
 fn bump(e: &mut Engine, write: &str, k: &str, viewer: &str) -> u64 {
     let r = e.mutate("bump", Some(write), context(viewer, &[("k", id(k))]).at(100)).unwrap();

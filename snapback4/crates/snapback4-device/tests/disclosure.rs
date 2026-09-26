@@ -173,7 +173,7 @@ fn acquiring_an_omitted_private_value_queues_on_both_stores() {
             predictable: true,
             sent_seq: None,
             receipt_store: None,
-            observed_seq: None,
+            observed_seq: None, dispatch: None,
         };
         let queued = d.admit(entry).unwrap();
         assert!(!queued.predictable);

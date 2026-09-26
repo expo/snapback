@@ -37,7 +37,7 @@ fn apply_frame<S: DeviceStore>(d: &mut Device<S>, page: &StreamPage, first: bool
     d.apply(&page, first)
 }
 fn admit<S: DeviceStore>(d: &mut Device<S>) {
-    d.admit(Queued {id:"q".into(), seq:0, op:"bump".into(), args:json!({}), new_ids:vec![], predicted:vec![], viewer:"dev:alice".into(),now:100,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None}).unwrap();
+    d.admit(Queued {id:"q".into(), seq:0, op:"bump".into(), args:json!({}), new_ids:vec![], predicted:vec![], viewer:"dev:alice".into(),now:100,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None, dispatch: None}).unwrap();
     d.sync_state().unwrap();
 }
 fn list<S: DeviceStore>(d: &mut Device<S>) -> serde_json::Value {

@@ -30,7 +30,7 @@ fn w13c2_time_keys_page_update_and_adopt_on_both_stores() {
         assert_eq!(found,fixture::oracle(-1,2));
         let ordinal = device.query("ordinalMerge","dev:alice",&json!({}),0).unwrap();
         assert_eq!(ids(&ordinal.data),(0..TIMES.len()).map(|n|format!("e{n}")).collect::<Vec<_>>());
-        let queued = device.admit(Queued { id:"move".into(),seq:1,op:"move".into(),args:json!({"eventId":"e1","at":1_800_001}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:0,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None }).unwrap();
+        let queued = device.admit(Queued { id:"move".into(),seq:1,op:"move".into(),args:json!({"eventId":"e1","at":1_800_001}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:0,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None, dispatch: None }).unwrap();
         assert!(queued.predictable);
         assert_eq!(ids(&device.query("hourPage","dev:alice",&json!({"h":-1}),0).unwrap().data),["e2","e3"]);
         assert_eq!(ids(&device.query("hourPage","dev:alice",&json!({"h":0}),0).unwrap().data),["e4","e1"]);
@@ -46,7 +46,7 @@ fn w13c2_daily_unique_predicts_on_both_stores_under_the_clock() {
         let mut device=host.open("daily",Some(backend)).unwrap();
         for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         for (seq,now,allowed) in [(1,86_399_999,true),(2,86_399_999,false),(3,86_400_000,true)] {
-            let result=device.admit(Queued { id:format!("daily{seq}"),seq,op:"checkin".into(),args:json!({}),new_ids:vec![format!("checkin{seq}")],predicted:vec![],viewer:"dev:alice".into(),now,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None });
+            let result=device.admit(Queued { id:format!("daily{seq}"),seq,op:"checkin".into(),args:json!({}),new_ids:vec![format!("checkin{seq}")],predicted:vec![],viewer:"dev:alice".into(),now,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None, dispatch: None });
             if allowed { assert!(result.unwrap().predictable); }
             else { let why=result.unwrap_err(); assert_eq!(why.code(),"ALREADY_HERE"); assert_eq!(why.refusal().message,"Already checked in."); }
         }

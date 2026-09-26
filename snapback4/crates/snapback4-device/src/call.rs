@@ -92,7 +92,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&if request.get("capture").and_then(Json::as_bool) == Some(false) { device.sync_state_read()? } else { device.sync_state()? })?,
-            "begin_send" => json!({ "send_revision": device.begin_send()? }),
+            "begin_send" => json!({ "send_revision": device.begin_send_for(request.get("id").and_then(Json::as_str))? }),
+            "hold_write" => { device.hold_write(text(&request, "id")?, text(&request, "reason")?)?; Json::Null },
             "adopt" => {
                 let mut expected = request.get("adoption_capture").cloned().map(parse::<std::collections::BTreeMap<String, Option<String>>>).transpose()?.unwrap_or_default();
                 for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision")] {

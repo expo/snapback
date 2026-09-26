@@ -28,7 +28,7 @@ fn scenario<H: Host>(host: &mut H) {
             predictable: true,
             sent_seq: None,
             receipt_store: None,
-            observed_seq: None,
+            observed_seq: None, dispatch: None,
         };
         let refused = device.admit_with_replay(entry, replay).unwrap_err();
         assert_eq!(refused.code(), "E_QUARRY_EPHEMERAL");

@@ -66,7 +66,7 @@ fn covered<H: Host>(host: &mut H) {
             predictable: true,
             sent_seq: None,
             receipt_store: None,
-            observed_seq: None,
+            observed_seq: None, dispatch: None,
         })
         .unwrap();
     assert!(queued.predictable, "{queued:?}");
@@ -178,7 +178,7 @@ fn uncovered<H: Host>(host: &mut H) {
             predictable: true,
             sent_seq: None,
             receipt_store: None,
-            observed_seq: None,
+            observed_seq: None, dispatch: None,
         })
         .unwrap();
     assert!(!queued.predictable, "{queued:?}");
@@ -267,7 +267,7 @@ fn source_horizon<H: Host>(host: &mut H) {
         predictable: true,
         sent_seq: None,
         receipt_store: None,
-        observed_seq: None,
+        observed_seq: None, dispatch: None,
     };
     let queued = device.admit(mark(1, 10)).unwrap();
     assert!(queued.predictable, "{queued:?}");
@@ -352,7 +352,7 @@ fn covered_cut<H: Host>(host: &mut H) {
             predictable: true,
             sent_seq: None,
             receipt_store: None,
-            observed_seq: None,
+            observed_seq: None, dispatch: None,
         })
         .unwrap();
     assert!(!queued.predictable, "{queued:?}");
@@ -410,7 +410,7 @@ fn source_prediction<H: Host>(host: &mut H, horizon: bool) {
     for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() {
         device.apply(page, i == 0).unwrap();
     }
-    let queued=device.admit(Queued {id:"send".into(),seq:1,op:"send".into(),args:json!({"id":"predicted","conversationId":"c","ordinal":2,"senderId":"alice","until":null}),viewer:"bob".into(),now:1,new_ids:vec!["predicted".into()],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None}).unwrap();
+    let queued=device.admit(Queued {id:"send".into(),seq:1,op:"send".into(),args:json!({"id":"predicted","conversationId":"c","ordinal":2,"senderId":"alice","until":null}),viewer:"bob".into(),now:1,new_ids:vec!["predicted".into()],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None}).unwrap();
     assert!(queued.predictable, "{queued:?}");
     let r = device
         .query("unreadFor", "bob", &json!({"member":"member"}), 1)
@@ -583,7 +583,7 @@ fn large_live_certification<H: Host>(host: &mut H) {
         let out=device.query("unreadFor","bob",&json!({"member":"member"}),1).unwrap();
         assert!(out.complete,"{out:?}");assert_eq!(out.data,Value::Int(1200));
         observations.push(out.data);
-        let entry=device.admit(Queued {id:name.clone(),seq:1,op:"useCount".into(),args:json!({"member":"member"}),viewer:"bob".into(),now:1,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None}).unwrap();
+        let entry=device.admit(Queued {id:name.clone(),seq:1,op:"useCount".into(),args:json!({"member":"member"}),viewer:"bob".into(),now:1,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None}).unwrap();
         assert!(!entry.predictable && entry.predicted.is_empty(),"{entry:?}");
         assert_eq!(device.queued().unwrap().len(),1);
         host.close(&name,device);let mut device=host.open(&name,None).unwrap();

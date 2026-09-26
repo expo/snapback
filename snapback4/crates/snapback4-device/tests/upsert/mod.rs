@@ -59,7 +59,7 @@ query one(room: text <=30):
             let mut device = host.open(room, Some(backend)).unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"room":room});
-            let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000, new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }).unwrap();
+            let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000, new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
             assert_eq!(queued.predictable, predicts, "{room}: {queued:?}");
             assert_eq!(queued.predicted.len(), usize::from(predicts));
             assert_eq!(device.query("one", "bob", &input, 1000).unwrap().data != Value::Null, predicts);
@@ -118,7 +118,7 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
             let mut device = host.open(case, Some(backend)).unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"postId":"first"});
-            let entry = Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000, new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
+            let entry = Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000, new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
             let queued = device.admit(entry).unwrap();
             assert_eq!(queued.predictable, predicts, "{} {case}: {queued:?}", host.label());
             assert_eq!(queued.predicted.len(), usize::from(predicts));
@@ -194,7 +194,7 @@ fn insert_if_absent_matches_its_reported_absence_proof_on_both_stores() {
             let mut device = host.open(case, Some(backend)).unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: json!({"postId":"first"}), viewer: "bob".into(), now: 1000,
-                new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }).unwrap();
+                new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
             assert_eq!(queued.predictable, predicts, "{} {case}: {queued:?}", host.label());
             assert_eq!(queued.predicted.len(), usize::from(predicts));
             host.close(case, device);
@@ -240,7 +240,7 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"id":"chosen", "postId":"first", "allowed":true});
             let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000,
-                new_ids: vec!["minted-like".into(), "other-like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }).unwrap();
+                new_ids: vec!["minted-like".into(), "other-like".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
             assert_eq!(queued.predictable, predicts, "{} {case}: {queued:?}", host.label());
             assert_eq!(queued.predicted.len(), if case == "minted-write" { 2 } else { usize::from(predicts) });
             let pending = device.query("one", "bob", &json!({"postId":"first"}), 1000).unwrap().data;

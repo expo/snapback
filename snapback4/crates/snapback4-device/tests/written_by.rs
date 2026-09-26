@@ -84,7 +84,7 @@ fn devices<H:Host>(host:&mut H, audience:bool, offline:bool) {
     assert_eq!(read(&mut bob,"bob")["readUpTo"],SECRET);
     assert_eq!(read(&mut admin,"admin").get("readUpTo").cloned(), audience.then_some(json!(SECRET)));
     let input=json!({"memberId":"b","readUpTo":SECRET+10});
-    let q=Queued { id:"mark".into(),seq:1,op:"markRead".into(),args:input.clone(),viewer:"bob".into(),now:1000,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None };
+    let q=Queued { id:"mark".into(),seq:1,op:"markRead".into(),args:input.clone(),viewer:"bob".into(),now:1000,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None };
     let admitted=bob.admit(q).unwrap(); assert!(admitted.predictable,"{admitted:?}");assert_eq!(admitted.predicted.len(),1);
     assert_eq!(read(&mut bob,"bob")["readUpTo"],SECRET+10);
     assert_eq!(read(&mut bob,"bob")["pending"],true);

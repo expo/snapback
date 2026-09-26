@@ -108,7 +108,7 @@ fn effect_payload_send_predicts_offline_and_agrees_at_every_presence_state() {
                     ok(device.call(serde_json::json!({"op":"withdraw", "predicted":prediction["predicted"]})));
                     ok(device.call(serde_json::json!({"op":"admit", "entry":Queued {
                         id:"send-write".into(), seq:1, op:"send".into(), args, new_ids:vec!["message".into()], predicted:vec![],
-                        viewer:"alice".into(), now:11_000, predictable:true, sent_seq:None, receipt_store:None, observed_seq:None,
+                        viewer:"alice".into(), now:11_000, predictable:true, sent_seq:None, receipt_store:None, observed_seq:None, dispatch: None,
                     }})));
                     assert!(engine.store().rows("messages").unwrap().is_empty());
                     assert!(engine.effects(None, 10).unwrap().is_empty());
