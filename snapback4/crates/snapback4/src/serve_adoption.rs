@@ -151,6 +151,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                     }
                 }
                 let mut engine = lock(&shared.engine);
+                lock(&shared.readers).begin_adoption(&bound);
                 // @ref LLP 3000.007#18.3 — retries judge the persisted successor, retaining the generation lock.
                 // Reopen only after the generation guard refuses this owner. Adoption
                 // still judges the latest stored successor in its own transaction.
@@ -171,7 +172,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         seen_generation = next;
                         if let Some(line) = lock(&shared.adoption).recovered() { eprintln!("{line}"); }
                         crate::lifecycle::generation(next);
-                        lock(&shared.readers).invalidate();
+
                         if reopened || rebuilt.is_some() {
                             match crate::native::install(&mut engine, &project) {
                                 Ok(installed) => {
@@ -181,6 +182,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                                 Err(problem) => eprintln!("snapback4 dev: {problem}"),
                             }
                         }
+                        lock(&shared.readers).replace(&engine);
                         // Publish the advertised backend and identity together:
                         // /schema takes these guards in the same order.
                         let mut active = lock(&shared.bound);
@@ -193,7 +195,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         // holding this engine guard: the old child cannot
                         // claim new work during the supervisor's stop delay.
                         shared.worker_revision.fetch_add(1, std::sync::atomic::Ordering::Release);
-                        eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
+                        eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}{}", *generation, worst, started.elapsed().as_millis(), generated.display(), summary(&engine));
                         for step in steps {
                             eprintln!("  {:?}: {}", step.change, step.message);
                         }
@@ -201,6 +203,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         shared.publish_engine(&engine);
                     }
                     Err(error) => {
+                        lock(&shared.readers).finish_adoption();
                         retry = retryable(&error);
                         lock(&shared.adoption).refused(&error, engine.generation());
                     }
@@ -212,4 +215,15 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
             Err(error) => eprintln!("snapback4 dev: cannot read snapback/: {error}"),
         }
     }
+}
+
+// @ref LLP 3000.019#3.6 — report each completed rebuild after atomic publication.
+pub(super) fn summary(engine: &snapback4_core::Engine) -> String {
+    let views = &engine.store().adoption_report.views;
+    if views.is_empty() { return String::new(); }
+    format!("; rebuilt {}", views.iter().map(|view|format!("{} ({} source rows, {:.3} ms)",view.name,view.rows,view.elapsed.as_secs_f64()*1000.0)).collect::<Vec<_>>().join(", "))
+}
+pub(super) fn report(engine: &snapback4_core::Engine) {
+    let detail = summary(engine);
+    if !detail.is_empty() { eprintln!("snapback4: startup schema adopted as generation {}{}", engine.generation(), detail); }
 }

@@ -317,7 +317,7 @@ fn w7c_dev_banner_names_the_store_and_stdout_is_readiness() {
         assert_eq!(host.post("/m/send", json!({"args":{}}), PERSONA)["result"], 7, "the first stdout line signals a usable backend");
         let startup = fs::read_to_string(log).unwrap();
         let expected = match flag {
-            Some(_) => "store: in memory — dies with this process".to_owned(),
+            Some(_) => "store: temporary — discarded on exit".to_owned(),
             None => format!("store: {}", f.0.join(".snapback4/store.sqlite").canonicalize().unwrap().display()),
         };
         assert!(startup.lines().any(|line| line == expected), "{startup}");

@@ -1651,8 +1651,9 @@ step.
   [--clock-offset +25h]`** serves `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
   save (the watcher polls every 400 ms; a save with problems keeps the previous generation serving and prints
   the diagnostics); the store lives in `.snapback4/store.sqlite` and persists across runs, and `--fresh`
-  (alias `--memory`) uses one in memory that dies with the process (acceptance scripts start from nothing).
-  The stderr banner prints `store: in memory — dies with this process` for either flag, or `store: <SQLite
+  (alias `--memory`) starts an empty private temporary WAL store, removed on orderly exit. Each launch
+  starts from nothing; an unclean exit can leave its private temporary directory for OS cleanup.
+  The stderr banner prints `store: temporary — discarded on exit` for either flag, or `store: <SQLite
   path>` for persistent dev. For dev and serve, readiness is the first stdout line: the listening URL, emitted
   after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. For a
   replay mode that must not emit notifications, run `snapback4 dev --replay`: new emits are never delivered.

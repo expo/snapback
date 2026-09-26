@@ -72,6 +72,11 @@ impl<T, C: Clock> FairMutex<T, C> {
     }
     pub fn clear_poison(&self) { self.value.clear_poison(); }
     #[cfg(test)]
+    pub(super) fn waiting(&self) -> u64 {
+        let queue = self.queue.lock().unwrap();
+        queue.next.wrapping_sub(queue.serving).saturating_sub(1)
+    }
+    #[cfg(test)]
     pub fn is_poisoned(&self) -> bool { self.value.is_poisoned() }
 }
 

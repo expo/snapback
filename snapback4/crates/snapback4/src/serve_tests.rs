@@ -70,12 +70,13 @@ impl Host {
         let presence = Arc::new(Live::new(clock.clone()));
         engine.set_presence(Some(presence.clone()));
         let generation = engine.generation();
+        let readers = Mutex::new(QueryReaders::new(&engine));
         let shared = Arc::new(Shared {
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: super::engine_lock::FairMutex::new(engine),
-            readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
+            readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),
             worker_revision: AtomicUsize::new(0),

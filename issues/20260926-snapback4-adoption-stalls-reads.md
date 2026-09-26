@@ -45,3 +45,21 @@ Adoption should not hold every read for the whole view backfill. Either:
 - Whether the dev server holds the engine lock for the whole adoption.
 - What `check` and the scale certificate say about adoption cost. Today they
   say nothing.
+
+## 2026-09-26 lane AD implementation and remaining work
+
+The corrected synthetic calibration-scale fixture measured 167,083 ms before
+optimization and 9,601 ms afterward; the six grouped folds already take under a
+second. Most original time was unrelated index replacement, now avoided when
+its complete interpretation is unchanged. Query/sync readers use independent WAL
+connections during atomic adoption: the concurrent fixture query drops from
+167,084 ms to less than 1 ms. Newly added queries return pending until publication.
+Queued writes execute once afterward. Full row/index/log/commit equality and
+crash-restart witnesses are in
+[the lane report](../snapback4/reports/20260926-lane-ad-adoption.md).
+
+Keep this ticket open: the approximately one-second adoption target is not met,
+and `/changes` still waits for its durable presence-reconnect write. The report
+contains a held-adoption reproduction and explains why acknowledging reconnects
+before their durable write would be incorrect across a crash. No blanket
+nonblocking-read or nonblocking-write capability is claimed.

@@ -186,3 +186,5 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
     assert_eq!(body(&host.request("POST", "/q/version", "x-snapback-persona: alice\r\n", "{}"))["data"], 2);
     println!("adoption recovery: in_flight_version=1 new_version=2 returned_old_readers=0");
 }
+
+mod reads;
