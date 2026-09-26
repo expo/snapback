@@ -469,6 +469,7 @@ fn action_admission_notifies_held_polls_without_maintenance() {
     // Action custody commits do not advance the row log. They must still
     // notify the held poll directly, which checks its predicate and waits again.
     wakes.recv_timeout(Duration::from_millis(250)).expect("action commit wakes the poll directly");
-    assert_eq!(lock(&h.shared.wake).seq, lock(&h.shared.engine).seq().unwrap());
+    let seq = lock(&h.shared.engine).seq().unwrap();
+    assert_eq!(lock(&h.shared.wake).seq, seq);
     assert_eq!(body(&poll.join().unwrap())["seq"], before);
 }

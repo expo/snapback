@@ -61945,3 +61945,24 @@ notification cannot hide behind startup reads. Qualification and mutation-test
 results will be appended after completion. No new schema/type fixtures were
 regenerated; no durable expected output was changed. RFC §3.3 now explicitly
 follows §3.6's durable wire guarantee, recording the author's review clarification.
+
+The requested lost-wake mutation is now verified. Removing only the publisher's
+shared.polls.notify_all() made ephemeral-watches fail both delivery cases
+(2 passed / 2 failed) and ephemeral-e2e fail its first trial (0 passed / 1 failed,
+first sight 1859.933 ms). The notification was restored and the binary rebuilt.
+Before mutation, all 11 focused JS tests passed; five isolated ephemeral bursts
+first appeared in 33.587–36.644 ms, disappeared 3840.401–3879.841 ms after the last
+call, and used two requests each. The separate durable phase used 45 each.
+
+Archive-built 1d6325c86 clients fail all four new wire/adoption cases against the
+fixed server (both tiers), while archive-built 0badac987 clients pass both frozen
+durable wire cases. No base implementation source was patched for those probes;
+only the new tests/helpers and the built device artifact were supplied. The
+existing guard-positive expectation is the sole changed renewal expectation.
+The 110-test server target passes serially. An initial unbounded parallel cargo
+invocation exhausted this process's file descriptors; the blocking harness uses
+one thread for this target. That invocation also caught my initial test-only
+attempt to seed a serve host through the dev door, corrected to a core commit
+and the production notification helper. Neither is a claimed inherited defect.
+The maintenance lease sweep retains its notification through the helper even
+when custody changes do not advance the row-log sequence.
