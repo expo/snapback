@@ -70,3 +70,34 @@ fn components<H: Host>(host: &mut H) {
 }
 #[test] fn expression_extrema_memory_independent_components() { components(&mut Memory::new()); }
 #[test] fn expression_extrema_sqlite_independent_components() { components(&mut Sqlite::new("extremum-components")); }
+
+fn projection_coverage<H: Host>(host: &mut H) {
+    for (name, sync, complete) in [("missing-projection", "online only", false), ("held-projection", "sync public", true)] {
+        let source = format!("table t:\n  target: id\n  n: int\n  cap 3\n  public\n  sync public\ntable secrets:\n  n: int\n  public\n  {sync}\nquery column():\n  return min(t, .n)\nquery minimum():\n  return min(t, secrets[.target].n ?? 0)\nquery maximum():\n  return max(t, secrets[.target].n ?? 0)\nquery defaulted():\n  return min(t, secrets[.target].n ?? 0) ?? -1\n");
+        let (mut server, backend) = compile(&source);
+        server.seed([("t".into(), object([("id", id("row")), ("target", id("s")), ("n", Value::Int(5))])),
+            ("secrets".into(), object([("id", id("s")), ("n", Value::Int(9))]))]).unwrap();
+        let mut device = host.open(name, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        for reopen in [false, true] {
+            if reopen {
+                host.close(name, device);
+                device = host.open(name, None).unwrap();
+            }
+            let column = device.query("column", "alice", &json!({}), 100).unwrap();
+            assert!(column.complete, "the aggregate source is held: {column:?}");
+            assert_eq!(column.data, Value::Int(5));
+            for op in ["minimum", "maximum", "defaulted"] {
+                let remote = server.query(op, context("alice", &[]).at(100)).unwrap();
+                assert!(remote.complete);
+                assert_eq!(remote.data, Value::Int(9));
+                let local = device.query(op, "alice", &json!({}), 100).unwrap();
+                assert_eq!(local.data, if complete { Value::Int(9) } else { Value::Null }, "{name} {op}, reopen={reopen}: {local:?}");
+                assert_eq!(local.complete, complete, "{name} {op}, reopen={reopen}: {local:?}");
+                assert!(local.capped_at.is_none(), "coverage, not a meter cut: {local:?}");
+            }
+        }
+    }
+}
+#[test] fn expression_extrema_memory_unheld_projection_is_unavailable() { projection_coverage(&mut Memory::new()); }
+#[test] fn expression_extrema_sqlite_unheld_projection_is_unavailable() { projection_coverage(&mut Sqlite::new("extremum-projection")); }
