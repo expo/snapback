@@ -956,8 +956,8 @@ Notification failures do not undo a committed admission. A dispatch subscriber
 that signs out or closes its client prevents transport from starting, including
 pagehide keepalive; admitted intent retains its existing custody. If an online hold
 cannot be saved, its owning client still lists `held` with the refusal code
-until dispatch or settlement supersedes it; other clients and reloads can
-only read the status that storage kept.
+until a newer persisted dispatch or hold from any owner, or settlement,
+supersedes it. Other clients and reloads can only read the status that storage kept.
 
 ```tsx
 import { usePendingWrites } from "snapback4/react";

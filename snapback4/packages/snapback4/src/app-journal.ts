@@ -4,7 +4,7 @@ import { StorageWarning } from "./app-storage.ts";
 import { mintId } from "./client.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 
-export type Intent = { owner: string; id: string; op: string; args: unknown; storeId?: string | null; dispatched?: boolean; holdReason?: string };
+export type Intent = { owner: string; id: string; op: string; args: unknown; storeId?: string | null; dispatched?: boolean; holdReason?: string; statusRevision?: string };
 export type Terminal = Exclude<Write, { state: "pending" }>;
 export type Journal = { owner: string; backend: string; pending: Intent[]; receipts: Terminal[]; retired?: string[]; retirementFull?: boolean; firstStore?: string; changedStore?: boolean };
 
@@ -33,6 +33,8 @@ export function bindIntentStore(journal: Journal, intent: Intent, store: string 
   intent.storeId = store ?? null;
   intent.dispatched = true;
   delete intent.holdReason;
+  // @ref LLP 3000.019#3.3 — even repeated sent status supersedes an unsaved hold in another owner.
+  intent.statusRevision = mintId();
 }
 // Retirement-protected ids have no safe expiry. Keep about 116 KiB at most;
 // saturation permanently fences new admissions instead of forgetting an id.
@@ -85,6 +87,7 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
   if (!value.pending.every(item => (item.storeId == null || (typeof item.storeId === "string" && item.storeId.length > 0))
     && (item.dispatched === undefined || typeof item.dispatched === "boolean"))) return false;
   if (!value.pending.every(item => item.holdReason === undefined || typeof item.holdReason === "string")) return false;
+  if (!value.pending.every(item => item.statusRevision === undefined || id(item.statusRevision))) return false;
   if (new Set(value.pending.map(item => item.id)).size !== value.pending.length) return false;
   return value.receipts.every(item => record(item) && id(item.id) && (item.state === "sent"
     ? Number.isSafeInteger(item.seq) && (item.seq as number) >= 0

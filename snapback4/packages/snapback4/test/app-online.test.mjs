@@ -55,18 +55,18 @@ test("unsaved online hold stays visible through failed retries in shared journal
     if (fail) { failures++; throw Error("journal save unavailable"); }
     await memory.set(key, value);
   } };
-  const make = async () => {
+  const make = async (ownerStore = store) => {
     const raw = createClient({ url, persona: "alice", fetch: async (input, init) => {
       if (new URL(input).pathname === "/probe") return Response.json({ ok: true, store_id: "A", seq: 0 });
       if (new URL(input).pathname === "/m/write") return new Promise(resolve => requests.push({ id: JSON.parse(init.body).id, resolve }));
       return new Promise(() => {});
     } });
     await identifyDispatch(raw);
-    const custody = await onlineCustody(raw, url, store, error => errors.push(error), false);
+    const custody = await onlineCustody(raw, url, ownerStore, error => errors.push(error), false);
     await custody.client.pendingWrites();
     return { ...custody, raw };
   };
-  const a = await make(), b = await make();
+  const a = await make(), b = await make(memory);
   t.after(async () => { fail = false; await a.client.close(); await b.client.close(); });
   const until = async check => {
     for (let n = 0; n < 1000; n++) { if (await check()) return; await delay(10); }
@@ -87,13 +87,21 @@ test("unsaved online hold stays visible through failed retries in shared journal
     assert.deepEqual(await view(b.client), [[head, "sent", undefined], [tail, "queued", undefined]], "another owner sees only persisted status in the same FIFO order");
     assert.equal(requests.length, 1, "failed dispatch binding cannot start another POST");
   }
-  fail = false;
+  await b.client.mutate(op, { body: "first" }, { id: head, waitSeconds: 0 });
   await until(() => requests.length === 2);
-  assert.deepEqual(await view(a.client), [[head, "sent", undefined], [tail, "queued", undefined]], "successful dispatch supersedes the unsaved hold");
-  requests[1].resolve(Response.json({ state: "sent", seq: 0 }));
+  assert.deepEqual(await view(a.client), [[head, "sent", undefined], [tail, "queued", undefined]], "another owner's dispatch supersedes the unsaved hold even while A's saves still fail");
+  requests[1].resolve(Response.json({ denied: { code: "E_RATE", family: "store", message: "rate limited", retryable: true } }, { status: 409 }));
+  await until(async () => (await b.client.pendingWrites())[0]?.reason === "E_RATE");
+  assert.deepEqual(await view(a.client), [[head, "held", "E_RATE"], [tail, "queued", undefined]], "another owner's persisted hold supersedes the unsaved refusal code");
+  assert.deepEqual(await view(a.raw), expected, "A's older live hold does not overwrite B's newer shared status");
   await until(() => requests.length === 3);
-  assert.equal(requests[2].id, tail, "the tail dispatches only after head settlement");
+  assert.equal(requests[2].id, head, "B retries the held head");
   requests[2].resolve(Response.json({ state: "sent", seq: 0 }));
+  await until(async () => (await a.client.pendingWrites()).length === 1);
+  fail = false;
+  await until(() => requests.length === 4);
+  assert.equal(requests[3].id, tail, "the tail dispatches only after head settlement");
+  requests[3].resolve(Response.json({ state: "sent", seq: 0 }));
   await until(async () => (await a.client.pendingWrites()).length === 0);
   assert.deepEqual(await b.client.pendingWrites(), [], "shared settlement removes both intents");
 });

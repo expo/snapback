@@ -26,7 +26,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const unpersisted = new Map<string, Terminal>();
   // @ref LLP 3000.019#3.3 — failed status saves cannot hide this runtime's
   // observed hold. This overlays presentation only; the journal still owns FIFO.
-  const unsavedHolds = new Map<string, string>();
+  const unsavedHolds = new Map<string, { reason: string; revision: string | undefined }>();
+  const dispatchRevisions = new Map<string, string | undefined>();
   const recoveredIntents = new Set<string>();
   const listeners = new Set<(write: Terminal) => void>();
   const pending = pendingChanges();
@@ -51,6 +52,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     && !(write.state === "failed" && ["E_CLOSED", "E_AUTH"].includes(write.why.code));
   const notify = (write: Terminal) => {
     unsavedHolds.delete(write.id);
+    dispatchRevisions.delete(write.id);
     ids.finish(write.id);
     pending.notify();
     if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
@@ -100,18 +102,27 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const intent = journal.pending.find(entry => entry.id === id);
       if (!intent) {
         const receipt = journal.receipts.find(entry => entry.id === id) ?? retiredReceipt(journal, id);
-        if (receipt) return receipt;
+        if (receipt) return { write: receipt, revision: undefined };
         throw new Error("the write has no durable intent; it cannot be dispatched");
       }
-      return bindIntentStore(journal, intent, identity);
-    }).then(write => { unsavedHolds.delete(id); if (write) recoveredIntents.add(id); return write; }),
-    held: (id, reason) => change(journal => {
-      const intent = journal.pending.find(entry => entry.id === id);
-      if (intent) intent.holdReason = reason;
-    }).then(() => { unsavedHolds.delete(id); }).catch(error => {
-      if (active) { unsavedHolds.set(id, reason); pending.notify(); }
-      report(error);
+      const write = bindIntentStore(journal, intent, identity);
+      return { write, revision: intent.statusRevision };
+    }).then(({ write, revision }) => {
+      unsavedHolds.delete(id);
+      if (write) recoveredIntents.add(id);
+      else if (active) dispatchRevisions.set(id, revision);
+      return write;
     }),
+    held: (id, reason) => {
+      const revision = dispatchRevisions.get(id);
+      return change(journal => {
+        const intent = journal.pending.find(entry => entry.id === id);
+        if (intent) { intent.holdReason = reason; intent.statusRevision = mintId(); }
+      }).then(() => { unsavedHolds.delete(id); }).catch(error => {
+        if (active) { unsavedHolds.set(id, { reason, revision }); pending.notify(); }
+        report(error);
+      });
+    },
   });
   for (const receipt of initial.receipts) ids.remember(receipt.id);
   for (const id of initial.retired ?? []) ids.remember(id);
@@ -219,8 +230,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (!active || raw.viewer() !== viewer) return [];
       const journal = await locked(key, read);
       if (!active || raw.viewer() !== viewer) return [];
+      const revisions = new Map(journal.pending.map(intent => [intent.id, intent.statusRevision]));
+      for (const [id, hold] of unsavedHolds) if (!revisions.has(id) || revisions.get(id) !== hold.revision) unsavedHolds.delete(id);
+      for (const id of dispatchRevisions.keys()) if (!revisions.has(id)) dispatchRevisions.delete(id);
       return journal.pending.filter(intent => !unpersisted.has(intent.id)).map(intent => {
-        const reason = unsavedHolds.get(intent.id) ?? intent.holdReason;
+        const reason = unsavedHolds.get(intent.id)?.reason ?? intent.holdReason;
         return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
           ...(reason ? { state: "held" as const, reason }
             : { state: intent.dispatched ? "sent" as const : "queued" as const }),
@@ -233,7 +247,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
   inheritClose(client, raw);
-  function pause() { active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); }
+  function pause() { active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
