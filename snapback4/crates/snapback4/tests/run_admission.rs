@@ -214,6 +214,91 @@ fn cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock() {
     assert!(cli.finish().0.success()); assert_eq!(p.jobs(), 1);
 }
 
+#[cfg(unix)]
+fn shared_releases(p: &Project) -> (PathBuf, PathBuf, PathBuf) {
+    let a = p.0.join("release-a");
+    let b = p.0.join("release-b");
+    for dir in [&a, &b] {
+        for _ in 0..2 {
+            let out = p.run(&["deploy", dir.to_str().unwrap()]);
+            assert!(out.status.success(), "{out:?}");
+        }
+    }
+    let external = p.0.join("external");
+    fs::create_dir(&external).unwrap();
+    let database = external.join("store.sqlite");
+    fs::rename(a.join("store.sqlite"), &database).unwrap();
+    fs::remove_file(b.join("store.sqlite")).unwrap();
+    for dir in [&a, &b] {
+        std::os::unix::fs::symlink(&database, dir.join("store.sqlite")).unwrap();
+    }
+    (a, b, database)
+}
+
+fn assert_owner_refusal(p: &Project, args: &[&str], owner: &str) {
+    let mut contender = Running::start(p, "contender", args);
+    let (status, _) = contender.finish();
+    let error = contender.logs();
+    assert!(!status.success(), "unexpected second owner: {error}");
+    assert!(error.contains("E_STORE_BUSY") && error.contains(owner), "{error}");
+    assert!(!error.contains("No such file or directory"), "{error}");
+}
+
+#[cfg(unix)]
+#[test]
+fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
+    let p = Project::new();
+    let (a, b, database) = shared_releases(&p);
+    let lock = database.parent().unwrap().join("serve.lock");
+    assert!(!lock.exists(), "startup must create its actual lock, without token priming it");
+    for (first, second) in [(&a, &b), (&b, &a)] {
+        let first = first.to_str().unwrap();
+        let second = second.to_str().unwrap();
+        let mut host = Running::start(&p, "release-host", &["serve", first, "--port", "0"]);
+        wait(|| {
+            let text = host.logs();
+            assert!(host.child.try_wait().unwrap().is_none(), "startup failed: {text}");
+            text.contains("snapback4 serve: http://")
+        });
+        let address = host.logs().split("snapback4 serve: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
+        assert!(fs::read_to_string(&lock).unwrap().contains(&address));
+        assert_owner_refusal(&p, &["serve", second, "--port", "0"], &address);
+        for dir in [first, second] {
+            let pointer = fs::read_to_string(PathBuf::from(dir).join("current")).unwrap();
+            for args in [vec!["token", "--release", dir, "--service", "worker"], vec!["deploy", dir], vec!["rollback", dir]] {
+                assert_owner_refusal(&p, &args, &address);
+            }
+            assert_eq!(fs::read_to_string(PathBuf::from(dir).join("current")).unwrap(), pointer);
+            assert!(!PathBuf::from(dir).join("releases/3").exists());
+        }
+        assert!(host.child.try_wait().unwrap().is_none());
+        drop(host);
+        let token = p.run(&["token", "--release", second, "--service", "worker"]);
+        assert!(token.status.success(), "{token:?}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn release_token_owns_the_resolved_database_before_sqlite_open() {
+    let p = Project::new();
+    let (a, b, database) = shared_releases(&p);
+    let conn = rusqlite::Connection::open(&database).unwrap();
+    conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let mut token = Running::start(&p, "token-owner", &["token", "--release", a.to_str().unwrap(), "--service", "worker"]);
+    let lock = database.parent().unwrap().join("serve.lock");
+    wait(|| {
+        assert!(token.child.try_wait().unwrap().is_none(), "{}", token.logs());
+        fs::File::open(&lock).is_ok_and(|file| matches!(file.try_lock(), Err(std::fs::TryLockError::WouldBlock)))
+    });
+    let b = b.to_str().unwrap();
+    for args in [vec!["token", "--release", b, "--service", "other"], vec!["serve", b, "--port", "0"], vec!["deploy", b], vec!["rollback", b]] {
+        assert_owner_refusal(&p, &args, "owning CLI command");
+    }
+    conn.execute_batch("ROLLBACK").unwrap();
+    assert!(token.finish().0.success(), "{}", token.logs());
+}
+
 #[test]
 fn interrupting_a_waiter_does_not_admit_a_job() {
     let p = Project::new(); p.initialize();

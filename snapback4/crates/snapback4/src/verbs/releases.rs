@@ -12,7 +12,7 @@ fn directory(options: &Options) -> Result<PathBuf, String> {
 /// while it is held, so a successful deploy or rollback cannot leave a live
 /// process advertising old IR over a store that has moved generations.
 pub(crate) fn deployment_lock(dir: &Path) -> Result<File, String> {
-    crate::store_owner::acquire(dir)
+    crate::store_owner::command(&dir.join("store.sqlite"))
 }
 fn current(dir: &Path) -> Result<Option<u64>, String> {
     let database = dir.join("store.sqlite");
@@ -138,7 +138,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let bind = release_bind(options)?;
     let dir = directory(options)?;
     snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
-    let _deployment = deployment_lock(&dir)?;
+    let owner = deployment_lock(&dir)?;
     let current = current(&dir)?.ok_or("no current release; deploy first")?;
     let release = Project { root: dir.join("releases").join(current.to_string()) };
     snapback4_core::private_fs::directory(&release.data_dir()).map_err(|e| e.to_string())?;
@@ -170,7 +170,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     return Err("serving shared releases requires a filesystem supporting symbolic links".into());
     let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
     let worker = options.flags.get("worker").map(|path| Path::new(path).canonicalize().map_err(|e| format!("--worker {path}: {e}"))).transpose()?;
-    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker }, &bind.to_string())
+    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker, owner }, &bind.to_string())
 }
 
 pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {

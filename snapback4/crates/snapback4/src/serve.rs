@@ -248,10 +248,10 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
-    Release { expected: u64, worker: Option<std::path::PathBuf> },
+    Release { expected: u64, worker: Option<std::path::PathBuf>, owner: std::fs::File },
 }
 
-pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<(), String> {
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -273,19 +273,15 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
     let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
-        let path = project.store_path();
-        let path = if path.exists() { path.canonicalize().map_err(|e| e.to_string())? } else { path };
-        Some(crate::verbs::deployment_lock(path.parent().ok_or("store path has no parent")?)?)
+        Some(crate::store_owner::command(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
     if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
-    if matches!(mode, Mode::Release { .. }) {
-        // The release caller already owns the lifetime lock before source selection.
-        let path = crate::store_owner::directory(&project.store_path())?.join("serve.lock");
-        let mut file = std::fs::OpenOptions::new().write(true).open(path).map_err(|e| e.to_string())?;
-        crate::store_owner::announce(&mut file, address)?;
+    if let Mode::Release { owner, .. } = &mut mode {
+        // @ref LLP 3000.019#3.4 — publish through the acquired handle, including a release database symlink.
+        crate::store_owner::announce(owner, address)?;
     }
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
