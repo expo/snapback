@@ -954,10 +954,10 @@ handles return `[]`. Legacy entries without dispatch metadata start queued
 unless retained sequence evidence proves dispatch.
 Notification failures do not undo a committed admission. A dispatch subscriber
 that signs out or closes its client prevents transport from starting, including
-pagehide keepalive; admitted intent retains its existing custody. If an online hold
-cannot be saved, its owning client still lists `held` with the refusal code
-until a newer persisted dispatch or hold from any owner, or settlement,
-supersedes it. Other clients and reloads can only read the status that storage kept.
+pagehide keepalive; admitted intent retains its existing custody. If a local or
+online hold cannot be saved, its owning client still lists `held` with the refusal
+code until a newer persisted dispatch or hold, settlement, or a client lifetime
+fence supersedes it. Other clients and reloads can only read the status that storage kept.
 
 ```tsx
 import { usePendingWrites } from "snapback4/react";

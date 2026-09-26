@@ -24,7 +24,7 @@ import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } f
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
-import { localPendingWrites, pendingChanges } from "./pending-writes.ts";
+import { localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
@@ -108,9 +108,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let history!: WriteHistory;
   const mutationIds = new MutationIds();
   const pending = pendingChanges();
+  let holds!: ReturnType<typeof localPendingHolds>;
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
-    mutationIds.finish(write.id);
+    mutationIds.finish(write.id); holds.forget(write.id);
     pending.notify();
     if (history.firstEmission(write.id)) {
       for (const listener of writeListeners) listener(write);
@@ -158,6 +159,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
+  holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
   attachAdmissionAuthority(core, options);
   history = new WriteHistory({
     read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
@@ -252,7 +254,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!force && (id === undefined || id === storeIdentity)) return;
     const resetProgress = force || storeIdentity !== undefined;
     storeIdentity = id;
-    incarnation++;
+    incarnation++; holds.clear();
     partitionCurrent = false;
     const wasAcquired = acquired;
     acquired = false;
@@ -385,7 +387,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     endingSession = work;
     void work.catch(() => { if (endingSession === work) endingSession = undefined; });
     if (!sessionDead) {
-      sessionDead = true;
+      sessionDead = true; holds.clear();
       session = null;
       rotating = false;
       credentialRevision += 1;
@@ -510,7 +512,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const { response, json } = reply;
       const why = (json.denied ?? json.why) as Refusal | undefined;
       if (path.startsWith("/m/") && why?.retryable && !closed && !sessionDead && request.revision === credentialRevision) {
-        await call({ op: "hold_write", id: (body as { id: string }).id, reason: why.code });
+        await holds.record((body as { id: string }).id, why.code);
       }
       // I12: delivered mutation/action outcomes still belong to their callers
       // after close. Reads continue to require the live view at delivery.
@@ -1266,7 +1268,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       });
     }),
     write(id) { return lookupWrite(history, queued, id, unavailable, () => acquired); },
-    pendingWrites: () => localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired),
+    pendingWrites: () => localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired, holds),
     onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
@@ -1377,7 +1379,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     close() {
       if (closing) return closing;
-      closed = true;
+      closed = true; holds.clear();
       pending.notify(); pending.clear();
       closingResponses.begin();
       stopRefresh();
@@ -1440,7 +1442,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) void rerun(watch);
       },
     }), async (entry, why) => {
-      if (!closed && !sessionDead && !settling.has(entry.id)) await call({ op: "hold_write", id: entry.id, reason: why.code });
+      if (!closed && !sessionDead && !settling.has(entry.id)) await holds.record(entry.id, why.code);
     });
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();

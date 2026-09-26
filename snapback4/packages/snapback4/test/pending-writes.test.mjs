@@ -60,7 +60,8 @@ async function fixture(t, tier) {
     assert.deepEqual(errors, []);
   });
   await until(() => { if (server.exitCode != null) throw Error(log); return url; }, "server startup");
-  const opener = tier === "process" ? processDevice({ dir: join(dir, "devices"), binary }) : webDevice({ wasm, persist: memoryPersistence() });
+  const persist = memoryPersistence();
+  const opener = tier === "process" ? processDevice({ dir: join(dir, "devices"), binary }) : webDevice({ wasm, persist });
   const cores = [], device = { async open(...args) { const core = await opener.open(...args); cores.push(core); return core; } };
   const transport = async (input, init) => {
     if (!new URL(input).pathname.startsWith("/m/")) return fetch(input, init);
@@ -82,9 +83,66 @@ async function fixture(t, tier) {
     if (!prepared) { await start(); if (local) await client.sync(); }
     return { client, start };
   };
-  return { open, posts, gates, cores, pass() { gateWrites = false; },
+  return { open, posts, gates, cores, persist, pass() { gateWrites = false; },
     rows: () => fetch(url + "/q/records", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: '{"args":{}}' }).then(r => r.json()).then(r => r.data),
   };
+}
+
+for (const failure of ["save throws", "device refuses"]) for (const supersede of ["dispatch", "hold", "settlement", "signOut", "close", "adoption"]) {
+  test(`wasm: local unsaved hold survives ${failure} until ${supersede}`, async t => {
+    const f = await fixture(t, "wasm"), { client } = await f.open();
+    const write = await client.mutate(op("record"), { n: 1 }, { waitSeconds: 0 });
+    await until(() => f.gates.length === 1, "first POST did not start");
+    const core = f.cores[0], call = core.call.bind(core), save = f.persist.save.bind(f.persist);
+    let failedSaves = 0, blockedRetries = 0;
+    // Keep later retries from changing the status while storage is unavailable.
+    t.mock.method(core, "call", (request, ...args) => {
+      if (request.op === "begin_send") { blockedRetries++; return Promise.resolve({ denied: { code: "E_STORE", message: "retry save unavailable" } }); }
+      if (request.op === "hold_write" && failure === "device refuses") {
+        failedSaves++;
+        return Promise.resolve({ denied: { code: "E_STORE", message: "status refused" } });
+      }
+      return call(request, ...args);
+    });
+    f.persist.save = async (name, changes) => {
+      if (failure === "save throws" && changes.some(c => c.s === "o" && c.v && JSON.parse(c.v).dispatch === "E_BUSY")) {
+        failedSaves++; throw Error("status save unavailable");
+      }
+      await save(name, changes);
+    };
+    const observed = [];
+    client.onPendingWrites(() => { void client.pendingWrites().then(list => observed.push(list)); });
+    f.gates[0].resolve(Response.json({ denied: { code: "E_BUSY", family: "store", message: "retry later", retryable: true } }, { status: 409 }));
+    await until(() => observed.some(list => list[0]?.state === "held" && list[0].reason === "E_BUSY"), "the failed save must notify a live held/E_BUSY list");
+    assert.equal(failedSaves, 1);
+    assert.equal(f.posts.length, 1);
+    assert.equal((await call({ op: "queued" })).ok[0].dispatch, "", "the real device reopened its persisted sent row after the failed save");
+    assert.deepEqual((await client.pendingWrites()).map(w => [w.id, w.state, w.reason]), [[write.id, "held", "E_BUSY"]]);
+    assert.equal((await client.write(write.id)).state, "pending");
+    f.persist.save = save;
+    if (supersede === "dispatch") {
+      await until(() => blockedRetries > 0, "retry never reached the failed send save");
+      assert.equal((await client.pendingWrites())[0].reason, "E_BUSY", "failed retries retain the observed hold");
+      await call({ op: "begin_send", id: write.id });
+      assert.equal((await client.pendingWrites())[0].state, "sent", "a newer send revision supersedes the fallback even with unchanged persisted dispatch text");
+    } else if (supersede === "hold") {
+      await call({ op: "hold_write", id: write.id, reason: "E_RATE" });
+      assert.equal((await client.pendingWrites())[0].reason, "E_RATE");
+    } else if (supersede === "settlement") {
+      await call({ op: "settle", id: write.id });
+      assert.deepEqual(await client.pendingWrites(), []);
+    } else if (supersede === "adoption") {
+      const backend = (await call({ op: "backend" })).ok;
+      backend.generation++;
+      await call({ op: "adopt", backend });
+      await client.sync();
+      assert.ok(!(await client.pendingWrites()).some(w => w.reason === "E_BUSY"));
+    } else {
+      await client[supersede]();
+      assert.deepEqual(await client.pendingWrites(), []);
+    }
+    assert.equal(f.posts.length, 1, "status presentation never sends an extra POST");
+  });
 }
 
 for (const tier of ["online", "wasm", "process"]) for (const end of ["signOut", "close"]) {
