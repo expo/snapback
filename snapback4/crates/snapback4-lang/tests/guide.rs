@@ -262,15 +262,16 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     };
     let c = || ("conversation", id("c"));
     let through = |n: i64| ("through", Value::Int(n));
+    let run = |c: (&'static str, Value), from: i64, to: i64| [c, ("from", Value::Int(from)), ("through", Value::Int(to))];
     let send = |engine: &mut Engine, who: &str, now: i64, row: &str| { sent(&engine.mutate("send", None, at(who, now, &[c(), ("text", text(row))]).with_ids([row.into()])).unwrap()); };
     // The page is newest first. m2 commits before anyone fetches m1, so an
     // acknowledgement of m1 must not cover it.
     send(&mut engine, "alice", 1_000, "m1");
     assert_eq!(receipts(&mut engine, "c"), ["sent"]);
     send(&mut engine, "alice", 1_050, "m2");
-    sent(&engine.mutate("delivered", None, at("bob", 1_100, &[c(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 1_100, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent"], "carol has not fetched m1");
-    sent(&engine.mutate("delivered", None, at("carol", 1_200, &[c(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("carol", 1_200, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "a watermark names what was fetched, not what exists");
     sent(&engine.mutate("seen", None, at("bob", 1_400, &[c(), through(2)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "bob has not fetched m2, and carol has not seen m1");
@@ -282,27 +283,31 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("add", None, at("alice", 2_000, &[c(), ("principal", id("dave"))]).with_ids(["md".into()])).unwrap());
     send(&mut engine, "alice", 2_000, "m4");
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"]);
-    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_100, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "no watermark past the last message");
+    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_100, &run(c(), 1, 99))).unwrap()), "PAST_LAST_MESSAGE", "no watermark past the last message");
+    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_101, &run(c(), 0, 2))).unwrap()), "NOT_A_RUN", "a run starts at a message");
+    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_102, &run(c(), 3, 2))).unwrap()), "NOT_A_RUN", "a run does not run backward");
     assert_eq!(failed(&engine.mutate("seen", None, at("bob", 2_110, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "seen is bounded too");
     sent(&engine.mutate("seen", None, at("bob", 2_200, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"], "a view without the fetch reads nothing");
-    sent(&engine.mutate("delivered", None, at("bob", 2_250, &[c(), through(4)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_250, &run(c(), 2, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "read", "read", "read"], "dave is a recipient of m4 only");
-    sent(&engine.mutate("delivered", None, at("dave", 2_300, &[c(), through(4)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("dave", 2_300, &run(c(), 4, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["delivered", "read", "read", "read"]);
+    let row = engine.query("membership", at("dave", 2_310, &[c()])).unwrap().data;
+    assert_eq!((row.field("deliveredOrdinal").ok(), row.field("spanThrough").ok()), (Some(&Value::Int(4)), Some(&Value::Int(0))), "a run from the join extends the prefix: {row:?}");
     sent(&engine.mutate("seen", None, at("dave", 2_350, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     // A rejoin starts after the messages already sent.
     sent(&engine.mutate("add", None, at("alice", 2_400, &[c(), ("principal", id("carol"))]).with_ids(["mc2".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
-    sent(&engine.mutate("delivered", None, at("bob", 2_500, &[c(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_500, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "watermarks only move forward");
     sent(&engine.mutate("seen", None, at("bob", 2_550, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "a stale seen does not lower the seen watermark");
     // A receipt never moves back: once every recipient leaves, the requirement is met.
     let pair = || ("conversation", id("pair"));
     sent(&engine.mutate("send", None, at("alice", 2_600, &[pair(), ("text", text("p1"))]).with_ids(["p1".into()])).unwrap());
-    sent(&engine.mutate("delivered", None, at("bob", 2_650, &[pair(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_650, &run(pair(), 1, 1))).unwrap());
     sent(&engine.mutate("seen", None, at("bob", 2_700, &[pair(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "pair"), ["read"]);
     sent(&engine.mutate("leave", None, at("bob", 2_800, &[pair()])).unwrap());
@@ -312,28 +317,51 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // A message with no recipients stays sent.
     sent(&engine.mutate("send", None, at("alice", 3_000, &[("conversation", id("solo")), ("text", text("alone"))]).with_ids(["s1".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "solo"), ["sent"]);
-    // Past the 500 synced messages a receipt still comes from the watermarks
-    // alone, however old the message.
+    // Past the 500 synced messages a receipt still comes from the runs alone,
+    // however old the message.
     let long = || ("conversation", id("long"));
-    for n in 1..=501 {
+    let post = |engine: &mut Engine, n: i64| {
         let row = format!("l{n}");
         sent(&engine.mutate("send", None, at("alice", 4_000 + n, &[long(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
-    }
+    };
+    for n in 1..=501 { post(&mut engine, n); }
     let everything = |engine: &mut Engine| -> Vec<String> {
         let (mut all, mut cursor) = (Vec::new(), Value::Null);
         loop {
             let page = engine.query("history", at("alice", 9_000, &[long(), ("c", cursor)])).unwrap();
             all.extend(page.data.as_array().unwrap().iter().map(receipt));
-            match page.next { Some(next) => cursor = Value::String(next), None => return all }
+            match page.next { Some(next) => cursor = Value::String(next), None => { all.reverse(); return all } }
         }
     };
+    // `everything` is oldest first: index n - 1 is ordinal n.
+    fn states(all: &[String], from: usize, to: usize) -> std::collections::BTreeSet<&str> { all[from - 1..to].iter().map(String::as_str).collect() }
     let all = everything(&mut engine);
     assert!(all.len() == 501 && all.iter().all(|r| r == "sent"), "nothing fetched is delivered: {all:?}");
     sent(&engine.mutate("seen", None, at("bob", 5_000, &[long(), through(501)])).unwrap());
     assert!(everything(&mut engine).iter().all(|r| r == "sent"), "an offline view reads nothing yet");
-    sent(&engine.mutate("delivered", None, at("bob", 5_100, &[long(), through(500)])).unwrap());
+    // Bob is back holding the newest 400 messages, not the ones before them.
+    sent(&engine.mutate("delivered", None, at("bob", 5_100, &run(long(), 102, 501))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((all[0].as_str(), all[1..].iter().all(|r| r == "read")), ("sent", true), "the fetched run turns read under the recorded view");
+    assert_eq!((states(&all, 1, 101), states(&all, 102, 501)), (["sent"].into(), ["read"].into()), "the fetched span turns read under the recorded view; the gap stays sent");
+    // A later run that meets neither the prefix nor the span waits.
+    for n in 502..=511 { post(&mut engine, n); }
+    sent(&engine.mutate("delivered", None, at("bob", 5_200, &run(long(), 505, 511))).unwrap());
+    assert_eq!(states(&everything(&mut engine), 502, 511), ["sent"].into(), "a run above a second gap claims nothing");
+    sent(&engine.mutate("delivered", None, at("bob", 5_210, &run(long(), 502, 511))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 5_220, &run(long(), 300, 400))).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((states(&all, 1, 101), states(&all, 102, 501), states(&all, 502, 511)), (["sent"].into(), ["read"].into(), ["delivered"].into()), "a run that meets the span grows it; one inside it changes nothing");
+    // The gap fetched: the prefix meets the span and takes it in, so a run above
+    // a new gap can start a span of its own.
+    sent(&engine.mutate("delivered", None, at("bob", 5_300, &run(long(), 1, 101))).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((states(&all, 1, 501), states(&all, 502, 511)), (["read"].into(), ["delivered"].into()));
+    for n in 512..=520 { post(&mut engine, n); }
+    sent(&engine.mutate("delivered", None, at("bob", 5_400, &run(long(), 515, 520))).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((states(&all, 512, 514), states(&all, 515, 520)), (["sent"].into(), ["delivered"].into()), "after the merge a run above a new gap is a span again");
+    let row = engine.query("membership", at("bob", 5_410, &[long()])).unwrap().data;
+    assert_eq!([row.field("deliveredOrdinal").ok(), row.field("spanFrom").ok(), row.field("spanThrough").ok()], [Some(&Value::Int(511)), Some(&Value::Int(515)), Some(&Value::Int(520))], "{row:?}");
 }
 
 fn compile(source: &str) -> snapback4_lang::Bound {
