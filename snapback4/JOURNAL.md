@@ -61927,3 +61927,38 @@ Existing guide fact fixtures changed with the corrected facts. The existing
 README TypeScript harness also compiles both new React examples. No new gate
 or runtime abstraction was added; lane L1 supplies waitSeconds behavior and
 the saved-intent starter reference. Final qualification is appended below.
+
+Qualification: the final complete `bash scripts/test.sh` used Node 24.18.0
+from `~/.volta/tools/image/node/24.18.0/bin` (`~/.local/node24/bin` was absent)
+and `SNAPBACK4_RUST_TEST_PROCESSES=4` on the loaded host. Its literal summary
+was `== 1 failure(s) in 2400 s`: the existing born-grant timing test measured
+9.9x growth for 4x the work, against its unchanged 9x limit. Cargo's stage
+reported 3,566 passed, 1 failed and 19 ignored (the separate docs-budget test
+also passed); all JavaScript processes together reported 2,122 tests,
+2,113 passed, 0 failed and 9 optional skips, including all 78 client models.
+The guide target passed 86 tests and read-authority passed 81, including the
+single added census item `card/client/1:acknowledge | never` (324 mutation
+occurrences, still 55 private prediction sites). Wasm remained 578,894 B gzip
+against 579,833 B. No guard, threshold or test was weakened.
+
+For attribution, temporarily checked out the exact base 78bbe7b349 in this
+worktree, preserving all checkpoints, then restored sb4/ccp-l2. Five base
+born-perf trials all passed (grant growth 2.9x, 3.6x, 3.5x, 3.7x, 3.7x);
+the restored lane's isolated grant test passed at 3.8x. A prior 30s lifecycle
+startup timeout in the interrupted Node-25 run also passed in isolation,
+on base, and as all 20 lifecycle tests in the final suite. Thus no persistent
+baseline failure was reproduced; the complete suite's timing failure remains
+reported as observed, rather than claimed to fail at base. The earlier new-card
+census omission was introduced by this lane and fixed with one fixture line.
+
+The final prose nests saved operation arguments under `{ id: mintId(), args }`
+so a message argument named `id` cannot overwrite a write's identity. After
+that two-line clarification and restoration, all 86 guide tests passed again,
+the Node-24 docs-budget check passed at 300/300, and the rebuilt CLI printed
+identical client/react/receipts/hooks/composer/unread cards; typing still prints
+ephemeral. The full run launched at c896d9e1ce; the subsequent prose-only
+clarification is b68455a5f0. Evidence, complete counts and transient timing
+measurements are in `/tmp/ccp-L2/` and the uncommitted `CCP-REPORT-L2.md`.
+L1 integration supplies waitSeconds runtime behavior and the saved-intent
+starter reference; L2 makes no new native-media or cold-builder qualification
+claim. No push, merge, rebase, new worktree or extra Cargo target directory.
