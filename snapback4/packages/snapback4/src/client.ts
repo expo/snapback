@@ -18,7 +18,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
-import { followTokens, presenceRenewal, sameFollow } from "./presence-follow.ts";
+import { followTokens, movedWatches, presenceRetry, sameFollow } from "./presence-follow.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -45,6 +45,8 @@ interface Watch extends ReadObservation<unknown> {
   tables: Set<string>;
   /** The follow token of the last answer that read presence. */
   presence: Set<string>;
+  /** Re-runs a watch whose answer read presence the server would not follow. */
+  presenceRetry: ReturnType<typeof setTimeout> | null;
   subscribers: Set<() => void>;
   inFlight: boolean;
   dirty: boolean;
@@ -499,17 +501,18 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000.017#3.2 — live watches follow the presence they read.
   let sentFollow: readonly string[] = [];
-  const renewal = presenceRenewal(() => watches.values(), (watch) => void refresh(watch as Watch));
   function followAnswer(watch: Watch, presence: string | undefined) {
     watch.presence = new Set(presence ? [presence] : []);
-    renewal.update();
+    // @ref LLP 3000.017#3.5 — an empty token: the server will not follow this answer, so it re-runs on a timer.
+    watch.presenceRetry = presenceRetry(watch.presenceRetry, presence === "", () => {
+      watch.presenceRetry = null;
+      if (watches.get(watch.key) === watch) void refresh(watch);
+    });
     // A held poll sent before this answer does not follow its token yet.
     if (!sameFollow(followTokens(watches.values()), sentFollow)) changes.restart();
   }
   function rerunPresence(tokens: Iterable<string>) {
-    const moved = new Set(tokens);
-    if (!moved.size) return;
-    for (const watch of watches.values()) if ([...watch.presence].some((token) => moved.has(token))) void refresh(watch);
+    for (const watch of movedWatches(watches.values(), tokens)) void refresh(watch);
   }
   const changes = changeFeed(doFetch, base, aborter.signal, () => { if (!closed && credentials) setLink("offline"); }, () => { if (!closed && credentials && link === "offline") void probe(); });
 
@@ -641,7 +644,7 @@ export function createClient(options: ClientOptions): Client {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presence: new Set<string>(), subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presence: new Set<string>(), presenceRetry: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
         watches.set(key, watch);
         void refresh(watch);
         void poll();
@@ -673,6 +676,8 @@ export function createClient(options: ClientOptions): Client {
             own.reset({ loading: true });
             if (own.expiryTimer) clearTimeout(own.expiryTimer);
             own.expiryTimer = null;
+            if (own.presenceRetry) clearTimeout(own.presenceRetry);
+            own.presenceRetry = null;
           }
         },
       };
@@ -798,13 +803,13 @@ export function createClient(options: ClientOptions): Client {
       if (closing) return closing;
       closed = true;
       stopClock();
-      renewal.stop();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      for (const watch of watches.values()) if (watch.presenceRetry) clearTimeout(watch.presenceRetry);
       for (const watch of watches.values()) watch.publish({ denied: storeRefusal ?? ended() });
       for (const watch of watches.values()) notify(watch);
       watches.clear();

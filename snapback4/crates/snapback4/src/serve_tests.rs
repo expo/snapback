@@ -91,6 +91,7 @@ impl Host {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            poll_checked: Mutex::new(None),
         });
         let server = Arc::new(
             Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())
@@ -1431,7 +1432,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
 #[path = "../tests/serve_changes/mod.rs"]
 mod review_changes;
 
-const PRESENCE: &str = "use personas alice, bob, carol\nuse identity\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\nquery anyone(a: principal, b: principal):\n  return connected[a] + connected[b]\n";
+const PRESENCE: &str = "use personas alice, bob, carol\nuse identity\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\nquery anyone(a: principal, b: principal):\n  return connected[a] + connected[b]\nquery crowded(p: principal):\n  return connected[p] > 1\nquery quiet(p: principal):\n  require not exists connected[p] else BUSY\n  return 0\ntable watchers:\n  watcher: principal\n  target: principal\n  unique watcher, target\n  read <- .watcher = viewer\n  insert <- .watcher = viewer\n  delete <- .watcher = viewer\nquery watched(p: principal):\n  require exists watchers[viewer, p] else NOT_ALLOWED\n  return exists connected[p]\nquery glance(p: principal):\n  return { online: exists connected[p], watching: exists watchers[viewer, p] }\nmutation watch(p: principal):\n  insert watchers { watcher: viewer, target: p } if absent\n  return null\nmutation unwatch(p: principal):\n  w = watchers[viewer, p] ! else NOT_FOUND\n  delete watchers[w]\n  return null\n";
 
 /// A raw held poll on its own thread: how long it took, and its response.
 fn held_poll(address: SocketAddr, persona: &str, query: &str) -> thread::JoinHandle<(Duration, String)> {
@@ -1446,17 +1447,34 @@ fn held_poll(address: SocketAddr, persona: &str, query: &str) -> thread::JoinHan
     })
 }
 
-/// A query's follow token: an opaque string, never the principals or bits.
+/// A query's follow token: an opaque string, never the principals or counts.
 fn token_of(read: &Json) -> String {
     let token = read["presence"].as_str().unwrap_or_else(|| panic!("no follow token in {read}")).to_owned();
+    assert!(!token.is_empty(), "the server follows this answer: {read}");
     let mut shown = read.clone();
     shown.as_object_mut().unwrap().remove("viewer");
     assert!(!shown.to_string().contains("dev:"), "a reply names no principal it read: {read}");
     token
 }
 
-/// LLP 3000.017 §3.1–3.2, §3.5: a query answers a token for the presence it
-/// read, and a held poll that follows the token answers when that presence moves.
+/// A poll that follows `token` and ends on its own deadline, reporting nothing.
+fn stays_quiet(host: &Host, persona: &str, head: u64, token: &str, why: &str) {
+    let started = Instant::now();
+    let answer = body(&host.request("GET", &format!("/changes?since={head}&wait=1&follow={token}"), &format!("x-snapback-persona: {persona}\r\n"), ""));
+    assert!(started.elapsed() >= Duration::from_millis(900), "{why}: answered after {:?}", started.elapsed());
+    assert!(answer.get("presence").is_none(), "{why}: {answer}");
+}
+
+/// A poll that follows `token` and answers it at once.
+fn answers_at_once(host: &Host, persona: &str, head: u64, token: &str, why: &str) {
+    let started = Instant::now();
+    let answer = body(&host.request("GET", &format!("/changes?since={head}&wait=25&follow={token}"), &format!("x-snapback-persona: {persona}\r\n"), ""));
+    assert!(started.elapsed() < Duration::from_secs(1), "{why}: answered after {:?}", started.elapsed());
+    assert_eq!(answer["presence"], json!([token]), "{why}");
+}
+
+/// LLP 3000.017 §3.1–3.2, §3.5: a query answers a token for its query, and a
+/// held poll that follows the token answers when the query's answer moves.
 #[test]
 fn a_held_poll_follows_the_token_its_query_issued() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
@@ -1479,11 +1497,9 @@ fn a_held_poll_follows_the_token_its_query_issued() {
     assert_eq!(answer["presence"], json!([away]));
     assert_eq!(answer["seq"], json!(head), "presence moved; the store did not");
 
-    // A token whose presence already moved answers at once.
-    let started = Instant::now();
-    let stale = body(&host.request("GET", &format!("/changes?since={head}&wait=25&follow={away}"), alice, ""));
-    assert!(started.elapsed() < Duration::from_secs(1));
-    assert_eq!(stale["presence"], json!([away]));
+    // A reported token moved its baseline with the report: following it
+    // again, as a client whose re-run is late might, reports nothing new.
+    stays_quiet(&host, "alice", head, &away, "a reported token must not report the same change twice");
 
     // A fresh read issues a fresh token; the end of Bob's grace answers it.
     let here = token_of(&online(&host));
@@ -1513,29 +1529,185 @@ fn follow_parses_tokens_and_stops_at_the_limit() {
     assert!(followed(None).is_empty());
 }
 
-/// LLP 3000.017 §3.5: a token discloses nothing and follows nothing for
-/// anyone but the viewer whose query issued it.
+/// LLP 3000.017 §3.5: a token discloses nothing, and a foreign token reads
+/// exactly as an unknown one: lapsed, at once.
 #[test]
 fn a_token_follows_only_for_its_viewer_and_discloses_no_principal() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
-    let (alice, carol) = ("x-snapback-persona: alice\r\n", "x-snapback-persona: carol\r\n");
+    let alice = "x-snapback-persona: alice\r\n";
     let head = lock(&host.shared.engine).seq().unwrap();
     // An aggregate over two principals answers its sum and one opaque token.
     let sum = body(&host.request("POST", "/q/anyone", alice, r#"{"args":{"a":"dev:bob","b":"dev:carol"}}"#));
     assert_eq!(sum["data"], json!(0));
     let token = token_of(&sum);
-    // Unknown tokens, and Alice's token in Carol's poll, follow nothing.
     let (_, bob) = held_poll(host.address, "bob", &format!("since={head}&wait=0")).join().unwrap();
     assert_eq!(status(&bob), 200);
-    for (who, follow) in [(carol, token.clone()), (alice, "01NOSUCHTOKEN".to_owned())] {
-        let started = Instant::now();
-        let probe = body(&host.request("GET", &format!("/changes?since={head}&wait=1&follow={follow}"), who, ""));
-        assert!(started.elapsed() >= Duration::from_millis(900), "a foreign or unknown token must not answer early");
-        assert!(probe.get("presence").is_none(), "{probe}");
+    // Alice's token in Carol's poll, and a token nobody issued, are both lapsed to their poll.
+    answers_at_once(&host, "carol", head, &token, "a foreign token reads as lapsed");
+    answers_at_once(&host, "alice", head, "01NOSUCHTOKEN", "an unknown token reads as lapsed");
+    // Alice's own token answers at once: Bob moved the sum since her read.
+    answers_at_once(&host, "alice", head, &token, "the viewer's own token reports its moved answer");
+}
+
+/// LLP 3000.017 §3.5: a token moves only when its query's published answer
+/// does. A count the answer hides wakes the re-run and reports nothing.
+#[test]
+fn a_token_reports_only_a_changed_answer() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    let head = lock(&host.shared.engine).seq().unwrap();
+    let read = body(&host.request("POST", "/q/crowded", alice, r#"{"args":{"p":"dev:bob"}}"#));
+    assert_eq!(read["data"], json!(false));
+    let token = token_of(&read);
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=25&follow={token}"));
+    wait_until(|| host.shared.presence.followed("dev:bob"));
+    let first = held_poll(host.address, "bob", &format!("since={head}&wait=3"));
+    wait_until(|| host.shared.presence.connections("dev:bob") == 1);
+    thread::sleep(Duration::from_millis(400));
+    assert!(!waiting.is_finished(), "one connection leaves `connected[p] > 1` false: nothing to report");
+    let second = held_poll(host.address, "bob", &format!("since={head}&wait=8"));
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed < Duration::from_secs(3), "the second connection turned the answer, answered after {elapsed:?}");
+    assert_eq!(body(&answer)["presence"], json!([token]));
+    // One of two connections ending moves the count back, and the answer with it.
+    let read = body(&host.request("POST", "/q/crowded", alice, r#"{"args":{"p":"dev:bob"}}"#));
+    assert_eq!(read["data"], json!(true));
+    let crowded = token_of(&read);
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=25&follow={crowded}"));
+    assert_eq!(status(&first.join().unwrap().1), 200);
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed < Duration::from_secs(4), "bob's first connection ended, answered after {elapsed:?}");
+    assert_eq!(body(&answer)["presence"], json!([crowded]));
+    assert_eq!(status(&second.join().unwrap().1), 200);
+}
+
+/// LLP 3000.017 §3.5: a token whose query no longer answers its viewer, or
+/// whose read tables changed, retires silently and then reads as lapsed.
+#[test]
+fn a_token_retires_when_its_query_stops_answering_its_viewer() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    // Access withdrawn: Alice stops watching Bob, then Bob connects.
+    assert_eq!(body(&host.request("POST", "/m/watch", alice, r#"{"id":"w1","args":{"p":"dev:bob"}}"#))["state"], "sent");
+    let token = token_of(&body(&host.request("POST", "/q/watched", alice, r#"{"args":{"p":"dev:bob"}}"#)));
+    assert_eq!(body(&host.request("POST", "/m/unwatch", alice, r#"{"id":"w2","args":{"p":"dev:bob"}}"#))["state"], "sent");
+    assert_eq!(body(&host.request("POST", "/q/watched", alice, r#"{"args":{"p":"dev:bob"}}"#))["denied"]["code"], "NOT_ALLOWED");
+    let head = lock(&host.shared.engine).seq().unwrap();
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=1&follow={token}"));
+    wait_until(|| host.shared.presence.followed("dev:bob"));
+    let (_, bob) = held_poll(host.address, "bob", &format!("since={head}&wait=0")).join().unwrap();
+    assert_eq!(status(&bob), 200);
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed >= Duration::from_millis(900), "a withdrawn query's token must not answer at Bob's connection: {elapsed:?}");
+    assert!(body(&answer).get("presence").is_none(), "{answer}");
+    answers_at_once(&host, "alice", head, &token, "a retired token reads as lapsed, so its watch re-runs");
+    // Data changed after the answer: a re-run would differ for that reason too,
+    // and the client re-runs this watch for the change anyway. Carol's
+    // connection must not be what tells it.
+    assert_eq!(body(&host.request("POST", "/m/watch", alice, r#"{"id":"w3","args":{"p":"dev:carol"}}"#))["state"], "sent");
+    let glance = token_of(&body(&host.request("POST", "/q/glance", alice, r#"{"args":{"p":"dev:carol"}}"#)));
+    assert_eq!(body(&host.request("POST", "/m/unwatch", alice, r#"{"id":"w4","args":{"p":"dev:carol"}}"#))["state"], "sent");
+    let head = lock(&host.shared.engine).seq().unwrap();
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=1&follow={glance}"));
+    wait_until(|| host.shared.presence.followed("dev:carol"));
+    let (_, carol) = held_poll(host.address, "carol", &format!("since={head}&wait=0")).join().unwrap();
+    assert_eq!(status(&carol), 200);
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed >= Duration::from_millis(900) && body(&answer).get("presence").is_none(), "a data change must not surface at a presence change: {elapsed:?} {answer}");
+    answers_at_once(&host, "alice", head, &glance, "the token retired, and reads as lapsed");
+    // A re-run that is refused retires the token without a report.
+    let quiet = token_of(&body(&host.request("POST", "/q/quiet", alice, r#"{"args":{"p":"dev:dave"}}"#)));
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=1&follow={quiet}"));
+    wait_until(|| host.shared.presence.followed("dev:dave"));
+    assert!(host.shared.presence.enter("dev:dave"));
+    super::wake_presence(&host.shared);
+    let (elapsed, answer) = waiting.join().unwrap();
+    assert!(elapsed >= Duration::from_millis(900) && body(&answer).get("presence").is_none(), "a refused re-run reports nothing: {elapsed:?} {answer}");
+    answers_at_once(&host, "alice", head, &quiet, "a refused re-run's token reads as lapsed");
+}
+
+/// LLP 3000.017 §3.5: the token table keeps its bounds. Room comes from the
+/// least recently followed token, the viewer's own first; an idle token
+/// lapses; an answer too large to follow gets an empty token.
+#[test]
+fn the_token_table_keeps_its_bounds() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    let head = lock(&host.shared.engine).seq().unwrap();
+    let issue = |who: &str, p: &str| token_of(&body(&host.request("POST", "/q/online", &format!("x-snapback-persona: {who}\r\n"), &format!(r#"{{"args":{{"p":"{p}"}}}}"#))));
+    // Tokens read principals that never connect here, so no poll moves them,
+    // and charge alike, so one eviction makes room for one token.
+    host.shared.presence.limit_tokens(TokenLimits { viewer: 2, ..TOKEN_LIMITS });
+    let first = issue("alice", "dev:dave");
+    let second = issue("alice", "dev:erin");
+    let carols = issue("carol", "dev:dave");
+    let third = issue("alice", "dev:gina");
+    assert_eq!(host.shared.presence.token_count().0, 3, "alice's third token took her oldest's place");
+    answers_at_once(&host, "alice", head, &first, "an evicted token reads as lapsed");
+    for (who, token) in [("alice", &second), ("alice", &third), ("carol", &carols)] { stays_quiet(&host, who, head, token, "a token within its viewer's bound stays live"); }
+    // The byte bound evicts the table's least recently followed token.
+    let (_, bytes) = host.shared.presence.token_count();
+    host.shared.presence.limit_tokens(TokenLimits { bytes, ..TOKEN_LIMITS });
+    let fourth = issue("carol", "dev:hank");
+    assert_eq!(host.shared.presence.token_count().0, 3);
+    answers_at_once(&host, "alice", head, &second, "the least recently followed token made room");
+    stays_quiet(&host, "carol", head, &fourth, "the new token is live");
+    // An idle token lapses; following keeps one live.
+    host.shared.presence.limit_tokens(TokenLimits { idle: Duration::from_millis(1_500), ..TOKEN_LIMITS });
+    thread::sleep(Duration::from_millis(1_600));
+    let fifth = issue("alice", "dev:ivan");
+    assert_eq!(host.shared.presence.token_count().0, 1, "idle tokens lapsed as the next was issued");
+    stays_quiet(&host, "alice", head, &fifth, "a followed token stays live");
+    // Too many principals to follow: an empty token, and nothing kept.
+    host.shared.presence.limit_tokens(TokenLimits { reads: 1, ..TOKEN_LIMITS });
+    let sum = body(&host.request("POST", "/q/anyone", alice, r#"{"args":{"a":"dev:bob","b":"dev:carol"}}"#));
+    assert_eq!(sum["presence"], json!(""), "{sum}");
+    assert_eq!(host.shared.presence.token_count().0, 1);
+}
+
+/// LLP 3000.017 §3.2: a notice meant for another waiter, or a presence notice
+/// that arrives late, is one more look for a poll, never an answer.
+#[test]
+fn a_notice_without_a_change_does_not_end_a_poll() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let head = lock(&host.shared.engine).seq().unwrap();
+    let bystander = held_poll(host.address, "carol", &format!("since={head}&wait=2"));
+    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 1);
+    // Notices meant for other waiters (effects, actions, route workers)...
+    for _ in 0..5 {
+        thread::sleep(Duration::from_millis(100));
+        host.shared.committed.notify_all();
     }
-    // Alice's own token answers at once: Bob moved since her read.
-    let own = body(&host.request("GET", &format!("/changes?since={head}&wait=25&follow={token}"), alice, ""));
-    assert_eq!(own["presence"], json!([token]));
+    // ...and presence notices for principals this poll does not follow.
+    for _ in 0..5 {
+        thread::sleep(Duration::from_millis(100));
+        super::wake_presence(&host.shared);
+    }
+    let (held, answer) = bystander.join().unwrap();
+    assert!(held >= Duration::from_millis(1_900), "notices without a change ended the poll after {held:?}");
+    assert!(body(&answer).get("presence").is_none());
+}
+
+/// LLP 3000.017 §3.2: a presence change between a poll's look and its wait is
+/// seen before it sleeps, never slept through.
+#[test]
+fn a_presence_change_before_the_wait_is_not_slept_through() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    let head = lock(&host.shared.engine).seq().unwrap();
+    let token = token_of(&body(&host.request("POST", "/q/online", alice, r#"{"args":{"p":"dev:bob"}}"#)));
+    let shared = host.shared.clone();
+    let once = std::sync::Once::new();
+    *lock(&host.shared.poll_checked) = Some(Arc::new(move || once.call_once(|| {
+        // Bob connects after the poll looked at its tokens, before it waits.
+        assert!(shared.presence.enter("dev:bob"));
+        super::wake_presence(&shared);
+    })));
+    let started = Instant::now();
+    let answer = body(&host.request("GET", &format!("/changes?since={head}&wait=5&follow={token}"), alice, ""));
+    *lock(&host.shared.poll_checked) = None;
+    assert!(started.elapsed() < Duration::from_secs(2), "the change was slept through: {:?}", started.elapsed());
+    assert_eq!(answer["presence"], json!([token]));
 }
 
 /// LLP 3000.017 §3.2, §3.5: a followed grace ends on its own deadline; a
@@ -1553,7 +1725,7 @@ fn a_followed_grace_ends_on_its_own_deadline_and_lapsed_tokens_stay_quiet() {
     let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=25&follow={token}"));
     let bystander = held_poll(host.address, "carol", &format!("since={head}&wait=3"));
     wait_until(|| host.shared.presence.followed("dev:bob"));
-    // Leave about two seconds of grace: the advance wakes held polls, but no bit moved.
+    // Leave about two seconds of grace: the advance wakes held polls, but no count moved.
     let advanced = Instant::now();
     assert_eq!(status(&host.request("POST", "/dev/clock/advance", alice, r#"{"duration":"33s"}"#)), 200);
     let (_, answer) = waiting.join().unwrap();
@@ -1563,16 +1735,16 @@ fn a_followed_grace_ends_on_its_own_deadline_and_lapsed_tokens_stay_quiet() {
     let (held, quiet) = bystander.join().unwrap();
     assert!(held >= Duration::from_millis(2_900), "a poll that follows nothing ran its own deadline, not {held:?}");
     assert!(body(&quiet).get("presence").is_none());
-    // A token that lapses while its poll waits: Bob comes back, but the token
-    // is gone by then, so the poll ends on its deadline without presence.
-    let (_, bob) = held_poll(host.address, "bob", &format!("since={head}&wait=0")).join().unwrap();
-    assert_eq!(status(&bob), 200);
+    // A token that lapses while its poll waits: Carol comes online, but the
+    // token is gone by then, so the poll ends on its deadline without presence.
     let away_token = token_of(&body(&host.request("POST", "/q/online", alice, r#"{"args":{"p":"dev:carol"}}"#)));
-    let lapsing = held_poll(host.address, "alice", &format!("since={head}&wait=3&follow={away_token}"));
+    host.shared.presence.limit_tokens(TokenLimits { idle: Duration::from_millis(300), ..TOKEN_LIMITS });
+    let lapsing = held_poll(host.address, "alice", &format!("since={head}&wait=2&follow={away_token}"));
     wait_until(|| host.shared.presence.followed("dev:carol"));
-    assert_eq!(status(&host.request("POST", "/dev/clock/advance", alice, r#"{"duration":"11m"}"#)), 200);
+    thread::sleep(Duration::from_millis(400));
     let (_, carol) = held_poll(host.address, "carol", &format!("since={head}&wait=0")).join().unwrap();
     assert_eq!(status(&carol), 200);
     let (_, lapsed) = lapsing.join().unwrap();
-    assert!(body(&lapsed).get("presence").is_none(), "a lapsed token is never reported: {lapsed}");
+    assert!(body(&lapsed).get("presence").is_none(), "a token that lapsed mid-wait is never reported: {lapsed}");
+    answers_at_once(&host, "alice", head, &away_token, "the next poll reports it lapsed, so its watch re-runs");
 }

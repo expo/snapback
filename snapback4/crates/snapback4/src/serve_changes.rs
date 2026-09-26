@@ -1,5 +1,6 @@
 //! Held change polls: JSON whitespace heartbeats, followed by one JSON result.
-use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed, wake_presence};
+use super::{FollowToken, JsonBuffer, Shared, answer_digest, cors, evaluate, lock, principal_of, query_params, refusal_json, respond_timed, wake_presence};
+use snapback4_core::Context;
 use serde_json::{Value as Json, json};
 use std::io;
 use std::time::{Duration, Instant};
@@ -21,26 +22,59 @@ pub(crate) fn followed(list: Option<&String>) -> Vec<String> {
     tokens
 }
 
-/// The followed tokens whose presence moved, and the earliest end of a grace
-/// that alone keeps one of their principals connected. A token that lapsed
-/// while the poll waited is dropped, never reported.
+/// The followed tokens whose query now publishes a different answer, and the
+/// earliest end of a grace that alone keeps a principal one of them read
+/// connected. A token's query re-runs, as its viewer, only when a count it read
+/// moved, and its baseline moves to what the re-run read. A token whose read
+/// tables changed since its answer, or whose re-run is refused, retires
+/// silently: its client re-runs that watch for the change it is told about.
+/// A token that lapsed while the poll waited is dropped, never reported.
 fn moved(shared: &Shared, viewer: &str, follow: &[String]) -> (Vec<String>, Option<Instant>) {
     let mut moved = Vec::new();
     let mut grace_end: Option<Instant> = None;
-    for token in follow {
-        let Some(bits) = shared.presence.token(viewer, token) else { continue };
+    for id in follow {
+        let Some(reads) = shared.presence.reads(viewer, id) else { continue };
         let mut changed = false;
-        for (principal, seen) in &bits {
-            let (now, remaining) = shared.presence.follow(principal);
-            changed |= now != *seen;
+        for (principal, seen) in &reads {
+            let (count, remaining) = shared.presence.follow(principal);
+            changed |= count != *seen;
             if let Some(remaining) = remaining {
                 let end = Instant::now() + remaining;
                 grace_end = Some(grace_end.map_or(end, |earliest| earliest.min(end)));
             }
         }
-        if changed { moved.push(token.clone()); }
+        if !changed { continue; }
+        let Some(token) = shared.presence.token(viewer, id) else { continue };
+        // @ref LLP 3000.017#3.5 — a report at a presence change must owe nothing to data the client learns about separately.
+        if read_tables_changed(shared, &token) { shared.presence.retire(id); continue; }
+        let mut context = Context::new(viewer.to_owned(), token.args.clone()).at(shared.now());
+        if token.provenance { context = context.with_row_provenance(); }
+        match evaluate(shared, &token.op, context).0 {
+            Ok(outcome) => {
+                // @ref LLP 3000.017#3.5 — a token moves only when its query's published answer does.
+                let answer = answer_digest(&outcome, token.provenance);
+                if answer != token.answer { moved.push(id.clone()); }
+                shared.presence.rebase(id, answer, outcome.presence, outcome.tables, outcome.seq);
+            }
+            // @ref LLP 3000.017#3.5 — a query that no longer answers its viewer follows nothing.
+            Err(_) => shared.presence.retire(id),
+        }
     }
     (moved, grace_end)
+}
+
+/// Whether a commit after the token's answer touched a table its query read.
+fn read_tables_changed(shared: &Shared, token: &FollowToken) -> bool {
+    if token.tables.is_empty() { return false; }
+    let reader = { lock(&shared.engine).reader() };
+    let changes = match reader {
+        Ok(mut reader) => check(&mut reader, token.seq),
+        Err(_) => check(&mut lock(&shared.engine), token.seq),
+    };
+    match changes {
+        Ok((head, _, tables)) => head != token.seq && tables.iter().any(|table| token.tables.contains(table)),
+        Err(_) => true,
+    }
 }
 
 pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
@@ -53,29 +87,33 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
     };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
-    // @ref LLP 3000.017#3.5 — a poll follows only tokens its own viewer's queries were issued.
-    let follow: Vec<String> = followed(params.get("follow")).into_iter().filter(|token| shared.presence.token(&connected, token).is_some()).collect();
-    let principals: Vec<(String, bool)> = follow.iter().flat_map(|token| shared.presence.token(&connected, token).unwrap_or_default()).collect();
+    // @ref LLP 3000.017#3.5 — a poll follows only its own viewer's live tokens; any other it reports at once, as lapsed, so its watch re-runs.
+    let (follow, mut presence) = shared.presence.follow_tokens(&connected, &followed(params.get("follow")));
+    let schema = *lock(&shared.generation);
     let mut response = PollResponse { request: Some(request), started: false, shared };
-    let came_online;
+    let entered;
     {
         let mut engine = lock(&shared.engine);
         if let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) }));
             return;
         }
-        came_online = shared.presence.enter(&connected);
+        entered = shared.presence.enter(&connected);
     }
-    // @ref LLP 3000.017#3.2 — coming online wakes held polls, only when one of them follows this principal.
-    if came_online && shared.presence.followed(&connected) { wake_presence(shared); }
-    let _following = shared.presence.following(&principals);
+    // @ref LLP 3000.017#3.2 — a count that moved wakes held polls, only when one of them follows this principal.
+    if entered && shared.presence.followed(&connected) { wake_presence(shared); }
+    let mut following = shared.presence.following();
     let result = (|| -> io::Result<()> {
         let mut beat = Instant::now();
         loop {
             let generation = shared.presence.generation();
-            // @ref LLP 3000.017#3.2 — a followed bit that differs from the client's answers at once.
-            let (presence, grace_end) = moved(shared, &connected, &follow);
+            // @ref LLP 3000.017#3.2 — a followed token whose answer moved answers at once.
+            let (found, grace_end) = moved(shared, &connected, &follow);
+            presence.extend(found);
             if !presence.is_empty() { break; }
+            following.set(shared.presence.read_principals(&connected, &follow));
+            #[cfg(test)]
+            super::test_work(&shared.poll_checked);
             // @ref LLP 3000.007#18.2 — the counter only wakes polls; the store decides whether its head changed.
             let observed = *lock(&shared.seq);
             let changed = {
@@ -83,7 +121,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
                 let store_id = engine.store().meta("store_id").map_err(io::Error::other)?;
                 params.get("store_id").is_some_and(|supplied| Some(supplied) != store_id.as_ref())
                     || engine.seq().map_err(io::Error::other)? != since
-            };
+            } || *lock(&shared.generation) != schema;
             let seq = lock(&shared.seq);
             if changed || *seq != observed || Instant::now() >= deadline { break; }
             // A presence change that raced the checks above is looked at again, never slept through.
@@ -99,21 +137,18 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             if let Some(end) = grace_end { wake = wake.min(end + Duration::from_millis(5)); }
             #[cfg(test)]
             super::test_work(&shared.poll_wait);
-            let (woken, timeout) = shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner());
-            if !timeout.timed_out() {
-                // A presence wake answers only a poll whose own followed bits
-                // moved; the next pass decides that. Every other wake answers.
-                if *woken == observed && shared.presence.generation() != generation { continue; }
-                break;
-            }
+            // Every wake, a notice or a timeout, is one more look from the top:
+            // only a change seen there answers, so a notice meant for another
+            // waiter, a late presence notice or a spurious wake never does.
+            drop(shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner()));
         }
         Ok(())
     })();
-    drop(_following);
-    shared.presence.leave(&connected);
+    drop(following);
+    if shared.presence.leave(&connected) && shared.presence.followed(&connected) { wake_presence(shared); }
     if result.is_err() { return; }
-    // Whatever ended the wait, the answer carries every followed bit that moved.
-    let (presence, _) = moved(shared, &connected, &follow);
+    // Whatever ended the wait, the answer carries every followed token that moved.
+    for id in moved(shared, &connected, &follow).0 { if !presence.contains(&id) { presence.push(id); } }
     if let Err(refusal) = principal_of(response.request.as_ref().unwrap(), shared) {
         response.finish(401, json!({ "denied": refusal_json(&refusal) }));
         return;

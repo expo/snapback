@@ -59219,3 +59219,37 @@ The server tests cover:
 
 The three-tier client test still turns Alice's mark true about 20 ms after Bob
 connects.
+
+## 2026-09-26 — Live presence round 4: a token stands for its query
+
+Astra's third review was NOT READY and Grok's READY WITH CHANGES. Astra showed
+that a token could still say more than its query: `connected[p] > 1` stayed
+false while its token moved. A token also outlived its viewer's access, and the
+token table had no byte bound. Both reviews found that a moved token was polled
+in a loop while its watch re-ran, and that a full table stopped a watch's
+renewal for good. Astra also found that a late presence notice could end a
+bystander's poll.
+
+- **A token stands for its query.** It keeps the query's name, arguments and
+  viewer, and a digest of the answer it published. When a count it read moves,
+  the poll re-runs the query as the viewer, and reports the token only if the
+  digest changed. The baseline moves either way, so a change is reported once.
+- **A token that no longer answers its viewer retires silently.** That happens
+  when a commit since its answer touched a table it read, or when the re-run is
+  refused.
+- **A bounded table.** It holds 100,000 tokens, 64 MiB and 256 per viewer; the
+  least recently followed token makes room. Following keeps a token live, and
+  it lapses 120 s after the last follow. A lapsed, evicted or foreign token is
+  reported at once, so its watch re-runs. The client's five-minute renewal is
+  gone.
+- **Clients** stop following a reported token until the re-run answers. An
+  answer too large to follow carries an empty token, and its watch re-runs
+  every 30 s.
+- **Counts, not bits.** A second device, or one of two ending, moves
+  `connected[p]`, and both wake followers.
+- **Every wake is one more look.** The presence notice goes out under the
+  change lock, and a poll answers only a change it sees.
+
+Evidence: nine server tests, and eight server mutants that fail them; three
+client tests on a controlled transport; the three-tier test, where Bob's mark
+turns true in about 20 ms.

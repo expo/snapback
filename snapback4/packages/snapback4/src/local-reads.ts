@@ -20,6 +20,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   tables: Set<string>;
   /** The follow token of the last server answer that read presence (LLP 3000.017). */
   presence: Set<string>;
+  /** Re-runs a watch whose answer read presence the server would not follow. */
+  presenceRetry: ReturnType<typeof setTimeout> | null;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;

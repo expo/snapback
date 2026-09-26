@@ -3,9 +3,10 @@
 
 /** At most this many tokens ride on one held poll; the server takes as many. */
 export const FOLLOW_LIMIT = 64;
-/** A token lives 10 minutes; watches that read presence re-run at half that,
- * so an honest client never lapses (§3.5). */
-export const PRESENCE_RENEW_MS = 300_000;
+/** An answer that read presence the server would not follow (an empty token)
+ * re-runs after this long instead (§3.5). A followed token needs no renewal:
+ * following keeps it live. */
+export const PRESENCE_RETRY_MS = 30_000;
 
 /** The tokens to send on the next poll: those the live watches hold. */
 export function followTokens(watches: Iterable<{ readonly presence: ReadonlySet<string> }>): string[] {
@@ -25,18 +26,26 @@ export function sameFollow(a: readonly string[], b: readonly string[]): boolean 
   return a.length === b.length && a.every((token) => b.includes(token));
 }
 
-/** Re-runs watches that read presence on a timer while any exist, renewing
- * their tokens; returns a stop function for close. */
-export function presenceRenewal(watches: () => Iterable<{ readonly presence: ReadonlySet<string> }>, rerun: (watch: { readonly presence: ReadonlySet<string> }) => void) {
-  let timer: ReturnType<typeof setInterval> | undefined;
-  const any = () => { for (const watch of watches()) if (watch.presence.size) return true; return false; };
-  return {
-    update() {
-      if (any() && !timer) {
-        timer = setInterval(() => { for (const watch of watches()) if (watch.presence.size) rerun(watch); }, PRESENCE_RENEW_MS);
-        (timer as { unref?: () => void }).unref?.();
-      } else if (!any() && timer) { clearInterval(timer); timer = undefined; }
-    },
-    stop() { if (timer) clearInterval(timer); timer = undefined; },
-  };
+/** A watch's presence retry: armed while its last answer read presence the
+ * server would not follow, cleared otherwise. Returns the timer to keep. */
+export function presenceRetry(previous: ReturnType<typeof setTimeout> | null, due: boolean, rerun: () => void): ReturnType<typeof setTimeout> | null {
+  if (previous) clearTimeout(previous);
+  if (!due) return null;
+  const timer = setTimeout(rerun, PRESENCE_RETRY_MS);
+  (timer as { unref?: () => void }).unref?.();
+  return timer;
+}
+
+/** The watches holding a token the server reported moved, with those tokens
+ * removed: the next poll does not follow them, and each watch's re-run
+ * brings its next token (§3.2). */
+export function movedWatches<W extends { presence: Set<string> }>(watches: Iterable<W>, tokens: Iterable<string>): W[] {
+  const moved = new Set(tokens);
+  const due: W[] = [];
+  for (const watch of watches) {
+    if (![...watch.presence].some((token) => moved.has(token))) continue;
+    watch.presence = new Set([...watch.presence].filter((token) => !moved.has(token)));
+    due.push(watch);
+  }
+  return due;
 }
