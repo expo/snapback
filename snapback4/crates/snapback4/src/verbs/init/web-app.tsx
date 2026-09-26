@@ -70,5 +70,5 @@ function Room({ conversationId, view }: { conversationId: string; view: ViewStat
   else if ("loading" in room) content = <p role="status">Checking this room…</p>;
   else content = <p role="alert">{"denied" in room ? room.denied.message : "No accessible room was found in the current read."}</p>;
   // Receipts remain visible even if this room's membership is revoked.
-  return <>{content}<Composer conversationId={conversationId} view={view} canCompose={!!held} /></>;
+  return <>{content}<Composer conversationId={conversationId} view={view} canCompose={!!held || "loading" in room} /></>;
 }

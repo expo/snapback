@@ -11,6 +11,11 @@ interface Storage {
 
 export const WRITE_HISTORY_LIMIT = 256;
 
+/** Same bounded wait as actions; nullish values preserve the tier's default. */
+export function mutationWaitSeconds(wait: number | null | undefined): number | undefined {
+  return wait == null ? undefined : Math.max(0, Math.min(25, Math.floor(Number.isFinite(wait) ? wait : 25)));
+}
+
 type PendingWrite = Extract<Write, { state: "pending" }>;
 interface Submission {
   key?: string;

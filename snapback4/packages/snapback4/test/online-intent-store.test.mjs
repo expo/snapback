@@ -119,7 +119,11 @@ test("retrying the first fresh replacement id recovers its receipt without retir
 test("failed intent identity persistence refuses admission before any dispatch", async t => {
   const f = await fixture(t), app = await f.open();
   f.failIdentity(true);
-  await assert.rejects(app.mutate(op, {}), /intent store identity save failed/);
+  for (const waitSeconds of [undefined, 0]) {
+    const refused = await app.mutate(op, {}, { waitSeconds });
+    assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_STORE");
+    assert.match(refused.why.message, /intent store identity save failed/);
+  }
   assert.equal(f.sends.length, 0); assert.equal((await f.journal()).pending.length, 0);
   await app.close(); f.failIdentity(false); await f.open(); assert.equal(f.sends.length, 0);
 });

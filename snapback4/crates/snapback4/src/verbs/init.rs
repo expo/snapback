@@ -242,6 +242,10 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("index.js", include_str!("../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
+        ("src/intents.ts", include_str!("../../../../apps/chat-expo/src/intents.ts").to_owned()),
+        ("src/intent-store.ts", include_str!("../../../../apps/chat-expo/src/intent-store.ts").to_owned()),
+        ("src/intent-store.web.ts", include_str!("../../../../apps/chat-expo/src/intent-store.web.ts").to_owned()),
+        ("src/intent-store.native.ts", include_str!("../../../../apps/chat-expo/src/intent-store.native.ts").to_owned()),
         ("snapback/schema.q", schema),
         ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n")),
     ]

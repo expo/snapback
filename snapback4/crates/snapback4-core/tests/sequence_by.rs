@@ -534,3 +534,22 @@ fn sequence_table_is_lazy_and_its_creation_rolls_back() {
     declared.install(&bound(SOURCE).schema).unwrap();
     assert!(exists(&declared), "sequence activation creates custody before allocation");
 }
+
+#[test]
+fn sequence_table_creation_inside_a_savepoint_can_be_rolled_back_and_reallocated() {
+    let mut store = Store::memory().unwrap();
+    let tx = store.transaction().unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 0);
+    tx.savepoint("alloc").unwrap();
+    tx.set_sequence("parents", "p", 7).unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 7);
+    tx.rollback_to("alloc").unwrap();
+    let exists: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_sequences')", [], |r| r.get(0)).unwrap();
+    assert!(!exists, "savepoint rollback removes first allocation's DDL");
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 0);
+    tx.set_sequence("parents", "p", 9).unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 9);
+    tx.commit().unwrap();
+    let tx = store.read_transaction().unwrap();
+    assert_eq!(tx.sequence_value("parents", "p").unwrap(), 9);
+}

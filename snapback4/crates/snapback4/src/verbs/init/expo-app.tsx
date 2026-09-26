@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AppProvider, useAuth, useLink } from "snapback4/react";
-import { app, tier } from "./src/client";
+import { app, tier, url } from "./src/client";
 import { Inbox } from "./src/Inbox";
 import { Thread } from "./src/Thread";
 
@@ -28,6 +28,6 @@ function Home() {
     <Text>Snapback 4 chat · {tier} · {link}</Text><Text>{auth.viewer}</Text>
     {problem && <Text>{problem}</Text>}
     <Button title="Sign out" onPress={() => { void auth.logout().then(result => { if (!result.ok) setProblem(result.why.message); }); }} />
-    {selected ? <Thread conversationId={selected} onBack={() => setSelected(undefined)} /> : <Inbox onSelect={setSelected} />}
+    {selected ? <Thread backend={url} conversationId={selected} onBack={() => setSelected(undefined)} /> : <Inbox onSelect={setSelected} />}
   </View>;
 }

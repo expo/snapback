@@ -58,12 +58,20 @@ A local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
 A ready list read always carries an array; an absent point can still be null.
-`usePage` keeps earlier pages visible while a later page is unavailable.
+`usePage` returns `items: []` while its first page is loading; earlier pages
+remain visible while a later page is unavailable.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
-as do held queries and retained left groups, and pending predictable writes
-still prevent fallback when the device has an answer. An unavailable ordinary
-device read asks the server while online even with pending writes.
+as do held queries and retained left groups. While this device holds a predictable pending write to a table a query reads,
+that query asks no server; a write with an unknown predicted footprint blocks
+every query. Writes to unrelated tables do not hold it. A withheld answer
+(a total/extremum over input past the horizon, a point read past it, or another
+speculative answer) stays `loading`; a local partial answer (`complete: false`,
+e.g. an order unlike the window's) stays partial. See `prediction-routing.test.mjs`
+for the unchanged Rules 1–5.
+Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
+decorations in their own query so the main list never waits on them.
+Keep the screen shell and draft mounted; render current reads.
 
 For an expiring table, return the deadline with each row:
 
