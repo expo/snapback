@@ -63135,3 +63135,62 @@ earlier finding fixed and one gap: nothing showed a kept view staying kept
 across a loading answer, so honoring the kept mark only when the member's row
 is present survived. A case publishes a loading answer and then the same row,
 and requires no second `seen`.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 1: executable sync-order repairs and full-key stream witnesses
+
+Merged the requested main `99153132b` into `sb4-intent/p1-sync-windows`
+first, retaining both sides of the journal conflict. Read both blind reviews
+and fixed every finding. No finding was dismissed.
+
+N_SYNC_ORDER now includes calendar-index pages and describes their functions;
+only word indexes and whole-domain aggregates retain their separate coverage
+exception. Source AST retained as compiler-only metadata lets an index repair
+move incompatible range keys into residual predicates. A view repair names
+its source-table page, preserves branch predicates and the cursor parameter,
+and says to retain the projection and other branches. The Following-retirement
+tests apply the emitted declaration/horizon/page and require it to compile
+and clear the note. Query `online only` remains unsupported and is not advised.
+
+Both device stores now stream a row below the floor on its secondary column,
+a row tied on the order columns with a lower id, and a higher tied id. The
+first two are dropped and the third is kept. Real mutations move a held row
+below and an unheld row above the floor; after reopening, the held row is
+point-readable but outside the suffix, the raised row is in it, and the
+original floor still limits coverage. The calendar-index page is unknown;
+its matching-window repair answers completely offline. Runtime code is
+unchanged. Five temporary mutants all failed assertions: calendar exclusion,
+unexamined ranges, invalid view index advice, and floor comparisons omitting
+the secondary column or id. Both boundary mutants failed on both stores.
+
+The merged receipts card had real index/direction gaps. Its named unique
+conversation/ordinal index now serves acquisition and history; catch-up reads
+the next contiguous 100 ordinals newest first, preserving progress and the
+hook's run construction. Its prose states the no-deletion assumption and
+fallback below the acquired window. The ephemeral card removes a redundant
+id horizon from a one-row room scope. Both cards compile without N_SYNC_ORDER;
+all 85 guide tests pass. The 20 language regressions, two device witnesses,
+81 authorization-census tests, three CLI checks, nine timeline-adoption tests,
+12 digest tests and affected intent/residency/calendar/shape targets pass.
+
+The one required full script finished **`== 1 failure(s) in 3364 s`**, exit 1:
+`cargo test` (1277 s). Its sole failed case is **ours**:
+`ephemeral_compat::durable_schema_and_types_keep_base_bytes`, whose frozen
+fixture list did not yet include P1's new `sync-windows.q`. Fixed by building
+round-0 compiler `e1d84ebe7` independently and capturing this fixture's schema
+and emitted TypeScript; the merged compiler matches those bytes exactly.
+The original frozen records and all assertions remain. The corrected target
+passes (1/1). That test-only fix followed full-run compilation; the red full
+result is retained, and the script was not rerun. No baseline or environmental
+failures occurred. Full Rust result: 3,593 passed, one failed, 19 existing
+ignores; ordinary clients: 2,179 passed, zero failed, 10 existing skips;
+seeded models: 78 passed, zero failed/skipped. All other stages passed,
+including both app typechecks and nine fixture-wrapper tests.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, matching the merged-main recorded
+measurement, under its unchanged **582,094 B** budget (1,000 B headroom).
+No independent fresh-control wasm delta is claimed. No engine/device runtime,
+authorization, disclosure, durability, metering or budget changes; no query
+execution modifier, automatic union rewrite, package publication or push.
+Report with file-by-file changes, repairs, mutations, reproduction and exact
+qualification: `reports/20260926-p1-sync-windows.md`.

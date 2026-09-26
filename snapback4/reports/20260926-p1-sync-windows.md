@@ -225,3 +225,263 @@ platform/opt-in skips (not counted as passes):
 
 These inputs were not provisioned for this lane; the full script's ordinary
 skip conditions were unchanged. Seeded client-model result: 78 passed, zero failed and zero skipped.
+
+## Round 1 — 2026-09-26
+
+Read both blind reviews in full (`p1-r0.astra.md`, `p1-r0.grok.md`) and the
+original lane prompt. Accepted every finding; none was dismissed.
+
+### Integration and constraints
+
+Fetched origin and merged the requested `99153132b` as the first change,
+commit `d7bdc37e6`. The only conflict was `JOURNAL.md`; both complete histories
+were retained. The merge includes 0.4.3 and LLP 3000.017's ephemeral tables.
+Git had no committer identity configured, so commits use the lane's previous
+GPT-6 Astra identity through per-command configuration, with the requested
+co-author trailer. No push or publication.
+
+Orientation used the repository's `llp-orient` skill. Scope: compiler advice,
+authoring metadata, guide cards and witnesses. Governing constraints: LLP 3000
+§4 (fence), LLP 2000.000 §§6–7 (meters and authorized partitions), LLP 3000.007
+§§6.2/18.2 (device classification and full-key acquisition), the supplied
+LLP 3000.019 §3.1, and LLP 3000.017 §2 (ephemeral server execution).
+LLP 3000.019 is still supplied in the prompt rather than present on this
+branch; the supervisor owns that document. No new LLP was created.
+
+### Findings, fixes and files
+
+1. **Calendar omission (Astra).** `bind/residency/horizons/sync_order.rs` now
+   excludes word indexes specifically, not all nonplain indexes. Calendar
+   descriptions show the function and source field (plus bucket/offset when
+   present), not a fictitious `.day` column. Ordinary calendar pages receive
+   N_SYNC_ORDER. The sync card and `guide/codes.rs` correct the scope described
+   in round 0: only word searches and whole-domain aggregates remain excluded.
+   The old report's blanket nonplain-index exception is superseded here.
+
+2. **Invalid replacement range (Astra).** The new diagnostic module prints a
+   complete source page when changing the index would invalidate its range.
+   It keeps compatible ranges and moves incompatible ones into residual
+   filters. `bind/program.rs` retains the resolved source AST before filter
+   binding in compiler-only metadata, including positional-key names and
+   calendar expressions. `bind/actions.rs` initializes that metadata for
+   actions. Neither core IR nor wire/schema serialization changes.
+   The reviewer's program compiles, and the exact printed repair compiles
+   without N_SYNC_ORDER:
+
+   ```quarry
+   messages[conversationId, ordinal > 0] first 2 by byOrdinal after c
+   -- printed source-page repair:
+   messages[conversationId = conversationId] after c last 2 by byWindow where .ordinal > 0
+   ```
+
+   The reviewer's alternative ordering of clauses is tested too:
+   `messages[conversationId] last 2 by byWindow after c where .ordinal > 0`.
+   The corresponding named indexes are `conversationId, ordinal, id` and
+   `conversationId, at, ordinal, id`.
+
+3. **Invalid view repair (both reviews).** A merge site or a spelling rooted
+   somewhere other than the scan's source table always gets a source-table
+   repair. It names that table, retains its branch predicates and cursor
+   parameter, and tells the builder to preserve the projection and other
+   branches when composing the result. It never tells a view to name a
+   physical index. `bind/program/views.rs` retains the authored cursor in
+   diagnostic metadata while execution still owns it at the merge.
+   `horizons.rs` delegates ordering advice to the new focused module; other
+   horizon advice is unchanged. Following retirement now proposes:
+
+   ```quarry
+   by bySyncWindow: at, id
+   -- on posts; set its horizon to last 1000 by bySyncWindow, then page this source:
+   posts[] after c last 20 by bySyncWindow where .parentId = null and .removed = false
+   ```
+
+   This is a source-branch repair, not an automatic rewrite of a whole union.
+   `tests/timeline_adoption.rs` extracts the actual declaration, horizon and
+   page from every retirement note, applies them to a source-branch query
+   with its projection, and requires compilation and absence of N_SYNC_ORDER.
+   The original retirement/adoption runtime assertions remain intact.
+
+4. **Missing secondary/id stream regression (both reviews).**
+   `snapback4-device/tests/sync_windows.rs` now streams `(100,1)` and
+   `(100,2,id="w")` below the existing `(100,2,id="x")` floor and requires
+   both to be absent, alongside the older-timestamp rejection. A tied key
+   with id `y` must be kept. It moves held `b` below the ordinal floor and
+   previously unheld `z` above it using real mutations and streams, then
+   reopens each store. `b` remains point-readable but leaves the suffix;
+   `z` enters it. The original floor still bounds coverage, and the complete
+   local top page agrees with the server. Both SQLite and persisted memory
+   run the identical scenario. Runtime source is unchanged.
+
+5. **Merged cards (user integration requirement).** Both mismatches in the
+   receipts card were real: history selected a unique index different from
+   the horizon, and progress read oldest first. Commit `e2f4159e3` names the
+   existing unique index `byConversationOrdinal` and selects it for sync.
+   Progress reads `(delivered, delivered + 100]` newest first on that index:
+
+   ```quarry
+   messages where .conversation = conversation and .ordinal > delivered and .ordinal <= delivered + 100 last 100 by .ordinal after c
+   ```
+
+   The card allocates contiguous ordinals and never deletes messages, so the
+   same next interval advances the prefix. The hook already sorts fetched
+   ordinals into runs. `tests/guide.rs` changes two expected page orders and
+   preserves every receipt, gap, recipient and watermark assertion. The
+   prose states the contiguous/no-deletion requirement and server fallback
+   below the acquired window. No warning was suppressed.
+
+   The ephemeral card had a different merge seam: `rooms` repeated its
+   audience `.id` in the order, which the requested P1 refusal rejects.
+   `guide/ephemeral.md` removes that redundant horizon from a one-row scope.
+   Its ephemeral joins remain classified server-side. Both cards compile
+   without N_SYNC_ORDER; the complete 85-test guide target passes (including
+   the card's existing intentional N_EPHEMERAL_SERVER classification note).
+
+### Tests and mutation evidence
+
+`crates/snapback4-lang/tests/sync_windows.rs` now has 20 tests (15 existing,
+five added):
+
+- `calendar_pages_get_order_advice_and_the_window_repair_clears_it`: function
+  description, presence of the note, application of its printed named-index
+  replacement and removal of the note.
+- `index_repair_moves_an_incompatible_explicit_range_into_a_residual_filter`:
+  the reviewer's exact range example, printed repair and reviewer spelling
+  all compile; the repaired scan uses `byWindow` and retains its filter.
+- `view_repair_names_an_executable_source_page_with_its_predicates`: applies
+  the printed declaration, horizon and source page; preserves sender filter
+  and cursor parameter; clears the note.
+- `replacement_preserves_compatible_ranges_and_moves_calendar_ranges`:
+  valid range keys stay valid, and a calendar range becomes a function in
+  the filter rather than an invalid row-field/key reference.
+- `word_search_keeps_its_separate_coverage_requirement`: narrowing the
+  nonplain exclusion does not start giving word searches false page advice.
+
+The two device witnesses also run the calendar page (unknown/incomplete),
+then the matching window-index repair (complete, equal to the thread page)
+on both stores. The four affected Following-retirement cases apply the real
+note as described above instead of checking only its code.
+
+Five temporary mutants were compiled and run, then restored. These are
+intentional negative checks, not qualification failures:
+
+| Mutation | Assertion failures |
+| --- | --- |
+| Restore `is_plain()` query-index exclusion | Calendar regression: 1 failed |
+| Disable incompatible-range detection | Explicit-range repair regression: 1 failed |
+| Emit `use last N by .missing` for view pages | All 4 reviewed Following-retirement cases failed |
+| Compare only audience + first order column in `Boundaries::accept` | Both device stores failed (7 rows admitted, expected 5) |
+| Compare audience + both order columns but omit id | Both device stores failed (6 rows admitted, expected 5) |
+
+Logs: `/tmp/p1-r1-mutations.log` and
+`/tmp/p1-r1-mutant-{calendar-excluded,range-unchecked,view-missing-index,floor-first-column,floor-without-id}.log`.
+The mutations changed no committed runtime source. Restored controls are
+recorded separately, followed by the complete suite below.
+
+### Compatibility seam found by the complete suite
+
+The merged E1 test `ephemeral_compat::durable_schema_and_types_keep_base_bytes`
+compared the complete fixture list against its pre-ephemeral capture. P1's
+round-0 `sync-windows.q` was the sole extra filename. This is **ours**, an
+integration expectation missed by the targeted set, not a baseline or
+an environmental failure.
+
+`tests/ephemeral_compat.rs` now adds one independent P1 expectation from
+`tests/fixtures/ephemeral-compat-p1.json`. To produce it, archived round-0
+commit `e1d84ebe7` into ignored `target/p1-r0-compat-source`, built that
+compiler separately, compiled its unchanged window fixture and captured
+its serialized schema and emitted TypeScript. Its compiler reports no
+errors or notes. The merged compiler matches those bytes exactly. The
+original `ephemeral-compat.json` and `ephemeral-compat-main.json` records
+remain byte-for-byte unchanged; no fixture or assertion was removed.
+The corrected target passes (1/1) in `/tmp/p1-r1-ephemeral-compat.log`.
+The independent capture is `/tmp/p1-r1-round0-compat.json`; build output is
+`/tmp/p1-r1-round0-compat-build.log`. This test-only correction was made
+after the full run compiled its Rust test inventory; that run's red result
+is retained, and the script was not invoked a second time.
+
+### Remaining boundaries
+
+No review finding remains open. The accepted round-0 stops still stand:
+query `online only` is unsupported, and changing page order cannot establish
+word-search or whole-domain aggregate coverage. Calendar pages are now covered.
+The view advice qualifies a source page and explicitly requires preserving
+other branches/projections; it does not promise an automatic union rewrite.
+A cursor parameter is retained, but pagination restarts when changing order.
+Authorization, disclosure, durability and metering rules are unchanged,
+as is the budget. Device/core runtime source matches merged main `99153132b`.
+P1 round-1 source files remain below 1,500 lines (largest: `tests/guide.rs`,
+1,487). An inherited housekeeping exception remains outside this lane:
+`packages/snapback4/src/local.ts` is 1,511 lines on the requested main commit
+and unchanged here. Reproduce with
+`git show 99153132b:snapback4/packages/snapback4/src/local.ts | wc -l`.
+This is not a failure reported by `scripts/test.sh`.
+
+### Round-1 qualification
+
+Restored affected controls passed: 20 sync-window language tests, 85 guide,
+21 intent-target, 40 residency-note, five shape and four calendar-index tests;
+81 device authorization-census tests and both window witnesses; three CLI
+check-note tests and all nine timeline-adoption tests; all 12 digest tests.
+The compatibility correction then passed its one target test. Logs:
+`/tmp/p1-r1-control-{lang,device,cli,digest}.log` and
+`/tmp/p1-r1-ephemeral-compat.log`.
+
+The single full-suite invocation (from `snapback4/`) is:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh
+```
+
+Wasm from that run:
+
+```text
+wasm 2021689 B raw, 581094 B gzip (budget 582094: ok)
+```
+
+This matches the merged-main recorded measurement exactly, with 1,000 B
+headroom. P1 changes no wasm runtime source or budget; the larger budget
+than round 0 is inherited from the requested main merge. No independent
+fresh-control wasm delta is claimed.
+
+Rust completed with 3,593 passes, one failure, and 19 existing ignores.
+The sole failed target was `snapback4-lang::ephemeral_compat`, test
+`durable_schema_and_types_keep_base_bytes`, at line 24: the fixture filename
+list included P1's new `sync-windows.q`, absent from E1's expectations.
+Classification: **ours**, fixed and separately verified as described above.
+The full stage reported `-- FAIL: cargo test (1277 s)`. No other Rust target
+failed. The compatibility record correction affects tests only; all product
+code was committed before the full suite began.
+
+All build/typecheck/docs/release-guard and fixture-wrapper stages passed
+(the fixture wrapper was 9/9). Ordinary client tests passed **2,179**, with
+zero failures, zero cancellations and **10 existing platform/opt-in skips**;
+the stage reported `-- ok: client tests (1777 s)`. Those are the same ten
+conditions listed in round 0: macOS media APIs, managed organization/private
+OIDC scratch inputs, and the optional published 0.2.27/0.2.32/0.2.33 binaries
+or tarball cache. They are skips, not passes or failures; none was added by P1.
+All **78 seeded client-model tests passed**, with zero failures and zero
+skips, at the unchanged 5,000 / 5,000 / 3,000 sequence counts. The stage
+reported `-- ok: client models (254 s)`.
+
+Exact complete-script result (exit **1**):
+
+```text
+== 1 failure(s) in 3364 s
+   cargo test
+```
+
+Every failure is accounted for: **ours: one**, the corrected compatibility
+fixture-list assertion above; **baseline: zero**; **environmental: zero**.
+The script ran once. Its red result is not represented as a green full-suite
+run. The final test-only correction has a passing targeted control; all
+product code had already been included in the full run. No test count,
+ignore/skip condition, timeout, model count or runtime ceiling was reduced.
+Full log: `/tmp/p1-r1-full-suite.log`; exit status:
+`/tmp/p1-r1-full-suite.exit`.
+
+Implementation commits: `d7bdc37e6` (requested merge), `e2f4159e3` (cards),
+`c56f051a2` (diagnostics and executable repairs), `18e19c8da` (two-store
+witnesses), `b7b43f2eb` (independent compatibility record). Each carries the
+requested GPT-6 Astra co-author trailer. The final documentation commit
+contains this round-1 report and one appended journal entry.
