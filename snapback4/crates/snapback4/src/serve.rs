@@ -55,7 +55,11 @@ pub(crate) mod read_cost;
 mod engine_lock;
 use engine_lock::{FairMutex, Lockable};
 
+#[path = "latency.rs"]
+pub(crate) mod latency;
+
 pub struct Shared {
+    latency: Arc<latency::Registry>,
     ephemeral: Arc<snapback4_core::engine::ephemeral::Hub>,
     ephemeral_rate: ephemeral::Rate,
     wake: Mutex<ephemeral::Wake>,
@@ -305,6 +309,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
+        latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
         adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
@@ -407,6 +412,8 @@ impl RequestAdmission {
 }
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
+    // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
+    let sample = latency::Sample::new(&request, &shared.latency);
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
@@ -414,7 +421,8 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
         else if is_waiter(request.method(), path) { RequestClass::Wait } else { RequestClass::Short };
     let Some(permit) = admission.acquire(class) else { request.abort(); return; };
-    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
+    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit;
+        if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } }) {
         eprintln!("snapback4: cannot start request thread: {error}");
     }
 }
@@ -605,19 +613,20 @@ pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
          Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
 }
 
-pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl serde::Serialize) {
+pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl latency::Reply) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
 
-pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
+pub(crate) fn respond(request: Request, status: u16, body: impl latency::Reply) {
     respond_with_cors(request, status, body, true)
 }
 
-fn respond_with_cors(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool) {
+fn respond_with_cors(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool) {
     respond_with_sync(request, status, body, allow_origin, None, None)
 }
 
-fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
+fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
+    let refused = status >= 400 || body.refused();
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
@@ -630,6 +639,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
         serde_json::to_writer(&mut bytes, &reply).expect("the fixed HTTP refusal and sync identity fit the response ceiling");
         200
     } else { status };
+    let refused = refused || encoded.is_err();
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared {
@@ -641,7 +651,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
         for header in cors(&request) { response.add_header(header); }
     }
     if status >= 400 && request.method() == &Method::Post {
-        let _ = request.respond_and_close(response);
+        latency::finished(request.respond_and_close(response).is_err() || refused);
         return;
     }
     // `into_writer` drops the request reader before it returns. tiny_http
@@ -652,7 +662,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
             || (h.field.equiv("Connection") && h.value.as_str().split(',').any(|v| v.trim().eq_ignore_ascii_case("upgrade")))
     });
     if may_drain {
-        let _ = request.respond(response);
+        latency::finished(request.respond_checked(response).is_err() || refused);
         return;
     }
     // @ref LLP 3000#7-decisions-during-execution — coalesce buffered JSON HTTP responses
@@ -662,7 +672,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
     let mut encoded = Vec::with_capacity(capacity);
     if response.raw_print(&mut encoded, request.http_version().clone(), request.headers(), request.method() == &Method::Head, None).is_ok() {
         let mut writer = request.into_writer();
-        let _ = writer.write_all(&encoded).and_then(|_| writer.flush());
+        latency::finished(writer.write_all(&encoded).and_then(|_| writer.flush()).is_err() || refused);
     }
 }
 
@@ -798,6 +808,9 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     if path.starts_with("/dev/clock") && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
+    }
+    if (method == Method::Get && path == "/dev/latency") || (method == Method::Post && path == "/dev/latency/reset") {
+        return latency::endpoint(request, shared, method == Method::Post);
     }
     if method == Method::Get && path == "/dev/status" {
         if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
@@ -1083,6 +1096,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(skip_serializing_if = "Option::is_none")]
                             refresh: Option<u64>,
                         }
+                        impl latency::Reply for QueryReply<'_> {}
                         // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
                         let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
@@ -1258,6 +1272,7 @@ mod poison_tests {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
+            latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),

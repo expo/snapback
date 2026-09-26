@@ -1,3 +1,5 @@
+#[path = "../tests/latency/serve.rs"]
+mod latency_tests;
 use super::*;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -71,6 +73,7 @@ impl Host {
         engine.set_presence(Some(presence.clone()));
         let generation = engine.generation();
         let shared = Arc::new(Shared {
+            latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),

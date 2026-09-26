@@ -187,6 +187,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         let mut generation = lock(&shared.generation);
                         for note in &residency_notes { eprintln!("note: {note}"); }
                         for note in &bound.notes { eprintln!("note: {note}"); }
+                        shared.latency.adopt(&bound);
                         *active = bound;
                         *generation = next;
                         // Claims authenticate their supervisor revision while

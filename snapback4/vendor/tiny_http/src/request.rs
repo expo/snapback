@@ -48,6 +48,7 @@ use chunked_transfer::Decoder;
 ///
 /// If you want to build fake requests to test your server, use [`TestRequest`](crate::test::TestRequest).
 pub struct Request {
+    accepted_at: std::time::Instant,
     // where to read the body from
     data_reader: Option<Box<dyn Read + Send + 'static>>,
 
@@ -211,6 +212,8 @@ where
     R: Read + Send + 'static,
     W: Write + Send + 'static,
 {
+    // @ref LLP 3000.019#3.7 — include body prebuffering and the listener queue in total latency.
+    let accepted_at = std::time::Instant::now();
     // finding the transfer-encoding header
     let transfer_encoding = headers
         .iter()
@@ -298,6 +301,7 @@ where
     };
 
     Ok(Request {
+        accepted_at,
         data_reader: Some(reader),
         response_writer: Some(Box::new(writer) as Box<dyn Write + Send + 'static>),
         abort_connection,
@@ -316,6 +320,9 @@ where
 }
 
 impl Request {
+    /// When the parsed HTTP request was accepted, before body prebuffering.
+    pub fn accepted_at(&self) -> std::time::Instant { self.accepted_at }
+
     /// Close a bounded-host request immediately, without draining its body.
     /// Used for admission refusal when no response worker is available.
     pub fn abort(mut self) {
