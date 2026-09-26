@@ -23,11 +23,13 @@ export async function server(t,tier,source) {
   for(let i=0;!url&&i<750;i++){assert.equal(child.exitCode,null,log);await sleep(20);}assert.ok(url,log);
   const post=(path,body)=>fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"bob"},body:JSON.stringify(body)}).then(r=>r.json());
   const opener=tier==="wasm"?webDevice({wasm,persist:memoryPersistence()}):processDevice({binary,dir:join(dir,"device"),spawn:(cmd,args)=>spawn(cmd,args,{stdio:["pipe","pipe","inherit"]}),writeFile:async(path,text)=>writeFileSync(path,text)});
-  const requests=[],answers=[];
-  return {post,requests,answers,get core(){return core;},pauseSync(){paused=true;},async open(){
+  const requests=[],answers=[];let refresh;
+  // `host.refresh = ms` shortens the presence refresh a server asks of its /q/ replies.
+  return {post,requests,answers,get core(){return core;},pauseSync(){paused=true;},set refresh(ms){refresh=ms;},async open(){
     client=await createLocalClient({url,persona:"bob",waitSeconds:1,fetch:async(input,init)=>{
       const path=new URL(input).pathname;requests.push(path);const response=await fetch(input,init);
       if(paused&&path==="/sync")await new Promise(resolve=>deliveries.add(resolve));
+      if(refresh!==undefined&&path.startsWith("/q/")){const json=await response.json();if(json.refresh!==undefined)json.refresh=refresh;return Response.json(json,{status:response.status});}
       return response;
     },device:{open:async(...args)=>{core=await opener.open(...args);return {close:()=>core.close(),call:async(request,committed)=>{const reply=await core.call(request,committed);if(request.op==="query")answers.push({name:request.name,...reply.ok});return reply;}};}}});
     await client.sync();return client;

@@ -36,6 +36,25 @@ export type ServerAnswer = {
   tables: Set<string>;
 };
 
+/** The answer cache a background presence read writes through. Its writes wait
+ * until the read is accepted, and then touch only entries that no other read
+ * replaced meanwhile (LLP 3000.017 §3.2). */
+export function stagedAnswers(target: Map<string, ServerAnswer>) {
+  const initial = new Map(target);
+  const writes = new Map<string, ServerAnswer | null>();
+  return {
+    get: (key: string) => writes.has(key) ? writes.get(key) ?? undefined : target.get(key),
+    set: (key: string, answer: ServerAnswer) => { writes.set(key, answer); },
+    delete: (key: string) => { writes.set(key, null); },
+    commit() {
+      for (const [key, answer] of writes) {
+        if (target.get(key) !== initial.get(key)) continue; // Another read replaced it since this one began.
+        if (answer) target.set(key, answer); else target.delete(key);
+      }
+    },
+  };
+}
+
 /** Every local commit retires retained answers. */
 export class LocalReads {
   revision = 0;

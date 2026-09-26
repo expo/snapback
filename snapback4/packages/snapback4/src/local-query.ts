@@ -53,7 +53,14 @@ export interface QueryEnvironment {
   offline(): Refusal;
   deviceNow(): number;
   serverNow(): number;
-  serverAnswers: Map<string, ServerAnswer>;
+  serverAnswers: AnswerCache;
+}
+
+/** Remembered server answers, which recovery may show (Rule 5). */
+export interface AnswerCache {
+  get(key: string): ServerAnswer | undefined;
+  set(key: string, answer: ServerAnswer): void;
+  delete(key: string): void;
 }
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {

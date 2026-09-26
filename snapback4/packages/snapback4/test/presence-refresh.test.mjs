@@ -145,3 +145,25 @@ test("an accepted loading answer is published, and a background failure keeps th
   stop();
   assert.ok(seen.every(read => "data" in read), `the failure published something other than an answer: ${JSON.stringify(seen)}`);
 });
+
+test("a background reply older than a commit the client observed is not published", async t => {
+  const held = deferred(), observed = deferred();
+  let polls = 0;
+  // The watch reads table t; the commit at seq 2 touches only table u, so nothing re-runs the watch.
+  const read = (value, seq) => ({ data: value, complete: true, seq, tables: ["t"], refresh: 300 });
+  const { client, reads } = transport(async n => {
+    if (n === 1) return read("v1", 1);
+    if (n === 2) { await held.promise; await observed.promise; await delay(100); return read("v2", 1); } // after the client took seq 2
+    return read(`v${n}`, 2);
+  }, async signal => (++polls === 1 ? (await held.promise, observed.resolve(), Response.json({ seq: 2, tables: ["u"], generation: 0 })) : blocked(signal)));
+  const mark = client.observe(query, { p: "dev:bob" });
+  t.after(async () => { held.resolve(); mark.close(); await client.close(); });
+  await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
+  const seen = [];
+  const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+  await until(() => reads.length >= 2, "the background refresh started");
+  held.resolve();
+  await until(() => mark.getSnapshot().data === "v3", "the next refresh answered at the observed commit");
+  stop();
+  assert.ok(!seen.some(read => read.data === "v2"), `a reply older than the observed commit was published: ${JSON.stringify(seen)}`);
+});

@@ -59327,6 +59327,27 @@ gaps, all in what a background reply may change:
 - **The contract says a presence answer is a sample.**
 
 The per-run memo's heap charge moved the w15a meters by 67 bytes per guard read
-outside the effect path, and the pins now name that charge. The retained-row
-composition cannot be reached by a presence query, because a device evaluates
-no presence read, so it keeps its `refresh` copy untested.
+outside the effect path, and the pins now name that charge.
+
+## 2026-09-26 — Live presence round 8: an overtaken reply remembers nothing
+
+Astra's review of round 7 found one Medium and two Lows:
+
+- **An overtaken reply rewrote the recovery cache.** The local client stored a
+  background reply's answer as it settled, before asking whether a newer read
+  had overtaken it. So a later outage recovered the discarded answer. A
+  background read now writes through a staged cache. Its writes apply only when
+  the reply is published, and only to entries no other read replaced
+  meanwhile.
+- **A read that settled after sign-out rearmed the timer.** Arming now consults
+  the session itself, so no completion order can leave an interval behind.
+- **`fresh` promised more than a sample gives.** The contract and the RFC now
+  say a presence sample keeps the flag it arrived with until replaced, and that
+  failures and suspension remove any bound on its age.
+
+Round 7 also claimed the retained-row composition was unreachable for a
+presence query. Astra reached it: a device evaluates `connected` as unknown, not
+never. The read-through fixture now observes such a query and requires it to
+keep refreshing. The local failure, loading and overtaken-reply cases now run on
+the wasm and process devices, and an online case shows a background reply older
+than an observed commit is never published.
