@@ -253,7 +253,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let member = |row: &str, chat: &str, principal: &str| ("members".to_owned(), snapback4_core::value::object([("id", id(row)), ("conversation", id(chat)), ("principal", id(principal)), ("joinedOrdinal", Value::Int(0))]));
     let chat = |row: &str| ("conversations".to_owned(), snapback4_core::value::object([("id", id(row)), ("creatorId", id("alice")), ("lastOrdinal", Value::Int(0))]));
-    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob")]).unwrap();
+    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), chat("win"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob"), member("xa", "win", "alice"), member("xb", "win", "bob")]).unwrap();
     let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
     let receipt = |m: &Value| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") };
     let receipts = |engine: &mut Engine, conversation: &str| -> Vec<String> {
@@ -262,15 +262,16 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     };
     let c = || ("conversation", id("c"));
     let through = |n: i64| ("through", Value::Int(n));
+    let run = |c: (&'static str, Value), from: i64, to: i64| [c, ("from", Value::Int(from)), ("through", Value::Int(to))];
     let send = |engine: &mut Engine, who: &str, now: i64, row: &str| { sent(&engine.mutate("send", None, at(who, now, &[c(), ("text", text(row))]).with_ids([row.into()])).unwrap()); };
     // The page is newest first. m2 commits before anyone fetches m1, so an
     // acknowledgement of m1 must not cover it.
     send(&mut engine, "alice", 1_000, "m1");
     assert_eq!(receipts(&mut engine, "c"), ["sent"]);
     send(&mut engine, "alice", 1_050, "m2");
-    sent(&engine.mutate("delivered", None, at("bob", 1_100, &[c(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 1_100, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent"], "carol has not fetched m1");
-    sent(&engine.mutate("delivered", None, at("carol", 1_200, &[c(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("carol", 1_200, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "a watermark names what was fetched, not what exists");
     sent(&engine.mutate("seen", None, at("bob", 1_400, &[c(), through(2)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "delivered"], "bob has not fetched m2, and carol has not seen m1");
@@ -282,11 +283,13 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("add", None, at("alice", 2_000, &[c(), ("principal", id("dave"))]).with_ids(["md".into()])).unwrap());
     send(&mut engine, "alice", 2_000, "m4");
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"]);
-    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_100, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "no watermark past the last message");
+    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_100, &run(c(), 1, 99))).unwrap()), "PAST_LAST_MESSAGE", "no watermark past the last message");
+    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_101, &run(c(), 0, 2))).unwrap()), "NOT_A_RUN", "a run starts at a message");
+    assert_eq!(failed(&engine.mutate("delivered", None, at("bob", 2_102, &run(c(), 3, 2))).unwrap()), "NOT_A_RUN", "a run does not run backward");
     assert_eq!(failed(&engine.mutate("seen", None, at("bob", 2_110, &[c(), through(99)])).unwrap()), "PAST_LAST_MESSAGE", "seen is bounded too");
     sent(&engine.mutate("seen", None, at("bob", 2_200, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"], "a view without the fetch reads nothing");
-    sent(&engine.mutate("delivered", None, at("bob", 2_250, &[c(), through(4)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_250, &run(c(), 2, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "read", "read", "read"], "dave is a recipient of m4 only");
     // Dave's progress counts from his join: he has m4 left to fetch, and nothing before it.
     let progress = |engine: &mut Engine, who: &str, now: i64, conversation: &str| engine.query("progress", at(who, now, &[("conversation", id(conversation))])).unwrap().data;
@@ -294,7 +297,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let watermark = |p: &Value, name: &str| match p.field(name).unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") };
     let dave = progress(&mut engine, "dave", 2_260, "c");
     assert_eq!((watermark(&dave, "delivered"), watermark(&dave, "seen"), next(&dave)), (3, 3, vec![4]), "{dave:?}");
-    sent(&engine.mutate("delivered", None, at("dave", 2_300, &[c(), through(4)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("dave", 2_300, &run(c(), 4, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["delivered", "read", "read", "read"]);
     sent(&engine.mutate("seen", None, at("dave", 2_350, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
@@ -303,7 +306,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     let carol = progress(&mut engine, "carol", 2_410, "c");
     assert_eq!((watermark(&carol, "delivered"), next(&carol)), (4, vec![]), "a rejoined member starts caught up: {carol:?}");
-    sent(&engine.mutate("delivered", None, at("bob", 2_500, &[c(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_500, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "watermarks only move forward");
     sent(&engine.mutate("seen", None, at("bob", 2_550, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "a stale seen does not lower the seen watermark");
@@ -312,7 +315,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // A receipt never moves back: once every recipient leaves, the requirement is met.
     let pair = || ("conversation", id("pair"));
     sent(&engine.mutate("send", None, at("alice", 2_600, &[pair(), ("text", text("p1"))]).with_ids(["p1".into()])).unwrap());
-    sent(&engine.mutate("delivered", None, at("bob", 2_650, &[pair(), through(1)])).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 2_650, &run(pair(), 1, 1))).unwrap());
     sent(&engine.mutate("seen", None, at("bob", 2_700, &[pair(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "pair"), ["read"]);
     sent(&engine.mutate("leave", None, at("bob", 2_800, &[pair()])).unwrap());
@@ -346,7 +349,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
         let now = 5_100 + 10 * k as i64;
         let bob = progress(&mut engine, "bob", now, "long");
         assert_eq!((watermark(&bob, "delivered"), next(&bob)), (from - 1, (from..=to).collect::<Vec<_>>()), "the page after the watermark, at most 100");
-        sent(&engine.mutate("delivered", None, at("bob", now + 1, &[long(), through(to)])).unwrap());
+        sent(&engine.mutate("delivered", None, at("bob", now + 1, &run(long(), from, to))).unwrap());
         let all = everything(&mut engine);
         assert_eq!(states(&all, 1, to as usize), ["read"].into(), "through {to}, fetched and seen");
         if to < 250 { assert_eq!(states(&all, to as usize + 1, 250), ["sent"].into(), "above {to}, not yet fetched"); }
@@ -354,6 +357,53 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(next(&progress(&mut engine, "bob", 5_200, "long")), Vec::<i64>::new(), "caught up");
     post(&mut engine, 251);
     assert_eq!(next(&progress(&mut engine, "bob", 5_210, "long")), vec![251], "an arriving message is the next to acknowledge");
+    // At once: a window above a gap is delivered immediately, and catching up folds it in.
+    let win = || ("conversation", id("win"));
+    let say = |engine: &mut Engine, n: i64| {
+        let row = format!("x{n}");
+        sent(&engine.mutate("send", None, at("alice", 6_000 + n, &[win(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    };
+    for n in 1..=300 { say(&mut engine, n); }
+    let every = |engine: &mut Engine| -> Vec<String> {
+        let (mut all, mut cursor) = (Vec::new(), Value::Null);
+        loop {
+            let page = engine.query("history", at("alice", 9_000, &[win(), ("c", cursor)])).unwrap();
+            all.extend(page.data.as_array().unwrap().iter().map(receipt));
+            match page.next { Some(next) => cursor = Value::String(next), None => { all.reverse(); return all } }
+        }
+    };
+    let deliver = |engine: &mut Engine, now: i64, from: i64, to: i64| { sent(&engine.mutate("delivered", None, at("bob", now, &run(win(), from, to))).unwrap()); };
+    deliver(&mut engine, 6_500, 201, 300);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 1, 200), states(&all, 201, 300)), (["sent"].into(), ["delivered"].into()), "the fetched window is delivered at once, the gap stays sent");
+    let bob = progress(&mut engine, "bob", 6_505, "win");
+    assert_eq!((watermark(&bob, "delivered"), watermark(&bob, "windowFrom"), watermark(&bob, "windowThrough"), next(&bob)), (0, 201, 300, (1..=100).collect::<Vec<_>>()), "{bob:?}");
+    deliver(&mut engine, 6_510, 101, 120);
+    assert_eq!(states(&every(&mut engine), 101, 120), ["sent"].into(), "a second window disjoint from the held one waits");
+    deliver(&mut engine, 6_520, 150, 210);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 101, 149), states(&all, 150, 300)), (["sent"].into(), ["delivered"].into()), "a run that meets the window merges with it");
+    deliver(&mut engine, 6_530, 1, 100);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 1, 100), states(&all, 101, 149), states(&all, 150, 300)), (["delivered"].into(), ["sent"].into(), ["delivered"].into()), "catching up extends the prefix below the window");
+    deliver(&mut engine, 6_540, 101, 149);
+    assert_eq!(states(&every(&mut engine), 1, 300), ["delivered"].into(), "reaching the window folds it in");
+    let bob = progress(&mut engine, "bob", 6_545, "win");
+    assert_eq!((watermark(&bob, "delivered"), watermark(&bob, "windowFrom"), watermark(&bob, "windowThrough")), (300, 0, 0), "{bob:?}");
+    for n in 301..=340 { say(&mut engine, n); }
+    deliver(&mut engine, 6_600, 331, 340);
+    deliver(&mut engine, 6_610, 321, 330);
+    deliver(&mut engine, 6_620, 311, 320);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 301, 310), states(&all, 311, 340)), (["sent"].into(), ["delivered"].into()), "adjacent runs merge into the window");
+    deliver(&mut engine, 6_630, 301, 310);
+    let bob = progress(&mut engine, "bob", 6_635, "win");
+    assert_eq!((watermark(&bob, "delivered"), watermark(&bob, "windowThrough")), (340, 0), "the prefix takes the window it reaches: {bob:?}");
+    let covered = engine.mutate("delivered", None, at("bob", 6_640, &run(win(), 10, 20))).unwrap();
+    assert_eq!((covered.events, progress(&mut engine, "bob", 6_645, "win")), (0, bob), "a covered report writes nothing");
+    sent(&engine.mutate("seen", None, at("bob", 6_650, &[win(), through(300)])).unwrap());
+    let stale = engine.mutate("seen", None, at("bob", 6_655, &[win(), through(10)])).unwrap();
+    assert_eq!(stale.events, 0, "an older view writes nothing");
     // The worst page: 49 recipients, each read against every message on it.
     let wide = || ("conversation", id("wide"));
     let people: Vec<String> = (1..=49).map(|n| format!("w{n}")).collect();
@@ -364,7 +414,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
         let row = format!("w-msg-{n}");
         sent(&engine.mutate("send", None, at("alice", 7_000 + n, &[wide(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
     }
-    for (k, p) in people.iter().enumerate() { sent(&engine.mutate("delivered", None, at(p, 8_000 + k as i64, &[wide(), through(30)])).unwrap()); }
+    for (k, p) in people.iter().enumerate() { sent(&engine.mutate("delivered", None, at(p, 8_000 + k as i64, &run(wide(), 1, 30))).unwrap()); }
     let page = engine.query("history", at("alice", 9_000, &[wide()])).unwrap();
     let states: Vec<String> = page.data.as_array().unwrap().iter().map(receipt).collect();
     assert!(page.complete && states.len() == 20, "a page of 20 under 49 recipients completes: {}", page.complete);

@@ -1,7 +1,7 @@
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member's client records, as two ordinals on its own membership row, how far
-it has fetched the conversation and how far it has shown it. One helper turns
+Each member's client records on its own membership row, as ordinals, what it
+has fetched of the conversation and how far it has shown it. One helper turns
 them into every message's receipt, `sent`, `delivered` or `read`, live in the
 history query.
 
@@ -21,6 +21,8 @@ table members:
   principal: principal
   joinedOrdinal: int
   deliveredOrdinal: int default 0
+  windowFrom: int default 0
+  windowThrough: int default 0
   seenOrdinal: int default 0
   unique conversation, principal
   cap 50 by conversation
@@ -50,7 +52,7 @@ fn receipt(m: messages):
   for member in members where .conversation = m.conversation:
     if member.principal != m.sender and member.joinedOrdinal < m.ordinal:
       remaining = remaining + 1
-      if member.deliveredOrdinal < m.ordinal:
+      if member.deliveredOrdinal < m.ordinal and (m.ordinal < member.windowFrom or m.ordinal > member.windowThrough):
         return 'sent'
       if member.seenOrdinal < m.ordinal:
         state = 'delivered'
@@ -62,7 +64,7 @@ query history(conversation: conversations, c: cursor ?):
 query progress(conversation: conversations, c: cursor ?):
   me = members[conversation, viewer] ! else NOT_MEMBER
   delivered = max(me.deliveredOrdinal, me.joinedOrdinal)
-  return { delivered, seen: max(me.seenOrdinal, me.joinedOrdinal), ahead: messages where .conversation = conversation and .ordinal > delivered first 100 by .ordinal after c }
+  return { delivered, windowFrom: me.windowFrom, windowThrough: me.windowThrough, seen: max(me.seenOrdinal, me.joinedOrdinal), ahead: messages where .conversation = conversation and .ordinal > delivered first 100 by .ordinal after c }
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
@@ -87,12 +89,27 @@ mutation leave(conversation: conversations):
   delete members[me]
   return null
 
-mutation delivered(conversation: conversations, through: int):
+mutation delivered(conversation: conversations, from: int, through: int):
   me = members[conversation, viewer] ! else NOT_MEMBER
   chat = conversations[conversation] ! else NOT_FOUND
+  require 0 < from and from <= through else NOT_A_RUN
   require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
-  if through > me.deliveredOrdinal:
-    update members[me] { deliveredOrdinal: through }
+  prefix = max(me.deliveredOrdinal, me.joinedOrdinal)
+  windowFrom = me.windowFrom
+  windowThrough = me.windowThrough
+  if through <= prefix or (windowFrom <= from and through <= windowThrough):
+    return null
+  low = from
+  high = through
+  if windowThrough > 0 and windowFrom <= high + 1 and windowThrough + 1 >= low:
+    low = min(low, windowFrom)
+    high = max(high, windowThrough)
+    windowFrom = 0
+    windowThrough = 0
+  if low <= prefix + 1:
+    update members[me] { deliveredOrdinal: high, windowFrom, windowThrough }
+  else if windowThrough = 0:
+    update members[me] { windowFrom: low, windowThrough: high }
   return null
 
 mutation seen(conversation: conversations, through: int):
@@ -113,28 +130,36 @@ sent. A message records how many recipients it had. Once all of them leave, the
 requirement is met; a message sent to nobody stays `sent`. So a receipt only
 ever moves forward.
 
-Delivery is a cumulative acknowledgement, as in a message queue:
-`deliveredOrdinal` says the member's client fetched every message through it.
-`progress` returns the member's two watermarks, counted from the join, and the
-page of at most 100 messages `ahead` of the delivered one. The client
-acknowledges the unbroken run of settled messages at the head of that page with
-`delivered`, which moves the watermark, and `progress` answers with the page
-after it until the client is caught up; it never needs the page's cursor. So a receipt never claims a message the
-client did not fetch, never moves back, and needs nothing but the one row per
-member. A member back after a long absence sees messages turn `delivered` from
-the oldest, a page per round trip, and a message above that frontier stays
-`sent` until the stream reaches it, even on screen. A device that holds only the
-newest 500 synced messages cannot bridge the gap below them offline, and
-acknowledges them when it reconnects. `seen` records the newest message on
-screen, online or offline. A message is `read` for a recipient once it is
-delivered and `seen` reaches it. Both watermarks are the member's own report,
-bounded by the last message. Each message's receipt costs one scan of at most
-50 member rows; `check --cost` prints the certificate.
+A member's row claims every message through `deliveredOrdinal`, and one
+unbroken window above it, `windowFrom` through `windowThrough`. The client
+reports what it fetched with `delivered(from, through)`, two ways:
+
+- **At once.** The newest unbroken run of settled messages it holds, on screen
+  or in the background, becomes the window. So a member back after a long
+  absence, or holding only the newest 500 synced messages, has what it fetched
+  delivered immediately, gap or not.
+- **Catching up.** `progress` returns the member's watermarks, counted from the
+  join, and the page of at most 100 messages `ahead` of the delivered one. The
+  client acknowledges the unbroken run at the head of that page, and `progress`
+  answers with the page after it until the client is caught up; it never needs
+  the page's cursor. When the prefix reaches the window, the window folds in.
+
+A run that meets the window merges with it, and a run that reaches the prefix
+extends it, taking in the window if it meets it too. A second window disjoint from a held one waits: the hook sends it
+again whenever the watermarks move, and catching up delivers its messages in
+any case, a page per round trip. A gap, a pending row or a sync horizon ends a
+run, so a receipt never claims a message the client did not fetch, and never
+moves back. `seen` records the newest message on screen, online or offline. A
+message is `read` for a recipient once it is delivered and `seen` reaches it.
+Every watermark is the member's own report, bounded by the last message. Each
+message's receipt costs one scan of at most 50 member rows; `check --cost`
+prints the certificate.
 
 Run the hook for a conversation in the background (`visible: false`) as well as
 on screen, so `delivered` follows fetching. Both mutations predict and queue
-offline. A predicted row carries `pending: true` and its ordinal is not yet the
-server's, so it is never acknowledged:
+offline, and a covered report writes nothing. A predicted row carries
+`pending: true` and its ordinal is not yet the server's, so it is never
+acknowledged:
 
 ```ts
 import { useEffect } from "react";
@@ -145,22 +170,30 @@ function useReceipts(conversation: string, visible: boolean) {
   const page = usePage(api.history, { conversation });
   const progress = useQuery(api.progress, { conversation });
   const mine = "data" in progress ? progress.data : null;
-  // Acknowledge the unbroken run of settled messages right after the prefix.
   const prefix = mine ? mine.delivered : null;
-  let through = prefix ?? 0;
+  // Catching up: the unbroken run of settled messages right after the prefix.
+  let caught = prefix ?? 0;
   for (const m of mine ? mine.ahead : []) {
-    if (m.pending || m.ordinal !== through + 1) break;
-    through = m.ordinal;
+    if (m.pending || m.ordinal !== caught + 1) break;
+    caught = m.ordinal;
   }
   useEffect(() => {
-    if (prefix !== null && through > prefix) void client.mutate(api.delivered, { conversation, through });
-  }, [client, conversation, prefix, through]);
+    if (prefix !== null && caught > prefix) void client.mutate(api.delivered, { conversation, from: prefix + 1, through: caught });
+  }, [client, conversation, prefix, caught]);
+  // At once: the newest unbroken run held, sent until the watermarks cover it.
+  const settled = new Set(page.items.filter(m => !m.pending).map(m => m.ordinal));
+  const newest = settled.size ? Math.max(...settled) : 0;
+  let low = newest;
+  while (settled.has(low - 1)) low--;
+  const [from, through] = mine ? [mine.windowFrom, mine.windowThrough] : [0, 0];
+  const covered = !mine || newest <= mine.delivered || (from <= low && newest <= through);
+  useEffect(() => {
+    if (!covered) void client.mutate(api.delivered, { conversation, from: low, through: newest });
+  }, [client, conversation, covered, prefix, from, through, low, newest]);
   // A view needs no watermark first: seen only moves forward.
   const shown = mine ? mine.seen : null;
-  const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
-  const newest = settled.length ? Math.max(...settled) : null;
   useEffect(() => {
-    if (visible && newest !== null && (shown === null || newest > shown)) void client.mutate(api.seen, { conversation, through: newest });
+    if (visible && newest > 0 && (shown === null || newest > shown)) void client.mutate(api.seen, { conversation, through: newest });
   }, [client, conversation, visible, shown, newest]);
   return page;
 }
