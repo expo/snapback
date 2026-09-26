@@ -969,11 +969,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
-    // @ref LLP 3000.018#3.2 — expiry forgets the answer, not its highest cut, using the pre-callback sample.
-    if (serverDue) {
-      const key = `${watch.op.name}:${JSON.stringify(watch.args)}`, last = answers.serverAnswers.get(key);
-      if (last?.nextExpiry != null && last.nextExpiry <= serverNow) answers.serverAnswers.forget(key);
-    }
+    // @ref LLP 3000.018#3.2 — fence every displayed expiry, preserving newer memory and its cuts.
+    if (serverDue) answers.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
     // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before asynchronous recovery.
     const denied = unavailable(), reset = denied || !d.localWakeup || serverDue;
     if (reset) watch.reset(denied ? { denied } : { loading: true });

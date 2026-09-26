@@ -128,6 +128,76 @@ for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) f
   });
 }
 
+for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) {
+  test(`${tier} keep: displayed expiry fences an older body while preserving newer memory (${lingering ? "lingering" : "active"})`, async t => {
+    const { url, dir } = await server(t, undefined, `use personas alice
+table rows:
+  body: text
+  expiresAt: time
+  expire at .expiresAt
+  read <- allow
+  insert <- allow
+  update <- allow
+  online only
+query remote():
+  return rows['private']
+mutation put(body: text, expiresAt: time):
+  upsert rows['private'] { body, expiresAt }
+`);
+    const wall = Date.now(), deadline = wall + 3_600_000, gate = Promise.withResolvers();
+    let clock = new ServerClock(() => wall), holdBody = false, blocked = false, fail = false, failed = 0, captured;
+    const fork = clock.fork.bind(clock); clock.fork = () => clock = fork();
+    const put = async (body, expiresAt) => {
+      const reply = await fetch(url + "/m/put", { method: "POST", headers: { "x-snapback-persona": "alice" },
+        body: JSON.stringify({ id: body, args: { body, expiresAt } }) }).then(r => r.json());
+      assert.equal(reply.state, "sent", JSON.stringify(reply));
+    };
+    await put("A", deadline);
+    const client = await createLocalClient({ url, persona: "alice",
+      device: tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") }),
+      fetch: clock.wrap(async (input, init) => {
+        const path = new URL(input).pathname;
+        if (path === "/changes") return parked(init.signal);
+        if (path.startsWith("/q/") && fail) { failed++; throw Error("later query failed"); }
+        const reply = await fetch(input, init);
+        // Keep the actual server body; only the fixture controls clock samples.
+        const response = new Response(reply.body, { status: reply.status });
+        if (path.startsWith("/q/") && holdBody) {
+          holdBody = false;
+          const json = await response.json(); captured = json; blocked = true; fail = true;
+          const held = Response.json(json);
+          held.json = async () => { await gate.promise; return json; };
+          return held;
+        }
+        return response;
+      }) });
+    t.after(async () => { gate.resolve(); await client.close(); });
+    await client.sync();
+    const op = { kind: "query", name: "remote" }, watch = client.observe(op, {}, { keep: true });
+    await until(() => watch.getSnapshot().data?.body === "A");
+    await put("B", deadline + 3_600_000);
+    assert.equal((await client.query(op, {})).data?.body, "B", "B replaces memory without replacing displayed A");
+    assert.equal(watch.getSnapshot().data.body, "A");
+    if (lingering) watch.close();
+    await put("old body", deadline);
+    holdBody = true;
+    clock.sample(wall - 100, wall, wall, "server:1"); // Begin a re-read before A expires.
+    await until(() => blocked);
+    assert.equal(captured.data.body, "old body");
+    assert.equal(captured.nextExpiry, deadline);
+    clock.sample(deadline, wall, wall, "server:2");
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "displayed A withdraws at its own deadline");
+    clock.sample(wall, wall, wall, "server:3");
+    const joined = lingering ? client.observe(op, {}, { keep: true }) : watch, snapshots = [];
+    joined.subscribe(() => snapshots.push(joined.getSnapshot()));
+    gate.resolve();
+    await until(() => failed > 0 && snapshots.some(read => read.data), "expired fetch finishes and recovery publishes");
+    assert.ok(snapshots.every(read => !("data" in read) || read.data?.body === "B"), JSON.stringify(snapshots));
+    assert.equal(joined.getSnapshot().data?.body, "B", "the old body cannot overwrite newer memory");
+    assert.equal((await client.query(op, {})).data?.body, "B", "one-shot offline recovery preserves B too");
+  });
+}
+
 for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-clock correction expires active and lingering answers; rollback cannot resurrect them`, async t => {
   const f = await fixture(t, tier), op = { kind: "query", name: "remote" };
   const active = f.client.observe(op, {}, { keep: true }), idle = f.client.observe({ ...op, name: "idle" }, {}, { keep: true });

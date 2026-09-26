@@ -245,3 +245,24 @@ test("an expired device answer re-routed to the server takes a new place in the 
   assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
   assert.equal(answers.get(key), undefined, "the re-routed refusal is newer than the answer remembered while it waited");
 });
+
+test("displayed expiry fences old bodies while preserving unexpired memory and its cuts", () => {
+  const answers = new RememberedAnswers(), initial = answers.view();
+  const newer = { ...answer("B"), nextExpiry: 200 };
+  initial.set("k", newer, 8);
+  const held = answers.view();
+  answers.expire("k", 100);
+  assert.equal(answers.get("k"), newer, "displayed A's expiry does not delete B");
+  held.set("k", answer("old body at higher cut"), 9);
+  held.delete("k", 10);
+  assert.equal(answers.get("k"), newer, "pre-expiry bodies and refusals cannot replace B");
+  const fresh = answers.view();
+  fresh.set("k", answer("below highest"), 9);
+  assert.equal(answers.get("k"), newer, "rejected bodies still contribute their highest cut");
+  fresh.set("k", { ...answer("C"), nextExpiry: 300 }, 10);
+  assert.equal(answers.get("k").read.data, "C", "a post-expiry read can replace B");
+  answers.expire("k", 300);
+  assert.equal(answers.get("k"), undefined, "memory itself expires at the exact deadline");
+  fresh.set("k", answer("old attempt"), 11);
+  assert.equal(answers.get("k"), undefined);
+});

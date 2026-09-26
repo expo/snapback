@@ -66,6 +66,15 @@ export class RememberedAnswers {
   /** Local expiry fences every read already begun, while preserving its cuts. */
   forget(key: string): void {
     this.answers.delete(key);
+    this.fence(key);
+  }
+  /** Displayed expiry fences old bodies even when newer memory survives. */
+  expire(key: string, now: number): void {
+    this.fence(key);
+    const last = this.answers.get(key);
+    if (last?.nextExpiry != null && last.nextExpiry <= now) this.answers.delete(key);
+  }
+  private fence(key: string): void {
     const slot = this.written.get(key), barrier = ++this.tickets;
     this.written.set(key, { seq: slot?.seq, highest: slot?.highest, ticket: barrier, barrier });
   }
