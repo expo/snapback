@@ -111,8 +111,10 @@ test("React hooks and reference-app lifetimes", async (t) => {
 
 const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
   .match(/function useExpiringRows[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
+const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
+  .match(/function useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
-import { StrictMode, act, useState, createElement as h } from "react";
+import { StrictMode, act, useEffect, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
@@ -215,7 +217,50 @@ async function onlineHooks(options) {
 }
 
 ${expiryRecipe}
+const api = { history: { kind: "query", name: "history" }, membership: { kind: "query", name: "membership" }, seen: { kind: "mutation", name: "seen" }, delivered: { kind: "mutation", name: "delivered" } };
+${receiptsRecipe}
+const ordinals = (from, to) => Array.from({ length: from - to + 1 }, (_, n) => ({ ordinal: from - n }));
+function receiptsClient(history, member) {
+  const client = controlled(args => "c" in args ? history.get(args.c) : member);
+  client.acks = [];
+  client.mutate = (op, args) => { client.acks.push(op.name + ":" + args.through); return Promise.resolve(sent("ack")); };
+  return client;
+}
+function Receipts({ visible }) { useReceipts("c1", visible); return null; }
+const acked = client => [...new Set(client.acks)];
 const cases = {
+  async "the receipts card acknowledges an unbroken fetched run, paging through ready gaps"() {
+    const history = new Map([[null, ready(ordinals(60, 41), "p2")], ["p2", ready(ordinals(40, 21), "p3")], ["p3", ready(ordinals(20, 1))]]);
+    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, readOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), client);
+    equal(acked(client), ["delivered:60"], "ready later pages keep paging until the run reaches the newest message");
+    const member = active(client).find(record => !("c" in record.args));
+    client.acks.length = 0;
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, readOrdinal: 0 })));
+    equal(client.acks, [], "a delivered run is not sent again");
+    await render(h(Receipts, { visible: true }), client);
+    equal(acked(client), ["seen:60"], "on screen the same run is seen");
+    client.acks.length = 0;
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, readOrdinal: 60 })));
+    equal(client.acks, [], "a seen run is not sent again");
+    await unmount();
+  },
+  async "the receipts card starts at the join, skips pending rows and waits for a gap it cannot fetch"() {
+    const joined = receiptsClient(new Map([[null, ready([{ ordinal: 104, pending: true }, ...ordinals(103, 85)], "older")], ["older", { loading: true }]]),
+      ready({ joinedOrdinal: 100, deliveredOrdinal: 0, readOrdinal: 0 }));
+    await mount(h(Receipts, { visible: true }), joined);
+    equal(acked(joined), ["seen:103"], "a new member acknowledges from the join, and never a pending row");
+    check(active(joined).filter(record => "c" in record.args).length === 1, "no page older than the join is loaded");
+    await unmount();
+    const returning = receiptsClient(new Map([[null, ready(ordinals(30, 11), "p2")], ["p2", { loading: true }]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, readOrdinal: 0 }));
+    await mount(h(Receipts, { visible: true }), returning);
+    equal(returning.acks, [], "a gap the client cannot fetch holds every acknowledgement back");
+    const older = active(returning).find(record => record.args.c === "p2");
+    await act(async () => older.set(ready(ordinals(10, 1))));
+    equal(acked(returning), ["seen:30"], "once the gap is fetched the run reaches the newest message");
+    await unmount();
+  },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
     let offset = 90000000, revision = 0;
     const client = createClient({ url: "https://clock.invalid", persona: "alice", fetch: async (input, init) => {
