@@ -1,0 +1,13 @@
+{
+  "base": "0badac98728367b29993211987ddfe8af80628c6",
+  "source_commit": "855c778083",
+  "raw": 1960083,
+  "gzip": 566391,
+  "brotli": 429066,
+  "sha256": "57a9e12d1aa5903e59cef131c6712a179ca3e79248e420ffdda451d6096d3ca2",
+  "rust": "1.97.0",
+  "wasm_bindgen": "0.2.127",
+  "wasm_opt_tried": "132 -Os",
+  "wasm_opt_selected": false,
+  "budget": 567391
+}

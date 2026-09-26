@@ -36,3 +36,32 @@ web device retains the fallback decode loop in `engine/witness.rs` alongside
 `probe_witness_uncached`. Check whether those two similar loops can share code.
 These are optimization candidates, not measured explanations for the whole
 artifact increase; neither reviewer found tests or parser/binder code in wasm.
+
+## Measured diet pass (2026-09-25)
+
+The later integrated baseline `0badac9872` measures **577,221 B gzip /
+2,009,397 B raw**, with a 578,207 B ratchet. The diet branch
+`sb4/diet-20260925` through source commit `855c778083` reduces that to
+**566,391 B gzip / 1,960,083 B raw**: **10,830 B gzip saved**. The ratchet
+is lowered to **567,391 B**, measured + 1,000. No runtime ceiling,
+wire/stored/schema serialization or feature/guide contract changes.
+
+The [diet report](../snapback4/reports/20260925-diet/REPORT.md) contains the
+before/after top 40, dominators, monomorphizations, per-commit production
+measurements, rejected probes and qualification evidence. All six requested
+candidates were investigated, including text/dependency leakage and cold
+generic sharing; additional measured reductions remove schema cloning and
+server asset/column/Following work.
+
+**Still open:** another **46,392 B gzip** must be removed to reach 519,999 B.
+The remaining large contributors are shared execution, typed JSON codecs
+and generic collections. A further codec/container or executor redesign
+must preserve existing serialized forms and undergo differential behavior,
+metering and performance qualification. No safe measured probe from this
+pass supplies that remainder. This branch is committed locally, never pushed.
+
+Qualification at source `804c2be2f7`: the full requested blocking suite
+finished **`== 0 failure(s) in 2304 s`**; root reference validation passed
+with 0 errors / 0 unchecked. The report records test-only host-launch and
+scheduling corrections separately from the unchanged application runtime
+ceilings and contracts.

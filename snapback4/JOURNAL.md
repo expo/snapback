@@ -61793,3 +61793,28 @@ and every lifecycle assertion remain. No Snapback runtime ceiling, product
 timeout, format or feature contract changes. This fixture-only correction
 does not enter the device wasm. Failed and successful qualification attempts
 remain in `reports/20260925-diet/`.
+
+## 2026-09-26 — device diet: blocking qualification complete
+
+At executable/test source `804c2be2f7`, the requested blocking suite completed
+with **`== 0 failure(s) in 2304 s`**, exit 0. All 932 Rust executions and
+workspace doctests passed. The serial client suite passed 1,998 tests with
+9 existing skips, no failures and no cancellations; all 78 model tests
+passed, including the unchanged 5,000 online-session, 5,000 local-session
+and 3,000 client-interleaving sequences. The package/app, fixture, docs,
+release and wasm-budget checks passed. Root `./ref-check --verbose` passed
+with 510 LLP documents, 9,395 refs, 0 errors and 0 unchecked.
+
+Qualification uses Node 24.18.0, the specified test environment, the default
+18 Rust workers, process-local normal scheduling and `caffeinate -i` to
+prevent idle sleep. The two fixture-only scheduling/startup corrections
+above are explicit in the report; product ceilings, formats and contracts
+remain unchanged. Both earlier unsuccessful full attempts and all focused
+checks are retained in `reports/20260925-diet/`.
+
+The suite rebuilt the identical **566,391 B gzip** artifact (SHA-256
+`57a9e12d1aa5903e59cef131c6712a179ca3e79248e420ffdda451d6096d3ca2`).
+The ratchet is **567,391 B**. The **46,392 B** remainder to a strictly
+below-520,000 artifact stays open in the ticket; the report records the
+remaining codec/container/executor work needed. All work stays on
+`sb4/diet-20260925`, committed locally; no push or publication.

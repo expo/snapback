@@ -1,0 +1,10 @@
+✔ native process devices withdraw an expired inbox during fallback, offline and on account switch (6239.693792ms)
+✔ web IndexedDB device withdraws expired inbox data in useQuery and usePage (7194.117125ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13497.2135

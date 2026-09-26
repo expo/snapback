@@ -1,0 +1,32 @@
+✖ Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle (15678.643584ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15729.801916
+
+✖ failing tests:
+
+test at packages/snapback4/test/expo-media-storage.test.mjs:9:1
+✖ Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle (15678.643584ms)
+  AssertionError [ERR_ASSERTION]: native helper checks failed: Error: spawnSync /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-media-files-7fBXdI/media-files-test ETIMEDOUT
+
+
+
+  null !== 0
+
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-20260925/snapback4/packages/snapback4/test/expo-media-storage.test.mjs:22:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
