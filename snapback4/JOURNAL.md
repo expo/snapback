@@ -62065,3 +62065,45 @@ measurements are in `/tmp/ccp-L2/` and the uncommitted `CCP-REPORT-L2.md`.
 L1 integration supplies waitSeconds runtime behavior and the saved-intent
 starter reference; L2 makes no new native-media or cold-builder qualification
 claim. No push, merge, rebase, new worktree or extra Cargo target directory.
+
+### 2026-09-26 — CCP L3 query withholding investigation
+
+LLP 3000.008.002.000 lane L3 takes the brief's report-only disposition: no
+diagnostic or product change. Ordinary horizon scans on a different order return
+partial data; they do not alone withhold the answer. Streaming scalar totals,
+extrema, speculative point/rule reads, and Following-specific coverage can
+withhold the whole composition. Runtime input coverage and evaluated branches
+matter. Calibration's inbox withholds while inboxLocal completes, but the
+unchanged jobs-card inbox has the same horizon scalar decoration and also
+withholds. A useful scalar-consumer predicate would truthfully name both,
+conflicting with the brief's requirement that every card remain silent.
+
+This is a scope conflict, not a claim that no static risk predicate exists.
+A narrower expiring-maintained-view scalar predicate could catch calibration's
+first failing sum and avoid the jobs card's direct count, but misses the same
+failure in direct-count decorations. The chosen minimal outcome records that
+option for the lead rather than adding source/name exceptions or changing cards.
+No new N_ code, routing rule, schema, protected-result lifetime, or wasm byte was
+introduced. No query warning is justified by order mismatch alone.
+
+Base and published 0.4.2 produced identical outcomes across 26 real-device query
+observations. All 104 routing probes passed; all 26 intersecting-prediction cases
+made zero server calls. The compiler census covered 81 guide/language contexts,
+452 device-query occurrences and 47 Horizon point-site occurrences. Full findings,
+source citations, verbatim check outputs and probe logs are in the intentionally
+uncommitted root CCP-REPORT-L3.md and /tmp/ccp-l3/.
+
+All tests and retries ran at untouched base 78bbe7b349 with Node 24.18.0, before
+this journal entry. Full suite: `== 2 failure(s) in 2769 s` (`cargo test`,
+`client tests`), exit 1. Rust: 3,549 passed, 17 failed, 19 ignored. JavaScript:
+2,121 tests, 2,106 passed, 3 failed, 3 cancelled, 9 skipped; all 78 models passed.
+A timed-out browser test required terminating only its verified owned processes
+to let the suite finish; its isolated four-test rerun passed. Isolated lifecycle,
+worker, ephemeral, page-observation and typing retries passed. Witness still
+failed (11 passed, 13 failed); the native Swift media helper still timed out.
+The initial lang-only run hit a reader timing ratio; its exact retry passed and
+the complete serialized package rerun passed 860 tests, with 4 ignored. Sim
+residency passed 17/17; guide passed 84/84. The report preserves every failure,
+base-state evidence and retry result without claiming a green full suite.
+Wasm stayed 2,014,270 B raw / 578,894 B gzip against 579,833 B; README stayed
+300/300 lines. No push, merge, rebase, stash, or other-worktree edit occurred.
