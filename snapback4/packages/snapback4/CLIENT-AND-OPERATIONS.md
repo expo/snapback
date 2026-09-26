@@ -952,6 +952,10 @@ returned function to unsubscribe. Local and `createApp` custody survives
 reload; the raw `createClient` queue is in memory only. Closed and signed-out
 handles return `[]`. Legacy entries without dispatch metadata start queued
 unless retained sequence evidence proves dispatch.
+Notification failures do not undo a committed admission. If an online hold
+cannot be saved, its owning client still lists `held` with the refusal code
+until dispatch or settlement supersedes it; other clients and reloads can
+only read the status that storage kept.
 
 ```tsx
 import { usePendingWrites } from "snapback4/react";

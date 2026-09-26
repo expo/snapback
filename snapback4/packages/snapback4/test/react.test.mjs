@@ -34,6 +34,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "test-online-custody", replacement: join(root, "packages/snapback4/src/app-online.ts") },
+        { find: "test-online-dispatch", replacement: join(root, "packages/snapback4/src/online-dispatch.ts") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
         { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
@@ -130,6 +131,26 @@ test("React hooks and reference-app lifetimes", async (t) => {
         await peer.close();
       }
     });
+    await t.test("closing the last journal owner during admission still invalidates another tab", async () => {
+      const peer = await page.context().newPage();
+      try {
+        await peer.goto(server.resolvedUrls.local[0]);
+        await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
+        await page.evaluate(async () => { localStorage.clear(); window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.mount(); });
+        const admitted = await peer.evaluate(async () => {
+          window.pendingPeer = await window.openPendingPeer();
+          return window.pendingPeer.closeOnAdmission();
+        });
+        assert.equal(admitted.state, "pending", "closing on notification cannot refuse committed custody");
+        await page.waitForFunction(id => window.pendingPeer.snapshot().some(w => w.id === id), admitted.id);
+        assert.deepEqual(await page.evaluate(async () => (await window.pendingPeer.client.pendingWrites()).map(w => [w.id, w.state])),
+          [[admitted.id, "queued"]], "A's hook and durable list see B's admission after B closes");
+      } finally {
+        await page.evaluate(() => window.pendingPeer?.close());
+        await peer.evaluate(() => window.pendingPeer?.close());
+        await peer.close();
+      }
+    });
     assert.deepEqual(errors, []);
   } finally {
     await browser?.close();
@@ -150,6 +171,7 @@ import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
 import { onlineCustody } from "test-online-custody";
+import { identifyDispatch } from "test-online-dispatch";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -1334,6 +1356,14 @@ window.openPendingPeer = async () => {
   return {
     client: custody.client, snapshot: () => latest, notices: () => notices,
     mount: () => mount(h(List), custody.client), unmount,
+    async closeOnAdmission() {
+      await identifyDispatch(raw); await custody.client.pendingWrites();
+      let closing;
+      const stop = custody.client.onPendingWrites(() => { stop(); closing = custody.client.close(); });
+      const write = await custody.client.mutate(mutation, { body: "close at admission" }, { waitSeconds: 0 });
+      await closing;
+      return write;
+    },
     async submit() {
       gate = undefined;
       const write = await custody.client.mutate(mutation, { body: "shared intent" }, { waitSeconds: 0 });

@@ -25,12 +25,16 @@ export function journalChanges(key: string, notify: () => void) {
     notify() {
       // A paused owner may still finish a custody commit for active siblings.
       const current = journals.get(key);
-      current?.events.notify();
-      if (current?.channel) current.channel.postMessage(null);
-      else if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {
-        const channel = new BroadcastChannel(key);
-        channel.postMessage(null); channel.close();
-      }
+      // Broadcast before a local listener can close the last owner/channel.
+      // Notification failures cannot reject the already committed transaction.
+      try {
+        if (current?.channel) current.channel.postMessage(null);
+        else if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {
+          const channel = new BroadcastChannel(key);
+          try { channel.postMessage(null); } finally { channel.close(); }
+        }
+      } catch { /* Best effort invalidation; custody is already durable. */ }
+      try { current?.events.notify(); } catch { /* A listener cannot undo custody. */ }
     },
     close() {
       if (!active) return;
