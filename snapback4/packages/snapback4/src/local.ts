@@ -423,6 +423,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = null;
       rotating = false;
       credentialRevision += 1;
+      // A dead session refreshes nothing (LLP 3000.017 §3.2).
+      for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
       stopRefresh();
       if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
       delete headers.authorization;
@@ -937,6 +939,34 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
 
+  function armPresence(watch: Watch) {
+    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
+      watch.presenceRefresh = null;
+      void refreshPresence(watch);
+    });
+  }
+
+  // @ref LLP 3000.017#3.2 — a presence refresh evaluates in the background and publishes only an answer
+  // that nothing replaced meanwhile: expiry, invalidation and store replacement keep their own withdrawal.
+  async function refreshPresence(watch: Watch) {
+    if (closed || sessionDead || watches.get(watch.key) !== watch) return;
+    if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
+    const shown = watch.snapshot;
+    try {
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, incarnation: revision, authority } = await runLocal(watch.op, watch.args);
+      if (closed || watches.get(watch.key) !== watch) return;
+      if (watch.snapshot === shown && !watch.running && revision === incarnation && authority === answers.revision && served && !("loading" in read)) {
+        watch.tables = tables;
+        scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+        const denied = unavailable();
+        watch.publish(denied ? { denied } : read);
+        notify(watch);
+      }
+      if (served) watch.presenceEvery = after;
+    } catch {}
+    if (!watch.running) armPresence(watch);
+  }
+
   async function rerun(watch: Watch) {
     if (closed) return;
     if (watch.running) {
@@ -945,18 +975,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      // @ref LLP 3000.017#3 — a server answer that read presence re-runs after its server's interval.
-      // An answer from this device, or none, keeps the interval: the device does not know presence.
-      if (after !== undefined) watch.presenceEvery = after;
-      watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
-        watch.presenceRefresh = null;
-        if (watches.get(watch.key) === watch) void rerun(watch);
-      });
+      // @ref LLP 3000.017#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
+      if (served) watch.presenceEvery = after;
+      armPresence(watch);
       scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
       if (watch.snapshot !== read) {
         const denied = unavailable(); // Rule 1: immediately before notifying observers.
@@ -966,10 +992,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch {
       if (!closed && watches.get(watch.key) === watch) {
         watch.publish({ loading: true }); notify(watch);
-        watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, watch.presenceEvery, () => {
-          watch.presenceRefresh = null;
-          if (watches.get(watch.key) === watch) void rerun(watch);
-        });
+        armPresence(watch);
       }
     } finally {
       watch.running = false;

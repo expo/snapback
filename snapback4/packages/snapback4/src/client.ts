@@ -178,6 +178,8 @@ export function createClient(options: ClientOptions): Client {
     delete headers["x-snapback-persona"];
     setViewer(null);
     setLink("signed-out");
+    // A dead session refreshes nothing (LLP 3000.017 §3.2).
+    for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
     for (const listener of [...sessionListeners]) listener(null);
   };
 
@@ -406,10 +408,10 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
     const json = result.json;
-    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null };
+    const refresh = typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined;
+    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null, refresh };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    const refresh = typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined;
     if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
@@ -434,17 +436,33 @@ export function createClient(options: ClientOptions): Client {
     (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
 
-  // @ref LLP 3000.017#3 — an answer that read presence re-runs after its server's interval, keeping its answer meanwhile.
-  // Only a server's answer decides the interval; a failed or discarded re-run keeps it, so it retries.
+  // @ref LLP 3000.017#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
   function schedulePresence(watch: Watch, answered: boolean, after?: number) {
     if (answered) watch.presenceEvery = after;
     watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
       watch.presenceRefresh = null;
-      if (watches.get(watch.key) === watch) void refresh(watch, true);
+      void refreshPresence(watch);
     });
   }
 
-  async function refresh(watch: Watch, keep = false) {
+  // @ref LLP 3000.017#3.2 — a presence refresh reads in the background and publishes only an answer that
+  // nothing replaced meanwhile: expiry, invalidation and sign-out keep their own immediate withdrawal.
+  async function refreshPresence(watch: Watch) {
+    if (closed || storeRefusal || !credentials || watches.get(watch.key) !== watch) return;
+    if (watch.inFlight) return; // The fetch in flight re-arms the refresh when it settles.
+    const shown = watch.snapshot;
+    const result = await runQuery(watch.op, watch.args);
+    if (closed || watches.get(watch.key) !== watch) return;
+    if (watch.snapshot === shown && !watch.inFlight && currentRead(result) && !("loading" in result.read) && !result.transportOffline) {
+      watch.publish(result.read);
+      watch.tables = new Set(result.tables);
+      scheduleExpiry(watch, result.nextExpiry);
+      notify(watch);
+    }
+    if (!watch.inFlight) schedulePresence(watch, !result.transportOffline, result.refresh);
+  }
+
+  async function refresh(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
     if (watch.inFlight) {
       watch.dirty = true;
@@ -453,7 +471,7 @@ export function createClient(options: ClientOptions): Client {
     watch.inFlight = true;
     let exhausted = false;
     try {
-      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: currentRead, retain: keep });
+      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: currentRead });
       const { tables, nextExpiry, retryExhausted } = result;
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
@@ -466,7 +484,7 @@ export function createClient(options: ClientOptions): Client {
       }
       watch.tables = new Set(tables);
       scheduleExpiry(watch, exhausted ? null : nextExpiry);
-      schedulePresence(watch, !exhausted && !result.transportOffline && !("denied" in result.read), result.refresh);
+      schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;

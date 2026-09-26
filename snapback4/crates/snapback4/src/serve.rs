@@ -957,8 +957,12 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(None) => {}
                 }
             }
-            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                .map(|p| (p.program.kind, p.program.args.clone()));
+            let (signature, reads_presence) = {
+                let bound = lock(&shared.bound);
+                // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read: an answer discloses no branch.
+                let reads_presence = bound.schema.operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
+                (bound.programs.iter().find(|p| p.program.name == op).map(|p| (p.program.kind, p.program.args.clone())), reads_presence)
+            };
             let Some((kind, arg_types)) = signature else {
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
@@ -1035,8 +1039,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(skip_serializing_if = "Option::is_none")]
                             refresh: Option<u64>,
                         }
-                        // @ref LLP 3000.017#3 — an answer that read presence asks its client to re-run it: no change feed names presence.
-                        let refresh = (!outcome.presence.is_empty()).then(|| PRESENCE_REFRESH.as_millis() as u64);
+                        // @ref LLP 3000.017#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
+                        let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
@@ -1054,7 +1058,12 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
-                    Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
+                    Err(refusal) => {
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.017 §3.2).
+                        if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
+                        respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
+                    }
                 }
             } else {
                 if kind == ProgramKind::Query {

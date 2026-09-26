@@ -31,6 +31,8 @@ table notes:
   sync to .owner
 query presenceOf(p: principal):
   return { online: exists connected[p], count: connected[p] }
+query withNotes(p: principal):
+  return { online: exists connected[p], notes: count(notes where .owner = viewer) }
 `;
 
 for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mark follows the principal it reads`, { timeout: 60000 }, async t => {
@@ -56,7 +58,10 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const mark = alice.observe(query, { p: "dev:bob" });
   t.after(() => mark.close());
   const online = () => mark.getSnapshot()?.data?.online;
-  assert.notEqual(await until(() => online() === false), null, "Bob starts away");
+  // The same presence beside rows the device holds: an answer composed from both.
+  const notes = alice.observe({ kind: "query", name: "withNotes" }, { p: "dev:bob" });
+  t.after(() => notes.close());
+  assert.notEqual(await until(() => online() === false && notes.getSnapshot()?.data?.online === false), null, "Bob starts away");
 
   // Bob's client holds a poll while it watches something.
   const bob = createClient(options("bob"));
@@ -66,14 +71,15 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   assert.notEqual(cameOnline, null, `Alice's mark stayed ${JSON.stringify(mark.getSnapshot())} after Bob came online`);
   // The count rides along; a client that restarts its poll briefly holds two.
   assert.ok(mark.getSnapshot().data.count >= 1);
-  // A refresh keeps the answer: sampled like a screen would, across a whole
-  // interval with no commit, the mark never reads loading.
-  let loading = 0, samples = 0, refreshes = 0;
-  const stop = mark.subscribe(() => { if ("data" in mark.getSnapshot()) refreshes++; });
-  for (const end = Date.now() + 6000; Date.now() < end; await sleep(50)) { samples++; if ("loading" in mark.getSnapshot()) loading++; }
+  // A refresh keeps the answer: across a whole interval with no commit, no
+  // notification carries anything but an answer.
+  let loading = 0, refreshes = 0;
+  const stop = mark.subscribe(() => { if ("data" in mark.getSnapshot()) refreshes++; else loading++; });
+  await sleep(6000);
   stop();
-  assert.equal(loading, 0, `a presence refresh keeps its answer: ${loading} of ${samples} samples read loading`);
+  assert.equal(loading, 0, `a presence refresh showed ${loading} snapshots other than an answer`);
   assert.ok(refreshes >= 1 && online() === true, "the mark refreshed and Bob is still online");
+  assert.equal(notes.getSnapshot().data?.online, true, "an answer composed from the device and the server refreshes too");
 
   // Bob leaves. His grace keeps him connected until the clock passes it.
   bobWatch.close();

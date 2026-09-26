@@ -48,6 +48,10 @@ export class LocalReads {
       watch.reset({ loading: true });
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watch.expiryTimer = null;
+      // A replaced store relearns presence intervals from its next server answer.
+      if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
+      watch.presenceRefresh = null;
+      watch.presenceEvery = undefined;
     }
   }
 }

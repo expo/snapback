@@ -1721,9 +1721,9 @@ tables. A different identity or a head below `since` answers immediately; a regr
 `seq`. A matching identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1
 response starts immediately and sends JSON whitespace every 2 seconds before the final JSON object. Proxies
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
-`denied`, including `E_AUTH` if the session ended while waiting. A query that reads `connected[p]` answers
-`refresh: 5000` beside its data: presence changes without a commit, so the clients re-run that watch every 5
-seconds while it is observed, keeping the answer (`fresh: false`) until the new one arrives (LLP 3000.017). `POST /assets` (the file's bytes as the body,
+`denied`, including `E_AUTH` if the session ended while waiting. Every reply of a query that may read `connected[p]`, refusals included,
+carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
+5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it (LLP 3000.017). `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
 uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{

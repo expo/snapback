@@ -59281,3 +59281,29 @@ online mark that is too much surface, so round 5 ships the simple version:
 The once-per-run memoized presence read stays, so every read in one answer
 agrees. Alice's mark now turns within about 5 seconds, on every tier, with no
 loading in between. LLP 3000.017 §6 records the follow design and why it waits.
+
+## 2026-09-26 — Live presence round 6: the query asks, and the refresh waits its turn
+
+Astra's review of the refresh was NOT READY, and Grok's found smaller gaps:
+
+- **`refresh` disclosed a branch.** It came from the run's own reads, so
+  `if flag.enabled: return connected[viewer] * 0` revealed the flag. Now the
+  query decides, not the run: the binder's `presence` residency site, which
+  already covers helpers. Rules cannot read `connected`. Every reply of such a
+  query carries it, authored refusals included, so a query that is refused at
+  first keeps refreshing.
+- **A retained refresh outlived expiry and revocation.** The refresh is now a
+  background one-shot read. It publishes only if nothing was published, and no
+  other read began, while it ran. Expiry and invalidation withdraw at once, as
+  before, and win.
+- **The local tier flashed loading, and never stopped refreshing.** The
+  background read touches no snapshot until it publishes. A served answer
+  without `refresh` now stops it; a device answer keeps it.
+- **Timers.** A dead session and a replaced store clear them. The client clamps
+  an interval a timer cannot hold.
+- **Smaller fixes.** The memo is heap-metered, the outcome's presence map is
+  gone, and the Postgres feature builds again.
+
+A composed test finally exercises the composed path: retained history beside
+presence, on the wasm and process devices. Dropping the composed `refresh` copy
+fails it.

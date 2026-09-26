@@ -1431,21 +1431,24 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
 #[path = "../tests/serve_changes/mod.rs"]
 mod review_changes;
 
-/// LLP 3000.017 §3: an answer that read presence asks its client to re-run it,
-/// and names no principal it read; an answer that read none does not.
+/// LLP 3000.017 §3.1: every answer of a query that may read presence asks its
+/// client to re-run it, whichever path ran, refusals too, and names no principal
+/// it read; an answer of a query that reads none does not.
 #[test]
 fn a_presence_answer_asks_its_client_to_refresh() {
-    let source = "use personas alice, bob\nuse identity\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\nquery sum(a: principal, b: principal):\n  return connected[a] + connected[b]\nquery plain():\n  return 1\n";
+    let source = "use personas alice, bob\nuse identity\ntable flags:\n  name: text <=40\n  enabled: bool\n  unique name\n  read <- true\n  insert <- true\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\nquery sum(a: principal, b: principal):\n  return connected[a] + connected[b]\nquery branch():\n  flag = flags[name = 'one']\n  if flag != null and flag.enabled = true:\n    return connected[viewer] * 0\n  return 0\nfn here(p: principal):\n  return exists connected[p]\nquery helper(p: principal):\n  return here(p)\nquery gate():\n  require exists connected['dev:bob'] else NOT_HERE\n  return true\nquery plain():\n  return 1\n";
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
     let alice = "x-snapback-persona: alice\r\n";
     let refresh = json!(snapback4_core::engine::PRESENCE_REFRESH.as_millis() as u64);
-    for (op, args) in [("online", r#"{"args":{"p":"dev:bob"}}"#), ("sum", r#"{"args":{"a":"dev:bob","b":"dev:alice"}}"#)] {
+    for (op, args) in [("online", r#"{"args":{"p":"dev:bob"}}"#), ("sum", r#"{"args":{"a":"dev:bob","b":"dev:alice"}}"#), ("branch", "{}"), ("helper", r#"{"args":{"p":"dev:bob"}}"#), ("gate", "{}")] {
         let read = body(&host.request("POST", &format!("/q/{op}"), alice, args));
-        assert_eq!(read["refresh"], refresh, "{read}");
+        assert_eq!(read["refresh"], refresh, "{op}: {read}");
         let mut shown = read.clone();
         shown.as_object_mut().unwrap().remove("viewer");
-        assert!(!shown.to_string().contains("dev:"), "a reply names no principal it read: {read}");
+        assert!(!shown.to_string().contains("dev:"), "{op}: a reply names no principal it read: {read}");
     }
+    let gate = body(&host.request("POST", "/q/gate", alice, "{}"));
+    assert_eq!(gate["denied"]["code"], "NOT_HERE", "a presence-controlled refusal keeps its refresh: {gate}");
     let plain = body(&host.request("POST", "/q/plain", alice, "{}"));
     assert!(plain.get("refresh").is_none(), "{plain}");
 }
