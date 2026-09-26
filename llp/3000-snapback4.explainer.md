@@ -378,7 +378,10 @@ time-ordered 128-bit form.
   Each element's home is the cell, never its position. Reconciliation claims
   added ids, releases removed ids only when their recorded `(table, row, column)`
   matches this cell, and retains unchanged ids and their view history; deletion
-  uses the same home check. Foreign or unplaced legacy references are left
+  uses the same home check. Within one row write, every removed id across all
+  asset columns is released before any added id is claimed, so same-row moves
+  work in either column order; an id still homed on another row is refused.
+  Foreign or unplaced legacy references are left
   untouched. Upload admission and delivery inspect the
   element type, and `once` applies per image. Fact stamping and ledger work
   are server-only. A write attempt reserves an allowance per declared
@@ -389,8 +392,9 @@ time-ordered 128-bit form.
   Scalar columns retain their prior accounting: round 2 withdraws this extra
   scalar allowance after it required loosening existing meter tests. The
   existing ceilings remain; hidden contents never choose the list price.
-  Unplaced legacy list references are not backfilled: downloads remain
-  404 E_ASSET_UNKNOWN until replaced with fresh uploads.
+  Unplaced legacy list references are not backfilled, including on a same-id
+  rewrite: readers still get 404 E_ASSET_UNKNOWN while the owner can preview,
+  until a write places and claims fresh uploads in the cell.
   This fixes the compiler/runtime mismatch reported by calibration #22;
   rejecting the list would remove an already accepted and intended form.
 - **2026-09-12 — jobs are sweeps, schedules are boundaries (lead, LLP

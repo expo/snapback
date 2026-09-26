@@ -128,6 +128,7 @@ impl Runner<'_> {
         let result = (|| {
             let now = self.context.now.unwrap_or(0);
             let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
+            let mut claims = Vec::new();
             for (column, kind) in table.columns.iter().filter(|(_, kind)| kind.contains_asset()) {
                 let mut before = BTreeMap::new();
                 let mut after = BTreeMap::new();
@@ -137,9 +138,14 @@ impl Runner<'_> {
                     self.tx.release_asset(released, table_name, id, column, now)?;
                 }
                 for claimed in after.keys().filter(|id| !before.contains_key(*id)) {
-                    if self.context.is_system() && self.tx.asset(claimed)?.is_none() { continue; }
-                    self.tx.claim_asset(claimed, &self.context.viewer, table_name, id, column)?;
+                    claims.push((*claimed, column));
                 }
+            }
+            // Release every removed cell home first, so same-row moves work
+            // in either column order. The home check still fences every release.
+            for (claimed, column) in claims {
+                if self.context.is_system() && self.tx.asset(claimed)?.is_none() { continue; }
+                self.tx.claim_asset(claimed, &self.context.viewer, table_name, id, column)?;
             }
             Ok(())
         })();

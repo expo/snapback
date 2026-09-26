@@ -334,8 +334,7 @@ mutation sendPhotos(photos: [image <=10000000] <=4):
 ```
 
 Upload each image first, then pass the list of `{ id }` values to `sendPhotos`.
-Each element inherits the row's read rule. Removing an element releases it;
-reordering keeps its home and view history; deleting the row releases all.
+Each element inherits the row's read rule.
 `[image <=10000000 once] <=4` applies one view per principal to each image.
 List placement and release reserve four examinations, two writes, eight steps
 and 16 KiB scratch per declared element slot (nested caps multiply), even for
@@ -385,8 +384,13 @@ viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership.
 
-Legacy list references whose assets were never placed still download as
-404 E_ASSET_UNKNOWN (no backfill); replace them with fresh uploads to establish homes."##,
+Removing an element releases it; reordering keeps its home and view history;
+deleting the row releases all.
+
+Stored list ids from before list placement are not backfilled, and rewriting
+the cell with the same ids does not claim them. Readers still get
+E_ASSET_UNKNOWN (the upload owner can still preview) until a write places and
+claims fresh uploads in the cell."##,
         "client" => include_str!("guide/client.md"),
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,

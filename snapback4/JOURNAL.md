@@ -64206,3 +64206,63 @@ under `snapback4/target/image-list-fix-2/` (`suite-verified.log` and its exit
 receipt, counterfactual and targeted checks, and wasm measurements). The
 requested report is `/Users/ccheever/projects/snapback-sb5-program/image-list-fix-2.final.md`.
 The fix is committed locally on `sb4/image-list-assets`; it is not pushed.
+
+
+## 2026-09-26 — image-list fix round 3: release across the row before claiming
+
+Grok's remaining placement finding was column-order dependence: moving an
+upload into an earlier-sorted asset column claimed before the old column
+released it. A row write now queues added ids while releasing all removed ids,
+then performs the claims. Every release still carries the exact table, row and
+column and uses round 2's matching-home predicate. An upload still homed on
+another row is refused with E_ASSET_PLACED; a failed claim rolls back both the
+row and earlier releases. The change stays in the server-only asset module,
+with the existing declaration reservation and scalar accounting unchanged.
+LLP 3000 §7 records the ordering.
+
+The assets card now states the legacy boundary in one short paragraph beside
+removal/reorder/deletion: stored pre-placement list ids are not backfilled, a
+same-id rewrite does not claim them, readers still get E_ASSET_UNKNOWN while
+the upload owner can preview, and placing fresh uploads establishes homes.
+These sentences follow the existing error definition so diagnostic excerpts
+retain their full definition and recovery facts.
+
+Eight new regressions cover both move directions for list and scalar columns
+on memory and disk SQLite, with disk reopen before final assertions. Each
+also attempts a cross-row replacement, expects E_ASSET_PLACED, and checks that
+the destination's earlier release and row change roll back. Against round 2's
+placement runtime, the four earlier-column cases fail with E_ASSET_PLACED;
+the later-column cases and all cross-row refusals pass. With the fix, all 28
+asset-list tests pass. The sixteen legacy tests now create the old reference
+before any new claim, prove that a same-id rewrite leaves it unplaced and
+previewable only by the owner, then (for placed cases) claim on a new row
+before clearing/deleting the old row. This directly covers Grok's temporal
+variant of the round 2 regression. Qualification follows below.
+
+Removing only round 2's release predicate made all sixteen revised legacy
+regressions fail: the owner lost access after the old reference was cleared
+or deleted. The guarded source was then restored byte-for-byte. All 86 guide
+tests pass, including the unchanged diagnostic definition/recovery assertions;
+`./ref-check --verbose` reports 0 errors and 0 unchecked references.
+
+The required suite's production wasm build is byte-identical to the starting
+round 2 artifact: 1,972,811 bytes raw / 569,966 bytes gzip, SHA-256
+`9bd30fd80cf9ff348c5449d345ebe2881146b086ff2d10323a3fb3aed7aad6c8`.
+The ratchet stays 570,966. Both artifacts, the production gzip measurement,
+and the counterfactual logs are under `snapback4/target/image-list-fix-3/`.
+
+Final qualification passed the exact requested blocking suite:
+`== 0 failure(s) in 3180 s` (exit 0). All 225 Rust test binaries / 937
+executions and workspace doctests passed, including the 28 asset-list tests
+and unchanged scalar meter tests. Ordinary clients passed 2,222 tests with
+nine existing skips; all 78 client models passed. The run used Node 24.18.0,
+four Cargo build jobs and two Rust test processes, with `FORCE_COLOR` unset,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0` and `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`.
+No assertion, timeout or runtime ceiling was relaxed. The harness-only
+following fixture lock change was saved as evidence and restored; the
+completed temporary launch job was removed. Evidence is under
+`snapback4/target/image-list-fix-3/`, including `suite.log`, `suite.exit`,
+targeted/counterfactual logs and both wasm artifacts. The requested report is
+`/Users/ccheever/projects/snapback-sb5-program/image-list-fix-3.final.md`.
+This fix is committed locally on `sb4/image-list-assets`; it is not pushed.
