@@ -323,3 +323,139 @@ fn conditional_cleanup_beside_constant_variants_makes_them_a_backlog() {
     assert!(json["variants"].as_array().unwrap().iter().all(|v| v["class"] == "backlog"), "{json}");
     assert!(!c.line().contains("assignee is present: constant") && !c.line().contains("assignee is absent: constant"), "{}", c.line());
 }
+
+const STATUSED: &str = "table t:\n  assignee: principal\n  status: enum('todo', 'done')\n  at: time\n  until: time\n  expire at .until\n  read <- .assignee = viewer\n";
+const PINNED: &str = "return t where (assignee = null or .assignee = assignee) first 2 by .at";
+const BOTH_PINNED: &str = "return t where (assignee = null or .assignee = assignee) and (status = null or .status = status) first 2 by .at";
+
+fn classes(c: &scale::Certificate) -> Vec<(String, Class)> {
+    c.variants.iter().map(|v| (v.when.clone(), v.class)).collect()
+}
+
+#[test]
+fn facts_hold_in_order_inside_a_branch() {
+    // Grok, scale round 7: a present call returns by one of two tests in turn, so the closing
+    // scan runs only when the assignee is absent.
+    let source = format!("{STATUSED}query q(assignee: principal ?, status: enum('todo', 'done') ?):\n  if assignee != null:\n    if status != null:\n      {PINNED}\n    if status = null:\n      return []\n  return t first 2 by .at\n");
+    let c = certificate(&source);
+    assert!(c.growth_sites.iter().all(|g| g.when.is_some()), "no site runs in every call: {:?}", c.growth_sites);
+    assert_eq!(classes(&c), vec![("assignee and status are both present".to_owned(), Class::Backlog), ("assignee is absent".to_owned(), Class::Grows)], "{}", c.line());
+}
+
+#[test]
+fn a_decided_test_runs_only_its_matching_branch() {
+    // Grok, scale round 7: inside `assignee != null`, the `else` of `assignee = null` runs and
+    // the other branch's scan never does.
+    let source = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee = null:\n      return t first 2 by .at\n    else:\n      {PINNED}\n  return t first 3 by .at\n");
+    let c = certificate(&source);
+    assert_eq!(classes(&c), vec![("assignee is present".to_owned(), Class::Backlog), ("assignee is absent".to_owned(), Class::Grows)], "{}", c.line());
+    assert!(!c.growth_sites.iter().any(|g| g.when.as_deref() == Some("assignee is present") && !g.backlog), "{:?}", c.growth_sites);
+}
+
+#[test]
+fn every_program_finds_what_never_runs() {
+    // Grok, scale round 7: no scan here is a planner variant, yet the only scan never runs: a
+    // present call refuses and an absent one returns.
+    let source = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee != null:\n      require false else STOP\n    return t first 2 by .at\n  return []\n");
+    let c = certificate(&source);
+    assert_eq!((c.class, c.growth_sites.len(), c.variants.len()), (Class::Constant, 0, 0), "{}", c.line());
+    // The facts decide what runs, but only a planner variant scan names a variant.
+    let live = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    return t first 2 by .at\n  return []\n");
+    let c = certificate(&live);
+    assert_eq!(c.class, Class::Grows, "{}", c.line());
+    assert!(c.variants.is_empty() && c.growth_sites.iter().all(|g| g.when.is_none()), "{c:?}");
+}
+
+#[test]
+fn a_refusal_leaves_where_its_test_fails() {
+    // Grok, scale round 7: ordered comparisons of literals and `not` decide a refusal too.
+    for refusal in ["require 1 > 2 else STOP", "require 1 < 1 else STOP", "require 2 <= 1 else STOP", "require 1 >= 2 else STOP",
+        "require not true else STOP", "require not (1 = 1) else STOP", "require false or 1 > 2 else STOP"] {
+        let source = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {PINNED}\n  else:\n    {refusal}\n  return t first 3 by .at\n");
+        let c = certificate(&source);
+        assert_eq!(c.class, Class::Backlog, "{refusal}: {}", c.line());
+    }
+    for passing in ["require 2 > 1 else STOP", "require 1 <= 1 else STOP", "require not false else STOP", "require 1 < 2 and 2 >= 2 else STOP"] {
+        let source = format!("{EXPIRING}query q(assignee: principal ?):\n  {passing}\n  return t first 3 by .at\n");
+        assert_eq!(certificate(&source).class, Class::Grows, "{passing}");
+    }
+    // A presence refusal the facts in force contradict always refuses.
+    let contradicted = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee = null:\n    require assignee != null else STOP\n    return t first 2 by .at\n  {PINNED}\n");
+    let c = certificate(&contradicted);
+    assert_eq!(classes(&c), vec![("assignee is present".to_owned(), Class::Backlog)], "{}", c.line());
+    // One a call can pass states its facts for what follows.
+    let required = format!("{EXPIRING}query q(assignee: principal ?):\n  require assignee != null else STOP\n  {PINNED}\n");
+    let c = certificate(&required);
+    assert_eq!(classes(&c), vec![("assignee is present".to_owned(), Class::Backlog)], "{}", c.line());
+}
+
+#[test]
+fn not_and_and_or_state_presence_facts() {
+    let reference = certificate(&format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {PINNED}\n  return t first 2 by .at\n"));
+    // Grok, scale round 7: `not (assignee = null)` is `assignee != null`, and a binding holds its test.
+    for (setup, test) in [("", "not (assignee = null)"), ("  known = assignee != null\n", "known"), ("  known = assignee != null\n  copy = known\n", "copy")] {
+        let source = format!("{EXPIRING}query q(assignee: principal ?):\n{setup}  if {test}:\n    {PINNED}\n  return t first 2 by .at\n");
+        let c = certificate(&source);
+        assert_eq!(classes(&c), classes(&reference), "{test}: {}", c.line());
+    }
+    // A test that contradicts itself never holds.
+    let never = certificate(&format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null and assignee = null:\n    return t first 2 by .at\n  {PINNED}\n"));
+    assert_eq!(classes(&never), classes(&reference), "{}", never.line());
+    let mirrored = certificate(&format!("{EXPIRING}query q(assignee: principal ?):\n  if not (assignee != null):\n    return t first 2 by .at\n  {PINNED}\n"));
+    assert_eq!(classes(&mirrored), vec![("assignee is absent".to_owned(), Class::Grows), ("assignee is present".to_owned(), Class::Backlog)], "{}", mirrored.line());
+    // `and` and `or`, which the compiler binds to a temporary, and `not` of them.
+    let args = "query q(assignee: principal ?, status: enum('todo', 'done') ?):\n";
+    let both = vec![("assignee and status are both present".to_owned(), Class::Backlog)];
+    for body in [
+        format!("  if assignee != null and status != null:\n    {BOTH_PINNED}\n  return []\n"),
+        format!("  if assignee = null or status = null:\n    return []\n  {BOTH_PINNED}\n"),
+        format!("  if not (assignee != null and status != null):\n    return []\n  {BOTH_PINNED}\n"),
+        format!("  require assignee != null and status != null else STOP\n  {BOTH_PINNED}\n"),
+        format!("  known = assignee != null and status != null\n  if known:\n    {BOTH_PINNED}\n  return []\n"),
+    ] {
+        let c = certificate(&format!("{STATUSED}{args}{body}"));
+        assert_eq!(classes(&c), both, "{body}: {}", c.line());
+    }
+}
+
+#[test]
+fn a_binding_holds_its_test_only_where_the_walk_knows_it() {
+    let args = "query q(assignee: principal ?, status: enum('todo', 'done') ?, limit: int):\n";
+    // Read before an `and` step, a binding holds its first test, not its last.
+    let early = format!("{STATUSED}{args}  known = assignee != null\n  if known:\n    extra = t where (assignee = null or .assignee = assignee) first 2 by .at\n  if known:\n    known = status != null\n  return []\n");
+    let c = certificate(&early);
+    assert_eq!(classes(&c), vec![("assignee is present".to_owned(), Class::Backlog)], "{}", c.line());
+    // A second pass of a loop reads what the first assigned: the pinned scan can run with the
+    // assignee absent, so it grows.
+    let looped = format!("{STATUSED}{args}  known = assignee != null\n  for k in [1, 2]:\n    if known:\n      extra = t where (assignee = null or .assignee = assignee) first 2 by .at\n    known = status != null\n  return []\n");
+    let c = certificate(&looped);
+    assert_eq!(c.class, Class::Grows, "{}", c.line());
+    // After a branch that may not run, a step inside it may not have happened: the status-pinned
+    // scan can run with the status absent.
+    let branched = format!("{STATUSED}{args}  known = assignee != null\n  if limit > 2:\n    if known:\n      known = status != null\n  if known:\n    extra = t where (status = null or .status = status) first 2 by .at\n  return []\n");
+    let c = certificate(&branched);
+    assert!(c.variants.iter().any(|v| v.when.contains("status is absent") && v.class == Class::Grows), "{}", c.line());
+}
+
+#[test]
+fn code_that_never_runs_keeps_the_lane_bound() {
+    // Grok, scale round 7: a search after the `return` never runs, so the merge keeps its lanes.
+    let schema = "table posts:\n  author: principal\n  by byAuthor: author, id\n  public\n  online only\ntable notes:\n  title: text <=100\n  search title\n  public\n  online only\n";
+    let live = format!("{schema}query q(people: [principal] <=4, needle: text <=100, c: cursor ?):\n  page = merge posts after c first 3 by byAuthor:\n    [p] for p in people\n  return page\n");
+    let dead = format!("{live}  extra = notes matching needle first 2 by .id\n");
+    let (live, dead) = (certificate(&live), certificate(&dead));
+    assert_eq!(live.bounds.lanes, Some(4), "{}", live.line());
+    assert_eq!(dead.bounds.lanes, live.bounds.lanes, "{}", dead.line());
+    assert_eq!(dead.class, Class::Constant, "{}", dead.line());
+}
+
+#[test]
+fn a_sweep_the_job_never_reaches_is_not_the_whole_job() {
+    // Grok, scale round 7.
+    let schema = "table posts:\n  amount: int\n  public\n  online only\n";
+    let sweep = "  for p in posts:\n    update posts[p.id] { amount: p.amount + 1 }\n";
+    let reached = certificate(&format!("{schema}job q():\n{sweep}"));
+    assert!(reached.whole_job.iter().any(|s| s.contains("posts")), "{:?}", reached.whole_job);
+    let skipped = certificate(&format!("{schema}job q():\n  return\n{sweep}"));
+    assert!(skipped.whole_job.is_empty(), "{:?}", skipped.whole_job);
+}

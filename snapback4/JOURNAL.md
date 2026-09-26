@@ -63573,3 +63573,51 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+## 2026-09-26 — Scale certificate precision: every test judged under the facts in force
+
+Grok's review of round 7 left six shapes where the certificate charged work
+that never runs (`issues/closed/20260926-snapback4-scale-certificate-precision.md`).
+None claimed a constant that grows, but each weakened the proof a builder reads.
+Patching them one by one would have added a sixth special case to a walk that
+already had three kinds of `if`, a separate `leaves` pass that did not track
+facts in order, and a `never_holds` for literals. So the walk changed shape.
+
+`body()` now prices a body and returns whether every path through it leaves,
+so there is no second pass to fall out of step. A condition becomes a `Test`:
+known, an argument's presence, or unknown, combined by `not`, `and` and `or`.
+It is judged three-valued under the facts in force. A branch whose facts
+contradict them never runs. What follows runs only after a branch that stays,
+under its facts. A `require` is the same rule: it leaves where its test fails
+and states its facts for what follows. This one rule covers all six shapes and
+the decided `else`. It judges facts in order inside a branch, `require 1 > 2`
+and `require not true`, a presence refusal the facts contradict,
+`not (assignee = null)`, and `and`, `or` and `not` of presence tests.
+
+Two consequences needed care:
+
+- **Facts for every program, variants only where they exist.** Presence facts
+  were computed only when some scan was a planner variant, so a program without
+  one found no dead code. Facts now always decide reachability, and only
+  `when()` is gated, so such a program's certificate still names no variants.
+- **Boolean bindings are flow-sensitive.** The compiler lowers `a and b` to
+  `$b = a; if $b: $b = b`. A whole-program reading of `$b` would have been
+  wrong for a user's own `known = a; if known: …; if known: known = b`, whose
+  first test reads `a`. So a binding holds the test it was given, as far as the
+  walk has reached. After an `if`, every binding either branch reassigned holds
+  none, except the step the `if` itself is. At a loop's start, every binding
+  the body reassigns holds none, since a later pass can carry a value back. Two
+  tests pin the loop and branch cases. Each certified a scan as a cleanup
+  backlog when it can grow.
+
+Also: a dead `matching` no longer clears a live merge's lane bound, and a job
+that returns before its sweep no longer lists it under the whole job. Dead code
+still adds to the allowance, as before. The unused `reassigned` field is gone.
+
+Evidence: eight new tests in `scale_variants.rs` (23 in all), and 23 mutants,
+each killed, among them `<` read as `<=`, `not` keeping its facts, `and`
+dropping its right side, no loop or branch invalidation, and a never-run
+branch counted as staying. The scale, cost, check, expiry and fix targets pass:
+`check` 71, `check_cost_source` 10, `expiry_writes` 32, `fix` 27,
+`following_view` 2, `intent_issue_tracker` 4, `scale` 20, `scale_intent` 7,
+`scale_variants` 23, `scale_windows_expiry` 7.
