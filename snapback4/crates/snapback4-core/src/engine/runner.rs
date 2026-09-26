@@ -159,6 +159,9 @@ pub struct Runner<'a> {
     /// device): a query's result is not `complete`; the compiled execution
     /// fact excludes a mutation with this site from prediction.
     pub(crate) presence_unknown: bool,
+    /// Principals whose `connected[p]` this run read on a server, with the
+    /// connected bit it saw (LLP 3000.017 §3.1).
+    pub(crate) presence_read: BTreeMap<String, bool>,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
     pub(crate) seq: u64,
@@ -250,6 +253,7 @@ impl<'a> Runner<'a> {
             component_observation: false,
             filter_depth: 0,
             presence_unknown: false,
+            presence_read: BTreeMap::new(),
             seq,
             statement_site: String::new(),
             evaluating_write_condition: false,
@@ -954,7 +958,12 @@ impl<'a> Runner<'a> {
                             #[cfg(not(target_arch = "wasm32"))]
                             if !self.device && live > 0 && deadline.is_some() { self.effect_presence.absent = Some(super::presence::Scalar::Count(0)); }
                             Value::int(live as i128).map_err(Into::into)
-                        } else { Value::int(presence.connections(principal) as i128).map_err(Into::into) }
+                        } else {
+                            let open = presence.connections(principal);
+                            // @ref LLP 3000.017#3.1 — a read names the principal whose presence it saw, so a live client can follow it.
+                            self.presence_read.insert(principal.to_owned(), open > 0);
+                            Value::int(open as i128).map_err(Into::into)
+                        }
                     },
                     None => {
                         // Nobody here knows: a device reads everyone as

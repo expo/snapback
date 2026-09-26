@@ -50,6 +50,7 @@ import {
 
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
+import { PresenceFollow } from "./presence-follow.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -817,7 +818,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture) return false;
-      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity);
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, presenceBits.follow(watches.values()));
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
@@ -828,6 +829,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
+      if (json.presence) {
+        presenceBits.observe(json.presence);
+        rerunPresence(Object.keys(json.presence));
+      }
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {
         seq = Math.max(seq, json.seq);
@@ -904,6 +909,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const subscriber of watch.subscribers) subscriber();
   }
 
+  // @ref LLP 3000.017#3.2 — server-answered watches follow the presence they read.
+  const presenceBits = new PresenceFollow();
+  function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
+    watch.presence = new Set(Object.keys(presence ?? {}));
+    rerunPresence(presenceBits.observe(presence), watch);
+  }
+  function rerunPresence(principals: Iterable<string>, except?: Watch) {
+    const moved = new Set(principals);
+    if (!moved.size) return;
+    for (const other of watches.values()) if (other !== except && [...other.presence].some((p) => moved.has(p))) void rerun(other);
+  }
+
   function rerunTables(tables: Set<string>) {
     if (!tables.size) return;
     for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((table) => tables.has(table))) void rerun(watch);
@@ -944,11 +961,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, presence, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
+      followAnswer(watch, presence);
       scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
       if (watch.snapshot !== read) {
         const denied = unavailable(); // Rule 1: immediately before notifying observers.
@@ -1129,7 +1147,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presence: new Set<string>(), subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
         watches.set(key, watch);
         void rerun(watch);
       }

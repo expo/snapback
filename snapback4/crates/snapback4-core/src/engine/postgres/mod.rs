@@ -175,6 +175,7 @@ impl PostgresEngine {
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
             next_expiry: runner.next_expiry.get(),
+            presence: std::mem::take(&mut runner.presence_read),
         };
         drop(runner);
         tx.rollback()?;
