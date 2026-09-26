@@ -294,7 +294,12 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // Dave's progress counts from his join: he has m4 left to fetch, and nothing before it.
     let progress = |engine: &mut Engine, who: &str, now: i64, conversation: &str| engine.query("progress", at(who, now, &[("conversation", id(conversation))])).unwrap().data;
     let next = |p: &Value| -> Vec<i64> { p.field("ahead").unwrap().as_array().unwrap().iter().map(|m| match m.field("ordinal").unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") }).collect() };
-    let watermark = |p: &Value, name: &str| match p.field(name).unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") };
+    // progress returns the member's row; its watermarks count from the join.
+    let watermark = |p: &Value, name: &str| {
+        let member = p.field("member").unwrap();
+        let int = |field: &str| match member.field(field).unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") };
+        match name { "delivered" => int("deliveredOrdinal").max(int("joinedOrdinal")), "seen" => int("seenOrdinal").max(int("joinedOrdinal")), other => int(other) }
+    };
     let dave = progress(&mut engine, "dave", 2_260, "c");
     assert_eq!((watermark(&dave, "delivered"), watermark(&dave, "seen"), next(&dave)), (3, 3, vec![4]), "{dave:?}");
     sent(&engine.mutate("delivered", None, at("dave", 2_300, &run(c(), 4, 4))).unwrap());
@@ -387,6 +392,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     deliver(&mut engine, 6_510, 150, 210);
     let all = every(&mut engine);
     assert_eq!((states(&all, 121, 149), states(&all, 150, 300)), (["sent"].into(), ["delivered"].into()), "a run that meets a stored run merges with it");
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_511, "win")), vec![(101, 120), (150, 300)], "the merged run keeps the stored run's end");
     deliver(&mut engine, 6_520, 1, 100);
     let bob = progress(&mut engine, "bob", 6_521, "win");
     assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (120, vec![(150, 300)]), "catching up folds in the run it meets");
@@ -425,21 +431,41 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("add", None, at("alice", 6_850, &[win(), ("principal", id("bob"))]).with_ids(["xb2".into()])).unwrap());
     let bob = progress(&mut engine, "bob", 6_860, "win");
     assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (480, vec![], vec![]), "a rejoined member has no runs and nothing ahead");
-    // The worst page: 49 recipients, each read against every message on it.
+    // A fetched run above a stored one extends it upward; one that encloses runs takes them in.
+    for n in 481..=520 { say(&mut engine, n); }
+    sent(&engine.mutate("delivered", None, at("bob", 6_870, &run(win(), 490, 495))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_871, &run(win(), 496, 500))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_872, &run(win(), 505, 506))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_873, &run(win(), 510, 512))).unwrap());
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_874, "win")), vec![(490, 500), (505, 506), (510, 512)], "a run just above a stored one extends it");
+    sent(&engine.mutate("delivered", None, at("bob", 6_875, &run(win(), 502, 515))).unwrap());
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_876, "win")), vec![(490, 500), (502, 515)], "an enclosing run takes in every run it covers");
+    // The worst page: 49 recipients with 16 runs each, and a page every one of them
+    // covers from a run, not the prefix. Each receipt seeks one run per member, so the
+    // page stays within the read meter.
     let wide = || ("conversation", id("wide"));
     let people: Vec<String> = (1..=49).map(|n| format!("w{n}")).collect();
     let mut rows = vec![chat("wide"), member("wa", "wide", "alice")];
     rows.extend(people.iter().map(|p| member(&format!("m-{p}"), "wide", p)));
     engine.seed(rows).unwrap();
-    for n in 1..=40 {
+    for n in 1..=80 {
         let row = format!("w-msg-{n}");
         sent(&engine.mutate("send", None, at("alice", 7_000 + n, &[wide(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
     }
-    for (k, p) in people.iter().enumerate() { sent(&engine.mutate("delivered", None, at(p, 8_000 + k as i64, &run(wide(), 1, 30))).unwrap()); }
-    let page = engine.query("history", at("alice", 9_000, &[wide()])).unwrap();
+    for (k, p) in people.iter().enumerate() {
+        let now = 8_000 + 20 * k as i64;
+        sent(&engine.mutate("delivered", None, at(p, now, &run(wide(), 21, 40))).unwrap());
+        for (j, n) in (42..=70).step_by(2).enumerate() { sent(&engine.mutate("delivered", None, at(p, now + 1 + j as i64, &run(wide(), n, n))).unwrap()); }
+    }
+    let (mut cursor, mut page) = (Value::Null, None);
+    for _ in 0..3 {
+        let read = engine.query("history", at("alice", 9_000, &[wide(), ("c", cursor.clone())])).unwrap();
+        cursor = read.next.clone().map(Value::String).unwrap_or(Value::Null);
+        page = Some(read);
+    }
+    let page = page.unwrap();
     let states: Vec<String> = page.data.as_array().unwrap().iter().map(receipt).collect();
-    assert!(page.complete && states.len() == 20, "a page of 20 under 49 recipients completes: {}", page.complete);
-    assert_eq!((states[..10].iter().collect::<std::collections::BTreeSet<_>>(), states[10..].iter().collect::<std::collections::BTreeSet<_>>()), ([&"sent".to_owned()].into(), [&"delivered".to_owned()].into()), "40 to 31 unfetched, 30 to 21 delivered: {states:?}");
+    assert!(page.complete && states.len() == 20 && states.iter().all(|r| r == "delivered"), "ordinals 21 to 40 under 49 members' runs: complete {}, {states:?}", page.complete);
 }
 
 fn compile(source: &str) -> snapback4_lang::Bound {

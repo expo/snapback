@@ -77,7 +77,7 @@ query history(conversation: conversations, c: cursor ?):
 query progress(conversation: conversations, c: cursor ?):
   me = members[conversation, viewer] ! else NOT_MEMBER
   delivered = max(me.deliveredOrdinal, me.joinedOrdinal)
-  return { delivered, seen: max(me.seenOrdinal, me.joinedOrdinal), runs: runs where .conversation = conversation and .principal = viewer { fromOrdinal, throughOrdinal }, ahead: messages where .conversation = conversation and .ordinal > delivered first 100 by .ordinal after c }
+  return { member: me, runs: runs where .conversation = conversation and .principal = viewer, ahead: messages where .conversation = conversation and .ordinal > delivered first 100 by .ordinal after c }
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
@@ -148,21 +148,26 @@ their `runs` one unbroken run above a gap. The client reports every unbroken
 run of settled messages it holds with `delivered(from, through)`: the pages it
 has walked and the page `progress` returns ahead of the delivered prefix. The
 mutation merges a run with every run it meets, and folds it into the prefix
-when it reaches it. So whatever a client fetched is delivered as soon as it is
-reported, however many gaps lie between, and a receipt never claims a message
-the client did not fetch, nor moves back.
+when it reaches it. So whatever a client fetched is delivered once its report
+is recorded, however many gaps lie between, and a receipt never claims a
+message the client did not fetch, nor moves back.
 
-Two things keep every fetched message moving:
+Three things keep every fetched message moving:
 
-- **Catching up.** `progress` answers with the page of at most 100 messages
-  ahead of the prefix, counted from the join, and the next page as the prefix
-  moves, until the client is caught up. It never needs the page's cursor.
-- **Remembering.** The hook keeps each run it has reported until `progress`
-  shows the prefix or a stored run covering it, and reports it again whenever
-  they move, even after its page is gone. A member keeps at most 64 runs; one
-  more waits unrecorded until a merge or catching up frees room. When the
-  lowest run it holds lies above the prefix, the hook also walks older pages
-  it holds, offline too.
+- **Catching up.** `progress` answers with the member's row, their stored runs
+  and the page of at most 100 messages ahead of the prefix, counted from the
+  join, then the next page as the prefix moves, until the client is caught up.
+  It never needs the page's cursor.
+- **Owing.** While mounted, the hook keeps what it has reported, merged into
+  disjoint runs, for this conversation and signed-in client, until the
+  server's own rows cover it; a predicted row covers nothing. It reports what
+  it owes again whenever those rows move, even after a page is gone. When the
+  lowest run it holds lies above the prefix, it walks older pages it holds,
+  offline too.
+- **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
+  its report still succeeds; the hook owes it until a merge or catching up
+  frees room. After a remount, what the pages and the page ahead still hold is
+  reported again, and catching up delivers the rest.
 
 `seen` records the newest message on screen, online or offline. A message is
 `read` for a recipient once it is delivered and `seen` reaches it. Every
@@ -177,39 +182,49 @@ offline, and a covered report writes nothing. A predicted row carries
 acknowledged:
 
 ```ts
-import { useEffect, useRef } from "react";
-import { useClient, usePage, useQuery } from "snapback4/react";
+import { useEffect, useMemo } from "react";
+import { useClient, usePage, useQuery, useViewer } from "snapback4/react";
 import { api } from "./snapback/generated/api";
+// Runs and ordinals, merged into disjoint unbroken runs, lowest first.
+function runsOf(runs: [number, number][], ordinals: number[]) {
+  const all = [...runs, ...ordinals.map((n): [number, number] => [n, n])].sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const [from, through] of all) {
+    const last = merged[merged.length - 1];
+    if (last && from <= last[1] + 1) last[1] = Math.max(last[1], through); else merged.push([from, through]);
+  }
+  return merged;
+}
 function useReceipts(conversation: string, visible: boolean) {
   const client = useClient();
+  const viewer = useViewer();
   const page = usePage(api.history, { conversation });
   const progress = useQuery(api.progress, { conversation });
   const mine = "data" in progress ? progress.data : null;
-  // Every unbroken run of settled messages held: the pages walked and the page ahead.
-  const held = [...page.items, ...(mine ? mine.ahead : [])].filter(m => !m.pending).map(m => m.ordinal).sort((a, b) => a - b);
-  const runs: [number, number][] = [];
-  for (const n of held) {
-    const last = runs[runs.length - 1];
-    if (last && n <= last[1] + 1) last[1] = Math.max(last[1], n); else runs.push([n, n]);
-  }
-  // Report each run until the prefix or a stored run covers it, even after its page is gone.
-  const reported = useRef(new Map<string, [number, number]>());
-  const state = mine && JSON.stringify([mine.delivered, mine.runs, runs]);
+  const member = mine ? mine.member : null;
+  // What it holds (the pages walked, the page ahead) and still owes, for this
+  // conversation and signed-in client, until the server's own rows cover it.
+  const owed = useMemo(() => ({ runs: [] as [number, number][] }), [client, viewer, conversation]);
+  const held = [...page.items, ...(mine ? mine.ahead : [])].filter(m => !m.pending).map(m => m.ordinal);
+  const runs = runsOf(owed.runs, held);
+  const prefix = member && !member.pending ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
+  const stored = mine ? mine.runs.filter(r => !r.pending) : [];
+  const state = mine && JSON.stringify([prefix, stored, runs]);
   useEffect(() => {
     if (!mine) return;
-    for (const run of runs) reported.current.set(run.join("-"), run);
-    for (const [name, [from, through]] of reported.current) {
-      if (through <= mine.delivered || mine.runs.some(r => r.fromOrdinal <= from && through <= r.throughOrdinal)) reported.current.delete(name);
-      else void client.mutate(api.delivered, { conversation, from, through });
-    }
-  }, [client, conversation, state]); // eslint-disable-line react-hooks/exhaustive-deps
+    owed.runs = runs.map(([from, through]): [number, number] => [prefix === null ? from : Math.max(from, prefix + 1), through])
+      .filter(([from, through]) => from <= through && !stored.some(r => r.fromOrdinal <= from && through <= r.throughOrdinal));
+    for (const [from, through] of owed.runs) void client.mutate(api.delivered, { conversation, from, through });
+  }, [client, conversation, owed, state]); // eslint-disable-line react-hooks/exhaustive-deps
   // Walk older pages while the lowest run held lies above the prefix.
-  const short = !!mine && runs.length > 0 && runs[0][0] > mine.delivered + 1;
+  const floor = member ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
+  const lowest = runsOf([], held)[0];
+  const short = floor !== null && lowest !== undefined && lowest[0] > floor + 1;
   useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
   // A view needs no watermark first: seen only moves forward.
   const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
   const newest = settled.length ? Math.max(...settled) : 0;
-  const shown = mine ? mine.seen : null;
+  const shown = member ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;
   useEffect(() => {
     if (visible && newest > 0 && (shown === null || newest > shown)) void client.mutate(api.seen, { conversation, through: newest });
   }, [client, conversation, visible, shown, newest]);

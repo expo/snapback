@@ -112,9 +112,9 @@ test("React hooks and reference-app lifetimes", async (t) => {
 const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
   .match(/function useExpiringRows[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
-  .match(/function useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
+  .match(/function runsOf[\s\S]*?\n}\nfunction useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
-import { StrictMode, act, useEffect, useRef, useState, createElement as h } from "react";
+import { StrictMode, act, useEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
@@ -221,15 +221,19 @@ const api = { history: { kind: "query", name: "history" }, progress: { kind: "qu
 ${receiptsRecipe}
 const ordinals = (from, to) => Array.from({ length: from - to + 1 }, (_, n) => ({ ordinal: from - n }));
 const ascending = (from, to) => Array.from({ length: to - from + 1 }, (_, n) => ({ ordinal: from + n }));
-const progressOf = (delivered, seen, ahead, runs = [], flags = {}) => ready({ delivered, seen, runs: runs.map(([fromOrdinal, throughOrdinal]) => ({ fromOrdinal, throughOrdinal })), ahead }, null, flags);
+// progress: the member's row, their stored runs (a third element marks a predicted run) and the page ahead.
+const progressOf = (delivered, seen, ahead, runs = [], flags = {}, member = {}) => ready({
+  member: { deliveredOrdinal: delivered, joinedOrdinal: 0, seenOrdinal: seen, ...member },
+  runs: runs.map(([fromOrdinal, throughOrdinal, pending]) => ({ fromOrdinal, throughOrdinal, ...(pending ? { pending: true } : {}) })), ahead }, null, flags);
 function receiptsClient(history, progress) {
   const client = controlled(args => "c" in args ? history.get(args.c) : progress);
   client.acks = [];
-  client.mutate = (op, args) => { client.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through); return Promise.resolve(sent("ack")); };
+  client.calls = [];
+  client.mutate = (op, args) => { client.calls.push({ op: op.name, ...args }); client.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through); return Promise.resolve(sent("ack")); };
   return client;
 }
 const stream = client => active(client).find(record => !("c" in record.args));
-function Receipts({ visible }) { useReceipts("c1", visible); return null; }
+function Receipts({ visible, conversation = "c1" }) { useReceipts(conversation, visible); return null; }
 const acked = client => [...new Set(client.acks)];
 const cases = {
   async "the receipts card reports every run it holds, catches up a page at a time, and sees what is on screen"() {
@@ -256,21 +260,40 @@ const cases = {
     check(back.acks.filter(ack => ack === "delivered:231-250").length === once, "a stored run is not sent again: " + JSON.stringify(back.acks));
     await unmount();
   },
-  async "the receipts card remembers a run until it is stored, and walks the pages it holds"() {
+  async "the receipts card owes a run until the server's own rows cover it, and walks the pages it holds"() {
     const pages = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
     const waiting = receiptsClient(pages, progressOf(0, 0, [], [[101, 150]]));
     await mount(h(Receipts, { visible: false }), waiting);
     const sends = () => waiting.acks.filter(ack => ack === "delivered:161-181").length;
     check(sends() >= 1, "a run above a stored one is reported: " + JSON.stringify(waiting.acks));
-    // Its page is replaced; the run is still reported when the stored runs move, the prefix unchanged.
+    // Its page is replaced; the run is still owed when a stored run moves, the prefix unchanged.
     const first = active(waiting).find(record => record.args.c === null);
     await act(async () => first.set(ready(ordinals(250, 231), "p2")));
     let before = sends();
     await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 160]])));
-    check(sends() === before + 1, "a remembered run is reported again when a stored run moves: " + JSON.stringify(waiting.acks));
+    check(sends() === before + 1, "an owed run is reported again when a stored run moves: " + JSON.stringify(waiting.acks));
+    // A predicted run, or a predicted member row, covers nothing.
+    before = sends();
+    await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 160], [161, 181, true]])));
+    await act(async () => stream(waiting).set(progressOf(200, 0, [], [], {}, { pending: true })));
+    await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 160]])));
+    check(sends() >= before + 2, "a predicted cover never settles what is owed: " + JSON.stringify(waiting.acks));
     before = waiting.acks.length;
     await act(async () => stream(waiting).set(progressOf(0, 0, [], [[101, 181], [231, 250]])));
-    check(waiting.acks.length === before, "and never once it is stored: " + JSON.stringify(waiting.acks));
+    check(waiting.acks.length === before, "nothing is sent once the server stores it all: " + JSON.stringify(waiting.acks));
+    await unmount();
+    // While a run is owed, another conversation and another signed-in client owe nothing of it.
+    const scoped = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
+    const one = receiptsClient(scoped, progressOf(0, 0, [], [[101, 150]]));
+    await mount(h(Receipts, { visible: false }), one);
+    check(one.calls.some(call => call.conversation === "c1" && call.from === 161), "the run is owed: " + JSON.stringify(one.calls));
+    scoped.set(null, ready(ordinals(250, 231), "p2"));
+    await render(h(Receipts, { visible: false, conversation: "c2" }), one);
+    check(one.calls.some(call => call.conversation === "c2" && call.from === 231), "the other conversation reports what it holds: " + JSON.stringify(one.calls));
+    check(!one.calls.some(call => call.conversation === "c2" && call.from === 161), "and nothing the first owed: " + JSON.stringify(one.calls));
+    const other = receiptsClient(scoped, progressOf(0, 0, [], [[101, 150]]));
+    await render(h(Receipts, { visible: false }), other);
+    check(!other.calls.some(call => call.from === 161), "another client owes nothing of the first: " + JSON.stringify(other.calls));
     await unmount();
     // Offline past its synced window: the page ahead lies above a gap, so the hook walks the pages it holds.
     const offline = receiptsClient(new Map([[null, ready(ordinals(600, 581), "p2", { fresh: false, since: 50 })], ["p2", ready(ordinals(580, 561), "p3", { fresh: false, since: 50 })], ["p3", { loading: true }]]),
@@ -278,6 +301,15 @@ const cases = {
     await mount(h(Receipts, { visible: true }), offline);
     for (const ack of ["delivered:101-200", "delivered:581-600", "delivered:561-600", "seen:600"]) check(offline.acks.includes(ack), ack + " reported: " + JSON.stringify(offline.acks));
     check(active(offline).filter(record => "c" in record.args).length === 3, "the walk goes on through the pages held");
+    await unmount();
+    // At capacity, a walk through 25 held pages owes one growing run, not every page's run again.
+    const deep = new Map(Array.from({ length: 25 }, (_, k) => [k === 0 ? null : "p" + k, ready(ordinals(600 - 20 * k, 581 - 20 * k), k === 24 ? null : "p" + (k + 1))]));
+    const full = receiptsClient(deep, progressOf(0, 0, [], Array.from({ length: 64 }, (_, k) => [2 + 2 * k, 2 + 2 * k])));
+    await mount(h(Receipts, { visible: false }), full);
+    check(active(full).filter(record => "c" in record.args).length === 25, "the walk reaches the last page held");
+    const reports = full.acks.filter(ack => ack.startsWith("delivered")).length;
+    check(reports <= 60, "reports stay linear in the pages walked: " + reports);
+    check(full.acks.includes("delivered:101-600"), "the whole walked run is owed as one: " + JSON.stringify(full.acks.slice(-3)));
     await unmount();
   },
   async "the receipts card claims nothing it did not fetch, acknowledges an arriving message, and records a view first"() {
@@ -297,7 +329,7 @@ const cases = {
     await mount(h(Receipts, { visible: false }), live);
     equal(live.acks, [], "a caught-up member reports nothing");
     await act(async () => stream(live).set(progressOf(20, 0, [{ ordinal: 21 }])));
-    equal(acked(live), ["delivered:1-21"], "an arriving message is acknowledged");
+    equal(acked(live), ["delivered:21-21"], "an arriving message is acknowledged, from above the prefix");
     await unmount();
     const early = receiptsClient(new Map([[null, ready([{ ordinal: 21, pending: true }, ...ordinals(20, 1)])]]), { loading: true });
     await mount(h(Receipts, { visible: true }), early);
