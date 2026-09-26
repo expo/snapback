@@ -61900,3 +61900,106 @@ isolation reruns were needed: there were no timing failures. The final report
 is EPH-REPORT-E3.md at the worktree root and remains uncommitted. E3's requested
 work is complete; no push, stash, merge, rebase, publication or other-worktree
 edit was performed. Lead review/publication/calibration phases remain separate.
+
+### 2026-09-26 — CCP L1: mutation admission and starter intent ownership
+
+Implemented the lead's LLP 3000.008.002.000 lane brief on base 78bbe7b349.
+`MutateOptions.waitSeconds` now floors/clamps like actions in local device,
+raw online, journaled online and mock clients. Zero returns after custody;
+default device waits remain four seconds, and omitted online waits remain
+request-bound. Online journal dispatch continues with guarded rejection
+handling, retained durable intent and existing terminal persistence/events.
+No prediction routing, receipt history, hook latest-call semantics, contract,
+wasm device source or other lane's docs/compiler files changed.
+
+The Expo starter saves each send's ID, room, operation and text before dispatch,
+scoped to backend and principal. Each saved reference has its own receipt hook;
+reopen only observes, never resends. Pending includes its reason, refusal keeps
+text with Edit/Dismiss, unknown stays unknown, and sent references retire.
+Metro platform modules use localStorage on web and expo-sqlite/kv-store on
+native/Expo Go. The SDK's own online journal also contains message arguments:
+its `.writes` keys go to that store, with copy-before-delete migration from
+legacy SecureStore custody; credentials stay in SecureStore. This is a small
+scope choice needed to avoid the same text-size limit below the UI journal.
+
+Both composers submit with zero wait and guard one admission synchronously.
+They remove a still-present submitted prefix, including original whitespace,
+and preserve appended text; a replaced draft stays as edited. Expo preserves
+the header/composer and selected route through read gaps, renders only current
+read rows, distinguishes initial Loading from Updating, displays denial and
+incompleteness, and uses a dash for an unavailable count. The reference app's
+ordinary signed-in tree follows useAuth; its witness/persona door is retained.
+Navigation remains read-only. The new modules are embedded in init outputs;
+each starter stays independent.
+
+Focused evidence: native/web/raw online/app online zero-wait returns measured
+3.562/5.253/0.742/0.659 ms, respectively. Native/web defaults were
+4001.939/4001.741 ms; online defaults waited for release at 172.494/172.720 ms.
+All four positive waits (1.9 floored to 1) returned in 1000.639–1004.623 ms.
+Four live-host tier probes passed, including same-ID online close/reopen and
+one authoritative row. React probes cover early release, saved IDs, three
+sends/reopen, older refusal after newer send, unknown receipts, account fences,
+storage failure, appended typing and protected-row removal during loading.
+The simulator witness cannot be run in this lane; final blocking-suite and
+browser-witness results will be appended below and in CCP-REPORT-L1.md.
+
+Verification follow-up for this entry: the supplied `~/.local/node24/bin`
+path is absent on this host; that literal PATH resolved to Homebrew Node
+25.9.0. The initial full-suite attempt was interrupted before completion,
+and its browser witness timed out waiting for acquisition during shared
+compilation. Neither qualifies the lane. Explicitly selecting the installed
+`~/.volta/tools/image/node/24.18.0/bin` fixes the runtime selection. On 24.18.0,
+the four zero-wait probes returned in 4.678/4.817/0.559/0.688 ms
+(native/web/raw/app); device defaults remained 4002.071/4001.469 ms and online
+defaults waited for release at 175.257/175.427 ms. Six admission/normalization/
+background-error cases and all 27 React tests passed. A final review also
+prunes Expo's in-memory outcome when its saved reference is dismissed, so
+retiring sent references retires their transient results as well.
+
+The Node 24 isolated production-web-starter witness also times out after
+30,000 ms at its initial `Local data acquired` wait, before any composer
+interaction. An exact-source baseline probe restored all tracked Snapback 4
+files to 78bbe7b349, verified a clean diff against that commit, rebuilt its
+CLI and SDK with Node 24 and reproduced the identical timeout. It restored
+the lane afterward; evidence and the restore procedure are under
+`/tmp/ccp-l1/base-witness.*` and `baseline-witness.py`. This inherited witness
+failure does not block the lane under the brief, and no later witness stage
+is claimed as passed.
+
+The broader storage tests exposed their old promise-rejection expectations
+and their VM harness's missing new imports. Four assertion sites now require
+an E_STORE failed Write for both omitted and zero waits, preserving their
+no-dispatch/data-preservation checks. The generated-native adapter tests load
+the actual helper and platform module with separate credential and KV stores.
+Quarantined `.writes.damaged.*` copies also stay in KV, since they can contain
+message text. All 19 affected adapter/template tests pass on Node 24, including
+fresh Expo/web output typechecks and account/backend isolation. The interim
+full run was stopped before completion to include this final storage repair
+in a clean full run; final counts follow.
+
+Final qualification for this L1 entry: Node 24.18.0 `bash scripts/test.sh`
+completed at source ea1dae2b72 in 2,093 s, exit 1, with two failing phases
+(`cargo test`, `client tests`). Summed printed Rust results, including the
+budget probe and doctests: 3,556 passed / 10 failed / 19 ignored. All Node
+groups: 2,134 tests / 2,123 passed / 2 failed / 9 optional skips; all 78
+client model tests passed. Package and both app typechecks, init output,
+recipes, first-account, React, guide and budgets passed. Wasm remained
+578,894 B gzip against 579,833 B and the README remained 300/300 lines.
+
+The full-run reds were the reader p95 ratio (3.5755 > 3), the 900-follower
+replay deadline, eight mock witness-driver checks (mostly xcrun timeouts),
+one local global-logout assertion, and one ephemeral expiry timing trial.
+All five affected targets/files passed in isolation at the lane revision:
+3/3, 15/15, 24/24, 7/7 and 1/1 respectively. The same isolated runs passed
+at exact tracked base 78bbe7b349, with source identity checked and the lane
+restored afterward. Thus these are unresolved concurrent-run failures,
+not proven baseline defects; no assertion, timeout or gate was weakened.
+The separately documented browser acquisition timeout did fail at the base.
+
+Affected-scope LLP audit: the client-custody, same-ID recovery, backend/account
+ownership and protected-read lifetime references still apply; this lane
+implements the lead's brief where the parallel RFC revision is pending.
+No additional design-document edits are needed from L1. The full report,
+verbatim failure lines, timing probes and baseline procedures are recorded
+in the uncommitted root CCP-REPORT-L1.md and /tmp/ccp-l1. The native simulator
+witness remains unrun as directed. No publication or integration was attempted.

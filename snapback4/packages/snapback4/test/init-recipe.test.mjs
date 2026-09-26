@@ -68,3 +68,64 @@ test("Removed search recipe gets the ordinary unknown-recipe refusal", (t) => {
   assert.equal(removed.stderr, "usage: snapback4 init [dir] [--online|--expo|--web]\n");
   assert.deepEqual(snapshot(dir), before);
 });
+
+// Exercise the exact modules emitted by init. They own UI references only:
+// reopening enumerates IDs and never invokes a mutation.
+for (const starter of ["expo", "web"]) test(`CCP ${starter} generated intent transitions`, async t => {
+  const { tmpdir } = await import("node:os");
+  const ts = (await import("typescript")).default;
+  const dir = mkdtempSync(join(tmpdir(), `ccp-${starter}-`));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const result = spawnSync(binary, ["init", `--${starter}`], { cwd: dir, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const source = readFileSync(join(dir, "src/intents.ts"), "utf8");
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+  const values = new Map(); let fails = false, viewer = "alice", dispatches = 0;
+  const storage = { getItem: key => values.get(key) ?? null, setItem(key, value) { if (fails) throw Error("disk full"); values.set(key, value); }, removeItem: key => values.delete(key) };
+  if (starter === "web") {
+    const old = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+    t.after(() => { if (old) Object.defineProperty(globalThis, "localStorage", old); else delete globalThis.localStorage; });
+  }
+  const client = { viewer: () => viewer, link: () => "online" };
+  const open = (url = "https://one.invalid", account = "alice") => starter === "web" ? new mod.ViewState(client, url, account)
+    : new mod.IntentJournal(storage, url, account, () => viewer === account);
+  const entries = journal => { const saved = journal.read(); return Array.isArray(saved) ? saved : saved.intents; };
+  const intent = n => starter === "web" ? { id: `id-${n}`, room: "room", operation: "send" }
+    : { id: `id-${n}`, room: "room", op: "send", body: `text ${n}` };
+  const journal = open(); let draft = "kept draft";
+  fails = true;
+  assert.throws(() => { journal.remember(intent(0)); dispatches++; draft = mod.clearSubmitted(draft, draft); }, /disk full/);
+  assert.equal(dispatches, 0); assert.equal(draft, "kept draft"); assert.equal(values.size, 0);
+  fails = false;
+  for (let n = 1; n <= 3; n++) { journal.remember(intent(n)); dispatches++; }
+  const reopened = open();
+  assert.deepEqual(entries(reopened).map(i => i.id), ["id-1", "id-2", "id-3"]);
+  assert.equal(dispatches, 3, "opening never resubmits");
+  assert.equal(mod.clearSubmitted("hello next", "hello"), " next");
+  assert.equal(mod.clearSubmitted("new draft", "hello"), "new draft");
+  assert.equal(mod.clearSubmitted(" hello ", " hello "), "");
+  assert.deepEqual(entries(open("https://other.invalid")), []);
+  viewer = "bob"; assert.deepEqual(entries(open("https://one.invalid", "bob")), []);
+  assert.throws(() => journal.remember(intent(4)), /no longer active/);
+  if (starter === "expo") {
+    const old = new Map([["sdk.writes", "legacy intent"]]);
+    const credentials = { get: async key => old.get(key) ?? null, set: async (key, value) => { old.set(key, value); }, delete: async key => { old.delete(key); } };
+    const custody = mod.withIntentStorage(credentials, storage);
+    fails = true; await assert.rejects(custody.get("sdk.writes"), /disk full/);
+    assert.equal(old.get("sdk.writes"), "legacy intent", "failed migration retains old custody");
+    fails = false; assert.equal(await custody.get("sdk.writes"), "legacy intent");
+    assert.equal(old.has("sdk.writes"), false); assert.equal(values.get("sdk.writes"), "legacy intent");
+    await custody.set("sdk.writes.damaged.abc", "preserved intent");
+    assert.equal(old.has("sdk.writes.damaged.abc"), false);
+    assert.equal(values.get("sdk.writes.damaged.abc"), "preserved intent");
+    await custody.set("sdk.session", "token"); assert.equal(old.get("sdk.session"), "token");
+    assert.equal(values.has("sdk.session"), false, "credentials stay in their store");
+    assert.match(mod.intentOutcome(undefined), /^Outcome unknown/);
+    const failed = { state: "failed", id: "id-1", why: { message: "A refused after B" } };
+    assert.equal(mod.intentOutcome(failed), "A refused after B");
+    viewer = "alice"; assert.equal(entries(reopened)[0].body, "text 1");
+    assert.match(mod.intentOutcome({ state: "pending", id: "id-2", reason: "no predicted row" }), /Queued on this device: no predicted row/);
+  }
+});

@@ -3,7 +3,7 @@ import { mintId } from "snapback4/client";
 import type { Write } from "snapback4/contract";
 import { useLink, usePendingWrite } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
-import { ViewState, type Intent } from "./state.ts";
+import { ViewState, clearSubmitted, type Intent } from "./intents.ts";
 
 export function Composer({ conversationId, view, canCompose = true }: { conversationId: string; view: ViewState; canCompose?: boolean }) {
   const link = useLink();
@@ -14,18 +14,19 @@ export function Composer({ conversationId, view, canCompose = true }: { conversa
   const [problem, setProblem] = useState<string>();
   const [busy, setBusy] = useState(false);
   const revision = useRef(0);
-  const lifetime = useRef({ active: true });
+  const lifetime = useRef({ active: true, admitting: false });
   useEffect(() => {
-    const owner = { active: true };
+    const owner = { active: true, admitting: false };
     lifetime.current = owner;
     return () => { owner.active = false; };
   }, [view, conversationId]);
   const dispatch = async (operation: Intent["operation"]) => {
     const owner = lifetime.current;
-    if (!owner.active || !view.current() || !canCompose || busy) return;
+    if (!owner.active || !view.current() || !canCompose || owner.admitting) return;
     const text = body.trim();
     if (operation === "send" && !text) return;
     const submitted = revision.current;
+    const submittedBody = body;
     const intent = { id: mintId(), room: conversationId, operation };
     const current = () => owner.active && view.current();
     try {
@@ -33,18 +34,18 @@ export function Composer({ conversationId, view, canCompose = true }: { conversa
       // leaves an unknown receipt, never an app-owned retry or a fresh ID.
       view.remember(intent);
       setIntents(saved => [...saved, intent]);
-      setBusy(true);
+      owner.admitting = true; setBusy(true);
       setProblem(undefined);
       const outcome = operation === "send"
-        ? await view.client.mutate(api.send, { conversationId, body: text }, { id: intent.id })
-        : await view.client.mutate(api.markRead, { conversationId }, { id: intent.id });
+        ? await view.client.mutate(api.send, { conversationId, body: text }, { id: intent.id, waitSeconds: 0 })
+        : await view.client.mutate(api.markRead, { conversationId }, { id: intent.id, waitSeconds: 0 });
       if (!current()) return;
       setOutcomes(saved => ({ ...saved, [intent.id]: outcome }));
-      if (operation === "send" && outcome.state !== "failed" && submitted === revision.current) { revision.current++; setBody(""); }
+      if (operation === "send" && outcome.state !== "failed") { revision.current++; setBody(current => clearSubmitted(current, submittedBody)); }
       if (operation === "send" && outcome.state === "failed" && submitted !== revision.current) setUnsent(saved => [...saved, { id: intent.id, body: text, message: outcome.why.message }]);
     } catch (error) {
       if (current()) setProblem(`Could not confirm this write. Keep the draft and check its receipt before sending again. ${String(error)}`);
-    } finally { if (current()) setBusy(false); }
+    } finally { if (current()) { owner.admitting = false; setBusy(false); } }
   };
   const dismiss = (id: string) => {
     if (!view.current()) return;

@@ -93,3 +93,28 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
     await client.close(); assert.equal(await client.write(id), undefined, "closing fences the retained outcome");
   });
 }
+
+test("CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal", async t => {
+  const memory = memorySessionStore(), errors = [];
+  let failStore = false;
+  const store = { ...memory, async set(key, value) { if (failStore) throw Error("disk full"); await memory.set(key, value); } };
+  const raw = { viewer: () => "alice", onWrite: () => () => {},
+    mutate: async () => { throw Error("transport exploded"); }, write: async () => undefined,
+    close: async () => {}, signOut: async () => {} };
+  trackDispatch(raw, { store: "test-store" });
+  const { client } = await onlineCustody(raw, "https://admission.invalid", store, error => errors.push(error));
+  t.after(() => client.close());
+  const op = { kind: "mutation", name: "write" };
+  const pending = await client.mutate(op, { body: "kept" }, { waitSeconds: 0 });
+  assert.equal(pending.state, "pending"); await delay(0);
+  assert.equal(errors.length, 1); assert.equal((await client.write(pending.id)).state, "pending");
+  failStore = true;
+  const failed = await client.mutate(op, { body: "not kept" }, { waitSeconds: 0 });
+  assert.equal(failed.state, "failed"); assert.equal(failed.why.code, "E_STORE");
+});
+
+test("CCP mutation waits use the action clamp and preserve omitted defaults", async () => {
+  const { mutationWaitSeconds } = await import("../dist/writes.js");
+  for (const [input, expected] of [[undefined, undefined], [0, 0], [-2, 0], [.9, 0], [1.9, 1], [26, 25], [NaN, 25], [Infinity, 25], [-Infinity, 25]])
+    assert.equal(mutationWaitSeconds(input), expected);
+});
