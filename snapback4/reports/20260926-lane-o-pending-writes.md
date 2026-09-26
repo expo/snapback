@@ -592,3 +592,160 @@ matching exit records. The baseline source/build are retained from round 1.
 Local evidence is under `target/lane-o-r2-evidence/`: `affected.log`,
 `typecheck.log`, `full-test.log`, `full-test.exit`, and the named mutation
 preloads/logs/exit records. Nothing was pushed or published.
+
+## Round 3 — 2026-09-26
+
+Read the lane prompt, prior report, and both round-2 blind reviews in full.
+All findings are accepted; none is disputed. Three implementation commits:
+
+- `0276dc934` — stop dispatch after a subscriber ends the client.
+- `aa57ce6b2` — expire unsaved holds when another owner advances intent status.
+- `294cb664b` — cancel refused exit markers and verify acknowledgement cleanup.
+
+Each includes `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### Repairs, file by file
+
+Paths are relative to `snapback4/`.
+
+| Finding | Files and resulting behavior |
+| --- | --- |
+| Astra Medium: shutdown during dispatch notification | `packages/snapback4/src/client.ts` rechecks closed state, credentials, store refusal, rotation and credential revision after synchronous dispatch notification, immediately before fetch. `src/local.ts` rechecks closed/session/rotation/revision after ordinary begin_send and after exit notification. The subscriber can unsubscribe and call signOut or close; no new transport starts. Existing admitted custody remains intact. |
+| Astra Low: unsaved hold masks newer peer status | `src/app-journal.ts` adds an optional, validated per-intent status revision. Each successful dispatch binding assigns a new opaque revision, including sent-to-sent retries. `src/app-online.ts` also changes that revision when persisting a hold, binds unsaved fallback to the dispatch revision, and discards it when a shared journal read finds a newer revision or settlement. Dispatch revisions are retained only for live custody and cleared on terminal notification/pause. Old journals without the field still load. |
+| Grok Low: denied or throwing exit begin_send leaves evidence | `src/web.ts` cancels successful capture when device.call throws or started.denied is present and returns false before scheduling status persistence or starting keepalive. `src/web-journal.ts` removes the id's synchronous exit record and stagedExits entry. |
+| Both: surviving mutations | `test/web-navigation.test.mjs` exercises denied/throwing device calls next to failed setItem, and checks durable acknowledgement absence after a later drain and reopen alongside synchronous marker cleanup. The acknowledgement-removal implementation was already correct; its missing assertion is now present. |
+| Documentation | `packages/snapback4/CLIENT-AND-OPERATIONS.md` states shutdown-at-dispatch behavior and peer supersession of unsaved holds. This report and one dated, append-only `JOURNAL.md` entry record round 3. |
+
+### Public forms and regression evidence
+
+No public spelling changed. The existing forms compile and run together:
+
+```ts
+const write = await client.mutate(api.send, { conversationId, body: "hello" }, {
+  id: savedId, waitSeconds: 0,
+});
+const pending = await client.pendingWrites();
+const stop = client.onPendingWrites(() => { void client.pendingWrites().then(render); });
+stop();
+```
+
+```tsx
+const sends = usePendingWrites(api.send);
+const all = usePendingWrites();
+```
+
+- `test/pending-writes.test.mjs`: six added real-server cases, online/wasm/process
+  × signOut/close. The listener acts synchronously on dispatch notification,
+  after admission; no POST starts, no server row appears, and the caller keeps
+  pending custody. The fixture exposes its real cores to identify this boundary.
+- `test/web-navigation.test.mjs`: two added real-server pagehide cases with
+  ordinary begin_send blocked. The dispatch listener unsubscribes and signs out
+  or closes; no keepalive or ordinary POST starts, and no server row appears.
+  Two added transient begin_send cases return denied or throw after successful
+  capture: marker removal is immediate, copies of both persisted stores reopen
+  queued before any healing drain, and a later original-device drain changes
+  neither outbox, send revision nor staged acknowledgements. The existing failed
+  setItem case retains its assertions. The stalled-save variants now prove that the
+  durable exit acknowledgement survives when synchronous cleanup is blocked,
+  then is removed after cleanup, a later drain and reopening.
+- `test/app-online.test.mjs`: extend the two-owner storage-failure case. A keeps
+  held/E_BUSY through one failed hold save and three failed retry bindings. While
+  A's storage still fails, B dispatches the same intent, then persists held/E_RATE;
+  A reports sent and then held/E_RATE even though its raw queue retains E_BUSY.
+  B's retry settles the head; repairing A's storage sends the original tail next.
+
+Focused regressions: **14/14**, no skips. Broader affected verification:
+**146/146**, no skips, covering app-online, pending-writes, web-navigation,
+client-lifecycle, online-session and local-signout. Package build and typecheck
+passed. `git diff --check` passed; changed sources remain below 1,500 lines
+(`local.ts`: 1,487).
+
+Mutation trials used Node module-loader substitutions without changing source
+or generated package artifacts:
+
+| Mutation | Result and killed assertion |
+| --- | --- |
+| beginSend ignores started.denied | **0 pass / 1 fail**: failed exit dispatch must prevent keepalive. |
+| Remove durable exit acknowledgement deletion | **0 pass / 2 fail**: a later drain must remove durable exit acknowledgements after synchronous cleanup. |
+| Remove exit cancellation | **0 pass / 2 fail**: denied/throwing begin_send must cancel its captured marker. |
+| Ignore per-intent status revision changes | **0 pass / 1 fail**: another owner's dispatch must supersede the unsaved hold while A's saves still fail. |
+| Remove final online and exit shutdown checks | **4 pass / 4 fail**: both raw-online and both pagehide cases reject the newly started POST/keepalive. The local ordinary cases retain their existing sendPost shutdown fence. |
+
+### Constraints, measurement and open problems
+
+The full script rebuilt wasm at **2,023,103 B raw / 581,523 B gzip**, unchanged
+from rounds 0–2, with **571 B** headroom against the unchanged **582,094 B**
+budget. No Rust runtime, meter, diagnostic, package version or other lane changed.
+
+No scope deviation and no unfixed review finding. The new status revision is an
+opaque client-minted token rather than a shared numeric counter; equality detects
+supersession without overflow or clock-order assumptions. It is presentation
+metadata on the existing intent, with no change to FIFO, ids or receipts.
+
+The scoped llp-orient pass used the installed fallback at
+`lane-z/vendor/llp/skills/llp-orient/SKILL.md`, as in earlier rounds. Constraints:
+LLP 3000 §4's fence; LLP 2000.000 §7.2–7.3's outbox and identity; LLP 3000.013
+§6's custody; LLP 3000.007 §17 and §20.4's receipt/recovery rules; LLP 3000.019
+§3.3 part 4's list; LLP 3000.008.002.000 §3's bounded wait. The current guide's
+write semantics still apply. No supervisor-owned design change was needed.
+
+Historical limitations remain: pre-0.4.4 records without dispatch/sequence
+evidence cannot distinguish an old unknown POST from a never-sent write (interrupt
+an old-client POST, upgrade, inspect before replay). Other owners/reloads cannot
+recover a hold code storage never saved (fail A's hold save, inspect B before
+any newer status). The two inherited timing races and native port-collision
+reproductions remain recorded in rounds 1–2 for the integration owner.
+
+### Required full script
+
+Ran `bash scripts/test.sh` **once**, at implementation commit `294cb664b`,
+with source unchanged throughout. Its literal summary is
+**`== 1 failure(s) in 1077 s`**, exit **1**, failed step **`client tests`**.
+There was no complete-suite rerun.
+
+- Cargo/wasm/package builds, typecheck, release guard, docs budget, fixture
+  wrappers and both app typechecks passed.
+- Rust targets and workspace doctests passed (**594 s**); the complete guide
+  target passed **86/86**, with no failures or ignored tests.
+- Main client invocation: **2,212 tests; 2,199 passed; 3 failed; 10 existing
+  optional/host skips** (**194 s**). The three failures are two assertions plus
+  the failed parent of the browser assertion. All ten added round-3 cases and
+  all strengthened regressions passed.
+- Client models: **78/78**, no skips (**268 s**), with unchanged seeded counts.
+- Round 1's identity-cancellation and session-restoration races, and round 2's
+  native port-collision case, all passed in this full run.
+
+| Failure | Classification, evidence and remaining uncertainty |
+| --- | --- |
+| `test/web-admission-review.test.mjs`, “hiding during strict admission releases the session lock before transport and peer logout” | **Known inherited intermittent assertion.** `exitLocks.every(depth => depth === 0)` failed at line 314 (“transport entered under the session lock”); its parent “web admission review: recovery and transport respect the session boundary” is the third reported failure. Astra's round-2 review independently reproduced this exact assertion with `992cec75c` sources substituted in memory. This round's focused lane and exact baseline-source browser runs each pass (one child plus parent, **2/2**). The test is byte-identical to `992cec75c`. It records onSuspend callback depth, before the local transport guard; the failure alone does not prove an HTTP request started under the lock. The existing scheduling failure remains open for integration. |
+| `test/residency.test.mjs`, “server-class watches run locally first and recover remembered server data offline” | **Newly observed intermittent failure in inherited query code; exact cause unresolved.** Its 8-second wait at line 134 did not observe `fresh === false` (“offline watch downgrades the remembered answer”). The test, local query/read/observation/request code, and setLink/sendPost query behavior are unchanged. This case submits no client mutation and has no pending-write subscriber, so round 3's dispatch, hold and exit repairs do not execute on its query path. The unchanged assertion passes alone on this lane and on `992cec75c` (**2/2 combined**), and eight concurrent baseline probes each pass (**8/8**). Those passes do not establish the exact race; no deterministic standalone reproduction was found. Reproduce the observed context by running the full suite on the shared host; it is intermittent, not claimed to fail every run. |
+
+No affected round-3 product test failed and no post-suite product repair was
+needed. Only the two failed cases were rerun; no assertion was weakened. Both
+full-run failures remain explicitly open, and passing focused checks do not
+turn the full result green. The saved baseline uses its exact package sources
+with the same host, dependencies, binary and wasm. For its Chromium case, this
+round added the exact `992cec75c` witness helper and package manifests to the
+existing ignored baseline archive and reused installed dependencies.
+
+Focused reproduction commands from `snapback4/`, with the prompt's PATH:
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='server-class watches run locally first' \
+  packages/snapback4/test/residency.test.mjs \
+  target/lane-o-r1-evidence/baseline-992cec75c/snapback4/packages/snapback4/test/residency.test.mjs
+SNAPBACK4_WEB_ADMISSION_FOCUS='hiding during strict admission' \
+  node --test packages/snapback4/test/web-admission-review.test.mjs
+SNAPBACK4_WEB_ADMISSION_FOCUS='hiding during strict admission' \
+  node --test target/lane-o-r1-evidence/baseline-992cec75c/snapback4/packages/snapback4/test/web-admission-review.test.mjs
+```
+
+The focused commands above passed in this round. Their logs are
+`residency-isolated.log`, `admission-isolated.log`, `admission-baseline.log`;
+the eight parallel baseline runs have `residency-baseline-concurrent-N.log`
+and exit records. `residency-baseline-diff.txt` records the source comparison.
+
+Local evidence: `target/lane-o-r3-evidence/`, including `regressions.log`,
+`affected.log`, `affected.exit`, `typecheck.log`, `build.log`, `full-test.log`,
+`full-test.exit`, and the named mutation preloads/logs/exit records. Nothing was
+pushed or published.

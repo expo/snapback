@@ -63714,3 +63714,53 @@ and the round-2 section of
 [the lane report](reports/20260926-lane-o-pending-writes.md) are the durable
 record; local evidence is under `target/lane-o-r2-evidence/`. Nothing was
 pushed or published.
+
+## 2026-09-26 — Lane O round 3: dispatch shutdown, peer status and exit cleanup
+
+Read both round-2 blind reviews in full and accepted every finding. Commits
+`0276dc934`, `aa57ce6b2` and `294cb664b` recheck closed/session/credential fences
+after dispatch notification on both clients and the exit path; bind runtime-only
+unsaved holds to the intent's persisted status revision so a newer peer dispatch
+or hold supersedes them; and cancel captured exit records plus staged entries
+when begin_send refuses or throws. The existing durable acknowledgement removal
+now has assertions after a later drain and reopen. The client reference documents
+shutdown during notification and peer supersession. No public spelling changed.
+
+Fourteen focused regressions and all 146 affected tests passed, with no skips.
+Ten new cases cover real-server dispatch subscribers that sign out/close on
+online, wasm and process clients, both pagehide shutdown paths, and transient
+exit device denial/throw. Copied stores reopen queued after failed exit starts;
+a later drain preserves the original outbox/send revision and stores no staged
+acknowledgement. The two-owner outage now drives B's dispatch and held/E_RATE
+while A's failed-save E_BUSY remains in its raw queue. FIFO settlement is intact.
+Both requested mutants fail: ignoring started.denied (0/1) and omitting durable
+acknowledgement removal (0/2). Removing cancellation, revision supersession or
+final shutdown checks also fails the corresponding regressions. Mutation loaders
+changed neither source nor generated package artifacts.
+
+Ran bash scripts/test.sh once at `294cb664b`, without source changes during the
+run. Exact result: `== 1 failure(s) in 1077 s`, exit 1, failed step `client tests`.
+Rust targets/doctests passed (594 s), the full guide passed 86/86, builds and all
+budgets/typechecks/fixtures passed, and all 78 models passed (268 s). The main
+client run had 2,212 tests: 2,199 passed, three failed, ten existing optional skips
+(194 s). All round-3 regressions passed. No complete-suite rerun was performed.
+
+The failures are two assertions plus the browser assertion's parent. The known
+inherited strict-admission/session-lock assertion, already reproduced at baseline
+by Astra's round-2 review, failed again; lane and baseline focused browser runs
+both pass. The newly observed residency assertion waited eight seconds for an
+offline remembered answer to become fresh:false. Its test and query path are
+unchanged, and it invokes none of round 3's dispatch/hold/exit paths. It passes
+alone on this lane and baseline and in eight concurrent baseline probes; its
+exact race remains unresolved. Both remain open for integration, with the exact
+assertions, source comparison, focused commands and logs in the report. No
+assertion was weakened or post-suite product fix needed. The earlier identity,
+session-restoration and native port-collision cases all passed in this run.
+
+Wasm remains 2,023,103 B raw / 581,523 B gzip, 571 B below the unchanged 582,094 B
+budget. No Rust runtime, meter, diagnostic, package version, other release lane,
+push or publication changed. There is no scope deviation or unfixed review
+finding; old records without dispatch evidence and holds never saved retain their
+previous information limits. The round-3 section of
+[the lane report](reports/20260926-lane-o-pending-writes.md) and local evidence in
+`target/lane-o-r3-evidence/` record the work and the full red result.
