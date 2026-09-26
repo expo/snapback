@@ -83,6 +83,32 @@ test("a composed read's refusal removes no answer a later read remembered", asyn
   assert.equal(early.get(key)?.read.data, "meanwhile", "a composed read does not erase a later read's answer");
 });
 
+test("a composed read's refusal at a later cut removes an older answer a later read remembered", async () => {
+  const answers = new RememberedAnswers();
+  const key = `read:${JSON.stringify({})}`;
+  const env = reading(answers, { call: async () => retained, reply: () => { answers.view().set(key, answer("cut 8"), 8); return refused(9); } });
+  const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
+  assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
+  assert.equal(answers.get(key), undefined, "the refusal read at cut 9 is newer, though its read began first");
+});
+
+// The other composition: a field the device retains beside one only the server knows.
+const fields = { ok: { data: { own: 1, kept: 2 }, unknown: true, complete: false, components: { own: { unknown: true }, kept: { retained: true, complete: true } }, tables: [] } };
+
+test("a composed answer takes its place in the order, so an older answer that lands later loses", async () => {
+  for (const [name, observation] of [["retained rows", retained], ["a retained field", fields]]) {
+    const answers = new RememberedAnswers();
+    const key = `read:${JSON.stringify({})}`;
+    // A later read begins while this one is out, and evaluates first, at cut 8; this one reads at cut 9.
+    let later;
+    const env = reading(answers, { call: async () => observation, reply: () => { later = answers.view(); return { data: name === "a retained field" ? { own: 9, kept: 9 } : [{ id: "server" }], complete: true, seq: 9 }; } });
+    const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
+    assert.equal(result.read.fresh, false, `${name}: the answer is composed: ${JSON.stringify(result.read)}`);
+    later.set(key, answer("cut 8"), 8);
+    assert.equal(answers.get(key), undefined, `${name}: the answer read at cut 8 is older than the composed one`);
+  }
+});
+
 test("a composed read's whole answer is not remembered", async () => {
   const answers = new RememberedAnswers();
   const key = `read:${JSON.stringify({})}`;

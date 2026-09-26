@@ -59447,3 +59447,14 @@ lost on its ticket, both composed-read paths through `evaluateLocal`, and a
 refusal carrying `seq` and an older `head`. Of nine mutants, one survived: a
 composed read's whole answer could be remembered with no test noticing, a gap
 older than this round. A case now requires that nothing is remembered.
+
+## 2026-09-26 — Live presence round 13: a composed answer is ordered too
+
+Astra's round-12 review found the last path around the order. A composed
+answer (retained rows beside the server's page, or a retained field beside
+the server's) was published without its cut and wrote nothing to the order.
+So an older answer that landed after it was remembered, and a later outage
+showed that older answer. Both composition branches now carry the server's
+cut, and publishing a composed answer is an ordered deletion, as a composed
+refusal already was. New cases cover a composed answer of each kind against
+an older answer that lands later, and a composed refusal at a later cut.
