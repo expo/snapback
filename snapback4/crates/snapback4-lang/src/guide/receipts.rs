@@ -162,7 +162,8 @@ Three things keep every fetched message moving:
   disjoint runs, for this conversation and signed-in client, until the
   server's own rows cover it, even before `progress` first answers; a
   predicted row covers nothing. It sends a run when the run is new or grows,
-  and again only when those rows move, even after a page is gone. When the
+  and again only when those rows move, even after a page is gone; a report the
+  client could not keep (`E_ADMISSION`) goes again with the next answer. When the
   lowest run it holds lies above the prefix, it walks older pages it holds,
   offline too.
 - **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
@@ -222,9 +223,12 @@ function useReceipts(conversation: string, visible: boolean) {
       if (from > through || stored.some(([low, high]) => low <= from && through <= high)) { owed.delete(name); continue; }
       if (entry.tried === coverage) continue;
       entry.tried = coverage;
-      void client.mutate(api.delivered, { conversation, from, through });
+      void client.mutate(api.delivered, { conversation, from, through }).then(write => {
+        // Nothing was kept (storage unavailable): owe it again, and send it with the next answer.
+        if (write.state === "failed" && write.why.code === "E_ADMISSION" && entry.tried === coverage) entry.tried = null;
+      });
     }
-  }, [client, conversation, owed, holding, coverage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [client, conversation, owed, holding, coverage, progress]); // eslint-disable-line react-hooks/exhaustive-deps
   // Walk older pages while the lowest run held lies above the prefix.
   const floor = member ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
   const lowest = runsOf([], held)[0];

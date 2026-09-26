@@ -298,6 +298,22 @@ const cases = {
     for (let k = 1; k < 25; k++) await act(async () => top().set(ready(ordinals(1000 - 20 * k, 991 - 20 * k), "p2")));
     const calls = capped.acks.filter(ack => ack.startsWith("delivered")).length;
     check(calls <= 30, "25 disjoint runs take about 25 reports, not one per run per arrival: " + calls);
+    for (let k = 0; k < 25; k++) check(capped.acks.includes("delivered:" + (991 - 20 * k) + "-" + (1000 - 20 * k)), "run " + k + " was reported: " + JSON.stringify(capped.acks.slice(-5)));
+    await unmount();
+    // A report the client could not keep is sent again with the next answer, and only then.
+    const failing = receiptsClient(new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]), progressOf(0, 0, [], [[101, 150]]));
+    let refuse = true;
+    failing.mutate = (op, args) => {
+      failing.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
+      if (refuse) { refuse = false; return Promise.resolve({ state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } }); }
+      return Promise.resolve(sent("ack"));
+    };
+    await mount(h(Receipts, { visible: false }), failing);
+    const once = failing.acks.filter(ack => ack === "delivered:161-181").length;
+    await act(async () => stream(failing).set(progressOf(0, 0, [], [[101, 150]])));
+    check(failing.acks.filter(ack => ack === "delivered:161-181").length === once + 1, "an unkept report goes again with the next answer: " + JSON.stringify(failing.acks));
+    await act(async () => stream(failing).set(progressOf(0, 0, [], [[101, 150]])));
+    check(failing.acks.filter(ack => ack === "delivered:161-181").length === once + 1, "and a kept one does not: " + JSON.stringify(failing.acks));
     await unmount();
     // While a run is owed, another conversation and another signed-in client owe nothing of it.
     const scoped = new Map([[null, ready(ordinals(181, 161), "p2")], ["p2", { loading: true }]]);
