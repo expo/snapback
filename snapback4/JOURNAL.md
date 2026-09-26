@@ -63161,3 +63161,56 @@ from round 0, under the unchanged 582,094 B budget. Node 24.13.1 and Bun 1.3.14;
 eight Cargo build jobs, dev/test debug info disabled. Evidence remains locally
 under `target/lane-k-round1-evidence/`. No production client, engine, meter,
 contract, syntax, diagnostic or version changes; no push or publication.
+
+## 2026-09-26 — Lane K round 2: applications explicitly keep answers during reload
+
+Implemented the supervisor's LLP 3000.019 §3.3 revision 4 as supplied in the
+round-2 instruction. `useQuery(op, args, { keep: true })`, `usePage(op, args,
+{ keep: true })`, and `client.observe(op, args, { keep: true })` retain the
+last published data with `fresh: false` and its existing freshness age while
+a re-read loads. A new answer or refusal replaces it. Default observations
+keep their withdrawal behavior, and all 14 earlier membership/ownership
+guards remain unchanged. Kept and default watches are separate; an opted-in
+watch retains its last answer for 30 seconds after its last subscriber leaves,
+scoped by operation, arguments, viewer and store incarnation, and immediately
+re-reads on remount. This presentation memory is separate from the ordered
+remembered-server-answer cache. Existing commit/publication fences stand;
+credential/viewer changes, sign-out, store/adoption resets and close discard
+kept memory. Existing expiry and ephemeral resets still withdraw active reads.
+The application facade forwards the option without bypassing its own fence.
+
+The guide, README and client reference state the trade-off: a kept answer can
+still show rows a revocation withdrew until the re-read lands. Real wasm and
+process tests deliberately retain that revoked answer while holding the new
+read, then require its replacement. Added 53 tests across publication/cache
+policy, real-device commits and resets, online notifications/receipts,
+remount expiry, obsolete responses and Chromium hooks. The browser case keeps
+the same input and unsent draft while pages reload. Implementation and evidence
+commits are `93562adc7`, `156952fd5` and `3313ce90d`; the last freezes the test
+clock before retirement to make the exact 30-second boundary deterministic.
+
+Measured: affected run 125 passed, 0 failed; the subsequently extended
+publication/online test file passed 23 tests; whole guide 85 passed; ref-check
+passed. Wasm remains 2,021,689 B raw / 581,094 B gzip (delta 0 B), below the
+unchanged 582,094 B budget. The required, unmodified `scripts/test.sh` ran
+**once**, with eight Cargo build jobs and dev/test debug info disabled:
+**`== 1 failure(s) in 985 s`**, exit **1**, failed group `client tests`.
+Its only failure was introduced here: the new client-reference TypeScript
+example lacked imports and its conversation-id argument. Fixed as a
+self-contained custom hook in `33711234b`; the exact affected example harness
+then passed all 5 tests (28 blocks, 46 public functions). The full script was
+not repeated per the once-only instruction. No baseline/environmental failure
+occurred in it, and no green final full-suite result is claimed.
+
+The full run passed all 53 new retention tests and all 14 unchanged withdrawal
+guards. Rust: 3,572 passed, 0 failed, 19 ignored. Main client batch: 2,190 passed,
+1 failed (the repaired example), 10 existing skips; other client shards passed.
+Models: 78 passed, 0 failed. No known product defect or unresolved affected
+failure remains. Full report and reproduction/repair commands are in
+[`reports/20260926-lane-k-answers-stay.md`](./reports/20260926-lane-k-answers-stay.md),
+round 2; logs are in `target/lane-k-round2-evidence/`.
+
+No interpreter, wire, authorization, meter, version or wasm-budget change;
+no outbox work, push or publication. The supervisor-owned RFC in this checkout
+still has its earlier wording; the explicit revision-4 instruction governed
+this implementation. Previous journal entries are untouched.

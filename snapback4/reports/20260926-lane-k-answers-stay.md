@@ -267,3 +267,186 @@ behavior was relaxed. The orientation skill was read from the installed
 The tests and counterexample were committed as `9b587ae59`; the final
 qualification and journal are recorded in the following documentation commit.
 No push or publication.
+
+## Round 2 — 2026-09-26: explicit application keep
+
+Implemented the supervisor's revision 4 supplied in the round-2 instruction.
+The default remains the conservative withdrawal behavior, and the 14 round-0
+and round-1 guards are unchanged. Applications can now opt into retaining a
+published answer while its replacement is loading. No push or publication.
+
+### Built, file by file
+
+Paths below are relative to `snapback4/`.
+
+- `packages/snapback4/src/contract.ts`: additive `ObserveOptions` and the
+  optional third `Client.observe` argument, with the display trade-off stated
+  beside `Read`. No change to the read union, wire or engine authorization.
+- `packages/snapback4/src/read-observation.ts`: explicit keep preserves data
+  through loading, marks it stale with its existing freshness age, and accepts
+  a new answer or refusal. Reset bypasses keep and fences the pending fetch.
+  A reset version also protects asynchronous local publication.
+- `packages/snapback4/src/kept-answers.ts`: shared observation ownership and
+  30-second idle memory. Kept and default watches have distinct keys;
+  operation/arguments are scoped to viewer/store incarnation. The last
+  unsubscribe or close stores an opted-in answer; remount consumes it and
+  immediately re-reads. Timers release entries, deadline checks enforce expiry
+  even if timers are suspended, and resets clear all entries. This memory is
+  independent of the ordered remembered-server-answer cache.
+- `packages/snapback4/src/local-reads.ts`: ordinary `apply`, `admit` and
+  `settle` keep only opted-in snapshots while advancing the existing revision.
+  The same commit still clears remembered server recovery. Other resets also
+  discard idle memory.
+- `packages/snapback4/src/local.ts`: wire those decisions into the existing
+  synchronous committed hook; preserve store/adoption/exit/reset invalidation;
+  clear kept memory on credential changes, sign-out and close. Local re-reads
+  cannot publish an answer from before a reset. Shared ownership extraction
+  reduces this source from 1,511 to 1,488 lines.
+- `packages/snapback4/src/client.ts`: opt-in stale publication during online
+  refetches, the same idle memory, immediate credential/viewer/store/adoption
+  resets, and preservation of expiry withdrawal and existing sequence fences.
+- `packages/snapback4/src/react.tsx`: optional third argument on `useQuery`
+  and `usePage`; each page passes the option to its observation, and changing
+  the option creates the appropriate resource. Round-0 loaded-prefix behavior
+  remains unchanged.
+- `packages/snapback4/src/app-client.ts`: forward the option through the
+  guarded application client; its lifetime fence still withdraws data.
+- `packages/snapback4/CLIENT-AND-OPERATIONS.md`, `packages/snapback4/README.md`
+  and `crates/snapback4-lang/src/guide/reads.rs`: document the option, idle
+  lifetime, resets and explicit risk of displaying revoked rows until the
+  re-read lands. Correct former unconditional claims about online retention.
+- `crates/snapback4-lang/tests/fixtures/guide-fact-homes.json`: update the
+  existing `reads-06` fact to the revised guide text. No new inventory or gate.
+- `packages/snapback4/test/keep-observation.test.mjs`: 23 publication/cache,
+  online-client and app-facade tests, detailed below.
+- `packages/snapback4/test/keep-device.test.mjs`: 17 tests on real stores and
+  the real server, including the online remount case.
+- `packages/snapback4/test/keep-reset.test.mjs`: 12 real-device reset tests
+  with controlled network replies.
+- `packages/snapback4/test/react.test.mjs`: one additional Chromium case for
+  both hooks, editor identity/draft, pagination, option changes and resets.
+- `reports/20260926-lane-k-answers-stay.md`: this round-2 report.
+- `JOURNAL.md`: one dated round-2 entry recording implementation and final
+  qualification; prior entries are untouched.
+
+### Forms that compile and run
+
+```tsx
+// Keep a screen mounted while an existing query re-reads.
+const inbox = useQuery(api.inbox, {}, { keep: true });
+// Keep each loaded page while re-reading and keep the ready prefix during load-more.
+const thread = usePage(api.thread, { conversationId }, { keep: true });
+// The same application choice without React.
+const watch = client.observe(api.inbox, {}, { keep: true });
+// Existing forms retain their current meaning.
+const ordinary = useQuery(api.inbox, {});
+```
+
+A retained answer can contain rows whose read authority has already been
+revoked. It is a stale presentation of a previously published result, not a
+new engine authorization decision. The server and device still evaluate
+replacement reads under the current rules. A refusal replaces the data;
+a later re-read of that refusal can use the normal loading state.
+
+### Tests and evidence
+
+- Real wasm and process devices: `apply`, predicted `admit` and `settle`
+  publish no loading between a published answer and its replacement. A
+  simultaneous default watch still withdraws; options cannot leak between
+  subscribers. Replacement data, null and a program refusal are exercised.
+- Explicit revocation record: applied membership removal and predicted leave
+  retain the previous private answer during the held re-read. Applied removal
+  checks that the real device already reads null. Releasing the read replaces
+  the answer with null (or the fixture's explicit `HIDDEN` refusal).
+- All three clients: last-subscriber ownership, immediate remount re-read,
+  `fresh: false`/`since`, operation/argument/option isolation, 29,999 ms reuse,
+  30,000 ms expiry, sign-out of active and idle data. The unit clock also proves
+  the expiry timer physically removes memory, independent of a deadline check.
+- Real wasm and process stores: adoption, replacement, credentials, viewer
+  change, sign-out and close withdraw active and idle answers while reads are
+  held. Replacement/adoption must commit on the real device. Local commit
+  tests separately cover `clear_rows` and `settle_exit` through the exact
+  `LocalReads.committed` policy used by the production callback; adoption and
+  store reset use its unconditional clear path.
+- Online client: mutations and change notifications, next answer/refusal,
+  active/idle resets for adoption, replacement, same-store regression,
+  credentials, viewer, sign-out and close; expiry withdrawal; app-facade
+  forwarding and retirement. Online equivalents are notification and receipt
+  invalidations: this tier has no device `apply`/`admit`/`settle` calls.
+- Publication order: held obsolete evaluations never replace the kept answer
+  after a newer commit, on the real wasm/process devices and online. Existing
+  default publication and remembered-answer guards remain passing.
+- Chromium: both hooks keep the editor and unsent draft mounted during a
+  mutation re-read; two loaded pages stay while the third loads. A refusal,
+  disabling keep, and sign-out replace the retained display.
+
+The affected run passed **125 tests, 0 failed, 0 skipped**. After adding the
+app-facade and explicit online-expiry cases, their targeted file passed
+**23 tests, 0 failed, 0 skipped**. The whole guide suite passed **85 tests,
+0 failed, 0 ignored**. Package build passed. `./ref-check --verbose` passed:
+**512 LLP docs, 9,437 refs in 26,796 files, 0 errors, 0 unchecked**.
+
+### Decisions, deviations and open problems
+
+- No functionality was stopped in round 2. The additive `Client.observe`
+  option is the necessary non-React entry point for both requested hooks;
+  application guards forward it without bypassing their checks.
+- Freshness age uses the existing wall-time semantics. A previously unknown
+  `since` remains unknown; no server timestamp is invented for an incomplete
+  offline answer. Existing expiry and ephemeral resets of active watches
+  continue to withdraw answers.
+- The checkout's supervisor-owned LLP 3000.019 still has the original §3.3
+  text. The user's explicit revision-4 instruction governs this work; this
+  lane does not rewrite the supervisor's RFC. Source annotations target §3.3.
+- The compiler has no separate `client` card in this tree: the client-facing
+  read guide is `guide reads`, updated alongside the package client guide and
+  README. Its existing fact-home fixture now follows the revised statement.
+- Implementation orientation used the installed `llp-orient` skill from
+  `/home/ccheever/lanes/enginefix/vendor/llp`, since the lane's link is broken.
+  No additional agent work was delegated.
+- No new Quarry syntax or diagnostic, no interpreter/meter change, no wasm
+  budget increase, no outbox work, and no version change. No push or publish.
+
+Commits: `93562adc7` (implementation, documentation and focused tests),
+`156952fd5` (real-device and Chromium evidence), `3313ce90d` (freeze the
+remount test clock before retirement, so its exact boundary is independent of
+host scheduling; applied before the full suite entered its client group). All
+carry the requested co-author trailer. Final suite evidence and journal follow in a documentation
+commit.
+
+### Round-2 final qualification
+
+- Required `scripts/test.sh`, run **once**, unmodified, completed with:
+  **`== 1 failure(s) in 985 s`**, exit **1**. Failed group: **`client tests`**.
+- Its sole failed test was **`README TypeScript examples compile and call
+  every public function`**. Classification: **introduced by this lane**.
+  The new `CLIENT-AND-OPERATIONS.md` snippet omitted imports for `useQuery`,
+  `usePage` and `api`, and did not declare `conversationId` (five TypeScript
+  diagnostics in that one test). No baseline or environmental full-suite
+  failures occurred.
+- Fixed in **`33711234b`** by making the example a self-contained custom hook.
+  From `snapback4/`, `node --test packages/snapback4/test/readme-examples.test.mjs`
+  now passes **5 tests, 0 failed, 0 skipped**, including compilation of **28
+  blocks** covering calls to **46 public functions**. This is the exact
+  reproducer of the failure before that commit and the passing repair check.
+  The full script was **not repeated**, honoring the once-only instruction;
+  no green full-suite result for the final tree is claimed.
+- Full-run Rust: **3,572 passed, 0 failed, 19 ignored**. Whole guide:
+  **85 passed, 0 failed**. Main client batch: **2,201 tests, 2,190 passed,
+  1 failed, 10 existing skips**; all separate client shards passed. Models:
+  **78 passed, 0 failed, 0 skipped**. **All 53 newly added retention tests and
+  all 14 unchanged round-0/round-1 withdrawal guards passed in the full run.**
+- Full-run wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B**, below
+  the unchanged **582,094 B** budget. Package typecheck/build, app checks,
+  documentation budget, release guard and fixture wrapper checks passed.
+- Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+  `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`.
+- Logs: `target/lane-k-round2-evidence/test-sh.log`, `test-sh.exit`, and
+  `readme-repair.log`. The repair check must run from the Snapback 4 workspace;
+  an initial invocation from the repository root could not resolve Node type
+  declarations and was corrected by using that documented working directory.
+
+No known product defect or unresolved failed affected test remains. The
+qualification limitation is explicit: the sole full run is red from the
+subsequently repaired documentation example. The supervisor still owns
+integration of the revised RFC. No push or publication was performed.
