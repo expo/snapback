@@ -64851,3 +64851,96 @@ or redesigned; added the review's missing timer-clamping evidence. No engine,
 authorization, meter, outbox, public API/syntax, version or budget change.
 No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
 no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.
+
+## 2026-09-26 — 0.4.4 lane LT: the server knows its own p95
+
+Implemented LLP 3000.019 §3.7 on `sb4-intent/lt-latency`, from `cfa35e161`.
+The HTTP host records query, mutation and action paths, sync, change polls,
+and asset upload/download in fixed histogram pairs, with counts, refusals,
+nearest-rank p50/p95/p99 and exact maxima. Each operation's statistics use
+7,720 bytes, plus its name/map entry. The 480 integer logarithmic buckets
+cover zero through every u64 nanosecond value, including 10 µs to 10 minutes,
+with at most 5% relative percentile error; no samples or row data are retained.
+Invalid operation names share three fixed entries. Successful adoption keeps
+surviving entries and drops retired names, bounding the registry by the active
+program and seven fixed entries.
+
+Acceptance is timestamped in the vendored HTTP parser after headers and before
+body prebuffering. Total ends at response write/flush; a streamed asset's later
+one-view bookkeeping is excluded. Wait ends at the first engine acquisition,
+including authentication; a request that never acquires it has zero wait.
+Later acquisitions remain in total. One separate mutex records the sample;
+recording never acquires the engine. Refusals include top-level denials, failed
+write/action envelopes, HTTP errors and failed/aborted transports, but not
+nested user data or incomplete reads. These are HTTP request timings, including
+held polls and action pending responses, not asynchronous handler durations.
+Reset excludes requests accepted before the new window, even if they finish
+later. Timings use monotonic time and a real Unix-millisecond `since`, independent
+of the development clock.
+
+Added `/dev/latency` and dev-only `/dev/latency/reset`. Dev inspection does not
+take the engine; production inspection uses the existing live service-token
+check, which still acquires the engine for authentication. Ordinary doctor
+shows the three slowest observed total p95s and the worst wait; `--latency`
+shows every entry, `--json` emits the snapshot, and `--latency --reset` starts a
+new window. Reset is bound to the store identity doctor inspected, so a reused
+listener port cannot reset another store's metrics. Doctor uses HTTP/1.0 for
+its bounded close-only reader: an audit found that snapshots above 32 KiB
+otherwise use chunked framing. The added 300-operation regression proves both
+read and reset past that threshold. The bounds card owns the command recipe;
+its lead and Quarry blocks remain unchanged. No new diagnostic code.
+
+Targeted evidence: nine histogram/HTTP regressions pass, including 200,000
+random samples, all bucket boundaries, bounded unknown names, request counts
+and logical refusals, held-engine attribution with independent inspection,
+in-flight reset, service authorization and expiry, admission refusal, and
+successful asset streams plus range refusal. Two real-process CLI tests pass;
+the final HTTP-framing fix also passes all four existing adoption/doctor
+regressions. Whole guide: 86/86. Both ignored measurement tests were explicitly
+run and passed. One million recordings measured 81.4 ns/request. Alternating
+2,000 real HTTP reads per mode measured off p50/p95 269.364/376.144 µs and on
+270.185/373.280 µs: median +0.821 µs (0.30%), with no visible p95 regression on
+this fixture. This shared-host measurement is not a latency guarantee.
+
+Required `scripts/test.sh` ran once, unmodified: `== 2 failure(s) in 1372 s`,
+exit 1. Both failures are retained as failures:
+
+- **wasm build — baseline on this host.** The before-change build and required
+  suite both measured 2,025,652 B raw / 582,552 B gzip, 458 B over the unchanged
+  582,094 B budget. Delta: 0 B raw and gzip; identical wasm SHA-256
+  `14fe563acc6ce7743674b034f7d0a7a2914cad172db7e18b8dc5e1d4abe98a64`.
+  Reproduce with `bash scripts/build-wasm.sh` from `snapback4/` on this toolchain.
+- **client tests — baseline timing-sensitive assertion.**
+  `ephemeral-watches.test.mjs:86`, online "mounting interest reissues a held poll,
+  invalidates without sync, and refetches at expiry", observed 559.575638 ms
+  against 500 ms. The earlier lane K round-6 journal entry records the same
+  unchanged assertion failing at 500.435240 ms and an independent 510.5 ms
+  failure. Reproduce the contention-sensitive condition through `scripts/test.sh`;
+  `node --test packages/snapback4/test/ephemeral-watches.test.mjs` then passed
+  unchanged, 6/6, in isolation. No assertion or product behavior was weakened.
+
+Full Rust: 3,672 passed, zero failed, 21 ignored (878 s), including guide 86/86.
+Main client batch: 2,376 passed, one failed, ten existing skips; all seven
+separate acquisition/server shards passed. Models: 78/78 (258 s). Native build,
+release guard, package typecheck/build, chat/Expo typechecks and fixture tests
+passed. The large-snapshot fix was made while that full run was in progress;
+its final CLI and adoption tests above qualify the final transport change.
+No introduced failure or separate environmental failure was observed.
+Evidence is in `target/lane-lt-evidence/`, including the exact full output and
+exit status, before-change wasm result, targeted runs and measurements. Node
+24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt; eight Cargo
+build jobs, dev/test debug info disabled. Restored only the fixture lockfile
+version rewrite produced by the suite.
+
+Inherited discovery limitation, reproduced: start `snapback4 dev --fresh
+--no-watch --port 4400` in a fresh project, then `snapback4 doctor --latency
+--json` there. Doctor exits 1 because `--fresh` has no persisted-store lifetime
+lock; `GET http://127.0.0.1:4400/dev/latency` works. The guide records this and
+the HTTP alternative. No discovery redesign, asynchronous action/job timing,
+client API, execution meter, authorization, durability or device change; no
+budget/version change, push or package publication. The unavailable
+`skills/llp-orient` symlink was replaced by direct orientation in the supplied
+rules, governing LLPs, bounds card and server sources, without delegating work.
+Implementation commits: `f5bc3daab`, `e4fc2cb27`, `3714a34bd`, with the requested
+GPT-6 Astra co-author trailer. Final evidence/documentation follows in this
+entry's commit; the supervisor owns integration and blind review.
