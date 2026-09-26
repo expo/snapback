@@ -1,3 +1,4 @@
+import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
@@ -237,6 +238,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
+  const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
+    link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
+    unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
+
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
@@ -374,6 +379,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    ephemeral.linkChanged();
     if (next !== "online") {
       identityChecked = false;
       for (const watch of watches.values()) {
@@ -1149,7 +1155,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         },
       };
     },
-    mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+    mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
       const unavailableWhy = unavailable();
       if (unavailableWhy) {
@@ -1202,7 +1208,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         finally { clearTimeout(timer); settled.delete(id); }
         })();
       });
-    },
+    }),
     async write(id) {
       if (unavailable()) return undefined;
       const entry = (await queued()).find(entry => entry.id === id);

@@ -1,3 +1,4 @@
+import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission } from "./admission.ts";
 import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
@@ -138,6 +139,10 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
+  const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
+    link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
+    unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
+
   const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
   let sending: (typeof pending)[number] | null = null;
 
@@ -180,6 +185,7 @@ export function createClient(options: ClientOptions): Client {
     if (closed || storeRefusal || (!credentials && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") {
       void flush();
@@ -655,7 +661,7 @@ export function createClient(options: ClientOptions): Client {
         },
       };
     },
-    mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+    mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
       if (closed || !credentials || link === "signed-out" || storeRefusal) {
         const failed = { state: "failed" as const, id, why: storeRefusal ?? (closed ? ended() : auth()) };
@@ -678,7 +684,7 @@ export function createClient(options: ClientOptions): Client {
         if (outcome.state === "pending" && closed) { await closingResponses.done; return entry.response.write(outcome); }
         return outcome;
       });
-    },
+    }),
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
     acquired: false,
     onAcquired: () => () => {},
