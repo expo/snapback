@@ -238,6 +238,23 @@ fn moved_range_keeps_existing_residual_and_second_page() {
     assert!(rows.iter().all(|r| r.field("ordinal").unwrap().as_int().unwrap() > 0 && r.field("sender").unwrap() == &id("alice")));
 }
 
+fn two_sided_range(upper: &str) {
+    let original = format!("messages[conversationId, ordinal > 1, ordinal {upper}] first 2 by byOrdinal after c where .sender = viewer");
+    // The seed has ordinals 0 and 1 below, 2/3/4 inside, and 5/6 above.
+    // The inside rows require continuation and differ in time/ordinal order.
+    let repaired = same_population(&named().replace(PAGE, &original), &original, true);
+    let rows = drain(&mut engine(&repaired), true);
+    assert_eq!(ids(&rows), ["c", "b", "d"]);
+    assert!(repaired.contains(&format!(".ordinal {upper}")));
+    assert!(rows.iter().all(|row| (2..=4).contains(&row.field("ordinal").unwrap().as_int().unwrap())));
+}
+
+#[test]
+fn two_sided_range_keeps_strict_upper_bound_across_pages() { two_sided_range("< 5"); }
+
+#[test]
+fn two_sided_range_keeps_inclusive_upper_bound_across_pages() { two_sided_range("<= 4"); }
+
 #[test]
 fn generated_indexes_calendar_ranges_and_named_locals_apply_and_run() {
     // Every remaining printed repair shape also executes, including repairs
