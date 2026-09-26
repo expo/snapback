@@ -25,8 +25,10 @@ fn default_text_and_explicit_bound_have_identical_scale_certificates() {
             serde_json::to_value(analyze(&explicit.schema, &b.program)).unwrap());
     }
 }
-fn pin(b: &Bound, constant: &[&str], grows: &[&str]) {
+fn pin(b: &Bound, constant: &[&str], grows: &[&str]) { pin_backlog(b, constant, &[], grows) }
+fn pin_backlog(b: &Bound, constant: &[&str], backlog: &[&str], grows: &[&str]) {
     let expected = constant.iter().map(|n| (n.to_string(), Class::Constant))
+        .chain(backlog.iter().map(|n| (n.to_string(), Class::Backlog)))
         .chain(grows.iter().map(|n| (n.to_string(), Class::Grows))).collect();
     assert_eq!(classes(b), expected);
 }
@@ -53,8 +55,9 @@ fn language_operation_classes() {
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
     // The receipt example has no state-ordered index, so its extrema scan.
-    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
-        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "receiptStatus", "rescoreNative", "roomHour", "roomWindow", "search", "thread", "intentDaily", "intentSearch"]);
+    pin_backlog(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+        &["hasMessages"],
+        &["digest", "everywhere", "groupedMessages", "inbox", "memberTotal", "personalizeNative", "receiptStatus", "rescoreNative", "roomHour", "roomWindow", "search", "thread", "intentDaily", "intentSearch"]);
 }
 
 #[test]
@@ -70,7 +73,8 @@ fn clique_operation_classes() {
     let b = bound(include_str!("../../../examples/clique-03/snapback/schema.q"));
     // Following rejects removed events; Trending filters exact timestamps
     // and removal inside hour lanes. A page limit does not bound those skips.
-    pin(&b, &["follow", "insights", "like", "post", "register", "remove", "reply", "repost", "thread", "unfollow", "unlike", "unrepost"], &["following", "trending"]);
+    // The paved Following read skips only what cleanup purges: a backlog, not growth.
+    pin_backlog(&b, &["follow", "insights", "like", "post", "register", "remove", "reply", "repost", "thread", "unfollow", "unlike", "unrepost"], &["following"], &["trending"]);
     let certificate = |name: &str| analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == name).unwrap().program);
     let trending = certificate("trending").line();
     assert!(trending.contains("not .removed") && trending.contains(".at") && !trending.contains("$bool"), "{trending}");
@@ -241,7 +245,8 @@ query leasePoint(id: leases):
 query leaseKey(room: id):
   return leases[room, viewer]
 "#);
-    pin(&b, &["mine", "leasePoint"], &["hidden", "authorized", "countLive", "leaseKey"]);
+    // Unswept expired rows are a backlog; a per-row rule and a live aggregate still grow.
+    pin_backlog(&b, &["mine", "leasePoint"], &["authorized", "leaseKey"], &["hidden", "countLive"]);
     let c = |name: &str| analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == name).unwrap().program);
     assert!(c("hidden").line().contains("per-row read rule"));
     assert!(c("authorized").line().contains("expired leases rows"));

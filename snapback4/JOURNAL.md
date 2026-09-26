@@ -59430,3 +59430,23 @@ Astra's review of the refresh was NOT READY, and Grok's found smaller gaps:
 A composed test finally exercises the composed path: retained history beside
 presence, on the wasm and process devices. Dropping the composed `refresh` copy
 fails it.
+
+## 2026-09-26 — The scale certificate separates a cleanup backlog from growth
+
+Calibration #21's builder read `scale: 6 of 8 operations are constant; 2 grow
+with data (home, cards)` on the paved Following program, and wrote that it was
+not treating short functional tests as a scale proof. The two reads grow only
+with a backlog: feed entries that an unfollow or a removal retired, which
+background cleanup purges in chunks of at most 256. Expired rows the sweep has
+not reached are the same kind of cost.
+
+The certificate now has a third class, `backlog`, which reads
+`constant once background cleanup catches up; until then at most N rows
+examined: …`. It keeps the read meter's allowance, because a burst or downtime
+can leave any backlog, and the summary counts it apart:
+`2 constant once background cleanup catches up (home, cards); 0 grow with
+data`. A timeline read cannot carry a filter of its own (`E_TIMELINE_READ`),
+so a Feed scan's filter is always the platform's retirement check. A residual
+filter over application data, a per-row read rule and a maintained aggregate
+over expiring contributions still grow. `guide bounds` says so, and the pinned
+certificates in the scale, expiry and Following tests moved with it.

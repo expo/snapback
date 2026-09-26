@@ -9,6 +9,10 @@ impl Certificate {
                 Some(when) => format!("when {when}: grows with {}", g.reason), None => format!("grows with {}", g.reason),
             }).collect::<Vec<_>>().join("; "),
             Class::Grows => format!("grows with {}", self.growth_sites.iter().map(|g| g.reason.as_str()).collect::<Vec<_>>().join("; ")),
+            Class::Backlog => format!("constant once background cleanup catches up; until then at most {} rows examined: {}",
+                self.bounds.rows_examined, self.growth_sites.iter().map(|g| match &g.when {
+                    Some(when) => format!("when {when}: {}", g.reason), None => g.reason.clone(),
+                }).collect::<Vec<_>>().join("; ")),
         };
         let writes = if self.per_write.is_empty() { String::new() } else { format!("; per write: {}", self.per_write.join("; ")) };
         let sweep = if self.whole_job.is_empty() { String::new() } else { format!("; whole job grows with {}", self.whole_job.join("; ")) };
@@ -52,11 +56,14 @@ pub(super) fn conditions(conditions: &[(String, bool)]) -> Option<String> {
 }
 
 pub(crate) fn summary(certificates: &[Certificate]) -> String {
-    let grows: Vec<_> = certificates.iter().filter(|c| c.class == Class::Grows).map(|c| c.operation.as_str()).collect();
+    let of = |class: Class| certificates.iter().filter(|c| c.class == class).map(|c| c.operation.as_str()).collect::<Vec<_>>();
+    let (grows, backlog) = (of(Class::Grows), of(Class::Backlog));
+    let named = |names: &[&str]| if names.is_empty() { String::new() } else { format!(" ({})", names.join(", ")) };
     let chunks = certificates.iter().filter(|c| c.per_chunk).count();
-    format!("scale: {} of {} operations are constant; {} grow with data{}{} — `check --cost` gives the certificate",
-        certificates.len() - grows.len(), certificates.len(), grows.len(),
-        if grows.is_empty() { String::new() } else { format!(" ({})", grows.join(", ")) },
+    // @ref LLP 3000.013#14.4 — a backlog is counted apart from growth with the corpus.
+    let cleanup = if backlog.is_empty() { String::new() } else { format!("; {} constant once background cleanup catches up{}", backlog.len(), named(&backlog)) };
+    format!("scale: {} of {} operations are constant{cleanup}; {} grow with data{}{} — `check --cost` gives the certificate",
+        certificates.len() - grows.len() - backlog.len(), certificates.len(), grows.len(), named(&grows),
         if chunks == 0 { String::new() } else { format!("; {chunks} job(s) assessed per chunk") })
 }
 

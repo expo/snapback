@@ -108,8 +108,11 @@ back on either cut.
 
 ### The scale certificate
 
-Every successful `check` summarizes how many operations are constant and
-which grow with data. `check --cost` starts each operation with its verdict;
+Every successful `check` summarizes how many operations are constant, which
+are constant once background cleanup catches up, and which grow with data. A
+`backlog` verdict reads `scale: constant once background cleanup catches up;
+until then at most N rows examined: <what the cleanup removes>`, and its
+certificate keeps the read meter's allowance. `check --cost` starts each operation with its verdict;
 `check --json --cost` puts the same certificates in `scale`, including
 `class`, `bounds`, `growth_sites` (site, reason and rewrite), and `per_write`.
 A growth site's rewrite is empty when the shape needs no suggested change.
@@ -159,8 +162,12 @@ per pass across tables. This is a cadence, not a maximum age or size of the
 backlog: a burst of 2,001 expirations leaves at least one row after a pass,
 and downtime, slow maintenance or a failed sweep can leave older rows.
 Reads remain metered and expired rows remain invisible on every host.
-Expiry scans keep `class: grows`; a page size and the sweep interval alone
-cannot certify a fixed cost. Point lookups may still suggest reading by id
+Expiry scans say `class: backlog`: constant once the sweep catches up, and
+bounded by the read meter while a backlog lasts, so the certificate keeps the
+meter allowance. A page size and the sweep interval alone cannot certify a
+fixed cost. A Following read says `class: backlog` for the same reason: an
+unfollow or a removal retires feed entries, and background cleanup purges them
+in chunks of at most 256. Point lookups may still suggest reading by id
 to avoid skipped expired siblings.
 
 Jobs say `scale: per chunk`; the number of chunks and rows written by the

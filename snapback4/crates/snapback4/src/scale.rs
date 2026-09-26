@@ -15,9 +15,11 @@ mod windows;
 pub(crate) use display::summary;
 pub(crate) use display::expr as expression;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+/// Constant work, work that background cleanup returns to constant, or work
+/// that grows with the corpus; a certificate takes the worst of its sites.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum Class { Constant, Grows }
+pub(crate) enum Class { Constant, Backlog, Grows }
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Certificate {
@@ -56,6 +58,10 @@ pub(crate) struct Bounds {
 pub(crate) struct Growth {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<String>,
+    /// Rows a background sweep removes: retired Following entries or expired
+    /// rows. The read meter bounds them while the backlog lasts.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub backlog: bool,
     pub site: String,
     pub reason: String,
     pub rewrite: String,
@@ -113,7 +119,9 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             }
         }
     }
-    a.result.class = if a.result.growth_sites.is_empty() { Class::Constant } else { Class::Grows };
+    // @ref LLP 3000.013#14.4 — skips that background cleanup removes are a backlog, not growth with the corpus.
+    a.result.class = if a.result.growth_sites.is_empty() { Class::Constant }
+        else if a.result.growth_sites.iter().all(|g| g.backlog) { Class::Backlog } else { Class::Grows };
     // Do not clip structural allowances to ceilings: the runtime records
     // the charge that crosses a ceiling, and a query may try later sites.
     a.result
@@ -140,7 +148,15 @@ impl Analysis<'_> {
 
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
         self.variant(Class::Grows, None);
-        let growth = Growth { when: display::conditions(&self.conditions), site: site.into(), reason, rewrite: rewrite.into() };
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into() };
+        if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
+    }
+
+    /// Rows a background sweep removes: bounded by the read meter while the
+    /// backlog lasts, and absent once cleanup catches up.
+    fn backlog(&mut self, site: &str, reason: String, rewrite: &str) {
+        self.variant(Class::Backlog, None);
+        let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
@@ -151,7 +167,7 @@ impl Analysis<'_> {
             self.result.variants.len() - 1
         });
         let variant = &mut self.result.variants[at];
-        if class == Class::Grows { variant.class = class; }
+        if class > variant.class { variant.class = class; }
         if let Some(index) = index { variant.indexes.insert(index); }
     }
 
@@ -385,7 +401,7 @@ impl Analysis<'_> {
 
     fn lookup_growth(&mut self, name: &str, index: &str, site: &str) {
         if self.schema.table(name).is_some_and(|t| t.is_expiring()) && index != "byId" {
-            self.growth(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
+            self.backlog(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
                 "read by id, or use a non-expiring keyed view");
             self.rows(self.result.bounds.meters.examined);
         }
@@ -437,11 +453,18 @@ impl Analysis<'_> {
         }
         if let Some(filter) = &scan.filter {
             let timeline = self.schema.timelines.iter().find(|t| ["Feed", "Broadcast"].iter().any(|suffix| t.table(suffix) == scan.table));
-            let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
-            let reason = if let Some(window) = window { window } else if let Some(t) = timeline {
-                format!("Following `{}` entries skipped by retired follow epochs or removal tombstones before {} match", t.name, display::bound(&scan.take))
-            } else { format!("{} skipped by `{}` before {} match", scan.table, self.source.and_then(|source| source.filter_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::expr(filter)), display::bound(&scan.take)) };
-            self.growth(&scan.site, reason, rewrite);
+            let authored = self.source.and_then(|source| source.filter_source(&scan.site));
+            // A timeline read carries no filter of its own (E_TIMELINE_READ): its only
+            // filter is the platform's retirement check, and cleanup purges what it skips.
+            if let (None, Some(t)) = (&window, timeline) {
+                self.backlog(&scan.site, format!("Following `{}` entries retired by an unfollow or a removal and not yet purged, skipped before {} match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)", t.name, display::bound(&scan.take)), "");
+            } else {
+                let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
+                let reason = if let Some(window) = window { window } else {
+                    format!("{} skipped by `{}` before {} match", scan.table, authored.map(str::to_owned).unwrap_or_else(|| display::expr(filter)), display::bound(&scan.take))
+                };
+                self.growth(&scan.site, reason, rewrite);
+            }
             grows = true;
         }
         if !visibility.uniform && self.program.kind != ProgramKind::Job {
@@ -450,8 +473,7 @@ impl Analysis<'_> {
             grows = true;
         }
         if table.is_some_and(|t| t.is_expiring()) {
-            self.growth(&scan.site, Self::expiry_reason(&scan.table, &format!("before {} live rows match", display::bound(&scan.take))),
-                "");
+            self.backlog(&scan.site, Self::expiry_reason(&scan.table, &format!("before {} live rows match", display::bound(&scan.take))), "");
             grows = true;
         }
         if scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {

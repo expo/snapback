@@ -180,7 +180,9 @@ fn history_does_not_increase_window_work_but_edge_density_does() {
 fn expiry_backlog_can_outlive_one_tick_and_remains_meter_bounded() {
     let b = compile(SOURCE);
     let c = certificate(&b, "messagesPage");
-    assert_eq!(c.class, Class::Grows);
+    assert_eq!(c.class, Class::Backlog);
+    assert!(c.growth_sites.iter().all(|g| g.backlog));
+    assert!(c.line().starts_with("scale: constant once background cleanup catches up; until then at most "), "{}", c.line());
     assert!(c.line().contains("not yet swept"));
     assert!(c.line().contains("1-second tick, at most 2,000 rows per pass"));
     assert!(c.line().contains("can leave older rows"));
@@ -218,9 +220,9 @@ fn cost_text_and_json_keep_window_and_expiry_growth_without_empty_rewrites() {
         assert!(!section.contains("; rewrite:"), "{section}");
     }
     let json: serde_json::Value = serde_json::from_str(&run(&["check", "--cost", "--json"])).unwrap();
-    for name in ["trending", "messagesPage"] {
+    for (name, class) in [("trending", "grows"), ("messagesPage", "backlog")] {
         let c = json["scale"].as_array().unwrap().iter().find(|c| c["operation"] == name).unwrap();
-        assert_eq!(c["class"], "grows");
+        assert_eq!(c["class"], class);
         assert_eq!(c["growth_sites"][0]["rewrite"], "");
         assert!(c["bounds"]["rows_examined"].as_u64().unwrap() >= 8_193);
     }
