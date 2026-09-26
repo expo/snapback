@@ -13,7 +13,7 @@ use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -180,6 +180,19 @@ pub struct Live {
     /// (viewer, principal) → until when that viewer's poll may follow the
     /// principal: renewed by each of the viewer's query reads (§3.5).
     grants: Mutex<BTreeMap<(String, String), i64>>,
+    /// Moves, under the change lock, whenever a followed presence may have changed.
+    generation: AtomicU64,
+}
+
+/// Wakes held polls for a presence change. The generation moves under the
+/// change lock, so a poll between its checks and its wait sees it rather than
+/// sleeping through the signal (LLP 3000.017 §3.2). Call without the engine lock.
+pub(crate) fn wake_presence(shared: &Shared) {
+    {
+        let _change = lock(&shared.seq);
+        shared.presence.generation.fetch_add(1, Ordering::SeqCst);
+    }
+    shared.committed.notify_all();
 }
 
 /// How long one query read lets its viewer follow a principal (LLP 3000.017 §3.5).
@@ -207,7 +220,7 @@ impl Drop for Following<'_> {
 
 impl Live {
     // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
-    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), grants: Mutex::new(BTreeMap::new()) } }
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()), grants: Mutex::new(BTreeMap::new()), generation: AtomicU64::new(0) } }
 
     /// Counts a poll's followed principals until the guard drops.
     pub(crate) fn following(&self, follow: &[(String, bool)]) -> Following<'_> {
@@ -222,6 +235,9 @@ impl Live {
 
     /// Whether any held poll follows anyone.
     pub(crate) fn any_followed(&self) -> bool { !lock(&self.followers).is_empty() }
+
+    /// The presence generation a poll compares across its checks and its wait.
+    pub(crate) fn generation(&self) -> u64 { self.generation.load(Ordering::SeqCst) }
 
     /// A query the viewer ran read these principals' presence; its polls may
     /// follow them until the grant lapses. A poll never grants itself.

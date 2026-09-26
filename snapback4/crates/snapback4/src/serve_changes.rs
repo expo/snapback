@@ -1,5 +1,5 @@
 //! Held change polls: JSON whitespace heartbeats, followed by one JSON result.
-use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed};
+use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed, wake_presence};
 use serde_json::{Value as Json, json};
 use std::io;
 use std::time::{Duration, Instant};
@@ -49,19 +49,22 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     // @ref LLP 3000.017#3.5 — a poll follows only presence its viewer's queries read.
     follow.retain(|(principal, _)| shared.presence.granted(&connected, principal));
     let mut response = PollResponse { request: Some(request), started: false, shared };
+    let came_online;
     {
         let mut engine = lock(&shared.engine);
         if let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) }));
             return;
         }
-        // @ref LLP 3000.017#3.2 — coming online wakes held polls, only when one of them follows this principal.
-        if shared.presence.enter(&connected) && shared.presence.followed(&connected) { shared.committed.notify_all(); }
+        came_online = shared.presence.enter(&connected);
     }
+    // @ref LLP 3000.017#3.2 — coming online wakes held polls, only when one of them follows this principal.
+    if came_online && shared.presence.followed(&connected) { wake_presence(shared); }
     let _following = shared.presence.following(&follow);
     let result = (|| -> io::Result<()> {
         let mut beat = Instant::now();
         loop {
+            let generation = shared.presence.generation();
             // @ref LLP 3000.017#3.2 — a followed bit that differs from the client's answers at once.
             let (presence, grace_end) = moved(shared, &follow);
             if !presence.is_empty() { break; }
@@ -75,6 +78,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             };
             let seq = lock(&shared.seq);
             if changed || *seq != observed || Instant::now() >= deadline { break; }
+            // A presence change that raced the checks above is looked at again, never slept through.
+            if shared.presence.generation() != generation { continue; }
             if heartbeat && Instant::now() >= beat {
                 drop(seq);
                 response.heartbeat()?;
@@ -86,8 +91,13 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             if let Some(end) = grace_end { wake = wake.min(end + Duration::from_millis(5)); }
             #[cfg(test)]
             super::test_work(&shared.poll_wait);
-            let (_seq, timeout) = shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner());
-            if !timeout.timed_out() { break; }
+            let (woken, timeout) = shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !timeout.timed_out() {
+                // A presence wake answers only a poll whose own followed bits
+                // moved; the next pass decides that. Every other wake answers.
+                if *woken == observed && shared.presence.generation() != generation { continue; }
+                break;
+            }
         }
         Ok(())
     })();

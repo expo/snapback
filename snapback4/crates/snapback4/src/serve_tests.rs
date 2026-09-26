@@ -1431,7 +1431,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
 #[path = "../tests/serve_changes/mod.rs"]
 mod review_changes;
 
-const PRESENCE: &str = "use personas alice, bob\nuse identity\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\n";
+const PRESENCE: &str = "use personas alice, bob, carol\nuse identity\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\n";
 
 /// A raw held poll on its own thread: how long it took, and its response.
 fn held_poll(address: SocketAddr, persona: &str, query: &str) -> thread::JoinHandle<(Duration, String)> {
@@ -1531,3 +1531,32 @@ fn follow_is_honored_only_for_presence_the_viewer_read() {
     assert!(host.shared.presence.granted("dev:alice", "dev:bob"));
     assert!(!host.shared.presence.granted("dev:bob", "dev:bob"));
 }
+
+/// LLP 3000.017 §3.2: the grace a poll follows ends on its own deadline, and a
+/// presence wake answers only the polls whose followed bits moved.
+#[test]
+fn a_followed_grace_ends_on_its_own_deadline_and_spares_unrelated_polls() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), PRESENCE);
+    let alice = "x-snapback-persona: alice\r\n";
+    let head = lock(&host.shared.engine).seq().unwrap();
+    // Bob polls once: from now his 35 s grace keeps him connected.
+    let (_, bob) = held_poll(host.address, "bob", &format!("since={head}&wait=0")).join().unwrap();
+    assert_eq!(status(&bob), 200);
+    assert_eq!(body(&host.request("POST", "/q/online", alice, r#"{"args":{"p":"dev:bob"}}"#))["presence"], json!({ "dev:bob": true }));
+    // Alice follows bob:1 with no heartbeat; Carol holds a poll that follows nothing.
+    let waiting = held_poll(host.address, "alice", &format!("since={head}&wait=25&follow=dev%3Abob:1"));
+    let bystander = held_poll(host.address, "carol", &format!("since={head}&wait=3"));
+    wait_until(|| host.shared.presence.followed("dev:bob"));
+    // Leave about two seconds of grace: the advance wakes held polls, but no bit moved.
+    let advanced = Instant::now();
+    assert_eq!(status(&host.request("POST", "/dev/clock/advance", alice, r#"{"duration":"33s"}"#)), 200);
+    let (_, answer) = waiting.join().unwrap();
+    let after = advanced.elapsed();
+    assert!(after >= Duration::from_millis(500) && after < Duration::from_secs(6), "the grace should end on its own deadline, answered {after:?} after the advance");
+    assert_eq!(body(&answer)["presence"], json!({ "dev:bob": false }));
+    // Carol followed nothing: the presence wakes did not end her poll early.
+    let (held, carol) = bystander.join().unwrap();
+    assert!(held >= Duration::from_millis(2_900), "a poll that follows nothing ran its own deadline, not {held:?}");
+    assert!(body(&carol).get("presence").is_none());
+}
+
