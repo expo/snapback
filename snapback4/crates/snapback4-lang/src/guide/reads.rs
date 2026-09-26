@@ -65,10 +65,10 @@ fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups. A query the device cannot answer
 completely stays `loading` and asks no server while this device holds a
 predictable pending write to a table the query reads; writes to unrelated
-tables do not hold it. Keep a screen query locally complete (inspect
-`snapback4 why <query>`); put server-needing decorations, such as unread totals
-over history past the sync horizon, in their own query so the main list never
-waits on them. Keep the screen shell and draft mounted; render current reads.
+tables do not hold it. A total or extremum (`count`, `sum`, `min`, `max`) over input past the sync horizon, or a point read past it (a quoted message, a joined row), withholds the whole answer on the device; an order differing from the horizon's order alone gives partial data (`complete: false`).
+Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
+decorations in their own query so the main list never waits on them.
+Keep the screen shell and draft mounted; render current reads.
 
 For an expiring table, return the deadline with each row:
 

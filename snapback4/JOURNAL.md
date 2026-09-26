@@ -62107,3 +62107,44 @@ residency passed 17/17; guide passed 84/84. The report preserves every failure,
 base-state evidence and retry result without claiming a green full suite.
 Wasm stayed 2,014,270 B raw / 578,894 B gzip against 579,833 B; README stayed
 300/300 lines. No push, merge, rebase, stash, or other-worktree edit occurred.
+
+### 2026-09-26 — CCP F1 client, jobs and reads card corrections
+
+Applied the five fix-round rulings for LLP 3000.008.002.000 §§3–5 on
+`sb4/ccp-f1` from integration base `f4bd80f612`. The composer's string draft
+now removes only its submitted prefix after non-failed admission, matching
+both starters; appended typing survives, replacement edits stay intact and
+pre-custody refusal clears nothing. Send still follows `inFlight`.
+Conversation-view receipts acknowledge the newest message while open and
+foregrounded and each newer arrival; the contiguous-observation rule belongs
+only to an app that explicitly chooses per-message visibility.
+
+The recipe now requires both a readable message and membership. Chose the
+existing `NOT_FOUND` code for both guards so hidden and missing messages share
+the same refusal without a new code or existence disclosure; old progress
+still succeeds without regression. Chose a separate paged `unreadTotals`
+query over the same memberships and periods, keeping the inbox independent of
+history coverage without adding a per-conversation observation. The digest
+helper, job and schedule are unchanged. Both read-boundary cards now name
+horizon-crossing totals/extrema and point reads as whole-answer withholding
+shapes, and distinguish an order mismatch's partial data. No routing law,
+SDK contract, runtime or device byte changed.
+
+The client card stays 129 lines; jobs 301 → 303 and reads stays 212, net +2.
+Extended the existing tests for composer admission races, identical
+hidden/missing refusal envelopes and unchanged member progress, and a real
+device snapshot whose inbox completes while its separate unread total is
+unavailable. Only the revised reads-06 prose fact changes in the fact-home
+fixture; the prediction census remains subject to the requested readauth
+check. Full-suite execution is reserved for the lead per the F1 brief.
+
+Requested checks passed on Node 24.18.0: guide 86 passed / 0 failed,
+readauth 81 passed / 0 failed (including the unchanged authoring census),
+and README/first-account Node tests 9 passed / 0 failed; 29 TypeScript blocks
+compiled against 46 public functions. The device probe returned one complete
+inbox row while the separate unread query withheld; the server and digest
+both counted 125, with digest heap 22,236 and one write. Composer coverage
+includes six admission/edit outcomes. Initial test-only mistakes (a Result
+assertion spelled as Option, and not draining the VM's async continuation)
+were corrected; no pre-existing product failure was observed. The uncommitted
+`CCP-REPORT-F1.md` records exact summaries, CLI verification and file sizes.
