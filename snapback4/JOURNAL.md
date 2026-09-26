@@ -63089,3 +63089,39 @@ earlier finding fixed and one gap: nothing showed a kept view staying kept
 across a loading answer, so honoring the kept mark only when the member's row
 is present survived. A case publishes a loading answer and then the same row,
 and requires no second `seen`.
+
+
+## 2026-09-26 — Lane K: loaded pages stay; commit retention stopped on disclosure evidence
+
+Implemented supplied LLP 3000.019 §3.3 part 3. `usePage` keeps its ready
+prefix while another page loads, including an empty prefix, and carries that
+prefix's completeness, cut and freshness. `hasMore` stays false while that
+request owns the continuation. A first-page reset clears the pages; refusals
+still propagate. The README describes the behavior. Chromium verifies that
+the editor and its unsent draft remain mounted, suffix replacement ignores
+late replies, and resets still withdraw the old pages.
+
+Parts 1–2 stopped under the brief's disclosure rule. Ordinary `apply` carries
+an until-revoked scope tombstone when Alice removes Bob's membership;
+`admit` can predict Bob's own leave. Neither changes the credentials, viewer,
+or store identity, and neither invokes the separately named device resets.
+Holding the replacement read proves that retaining the old answer would keep
+`private answer` visible after its authority was withdrawn. The online change
+notification has the same case. Seven new guards cover applied revocation,
+predicted leave and remount after revocation on wasm/process devices, plus
+the online case. Enabling retention temporarily in generated build files made
+all five live-watch guards fail; rebuilding restored those files. No unsafe
+retention code was committed. A 30-second cache needs the same authority
+invalidation decision, so none was added. The report is
+[`reports/20260926-lane-k-answers-stay.md`](./reports/20260926-lane-k-answers-stay.md).
+
+Measured: targeted Chromium/disclosure run 33 passed, 0 failed, 0 skipped;
+whole guide 85 passed, 0 failed; wasm 2,021,689 B raw / 581,094 B gzip,
+matching the recorded 0.4.3 baseline (delta 0 B), under the unchanged 582,094 B
+budget. Required `scripts/test.sh`, run once on the cold worktree with eight
+Cargo build jobs and dev/test debug info disabled: **`== 0 failure(s) in 1352 s`**,
+exit 0. No failures to classify. The new cases also passed in that full run.
+
+No change to authorization, publication fences, remembered server-answer
+ordering, the engine or its meters, the client contract, or package versions.
+No new Quarry forms or diagnostics. No outbox work (part 4), push, or publish.
