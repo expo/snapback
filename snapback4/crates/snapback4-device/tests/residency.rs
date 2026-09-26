@@ -1,4 +1,6 @@
 mod common;
+#[path = "residency_open/mod.rs"]
+mod opening;
 use common::*;
 use serde_json::{Value as Json, json};
 use snapback4_device::{call::call, native::Device};
