@@ -3,6 +3,31 @@
 **Opened:** 2026-09-26 (calibration #22 on `snapback4@0.4.3`, M3)
 **Severity:** Medium: typing indicators flicker off during unrelated durable writes, and one M3 choreography attempt missed the 2 s bound in all three trials
 **Area:** `snapback4/packages/snapback4/src/local-query.ts` / `local.ts`: server-fallback watches on the local-first tier; LLP 3000.017 §2.3–§3.3
+**Resolved:** 2026-09-26 — lane EK, the paved typing read opts into `keep: true` (LLP 3000.019 §3.3, revision 4).
+
+## Resolution
+
+The ephemeral card now uses
+`useQuery(api.typingIn, { roomId }, { keep: true })` and asks separately
+observed `typingInMyRooms` to opt in too. An unrelated membership write can
+then re-read without hiding typing; the existing displayed-expiry fence
+still withdraws the answer. No client change was needed.
+
+The original automatic-retention direction below is superseded by LLP
+3000.019 revision 4. The same `members` commit may remove the viewer, and
+the platform cannot distinguish that from an unrelated update. The default
+therefore still withdraws the old answer. Keeping is the application's
+presentation choice: it may display revoked rows until the re-read lands.
+
+`snapback4/packages/snapback4/test/ephemeral-keep.test.mjs` reproduces both
+paths on online, wasm and process clients with real server answers. A peer
+sets typing once, then commits 20 member-row updates at 100 ms intervals.
+Every kept publication retains the row; the default publishes loading and
+then the row again. Replacement replies are held across the 4 s deadline:
+the kept row disappears within 5 s of the last call, and releasing old
+bodies cannot resurrect it. Initial measured disappearance was 4,445 ms
+online, 4,357 ms wasm and 4,315 ms process, including the initial write's
+transport and schema discovery.
 
 ## What happens
 

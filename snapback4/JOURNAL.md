@@ -65079,3 +65079,132 @@ meter/budget change, new Quarry form, version change, push or publication.
 No additional independent review or mobile app build is claimed. The
 [round-4 report](reports/20260926-lane-r-residency.md#round-4--2026-09-26)
 records the exact coverage and result.
+
+
+## 2026-09-26 — 0.4.4 lane EK: typing keeps its answer through unrelated member writes
+
+Paired the ephemeral card's `typingIn` React read and separately observed
+`typingInMyRooms` with `{ keep: true }`, with the expiry and revocation
+tradeoff stated beside the recipe. Recorded the choice after revision 4's
+keep text in LLP 3000.019 §3.3 and revised its metadata. Closed and moved
+`issues/20260926-snapback4-ephemeral-watch-loading-flicker.md`; its original
+automatic-retention direction is explicitly superseded. The default still
+withdraws the answer because a `members` commit may revoke the viewer.
+No client change was needed: lane K's opt-in and displayed-expiry fences
+already handle this case.
+
+Added `packages/snapback4/test/ephemeral-keep.test.mjs`: online, wasm and
+process clients observe real ephemeral typing whose rule probes durable
+membership, while a peer commits twenty member-row updates at 100 ms
+intervals. Every kept publication retains the peer; the default publishes
+loading and the peer again. Then replacement replies are held across
+expiry, and their old bodies are released after withdrawal to prove they
+cannot resurrect the row. In the full suite, online/wasm/process respectively
+published loading 12/74/98 times without keep, kept the row in all 33/163/198
+publications during the burst, and withdrew it 4,373.0/4,382.2/4,185.5 ms
+after the last typing call. No renewal or explicit stop supplies expiry.
+
+Corrected `ephemeral-watches.test.mjs` to measure request starts, after
+capability/incarnation discovery, rather than response-body arrivals. A
+900 ms delayed second reply reproduces the old assertion's failure: the
+old measurement reports 100.3 ms online and 94.2 ms wasm between arrivals,
+while requests remain about 1 s apart. The fixture makes the hidden prefix
+reachable at the third request's dispatch, removing a test-runner race in
+the short interval after the delayed reply. It still checks unchanged
+sequence/ephemeral epoch, no extra sync, and no refresh after complete.
+The final fixture passed 20/20 runs on each tier (40 cases), with four test
+processes plus eight CPU workers sharing the same eight cores: request
+intervals 999.2–1,002.6 ms, arrival gaps 87.2–111.2 ms. The load workers were
+terminated by their recorded processes. The restored old assertion failed
+2/2 deliberately; its temporary probe file was removed.
+
+Affected run: 9/9. Whole guide: 86/86; no tested fixture pins the changed
+React/prose text, so no fixture needed regeneration or hand editing. No
+new diagnostic code or source file over 1,500 lines. Reference audit passed.
+Ran the required scripts/test.sh once, unmodified, with eight Cargo build
+jobs and dev/test debug info disabled on Node 24.13.1 / Bun 1.3.14:
+`== 1 failure(s) in 1433 s` (exit 1), only `wasm build`. This is baseline:
+2,025,652 B raw / 582,552 B gzip, 458 B over the unchanged 582,094 B budget;
+all device/core/Cargo/wasm-build inputs match starting commit cfa35e161,
+so this lane's size delta is 0 B. Reproduce with
+`cd snapback4 && bash scripts/build-wasm.sh`. No introduced or environmental
+suite failures. Rust: 3,662 passed, 19 ignored; main client batch: 2,380
+passed, 10 existing skips, all seven separate shards passed; final models:
+78/78. Restored the suite-generated native fixture lockfile change.
+
+No design departure, runtime change, authorization/disclosure/meter change,
+new syntax, version or budget increase. No calibration rerun, push or
+publication. Evidence and the repeatable load driver remain in
+`target/lane-ek-evidence/` (full-suite.log, full-suite.exit, affected.log,
+guide.log, wasm.log, cadence-load.py, cadence-load.json, per-run logs,
+arrival-probe.log and ref-check.log). The supervisor owns integration and
+the two blind reviews; this entry claims neither.
+
+## 2026-09-26 — 0.4.4 lane EK, round 1: timing assertions isolate cadence and notification delivery
+
+Addressed both round-0 blind reviews and the supervisor's timing finding,
+limited to `packages/snapback4/test/ephemeral-watches.test.mjs`, the flicker
+resolution in LLP 3000.017 §5.1, and this appended entry. The cadence fixture
+still delays `queried[1]` by 900 ms to reproduce the short arrival gap, but
+stays incomplete through `queried[2]` and completes on `queried[3]`. Its
+850–1,250 ms bound now measures `queried[3].at - queried[2].at`, two prompt
+requests beyond the delayed call. Unchanged sequence/epoch, no sync, and no
+requests for 1.1 s after completion remain asserted.
+
+The other old 500 ms assertion measured the mutation round trip plus
+notification delivery plus the test helper's polling delay. Timestamped the
+first peer-row publication in the watch subscriber and the mutation promise's
+reply separately; the 500 ms bound now covers publication after the reply
+(and permits publication before the reply). Poll answers are recorded before
+the client consumes them, and the mechanism assertion requires a typing poll
+answer between mutation start and publication. The unchanged durable sequence,
+no extra sync, and expiry assertions remain. In an initial affected run the
+wasm mutation reply took 220.4 ms, followed by publication in 0.6 ms; the old
+elapsed clock reported 230.1 ms. The supervisor's original 559.576 ms sample
+has no component timestamps, so this does not claim to reconstruct it.
+
+Both timing tests passed 20/20 runs on each of online and wasm: 80/80 cases,
+0 failures, 0 skips, in 99.077 s. Four test processes and eight CPU workers
+shared cores 0–7; all workers were stopped by their recorded process handles.
+Request cadence was 999.3–1,004.8 ms, while the delayed-body arrival gap was
+92.5–109.5 ms. Mutation replies took 5.6–224.1 ms; publication after the reply
+was 0.5–10.9 ms, versus 16.2–235.8 ms on the old elapsed clock. A separate
+control delayed the mutation request by 600 ms: the corrected test passed
+2/2 with replies at 711.2/718.3 ms and publication 2.4/5.7 ms later. Restoring
+the old assertion in that control failed 2/2 (elapsed 617.0/723.9 ms despite
+publication only 3.8/1.2 ms after the reply). The temporary probe was removed.
+
+Mutation checks changed `src/ephemeral-reads.ts`, rebuilt the package, and
+ran the affected test on both tiers. Each mutation failed exactly 2/2 cases
+with exit 1 at the intended bound:
+
+- 100 ms interval: measured 96.3/90.1 ms, below 850 ms.
+- 0 ms interval: measured 3.1/4.0 ms, below 850 ms.
+- 2,000 ms interval: measured 2,000.4/2,000.3 ms, above 1,250 ms.
+- Replacing immediate notification invalidation with `incomplete(owner, true)`
+  routed the watch through the real 1 s refresh timer: publication followed
+  the mutation reply by 1,007.6/1,007.6 ms, above 500 ms. Real typing poll
+  notifications were still delivered.
+
+Restored the exact production source and rebuilt after the mutations; no
+runtime change remains. Fixed LLP 3000.017's ticket link to `issues/closed/`
+and recorded that the typing read opts into `{ keep: true }` as LLP 3000.019
+§3.3 specifies. The default still withdraws on a possibly revoking commit.
+No new authoring form: `useQuery(api.typingIn, { roomId }, { keep: true })`
+remains the paved form from round 0.
+
+Validation: affected watch/keep files 9 passed, 0 failed, 0 skipped. Whole
+`cargo test -p snapback4-lang --test guide`: 86 passed, 0 failed, 0 ignored,
+0 measured, 0 filtered out (2.48 s). Package build passed; reference audit
+passed. Did not rerun `scripts/test.sh`, as instructed: round 0 remains the
+qualification, `== 1 failure(s) in 1433 s` (exit 1), only `wasm build`, the
+integration base's unchanged 458 B overrun (2,025,652 B raw / 582,552 B gzip
+against 582,094 B). This round changes no wasm inputs; size delta is 0 B.
+No other failures, design deviations, runtime/default changes, push or
+publication. The baseline wasm overrun remains reproducible with
+`cd snapback4 && bash scripts/build-wasm.sh`.
+
+Evidence: `target/lane-ek-round1-evidence/` holds the affected and guide logs,
+reference audit, timing load driver and all 20 logs plus range summaries,
+mutation driver and per-mutation build/test logs, and the slow-mutation
+control logs. Round-0 full-suite evidence remains in `target/lane-ek-evidence/`.
