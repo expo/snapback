@@ -14,7 +14,6 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
     let shared = host.shared.clone();
     let failed = thread::spawn(move || {
         let mut engine = lock(&shared.engine);
-        lock(&shared.readers).begin_adoption(&candidate);
         let once = std::sync::atomic::AtomicBool::new(false);
         engine.store().conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(ctx.action,rusqlite::hooks::AuthAction::Insert {table_name:"i"}) && !once.swap(true,Ordering::SeqCst) {
@@ -24,9 +23,8 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
             }
             rusqlite::hooks::Authorization::Allow
         })).unwrap();
-        let error = engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p|p.program)).unwrap_err();
+        let error = adoption::adopt_candidate(&shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap_err();
         engine.store().conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
-        lock(&shared.readers).finish_adoption();
         error
     });
     waiting.recv_timeout(Duration::from_secs(5)).unwrap();

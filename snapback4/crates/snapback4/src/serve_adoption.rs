@@ -103,6 +103,32 @@ pub(super) fn background_failure(shared: &Shared, name: &str, error: &RuntimeErr
     if let Some(line) = lock(&shared.adoption).background_failure(name, error) { eprintln!("{line}"); }
 }
 
+// @ref LLP 3000.019#3.6 — every rejected candidate retires its pending query names.
+pub(super) fn adopt_candidate(
+    shared: &Shared,
+    engine: &mut snapback4_core::Engine,
+    bound: &snapback4_lang::Bound,
+    reopen: impl FnOnce() -> Result<snapback4_core::Engine, RuntimeError>,
+) -> Result<(u64, bool), RuntimeError> {
+    lock(&shared.readers).begin_adoption(bound);
+    // @ref LLP 3000.007#18.3 — retries judge the persisted successor, retaining the generation lock.
+    let adopted = engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), shared.now());
+    let adopted = match adopted {
+        Err(RuntimeError::Generation(_)) => reopen().and_then(|mut next| {
+            next.share_ephemeral_hub(shared.ephemeral.clone())?;
+            next.set_presence(Some(shared.presence.clone()));
+            *engine = next;
+            Ok((engine.generation(), true))
+        }),
+        other => other.map(|generation| (generation, false)),
+    };
+    if let Err(error) = &adopted {
+        lock(&shared.readers).finish_adoption();
+        lock(&shared.adoption).refused(error, engine.generation());
+    }
+    adopted
+}
+
 pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: crate::project::SourceStamp, verbose: bool) {
     let mut retry = false;
     let mut seen_generation = *lock(&shared.generation);
@@ -151,24 +177,9 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                     }
                 }
                 let mut engine = lock(&shared.engine);
-                lock(&shared.readers).begin_adoption(&bound);
-                // @ref LLP 3000.007#18.3 — retries judge the persisted successor, retaining the generation lock.
-                // Reopen only after the generation guard refuses this owner. Adoption
-                // still judges the latest stored successor in its own transaction.
-                let adopted = engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), shared.now());
-                let mut reopened = false;
-                let adopted = match adopted {
-                    Err(RuntimeError::Generation(_)) => project.open_engine_at(&bound, shared.now()).and_then(|mut next| {
-                        next.share_ephemeral_hub(shared.ephemeral.clone())?;
-                        next.set_presence(Some(shared.presence.clone()));
-                        *engine = next;
-                        reopened = true;
-                        Ok(engine.generation())
-                    }),
-                    other => other,
-                };
+                let adopted = adopt_candidate(&shared, &mut engine, &bound, || project.open_engine_at(&bound, shared.now()));
                 match adopted {
-                    Ok(next) => {
+                    Ok((next, reopened)) => {
                         seen_generation = next;
                         if let Some(line) = lock(&shared.adoption).recovered() { eprintln!("{line}"); }
                         crate::lifecycle::generation(next);
@@ -203,9 +214,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                         shared.publish_engine(&engine);
                     }
                     Err(error) => {
-                        lock(&shared.readers).finish_adoption();
                         retry = retryable(&error);
-                        lock(&shared.adoption).refused(&error, engine.generation());
                     }
                 }
             }

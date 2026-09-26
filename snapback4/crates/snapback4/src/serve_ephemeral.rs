@@ -174,11 +174,17 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             }
         }
     }
-    let context = Context::new(principal, args).at(shared.now());
+    #[cfg(test)]
+    test_work(&shared.mutation_wait);
     let reader = {
         let engine = lock(&shared.engine);
+        // @ref LLP 3000.019#3.6 — ephemeral writes also lose authority while queued for adoption.
+        if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
+            return failed(request, why);
+        }
         lock(&shared.readers).take(&engine)
     };
+    let context = Context::new(principal.clone(), args).at(shared.now());
     let result = match reader {
         Ok((epoch, mut reader)) => {
             let result = intent_store(&reader, &payload).and_then(|()| {
@@ -192,10 +198,11 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             }
             result.map(|out| (out, store_id))
         }
-        // --fresh stores have no detached SQLite connection.
+        // In-memory test stores have no detached SQLite connection.
         Err(_) => {
             let mut engine = lock(&shared.engine);
-            intent_store(&engine, &payload)
+            mutation_authority(&request, shared, &engine, &principal)
+                .and_then(|()| intent_store(&engine, &payload))
                 .and_then(|()| {
                     engine
                         .mutate_ephemeral(op, context)
