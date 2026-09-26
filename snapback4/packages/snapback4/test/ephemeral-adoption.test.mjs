@@ -32,8 +32,10 @@ test('durable-only dev adoption answers a held legacy poll with the new generati
 for (const tier of ['online', 'wasm']) {
   test(`${tier}: durable-only change requests and answers retain the base wire bytes`, async t => {
     const { url } = await server(t, undefined, durable), requests = [], replies = [];
+    let schemas = 0;
     const fetch = async (input, init) => {
       const parsed = new URL(input);
+      if (parsed.pathname === '/schema') schemas++;
       if (parsed.pathname !== '/changes') return defaultFetch(input, init);
       requests.push(parsed);
       const response = await defaultFetch(input, init);
@@ -47,6 +49,7 @@ for (const tier of ['online', 'wasm']) {
     if (client.sync) await client.sync();
     const list = client.observe(api.list, {}); t.after(() => list.close());
     await until(() => replies.length >= 2, 'two ordinary poll completions');
+    if (tier === 'online') assert.equal(schemas, 0, 'durable online clients need no additional schema request');
     // Frozen from 0badac987 changes.ts / serve_changes.rs. Runtime identity and
     // clock values are substituted, while parameter order and JSON bytes bind.
     for (const request of requests) {
@@ -126,4 +129,27 @@ mutation change(n: int):
   assert.equal(second.state, 'failed');
   assert.equal(second.why.code, 'ALREADY_CHANGED');
   assert.equal(calls, 2);
+});
+
+for (const tier of ['online', 'wasm']) test(`${tier}: a durable mounted watch discovers ephemeral capability on adoption`, async t => {
+  const { url, dir } = await server(t, undefined, durable, { watch: true });
+  const polls = [];
+  const fetch = (input, init) => {
+    const parsed = new URL(input);
+    if (parsed.pathname === '/changes') polls.push({ params: parsed.searchParams, signal: init.signal });
+    return defaultFetch(input, init);
+  };
+  const client = tier === 'online' ? createClient({ url, persona: 'bob', fetch })
+    : await createLocalClient({ url, persona: 'bob', fetch, device: device() });
+  t.after(() => client.close());
+  if (client.sync) await client.sync();
+  const watch = client.observe(api.list, {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.length === 0);
+  await until(() => polls.some(p => !p.params.has('ephTables')));
+  edit(dir, source.replace('return notes first 100 by byId', 'return typing first 100 by byId'));
+  await until(() => polls.some(p => !p.signal.aborted && p.params.get('ephi') && p.params.get('ephTables') === 'typing'), 'new capability and interest');
+  await until(() => watch.getSnapshot().data?.length === 0);
+  await delay(150);
+  await defaultFetch(`${url}/m/setTyping`, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify({ args: { room: 'r' } }) });
+  await until(() => watch.getSnapshot().data?.length === 1, 'newly ephemeral watch');
 });

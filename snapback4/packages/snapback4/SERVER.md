@@ -944,7 +944,11 @@ the epoch. `dev clock advance` uses the same clock as ephemeral deadlines.
 
 Clients send all three parameters only when the backend declares an ephemeral
 table, including an empty `ephTables` when no watch reads one. Durable-only
-clients omit all three. Adoption publishes the new store identity, generation
+clients omit all three. Ephemeral backends advertise `X-Snapback-Ephemeral: 1`
+on timed responses and poll heartbeats, exposed to browser JavaScript. This lets
+the online tier discover `/schema` facts without extra durable-only requests;
+a legacy discovery poll is immediately reissued when support is learned.
+Adoption publishes the new store identity, generation
 and ephemeral incarnation together and wakes held polls for the new generation.
 
 The response adds `ephemeral: { epoch, incarnation, tables }` when any of

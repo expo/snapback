@@ -732,7 +732,9 @@ A watched query registers its generated `ephemeralReads` before its first
 answer. Adoption reconciles all mounted interests with the new backend, including
 removed reads. Clients send the three ephemeral poll parameters only when the
 backend declares an ephemeral table; durable-only polling keeps its old wire.
-The online tier loads `/schema` for those facts. Growing that interest reissues the held `/changes` poll. Ephemeral
+An ephemeral backend advertises `X-Snapback-Ephemeral: 1` on ordinary
+responses. The online tier then loads `/schema` for those facts and reissues
+its discovery poll; durable-only clients make no extra schema request. Growing that interest reissues the held `/changes` poll. Ephemeral
 table notifications rerun matching watches without a durable change or `/sync`.
 Watches also refetch at `nextExpiry`; incomplete ephemeral answers refresh at a
 fixed one-second cadence until complete or closed. No application expiry timer

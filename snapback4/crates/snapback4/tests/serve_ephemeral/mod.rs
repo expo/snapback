@@ -101,6 +101,9 @@ fn blocked_as(h: &Host, url: String, headers: String) -> (JoinHandle<String>, mp
 fn mutation_wire_query_version_and_no_sqlite_writer_lock() {
     for disk in [false, true] {
         let (h, dir) = host(disk);
+        let advertised = h.request("GET", "/changes?since=0&wait=0", ALICE, "").to_ascii_lowercase();
+        assert!(advertised.contains("x-snapback-ephemeral: 1"));
+        assert!(advertised.contains("access-control-expose-headers: x-snapback-ephemeral"));
         let seq = lock(&h.shared.engine).seq().unwrap();
         let writer = dir
             .as_ref()
@@ -183,7 +186,9 @@ fn unrelated_interest_keeps_waiting_and_absent_interest_means_all() {
 #[test]
 fn legacy_poll_reply_has_exact_base_shape() {
     let h = Host::new(true);
-    let reply = body(&h.request("GET", "/changes?since=0&wait=0", ALICE, ""));
+    let wire = h.request("GET", "/changes?since=0&wait=0", ALICE, "");
+    assert!(!wire.to_ascii_lowercase().contains("x-snapback-ephemeral"));
+    let reply = body(&wire);
     // Frozen base route body, with the store id and host clock bound at runtime.
     let expected = json!({"seq":0,"tables":[],"generation":1,"store_id":lock(&h.shared.engine).store().meta("store_id").unwrap().unwrap()});
     assert_eq!(

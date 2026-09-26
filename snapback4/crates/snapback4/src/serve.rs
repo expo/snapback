@@ -594,6 +594,14 @@ pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
      Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
 }
 
+// @ref LLP 3000.017#3.3-change-notification — advertise only on ephemeral backends; durable-only HTTP bytes stay unchanged.
+// The online tier can discover /schema facts through its ordinary traffic.
+pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
+    if lock(&shared.wake).eph.tables.is_empty() { return Vec::new(); }
+    vec![Header::from_bytes("X-Snapback-Ephemeral", "1").unwrap(),
+         Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
+}
+
 pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl serde::Serialize) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
@@ -621,7 +629,9 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
     } else { status };
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
-    if let Some(shared) = shared { for header in clock_headers(shared) { response.add_header(header); } }
+    if let Some(shared) = shared {
+        for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
+    }
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
     if allow_origin {

@@ -109,7 +109,17 @@ export function mintId(now = Date.now()): string {
 
 export function createClient(options: ClientOptions): Client {
   const clock = serverClock(options.fetch ?? defaultFetch);
-  const doFetch = clock.wrap(options.fetch ?? defaultFetch);
+  // @ref LLP 3000.017#3.3-change-notification — ordinary responses discover schema capability without changing durable traffic.
+  const transport = clock.wrap(options.fetch ?? defaultFetch);
+  const doFetch: typeof fetch = async (...args) => {
+    const response = await transport(...args);
+    if (!closed && response.headers.get("x-snapback-ephemeral") === "1" && !ephemeralAdvertised) {
+      ephemeralAdvertised = true;
+      backendLoaded = false;
+      ephemeralReads.reissuePoll();
+    }
+    return response;
+  };
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
@@ -147,17 +157,18 @@ export function createClient(options: ClientOptions): Client {
   const watches = new Map<string, Watch>();
   const ephemeralReads = new EphemeralReads(aborter.signal);
   let backend: BackendJson | undefined;
-  let backendLoaded = false;
+  let backendLoaded = false, ephemeralAdvertised = false;
   const ephemeralTables = (op: Query<unknown, unknown>) => backend
     ? backend.schema.operations?.[op.name]?.ephemeralReads ?? [] : op.ephemeralReads ?? [];
   const hasEphemeral = () => backend ? Object.values(backend.schema.tables).some(table => table.ephemeral)
-    : [...watches.values()].some(watch => ephemeralTables(watch.op).length);
+    : ephemeralAdvertised || [...watches.values()].some(watch => ephemeralTables(watch.op).length);
   async function refreshBackend() {
     const revision = credentialRevision;
     const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal });
     const next = await response.json() as BackendJson;
     if (closed || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
     backend = next;
+    ephemeralAdvertised = Object.values(next.schema.tables).some(table => table.ephemeral);
     generation = next.generation;
     for (const watch of watches.values()) watchEphemeral(watch);
     return true;
@@ -549,7 +560,7 @@ export function createClient(options: ClientOptions): Client {
         if (!closed && credentials && link === "offline") await probe();
         continue;
       }
-      if (!backendLoaded) {
+      if (!backendLoaded && ephemeralAdvertised) {
         try { await refreshBackend(); } catch { /* Generated facts cover older servers. */ }
         backendLoaded = true;
       }
@@ -572,7 +583,7 @@ export function createClient(options: ClientOptions): Client {
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
           queryEpoch++;
-          if (!await refreshBackend() && backend) throw new Error("schema: adoption facts unavailable");
+          if ((backend || ephemeralAdvertised) && !await refreshBackend() && backend) throw new Error("schema: adoption facts unavailable");
         }
         generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {

@@ -61978,3 +61978,28 @@ Kept the isolated durable control measurement-only, as in the original acceptanc
 trial: a missed control expiry is recorded as null rather than failing the
 feature's timing bound. The <=500 ms appearance, 0..4500 ms disappearance,
 notification path and <=4 request assertions all remain on the ephemeral phase.
+
+The first full diagnostic run exposed an introduced online regression: an
+unconditional /schema request changed the durable-only transport flow and
+consumed responses in the existing online-read-order tests. Three cases failed,
+and a fourth awaited a response already consumed by discovery. Interrupted only
+our own hung suite session (Ctrl-C, exit 130); no complete result is claimed.
+
+Replaced unconditional discovery with a capability advertisement present only
+on ephemeral backends: X-Snapback-Ephemeral: 1 on ordinary timed responses and
+poll heartbeat headers, exposed via CORS. The online tier loads /schema only
+when advertised, immediately reissuing any legacy discovery poll, and reloads
+known facts on adoption. Generated ephemeral-read facts still work directly.
+This small handshake is necessary to learn an unobserved ephemeral table while
+preserving the entire durable-only request flow, not merely poll bytes. Durable
+schemas gain no headers, requests, JSON fields or incarnation reset. A new
+assertion requires zero online /schema calls for a durable backend. Both tiers
+also now test durable → ephemeral adoption on the same mounted watch. Existing
+online-read-order assertions are unchanged and pass 12/12; capability/adoption/
+watch tests pass 12/12. This entry supersedes the earlier unconditional-discovery
+choice; RFC §3.3 and the client/server docs record the handshake.
+
+Repeated the publisher-notification mutation after capability discovery changed:
+watch tests again fail both tiers (1862.084 / 1851.154 ms; 2 pass / 2 fail), and
+the acceptance trial fails at 1855.893 ms (0 pass / 1 fail). Restored the exact
+publisher source and rebuilt before the final full-suite run.

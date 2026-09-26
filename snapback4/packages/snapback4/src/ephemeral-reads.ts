@@ -31,7 +31,7 @@ export class EphemeralReads {
   request(): EphemeralRequest { return { revision: this.revision, signal: this.queries.signal }; }
   pollRequest(): EphemeralRequest { return { revision: this.revision, signal: this.poll.signal }; }
   current(request: EphemeralRequest): boolean { return request.revision === this.revision && !request.signal.aborted; }
-  private reissuePoll() { this.poll.abort(); this.poll = new AbortController(); }
+  reissuePoll() { this.poll.abort(); this.poll = new AbortController(); }
   add(owner: object, tables: readonly string[], invalidate: Interest["invalidate"]) {
     const before = new Set([...this.interests.values()].flatMap(interest => [...interest.tables]));
     const existing = this.interests.get(owner);

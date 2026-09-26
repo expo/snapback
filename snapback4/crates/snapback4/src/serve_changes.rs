@@ -132,7 +132,7 @@ impl PollResponse<'_> {
             frame.push_str("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store, no-transform\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n");
             // Clock time belongs to the final body, after the hold. A buffering
             // transport must not mistake early headers for an end stamp.
-            for header in cors(request) { frame.push_str(&format!("{header}\r\n")); }
+            for header in cors(request).into_iter().chain(super::ephemeral_headers(self.shared)) { frame.push_str(&format!("{header}\r\n")); }
             frame.push_str("\r\n");
             self.started = true;
         }
