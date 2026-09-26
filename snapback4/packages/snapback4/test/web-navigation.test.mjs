@@ -73,7 +73,7 @@ async function fixture(t, { stallExitBody = false, applyExit = true, holdExit = 
   await client.sync();
   assert.equal(client.link(), "offline");
   const rows = async () => (await fetch(server.api + "/q/thread", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c1" } }) }).then(r => r.json())).data;
-  return { ...events, client, open, persist, requests, responses, cores, rows, stalledBodies, ordinaryRequests, online() { offline = false; }, ordinary, count() { return ordinaryCount; }, holdExit() { pauseExit = true; }, releaseExit() { pauseExit = false; exits.splice(0).forEach(f => f()); }, pause() { pauseOrdinary = true; }, resume() { pauseOrdinary = false; ordinary.splice(0).forEach(f => f()); } };
+  return { ...events, url: server.api, client, open, persist, requests, responses, cores, rows, stalledBodies, ordinaryRequests, online() { offline = false; }, ordinary, count() { return ordinaryCount; }, holdExit() { pauseExit = true; }, releaseExit() { pauseExit = false; exits.splice(0).forEach(f => f()); }, pause() { pauseOrdinary = true; }, resume() { pauseOrdinary = false; ordinary.splice(0).forEach(f => f()); } };
 }
 
 async function within(work, ms, message) {
@@ -307,6 +307,45 @@ for (const blockedCleanup of [false, true]) test(`first pagehide dispatch surviv
     assert.equal([...storage.keys()].some(k => k.includes(":exit:")), false);
     await reopenCopy(blockedCleanup ? "held" : "sent");
   } finally { stall = false; release?.(); }
+});
+
+test("first pagehide dispatch with failed marker capture starts no keepalive and reopens queued", async t => {
+  const f = await fixture(t, { stallExitBody: true, applyExit: false });
+  const storage = new Map();
+  let failedCaptures = 0;
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
+    getItem: key => storage.get(key) ?? null, removeItem: key => storage.delete(key),
+    setItem(key, value) {
+      if (key.includes(":exit:")) { failedCaptures++; throw new DOMException("storage full", "QuotaExceededError"); }
+      storage.set(key, value);
+    },
+  } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "localStorage", previous) : delete globalThis.localStorage);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "capture must precede send" }, { waitSeconds: 0 });
+  assert.equal(admitted.state, "pending");
+  assert.equal((await f.client.pendingWrites())[0].state, "queued");
+  const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
+  assert.ok(name);
+  const before = await f.persist.load(name);
+  await tick();
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(failedCaptures, 1, "the first exit marker setItem actually throws");
+  assert.equal(f.requests.length, 0, "failed capture must prevent keepalive");
+  await call({ op: "queued" }); // A living hidden page drains any accidental VM mutation.
+  assert.deepEqual(await f.persist.load(name), before, "failed capture cannot change the outbox or send revision on a later drain");
+  assert.deepEqual((await f.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]);
+  const copy = memoryPersistence();
+  for (const [key, entries] of f.persist.stores) copy.stores.set(key, new Map(structuredClone([...entries])));
+  const options = { url: f.url, persona: "alice", device: webDevice({ wasm, persist: copy }),
+    fetch: () => Promise.reject(new TypeError("reopen offline")) };
+  const opened = await prepareClient(options, () => createLocalClient(options));
+  try { assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, "queued"]]); }
+  finally { await opened.client.close(); }
 });
 
 test("IndexedDB save resolves on transaction completion, not request success", async t => {

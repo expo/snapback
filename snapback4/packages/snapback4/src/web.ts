@@ -226,12 +226,14 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           let suspended = doc.visibilityState === "hidden";
           const beginSend = (id: string) => {
             if (closing || !device || !committed.has(id) || journal.binding(device, id) !== "allow") return false;
+            // @ref LLP 3000.019#3.3 — a failed capture cannot leave a phantom
+            // dispatch in memory for a later device call to persist.
+            if (!journal.captureExit(id)) return false;
             // Invalidate any sync already in flight, including a bfcache page's
             // snapshot. The synchronous VM call precedes the oldest write's send;
             // its metadata is persisted in order behind any current IDB save.
             const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send", id })));
             if (started.denied) return false;
-            if (!journal.captureExit(id)) return false;
             // A failed save discards the device like a failed call; the next call reopens it.
             chain = chain.then(async () => { if (device) await settle([], undefined, true); }).catch(() => discard());
             return true;
