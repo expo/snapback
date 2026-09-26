@@ -57,7 +57,10 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
                 // page needs no cursor. Do not add N_NO_CURSOR as a repair.
                 let cap_covers = schema.group_bound(&scan.table, &audience_columns)
                     .is_some_and(|cap| u64::from(cap) <= scan.take.maximum());
-                if (source.range.is_some() || cap_covers)
+                let old_columns = query_index.columns().into_iter().take(scan.prefix.len()).collect::<Vec<_>>();
+                let relies_on_cap = scan.after.is_none() && schema.group_bound(&scan.table, &old_columns)
+                    .is_some_and(|cap| u64::from(cap) <= scan.take.maximum());
+                if (!relies_on_cap || cap_covers) && (source.range.is_some() || cap_covers)
                     && let Some(page) = source_page(source, &name, index, prefix, scan.take.maximum() as u32) {
                     rewrite = format!("{declaration}use `{page}`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order");
                 }

@@ -209,9 +209,14 @@ fn advice_falls_back_if_an_index_or_cap_cannot_preserve_continuation() {
     let source = named().replace("by byWindow: conversationId, at, ordinal, id", "by byWindow: conversationId, at, ordinal")
         .replace(PAGE, "messages where .conversationId = conversationId first 2 by .ordinal after c");
     words_only(&source);
-    let source = named().replace("table messages:", "table messages:\n  cap 50 by conversationId, sender")
-        .replace(PAGE, "messages where .conversationId = conversationId and .sender = viewer");
-    words_only(&source);
+    for original in [
+        "messages where .conversationId = conversationId and .sender = viewer",
+        "messages where .conversationId = conversationId and .sender = viewer first 50 by .ordinal",
+    ] {
+        let source = named().replace("table messages:", "table messages:\n  cap 50 by conversationId, sender")
+            .replace(PAGE, original);
+        words_only(&source);
+    }
     // This predicate would become a lone explicit-index filter and introduce
     // N_SEEK. It needs scope/type information to move safely into a key.
     let source = named().replace(PAGE, "messages where .conversationId = conversationId and .at > 0 first 2 by .ordinal after c");
