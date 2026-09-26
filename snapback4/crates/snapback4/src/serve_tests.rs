@@ -96,6 +96,7 @@ impl Host {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            query_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let server = Arc::new(
@@ -570,10 +571,9 @@ fn full_poll_admission_preserves_short_request_progress() {
     extra.write_all(b"GET /changes?wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\n\r\n").unwrap();
     assert_closed(&mut extra);
     assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
-    *host.shared.seq.lock().unwrap() = 1;
-    host.shared.committed.notify_all();
-    lock(&host.shared.wake).seq=1;
-    host.shared.polls.notify_all();
+    let reply = body(&host.request("POST", "/seed", "x-snapback-persona: alice\r\n",
+        r#"[{"table":"items","row":{"id":"wake","n":1,"photo":null}}]"#));
+    assert_eq!(reply["seeded"], 1, "{reply}");
     wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
 }
 
@@ -650,10 +650,13 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
         status(&host.request("POST", "/auth/logout", &bearer, "{}")),
         200
     );
-    *host.shared.seq.lock().unwrap() = 1;
-    host.shared.committed.notify_all();
-    lock(&host.shared.wake).seq=1;
-    host.shared.polls.notify_all();
+    {
+        let mut engine = lock(&host.shared.engine);
+        engine.seed([("items".into(), snapback4_core::value::object([
+            ("id", snapback4_core::Value::Id("wake".into())), ("n", snapback4_core::Value::Int(1)),
+        ]))]).unwrap();
+        host.shared.durable_committed(&engine);
+    }
     assert_eq!(status(&poll.join().unwrap()), 401);
 }
 
@@ -1265,6 +1268,33 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
 }
 
 
+/// LLP 3000.018 §3.2: a refusal names the cut its evaluation read. A commit
+/// between the reply's metadata and the query's own read makes that cut newer
+/// than the head, and the refusal is the newer state's; the head alone would
+/// order it before an answer read at a cut where the query succeeds.
+#[test]
+fn a_refusal_names_the_cut_its_evaluation_read() {
+    let directory = ReaderTestDirectory::new();
+    let source = "use personas alice\nuse identity\ntable flags:\n  name: text <=40\n  unique name\n  read <- true\n  insert <- true\nmutation stop():\n  insert flags { name: 'stop' }\n  return true\nquery gate():\n  require not exists flags[name = 'stop'] else STOPPED\n  return true\n";
+    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("store.sqlite")).unwrap(), source);
+    let alice = "x-snapback-persona: alice\r\n";
+    let open = body(&host.request("POST", "/q/gate", alice, "{}"));
+    assert_eq!(open["data"], true, "{open}");
+    let shared = Arc::downgrade(&host.shared);
+    *host.shared.query_wait.lock().unwrap() = Some(Arc::new(move || {
+        let Some(shared) = shared.upgrade() else { return };
+        // Once: the hook removes itself, then commits.
+        if shared.query_wait.lock().unwrap().take().is_none() { return; }
+        let now = shared.now();
+        lock(&shared.engine).mutate("stop", None, Context::new("dev:alice", Default::default()).at(now)).unwrap();
+    }));
+    let gate = body(&host.request("POST", "/q/gate", alice, "{}"));
+    assert!(host.shared.query_wait.lock().unwrap().is_none(), "the commit ran between the metadata and the query");
+    assert_eq!(gate["denied"]["code"], "STOPPED", "{gate}");
+    let head = gate["head"].as_u64().unwrap();
+    assert_eq!(gate["seq"].as_u64(), Some(head + 1), "the refusal names its evaluation's cut, past the head taken before it: {gate}");
+}
+
 struct ReaderTestDirectory(std::path::PathBuf);
 impl ReaderTestDirectory {
     fn new() -> Self {
@@ -1403,17 +1433,17 @@ fn sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls() {
     ];
     let held = Some(BTreeMap::from([("items".into(), vec![vec![json!("group"), json!(7)]])]));
     let acknowledged = BTreeMap::from([("write-id".into(), 8)]);
-    let reply = SnapshotReply { now: 100, after: None, acquisitions: vec![], store_id: "store-a".into(), acknowledged, events: SyncEvents::Snapshot(events), generation: 3, held, more: true, next: Some("opaque-cursor".into()), snapshot: true, watermark: 9 };
+    let reply = SnapshotReply { now: 100, sent: acknowledged.clone(), after: None, acquisitions: vec![], store_id: "store-a".into(), acknowledged, events: SyncEvents::Snapshot(events), generation: 3, held, more: true, next: Some("opaque-cursor".into()), snapshot: true, watermark: 9 };
     let expected = json!({
         "acknowledged": {"write-id":8}, "after": null, "events": [
             {"data":{"id":"row\"雪","nested":{"items":[null,true,i64::MIN,i64::MAX,"line\n\0","000fff"]}},"id":"second","kind":"put","table":"items"},
             {"data":null,"id":"first","kind":"del","table":"items"}
-        ], "generation":3,"held":{"items":[["group",7]]},"more":true,"next":"opaque-cursor","now":100,"snapshot":true,"store_id":"store-a","watermark":9
+        ], "generation":3,"held":{"items":[["group",7]]},"more":true,"next":"opaque-cursor","now":100,"sent":{"write-id":8},"snapshot":true,"store_id":"store-a","watermark":9
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
     for held in [None, Some(BTreeMap::new())] {
         let expected = json!({"acknowledged":{},"after":null,"events":[],"generation":3,"held":held,"more":false,"next":null,"now":100,"snapshot":true,"store_id":"store-a","watermark":9});
-        let reply = SnapshotReply { now: 100, after: None, acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Snapshot(vec![]), generation: 3, held, more: false, next: None, snapshot: true, watermark: 9 };
+        let reply = SnapshotReply { now: 100, sent: BTreeMap::new(), after: None, acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Snapshot(vec![]), generation: 3, held, more: false, next: None, snapshot: true, watermark: 9 };
         assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
     }
 }
@@ -1426,19 +1456,41 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         LogEvent { seq: u64::MAX, ord: 91, table: "items".into(), kind: "del".into(), id: "gone".into(), data: None },
         LogEvent { seq: u64::MAX, ord: 92, table: "items".into(), kind: "put".into(), id: "last".into(), data: Some(Value::Row(BTreeMap::from([("n".into(), Value::Int(2))]).into())) },
     ];
-    let reply = StreamReply { now: 100, images_at: Some(u64::MAX), committed_above: BTreeMap::from([("ahead".into(), u64::MAX)]), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
+    let reply = StreamReply { now: 100, sent: BTreeMap::from([("ahead".into(), u64::MAX), ("write-id".into(), u64::MAX)]), images_at: Some(u64::MAX), committed_above: BTreeMap::from([("ahead".into(), u64::MAX)]), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
     let expected = json!({
         "acknowledged":{"write-id":u64::MAX},"committed_above":{"ahead":u64::MAX},"events":[
             {"data":["group",7],"id":"","kind":"scope","seq":0,"table":"items"},
             {"data":null,"id":"gone","kind":"del","seq":u64::MAX,"table":"items"},
             {"data":{"n":2},"id":"last","kind":"put","seq":u64::MAX,"table":"items"}
-        ],"generation":4,"images_at":u64::MAX,"joined":{"items":[["joined"]]},"more":true,"now":100,"snapshot":false,"store_id":"store-a","watermark":u64::MAX
+        ],"generation":4,"images_at":u64::MAX,"joined":{"items":[["joined"]]},"more":true,"now":100,"sent":{"ahead":u64::MAX,"write-id":u64::MAX},"snapshot":false,"store_id":"store-a","watermark":u64::MAX
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
-    let reply = StreamReply { now: 100, images_at: None, committed_above: BTreeMap::new(), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
+    let reply = StreamReply { now: 100, sent: BTreeMap::new(), images_at: None, committed_above: BTreeMap::new(), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
     let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"now":100,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }
 
 #[path = "../tests/serve_changes/mod.rs"]
 mod review_changes;
+
+/// LLP 3000.018 §3.1: every answer of a query that may read presence asks its
+/// client to re-run it, whichever path ran, refusals too, and names no principal
+/// it read; an answer of a query that reads none does not.
+#[test]
+fn a_presence_answer_asks_its_client_to_refresh() {
+    let source = "use personas alice, bob\nuse identity\ntable flags:\n  name: text <=40\n  enabled: bool\n  unique name\n  read <- true\n  insert <- true\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\nquery sum(a: principal, b: principal):\n  return connected[a] + connected[b]\nquery branch():\n  flag = flags[name = 'one']\n  if flag != null and flag.enabled = true:\n    return connected[viewer] * 0\n  return 0\nfn here(p: principal):\n  return exists connected[p]\nquery helper(p: principal):\n  return here(p)\nquery gate():\n  require exists connected['dev:bob'] else NOT_HERE\n  return true\nquery plain():\n  return 1\n";
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
+    let alice = "x-snapback-persona: alice\r\n";
+    let refresh = json!(snapback4_core::engine::PRESENCE_REFRESH.as_millis() as u64);
+    for (op, args) in [("online", r#"{"args":{"p":"dev:bob"}}"#), ("sum", r#"{"args":{"a":"dev:bob","b":"dev:alice"}}"#), ("branch", "{}"), ("helper", r#"{"args":{"p":"dev:bob"}}"#), ("gate", "{}")] {
+        let read = body(&host.request("POST", &format!("/q/{op}"), alice, args));
+        assert_eq!(read["refresh"], refresh, "{op}: {read}");
+        let mut shown = read.clone();
+        shown.as_object_mut().unwrap().remove("viewer");
+        assert!(!shown.to_string().contains("dev:"), "{op}: a reply names no principal it read: {read}");
+    }
+    let gate = body(&host.request("POST", "/q/gate", alice, "{}"));
+    assert_eq!(gate["denied"]["code"], "NOT_HERE", "a presence-controlled refusal keeps its refresh: {gate}");
+    let plain = body(&host.request("POST", "/q/plain", alice, "{}"));
+    assert!(plain.get("refresh").is_none(), "{plain}");
+}

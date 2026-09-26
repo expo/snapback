@@ -2,10 +2,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { evaluateLocal } from "../dist/local-query.js";
+import { RememberedAnswers } from "../dist/local-reads.js";
 import { createLocalClient } from "../dist/local.js";
 
 const op = { kind: "query", name: "read" }, input = { c: "original-cursor" };
 const prediction = { id: "own", predictable: true, observed_seq: null, predicted: ["posts/own", "feedFeed/own"] };
+// The production cache, as one read attempt writes it, with a test's view of its size.
+function remembered() {
+  const answers = new RememberedAnswers(), view = answers.view();
+  Object.defineProperty(view, "size", { get: () => answers.size });
+  view.clear = () => answers.clear();
+  return view;
+}
 function routing() {
   const program = { name: "read", kind: "Query", args: {}, body: [{ table: "posts" }], runs: "device" };
   const backend = { generation: 1, schema: { tables: {}, timelines: [{ name: "feed", posts: ["posts"], reposts: ["reposts"] }] }, programs: [program] };
@@ -20,7 +28,7 @@ function routing() {
     call: async request => { assert.equal(request.op, "query"); return { ok: outcome }; },
     post: async (path, body) => { requests.push({ path, body }); return { ok: true, json: { data: ["server"], tables: ["switches"], complete: true }, obsoleteAuth: false }; },
     installNative: async () => false, notify: () => {},
-    offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: new Map(),
+    offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: remembered(),
   };
   return { env, program, requests, set entries(value) { entries = value; }, set outcome(value) { outcome = value; },
     read: async () => (await evaluateLocal(env, op, input, 0, 0)).read };
@@ -215,7 +223,7 @@ for (const mode of ["reset", "install failure"]) {
         switch (request.op) {
           case "backend": return { ok: backend };
           case "state": return { ok: { watermark: 0, generation, native: mode === "reset" ? "fixture" : null } };
-          case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: ["own"], send_revision: 0 } };
+          case "sync_state": return { ok: { receipt_outcomes: true, acquired: false, backend_required: false, store_id: null, watermark: 0, generation, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: ["own"], send_revision: 0 } };
           case "observe_store": { const changed = reset; reset = false; return { ok: { reset: changed, backend_required: false, send_revision: request.page.send_revision, retired: {}, adoption_capture: {} } }; }
           case "next_submission": return { ok: 2 };
           case "meta": return { ok: null };
@@ -363,7 +371,9 @@ for (const left of [[], 0]) for (const failed of [false, true]) {
     if (failed) f.env.post = async () => { f.env.link = "offline"; return { ok: false }; }; else f.env.link = "offline";
     const read = await f.read();
     assert.deepEqual(read.data, data); assert.equal(read.complete, false); assert.equal(read.fresh, false);
-    assert.equal(f.env.serverAnswers.size, 0, "composition never uses whole-answer memory");
+    // Composition never uses whole-answer memory, and clears it only through a reply's place
+    // in the order: offline, no reply names a cut (LLP 3000.018 §3.2).
+    assert.equal(f.env.serverAnswers.size, 1, "a composed read clears no memory without a reply");
   });
 }
 for (const held of [false, true]) for (const fenced of [false, true]) {
@@ -445,7 +455,7 @@ for (const left of [[{ body: "retained" }], [], 0]) for (const fenced of [false,
     const read = await f.read();
     assert.deepEqual(read, { loading: true }, "Read<T> cannot publish a missing sibling as T or express component loading");
     assert.equal(attempts, failed && !fenced ? 1 : 0);
-    assert.equal(f.env.serverAnswers.size, 0, "independent components never recover whole-answer memory");
+    assert.equal(f.env.serverAnswers.size, 1, "independent components never recover whole-answer memory, nor clear it without a reply");
   });
 }
 
@@ -714,5 +724,100 @@ for (const mode of ["publish", "issued expiry", "server expiry"]) {
     }
     assert.equal(calls, 3, "one expiry retry and the ordinary retained composition observation");
     assert.equal(f.env.serverAnswers.size, 0, "retained composition never enters whole-page memory");
+  });
+}
+
+// Round 11: recovery keeps the next local branch wakeup, independently of
+// the remembered answer's validity in the server clock domain.
+for (const transport of ["offline", "failed fallback"]) for (const memory of ["missing", null, 150, 50]) for (const observing of [false, true]) {
+  test(`rules 4/5: retry recovery preserves chained deadline (${transport}, memory=${memory}, watch=${observing})`, async t => {
+    const { f, calls } = expiryRetry(t, { ...unknownRetry(true), nextExpiry: 300 });
+    f.env.serverNow = () => 50;
+    let posts = 0;
+    if (transport === "offline") f.env.link = "offline";
+    else f.env.post = async () => { posts++; f.env.link = "offline"; return { ok: false }; };
+    const key = `read:${JSON.stringify(input)}`;
+    const remembered = { read: { data: ["remembered"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memory, tables: new Set(["posts"]) };
+    if (memory !== "missing") f.env.serverAnswers.set(key, remembered);
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.equal(result.nextExpiry, 300, "loading, E_OFFLINE and remembered data all keep the next local wakeup");
+    if (memory === null || memory === 150) {
+      assert.deepEqual(result.read.data, ["remembered"]);
+      assert.equal(result.read.fresh, false); assert.equal(result.read.since, 25);
+      assert.equal(result.read.next, "memory-cursor"); assert.equal(result.serverExpiry, memory);
+      assert.equal(f.env.serverAnswers.get(key), remembered, "local time cannot retire valid server-clock memory");
+    } else {
+      assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
+      assert.equal(result.serverExpiry, null); assert.equal(f.env.serverAnswers.size, 0);
+    }
+    assert.equal(calls(), 2); assert.equal(posts, transport === "offline" ? 0 : 1);
+    if (watch) assert.equal(watch.dirty, false, "the future deadline schedules the next observation");
+  });
+}
+
+// Round 12: a recovered local deadline is a wakeup, not memory's expiry.
+for (const retry of [false, true]) for (const transport of ["offline", "failed fallback"]) for (const memoryExpiry of [null, 900]) for (const observing of [false, true]) {
+  test(`rule 5: memory survives a local deadline crossed at publication (retry=${retry}, ${transport}, expiry=${memoryExpiry}, watch=${observing})`, async () => {
+    const f = routing(); f.entries = [];
+    let issued = 100, calls = 0, recovered = false, crossed = false;
+    const deadline = retry ? 300 : 150;
+    f.env.deviceNow = () => issued; f.env.serverNow = () => 50;
+    f.env.call = async request => {
+      assert.equal(request.now, issued); calls++;
+      if (retry && calls === 1) {
+        issued = 200;
+        return { ok: { data: ["expired"], unknown: false, complete: true, nextExpiry: 200, tables: ["posts"] } };
+      }
+      return { ok: { ...unknownRetry(true), nextExpiry: deadline } };
+    };
+    if (transport === "offline") f.env.link = "offline";
+    else f.env.post = async () => { f.env.link = "offline"; return { ok: false }; };
+    const key = `read:${JSON.stringify(input)}`;
+    const memory = { read: { data: ["permanent"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memoryExpiry, tables: new Set(["posts"]) };
+    f.env.serverAnswers.set(key, memory);
+    const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
+    f.env.serverAnswers.get = key => { recovered = true; return get(key); };
+    f.env.queued = async () => {
+      if (recovered) { issued = deadline; crossed = true; }
+      return [];
+    };
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.equal(crossed, true, "time must cross after recovery, at the final publication fence");
+    assert.deepEqual(result.read.data, ["permanent"]); assert.equal(result.read.fresh, false);
+    assert.equal(result.read.since, 25); assert.equal(result.read.next, "memory-cursor");
+    assert.equal(result.nextExpiry, null, "consume the due wakeup so scheduleExpiry cannot wipe memory");
+    assert.equal(result.serverExpiry, memoryExpiry); assert.equal(get(key), memory);
+    assert.equal(calls, retry ? 2 : 1);
+    if (watch) assert.equal(watch.dirty, true, "including attempt zero, a consumed wakeup must rerun the watch");
+  });
+}
+
+for (const retry of [false, true]) for (const localDue of [false, true]) for (const observing of [false, true]) {
+  test(`rule 5: memory's own server deadline still expires at publication (retry=${retry}, localDue=${localDue}, watch=${observing})`, async () => {
+    const f = routing(); f.entries = []; f.env.link = "offline";
+    let issued = 100, estimated = 50, recovered = false, calls = 0;
+    const localDeadline = retry ? 300 : 150;
+    f.env.deviceNow = () => issued; f.env.serverNow = () => estimated;
+    f.env.call = async () => {
+      if (++calls === 1 && retry) {
+        issued = 200;
+        return { ok: { data: ["expired"], unknown: false, complete: true, nextExpiry: 200, tables: ["posts"] } };
+      }
+      return { ok: { ...unknownRetry(true), nextExpiry: localDeadline } };
+    };
+    const key = `read:${JSON.stringify(input)}`;
+    f.env.serverAnswers.set(key, { read: { data: ["private"], complete: true, fresh: true, cut: null, next: null }, at: 25, nextExpiry: 60, tables: new Set(["posts"]) });
+    const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
+    f.env.serverAnswers.get = key => { recovered = true; return get(key); };
+    f.env.queued = async () => { if (recovered) { estimated = 60; if (localDue) issued = localDeadline; } return []; };
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
+    assert.equal(f.env.serverAnswers.size, 0, "only the remembered answer's server deadline retires it");
+    assert.equal(result.nextExpiry, localDue ? null : localDeadline, "a future local wakeup survives even when memory expires");
+    assert.equal(calls, retry ? 2 : 1);
+    if (watch) assert.equal(watch.dirty, localDue || retry);
   });
 }

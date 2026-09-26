@@ -384,7 +384,7 @@ fn renewal_keys_account_for_later_loop_iterations() {
             Stmt::Return(Expr::Literal(Value::Null)),
         ],
     };
-    assert!(!effects::Effects::of(&program).renews);
+    assert!(!effects::Effects::of(&program, &Default::default()).renews);
 }
 
 #[test]
@@ -396,7 +396,7 @@ fn renewal_keys_do_not_retain_stability_after_write_results_or_divmod_sinks() {
         Stmt::Let { name:"q".into(), value:Expr::Builtin { builtin:Builtin::Divmod { remainder_sink:"key".into() }, args:vec![Expr::Input(Input::Now),Expr::Literal(Value::Int(3))] } },
     ] {
         let p=Program { name:"probe".into(),kind:ProgramKind::Mutation,args:[("key".into(),ArgType::Id)].into(),read_time_granularity_ms:None,returned_shapes:Default::default(),native:false,body:vec![setup,Stmt::Upsert {table:"typing".into(),key:Expr::Variable("key".into()),row:Expr::Object(Default::default())}] };
-        assert!(!effects::Effects::of(&p).renews);
+        assert!(!effects::Effects::of(&p, &Default::default()).renews);
     }
 }
 
@@ -421,10 +421,13 @@ table signals:
   update <- .owner = viewer
   ephemeral 4s
 "#;
+    let tables = format!("{tables}\ntable durable:\n  owner: principal\n  unique owner\n  read <- allow\n");
     for (body, renews) in [
+        ("old = signals[owner = viewer] ! else MISSING\n  require old.n = 0 else ALREADY_CHANGED\n  update signals[owner = viewer] { n }", false),
+        ("ok = exists durable[owner = viewer]\n  require ok else MISSING\n  update signals[owner = viewer] { n }", true),
         ("upsert signals[owner = viewer] { n, enabled: true, at: now }", true),
         ("require n > 0 else BAD\n  update signals[owner = viewer] { n }", true),
-        ("ok = exists signals[owner = viewer]\n  require ok else MISSING\n  update signals[owner = viewer] { n }", true),
+        ("ok = exists signals[owner = viewer]\n  require ok else MISSING\n  update signals[owner = viewer] { n }", false),
         ("old = signals[owner = viewer] ! else MISSING\n  upsert signals[owner = viewer] { n: old.n + 1 }", false),
         ("old = signals[owner = viewer] ! else MISSING\n  update signals[owner = viewer] { enabled: not old.enabled }", false),
         ("return upsert signals[owner = viewer] { n }", false),

@@ -1,0 +1,62 @@
+(node:4156585) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1943.381294ms)
+  ✔ legacy binding survives adopted B on keepalive transport (1938.634182ms)
+  ✖ orphan replay correction survives adopter removal and the next recovery in its original position (558.538102ms)
+  ✖ adoption corrects a shared replacement refusal to an orphan sent receipt (11346.683317ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1462.318782ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (1468.65026ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (19499.766101ms)
+ℹ {"transport":"ordinary","original":"07f2682b38d8c074d5ec1927f5a2312f","adopted":"eadf59142e26e4ba810852e2312ce880","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"07f2682b38d8c074d5ec1927f5a2312f","adopted":"80976e07913c7829cb83bac49f455099","auditA":0,"auditB":0}
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ tests 7
+ℹ suites 0
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19610.04878
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:98:74
+✖ orphan replay correction survives adopter removal and the next recovery in its original position (558.538102ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_STORE_REPLACED'
+  - 'NOT_ADMIN'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:189:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:159:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_STORE_REPLACED',
+    expected: 'NOT_ADMIN',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:98:74
+✖ adoption corrects a shared replacement refusal to an orphan sent receipt (11346.683317ms)
+  AssertionError [ERR_ASSERTION]: timed out: adoption shared the sent correction
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:219:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:208:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

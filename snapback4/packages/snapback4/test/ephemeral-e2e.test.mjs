@@ -5,77 +5,81 @@ import { createLocalClient } from '../dist/local.js';
 import { defaultFetch } from '../dist/node-fetch.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
-// @ref LLP 3000.017#47-tests — the benchmark's 45 keystrokes, two real wasm clients, five trials.
-test('ephemeral typing: five real-server trials beside a durable typing control', { timeout: 60_000 }, async t => {
-  const { url } = await ephemeralServer(t), polls = [];
-  let ephemeralSends = 0, durableSends = 0;
-  const a = await createLocalClient({ url, persona: 'alice', device: device(), fetch: (input, init) => {
-    const path = new URL(input).pathname;
-    if (path === '/m/setTyping') ephemeralSends++;
-    if (path === '/m/setDurableTyping') durableSends++;
-    return defaultFetch(input, init);
-  } });
-  t.after(() => a.close());
-  const b = await createLocalClient({ url, persona: 'bob', device: device(), fetch: (input, init) => {
-    const parsed = new URL(input);
-    if (parsed.pathname === '/changes') polls.push({ parameters: parsed.searchParams, signal: init.signal });
-    return defaultFetch(input, init);
-  } });
-  t.after(() => b.close());
-  await Promise.all([a.sync(), b.sync()]);
-  const measurements = [];
-  for (let trial = 1; trial <= 5; trial++) {
-    const room = `trial-${trial}`;
-    const control = b.observe(api.durableTypingIn, { room });
-    t.after(() => control.close());
-    await until(() => control.getSnapshot().data?.length === 0);
-    await until(() => polls.some(p => !p.signal.aborted && p.parameters.get('ephi') && p.parameters.get('ephTables') === ''));
-    const held = polls.findLast(p => !p.signal.aborted);
-    await delay(30); // Poll predates ephemeral observation and is held at the server.
-    const typing = b.observe(api.typingIn, { room });
-    t.after(() => typing.close());
-    await until(() => typing.getSnapshot().data?.length === 0);
-    assert.equal(held.signal.aborted, true, 'mounting typing retires the pre-existing poll');
-    const record = observation => {
+// @ref LLP 3000.017#47-tests — isolated phases keep durable commits from masking a lost ephemeral wake.
+test('ephemeral typing: five real-server trials beside a durable typing control', { timeout: 90_000 }, async t => {
+  const measurements = Array.from({ length: 5 }, (_, n) => ({ trial: n + 1 }));
+  for (const phase of ['ephemeral', 'durable']) {
+    const { url } = await ephemeralServer(t), polls = [];
+    let sends = 0;
+    const op = phase === 'ephemeral' ? api.setTyping : api.setDurableTyping;
+    const query = phase === 'ephemeral' ? api.typingIn : api.durableTypingIn;
+    const a = await createLocalClient({ url, persona: 'alice', device: device(), fetch: (input, init) => {
+      if (new URL(input).pathname === `/m/${op.name}`) sends++;
+      return defaultFetch(input, init);
+    } });
+    t.after(() => a.close());
+    const b = await createLocalClient({ url, persona: 'bob', device: device(), fetch: async (input, init) => {
+      const parsed = new URL(input);
+      const poll = parsed.pathname === '/changes' ? { parameters: parsed.searchParams, signal: init.signal } : null;
+      if (poll) polls.push(poll);
+      const response = await defaultFetch(input, init);
+      if (poll) void response.clone().json().then(answer => { poll.answer = answer; poll.at = performance.now(); }).catch(() => {});
+      return response;
+    } });
+    t.after(() => b.close());
+    await Promise.all([a.sync(), b.sync()]);
+    for (const measure of measurements) {
+      const room = `trial-${measure.trial}`, observation = b.observe(query, { room });
+      t.after(() => observation.close());
+      await until(() => observation.getSnapshot().data?.length === 0);
+      let held;
+      await until(() => (held = polls.findLast(p => !p.answer && !p.signal.aborted && p.parameters.get('ephi') &&
+        (phase !== 'ephemeral' || p.parameters.get('ephTables') === 'typing'))), 'held peer poll');
+      await delay(150); // Settle startup/incarnation queries; the next write must wake this poll.
+      if (phase === 'ephemeral') assert.equal(held.answer, undefined);
       const times = { first: null, gone: null };
+      let delivery;
       const stop = observation.subscribe(() => {
         const read = observation.getSnapshot();
-        if (!('data' in read)) return; // Loading is not an authoritative disappearance.
-        if (read.data.length && times.first === null) times.first = performance.now();
+        if (!('data' in read)) return;
+        if (read.data.length && times.first === null) {
+          times.first = performance.now();
+          delivery = polls.findLast(p => p.answer && p.at <= times.first);
+        }
         if (!read.data.length && times.first !== null && times.gone === null) times.gone = performance.now();
       });
-      return { times, stop };
-    };
-    const eph = record(typing), durable = record(control), outcomes = [];
-    const beforeEph = ephemeralSends, beforeDurable = durableSends;
-    const firstCall = performance.now();
-    let lastCall = firstCall;
-    for (let key = 0; key < 45; key++) {
-      lastCall = performance.now();
-      outcomes.push(a.mutate(api.setTyping, { room }));
-      outcomes.push(a.mutate(api.setDurableTyping, { room }));
-      if (key < 44) await delay(25);
+      const before = sends, outcomes = [], firstCall = performance.now();
+      let lastCall = firstCall;
+      for (let key = 0; key < 45; key++) {
+        lastCall = performance.now();
+        outcomes.push(a.mutate(op, { room }));
+        if (key < 44) await delay(25);
+      }
+      const results = await Promise.all(outcomes);
+      if (phase === 'ephemeral') {
+        for (const result of results) assert.equal(result.state, 'sent', JSON.stringify(result));
+        await until(() => times.gone !== null, `${phase} trial ${measure.trial} disappears`);
+      } else {
+        // The durable control is measured, including a possible missed bound.
+        const deadline = performance.now() + 5500;
+        while (times.gone === null && performance.now() < deadline) await delay(10);
+      }
+      const ms = n => Math.round(n * 1000) / 1000;
+      measure[`${phase}FirstMs`] = times.first === null ? null : ms(times.first - firstCall);
+      measure[`${phase}GoneAfterLastMs`] = times.gone === null ? null : ms(times.gone - lastCall);
+      measure[`${phase}Requests`] = sends - before;
+      if (phase === 'ephemeral') {
+        assert.ok(measure.ephemeralFirstMs <= 500, JSON.stringify(measure));
+        assert.ok(measure.ephemeralGoneAfterLastMs >= 0 && measure.ephemeralGoneAfterLastMs <= 4500, JSON.stringify(measure));
+        assert.ok(measure.ephemeralRequests <= 4, JSON.stringify(measure));
+        assert.ok(delivery?.at >= firstCall, 'first sight follows a change answer');
+        assert.ok(delivery.answer.ephemeral.tables.includes('typing'), JSON.stringify(delivery.answer));
+        assert.equal(delivery.answer.seq, Number(held.parameters.get('since')), 'ephemeral delivery leaves seq unchanged');
+        assert.equal(delivery.answer.seq, Number(delivery.parameters.get('since')));
+      } else t.diagnostic(JSON.stringify(measure));
+      stop(); observation.close();
     }
-    const results = await Promise.all(outcomes);
-    for (let i = 0; i < results.length; i += 2) assert.equal(results[i].state, 'sent', JSON.stringify(results[i]));
-    await until(() => eph.times.gone !== null, `ephemeral trial ${trial} disappears`);
-    // The control is measured only. Missing a timing bound is not an assertion.
-    const controlUntil = performance.now() + 5500;
-    while (durable.times.gone === null && performance.now() < controlUntil) await delay(10);
-    const ms = value => value === null ? null : Math.round(value * 1000) / 1000;
-    const measure = { trial,
-      ephemeralFirstMs: ms(eph.times.first - firstCall), ephemeralGoneAfterLastMs: ms(eph.times.gone - lastCall),
-      durableFirstMs: durable.times.first === null ? null : ms(durable.times.first - firstCall),
-      durableGoneAfterLastMs: durable.times.gone === null ? null : ms(durable.times.gone - lastCall),
-      ephemeralRequests: ephemeralSends - beforeEph, durableRequests: durableSends - beforeDurable };
-    measurements.push(measure); t.diagnostic(JSON.stringify(measure));
-    assert.ok(measure.ephemeralFirstMs <= 500, JSON.stringify(measure));
-    assert.ok(measure.ephemeralGoneAfterLastMs <= 4500, JSON.stringify(measure));
-    eph.stop(); durable.stop(); typing.close(); control.close();
-    // Shrinking never restarts a poll. A durable change ends the previous
-    // interest's poll so the next trial can begin with an empty held interest.
-    const wake = await a.mutate(api.add, { body: `between trials ${trial}` });
-    assert.equal(wake.state, 'sent');
+    await a.close(); await b.close();
   }
   t.diagnostic(`EPHEMERAL_ACCEPTANCE=${JSON.stringify(measurements)}`);
 });

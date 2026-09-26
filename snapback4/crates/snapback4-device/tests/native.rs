@@ -156,6 +156,7 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
         page.snapshot_catchup = true;
         page.send_revision = Some(capture.send_revision);
         page.acknowledged = engine.acknowledged("dev:alice", &capture.pending_ids, page.watermark).unwrap();
+        page.sent = page.acknowledged.clone();
         device.apply(&page, false).unwrap();
         from = page.watermark;
         if !page.more {

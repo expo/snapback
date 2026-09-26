@@ -131,7 +131,7 @@ test("catch-up requests adopt the device transfer cursor", { timeout: 5000 }, as
       case "queued": return { ok: [] };
       case "sync_state": return { ok: { acquired: published > 0, backend_required: false, store_id: null,
         watermark: published, transfer_watermark: applied ? 7 : 0, generation: 1,
-        restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
+        restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
       case "apply":
         applied++;
         if (!request.page.snapshot) published = request.page.watermark;
@@ -177,7 +177,7 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
       case "queued": return { ok: [] };
       case "sync_state": return { ok: { acquired: published > 0, backend_required: false, store_id: null,
         watermark: published, transfer_watermark: staged ? 5 : published, snapshot_catchup: staged,
-        generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
+        generation: 1, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
       case "apply":
         if (request.page.snapshot) { staged = true; return { ok: { touched: [], published: false } }; }
         assert.equal(request.page.snapshot_catchup, true);
@@ -228,7 +228,7 @@ test("generation adoption compares published identity during private acquisition
       case "sync_state": stateReads.push({ capture: request.capture, requested: false }); return { ok: { acquired: published > 0, backend_required: false,
         store_id: published ? "store" : null, transfer_store_id: staged || published ? "store" : null,
         watermark: published, transfer_watermark: staged ? 5 : published, snapshot_catchup: staged,
-        generation, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
+        generation, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
       case "adopt":
         assert.equal(request.store_id, null, "adoption must compare the published identity, not the private transfer");
         assert.equal(request.send_revision, 0);

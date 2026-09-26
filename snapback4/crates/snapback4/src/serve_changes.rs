@@ -20,7 +20,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
     let mut response = PollResponse { request: Some(request), started: false, shared };
-    let initial = { let wake=lock(&shared.wake); (wake.seq,wake.eph.version.clone()) };
+    let initial = { let wake=lock(&shared.wake); (wake.seq,wake.eph.version.clone(),wake.generation) };
     let epoch = params.get("eph").and_then(|s| s.parse().ok()).unwrap_or(initial.1.epoch);
     let incarnation = params.get("ephi").cloned().unwrap_or(initial.1.incarnation);
     let interest: Option<std::collections::BTreeSet<String>> = params.get("ephTables").map(|s| s.split(',').filter(|s|!s.is_empty()).map(str::to_owned).collect());
@@ -57,7 +57,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             let tables=wake.eph.changed(epoch,Some(&incarnation),interest.as_ref());
             let reset=wake.eph.version.incarnation!=incarnation;
             let eph_ready=reset||!tables.is_empty();
-            let durable=sequence_wake || current.0!=since || params.get("store_id").is_some_and(|id|Some(id)!=current.1.as_ref());
+            let durable=wake.generation != initial.2 || sequence_wake || current.0!=since || params.get("store_id").is_some_and(|id|Some(id)!=current.1.as_ref());
             let now=Instant::now();
             if durable || now>=deadline || eph_ready && now>=paced {
                 let eph=snapback4_core::engine::ephemeral::Change {epoch:wake.eph.version.epoch,incarnation:wake.eph.version.incarnation.clone(),tables};
@@ -132,7 +132,7 @@ impl PollResponse<'_> {
             frame.push_str("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store, no-transform\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n");
             // Clock time belongs to the final body, after the hold. A buffering
             // transport must not mistake early headers for an end stamp.
-            for header in cors(request) { frame.push_str(&format!("{header}\r\n")); }
+            for header in cors(request).into_iter().chain(super::ephemeral_headers(self.shared)) { frame.push_str(&format!("{header}\r\n")); }
             frame.push_str("\r\n");
             self.started = true;
         }

@@ -75,6 +75,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                 let (events, watermark, held) = (page.events, page.watermark, page.held);
                 let overflow = json!({ "generation": generation, "store_id": store_id, "watermark": watermark });
                 respond_with_sync(request, 200, SnapshotReply {
+                    sent: acknowledged.clone(),
                     acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
                     held, more: next.is_some(), next, after, now, snapshot: true, watermark,
                 }, true, Some(overflow), Some(shared));
@@ -104,6 +105,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                 // A snapshot pages their current rows individually instead.
                 if limit == 1 { overflow["snapshot"] = json!(true); }
                 respond_with_sync(request, 200, StreamReply {
+                    sent: acknowledged.iter().chain(committed_above.iter()).map(|(id, seq)| (id.clone(), *seq)).collect(),
                     images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                     joined: page.joined, more: page.more, now, snapshot: false, watermark: page.watermark,
                 }, true, Some(overflow), Some(shared));

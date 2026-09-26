@@ -72,7 +72,7 @@ impl<'a> Layered<'a> {
         self.committed.set(true);
     }
 }
-// @ref LLP 3000.017#2.2-ephemeral-mutations — every non-commit exit, including unwind, undoes memory.
+// @ref LLP 3000.017#2.2 — every non-commit exit, including unwind, undoes memory.
 impl Drop for Layered<'_> {
     fn drop(&mut self) {
         if self.committed.get() {

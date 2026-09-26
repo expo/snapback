@@ -41,29 +41,43 @@ impl Rate {
     }
 }
 impl Shared {
-    // @ref LLP 3000.017#3.3-change-notification — lock order engine → hub → wake.
+    // @ref LLP 3000.017#3.3 — lock order engine → hub → wake.
     pub(super) fn install_ephemeral_wake(self: &Arc<Self>) {
         let owner = Arc::downgrade(self);
         self.ephemeral.set_publisher(move |snapshot| {
             if let Some(shared) = owner.upgrade() {
-                lock(&shared.wake).eph = snapshot;
+                let mut wake = lock(&shared.wake);
+                wake.store_id = Some(snapshot.identity.clone());
+                wake.generation = snapshot.generation;
+                wake.eph = snapshot;
+                drop(wake);
                 shared.polls.notify_all();
             }
         }).expect("new hub publisher");
     }
+    pub(super) fn durable_committed(&self, engine: &Engine) {
+        self.publish_durable(engine, true);
+    }
     pub(super) fn publish_engine(&self, engine: &Engine) {
+        self.publish_durable(engine, false);
+    }
+    fn publish_durable(&self, engine: &Engine, committed: bool) {
         if let Ok(seq) = engine.seq() {
+            let store_id = engine.store().meta("store_id").unwrap_or(None);
+            let generation = engine.generation();
             let mut current = lock(&self.seq);
-            *current = (*current).max(seq);
-            if let Ok(hub) = self.ephemeral.lock() {
-                let mut wake = lock(&self.wake);
-                wake.seq = seq;
-                wake.store_id = engine.store().meta("store_id").unwrap_or(None);
-                wake.generation = engine.generation();
-                wake.eph = hub.snapshot();
+            let mut wake = lock(&self.wake);
+            let changed = wake.seq != seq || wake.store_id != store_id || wake.generation != generation;
+            *current = seq;
+            wake.seq = seq;
+            wake.store_id = store_id;
+            wake.generation = generation;
+            // The hub publisher alone owns wake.eph. Never wait for a running
+            // ephemeral program while holding the serving engine here.
+            if committed || changed {
+                self.polls.notify_all();
+                self.committed.notify_all();
             }
-            self.polls.notify_all();
-            self.committed.notify_all();
         }
     }
 }
@@ -108,12 +122,9 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     // Bearer digests identify sessions without retaining secrets. Dev personas
     // have no session token and each principal is their development session.
-    let key = request
-        .headers()
-        .iter()
-        .find(|h| h.field.equiv("Authorization"))
-        .map(|h| snapback4_core::value::digest(&h.value.as_str()))
-        .unwrap_or_else(|| format!("persona:{principal}"));
+    let key = crate::auth::bearer_token(&request)
+        .map(|token| snapback4_core::value::digest(&token))
+        .unwrap_or_else(|_| format!("persona:{principal}"));
     if !shared.ephemeral_rate.admit(key, Instant::now()) {
         let mut why = Refusal::new(
             "E_RATE_LIMIT",

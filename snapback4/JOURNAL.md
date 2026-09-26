@@ -61551,6 +61551,966 @@ The first 0.4.2 publication stopped at its full-suite gate. Three published-0.2.
 
 The fix lane wrote the change. Its codex session lost its sign-in before qualification, so the supervisor ran the suite and committed.
 
+## 2026-09-25 — Lane U round 11: expiry retry watch edges for 0.4.3
+
+Fetched and merged `origin/main`, fast-forwarding the lane to integrated
+`05382d59f`, then implemented the two ticketed review findings in `93f13ae44`.
+Recovery now keeps the retry's local `nextExpiry` beside remembered data's
+server-clock `serverExpiry`, so an offline speculative middle branch wakes
+at its second permit deadline. Server transport reached by the expiry retry
+uses `retain: false`: an already published pre-deadline value is withdrawn
+during the HTTP round trip. Purely local retries still publish their answer
+without an intermediate loading reset. The numbered procedure and client
+reference state both refinements. Moved the ticket into `issues/closed/`
+and appended its resolution.
+
+Added six real wasm/native process cases: chained permits recover an idle
+watch at T2 without sync; a populated watch straddling T contains no expired
+secret during delayed HTTP; and a server fallback after T keeps its cursor
+and returns the next distinct page. Sixteen router cases cover independent
+local/server clocks, missing/valid/expired memory, queries/watches and
+offline/failed-transport recovery. The affected suite passed **230/230**.
+All three deliberate mutations were rejected: losing recovery's local deadline
+failed 18 cases; retaining the expired watch value failed both device cases;
+nulling the retry's server cursor failed both pagination cases.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 942 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients including
+shards: 1,990 passed, ten existing skips, zero failures/cancellations. Models:
+78 passed at the unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite
+failure, baseline exemption or environmental exemption. New fixture shape
+and clock-interleaving mistakes were corrected during test development;
+negative-control mutation failures were expected. Wasm remains **1,850,576 B
+raw / 521,814 B gzip**, within the unchanged 522,000 B budget.
+
+No design deviation, authorization relaxation, contract change, runtime-meter
+change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. The separately ticketed whole remembered
+answer row-expiry limitation remains open as instructed. File map, rule/test
+coverage, mutation runner, exact suite command and compressed evidence:
+`reports/20260925-bounded-following-r11/REPORT.md`.
+
+## 2026-09-25 — Lane U round 12: remembered validity and local wakeups
+
+Read both round-11 delta reviews and fixed their shared Medium on round-11
+head `d5c2f6d20` (integrated main base `05382d59f`). Implementation/test commit:
+`22d665202`. Final publication now judges remembered data only by its own
+server deadline. An elapsed local wakeup is consumed and sets `watch.dirty`,
+including attempt zero, without withdrawing valid memory. Future local
+wakeups stay scheduled, including when the memory's own server deadline
+expires. The five-rule comment and client reference state this distinction.
+No expiry cutoff was relaxed.
+
+Added six real wasm/native process cases: Astra's `branch()` recovers server
+`true` when its speculative T−1 local result arrives at T, as both a query and
+watch; a watched server fallback after an expiry retry preserves `next` and
+returns the next distinct page. The watch page is checked at its first data
+notification so a clock-triggered rerun cannot hide a lost cursor. Sixteen
+router cases cross the recovered local deadline during the final publication
+await, on the initial attempt and on retry, offline and after failed fallback,
+with null/future memory expiry, as queries/watches. Four controls cross the
+memory's actual server deadline and require withdrawal/deletion while retaining
+future local wakeups. The affected suite passed **256/256** in 55.533 seconds.
+
+All four deliberate mutations were rejected: expiring memory by a local
+wakeup failed 20 tests; omitting the dirty-watch mark failed ten; returning the
+consumed wakeup failed 16; nulling only a watched retry server cursor failed
+both device tests. The initial watched-pagination harness assumed no extra
+clock-triggered request; capturing the first publication corrected that owned
+test-development error. Mutation failures were expected negative controls.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 626 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients with shards:
+2,016 passed, ten existing skips, zero failures/cancellations. Models: 78 passed
+at unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/
+environmental exemption. Wasm is unchanged at **1,850,576 B raw / 521,814 B
+gzip**, below the unchanged 522,000 B budget. Changed source/test files are
+286, 805 and 263 lines, below the 1,500-line ceiling.
+
+No design deviation, authorization/disclosure/durability relaxation, runtime
+meter change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. The whole remembered-page row-expiry issue
+remains deferred as instructed, pending engine per-row expiry facts and later
+design. File map, rule/test coverage, exact suite command, mutation runner and
+compressed evidence: `reports/20260925-bounded-following-r12/REPORT.md`.
+
+## 2026-09-26 — Lane U round 13: remembered pages survive local timer wakeups
+
+Read both round-12 delta reviews and implemented Grok's Medium after round-12
+head `e880cf39c`. Implementation/test commit: `30dd08cd5`. Final query results
+now carry whether their local deadline is a remembered-answer wakeup. Watch
+scheduling uses that explicit provenance: only a local wakeup reruns without
+reset or notification. Actual local/composed row deadlines, server deadlines
+and session refusals still withdraw the snapshot. A future server cutoff stays
+armed while a local rerun is slow. The attempt-zero consume/dirty logic remains
+intact. The procedure comment and client reference describe both timer and
+in-flight wakeups.
+
+Added real wasm/native timer cases that publish remembered `true` before T,
+let T elapse, and hold the device reply: snapshot identity and notification
+count stay unchanged throughout the rerun. Five controlled-clock cases cover
+null, simultaneous and future server deadlines, an early timer that rearms,
+and a composed page with a real local-row deadline but no server deadline.
+Also closed Astra's Low test gap with four retry/server-expiry publication
+controls requiring private memory withdrawal and cache deletion. The affected
+suite passed **281/281** in 56.728 seconds; the final strengthened clock controls
+passed **19/19** in 0.524 seconds.
+
+Five deliberate mutations were rejected: resetting remembered data at its
+local wakeup failed five tests; inferring wakeups from missing server expiry
+failed the composed-row control; disarming the server cutoff during a held
+rerun failed; dropping provenance on timer rearm failed; allowing remembered
+authorization to expire unnoticed after retry failed four controls. The optional
+early-timer mutation initially survived because the fixture did not actually
+fire early. Explicitly arming the first timer before its real deadline fixed
+that owned test-strength issue. No unmodified product test failed during
+implementation; mutation failures were expected negative controls.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 626 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients with shards:
+2,027 passed, ten existing skips, zero failures/cancellations. Models: 78 passed
+at unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/
+environmental exemption. Wasm remains **1,850,576 B raw / 521,814 B gzip**,
+within the unchanged 522,000 B budget. Every changed source/test file remains
+under 1,500 lines; the largest is `local.ts`, 1,431 lines.
+
+No design deviation, authorization/disclosure/durability relaxation, runtime
+meter change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. Whole remembered-page row expiry remains
+deferred pending engine per-row facts and later design. File map, numbered
+rule coverage, exact suite command, mutation runner and compressed evidence:
+`reports/20260926-bounded-following-r13/REPORT.md`.
+
+## 2026-09-25 — Lane V round 12: qualify acknowledgement outcomes (0.4.3)
+
+Addressed the complete Astra and Grok round-11 reviews. A legacy observation
+proves a decision without proving success. Sequence-only `observed_seq` and
+legacy-promoted `sent_seq`, without known terminal history, now stay pending
+and retain custody until same-id replay against the original bound store
+returns the recorded outcome. New stream/snapshot replies explicitly qualify
+successful acknowledgements with `sent: { id: sequence }`. The device persists
+that qualification beside the receipt binding and exposes it only with the
+matching published sequence; resets and replacement never manufacture it.
+
+An original-store replay may correct an unknown `E_STORE_REPLACED` to success
+or an authored refusal. The history transaction verifies the original binding
+and strips the internal replay proof before storage; aborted receipt saves keep
+the proof for retry. Authored failures remain immutable. The native capability
+check refuses older modules with the existing `E_DEVICE_VERSION`; a JavaScript
+upgrade must rebuild its Expo native binary. No public authoring API or Quarry
+form was added. The client reference and LLP 3000.013 §6 state the upgrade rule.
+
+Added eight real-server upgrade combinations on memory and SQLite: observed
+or legacy-promoted sent sequences, empty or replacement-refusal history. Every
+case replays the original id and bound store, resolves `NOT_ADMIN`, leaves audit
+at zero and survives row reset/reopen. Real Chromium coverage now includes no
+terminal history and a gated final `begin_send` with intervening refusal custody;
+mutation, notification and lookup agree. Unit tests cover `NOT_ADMIN`, `NOT_FOUND`
+and `CONFLICT`, and replay-proof retention through an aborted save. Both device
+stores reject foreign/absent replay proof, adopted-history replacement and real
+refusal replacement. The three negative controls fail their intended assertions:
+legacy success inference, discarding final recovered receipt, and narrowing the
+authored-refusal guard to `NOT_ADMIN`.
+
+Measured wasm: 1,779,595 B raw / 496,604 B gzip with Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Against round 11's recorded
+1,776,633 / 495,460 this whole-artifact change is +2,962 raw / +1,144 gzip.
+The outcome qualification, original-store replay check and capability guard
+exceed the prior 496,000 B ratchet by 604 B. Per LLP 3000.002's recorded ruling,
+raise the rounded ratchet to 497,000 B, leaving 396 B. Runtime examined, steps,
+heap, output and write ceilings remain unchanged.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 701 s`**, exit 0. Invocation:
+`SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+Rust: 891 targets, 307 s. Client tests: 1,620 passes / 10 platform or optional
+fixture skips, 152 s, including all 54 browser admission checks. Models: 78
+passes / 13,000 seeded sequences, 231 s. Reference audit: 509 LLP documents,
+9,290 refs, zero errors. Source files remain under 1,500 lines (`local.ts`: 1,497).
+
+The initial full suite reported `== 2 failure(s) in 512 s`: `cargo test`
+missed the additive field in direct test constructors; `client tests` had two
+replacement and eight deferred/generation fixtures expecting bare-sequence
+success. These were ours and are corrected, with the original assertions kept
+and positive fixtures explicitly qualified. Earlier development failures were
+our nullable-boolean test source, legacy fixture assumptions, empty-map wire
+serialization and one intermediate test-constructor syntax edit. Deliberate
+negative controls remain red. The supplied baseline Cargo failure was inspected
+and was not reproduced; the final run has no failures in any classification.
+
+Engineering choices: additive outcome qualification instead of historical
+result data; qualification shares the existing receipt binding; old native
+modules must rebuild; original-store proof is private to receipt persistence.
+No open scoped problem, authorization/disclosure change, new refusal code,
+acquisition retuning or scale remeasurement. No release version bump, push or
+publication; integration owns the 0.4.3 release. File map, examples and all
+reproductions are in `reports/20260925-lane-v-r12.md` and its evidence directory.
+
+### 2026-09-26 — Lane V round 13: original receipt binding and shared correction (0.4.3)
+
+Implemented in `86164d1c8`. Ordinary and keepalive web replay prefer the retained
+receipt's original store binding, then the admission journal/current identity.
+A legacy A receipt surviving adoption of B therefore posts A; B refuses
+`E_STORE_REPLACED` without executing. Shared receipt recovery replaces a verified
+correction of `E_STORE_REPLACED` in place before deleting its source database.
+Authored refusals and retention order remain immutable; the 256-receipt window,
+provider claims, atomic persistence and all meters are unchanged.
+
+Added a separate real-Chromium/Wasm/IndexedDB upgrade fixture for both transports
+against two real stores, plus orphan → adopter → next recovery → offline reopen.
+B's audit remains 0 on both transports; the corrected `NOT_ADMIN` survives source
+removal and reopening in its original retention position. Both-store Rust and
+client tests actually apply an old page acknowledging a refused `_ops` record
+without `sent`: it remains unqualified and same-id replay retains `NOT_ADMIN`.
+Negative controls fail at the intended assertions: omitted receipt bindings
+execute once on B; omitted shared correction restores `E_STORE_REPLACED`; ignoring
+`page.sent` qualifies a refused decision as success. The orphan fixture also
+passed three focused repeats. Targeted totals: 17 legacy-receipt checks, 10 Rust
+write-authority checks, and 3 new browser scenarios plus their parent.
+
+The only full suite this round passed: **`== 0 failure(s) in 734 s`**, exit 0,
+using `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`. Rust:
+891 targets / 329 s. Client: 1,628 passes / 10 platform or optional-fixture skips /
+153 s, including the unchanged 54-case admission review. Models: 78 passes /
+13,000 seeded sequences / 232 s. No full-suite failures classified as ours,
+baseline or environmental; the supplied baseline Cargo failure was not reproduced.
+Earlier development failures were ours: an unsupported SQLite `u64` test read,
+a missing mutable test handle, and a focused orphan fixture waiting only on its
+background wakeup. They were corrected before the suite. Wasm remains
+1,779,595 B raw / 496,604 B gzip, within the unchanged 497,000 B budget.
+
+Stopped the additional Grok Low about invalidating already stored legacy `sent`
+receipts, pending a supervisor design decision: a genuine success whose receipt
+committed before an aborted outbox settlement has the same unqualified legacy
+shape as an older manufactured success. Discarding it and requiring replay would
+weaken round 9's known-terminal durability rule. A runnable two-real-server
+counterexample reproduces offline `sent` with audit 0 for the old bug and audit 1
+for genuine saved success. The three numbered round-13 requests are complete;
+this extra stored-false-success upgrade case remains open, without changing
+known-terminal policy.
+
+No language/API form, new refusal code, native protocol or storage-format change.
+No acquisition retuning or scale remeasurement; no version bump, push or publish.
+The file map, exact results, examples, all deviations and the stopped case's
+reproduction are in `reports/20260926-lane-v-r13.md` and its evidence directory.
+
+## 2026-09-26 — Lane V round 14: lookup reads a shared correction
+
+Astra's round-13 Medium: a reader that still held its own `E_STORE_REPLACED`
+kept answering with it after a sibling had verified and shared the real
+outcome, because lookup let local history win unconditionally. Lookup now
+applies adoption's correction rule. A verified shared outcome answers over the
+reader's own `E_STORE_REPLACED`, and every other local outcome answers first.
+One predicate, `unknownOutcome`, defines the replaceable outcome for both
+paths. Grok's round-13 mutation, a correction rule that accepted only
+`NOT_ADMIN`, now fails a new case that corrects a shared `E_STORE_REPLACED` to
+an orphan's `sent`.
+
+The supervisor wrote this round, because the lane's codex session could not
+authenticate. It adds two browser cases (Chromium, Wasm, IndexedDB) and two
+mutants, `lookup-correction` and `sent-correction`. Each mutant fails exactly
+its case; the existing `shared-correction` mutant fails both adoption cases.
+The affected client files pass 23 of 23 and the adoption cases 12 of 12. The
+typecheck, docs budget and `ref-check` pass. The full suite runs on the 0.4.3
+integration branch that merges this round. TypeScript only: no wasm, protocol,
+storage or meter change. Report: `reports/20260926-lane-v-r14.md`.
+
+## 2026-09-26 — Lane V round 15: settlement never reads a shared correction
+
+Grok's round-14 review found that the round-14 overlay reached settlement.
+`lookupReceipts` ran on every `meta write-history` reply, which
+`WriteHistory.acknowledged` also reads. A shared `NOT_ADMIN` or `sent` therefore
+hid this device's own `E_STORE_REPLACED` from the qualified-success repair. The
+overlay is now caller-only. Ordinary reads are local-first again. Only
+`client.write(id)` for an id with no local outbox entry, and whose own durable
+receipt is `E_STORE_REPLACED`, asks the host for `lookup: true`. Nothing it
+returns is kept or settled.
+
+A new browser case covers four states, each with a local `E_STORE_REPLACED` and
+a shared receipt:
+
+- A qualified success over shared `NOT_ADMIN` returns and keeps `sent`.
+- A qualified success over shared `sent` 99 returns and keeps its own `sent`.
+- A legacy sequence stays pending and keeps custody.
+- An unsent entry answers with the device's own refusal.
+
+Two new mutants, `settlement-overlay` (round 14's defect) and `custody-lookup`,
+fail that case. The three earlier mutants still fail theirs. The affected files
+pass 91 of 91 and adoption 12 of 12. TypeScript only. Report:
+`reports/20260926-lane-v-r15.md`.
+
+## 2026-09-26 — `guide receipts`: sent, delivered and read in one query
+
+The Grok comparative on 0.4.1 charged receipts as three mechanisms where
+Convex needed one query ("who has this ordinal?"). A new `receipts` card gives
+the recipe. It uses two watermarks on each member's own row (`deliveredAt`,
+`readAt`) and one helper, `receipt(m)`, which the history query returns with
+every message. The recipient set is membership at send time. A member who
+joined later is not a recipient, and a member who leaves drops out of messages
+they had not reached. The client reports the newest fetched message's `at`, not
+`now`, so a message committed after its last fetch stays `sent`.
+
+Evidence:
+
+- The card's block compiles clean, and `check` reports every operation as
+  constant cost.
+- A new engine test, `receipts_card_ticks_follow_the_recipient_set`, runs the
+  card through sent → delivered → read, a leave, and a later join.
+- A probe on the online, native and web tiers saw the sender's live history
+  move within about 10 ms of each acknowledgement.
+- Guide tests pass 84 of 84.
+
+The language card, the operations doc's keyword line and the README's
+reference map list the card. Aliases: receipt, delivered, read receipts, ticks,
+watermark. The operations doc's alias example now says `sql` → from-sql; it
+had said personas.
+
+## 2026-09-26 — A live query follows presence (LLP 3000.018)
+
+A supervisor probe on 0.4.2 source found a defect. Alice observed
+`{ online: exists connected[bob] }` while Bob opened a client. A one-shot query
+said `online: true` after 3 s, but the live snapshot stayed `false` for over a
+minute, with `fresh: true` and `complete: true`. The engine recorded no
+dependency for `connected[p]`, and presence changes signal nothing. The 0.4.1
+Grok comparative's builder had polled `memberPresence` from the client to work
+around it.
+
+- **Server.** A query evaluated on the server now names the principals it read
+  and the bit it saw, as `presence: { p: bit }` beside its data. A held
+  `/changes` poll takes `follow=p:bit,…`, at most 64 principals. It answers at
+  once if a bit already differs. It also answers on a followed principal's
+  first poll after its grace, and when a followed grace ends; a development
+  clock advance wakes held polls for this. The answer carries each moved
+  principal's new bit and keeps `seq` when only presence moved.
+- **Clients.** Both clients keep the newest bit per principal and send the
+  principals their live watches read. They restart a held poll whose follow list
+  changed, and treat that as a restart, not a lost link. They re-run exactly the
+  watches that read a moved principal.
+- **Evidence.** Server tests cover every wake, the parser and the unchanged
+  plain poll. A client test on the online, native and web tiers saw Alice's
+  mark turn true about 20 ms after Bob started watching, and false about 1 s
+  after Bob closed and the clock passed his grace.
+- **Cost.** 719 B gzip on the web device (524,732 B), within the 525,000 B
+  ratchet.
+
+`NOT-DOING.md` keeps a presence API, last-seen storage and multi-server
+presence out.
+
+## 2026-09-26 — `guide receipts` round 1: ordinals, not the clock
+
+Grok's review of the first card was NOT READY. Time watermarks tie at a
+millisecond, cover messages the client never fetched, and accept any
+`through`. The card now uses ordinals throughout:
+
+- Every message takes the conversation's next ordinal, and a member records
+  the last ordinal when they join. Commit order decides a message's
+  recipients, including a join in the same millisecond as a send.
+- A watermark is an ordinal. It only moves forward and never passes the last
+  message (`PAST_LAST_MESSAGE`). `seen` writes only when it advances.
+- A message with no recipients stays `sent`.
+- `delete` is the member's own, via `leave`.
+- The client snippet acknowledges only settled rows of a complete, fresh page,
+  and lists `client` in its dependencies.
+- The cost sentence says what `check --cost` certifies: one scan of at most 50
+  member rows per message.
+
+The card states one limit. A member who returns after more than the 500
+synced messages acknowledges the newest ones, so older ones count as
+delivered.
+
+The engine test now commits m2 before anyone fetches m1. It covers a join in
+the same millisecond as a send, a leave, a rejoin, a refused `through: 99`, a
+backward acknowledgement and a conversation with no recipients. Six recipe
+mutants each fail it:
+
+- `<=` for joining;
+- no bound on `through`;
+- `read` with no recipients;
+- storing the last ordinal instead of `through`;
+- counting the sender;
+- moving a watermark backward.
+
+A probe on the online, native and web tiers moved sent → delivered → read
+within about 20 ms of each acknowledgement. The readauth census lists the
+card's ten entries.
+
+## 2026-09-26 — Live presence rounds 2–3: no lost wakes, and tokens instead of bits
+
+Grok's first review, of the design before grants, was NOT READY, and so was
+Astra's first, of the version with grants. Both found that the bits were a
+disclosure, and each found wake races.
+
+- **Opaque tokens.** A query now answers an opaque token bound to its viewer,
+  and never the principals or bits. The bits behind an aggregate such as
+  `connected[bob] + connected[carol]` stay on the server. A poll follows only
+  its own viewer's tokens, answers only which of them moved, and drops a token
+  that lapses mid-wait. Tokens replace grants, and remove the comma problem in
+  principal names.
+- **No lost wakes.** A presence generation moves under the change lock, so a
+  wake between a poll's checks and its wait is never lost.
+- **No spurious answers.** A presence wake answers only a poll whose tokens
+  moved, so unrelated polls and absence-guarded pushes are undisturbed.
+- **Consistent reads.** One run reads each principal once, so an answer's reads
+  agree with its token.
+- **Composed reads.** Composed local answers carry the server's token.
+
+The server tests cover:
+
+- a token that moves and answers;
+- an already-moved token answering at once;
+- a grace that ends on its own deadline (a test that deleting the deadline arm
+  now fails);
+- a bystander poll surviving presence wakes;
+- a foreign or unknown token following nothing;
+- an aggregate disclosing no principal;
+- a lapsed token staying quiet.
+
+The three-tier client test still turns Alice's mark true about 20 ms after Bob
+connects.
+
+## 2026-09-26 — `guide receipts` round 2: monotonic receipts, fetched runs only
+
+Astra's review of the ordinal card (NOT READY) and Grok's round-1 delta review
+(NOT READY) agreed on the remaining defects:
+
+- A receipt could move backward when every recipient left.
+- A watermark claimed messages the client never fetched: the top of a paged
+  view, or anything behind the 500-message horizon.
+- Offline viewing was never acknowledged.
+- Pending sends rendered as accepted.
+
+Now:
+
+- **A receipt never moves backward.** A message records how many recipients it
+  had. Once all of them leave, the requirement is met, while a message sent to
+  nobody stays `sent`.
+- **A watermark claims only fetched messages.** Both `delivered` and `seen`
+  claim only an unbroken run of fetched messages after the member's delivered
+  watermark. The client loads older pages to close any gap, which removes the
+  500-message limit.
+- **Offline viewing counts.** Acknowledgements need only a complete page, not a
+  fresh one.
+- **Pending rows render as pending,** not as `sent`.
+
+The engine test adds three cases:
+
+- the only recipient reading, then leaving, then rejoining;
+- a refused `seen(99)`;
+- sends to nobody.
+
+Two new mutants each fail it: counting only remaining recipients, and an
+unbounded `seen`. The three-tier probe still moves sent → delivered → read
+within about 10 ms of each acknowledgement.
+
+## 2026-09-26 — Lane V round 16: strictly local settlement and lookup custody
+
+Implemented in `f026cfff6`, after reading both supervisor reports and all three
+round-14/15 reviews. Ordinary `meta write-history` now returns only this device's
+history, even when the id is absent. Shared-only history remains available to an
+explicit caller lookup; `WriteHistory.lookup` handles both absent history and
+`E_STORE_REPLACED`. `client.write` rechecks the outbox after that read and
+recomputes through local custody if orphan adoption added an entry. Extracted
+that sequence to `local-receipts.ts`; `local.ts` is 1,490 lines. The opener keeps
+an explicit shared id scan because those ids route retries through lookup;
+it remembers no shared outcomes and cannot use the window for settlement.
+
+Added seven real-browser scenarios, bringing the upgrade fixture to 13 plus its
+parent: absent-history custody, shared-only recovery and id remembrance, legacy
+same-id replay despite a shared refusal, two actual-adoption interleavings, and
+two local terminal corrections committed between history reads. The first
+lookup after adoption stays pending, source removal leaves committed outbox
+custody, and between-read `NOT_FOUND`/`sent` corrections beat shared `NOT_ADMIN`.
+The legacy case posts once to the original store, receives replayed NOT_ADMIN,
+keeps audit 0 and survives offline reopen. Updated existing host-level tests to
+request the lookup view explicitly, and asserted that settlement never even
+reads an existing shared receipt database.
+
+All seven negative controls fail: restoring shared-only settlement fallback,
+skipping the custody recheck, returning only shared history, disabling absent-
+history lookup, omitting shared ids from the opener, and the two earlier
+settlement-overlay/custody-lookup mutants. Targeted checks pass 14/14 browser,
+98/98 affected client, and 19/19 adoption. The reader audit and exact mutant-to-
+case mapping are in `reports/20260926-lane-v-r16.md`.
+
+The only full-suite run passed: **`== 0 failure(s) in 752 s`**, exit 0.
+Invocation: `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+Rust: 891 targets / 351 s. Client: 1,638 passes / 10 platform or optional-fixture
+skips / 154 s; the original 54 admission checks passed in 122.4 s and the upgrade
+fixture in 19.7 s. Models: 78 passes / 13,000 seeded sequences / 233 s. No
+full-suite failures (ours, baseline or environmental); the supplied baseline
+Cargo failure was not reproduced. The one development failure was our test
+fixture waiting for startup while holding its send preflight: the 90-second
+timeout closed the browser and caused four follow-on failures. The corrected
+fixture releases the gate before awaiting readiness; no timeout or production
+scheduling change. Mutant failures are deliberate and recorded separately.
+
+Wasm unchanged: 1,779,595 B raw / 496,604 B gzip, within the unchanged 497,000 B
+budget. No language/API form, refusal code, protocol/storage format, meter,
+authorization/disclosure or acquisition change. No scale remeasurement, release
+version bump, push or publication. No deviation from round 16. The historical
+manufactured-sent ambiguity remains the previously deferred supervisor migration
+question; this round introduces no new open finding and makes no repair claim
+for that old case. Evidence lives beside the report in
+`reports/20260926-lane-v-r16-evidence/`.
+
+## 2026-09-26 — Live presence round 4: a token stands for its query
+
+Astra's third review was NOT READY and Grok's READY WITH CHANGES. Astra showed
+that a token could still say more than its query: `connected[p] > 1` stayed
+false while its token moved. A token also outlived its viewer's access, and the
+token table had no byte bound. Both reviews found that a moved token was polled
+in a loop while its watch re-ran, and that a full table stopped a watch's
+renewal for good. Astra also found that a late presence notice could end a
+bystander's poll.
+
+- **A token stands for its query.** It keeps the query's name, arguments and
+  viewer, and a digest of the answer it published. When a count it read moves,
+  the poll re-runs the query as the viewer, and reports the token only if the
+  digest changed. The baseline moves either way, so a change is reported once.
+- **A token that no longer answers its viewer retires silently.** That happens
+  when a commit since its answer touched a table it read, or when the re-run is
+  refused.
+- **A bounded table.** It holds 100,000 tokens, 64 MiB and 256 per viewer; the
+  least recently followed token makes room. Following keeps a token live, and
+  it lapses 120 s after the last follow. A lapsed, evicted or foreign token is
+  reported at once, so its watch re-runs. The client's five-minute renewal is
+  gone.
+- **Clients** stop following a reported token until the re-run answers. An
+  answer too large to follow carries an empty token, and its watch re-runs
+  every 30 s.
+- **Counts, not bits.** A second device, or one of two ending, moves
+  `connected[p]`, and both wake followers.
+- **Every wake is one more look.** The presence notice goes out under the
+  change lock, and a poll answers only a change it sees.
+
+Evidence: nine server tests, and eight server mutants that fail them; three
+client tests on a controlled transport; the three-tier test, where Bob's mark
+turns true in about 20 ms.
+
+## 2026-09-26 — Live presence round 5: a refresh, not a follow
+
+Astra's fourth review of the follow design was NOT READY again. It found that
+a clock-dependent answer such as `now + connected[p] * 0` reopened the
+hidden-count oracle. Retiring a token made a revocation observable at a
+presence change. Retained arguments outgrew their charge. And two clients
+reading each other's connection counts fed each other's poll restarts, at 65
+polls a second.
+
+Four rounds had each closed their predecessor's defects and opened new ones.
+Following presence exactly, without telling a client more than re-running its
+query would, needs a double evaluation at one instant, delivery-latched
+reports, conservative memory accounting and restart-free polling. For an
+online mark that is too much surface, so round 5 ships the simple version:
+
+- **An answer that read presence asks for its refresh.** The `/q/` reply
+  carries `refresh: 5000`, and names no principal or count.
+- **Clients re-run the watch every 5 seconds, keeping the answer.** The online
+  client retains it, marked `fresh: false`, until the new answer arrives. The
+  local tier publishes only the new answer. Closing a watch stops its refresh.
+- **The server keeps nothing and wakes nothing.** The token table, follow
+  lists, presence generation and count wakes are gone. The change poll is as it
+  was in 0.4.2.
+
+The once-per-run memoized presence read stays, so every read in one answer
+agrees. Alice's mark now turns within about 5 seconds, on every tier, with no
+loading in between. LLP 3000.018 §6 records the follow design and why it waits.
+
+## 2026-09-26 — Live presence round 6: the query asks, and the refresh waits its turn
+
+Astra's review of the refresh was NOT READY, and Grok's found smaller gaps:
+
+- **`refresh` disclosed a branch.** It came from the run's own reads, so
+  `if flag.enabled: return connected[viewer] * 0` revealed the flag. Now the
+  query decides, not the run: the binder's `presence` residency site, which
+  already covers helpers. Rules cannot read `connected`. Every reply of such a
+  query carries it, authored refusals included, so a query that is refused at
+  first keeps refreshing.
+- **A retained refresh outlived expiry and revocation.** The refresh is now a
+  background one-shot read. It publishes only if nothing was published, and no
+  other read began, while it ran. Expiry and invalidation withdraw at once, as
+  before, and win.
+- **The local tier flashed loading, and never stopped refreshing.** The
+  background read touches no snapshot until it publishes. A served answer
+  without `refresh` now stops it; a device answer keeps it.
+- **Timers.** A dead session and a replaced store clear them. The client clamps
+  an interval a timer cannot hold.
+- **Smaller fixes.** The memo is heap-metered, the outcome's presence map is
+  gone, and the Postgres feature builds again.
+
+A composed test finally exercises the composed path: retained history beside
+presence, on the wasm and process devices. Dropping the composed `refresh` copy
+fails it.
+
+## 2026-09-26 — Receipts card round 18: a view is owed like a run
+
+Astra's round-17 review accepted the documented capacity-and-remount limit and
+found one more loss. A `seen` report that the client could not keep
+(`E_ADMISSION`: nothing entered the outbox) was never sent again, and hiding
+the conversation forgot it. The hook now owes a view as it owes a run. It keeps
+the newest ordinal viewed for this client, viewer and conversation, sends it
+once per state of the member's row, and sends again with the next answer after
+an unkept report, whether or not the conversation is still on screen. A view the
+member's row shows, or a predicted row that already carries it, settles it. The
+card's prose says the rest after a remount waits for catching up, which needs
+the server.
+
+New React cases: an arriving message on a conversation read through 20 is seen
+at 21 though the watermark has not moved (Astra's surviving dependency
+mutation), an unkept view goes again after hiding and with the next answer, a
+kept view is not resent, and another conversation owes no view of the first.
+All nine mutants of the change fail the tests.
+
+## 2026-09-26 — Receipts card round 19: owed for the life of the client
+
+Astra's round-18 review found a view the client could not keep lost when its
+screen remounted: the hook's memory lived and died with the component. What
+the hook owes, runs and views alike, now lives for the life of the signed-in
+client, in a module-level `WeakMap` keyed by the client and scoped by viewer and
+conversation. A remount keeps it, and a replaced client or another viewer
+starts afresh. This also narrows 0.4.3's documented limit: a run dropped at
+the 64-run cap is now owed across remounts, and only a reload forgets it.
+
+A view is sent once. One the client could not keep (`E_ADMISSION`) goes again
+when the hook next runs. Round 18 resent a view whenever the member's row
+changed state, and the first answer of `progress` after an early send counted
+as such a change. That sent a kept view twice after a remount; the server
+records `seen` without a cap, so nothing needs that resend. The card's lead
+paragraph was also one word over the guide's 45-word limit. Only the full
+guide test checks that, and the recent rounds had run the card's own test
+alone.
+
+New React cases: an unkept view goes again after a remount, hidden; a
+replaced client, another viewer of the same client and another conversation
+owe no view of the first. All ten mutants of the change fail the tests.
+
+Round 20 is a test. Astra's round-19 review (READY WITH CHANGES) found the
+round-18 and round-19 findings fixed and one gap: only views were tested
+across a remount, so giving the owed runs back a per-mount memory survived.
+A case now drops a run at the 64-run cap, replaces its page, remounts the
+screen on the same client and frees capacity, and requires the run to go
+again.
+
+## 2026-09-26 — Live presence round 7: what a background reply may decide
+
+Astra's review of round 6 confirmed the static decision and found five smaller
+gaps, all in what a background reply may change:
+
+- **An overtaken reply decides nothing.** It could clear the interval that a
+  newer read had set. Now a reply that a publication or another read overtook
+  touches neither the answer nor the timer.
+- **An accepted loading answer publishes.** A query whose authoritative answer
+  is loading no longer shows its previous value as fresh.
+- **A background failure is quiet.** A 503 marked the link offline and
+  withdrew answers. Background reads now use a quiet request that keeps the
+  answer and the interval and retries; the change feed notices a real outage.
+- **Eligibility comes from the evaluating schema.** It now comes from the
+  engine or reader that runs the query, not the schema looked up before an
+  adoption could land.
+- **The contract says a presence answer is a sample.**
+
+The per-run memo's heap charge moved the w15a meters by 67 bytes per guard read
+outside the effect path, and the pins now name that charge.
+
+## 2026-09-26 — Live presence round 8: an overtaken reply remembers nothing
+
+Astra's review of round 7 found one Medium and two Lows:
+
+- **An overtaken reply rewrote the recovery cache.** The local client stored a
+  background reply's answer as it settled, before asking whether a newer read
+  had overtaken it. So a later outage recovered the discarded answer. A
+  background read now writes through a staged cache. Its writes apply only when
+  the reply is published, and only to entries no other read replaced
+  meanwhile.
+- **A read that settled after sign-out rearmed the timer.** Arming now consults
+  the session itself, so no completion order can leave an interval behind.
+- **`fresh` promised more than a sample gives.** The contract and the RFC now
+  say a presence sample keeps the flag it arrived with until replaced, and that
+  failures and suspension remove any bound on its age.
+
+Round 7 also claimed the retained-row composition was unreachable for a
+presence query. Astra reached it: a device evaluates `connected` as unknown, not
+never. The read-through fixture now observes such a query and requires it to
+keep refreshing. The local failure, loading and overtaken-reply cases now run on
+the wasm and process devices, and an online case shows a background reply older
+than an observed commit is never published.
+
+## 2026-09-26 — Live presence round 9: remembered answers in the order reads began
+
+Both reviews of round 8 confirmed its three fixes; Astra reproduced the
+session-death Low's fix with a timer barrier. They then found opposite faults
+in the staged cache's guard, which compared entries by identity:
+
+- **Astra:** a newer one-shot refusal deleted an answer that was never
+  remembered, and the older background reply, accepted anyway, wrote it back.
+- **Grok:** an older one-shot answer that landed while a refresh ran made the
+  newer accepted reply skip its write, so recovery stepped backward.
+
+Both are about order, so round 9 orders the remembered answers by when each
+read began. Every read takes a ticket as it begins, and a write of a key,
+deletions included, applies only if no read that began later has written it.
+That also makes round 8's staging unnecessary: an overtaken reply can never
+outrank the read that overtook it. So staging and its acceptance hook are gone.
+
+The online client now gates its timer the way the local one does: ended
+credentials keep no interval, whatever read settles last. The race lies
+between a reply and its caller resuming, so no fake transport reaches it, and
+the gate is structural. The RFC and the contract now say a composed sample
+keeps the `fresh: false` it arrived with. New local cases: an accepted
+background reply is what recovery shows, and it replaces an older one-shot
+answer that landed while it ran; an older refusal landing later does not erase
+it; and the accepted loading and refusal cases run through an outage.
+
+## 2026-09-26 — Live presence round 10: the server's cut orders what recovery remembers
+
+Astra's review of round 9 confirmed its fixes and found request-start order
+insufficient on its own. A one-shot read held before reaching the server, then
+refused at a later store cut, lost to an earlier answer because its read began
+first. A read retried after the store changed kept its first ticket, so it lost
+to reads that began while it waited. Now a server's answer or refusal carries
+the store cut it read (`seq`), and a remembered answer is replaced only by one
+that is not older: a later cut wins, and at the same cut the attempt that began
+later wins. Every evaluation attempt, a retry included, takes a new ticket.
+Local cleanup of an expired or composed answer forgets it without changing the
+order.
+
+Astra also showed the online credentials gate was testable after all. A barrier
+on the observation's fetch holds a completed read while a change-feed `E_AUTH`
+ends the credentials, and a timer spy then sees no presence timer. The latency
+bound in RFC §3.3 now counts the read in flight when presence changed.
+
+Grok's review of round 9 was READY WITH CHANGES. It found the local-reads unit
+test still treating the remembered answers as a map, so its assertions after the
+first never ran; that test and the prediction-routing fakes now use the ordered
+cache. A new local case shows that forgetting an expired answer, offline, leaves
+the next server answer free to be remembered.
+
+## 2026-09-26 — Live presence round 11: a refusal names its own cut
+
+Both reviews of round 10 found the store-cut order leaking in three places:
+
+- A refusal was labeled with the store head taken before its query ran, so a
+  commit in between made it look older than it was. The engine now returns
+  the cut its query transaction read beside the result (`Engine::query_at`),
+  and a refusal reply names it as `seq`.
+- A refetch after the credentials changed, and an expired device answer
+  re-routed to the server, reused the attempt's ticket. Each refetch now
+  renews it.
+- A reply with no cut was ordered as cut 0, so it could never replace a
+  remembered answer. A missing cut is now unknown, and then only when the
+  reads began decides.
+
+The later-cut test now refuses with `head` alone, as older servers do. New
+unit cases cover the order itself, both renewals through `evaluateLocal`, and
+a reply without a cut. The prediction-routing tests run on the real cache.
+
+## 2026-09-26 — Live presence round 12: a cut once named stays known
+
+Astra's round-11 review found two more ways an older reply could replace a
+newer one, and a server test too weak to catch the round-10 defect:
+
+- The order compared each reply only with the one remembered. A refusal at
+  cut 8, then a loading reply with no cut, let an answer read at cut 7 win on
+  its ticket. Each query now keeps the highest cut any reply has named, kept
+  or not, and a reply below it is older. An answer remembered with a cut is
+  therefore always at the highest cut named. A brute-force check of every
+  arrival order of 20,000 small reply sets found no lower-cut answer
+  remembered. Replies without a cut are still ordered only by their reads, so
+  the final state can depend on arrival order.
+- A composed read, which remembers no whole answer, erased memory
+  unconditionally: its cleanup when it composed, and its reply when it
+  arrived. Both are now ordered deletions, so a later read's answer stays.
+- The server test required `seq == head` on an uncontended store, which the
+  round-10 defect also satisfies. A test hook now commits between the reply's
+  metadata and the query's own read, and the refusal must name the cut one
+  past its head.
+
+New client cases: Astra's three-reply schedule, a cut named by a reply that
+lost on its ticket, both composed-read paths through `evaluateLocal`, and a
+refusal carrying `seq` and an older `head`. Of nine mutants, one survived: a
+composed read's whole answer could be remembered with no test noticing, a gap
+older than this round. A case now requires that nothing is remembered.
+
+## 2026-09-26 — Live presence round 13: a composed answer is ordered too
+
+Astra's round-12 review found the last path around the order. A composed
+answer (retained rows beside the server's page, or a retained field beside
+the server's) was published without its cut and wrote nothing to the order.
+So an older answer that landed after it was remembered, and a later outage
+showed that older answer. Both composition branches now carry the server's
+cut, and publishing a composed answer is an ordered deletion, as a composed
+refusal already was. New cases cover a composed answer of each kind against
+an older answer that lands later, and a composed refusal at a later cut.
+
+Round 14 is a test. Astra's round-13 review (READY WITH CHANGES) found every
+round-11 and round-12 finding fixed and one gap: nothing required a store
+replacement to clear the order as well as the answers. A case now remembers a
+refusal at cut 100, clears, and requires the new store's first answer at cut 1
+to be remembered.
+
+## 2026-09-26 — The scale certificate separates a cleanup backlog from growth
+
+Calibration #21's builder read `scale: 6 of 8 operations are constant; 2 grow
+with data (home, cards)` on the paved Following program, and wrote that it was
+not treating short functional tests as a scale proof. The two reads grow only
+with a backlog: feed entries that an unfollow or a removal retired, which
+background cleanup purges in chunks of at most 256. Expired rows the sweep has
+not reached are the same kind of cost.
+
+The certificate now has a third class, `backlog`, which reads
+`constant once background cleanup catches up; until then at most N rows
+examined: …`. It keeps the read meter's allowance, because a burst or downtime
+can leave any backlog, and the summary counts it apart:
+`2 constant once background cleanup catches up (home, cards); 0 grow with
+data`. Only the scan the compiler generates for a timeline read qualifies:
+its one filter is the platform's retirement check. A residual filter over
+application data, a per-row read rule and a maintained aggregate over expiring
+contributions still grow. `guide bounds` says so, and the pinned certificates
+in the scale, expiry and Following tests moved with it.
+
+## 2026-09-26 — Scale certificate round 1: only the compiler's own timeline scan is a backlog
+
+Both review families found the same High: the first cut trusted a table's
+name. A scan of the owned feed table with a filter of its own
+(`feedFeed[viewer] … where not .repost`) was called a backlog, though live
+reposts survive cleanup. So was any application table whose name ended in
+`Broadcast`, which is not even an owned suffix. Now the binder records the one
+scan it generates when it expands a timeline read, and the certificate grants
+`backlog` to that scan alone. An authored scan grows, even one that spells the
+platform's check by hand. Without the binder's record there is no proof, and
+the read grows too.
+
+Inside a growing certificate a cleanup site now keeps its own words. Under a
+condition whose only extra work is cleanup, it reads `constant once background
+cleanup catches up (…)`. Beside real growth, it reads `also, until background
+cleanup catches up, …`. The README and `guide bounds` describe three classes,
+and apply `backlog` only when cleanup explains all of an operation's variable
+work.
+
+## 2026-09-26 — Scale certificate round 2: the record names one scan
+
+Both families found that round 1's record was ambient: it marked every scan of
+the feed table bound while a timeline read expanded, including an authored scan
+inside a helper in the read's own cursor or key. Such a read was certified
+`backlog` although live reposts it skips survive cleanup. The binder now
+records a scan only if it is the feed table read at the timeline read's own
+source site, which only the generated scan is. Astra also found that a
+condition's cleanup promise ignored unconditional growth; every variant now
+takes at least the class of the work that runs in all of them. The summary
+test now pins all three counts, and a test pins the guide's and README's
+three-class wording.
+
+## 2026-09-26 — Scale certificate round 3: a variant answers for every site that can run with it
+
+Both reviews of round 2 found that a condition's class still ignored growth
+recorded under other conditions: a scan that grows whether `status` is present
+or absent, or whatever `label` is, runs beside the variant where the assignee
+is pinned, yet that variant still promised `constant once background cleanup
+catches up`. Sites and variants now keep their presence conditions, and every
+variant takes at least the class of each site whose conditions do not
+contradict its own. Unconditional sites contradict nothing. New tests cover a
+status-wide scan, an orthogonal input, a coarser variant beside a finer
+growing site, and an unconditional expiring scan that makes otherwise
+constant variants a backlog.
+
+## 2026-09-26 — Scale certificate round 4: conditions are bindings, not spellings
+
+Astra's review of round 3 found conditions matched by the name the author
+wrote. A helper's `assignee` parameter, called with the query's `a`, looked
+like the query's own `assignee`, so a variant promised cleanup while the
+helper's scan grew. And `selected = assignee` was treated as independent of
+`assignee`. Conditions now carry the binding they test. A binding that only
+copies another, and neither is ever reassigned, tests its source. Variants
+merge by those bindings, and each reads under the name of the binding it
+finally tests: the helper's parameter reads as `a`, and a copy of `status`
+as `status`. A reassigned copy stays its own binding. New tests cover the
+helper, the helper in a loop, the alias, a reassigned copy, two bindings
+that share a spelling, and conditional cleanup beside constant variants.
+
+## 2026-09-26 — Scale certificate round 5: only an argument's presence defines a variant
+
+Astra's review of round 4 found three more gaps. A loop variable, or a copy
+reassigned in a loop, takes both values in one call, yet it was treated as a
+fixed condition. Repeated searches of one argument got separate identities.
+And an alias tested inside a test of its own source merged two contradictory
+facts into one variant. Presence variants now come only from an argument's
+presence, which is fixed for the whole call. A copy counts only if it is never
+reassigned, and Quarry never reassigns an argument. A test of anything else
+runs both ways, so its branches count as unconditional. A test that an
+enclosing test already decided adds no fact, and its other branch is recorded
+as unreachable. A searched argument is one condition however often it is
+searched.
+
+## 2026-09-26 — Scale certificate round 6: what follows a returning branch
+
+Astra (READY WITH CHANGES) and Grok (READY WITH CHANGES) reviewed round 5.
+Astra asked for sharper tests of the nested case. The nested test now pins its
+one variant and its one cleanup site, and a mirrored case checks the absent
+branch. Grok found two more gaps:
+
+- Code after a branch that returns was treated as running in every call. In
+  `if assignee != null: return <pinned>` followed by `return <unpinned>`, the
+  second scan runs only when the assignee is absent, yet it grew the present
+  variant. The walk now covers the whole body at once. What follows a branch
+  that leaves the body (`return`, `break`, `continue`) is analyzed in the
+  other branch's case. When both branches leave, or the branch an enclosing
+  test decided leaves, what follows never runs.
+- One presence state could be spelled two ways when its tests nested in
+  opposite orders. Condition names are now sorted, so `status and assignee`
+  reads `assignee and status` everywhere.
+
+Grok also named a surviving mutation: skipping expression blocks when
+finding reassigned bindings. A new test covers it: `matching (needle ?? 'x')`
+searches in every call, so it must not claim a constant absent case.
+
+Ten mutants of the change fail the tests. Four of them needed a new test of
+every way out of a body: both branches returning, `continue` in a loop, and
+a nested test whose branches both return. Quarry accepts code after such a
+test, so the certificate must not charge it.
+
+## 2026-09-26 — Scale certificate round 7: leaving, judged under the facts in force
+
+Astra reviewed round 6 (READY WITH CHANGES). Deciding whether a branch leaves
+its body was purely syntactic. A branch that returns through a nested test of
+the same argument, `if assignee != null: if assignee != null: return …`, was
+judged able to fall through, so what followed it was charged to every call. A
+test's exit is now judged under the presence facts each branch runs with. A
+decided nested test leaves exactly when its selected branch does. The
+fall-through test also compares the work (rows, probes and lanes) with its
+explicit-`else` twin, not only the classes: charging what follows at zero
+iterations survived before.
+
+Grok's review of round 6 (READY WITH CHANGES) found two more ways a scan that
+never runs was charged, both making a backlog operation read as growing. A
+`require` that no call can pass (`require false`, or two literals compared so
+the comparison fails) now leaves as a `return` does. Nothing after a `return`,
+`break`, `continue` or such a refusal in the same body is charged: it is
+walked for its bindings and its rows still count toward the bounds, but it
+adds no site. A loop whose body returns can run no times, so it never leaves.
+A test now pins that, since treating it as leaving survived before.
+
+One pessimism is left as it was in round 5: a helper that falls through after
+a returning branch is lowered with a `$returned` flag, which is not a presence
+test, so what follows is charged to every call. The README's certificate
+paragraph fits its three lines again, within the README's 300-line budget.
+Twelve mutants of rounds 6 and 7 fail the tests.
+
+## 2026-09-26 — Live presence round 15: a composed read clears nothing before its reply
+
+Grok's review of rounds 12 to 14 found every earlier finding fixed and one new
+defect from round 12. That round turned a composed read's up-front cleanup into
+an ordered deletion. The deletion named no cut, because the server had not
+answered yet, so it took the order's place by its read's ticket alone. An
+earlier read's answer at a higher cut, landing while the composed read was out,
+was then turned away. The composed read's lower refusal was turned away too,
+and nothing was remembered. Any cleanup before the reply is unordered: as a
+forget it erases a newer answer, and as a deletion it blocks an older read's
+higher cut. So the composed read now clears nothing up front. Its reply names
+the server's cut and takes its place in the order, as it already did. A case
+covers Grok's schedule: cut 100 lands during the composed read, which is then
+refused at cut 40, and the cut-100 answer is kept. Two routing tests had pinned
+the old erase: offline, a composed read left the cache empty. They now require
+that it leave the cache as it was. A composed read still never recovers a whole
+answer, and its reply, when one comes, takes its place in the order.
+
 ## 2026-09-26 — 0.4.2 published: CLI, platform and Expo, registry-verified
 
 `snapback4@0.4.2`, `snapback4-darwin-arm64@0.4.2` and `snapback4-expo@0.4.2`
@@ -61900,6 +62860,373 @@ isolation reruns were needed: there were no timing failures. The final report
 is EPH-REPORT-E3.md at the worktree root and remains uncommitted. E3's requested
 work is complete; no push, stash, merge, rebase, publication or other-worktree
 edit was performed. Lead review/publication/calibration phases remain separate.
+
+### 2026-09-26 — LLP 3000.017 fix round 1: sequence probe cache
+
+The E3 lazy `_sequences` repair stays intact. Each SQLite Tx now caches its
+existence probe in a Cell; successful first creation sets the cell true.
+Rollback drops that cell with the transaction, so the next transaction probes
+again. Repeated sequence reads and allocations no longer repeat sqlite_master
+or CREATE TABLE checks. All 16 sequence_by tests pass, including absent reads,
+first-creation rollback, successful allocation and activation before allocation.
+This is a separate checkpoint for Opus F4; it changes no wire/schema bytes.
+
+### 2026-09-26 — LLP 3000.017 fix round 1: review corrections
+
+The hub snapshot now includes store identity and generation, published with its
+incarnation/ring under the wake mutex. Held polls compare their entry generation
+and return the newly published one. Durable commits use one publication helper
+for seq plus both condition variables, including action/effect/route custody;
+maintenance publishes only changes and never takes the hub under the engine.
+The former tests' fabricated wake.seq writes now use real commits. A server test
+pauses adoption before its later metadata publication; a real dev test holds a
+durable-only poll across a file edit and requires generation 2 within 500 ms.
+
+Both client tiers omit eph/ephi/ephTables for durable-only backends. The online
+tier reads /schema when starting observation and on adoption, falling back to
+generated facts for a server without schema facts. This is the smallest way to
+know about an ephemeral table even when no mounted operation reads it. Adopted
+facts replace every mounted watch's interests, including removals; growth
+reissues the poll. Both tiers have real dev regressions for typing → viewing →
+durable, without remounting, and frozen base change-request/response bytes.
+
+Renewal guards may read only durable tables. The existing ephemeral-exists guard
+expectation changes from true to false as required by the fix brief; a self-
+invalidating guard is now a negative and a durable guard remains positive.
+setTyping and markViewing still renew. Session buckets digest the parsed bearer
+token, with equivalent-spacing coverage under dev and serve. The chats-list
+card filters out the viewer, asserted with both viewer and peer rows present.
+
+The acceptance test uses separate servers/phases for the ephemeral burst and
+its durable control, asserts first sight follows a typing poll answer without a
+seq move, and checks nonnegative disappearance time and at most four requests.
+Watch tests settle initial queries before the signal, so removing publisher
+notification cannot hide behind startup reads. Qualification and mutation-test
+results will be appended after completion. No new schema/type fixtures were
+regenerated; no durable expected output was changed. RFC §3.3 now explicitly
+follows §3.6's durable wire guarantee, recording the author's review clarification.
+
+The requested lost-wake mutation is now verified. Removing only the publisher's
+shared.polls.notify_all() made ephemeral-watches fail both delivery cases
+(2 passed / 2 failed) and ephemeral-e2e fail its first trial (0 passed / 1 failed,
+first sight 1859.933 ms). The notification was restored and the binary rebuilt.
+Before mutation, all 11 focused JS tests passed; five isolated ephemeral bursts
+first appeared in 33.587–36.644 ms, disappeared 3840.401–3879.841 ms after the last
+call, and used two requests each. The separate durable phase used 45 each.
+
+Archive-built 1d6325c86 clients fail all four new wire/adoption cases against the
+fixed server (both tiers), while archive-built 0badac987 clients pass both frozen
+durable wire cases. No base implementation source was patched for those probes;
+only the new tests/helpers and the built device artifact were supplied. The
+existing guard-positive expectation is the sole changed renewal expectation.
+The 110-test server target passes serially. An initial unbounded parallel cargo
+invocation exhausted this process's file descriptors; the blocking harness uses
+one thread for this target. That invocation also caught my initial test-only
+attempt to seed a serve host through the dev door, corrected to a core commit
+and the production notification helper. Neither is a claimed inherited defect.
+The maintenance lease sweep retains its notification through the helper even
+when custody changes do not advance the row-log sequence.
+
+The first full-suite artifact build found one manually constructed core Snapshot
+fixture missing the newly required identity/generation fields. Added them without
+changing its expected invalidations, and strengthened both paused-publisher tests
+to compare identity/generation as well as version/ring. All 15 core ephemeral
+tests and both paused-commit tests pass. This was an introduced test-compilation
+omission, not a pre-existing failure; the final full suite is rerun after it.
+
+Kept the isolated durable control measurement-only, as in the original acceptance
+trial: a missed control expiry is recorded as null rather than failing the
+feature's timing bound. The <=500 ms appearance, 0..4500 ms disappearance,
+notification path and <=4 request assertions all remain on the ephemeral phase.
+
+The first full diagnostic run exposed an introduced online regression: an
+unconditional /schema request changed the durable-only transport flow and
+consumed responses in the existing online-read-order tests. Three cases failed,
+and a fourth awaited a response already consumed by discovery. Interrupted only
+our own hung suite session (Ctrl-C, exit 130); no complete result is claimed.
+
+Replaced unconditional discovery with a capability advertisement present only
+on ephemeral backends: X-Snapback-Ephemeral: 1 on ordinary timed responses and
+poll heartbeat headers, exposed via CORS. The online tier loads /schema only
+when advertised, immediately reissuing any legacy discovery poll, and reloads
+known facts on adoption. Generated ephemeral-read facts still work directly.
+This small handshake is necessary to learn an unobserved ephemeral table while
+preserving the entire durable-only request flow, not merely poll bytes. Durable
+schemas gain no headers, requests, JSON fields or incarnation reset. A new
+assertion requires zero online /schema calls for a durable backend. Both tiers
+also now test durable → ephemeral adoption on the same mounted watch. Existing
+online-read-order assertions are unchanged and pass 12/12; capability/adoption/
+watch tests pass 12/12. This entry supersedes the earlier unconditional-discovery
+choice; RFC §3.3 and the client/server docs record the handshake.
+
+Repeated the publisher-notification mutation after capability discovery changed:
+watch tests again fail both tiers (1862.084 / 1851.154 ms; 2 pass / 2 fail), and
+the acceptance trial fails at 1855.893 ms (0 pass / 1 fail). Restored the exact
+publisher source and rebuilt before the final full-suite run.
+
+A final capability/generation regression confirmed that assigning the poll's
+observed generation while loading schema could swallow a pending generation
+invalidation for a durable watch. Only accepting the poll now advances that
+watermark. The new test fails before the change and passes after (1/1). This
+TypeScript-only fix and its package typecheck/build completed while the final
+suite was still in its Rust phase, before any client test started; no Rust
+semantic input changed. The suite's client phase therefore uses the corrected
+build, with its typecheck/build also recorded separately.
+
+The full client phase then exposed a second initialization edge in that fence:
+if a query supplies the first incarnation and cancels the initial poll, generation
+can still be undefined at a later adoption. The real online typing → viewing test
+failed and reproduced in isolation (so it was not dismissed as host timing).
+Schema discovery now seeds the first known generation with ??=; only accepted
+polls advance it afterward. All 21 adoption/read-order tests pass, and three
+additional runs of both the real adoption and the no-swallowed-invalidation case
+pass (6/6). Existing assertions are unchanged. The full run's one client failure
+is retained as diagnostic evidence; the complete suite is rerun from this fixed
+checkpoint with no source edits during qualification.
+
+
+Final fix-round-1 qualification (2026-09-26): from 101169dc3, with implementation
+source fixed throughout, `bash scripts/test.sh` completed with the literal
+summary `== 0 failure(s) in 725 s` (exit 0). Pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache were used. Rust totals: 3,568 passed, 0 failed,
+19 ignored. Node totals across fixture/client/model workers: 2,130 tests,
+2,125 passed, 0 failed, 5 existing optional skips; models passed 78/78. The
+published-0.2.33 capability fences and capability-free byte/store control pass.
+The full run measured wasm at 2,013,198 B raw / 578,797 B gzip, below the unchanged
+579,833 B ratchet. No durable fixture output was regenerated.
+
+The required post-suite standalone acceptance test also passes (1/1): five
+isolated ephemeral trials first appeared in 32.279–35.068 ms, disappeared
+3845.801–3875.979 ms after the last call, and sent two requests each. The separate
+durable phase sent 45 requests each. Every ephemeral trial proved its first
+sight followed a typing-naming /changes answer with seq unchanged. The final
+report, intentionally uncommitted at EPH-REPORT-FIX1.md, records each review fix,
+all deviations/choices, exact suite counts, both failed notification mutants,
+base-archive reproductions and the five trial rows. Evidence is retained in
+snapback4/target/eph-fix1-evidence/. No requested implementation item remains.
+
+## 2026-09-26 — Scale certificate round 8: copies known before the walk
+
+Astra's review of round 7 (READY WITH CHANGES) found two Lows, both on the safe
+side. A copy made inside a branch (`if assignee != null: selected = assignee;
+if selected != null: return …`) was not yet known when the outer branch's exit
+was judged, so what followed was charged to every call. That had been so since
+round 5. The copies are now read from the whole program before the walk. The
+IR names every binding once (`$selected1`), so a name is one binding, and a copy
+counts only if it is never reassigned. A test pins the two placements as
+equivalent. The refusal tests also now cover literal comparisons that hold
+(`1 = 1`, `1 != 0`) and one that does not (`1 != 1`), which a constant answer
+for every literal comparison survived before. Two guards proved to be dead
+code and were dropped: one for a name bound twice, which the IR never
+produces, and one for a copy of a reassigned local, which reads through to a
+non-argument either way.
+
+## 2026-09-26 — 0.4.3 integration: receipts in one query, presence that stays current
+
+Codex could not authenticate for part of this round. The supervisor integrated
+it by hand and had Grok review every delta blind. Astra rejoined once codex
+recovered and reviewed the rest.
+
+What it merges:
+
+- lane U rounds 11–13, where remembered answers keep their own expiry;
+- lane V rounds 12–16: outcome-qualified acknowledgements, receipt custody
+  through web upgrades, and a lookup that reads a verified shared correction,
+  while settlement reads only the device's own history;
+- the `receipts` guide card, nineteen rounds, ending on a delivered prefix,
+  a runs table, a `progress` catch-up page, and a hook that owes every run it
+  holds and every view, for the life of the signed-in client, until the server
+  shows it covered;
+- live presence (LLP 3000.018 revision 14): a presence answer asks for a
+  5-second refresh, a background reply publishes only what nothing overtook,
+  and remembered answers follow the store cut each reply names, the highest
+  cut named staying known, composed reads included;
+- the scale certificate's `backlog` class (LLP 3000.013 §14.4), granted only to
+  the compiler's own timeline scan, with presence variants that answer for
+  every site that can run with them and condition what follows a returning
+  branch;
+- `main` at its landing head, with LLP 3000.015's shared baseline (`written
+  by`, `sequence by`, row-keyed count views) and LLP 3000.017 (ephemeral
+  tables, a Draft).
+
+Merging `main` conflicted in four files, each resolved by keeping both sides:
+this journal, LLP 3000.013's revision line, the guide fact homes (main's
+spelling with the receipts card added) and the wasm budget (measured again
+below). Live presence was renumbered from LLP 3000.017 to 3000.018 first, since
+`main` took 3000.017 for ephemeral tables.
+
+Integration fixes:
+
+- **Test fakes.** Four client test files' fake devices now advertise
+  `receipt_outcomes`. Lane V refuses devices that do not.
+- **Census.** The readauth census lists the receipts card's mutations.
+- **Wasm.** Before the merge with `main`, the ratchet moved from 522,000 B to
+  525,000 B for V's outcome qualification and the query outcome's presence
+  map. Merged with main's baseline (578,207 B), the device measures 2,021,689 B
+  raw and 581,094 B gzip, and the ratchet moves to 582,094 B.
+- **Docs budget.** The scale certificate's README paragraph fits its three
+  lines again; the README's budget is 300 physical lines.
+
+Eight suite runs reached 0 failures. Every earlier red was an integration
+seam, not a product defect:
+
+- the wasm budget;
+- the fakes;
+- the census;
+- a clock advance that woke every held poll;
+- two meter pins moved by the presence memo;
+- the budgets, once `main` was merged.
+
+Supervisor probes measured Following delivery in tens of milliseconds on every
+tier, from a post to the follower's page. They found one platform defect,
+presence, which LLP 3000.018 fixes. It first did so by following presence
+through held polls, which four review rounds could not make safe, then by a
+refresh. The full record is
+`reports/20260926-intent-integration-043/REPORT.md`.
+
+Round 21 is a test. Grok's review of round 20 (READY WITH CHANGES) found every
+earlier finding fixed and one gap: nothing showed a kept view staying kept
+across a loading answer, so honoring the kept mark only when the member's row
+is present survived. A case publishes a loading answer and then the same row,
+and requires no second `seen`.
+
+### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
+
+Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
+online backend installation advances the query epoch, discards mounted answers
+and expiry timers, and reruns watches before seeding generation. Both an already
+published durable answer and a late in-flight answer are covered. Discovery is
+complete only after a successful installation. Failed requests and schema facts
+older than the poll's generation retry before another long poll can hold them
+up. The local choice where the RFC is silent is 25/50/100/200/400 ms exponential
+backoff capped at 500 ms, continuing while the client has credentials and mounted
+watches; close aborts the wait. Stale facts never replace operation interests.
+The scratch candidate's initial reset was retained, with seeding ordered after
+the reset; its retry-on-next-poll alone was insufficient for bounded recovery.
+Tx::rollback_to clears the lazy sequence-table existence cache after successful
+rollback, so rolled-back DDL can be allocated again in the same transaction.
+
+Added ephemeral-capability.test.mjs and the sequence_by savepoint regression.
+With production sources still at 1c5dc4fd0, all four new client cases failed
+(0 pass / 4 fail): Astra's real-server differential kept 1 through three
+generation-2 polls while a direct read returned 2, one injected schema 503 never
+recovered, a stale-schema mock failed to catch up, and a held old query was not
+retired. The savepoint regression failed with `no such table: _sequences`
+(0 passed / 1 failed). After the fixes, the affected client suite passes 32/32
+and the affected core suite passes 32/32 (15 ephemeral + 17 sequence_by).
+Typecheck and package build pass. No existing expectation, fixture, wire form,
+or budget changed; the durable-only byte and zero-extra-schema tests pass
+unchanged. Evidence is in target/eph-fix2-evidence/. Full qualification follows.
+
+### 2026-09-26 — Fix round 2 final qualification
+
+At implementation checkpoint 3f5c74974, pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache, the complete `bash scripts/test.sh` returned
+`== 0 failure(s) in 841 s`, exit 0. Source stayed fixed throughout. Rust totals:
+3,569 passed, 0 failed, 19 ignored. JavaScript totals: 2,134 tests, 2,129 passed,
+0 failed, 5 existing optional skips, including all 78 model tests. All three
+published-0.2.33 capability fences and the capability-free byte/store control
+pass unchanged. The three literal `backend FAIL E_STORE` diagnostics are their
+expected negative checks, not suite failures. No timing failure or isolation
+rerun occurred. Wasm: `wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`;
+the unchanged ratchet has 1,036 B headroom.
+
+The required additional standalone ephemeral-e2e run passed 1/1, with all five
+isolated ephemeral trials below. Each first sight followed a typing-naming
+poll answer without a durable seq move. Every burst used two requests versus
+45 in the separately measured durable control.
+
+| Trial | Ephemeral first seen (ms) | Ephemeral gone after last call (ms) | Durable first seen (ms) | Durable gone after last call (ms) | Ephemeral requests | Durable requests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 34.155 | 3875.649 | 48.901 | 4016.611 | 2 | 45 |
+| 2 | 34.834 | 3846.749 | 14.771 | 4373.536 | 2 | 45 |
+| 3 | 32.804 | 3868.266 | 16.062 | 4012.117 | 2 | 45 |
+| 4 | 32.366 | 3853.058 | 17.052 | 4080.91 | 2 | 45 |
+| 5 | 35.398 | 3873.524 | 15.008 | 4357.01 | 2 | 45 |
+
+Evidence: target/eph-fix2-evidence/full-suite.log, full-suite-counts.log,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. The root EPH-REPORT-FIX2.md is deliberately uncommitted.
+All four requested fixes and their regressions are complete. No push, merge,
+rebase, stash, publication, other-worktree edit or other-process intervention
+was performed.
+
+### 2026-09-26 — LLP 3000.017 fix round 3: schema retry boundaries
+
+N4/N5 are fixed in the online client. An observed generation change now
+retires mounted snapshots and their expiry timers before awaiting schema.
+Schema loading also retires outstanding query publications and withdraws
+freshness. The RFC does not prescribe discovery-failure delivery: the local
+choice is to re-query mounted watches every 500 ms while schema loading
+suspends `/changes`. Those answers carry `fresh: false`; they deliver durable
+updates even if every schema request fails or one stays held. This keeps the
+existing stale-generation fence: no new poll starts with obsolete operation
+interests. Successful installation restores ordinary notification-driven
+refreshes. The fallback stops on close, last-watch removal, credential refusal
+or terminal store refusal. Schema retries retain 25/50/100/200/400 ms backoff
+and the 500 ms cap.
+
+Schema `E_AUTH` now uses `obsoleteRefusal`, like query/poll refusals. A current
+bearer refusal ends credentials with no further schema attempt; an obsolete
+bearer refusal waits for an in-flight rotation and retries with its successor.
+Schema dispatch also waits for rotation. Close can release the schema wait
+even if a supplied fetch ignores its abort signal.
+
+The three real-server Astra reproductions are now repository regressions in
+ephemeral-capability.test.mjs, strengthened to require delivery of the durable
+insert, immediate generation invalidation, and withdrawn freshness. A fourth
+regression holds rotation across an obsolete schema refusal. All four fail
+against a44b11b51 (0 pass / 4 fail); the original client build reproduced the
+three real-server failures, and transpiling only that commit's client.ts into
+the current package reproduced all four. No existing expectation changed.
+The first corrected capability run passes 7/7; the expanded affected run and
+complete qualification are recorded below. Evidence: target/eph-fix3-evidence/.
+
+Only client.ts, its capability regression file, and this journal change.
+There is no RFC semantic deviation, schema/type/wire-format change or budget
+change. The checkout's llp-orient links target an uninitialized vendor/llp;
+no skill was available there or in local skill discovery. Per the round's
+continue rule, orientation used the governing RFC, root, command sheet,
+rules, scope exclusions, current client documentation and journal directly.
+
+Pre-qualification: package typecheck/build pass; the affected client run passes
+113/113 and the terminal-entrypoint/store run passes 34/34. Astra's six scratch
+retry/lifecycle probes pass 6/6 against this worktree's client: observed retry
+gaps are 27/51/101/201/401/501/501 ms (500 ms timer cap plus scheduling), close
+and unmount stop attempts, remount recovers, and auth/store termination stops
+discovery. Its generation probe now observes data 2 with `fresh: false` while
+schema is still failing. No timing failure or isolation rerun occurred.
+
+### 2026-09-26 — Fix round 3 final qualification
+
+At implementation checkpoint d274c02bd, using Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED tarball cache, `bash scripts/test.sh` completed with
+the literal summary `== 0 failure(s) in 748 s`, exit 0. Implementation source
+stayed fixed throughout. Rust: 3,569 passed, 0 failed, 19 ignored. JavaScript:
+2,138 tests, 2,133 passed, 0 failed, 5 existing optional skips; models passed
+78/78. All four new regressions and the existing N1/N2/N3 tests stay green.
+The three published-0.2.33 capability fences and the capability-free byte/store
+control pass unchanged. The three literal `backend FAIL E_STORE` diagnostics
+are expected legacy-decoder refusals, not suite failures.
+
+The suite's `bash scripts/build-wasm.sh` measured
+`wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`. Both the artifact size
+and ratchet are unchanged from fix round 2, leaving 1,036 B headroom.
+
+The one additional standalone ephemeral-e2e run passed 1/1. Five ephemeral
+trials first appeared in 22.247–35.496 ms and disappeared 3841.517–3876.299 ms
+after the last call. Each used two requests, against 45 for each separately
+measured durable control. All five proved first sight followed a typing-naming
+poll answer with the durable sequence unchanged. No failed qualification,
+timing isolation rerun, existing expected-output edit or unrelated defect was
+observed in this round.
+
+Evidence: target/eph-fix3-evidence/full-suite.log, full-suite-counts.log/json,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. EPH-REPORT-FIX3.md at the worktree root is deliberately
+uncommitted. Nothing remains undone in the requested fix round. No push,
+merge, rebase, stash, publication or other-process intervention was performed;
+the other checkout was used only for the explicitly supplied tarball cache.
 
 ### 2026-09-26 — CCP L1: mutation admission and starter intent ownership
 

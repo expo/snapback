@@ -1,0 +1,4 @@
+(node:3762679) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"source":"R11 false success","shape":"sent history + observed_seq + receipt_store.id, no success_seq","server":"failed","refusal":"NOT_ADMIN","recovered":"sent","replayPosts":0,"audit":0}
+{"source":"genuine saved success, settlement aborted","shape":"sent history + observed_seq + receipt_store.id, no success_seq","server":"sent","recovered":"sent","replayPosts":0,"audit":1}

@@ -1,8 +1,8 @@
 //! A deliberately small proof, separate from exhaustive effect discovery.
-// @ref LLP 3000.017#2.2-ephemeral-mutations — fixed keys alone do not prove renewal.
+// @ref LLP 3000.017#2.2 — fixed keys alone do not prove renewal.
 use super::*;
 
-pub(super) fn prove(program: &Program) -> bool {
+pub(super) fn prove(program: &Program, schema: &crate::schema::Schema) -> bool {
     if program.kind != ProgramKind::Mutation || program.native {
         return false;
     }
@@ -10,7 +10,7 @@ pub(super) fn prove(program: &Program) -> bool {
         return false;
     };
     let args: BTreeSet<_> = program.args.keys().cloned().collect();
-    let stable = |expr: &Expr| inputs(expr, false).is_some_and(|names| names.is_subset(&args));
+    let stable = |expr: &Expr| inputs(expr, None).is_some_and(|names| names.is_subset(&args));
     let one_write = match write {
         Stmt::Update { key, patch, .. } => stable(key) && stable(patch),
         Stmt::Upsert { key, row, .. } => stable(key) && stable(row),
@@ -41,7 +41,7 @@ pub(super) fn prove(program: &Program) -> bool {
             }
             _ => return false,
         };
-        let Some(names) = inputs(value, true) else {
+        let Some(names) = inputs(value, Some(schema)) else {
             return false;
         };
         needed.extend(names);
@@ -49,9 +49,10 @@ pub(super) fn prove(program: &Program) -> bool {
     needed.is_subset(&args)
 }
 
-// In guards, point reads are allowed. In a write, all leaves must be literal,
+// In guards, only durable point reads are allowed: an ephemeral write may
+// invalidate an ephemeral guard, including through expiry. In a write, all leaves must be literal,
 // argument, viewer or now. This walk admits no expression with side effects.
-fn inputs(expr: &Expr, reads: bool) -> Option<BTreeSet<String>> {
+fn inputs(expr: &Expr, reads: Option<&crate::schema::Schema>) -> Option<BTreeSet<String>> {
     let children: Vec<&Expr> = match expr {
         Expr::Variable(name) => return Some([name.clone()].into()),
         Expr::Literal(_) | Expr::Input(Input::Viewer | Input::Now) => return Some(BTreeSet::new()),
@@ -59,7 +60,8 @@ fn inputs(expr: &Expr, reads: bool) -> Option<BTreeSet<String>> {
         Expr::Object(xs) => xs.values().collect(),
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => vec![base],
         Expr::Binary { left, right, .. } => vec![left, right],
-        Expr::Get(read) | Expr::Exists(read) if reads => read.key.iter().collect(),
+        Expr::Get(read) | Expr::Exists(read)
+            if reads.is_some_and(|schema| schema.table(&read.table).is_some_and(|t| t.ephemeral.is_none())) => read.key.iter().collect(),
         _ => return None,
     };
     let mut names = BTreeSet::new();

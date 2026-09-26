@@ -198,7 +198,6 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                             eprintln!("  {:?}: {}", step.change, step.message);
                         }
                         // Adoption can itself commit a populated maintain rebuild.
-                        if let Ok(seq) = engine.seq() { let mut current = lock(&shared.seq); *current = (*current).max(seq); }
                         shared.publish_engine(&engine);
                     }
                     Err(error) => {

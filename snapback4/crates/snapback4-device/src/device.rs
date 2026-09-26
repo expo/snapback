@@ -41,6 +41,7 @@ pub struct Backend {
 /// no other owner has started a mutation send after this capture.
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
+    pub receipt_outcomes: bool,
     pub acquired: bool,
     pub backend_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,6 +117,10 @@ pub struct StreamPage {
     pub snapshot_catchup: bool,
     #[serde(default)]
     pub acknowledged: BTreeMap<String, u64>,
+    /// Outcome qualification for the corresponding acknowledgement. Older
+    /// servers sent sequences alone, including for refused mutations.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sent: BTreeMap<String, u64>,
     #[serde(default)]
     pub held: Option<wire::HeldGroups>,
     #[serde(default)]
@@ -165,6 +170,8 @@ pub struct Queued {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ReceiptStore {
     pub id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub success_seq: Option<u64>,
 }
 
 /// What a prediction left behind.
@@ -618,7 +625,7 @@ impl<S: DeviceStore> Device<S> {
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let mut state = SyncState { receipt_outcomes: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
         Ok(state)
@@ -715,6 +722,7 @@ impl<S: DeviceStore> Device<S> {
         if !from_ok || page.watermark < requested {
             return Err(RuntimeError::Generation("obsolete deferred transfer page; retry sync".into()));
         }
+        predictions::qualify_receipts(&tx, page)?;
         let defer = deferred::should_defer(&tx, &self.programs, page, watermark, declaration)?;
         if !replacing && defer {
             deferred::stage(&tx, &self.schema, self.generation, page)?;
@@ -950,7 +958,7 @@ impl<S: DeviceStore> Device<S> {
     /// A caller-supplied id may already have executed beyond the local receipt
     /// window. Its prediction refusal cannot decide the server's replay outcome.
     pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
-        // @ref LLP 3000.017#4.5-device — memory writes never enter durable admission or replay.
+        // @ref LLP 3000.017#4.5 — memory writes never enter durable admission or replay.
         if self.schema.operations.get(&entry.op).is_some_and(|f| f.ephemeral) {
             return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "ephemeral writes cannot enter the device outbox; call the online ephemeral lane".into() });
         }
@@ -1012,7 +1020,7 @@ impl<S: DeviceStore> Device<S> {
             Some(seq) => {
                 let data = tx.outbox_get(id)?.ok_or_else(|| RuntimeError::Store(format!("the outbox holds no write {id}")))?;
                 let mut entry: Queued = decoded(&data)?;
-                predictions::record_receipt(&tx, &mut entry, seq, false)?;
+                predictions::record_receipt(&tx, &mut entry, seq, false, true)?;
             }
             None => predictions::remove(&tx, id)?,
         }

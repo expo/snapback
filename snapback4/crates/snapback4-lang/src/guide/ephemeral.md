@@ -37,7 +37,7 @@ query typingIn(roomId: rooms):
   return typing where .roomId = roomId and .principal != viewer by .principal { principal }
 
 query typingInMyRooms(c: cursor ?):
-  return members where .principal = viewer first 100 by .roomId after c { roomId, typing: typing[roomId = .roomId] { principal } }
+  return members where .principal = viewer first 100 by .roomId after c { roomId, typing: typing[roomId = .roomId] where .principal != viewer { principal } }
 
 table viewing:
   roomId: rooms

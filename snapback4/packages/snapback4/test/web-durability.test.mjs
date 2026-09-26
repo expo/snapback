@@ -171,10 +171,12 @@ test("W11R2: receipt lookup never opens an absent shared database and sees later
   };
   const core = await webDevice({ wasm, persist }).open(name, backend);
   try {
-    for (let i = 0; i < 10; i++) assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), []);
+    for (let i = 0; i < 10; i++) assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history", lookup: true }))), []);
     assert.equal(opens, 0, "ordinary receipt lookups must not open/create the shared database");
     await memory.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify([{ state: "sent", id: "recovered", seq: 7 }]) }]);
-    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), [{ state: "sent", id: "recovered", seq: 7, replayed: true }]);
+    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" })) ?? '[]'), [], 'settlement cannot consume shared-only history');
+    assert.equal(opens, 0, 'settlement never reads the shared database');
+    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history", lookup: true }))), [{ state: "sent", id: "recovered", seq: 7, replayed: true }]);
     assert.equal(opens, 1, "a later sibling adoption is visible without reopening this client");
     t.diagnostic("empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1");
   } finally { await core.close(); }
@@ -209,7 +211,7 @@ for (const unrelatedLocks of [false, true]) test(`W11INT: custom claims recover 
     await held.release();
     ok(await core.call(snapshot()));
     assert.equal(await memory.has(orphan), false, "sync retries the provider claim after release");
-    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), [{ state: "sent", id: "custom-receipt", seq: 3, replayed: true }]);
+    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history", lookup: true }))), [{ state: "sent", id: "custom-receipt", seq: 3, replayed: true }]);
     assert.equal(await memory.has("unrelated"), true);
     assert.equal(foreignClaims, 0, "enumeration cannot claim a store outside the orphan namespace");
     assert.equal(timers, 0);
@@ -263,7 +265,7 @@ test("W11R2: persistent recovery failure exhausts three backoffs then a sync can
     assert.equal(await memory.has(orphan), true);
     failed = false; ok(await core.call(snapshot()));
     assert.equal(await memory.has(orphan), false);
-    assert.equal(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" })))[0].id, "kept");
+    assert.equal(JSON.parse(ok(await core.call({ op: "meta", key: "write-history", lookup: true })))[0].id, "kept");
     t.diagnostic("failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1");
   } finally { await core.close(); }
 });

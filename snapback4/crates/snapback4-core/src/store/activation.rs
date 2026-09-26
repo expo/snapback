@@ -90,7 +90,7 @@ impl Store {
                 }
             }
         }
-        let tx = Tx { tx: sql, page_size: self.page_size, catalog: &catalog };
+        let tx = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &catalog };
         // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
         // never opening a legacy store that may subsequently refuse adoption.
         let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();

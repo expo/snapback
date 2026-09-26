@@ -1,5 +1,5 @@
 //! Exhaustive effects, including expression blocks and inlined helpers.
-// @ref LLP 3000.017#2.2-ephemeral-mutations — write_tables is not an admission boundary.
+// @ref LLP 3000.017#2.2 — write_tables is not an admission boundary.
 use super::*;
 use std::collections::BTreeSet;
 mod renewal;
@@ -12,10 +12,10 @@ pub struct Effects {
     pub emit: bool,
 }
 impl Effects {
-    pub fn of(program: &Program) -> Self {
+    pub fn of(program: &Program, schema: &crate::schema::Schema) -> Self {
         let mut effects = Self::default();
         effects.statements(&program.body);
-        effects.renews = renewal::prove(program);
+        effects.renews = renewal::prove(program, schema);
         effects
     }
     fn write(&mut self, table: &str) {

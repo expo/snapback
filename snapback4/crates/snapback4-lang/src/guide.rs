@@ -16,6 +16,8 @@ mod app;
 mod shapes;
 #[path = "guide/presence.rs"]
 mod presence;
+#[path = "guide/receipts.rs"]
+mod receipts;
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
@@ -56,12 +58,12 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
     ("react", "client"), ("hooks", "client"),
-    ("composer", "client"), ("receipts", "client"), ("unread", "client"),
+    ("composer", "client"), ("unread", "client"),
     ("typing", "ephemeral"),
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
@@ -73,6 +75,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
+    ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
@@ -376,7 +379,8 @@ a readable home row does not grant upload ownership."##,
         "routes" => routes::CARD,
         "effects" => effects::CARD,
         "services" => services::CARD,
-        "presence" => presence::CARD,        "bounds" => bounds::CARD,
+        "presence" => presence::CARD,
+        "receipts" => receipts::CARD,        "bounds" => bounds::CARD,
         "refusals" => refusals::CARD,
         "personas" => personas::CARD,
         _ => return None,

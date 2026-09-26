@@ -1,0 +1,44 @@
+(node:3988074) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1911.663456ms)
+  ✔ legacy binding survives adopted B on keepalive transport (1925.388501ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1910.606003ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (363.893876ms)
+  ✖ lookup lets a shared correction supersede only this reader's replacement refusal (1376.998183ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (8267.506235ms)
+ℹ {"transport":"ordinary","original":"700af62a49a77a5a9cf34b89cb2aa655","adopted":"c5440a9348131000e2770ebde414828b","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"700af62a49a77a5a9cf34b89cb2aa655","adopted":"abd90b91701cd01b8a558f82427254f8","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8366.030906
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:96:74
+✖ lookup lets a shared correction supersede only this reader's replacement refusal (1376.998183ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_STORE_REPLACED'
+  - 'NOT_ADMIN'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:247:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:229:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_STORE_REPLACED',
+    expected: 'NOT_ADMIN',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

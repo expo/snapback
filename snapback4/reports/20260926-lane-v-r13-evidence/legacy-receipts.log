@@ -1,0 +1,39 @@
+(node:3734663) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sequence-only acknowledgement with no history stays unknown (1.196794ms)
+✔ authored refusal NOT_ADMIN wins over a success-qualified acknowledgement (0.184185ms)
+✔ authored refusal NOT_FOUND wins over a success-qualified acknowledgement (0.109093ms)
+✔ authored refusal CONFLICT wins over a success-qualified acknowledgement (0.110946ms)
+✔ an aborted replay receipt retains its original-store proof for persistence retry (0.622282ms)
+✔ memory: legacy observed_seq with empty history replays NOT_ADMIN without executing (3494.326132ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M3D9W8EWKGQPMJJ44Y9WYBN7","replayed":true,"audit":0}
+✔ memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing (3114.692433ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M3D9WBGB2G0GKZCM3ZFB1PHB","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with empty history replays NOT_ADMIN without executing (3111.743916ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M3D9WEHME0WPZ7GW7CVVG73P","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing (3114.175631ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M3D9WHJTRY2SHDHFNGDDNB13","replayed":true,"audit":0}
+✔ memory: legacy old-page with empty history replays NOT_ADMIN without executing (3108.838667ms)
+ℹ {"tier":"memory","field":"old-page","prior":"empty","id":"01M3D9WMM3A4XB22421TZBR53B","replayed":true,"audit":0}
+✔ memory: legacy old-page with replacement history replays NOT_ADMIN without executing (3110.522781ms)
+ℹ {"tier":"memory","field":"old-page","prior":"replacement","id":"01M3D9WQN7EA5ZX735J2XBZSGC","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing (4171.384816ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M3D9WTQJ8T1341CF6B61FK17","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing (3162.785811ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M3D9WYSQG5NHG9S0Q2HWQNP1","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing (4161.114603ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M3D9X1WKQJPRZ1E09VH67210","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing (4148.681917ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M3D9X5Y8708VET43262XZW1B","replayed":true,"audit":0}
+✔ sqlite: legacy old-page with empty history replays NOT_ADMIN without executing (4160.910645ms)
+ℹ {"tier":"sqlite","field":"old-page","prior":"empty","id":"01M3D9XA07MRCD1EYCG5XWKHTZ","replayed":true,"audit":0}
+✔ sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing (4157.708149ms)
+ℹ {"tier":"sqlite","field":"old-page","prior":"replacement","id":"01M3D9XE28F97W8X5FTYTFPWTC","replayed":true,"audit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43122.306108

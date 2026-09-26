@@ -1,0 +1,3 @@
+drop-recovery-local-deadline: rejected
+retain-expired-watch-value: rejected
+drop-retry-server-cursor: rejected

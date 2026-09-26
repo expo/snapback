@@ -26,7 +26,7 @@ fn all_issue_tracker_certificates_keep_the_source_and_authority() {
     let board = certificate("board");
     assert_eq!(board.variants.len(), 4);
     assert!(board.variants.iter().all(|v| v.class == Class::Constant));
-    assert!(board.line().contains("when status and assignee are both absent: constant"));
+    assert!(board.line().contains("when assignee and status are both absent: constant"));
     let labeled = certificate("withLabel");
     assert_eq!(labeled.class, Class::Grows);
     assert!(labeled.line().contains("issues skipped by `exists issueLabels[.id, label]`"), "{labeled:?}");

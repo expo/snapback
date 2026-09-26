@@ -68,18 +68,21 @@ fn anonymous_receipt<H: Host>(h: &mut H) {
         let mut q: Queued = serde_json::from_value(json!({"id":"q","seq":1,"op":"bump","args":{"k":"a"},"viewer":"dev:alice","predictable":true})).unwrap();
         if old_null_binding {
             q.sent_seq = Some(seq);
-            q.receipt_store = Some(snapback4_device::device::ReceiptStore { id: None });
+            q.receipt_store = Some(snapback4_device::device::ReceiptStore { id: None, success_seq: None });
         }
         d.enqueue(&q).unwrap();
         if !old_null_binding {
             d.settle("q", Some(seq)).unwrap();
-            assert!(d.queued().unwrap()[0].receipt_store.is_none(), "no identity is an unbound receipt");
+            let receipt = d.queued().unwrap()[0].receipt_store.clone().unwrap();
+            assert_eq!(receipt.id, None, "the outcome is known before its store identity");
+            assert_eq!(receipt.success_seq, Some(seq));
         }
         h.close(name, d);
         let mut d = h.open(name, None).unwrap();
         let mut page = snapshot_pages(&mut e, "dev:alice", 100).remove(0);
         page.store_id = Some("S".into());
         page.acknowledged.insert("q".into(), seq);
+        page.sent.insert("q".into(), seq);
         d.apply(&page, true).unwrap();
         assert!(d.queued().unwrap().is_empty(), "first real identity must rebind and retire q");
         assert_eq!(value(&mut d, "a"), Some(1));

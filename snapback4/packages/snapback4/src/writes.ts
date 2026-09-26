@@ -4,6 +4,8 @@ import type { Write } from "./contract.ts";
 type Terminal = Exclude<Write, { state: "pending" }>;
 interface Storage {
   read(): Promise<string | null>;
+  /** The receipts a caller's lookup may answer from, including a web host's shared corrections. */
+  lookup?(): Promise<string | null>;
   save(value: string): Promise<void>;
 }
 
@@ -118,6 +120,7 @@ function receipt(write: Terminal): Terminal {
 export class WriteHistory {
   private values = new Map<string, Write>();
   private unpersisted = new Map<string, Terminal>();
+  private revalidated = new Map<string, string>();
   private terminal = new Set<string>();
   private emitted = new Set<string>();
   constructor(private storage?: Storage) {}
@@ -137,27 +140,37 @@ export class WriteHistory {
     return write;
   }
 
-  async keep(write: Terminal): Promise<void> {
+  async keep(write: Terminal, revalidatedStore?: string): Promise<void> {
+    if (revalidatedStore) {
+      const prior = this.unpersisted.get(write.id);
+      if (prior?.state === "failed" && prior.why.code === "E_STORE_REPLACED") this.unpersisted.delete(write.id);
+      this.revalidated.set(write.id, revalidatedStore);
+    }
     write = this.unpersisted.get(write.id) ?? write;
     if (this.storage) {
       this.unpersisted.set(write.id, receipt(write));
-      await this.storage.save(JSON.stringify(receipt(write)));
+      const proof = this.revalidated.get(write.id);
+      await this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }));
       this.unpersisted.delete(write.id);
+      this.revalidated.delete(write.id);
       this.values.delete(write.id); this.terminal.delete(write.id);
     } else this.remember(write);
   }
 
   hasUnpersisted(id?: string): boolean { return id === undefined ? this.unpersisted.size > 0 : this.unpersisted.has(id); }
 
-  async acknowledged(id: string, seq: number): Promise<Terminal> {
+  async acknowledged(id: string, seq: number, qualified = false): Promise<Terminal | undefined> {
     // A replacement refusal says execution is unknown. A correlated outbox
     // acknowledgement proves it; discard the speculative refusal before read
     // can retry its save. Older servers also acknowledged refused _ops rows;
     // that sequence must never override a known authored refusal.
     const pending = this.unpersisted.get(id);
-    if (pending?.state === "failed" && pending.why.code === "E_STORE_REPLACED") this.unpersisted.delete(id);
+    if (qualified && pending?.state === "failed" && pending.why.code === "E_STORE_REPLACED") this.unpersisted.delete(id);
     const known = await this.read(id, true);
     if (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") return known;
+    // Legacy observations include refused operations. Only the outcome from
+    // the bound server (or an already known receipt) can establish success.
+    if (!qualified) return known?.state === "sent" || (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") ? known : undefined;
     const sent = { state: "sent" as const, id, seq, replayed: true as const };
     if (known?.state === "failed" && known.why.code === "E_STORE_REPLACED") await this.keep(sent);
     return sent;
@@ -182,6 +195,15 @@ export class WriteHistory {
     // A local admission/storage error does not establish the server outcome;
     // its captured journal may still be recoverable and must not be retired.
     return durable ?? (receiptsOnly ? undefined : this.values.get(id));
+  }
+
+  /** A caller's lookup without outbox custody may recover absent history or
+   * correct a replacement refusal from the shared window. It never settles it. */
+  async lookup(id: string): Promise<Write | undefined> {
+    const own = await this.read(id);
+    if ((own && (own.state !== "failed" || own.why.code !== "E_STORE_REPLACED")) || this.unpersisted.has(id) || !this.storage?.lookup) return own;
+    const saved = await this.storage.lookup();
+    return (saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined) ?? own;
   }
 
   retainEmissions(queued: Iterable<string>): void {

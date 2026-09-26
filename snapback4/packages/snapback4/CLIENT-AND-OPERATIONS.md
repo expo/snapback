@@ -308,7 +308,7 @@ The generated `api` groups a module’s operations under `api.<module>`: `api.so
 
 The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance sends `speculative` only when true; an absent field means false, including in component coverage. It keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
 Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
-Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. A withheld retry keeps its next future deadline. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
+Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. Recovery preserves the next local wakeup separately from remembered data's server expiry. An elapsed local wakeup, whether during publication or from the watch timer, reruns its watch without withdrawing valid memory; only the remembered answer's own server deadline expires it, including during that rerun. Actual local-row deadlines still withdraw local or composed data. A retry needing the server clears the expired watch value during transport; a purely local retry publishes without a loading reset. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -729,7 +729,12 @@ rule and generation refusals leave the link online. Only a transport failure
 changes the link. Closing drops the lane and ends outstanding waits.
 
 A watched query registers its generated `ephemeralReads` before its first
-answer. Growing that interest reissues the held `/changes` poll. Ephemeral
+answer. Adoption reconciles all mounted interests with the new backend, including
+removed reads. Clients send the three ephemeral poll parameters only when the
+backend declares an ephemeral table; durable-only polling keeps its old wire.
+An ephemeral backend advertises `X-Snapback-Ephemeral: 1` on ordinary
+responses. The online tier then loads `/schema` for those facts and reissues
+its discovery poll; durable-only clients make no extra schema request. Growing that interest reissues the held `/changes` poll. Ephemeral
 table notifications rerun matching watches without a durable change or `/sync`.
 Watches also refetch at `nextExpiry`; incomplete ephemeral answers refresh at a
 fixed one-second cadence until complete or closed. No application expiry timer
@@ -976,9 +981,17 @@ Refusals before durable admission, the online tier and mock remember outcomes
 only for that client lifetime, up to 256 terminal outcomes. Before deleting an
 adopted web tab's store, the host copies its value-free terminal receipts into
 a shared window for the same server and viewer, bounded to 256 receipts in
-recovery order. Existing shared ids keep their outcome and position. Every
+recovery order. Verified terminal corrections replace shared `E_STORE_REPLACED`
+in place; authored refusals and retention positions stay unchanged. Every
 opener and `client.write(id)` reads that window alongside its own device's
-256 receipts; reads never copy or refresh it. A different tab winning adoption
+256 receipts; reads never copy or refresh it. For an id with no outbox entry on
+this device, `client.write(id)` recovers absent local history or corrects its own
+`E_STORE_REPLACED` from the window. Every other local receipt answers first.
+Lookup rechecks outbox custody after reading that window; an adopted entry is
+answered from this device's own custody. Settlement reads only local history,
+including when it has no receipt for the id. The opener reads shared ids solely
+to route retries through lookup, without copying or settling their outcomes.
+A different tab winning adoption
 cannot hide the receipt from a reload. Outboxes remain exclusively owned:
 a held Web Lock is never taken; a queued background lock request wakes recovery
 when its owner releases it, and closing cancels the wait. Unidentified journals
@@ -986,8 +999,17 @@ wait for a matching open or sync signal. Persistence failures get at most three
 retries, after 1, 2 and 4 seconds; later opens or sync signals can try again.
 Receipt lookups do not create the shared window before adoption. Browser storage
 clearing or eviction from both receipt windows can still make an id unknown. Rebuild the Expo native binary with this client
-version: acquisition is a device protocol field, and an older module refuses
-startup with `E_DEVICE_VERSION`.
+version: acquisition and qualified receipt outcomes are device protocol fields,
+and an older module refuses startup with `E_DEVICE_VERSION`.
+
+A sequence-only observation from an older device proves that the server decided,
+not that it succeeded. Without a retained outcome, the upgraded client keeps it
+pending and replays the same id against its original store to recover the recorded
+success or refusal. New sync pages explicitly qualify successful acknowledgements;
+only that evidence, or the original store's replay, can correct `E_STORE_REPLACED`.
+Authored refusals such as `NOT_ADMIN` remain failures.
+Both ordinary and page-hide replay post the retained receipt's original store
+binding before any journal or current-device identity, including after replacement.
 
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent or fixture; arbitrary fixture strings still need an application ledger.
@@ -1705,8 +1727,8 @@ step.
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
   assets, client, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
-  presence, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words resolve too:
-  `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → personas, `push` → effects.
+  presence, receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
+  resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.
 
@@ -1775,14 +1797,16 @@ success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "f
 `result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused over the
 wire (`E_OP`). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
 `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged snapshot: `{ snapshot: true,
-events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged }`. Continue
+events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged, sent? }`. Continue
 with `after: next`; `limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs, each 1–128 UTF-8
 bytes, and reports which queued writes the server applied. The request body is at most **262,144 bytes (256
 KiB)**, including the cursor and JSON escaping; this accommodates all 256 maximum-length IDs even with
 six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`, including chunked bodies; malformed fields
 are HTTP 400 with `E_INPUT`. With `from: W` or `stream: true` it returns the stream from a watermark: `{
-snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged
-}`. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
+snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged, sent?
+}`. The optional `sent` map qualifies successful sequences in `acknowledged` and
+`committed_above`; its absence requires same-id replay to establish an unknown
+outcome. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
 old snapshot cursors and partition evidence, even if the watermark is equal or higher, while a server restart
 on the same database keeps its identity. An older server can omit this additive field; a backwards watermark
 still requires reacquisition, and a device with no stored identity reacquires once when it first learns one.
@@ -1794,7 +1818,9 @@ tables. A different identity or a head below `since` answers immediately; a regr
 `seq`. A matching identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1
 response starts immediately and sends JSON whitespace every 2 seconds before the final JSON object. Proxies
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
-`denied`, including `E_AUTH` if the session ended while waiting. `POST /assets` (the file's bytes as the body,
+`denied`, including `E_AUTH` if the session ended while waiting. Every reply of a query that may read `connected[p]`, refusals included,
+carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
+5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it (LLP 3000.018). `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
 uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{
