@@ -56,6 +56,30 @@ test("keep carries the original since across loading, then accepts null, empty d
   watch.reset({ loading: true }); assert.deepEqual(watch.snapshot, { loading: true });
 });
 
+test("rejoining at 29 seconds cancels the old close and gives the next unsubscribe a full window", t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+  t.mock.method(performance, "now", () => Date.now());
+  const watches = new Map(); let starts = 0, stops = 0;
+  const open = () => observeWatch(watches, "key", () => Object.assign(new ReadObservation(true), {
+    key: "key", subscribers: new Set(), expiryTimer: null, presenceRefresh: null,
+  }), watch => { starts++; watch.publish(ready("live")); }, () => stops++, () => null);
+  const first = open(), observed = watches.get("key");
+  first.close();
+  t.mock.timers.tick(29_000);
+  const joined = open(), unsubscribe = joined.subscribe(() => {});
+  t.mock.timers.tick(1_001);
+  assert.equal(watches.get("key"), observed, "the original deadline cannot close a subscribed watch");
+  assert.equal(joined.getSnapshot().data, "live");
+  assert.equal(starts, 1); assert.equal(stops, 0);
+  unsubscribe();
+  t.mock.timers.tick(29_999);
+  assert.equal(watches.get("key"), observed, "the next unsubscribe starts a new full window");
+  assert.equal(stops, 0);
+  t.mock.timers.tick(1);
+  assert.equal(watches.size, 0); assert.equal(stops, 1);
+  assert.deepEqual(joined.getSnapshot(), { loading: true });
+});
+
 test("lingering watches close on the 30-second timer and cannot return after clock rollback", t => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
   const watches = new Map(); let stops = 0;
