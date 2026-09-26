@@ -62072,3 +62072,36 @@ and the affected core suite passes 32/32 (15 ephemeral + 17 sequence_by).
 Typecheck and package build pass. No existing expectation, fixture, wire form,
 or budget changed; the durable-only byte and zero-extra-schema tests pass
 unchanged. Evidence is in target/eph-fix2-evidence/. Full qualification follows.
+
+### 2026-09-26 — Fix round 2 final qualification
+
+At implementation checkpoint 3f5c74974, pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache, the complete `bash scripts/test.sh` returned
+`== 0 failure(s) in 841 s`, exit 0. Source stayed fixed throughout. Rust totals:
+3,569 passed, 0 failed, 19 ignored. JavaScript totals: 2,134 tests, 2,129 passed,
+0 failed, 5 existing optional skips, including all 78 model tests. All three
+published-0.2.33 capability fences and the capability-free byte/store control
+pass unchanged. The three literal `backend FAIL E_STORE` diagnostics are their
+expected negative checks, not suite failures. No timing failure or isolation
+rerun occurred. Wasm: `wasm 2013198 B raw, 578797 B gzip (budget 579833: ok)`;
+the unchanged ratchet has 1,036 B headroom.
+
+The required additional standalone ephemeral-e2e run passed 1/1, with all five
+isolated ephemeral trials below. Each first sight followed a typing-naming
+poll answer without a durable seq move. Every burst used two requests versus
+45 in the separately measured durable control.
+
+| Trial | Ephemeral first seen (ms) | Ephemeral gone after last call (ms) | Durable first seen (ms) | Durable gone after last call (ms) | Ephemeral requests | Durable requests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 34.155 | 3875.649 | 48.901 | 4016.611 | 2 | 45 |
+| 2 | 34.834 | 3846.749 | 14.771 | 4373.536 | 2 | 45 |
+| 3 | 32.804 | 3868.266 | 16.062 | 4012.117 | 2 | 45 |
+| 4 | 32.366 | 3853.058 | 17.052 | 4080.91 | 2 | 45 |
+| 5 | 35.398 | 3873.524 | 15.008 | 4357.01 | 2 | 45 |
+
+Evidence: target/eph-fix2-evidence/full-suite.log, full-suite-counts.log,
+full-suite-commit.txt, full-suite.exit, acceptance-extra.log/json and
+acceptance-extra.exit. The root EPH-REPORT-FIX2.md is deliberately uncommitted.
+All four requested fixes and their regressions are complete. No push, merge,
+rebase, stash, publication, other-worktree edit or other-process intervention
+was performed.
