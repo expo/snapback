@@ -1,0 +1,18 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (979.381891ms)
+  ✔ a abort failure cannot commit a reported failed logout (852.868612ms)
+  ✔ a quota failure cannot commit a reported failed logout (844.776111ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (435.282518ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (77.780143ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (814.920321ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (690.504365ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (5523.779316ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5622.711624

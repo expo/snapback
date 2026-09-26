@@ -1,0 +1,211 @@
+✔ W5R1x: terminal history is bounded independently of unresolved writes (4.392003ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (4142.283781ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (1065.116859ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1061.329952ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (1065.148094ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (6197.685657ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x process: opener returns an offline unacquired client on network loss (1107.259985ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (1106.331873ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (1118.418119ms)
+✔ wasm: schema alone is not acquisition; queued guarded writes survive offline reopen (2048.927202ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M3D2AQ988B5CNVDZKYPJ1GAH","reason":"queued without a row: not acquired yet"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M3D2AQ988B5CNVDZKYPJ1GAH","new_ids":["01M3D2AQ988B5CNVDZKYPJ1GAJ","01M3D2AQ988B5CNVDZKYPJ1GAK","01M3D2AQ988B5CNVDZKYPJ1GAM","01M3D2AQ988B5CNVDZKYPJ1GAN","01M3D2AQ988B5CNVDZKYPJ1GAP","01M3D2AQ988B5CNVDZKYPJ1GAQ","01M3D2AQ988B5CNVDZKYPJ1GAR","01M3D2AQ988B5CNVDZKYPJ1GAS"],"now":1790366276904,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6095.782167ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1054.177682ms)
+✔ process: schema alone is not acquisition; queued guarded writes survive offline reopen (2110.981147ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M3D2B0A7RS00NRDP7AC88PHA","reason":"queued without a row: not acquired yet"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M3D2B0A7RS00NRDP7AC88PHA","new_ids":["01M3D2B0A7RS00NRDP7AC88PHB","01M3D2B0A7RS00NRDP7AC88PHC","01M3D2B0A7RS00NRDP7AC88PHD","01M3D2B0A7RS00NRDP7AC88PHE","01M3D2B0A7RS00NRDP7AC88PHF","01M3D2B0A7RS00NRDP7AC88PHG","01M3D2B0A7RS00NRDP7AC88PHH","01M3D2B0A7RS00NRDP7AC88PHJ"],"now":1790366286151,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6218.049483ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (1102.291187ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (5104.355768ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (5064.764281ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (8923.380469ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (5149.768196ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ receipt custody retains the first sent outcome across repeated save failures (1.582693ms)
+✔ receipt custody retains the first failed outcome across repeated save failures (0.274973ms)
+✔ acknowledgement drops an unsaved replacement refusal before any persistence retry (0.511848ms)
+✔ a legacy acknowledgement returns a known authored refusal without saving success (0.323164ms)
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (9115.96144ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (1276.31617ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (1112.215907ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5 confirmation N3: another owner's durable receipt still notifies this client once (1109.409319ms)
+ℹ first_completion_emissions=1
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1477.229292ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1317.084076ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+(node:3063869) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online reconnect requires the authenticated GET /probe contract (4035.643441ms)
+✔ online pending writes emit their terminal outcome exactly once (559.387886ms)
+✔ online auth refusal settles writes that were queued behind the refused request (2.569441ms)
+✔ local pending writes emit once with the kept device identity (69.769ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (62.707506ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (4030.879921ms)
+✔ local startup releases a device when initialization after the protocol probe fails (0.753078ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (5.852463ms)
+✔ local observations skip idle polls and rerun after a committed page (22.318775ms)
+✔ local generation adoption reruns observations whose dependencies changed (22.72258ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (33.851432ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (3.365224ms)
+✔ local observations rerun when the device-reported visible lifetime expires (202.772166ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (2.513468ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (3.739316ms)
+✔ every local prediction invalidates observations, including unrelated tables (13.875748ms)
+✔ online watches retain their changes watermark; bare tokens clear on refusal (563.996973ms)
+✔ wasm: pending metadata survives repeated profile/vote updates and offline replay (2576.081485ms)
+✔ wasm: no-op and nosync writes retire when the partition stream is empty (115.83409ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (158.374175ms)
+✔ wasm: a sync started before admission finishes before that write can be sent (91.249578ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (122.768463ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (130.47103ms)
+✔ wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (549.775976ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (110.810198ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (861.833363ms)
+✔ wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (108.383461ms)
+✔ wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (101.433523ms)
+✔ native: pending metadata survives repeated profile/vote updates and offline replay (2345.141513ms)
+✔ native: no-op and nosync writes retire when the partition stream is empty (164.228179ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (302.694923ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1177.528061ms)
+✔ native: a sync started before admission finishes before that write can be sent (153.336153ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (186.089979ms)
+✔ native: sync before a lost write reply does not apply an increment twice (221.514438ms)
+✔ native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (557.177378ms)
+✔ native: population growth cannot mint new IDs during prediction replay (161.466149ms)
+✔ native: retry without observers, online-only routing and denied-watch recovery (795.450407ms)
+✔ native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (165.057842ms)
+✔ native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (161.857035ms)
+✔ close cancels online write callers without aborting committed delivery (62.592973ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (49.626577ms)
+✔ device compatibility rejects old and malformed protocols before online or offline startup (51.681488ms)
+✔ device compatibility closes the core and preserves operational startup errors (1.204515ms)
+✔ device compatibility accepts the current core online and on an offline reopen (162.233299ms)
+✔ online serialization failures retain the minted id without scheduling network retries (0.689443ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (126.010122ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (199.484046ms)
+✔ W13b fallback boundary: cursorless (1003.47284ms)
+✔ W13b fallback boundary: meter (1002.078039ms)
+✔ W13b fallback boundary: words (1002.523516ms)
+✔ W13b fallback boundary: missing fact (1003.164206ms)
+✔ W13b fallback boundary: presence (1003.185698ms)
+✔ W13b fallback boundary: offline missing fact (1004.43562ms)
+✔ W13b fallback boundary: held (1004.807147ms)
+✔ W13b fallback boundary: retained (1002.012207ms)
+✔ W13b fallback boundary: pending predictable write (1003.659325ms)
+✔ W7c dev exposes meters by default and explicitly for a real account (587.524783ms)
+ℹ meter={"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":195,"probes":0,"rowsWritten":0,"steps":5}
+✔ W7c serve ignores meters by default and explicitly for a real account (483.174546ms)
+✔ W6d online: caller id retries share pending writes and retained receipts (320.241407ms)
+ℹ tier=online posts=1 applied=1 terminal_events=1
+✔ W6d online: malformed caller ids fail locally (52.581718ms)
+✔ W6d online: input key order is immaterial and an evicted receipt never readmits on the same client (566.013458ms)
+ℹ tier=online retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d online: two client POSTs with the caller id apply once after a lost reply (322.830638ms)
+ℹ tier=online retry_posts=2 applied=1 historical_results=0
+✔ W6d web: caller id retries share pending writes and retained receipts (510.016311ms)
+ℹ tier=web posts=1 applied=1 terminal_events=1
+✔ W6d web: malformed caller ids fail locally (88.87485ms)
+✔ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (1843.095943ms)
+ℹ tier=web retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d web: two client POSTs with the caller id apply once after a lost reply (1099.129502ms)
+ℹ tier=web retry_posts=2 applied=1 historical_results=0
+✔ W6d web: reopen deduplicates the queued caller id before prediction (1094.282747ms)
+ℹ tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6d native: caller id retries share pending writes and retained receipts (183.173007ms)
+ℹ tier=native posts=1 applied=1 terminal_events=1
+✔ W6d native: malformed caller ids fail locally (161.887471ms)
+✔ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (3970.683146ms)
+ℹ tier=native retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d native: two client POSTs with the caller id apply once after a lost reply (1176.839502ms)
+ℹ tier=native retry_posts=2 applied=1 historical_results=0
+✔ W6d native: reopen deduplicates the queued caller id before prediction (1155.08297ms)
+ℹ tier=native reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6b password character minimum and byte maximum through HTTP (3152.30566ms)
+ℹ HTTP: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b password character minimum and byte maximum through client (3152.836221ms)
+ℹ client: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b identity forms advertise and enforce the guest choice (1011.008406ms)
+✔ sent results reach online, process-device and queued-write callers (1141.324863ms)
+✔ online: immediate lost first acknowledgement preserves the same-id replay receipt (330.462185ms)
+ℹ wire={"head":3,"id":"01M3D2AWCZJJGVJBVS3JGNP3E8","replayed":true,"seq":3,"state":"sent","store_id":"70089e52fdadbe93a16032f658362184"}; client={"state":"sent","id":"01M3D2AWCZJJGVJBVS3JGNP3E8","seq":3,"replayed":true}; result key=false
+✔ online: queued lost first acknowledgement preserves the same-id replay receipt (831.662215ms)
+ℹ wire={"head":3,"id":"01M3D2AWQA6NY1KGHYER6F821T","replayed":true,"seq":3,"state":"sent","store_id":"16271ff3602fef251e800703030b1051"}; client={"state":"sent","id":"01M3D2AWQA6NY1KGHYER6F821T","seq":3,"replayed":true}; result key=false
+✔ process-device: immediate lost first acknowledgement preserves the same-id replay receipt (1170.295817ms)
+ℹ wire={"head":3,"id":"01M3D2AXMDZXA06D58D0DG6H5T","replayed":true,"seq":3,"state":"sent","store_id":"9838c9f9584df35c91e2646b2edc9dca"}; client={"state":"sent","id":"01M3D2AXMDZXA06D58D0DG6H5T","seq":3,"replayed":true}; result key=false
+✔ process-device: queued lost first acknowledgement preserves the same-id replay receipt (1175.077364ms)
+ℹ wire={"head":3,"id":"01M3D2AYSC3W5S3VPGNYFHH77J","replayed":true,"seq":3,"state":"sent","store_id":"a4166f2a12e378ffecf8e03b29d0bde7"}; client={"state":"sent","id":"01M3D2AYSC3W5S3VPGNYFHH77J","seq":3,"replayed":true}; result key=false
+✔ write types require replay narrowing through mutate, onWrite and useMutation (667.287876ms)
+✔ createApp forwards asset retention (viewed, 68 bytes) through a real offline reopen (1211.901361ms)
+✔ createApp forwards asset retention (viewed, 67 bytes) through a real offline reopen (199.757645ms)
+✔ createApp forwards asset retention (none, 68 bytes) through a real offline reopen (184.261287ms)
+✔ createApp forwards local waitSeconds while retaining app-owned identity (200.506307ms)
+✔ online createApp ignores settings that apply only with a device (77.904925ms)
+✔ ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes (2234.055357ms)
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+✔ dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits (791.355203ms)
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 729 ms
+✔ id-only video predicts after offline reopen and its ordinary bytes are retained (2177.293401ms)
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+✔ W7r1 hidden versus absent non-uniform reads under dev (154.319516ms)
+ℹ absent={"cut":null,"examined":0,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2} hidden={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2}
+✔ W7r1 hidden versus absent non-uniform reads under serve (191.426817ms)
+✔ W8R1a dev withholds hidden population cuts (1926.251923ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a serve withholds hidden population cuts (2012.192451ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a online server-run observations retain nothing during a replacing fetch (1372.774021ms)
+✔ W8R1a native server-run observations retain nothing during a replacing fetch (1556.214527ms)
+✔ W8R1a web server-run observations retain nothing during a replacing fetch (1477.043984ms)
+✔ W8a online uniform words continue while nonuniform words and meter cuts remain bounded (1374.297983ms)
+✔ W8a native uniform words continue while nonuniform words and meter cuts remain bounded (2334.206261ms)
+✔ W8a web uniform words continue while nonuniform words and meter cuts remain bounded (1771.635073ms)
+✔ W8a dev refuses held queries with a rewrite (64.107012ms)
+✔ W8a serve refuses held queries with a rewrite (77.033418ms)
+✔ W8a native held horizon stays local online, including observe (154.551612ms)
+✔ W8a web held horizon stays local online, including observe (112.803645ms)
+✔ W13b native cursorless incomplete read stays local online (141.349794ms)
+ℹ native cursorless: rows=1 complete=false /q/=0
+✔ W13b native meter incomplete read stays local online (2292.247744ms)
+ℹ native meter: rows=0 complete=false /q/=0
+✔ W13b native horizon and presence use server knowledge only online (148.694954ms)
+✔ W13b web cursorless incomplete read stays local online (82.326962ms)
+ℹ web cursorless: rows=1 complete=false /q/=0
+✔ W13b web meter incomplete read stays local online (1713.424646ms)
+ℹ web meter: rows=0 complete=false /q/=0
+✔ W13b web horizon and presence use server knowledge only online (80.888375ms)
+✔ W13b dev logs a measured cut (2046.396776ms)
+ℹ snapback4 dev: read filtered (guest:01M3D2BSZH352VDXP9A27N0YQF) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered
+ℹ snapback4 dev: read filtered (dev:alice) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered; suppressed 5 repeated read cuts
+✔ W13b serve hides a measured cut (1971.807841ms)
+ℹ tests 141
+ℹ suites 0
+ℹ pass 141
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 75251.972959

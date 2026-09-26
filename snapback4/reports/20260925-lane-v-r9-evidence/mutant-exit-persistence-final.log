@@ -1,0 +1,72 @@
+TAP version 13
+# (node:1965066) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web admission review: recovery and transport respect the session boundary
+    # Subtest: an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+    not ok 1 - an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+      ---
+      duration_ms: 5559.904245
+      type: 'test'
+      location: '/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79'
+      failureType: 'testCodeFailure'
+      error: |-
+        an uncommitted refusal is never published
+        + actual - expected
+        
+        + [
+        +   {
+        +     id: '01M3CTVQ88GD6559BHS9WEFZS9',
+        +     state: 'failed',
+        +     why: {
+        +       code: 'E_STORE_REPLACED',
+        +       family: 'store',
+        +       guide: 'sync',
+        +       message: 'the intent belongs to another store; its original outcome is unknown',
+        +       rewrite: 'reconcile this write with its original store before submitting new intent',
+        +       site: 'request.store_id'
+        +     }
+        +   }
+        + ]
+        - []
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+        0:
+          state: 'failed'
+          id: '01M3CTVQ88GD6559BHS9WEFZS9'
+          why:
+            code: 'E_STORE_REPLACED'
+            family: 'store'
+            guide: 'sync'
+            message: 'the intent belongs to another store; its original outcome is unknown'
+            rewrite: 'reconcile this write with its original store before submitting new intent'
+            site: 'request.store_id'
+      operator: 'deepStrictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:751:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:727:3)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    1..1
+not ok 1 - web admission review: recovery and transport respect the session boundary
+  ---
+  duration_ms: 6376.008912
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:11:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6476.307163

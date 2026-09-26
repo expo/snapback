@@ -101,7 +101,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
         let is = membership(new, &content_name, &sync);
-        let expiry = |row: Option<&Value>| table.expire.as_ref().and_then(|column| row.and_then(|row| row.field(column).ok())).cloned().unwrap_or(Value::Null);
+        let expiry = |row: Option<&Value>| row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null);
         if was == is && expiry(old) == expiry(new) {
             continue;
         }

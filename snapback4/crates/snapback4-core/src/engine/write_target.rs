@@ -14,11 +14,13 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
     pub(in crate::engine) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let mark = self.meter.mark();
+        let capture_prepaid = std::mem::replace(&mut self.capture_prepaid, false);
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let previous_heap = std::mem::take(&mut self.maintain_heap);
         let column_prepaid = std::mem::replace(&mut self.column_prepaid, false);
         let column_heap = std::mem::take(&mut self.column_heap);
         let result = self.reserve_columns(table).and_then(|_|attempt(self));
+        self.capture_prepaid = capture_prepaid;
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.column_heap);
         self.column_prepaid = column_prepaid;
         self.column_heap = column_heap;
@@ -40,6 +42,8 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
+        if upsert && self.device && table.through.is_some() { return Err(RuntimeError::Prediction("upsert on a read-through child queues without a row".into())); }
+        if upsert { self.reserve_capture(table)?; }
         let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
             .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch
@@ -59,7 +63,9 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(in crate::engine) fn merge_patch(&mut self, table: &str, old: &Value, patch: &crate::value::Supplied, _readable: bool) -> Result<Value, RuntimeError> {
+    /// The merged image and its lawful copy price (LLP 3000.015 §1), which a
+    /// later engine copy of the same image charges again.
+    pub(in crate::engine) fn merge_patch(&mut self, table: &str, old: &Value, patch: &crate::value::Supplied, _readable: bool) -> Result<(Value, u64), RuntimeError> {
         let public = if crate::rows::disclosed::actual_size(&self.schema.tables[table]) {
             self.authorize_image(table, old.clone())?
         } else { None };
@@ -74,7 +80,7 @@ impl Runner<'_> {
         self.meter.heap(bytes)?;
         let fields = old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter())
             .map(|(key, value)| (key.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>();
-        Ok(Value::Row(fields.into()))
+        Ok((Value::Row(fields.into()), bytes))
     }
 
     pub(in crate::engine) fn no_write_target(&self) -> RuntimeError {
@@ -196,7 +202,7 @@ impl Runner<'_> {
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
-            let new = self.merge_patch(&target.table, &old, &patch, readable)?;
+            let (new, copy) = self.merge_patch(&target.table, &old, &patch, readable)?;
             // The old image is used only in this isolated condition scope, after update authority.
             self.authorize_update_fields(&target.table, &old, &new, &patch, readable)?;
             if let Some(condition) = condition {
@@ -209,7 +215,7 @@ impl Runner<'_> {
                     Err(error) => return Err(error),
                 }
             }
-            self.replace_authorized(&target.table, old, new, readable, &patch)?;
+            self.replace_authorized(&target.table, old, new, readable, &patch, copy)?;
             id
         } else {
             if !upsert { return Err(self.no_write_target()); }
@@ -320,7 +326,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
     }
 }
 
-pub(in crate::engine) fn row_copy_ceiling(table: &Table) -> u64 {
+pub(crate) fn row_copy_ceiling(table: &Table) -> u64 {
     table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
 }
 pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
@@ -343,7 +349,7 @@ impl Runner<'_> {
     pub(in crate::engine) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
         if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
         let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none() && m.row_key.is_none()).collect();
-        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }
+        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.is_expiring()) { return Ok(()); }
         let mut steps = 0_u64;
         let mut entries = 0_u64;
         // Two contribution images plus one occupancy image and its encoded key; no source page is exempted.

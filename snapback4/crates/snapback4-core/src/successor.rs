@@ -97,6 +97,7 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             if !old.columns.contains_key(column) {
                 // @ref LLP 3000.007#18.3 — literal defaults describe old images on every host; contextual defaults belong to the write
                 let (change, message) = match (kind.is_optional(), new.defaults.get(column)) {
+                    _ if new.engine_field(column) => (Change::Additive, format!("engine capture {name}.{column} is filled during atomic activation")),
                     (true, _) => (Change::Additive, format!("column {name}.{column} is added as optional")),
                     (false, Some(ColumnDefault::Literal(value))) => {
                         let value = crate::wire::to_json(value);
@@ -208,6 +209,9 @@ pub fn worst(steps: &[Step]) -> Change {
 /// This literal-default addition can interpret held device images without
 /// changing their audience, lifetime, constraints or existing column meaning.
 pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — even an optional repost slot must arrive in a replacement snapshot.
+    if to.tables.iter().any(|(name, table)| table.columns.keys().any(|field|
+        crate::schema::timeline::is_slot(field) && from.table(name).is_none_or(|old| !old.columns.contains_key(field)))) { return false; }
     if from.maintains != to.maintains { return false; }
     let mut added_literal = false;
     for (name, old) in from.visible_tables() {
@@ -239,6 +243,7 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
 pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
     maintain.row_key.as_ref().is_some_and(|k|from.table(&k.table)!=to.table(&k.table))
         || from.maintain_for(&maintain.target) != Some(maintain)
+        || from.table(&maintain.source).and_then(|t| t.through.as_ref()) != to.table(&maintain.source).and_then(|t| t.through.as_ref())
         || retired_timeline_tables(from, to).contains(&maintain.target)
         || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
         || to.table(&maintain.source).and_then(|t|t.expire.as_ref()).is_some_and(|field|

@@ -100,7 +100,8 @@ maintain leaked: count likes by postId.secret
 #[test]
 fn writes_card_splits_the_read_mark_section() {
     let card = guide::card("writes").unwrap();
-    assert!(card.contains("behavior.\n\n## Writing a member's read mark\n"));
+    assert!(card.contains("concurrent sends.\n\n## Writing a member's read mark\n"));
+    assert!(card.find("## Server-arrival order within a conversation").unwrap() < card.find("## Writing a member's read mark").unwrap());
     let section = snapback4_lang::diag::Diagnostic::new(&Default::default(), "E_FIELD_AUTHORITY", "private field", "omit it")
         .guide("writes").explanation_section().unwrap();
     assert!(section.contains("## Writing a member's read mark"), "{section}");

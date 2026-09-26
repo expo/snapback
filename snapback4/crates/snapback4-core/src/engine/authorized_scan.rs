@@ -97,6 +97,9 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
     pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }
+    /// Device acquisition facts carry no row payload, like retained_row.
+    pub(crate) fn current_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.current_row(table, row) }
+    pub(crate) fn current_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.current_group(table, index, prefix) }
     pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { InternalLedger::with_meter(meter, |meter, _| self.raw.recording_covered(table, row, viewer, now, scope, meter)) }
     pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.raw.acquired_boundary(table, index, prefix) }
     pub(crate) fn prefetch_enabled(&self) -> bool { self.raw.prefetch_enabled() }
@@ -135,7 +138,7 @@ impl Runner<'_> {
     pub(super) fn witness_scratch(&self, table: &str) -> u64 {
         let own = crate::rows::disclosed::admission(&self.schema.tables[table]);
         let source = self.schema.maintain_for(table)
-            .and_then(|m| self.schema.table(&m.source)).filter(|source| source.expire.is_some());
+            .and_then(|m| self.schema.table(&m.source)).filter(|source| source.is_expiring());
         own.saturating_add(source.map_or(0, crate::rows::disclosed::admission))
     }
 
@@ -145,6 +148,16 @@ impl Runner<'_> {
     /// Hidden authorization must use authorized_scan's prepaid reservation.
     pub(crate) fn metered_scan<T>(&mut self, scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         scan(self, &Authorization::internal())
+    }
+
+    /// A rule whose logical allowance the caller has already charged, possibly
+    /// to a cut, still evaluates its witnesses under the physical allowance;
+    /// the caller decides what its cut means for the answer (LLP 3000.014 §5).
+    pub(super) fn prepaid_witnesses<T>(&mut self, work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        let active = self.tx.authorizing.replace(self.tx.authorizing.get() || !self.context.is_system());
+        let result = work(self, &Authorization::internal());
+        self.tx.authorizing.set(active);
+        result
     }
 
     // @ref LLP 3000.015#2 — admission depends on declared bounds, never on

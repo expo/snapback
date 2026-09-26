@@ -1,0 +1,73 @@
+✔ failed admission cannot appear in later reads or hitchhike on the next saved call (360.819275ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (13.152009ms)
+✔ recovery read failures block calls until durable state can be reopened (4.29782ms)
+✔ failed initial persistence frees the constructed Wasm device (1.526047ms)
+✔ successful calls keep incremental persistence without loading the store again (4.557389ms)
+✔ close drains accepted calls once and refuses later calls (3.848136ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (2.262119ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✔ W11R2: unidentified journal has no retry timer or missing-store read (1.770544ms)
+ℹ state=unidentified retry_timers=0 orphan_loads=1
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (1.844665ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (2.356481ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (1.946637ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (5.735464ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✔ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (3.025714ms)
+ℹ failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.471436ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1039 ms
+✔ stalled exit body recovers in order (not applied) (1572.036546ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1017 ms
+✔ stalled exit body recovers in order (already applied replay) (1134.066867ms)
+stalled exit close: 968 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1086.731693ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.518257ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1111.98765ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1081.587154ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1118.541051ms)
+✔ IndexedDB save resolves on transaction completion, not request success (2.12169ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1081.867124ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1085.007931ms)
+keepalive: 64093 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (3.618693ms)
+✔ exit ordering survives reversed server processing (1.362122ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (2.860497ms)
+✔ exit overlaps only the same ordinary in-flight head (1086.236442ms)
+✔ ordinary flush waits for the exit request before replaying its head (1087.662479ms)
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (868.15824ms)
+  ✔ restored identified device journals while its first sync is held (865.687387ms)
+  ✔ synchronous refusal: restoring (424.771231ms)
+  ✔ synchronous refusal: no-device (76.381131ms)
+  ✔ synchronous refusal: no-claim (356.996768ms)
+  ✔ synchronous refusal: ephemeral-device (300.62985ms)
+  ✔ synchronous refusal: storage-full (400.203866ms)
+  ✔ synchronous refusal: before-first-sync (406.343617ms)
+  ✔ repairing storage permits the refused id to be retried (418.383249ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (646.719252ms)
+  ✔ session-locked journal refuses stale authority: logout (494.855316ms)
+  ✔ session-locked journal refuses stale authority: principal (532.983112ms)
+  ✔ session-locked journal refuses stale authority: epoch (452.201808ms)
+  ✔ session-locked journal refuses stale authority: recovery (966.537046ms)
+  ✔ a transient unlocked epoch observation refuses only that call (575.36246ms)
+  ✔ the bare online browser transport refuses without custody (2.363712ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (71.925164ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (100.801847ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (9423.42727ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11572.267409

@@ -8,6 +8,8 @@ use crate::lexer::{Kind, Token, lex};
 use crate::print;
 
 mod expr;
+mod predicates;
+pub(crate) mod repairs;
 mod views;
 mod maintains;
 mod timeline;
@@ -29,9 +31,13 @@ pub(crate) fn precedence(op: &str) -> Option<u8> {
 }
 
 pub fn parse_document(file: &str, source: &str) -> (Document, Vec<Diagnostic>) {
+    parse_with_types(file, source, Vec::new(), Default::default())
+}
+
+pub(crate) fn parse_with_types(file: &str, source: &str, known_tables: Vec<TableDecl>, known_views: std::collections::BTreeMap<String, crate::types::Ty>) -> (Document, Vec<Diagnostic>) {
     let (tokens, diagnostics) = lex(file, source);
     let source = source.replace("\r\n", "\n").replace('\r', "\n").split('\n').map(str::to_owned).collect();
-    let mut parser = Parser { source, tokens, position: 0, diagnostics, document: Document { file: file.to_owned(), ..Document::default() } };
+    let mut parser = Parser { source, tokens, position: 0, declaration_start: 0, comparison_spans: Default::default(), expression_spans: Default::default(), diagnostics, focal_table: None, repair_args: None, known_tables, known_views, document: Document { file: file.to_owned(), ..Document::default() } };
     parser.document();
     (parser.document, parser.diagnostics)
 }
@@ -40,8 +46,15 @@ struct Parser {
     source: Vec<String>,
     tokens: Vec<Token>,
     position: usize,
+    declaration_start: usize,
+    comparison_spans: std::collections::BTreeMap<(u32, u32), std::ops::Range<usize>>,
+    expression_spans: std::collections::BTreeMap<(u32, u32), std::ops::Range<usize>>,
     diagnostics: Vec<Diagnostic>,
     document: Document,
+    focal_table: Option<String>,
+    known_tables: Vec<TableDecl>,
+    known_views: std::collections::BTreeMap<String, crate::types::Ty>,
+    repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
 const TOP_LEVEL: [&str; 19] = ["view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
@@ -62,6 +75,11 @@ impl Parser {
     }
 
     fn top_level(&mut self) -> Fallible<()> {
+        self.declaration_start = self.position;
+        self.comparison_spans.clear();
+        self.expression_spans.clear();
+        self.focal_table = None;
+        self.repair_args = None;
         let token = self.peek().clone();
         match token.value.as_str() {
             "action" => self.parse_action(),
@@ -95,6 +113,11 @@ impl Parser {
             }
             "shape" => self.parse_shape_declaration(),
             "fn" => self.parse_function_declaration(),
+            "aggregate" => {
+                let line = self.source[token.site.line as usize - 1].trim_start();
+                let tail = line.strip_prefix("aggregate").unwrap_or(line);
+                Err(unsupported(&token.site, "aggregate declaration", format!("view{tail}")).guide("from-sql"))
+            },
             "proc" => Err(unsupported(&self.peek().site, "proc", "fn")),
             "cursor" => Err(unsupported(&token.site, "cursor as a declaration", "cursor is reserved for a future Quarry form; rename this declaration")),
             "channel" => Err(unsupported(&token.site, "channel", "ephemeral channels arrive after the first slice; keep presence and typing in the client for now")),
@@ -238,7 +261,7 @@ impl Parser {
             "sync" => {
                 if table.online_only { return Err(crate::diag::sync_error(&token.site, "online only cannot also sync", "choose online only or sync")); }
                 if table.sync.is_some() {
-                    return Err(syntax_with(&token.site, format!("table {} has more than one sync line", table.name), "one sync line per table"));
+                    return Err(syntax_with(&token.site, format!("table {} has more than one sync line", table.name), "keep one sync line matching the read rule; use sync to members[.conversation] for one membership audience, or online only when the audience cannot be inverted"));
                 }
                 let sync = self.parse_sync()?;
                 table.sync = Some(sync);
@@ -418,7 +441,7 @@ impl Parser {
             let sum = self.word()?.value == "sum";
             let source = self.word()?.value;
             let of = if sum { self.take("of")?; self.maybe("."); Some(self.word()?.value) } else { None };
-            let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
+            let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
             return Ok(ColumnDecl { sequence: None, written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
@@ -533,7 +556,7 @@ impl Parser {
             self.maybe(".");
             column = Some(self.word()?.value);
         }
-        let mut filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
+        let mut filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
         self.take("by")?;
         let row_key = if self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
             Some((self.word()?.value, self.word()?.value))
@@ -546,7 +569,7 @@ impl Parser {
             if !self.maybe(",") { break; }
         }
         if row_key.is_some() {
-            if self.maybe("where") { filter = Some(self.maintain_predicate(0)?); }
+            if self.maybe("where") { filter = Some(self.filtered_predicate(&source, &[], true)?); }
             keys.push(Expr::Name { name: "member".into(), site: site.clone() });
         }
         let by = keys.iter().map(|key| match key {
@@ -567,7 +590,7 @@ impl Parser {
             let result: Fallible<()> = (|| {
                 let effect = self.word()?;
                 if effect.value == "where" && row_key.is_some() {
-                    filter = Some(self.maintain_predicate(0)?);
+                    filter = Some(self.filtered_predicate(&source, &[], true)?);
                     return self.newline();
                 }
                 if effect.value == "online" {
@@ -652,7 +675,13 @@ impl Parser {
         };
         let mut bindings = Vec::new();
         let value;
-        if self.at("(") {
+        if self.maybe("through") {
+            let fail = || Diagnostic::new(&effect_token.site, "E_READ_THROUGH", "read through .ref is the whole read rule of an application table", "read through .parent  -- put additional write conditions on insert/update/delete").guide("rules");
+            if effect != Effect::Read || !self.maybe(".") { return Err(fail()); }
+            let reference = self.word()?;
+            if !self.at("<newline>") { return Err(fail()); }
+            value = Expr::Call { name: "$readThrough".into(), args: vec![Expr::Name { name: reference.value, site: reference.site }], site: effect_token.site.clone() };
+        } else if self.at("(") {
             self.take("(")?;
             bindings.push(self.binding_name()?);
             while self.maybe(",") {
@@ -712,7 +741,9 @@ impl Parser {
         if self.at("from") {
             return Err(unsupported(&self.peek().site.clone(), "imports", format!("every .q file beside schema.q shares one namespace: declare `fn {name}` once, in any file, and use it anywhere")));
         }
+        let args_site = self.peek().site.clone();
         let args = self.parse_args()?;
+        self.repair_args = Some((args_site, args.clone()));
         self.take(":")?;
         let body = if self.at_kind(Kind::Newline) {
             self.newline()?;

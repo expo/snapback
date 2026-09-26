@@ -1,11 +1,13 @@
+import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
 import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
+import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
  * I12 preserves dispatched outcomes: a fence cannot turn a commit into failure. */
-export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined) {
+export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
   let active = true;
   const valid = () => active && validScope();
   const cleanups = new Set<() => void>(), invalidations = new Set<() => void>();
@@ -77,7 +79,13 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
     },
-    async mutate(op, args, options) {
+    mutate(op, args, options) {
+      if (browserAdmission() && admit) {
+        const id = options?.id ?? mintId();
+        const denied = valid() ? admit() : why();
+        return denied ? failedAdmission(id, denied) : raw.mutate(op, args, { ...options, id });
+      }
+      return (async () => {
       const id = options?.id ?? mintId();
       // Preserve admission-time argument custody before the asynchronous lock.
       let snapshot: typeof args;
@@ -94,6 +102,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         return { state: "failed", id, why: denied };
       }
       return raw.mutate(op, snapshot, { ...options, id });
+      })();
     },
     async write(id) {
       if (await refusal()) return undefined;
@@ -123,6 +132,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       cleanups.add(stop); return () => { cleanups.delete(stop); stop(); };
     },
   };
+  guardAcquisition(client, raw, valid);
   // LocalClient's existing runtime helper also crosses the data boundary.
   const local = raw as Client & { sync?: () => Promise<void> };
   if (local.sync) Object.assign(client, { async sync() { if (!await refusal()) await local.sync!(); } });

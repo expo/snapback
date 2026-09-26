@@ -110,7 +110,7 @@ fn the_chat_api_types_are_inferred() {
     assert!(bound.diagnostics.is_empty());
     let ts = snapback4_lang::emit::typescript(&bound);
     assert!(ts.contains("thread: Query<{ conversationId: string; c?: Cursor | null }, Rows[\"messages\"][]>;"), "{ts}");
-    assert!(ts.contains("inbox: Query<Record<string, never>, { conversation: Rows[\"conversations\"] | null; conversationId: string; count: number; pending?: boolean }[]>;"), "{ts}");
+    assert!(ts.contains("inbox: Query<Record<string, never>, { conversation: Rows[\"conversations\"] | null; conversationId: string; count: number; pending?: boolean; retained?: boolean }[]>;"), "{ts}");
     assert!(ts.contains("role: \"member\" | \"admin\";"));
     assert!(ts.contains("send: Mutation<{ conversationId: string; body: string }, { id: string }>;"), "{ts}");
     assert!(ts.contains("unsend: Mutation<{ messageId: string }, null>;"), "{ts}");

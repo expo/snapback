@@ -1,0 +1,62 @@
+▶ web review: acquisition lifetimes and bounded persistence
+  ✖ same-store reacquisition reconciles progress with an already-true acquired flag (394.046394ms)
+  ✖ a compiled special table name produces numeric own-property counts (23.295801ms)
+  ﹣ sign-out during a partial acquisition clears the raw client counts (0.278347ms) # SKIP
+  ✔ one update stays bounded for 1,000 and 16,000 colliding rows (3018.770584ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (34.411598ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (254.991699ms)
+✖ web review: acquisition lifetimes and bounded persistence (4541.781704ms)
+ℹ {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+ℹ tests 7
+ℹ suites 0
+ℹ pass 3
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 4634.925568
+
+✖ failing tests:
+
+test at test/web-review.test.mjs:42:11
+✖ same-store reacquisition reconciles progress with an already-true acquired flag (394.046394ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '0function Object() { [native code] }1'
+  - 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:57:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:42:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '0function Object() { [native code] }1',
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/web-review.test.mjs:59:11
+✖ a compiled special table name produces numeric own-property counts (23.295801ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '0function Object() { [native code] }1'
+  - 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:59:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '0function Object() { [native code] }1',
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

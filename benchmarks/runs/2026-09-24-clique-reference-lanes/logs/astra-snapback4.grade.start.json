@@ -1,0 +1,32 @@
+{
+  "lane": "astra-snapback4",
+  "phase": "grade",
+  "pid": 43382,
+  "startedAt": "2026-09-25T03:03:36Z",
+  "startedEpoch": 1790305416,
+  "command": [
+    "/Users/ccheever/.local/bin/claude",
+    "-p",
+    "--dangerously-skip-permissions",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    "claude-opus-5",
+    "--add-dir",
+    "/Users/ccheever/clique-ref-20260924/instrument"
+  ],
+  "model": "claude-opus-5",
+  "effort": "provider-default",
+  "prompt": "/Users/ccheever/clique-ref-20260924/prompts/astra-snapback4.grade.md",
+  "cwd": "/Users/ccheever/clique-ref-20260924/lanes/astra-snapback4",
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/astra-snapback4.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/astra-snapback4.grade.stderr.log",
+  "packages": {
+    "snapback4": "0.4.0",
+    "snapback4-expo": "0.4.0",
+    "convex": "1.46.0",
+    "@supabase/supabase-js": "2.117.1"
+  },
+  "ports": "49500-49519"
+}

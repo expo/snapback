@@ -1,0 +1,11 @@
+✔ pre-admission journal: a failed save recovers the predecessor before a surviving page's next admission (506.323263ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1401.021041ms)
+✔ replacement receipts use exit transport without replaying known writes (1007.690621ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2510.239403

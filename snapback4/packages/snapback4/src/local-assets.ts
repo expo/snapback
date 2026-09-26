@@ -2,6 +2,7 @@
 import type { AssetRead } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
 import { blobArrayBuffer } from "./assets.ts";
+import { clockDelay } from "./clock.ts";
 
 /** A host's private byte storage. Hex crosses the native JSON bridge; native
  * hosts may also serve a file URI. The client has no dependency on Expo. */
@@ -35,7 +36,7 @@ export class MediaCache {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = false;
   private store: MediaStorage;
-  constructor(private core: DeviceCore, private viewer: string, private options: AssetRetention) {
+  constructor(private core: DeviceCore, private viewer: string, private options: AssetRetention, private now: () => number = Date.now) {
     this.store = core.media ?? {
       read: async (id) => (await this.call({ op: "meta", key: `media:bytes:${id}` })) as string | null,
       write: async (id, hex) => { await this.call({ op: "set_meta", key: `media:bytes:${id}`, value: hex }); },
@@ -60,7 +61,7 @@ export class MediaCache {
     await this.reconcile();
   }
   private async home(id: string): Promise<Home | null> {
-    return await this.call({ op: "asset_home", id, viewer: this.viewer, now: Date.now() }) as Home | null;
+    return await this.call({ op: "asset_home", id, viewer: this.viewer, now: this.now() }) as Home | null;
   }
   private async save() {
     await this.call({ op: "set_meta", key: "media:manifest", value: JSON.stringify([...this.entries.values()]) });
@@ -78,7 +79,7 @@ export class MediaCache {
     if (this.stopped) return;
     const times = [...this.entries.values()].flatMap((e) => e.home.expiresAt == null ? [] : [e.home.expiresAt]);
     if (times.length) {
-      this.timer = setTimeout(() => { void this.reconcile().catch(() => {}); }, Math.min(2_147_483_647, Math.max(1, Math.min(...times) - Date.now())));
+      this.timer = setTimeout(() => { void this.reconcile().catch(() => {}); }, Math.min(2_147_483_647, Math.max(1, clockDelay(this.now, Math.min(...times)))));
       (this.timer as { unref?: () => void }).unref?.();
     }
   }
@@ -86,7 +87,7 @@ export class MediaCache {
     let changed = false;
     for (const entry of this.entries.values()) {
       const home = this.options.keep === "viewed" ? await this.home(entry.id) : null;
-      if (!home || identity(home) !== identity(entry.home) || (home.expiresAt != null && home.expiresAt <= Date.now())) {
+      if (!home || identity(home) !== identity(entry.home) || (home.expiresAt != null && home.expiresAt <= this.now())) {
         await this.drop(entry.id);
         changed = true;
       } else { entry.home = home; }
@@ -124,7 +125,7 @@ export class MediaCache {
       if (!entry || this.stopped) return absent();
       const hex = await this.store.read(id);
       if (!hex || hex.length !== entry.bytes * 2) { await this.drop(id); await this.save(); return absent(); }
-      entry.used = Date.now();
+      entry.used = this.now();
       await this.save();
       return this.result(entry, hex);
     });
@@ -139,7 +140,7 @@ export class MediaCache {
       if (!home) { await this.drop(id); await this.save(); return; }
       const bytes = new Uint8Array(await blobArrayBuffer(blob));
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-      const entry = { id, home: { ...home, type: blob.type }, bytes: blob.size, used: Date.now() };
+      const entry = { id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };
       // Keep the manifest first so an interrupted byte write is removed on reopen.
       this.entries.set(id, entry);
       await this.save();

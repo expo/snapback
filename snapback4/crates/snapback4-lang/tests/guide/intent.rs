@@ -1,5 +1,5 @@
 //! Execute the published intent forms, including their delivery and count semantics.
-use super::{args, clean, id, quarry, text, Context, Engine, JobState, Value, LANGUAGE};
+use super::{args, clean, id, quarry, text, Context, Engine, JobState, Value};
 use serde_json::{json, Value as Json};
 use snapback4_core::{wire, Store};
 
@@ -10,7 +10,7 @@ fn load(engine: &mut Engine, rows: Vec<(&str, Json)>) {
 
 #[test]
 fn language_intent_views_predicates_search_and_durations_run() {
-    let bound = clean("language intent", &quarry(LANGUAGE)[0]);
+    let bound = clean("language intent", &snapback4_lang::guide::language());
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     load(&mut engine, vec![
         ("intentPosts", json!({"id":"shared", "author":"alice", "handle":"a", "body":"hello quarry", "at":10})),

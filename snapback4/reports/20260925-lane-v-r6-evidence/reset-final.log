@@ -1,0 +1,37 @@
+✔ IndexedDB model: reset termination before-commit preserves one complete transaction (378.365184ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (12.489436ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (393.583028ms)
+✔ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (14.038368ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (12.461595ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (13.089987ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (10.487766ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (8.301921ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (21.852648ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (13.320762ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (13.831958ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (11.982507ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (10.795598ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (12.300353ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (4.828987ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (11.318151ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (8.087169ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (15.492377ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (8.327009ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (16.233037ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (5.313282ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (5.348725ms)
+✔ finding 2: a delayed device read is retried before returning (8.17454ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (4.929297ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (3.730431ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1006.121702ms)
+✔ replacement receipts use exit transport without replaying known writes (1005.504737ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (11.946603ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (4.909247ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2765.113726

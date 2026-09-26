@@ -1,0 +1,11 @@
+{
+  "lane": "opus-convex",
+  "phase": "grade",
+  "pid": 43385,
+  "endedAt": "2026-09-25T04:02:10Z",
+  "endedEpoch": 1790308930,
+  "wallSeconds": 3513.873,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/opus-convex.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/opus-convex.grade.stderr.log"
+}

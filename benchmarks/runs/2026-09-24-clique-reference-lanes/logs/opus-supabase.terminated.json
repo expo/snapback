@@ -1,0 +1,12 @@
+{
+  "lane": "opus-supabase",
+  "phase": "builder",
+  "pid": 34188,
+  "startedAt": "2026-09-25T00:08:13Z",
+  "terminated": "the claude -p builder process was a child of the orchestrating Claude Code session and died when that session ended; no result event, no final-report.md",
+  "lastStdoutWriteEpoch": 1790330628,
+  "lastStdoutWriteAt": "2026-09-25T10:03:48Z",
+  "ndjsonLines": 4347,
+  "gradeable": false,
+  "note": "first-green clocks per milestone remain recoverable from logs/opus-supabase.ndjson; the lane is recorded as incomplete, not rerun (a rerun would not be a cold lane and would cost 6\u201311 h)"
+}

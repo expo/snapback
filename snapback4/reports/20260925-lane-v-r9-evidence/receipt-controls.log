@@ -1,0 +1,14 @@
+✔ receipt custody retains the first sent outcome across repeated save failures (1.343393ms)
+✔ receipt custody retains the first failed outcome across repeated save failures (0.183105ms)
+(node:1468182) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ wasm: sync before a lost write reply does not apply an increment twice (547.730477ms)
+✔ native: sync before a lost write reply does not apply an increment twice (130.392027ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 803.959895

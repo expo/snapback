@@ -207,8 +207,8 @@ fn value(key: &Key, row: &Value, ctx: &Context) -> Option<Value> {
     }
 }
 fn cacheable(schema: &Schema, name: &str) -> bool {
-    schema.table(name).is_some_and(|t| t.expire.is_none()) && schema.maintain_for(name)
-        .is_none_or(|m| schema.table(&m.source).is_some_and(|t| t.expire.is_none()))
+    schema.table(name).is_some_and(|t| !t.is_expiring()) && schema.maintain_for(name)
+        .is_none_or(|m| schema.table(&m.source).is_some_and(|t| !t.is_expiring()))
 }
 fn request(schema: &Schema, table: &str, index: &str, keys: Vec<Value>, requests: &mut Vec<PrefetchRequest>) {
     if cacheable(schema, table) && keys.iter().all(|v| *v != Value::Null && scalar(v))

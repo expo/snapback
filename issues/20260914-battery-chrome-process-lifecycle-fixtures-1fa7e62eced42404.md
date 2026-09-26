@@ -13,12 +13,12 @@
 **Battery gate:** `chrome-process-lifecycle-fixtures`
 **Failure signature:** `sha256:1fa7e62eced4240468d6dd5d9784ca48bfe8ebc1cad91ea3d07c8db3bcc78870`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260925T100530Z.da526005226e`
-**Last processed run:** `local.20260925T100530Z.da526005226e`
+**Last observed run:** `local.20260925T191102Z.d6fdf102a1e6`
+**Last processed run:** `local.20260925T191102Z.d6fdf102a1e6`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `da526005226e44c135b46f5f962ff76fefc83720`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `d6fdf102a1e67f8b1aef99ce7c7c880c9c48406d`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ node demos/_kit/tests/chrome-process-lifecycle.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

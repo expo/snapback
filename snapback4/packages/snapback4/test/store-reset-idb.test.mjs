@@ -65,6 +65,9 @@ for (const fault of ["before-commit", "after-commit"]) test(`IndexedDB model: re
   } }));
   ok(await core.call({ op: "settle", id: "known", seq: 11 }));
   ok(await core.call({ op: "apply", first: true, page: page("A", events.slice(0, 1), { stage_snapshot: true, more: true, next: "next" }) }));
+  // Model an actual request in flight. Store-binding inspections are reads
+  // and must not create this declaration as an accidental side effect.
+  ok(await core.call({ op: "sync_state" }));
   const before = await persist.load(name);
   for (const kind of ["r", "m", "s", "b", "o"]) assert.ok(before.some(c => c.s === kind), `fixture must hold ${kind}`);
   model.interrupt(fault);

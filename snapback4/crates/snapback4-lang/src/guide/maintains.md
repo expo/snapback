@@ -55,6 +55,14 @@ rule always wins. Residency is unchanged: sync is inherited only when all
 source audience columns survive as bare keys, without the source horizon;
 otherwise the aggregate stays server-only. `online only` opts out.
 
+E_MAINTAIN_READ_EXPIRE means an aggregate over an expiring source has a read
+rule that uses fields its group keys do not determine. This includes a source
+with an effective deadline inherited through `read through`. Use `read <- deny`
+and replace deny with a rule over the group keys, omit `read` to inherit the
+source rule, or use `online only` with an explicit key rule. Neither a source
+cap nor `online only` permits a value-dependent rule. Non-expiring sources
+may authorize their stored value because it is already the live value.
+
 A predicate accepts scalar comparisons, and/or/not, boolean literals and bare
 required boolean columns. Equality permits null; ordering requires compatible
 non-optional scalars. It cannot read tables, viewer, now, helpers or arithmetic:
@@ -217,6 +225,19 @@ A missing group still reads as zero when its lookup completes. An existence-only
 rule probe seeks the first live contribution past `now`, skipping the expired
 backlog; it keeps the one-probe cost. Rules still cannot compare the live value
 of an expiring aggregate.
+
+A keyed read or rule probe of an expiring aggregate always includes its source
+in `tables`, even for an empty group or a denied read, so source writes invalidate
+the result consistently. Authorization, rule probes and recounts collect provisional
+deadlines. Only an emitted row or answer adds them to `next_expiry`; denial,
+interruption or an unavailable answer discards them, keeping charges and cuts.
+A partial page keeps deadlines from rows it already emitted. An empty page
+does not publish a private deadline learned by its prefix authorization.
+An authorized reader can observe the metered cost of the group's unswept expired
+contributions, including an `unavailable` cut when the backlog exceeds the
+examined ceiling. These contributions belonged to that reader's count; sweeping
+bounds the backlog. Expired rows still cost examined work and steps.
+Unauthorized denials remain identical across empty, expired-only and live groups.
 
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are
@@ -743,3 +764,6 @@ A private `written by` member field may parameterize a row-keyed count only
 when the member's read rule requires that field's owner. Otherwise declare
 `readable by audience` before deriving the count. Row-read authority alone
 does not disclose another owner's private predicate input.
+Read-through limits and repair steps: `why E_READ_THROUGH`,
+`why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
+`why E_READ_THROUGH_SCAN`.

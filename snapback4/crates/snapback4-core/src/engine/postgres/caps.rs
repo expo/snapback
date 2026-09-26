@@ -10,7 +10,7 @@ pub(super) fn install(client: &mut postgres::Client, schema: &Schema) -> Result<
     if present.is_none() {
         tx.batch_execute(DDL)?;
         for (name, table) in &schema.tables {
-            if table.expire.is_none() || !table.constraints.iter().any(|c| matches!(c, crate::schema::Constraint::Cap { .. })) { continue; }
+            if !table.is_expiring() || !table.constraints.iter().any(|c| matches!(c, crate::schema::Constraint::Cap { .. })) { continue; }
             let mut after: Option<String> = None;
             loop {
                 let rows = match &after {

@@ -82,7 +82,7 @@ pub(super) fn statements(body: &mut [Stmt], visit: &mut impl FnMut(&mut Expr)) {
     }
 }
 
-pub(super) fn document(doc: &mut Document, visit: &mut impl FnMut(&mut Expr)) {
+pub(crate) fn document(doc: &mut Document, visit: &mut impl FnMut(&mut Expr)) {
     for program in &mut doc.programs { statements(&mut program.prelude, visit); statements(&mut program.body, visit); }
     for function in &mut doc.functions {
         match &mut function.body { FunctionBody::Expression(value) => expression(value, visit), FunctionBody::Block(body) => statements(body, visit) }

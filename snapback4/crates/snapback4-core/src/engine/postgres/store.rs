@@ -62,6 +62,7 @@ pub enum WriteMode {
 }
 
 pub(super) struct Store {
+    pub generation: u64,
     pub client: Client,
     cache: BTreeMap<&'static str, Statement>,
     pub calls: Cell<u64>,
@@ -74,7 +75,7 @@ pub(super) struct Store {
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { generation:1, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
@@ -92,6 +93,16 @@ impl Store {
             // @ref LLP 3000#7-decisions-during-execution — a watermark covers commit order, not sequence allocation
             let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0) as u64;
             tx.head.set(Some(head));
+        }
+        // A reader pins generation and watermark in the same snapshot and
+        // reuses this head for next_seq. A serialized writer checks generation
+        // after its head lock, so an adoption it waited for cannot be missed.
+        let generation = if mode.is_none() {
+            let row=tx.query("SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",&[])?.remove(0);
+            tx.head.set(Some(row.get::<_,i64>(1) as u64));row.get::<_,i64>(0) as u64
+        } else { tx.query("SELECT generation FROM _backend WHERE singleton",&[])?[0].get::<_,i64>(0) as u64 };
+        if generation != self.generation {
+            return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into()));
         }
         Ok(tx)
     }

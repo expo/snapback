@@ -5,7 +5,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     pub(super) fn rule_probe_exists(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         let (present, known) = self.probe_witness(allowance, table, index, key, equalities, false)?;
-        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); }
+        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); self.components.note(|frame| frame.speculative = true); }
         Ok(present)
     }
 
@@ -14,13 +14,13 @@ impl Runner<'_> {
         if self.device_work_active { return self.probe_witness_uncached(allowance, table, index, key, equalities, current); }
         let cached_key = WitnessKey { revision: self.tx.revision(), table: table.into(), index: index.into(), key: key.to_vec(), equalities: equalities.to_vec(), current };
         if let Some((previous, (live, known, expiry))) = &self.witness_cache && previous == &cached_key {
-            self.next_expiry = rules::earliest(self.next_expiry, *expiry);
+            self.next_expiry.note_option(*expiry);
             return Ok((*live, *known));
         }
-        let prior = self.next_expiry.take();
+        let scope = self.next_expiry.scope();
         let result = self.probe_witness_uncached(allowance, table, index, key, equalities, current);
-        let expiry = self.next_expiry;
-        self.next_expiry = rules::earliest(prior, expiry);
+        let expiry = scope.defer().deadline();
+        self.next_expiry.note_option(expiry);
         if let Ok((live, known)) = result { self.witness_cache = Some((cached_key, (live, known, expiry))); }
         result
     }
@@ -55,7 +55,7 @@ impl Runner<'_> {
         }
         if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
         let live = equalities.iter().all(|(column,value)| row.field(column).unwrap_or(&Value::Null) == value);
-        if live && known { self.next_expiry = rules::earliest(self.next_expiry, expiry); }
+        if live && known { self.next_expiry.note_option(expiry); }
         Ok((live, known))
     }
 
@@ -64,10 +64,10 @@ impl Runner<'_> {
         if self.schema.maintain_for(table).is_some_and(|m|m.row_key.is_some()) {
             let bytes = crate::rows::disclosed::decode_reservation(&self.schema.tables[table])
                 .saturating_add(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4);
-            let expiry = self.next_expiry;
+            let expiry = self.next_expiry.scope();
             let result = self.authorized_scratch(bytes, &[(MeterKind::Examined,1)], |runner, scope|
                 runner.probe_row_view(scope, table, index, key, equalities, current));
-            if !matches!(result, Ok((true, true))) { self.next_expiry = expiry; }
+            if matches!(result, Ok((true, true))) { expiry.emit(); }
             return result;
         }
 
@@ -75,12 +75,13 @@ impl Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
+        self.aggregate_source_dependency(table);
         let mut bounds = Bounds::default();
         let mut live = false;
         let mut until: Option<i64> = None;
         let mut uncertain = false;
         loop {
-            let (rows, limit) = if definition.expire.is_none() {
+            let (rows, limit) = if !definition.is_expiring() {
                 // Non-expiring indexed predicates need only one candidate;
                 // extra equalities bind a complete unique key.
                 (self.live_lookup(allowance, table, index, index_def, key)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX)
@@ -90,6 +91,12 @@ impl Runner<'_> {
                 self.witness_materialize(&mut row, definition)?;
                 bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
                 if self.expired(definition, &row) || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
+                // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced is no witness.
+                if self.device && !crate::schema::timeline::holds_event(self.schema, table, &row) {
+                    self.event_read_unknown(table, index, key, "rule probe");
+                    uncertain = true;
+                    continue;
+                }
                 if current && !self.witness_covered(table, index, key, &row)? { uncertain = true; continue; }
                 let (present, known, expiry) = self.witness_lifetime(allowance, table, &row, current)?;
                 uncertain |= !known;
@@ -101,19 +108,20 @@ impl Runner<'_> {
             }
             if count < limit { break; }
         }
+        if !live && self.event_read_unknown(table, index, key, "rule probe") { uncertain = true; }
         let known = !self.device || (!self.schema.maintain_subset_unknown(table) && if current {
             if live { true } else { !uncertain && self.authorization_absence_covered(allowance, table, index, key)? }
         } else { !uncertain && definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) });
-        if live { self.next_expiry = rules::earliest(self.next_expiry, until); }
+        if live { self.next_expiry.note_option(until); }
         Ok((live, known))
     }
 
     /// A maintained existence witness lives while any selected source lives;
     /// an aggregate's own expiration can only shorten that lifetime.
     fn witness_lifetime(&mut self, allowance: &Authorization, table: &str, row: &Value, current: bool) -> Result<(bool, bool, Option<i64>), RuntimeError> {
-        let expiry = self.schema.tables[table].expires_at(row);
+        let expiry = self.schema.tables[table].deadline(row);
         let Some(maintain) = self.schema.maintain_for(table) else { return Ok((true, true, expiry)); };
-        let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) else { return Ok((true, true, expiry)); };
+        let Some(source) = self.schema.table(&maintain.source).filter(|source| source.is_expiring()) else { return Ok((true, true, expiry)); };
         self.read_tables.insert(maintain.source.clone());
         if self.device_work_active {
             self.meter.heap(2 * word_heap::slots::<Value>(maintain.by.len()) + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
@@ -127,7 +135,7 @@ impl Runner<'_> {
         let mut known = !self.device || source.sync.as_ref().is_some_and(|sync| sync.horizon.is_none());
         // @ref LLP 3000.007#20.9.3 — skip expired contributions; all live alternatives still determine the complete rule lifetime.
         let expiry_ordered = source.index(name).is_some_and(|index| matches!(index.components.as_slice(),
-            [crate::schema::IndexComponent::Contribution(_), crate::schema::IndexComponent::Column(column)] if Some(column) == source.expire.as_ref()));
+            [crate::schema::IndexComponent::Contribution(_), crate::schema::IndexComponent::Column(column)] if Some(column.as_str()) == source.expiry_column()));
         // The contribution index contains only selected sources and carries
         // their expiry. Two key-only seeks give the last surviving lifetime;
         // no payload is decoded and a permanent witness's position is irrelevant.
@@ -158,7 +166,7 @@ impl Runner<'_> {
                 if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
                 if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
                 if current { known = true; }
-                let candidate_expiry = source.expires_at(&candidate);
+                let candidate_expiry = source.deadline(&candidate);
                 until = if live { until.zip(candidate_expiry).map(|(a, b)| a.max(b)) } else { candidate_expiry };
                 live = true;
 
@@ -186,12 +194,12 @@ impl Runner<'_> {
             self.meter.release_heap(mark);
             return result.map(|mut rows| rows.pop().map(|(mut row,_)| { materialize_optional_fields(&mut row, table); row }));
         }
-        if table.expire.is_none() && !self.device_work_active {
+        if !table.is_expiring() && !self.device_work_active {
             return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
-            let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
+            let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if !table.is_expiring() { 1 } else { 32 })?;
             let count = rows.len();
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;

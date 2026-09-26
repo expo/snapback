@@ -1,0 +1,41 @@
+(node:325778) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (967.168009ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (837.019977ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1839.327573ms)
+  ✔ a hide during the startup probe waits for its accepted decision (802.016607ms)
+  ✔ a hide during the startup probe waits for its refused decision (810.275744ms)
+  ✖ a hide during the startup probe waits for its restore decision (30857.81796ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1424.567538ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (850.701086ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (852.433613ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (825.052933ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (821.882393ms)
+  ✔ same-epoch logout tombstone refuses live admission (536.984576ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (480.457711ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (481.897159ms)
+✖ web admission review: recovery and transport respect the session boundary (43335.4065ms)
+ℹ {"mode":"held-sync","id":"01M3C4T4KKFGKHV066SA17FSS5","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C4T5EKE5AYMWMP5D72A4D7","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C4T770N2VR4KKRCCD1YF2R","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"refused","originalId":"01M3C4T7ZM924D71AZT40KWJ62","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"replacement","originalId":"01M3C4V70XXXV9SS9T3B1DNQEJ","sendsWhileProbeHeld":0,"originalAudit":2,"replacementAudit":0}
+ℹ tests 15
+ℹ suites 0
+ℹ pass 13
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43432.428286
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:81
+✖ a hide during the startup probe waits for its restore decision (30857.81796ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:270:20)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:73) {
+    name: 'TimeoutError'
+  }

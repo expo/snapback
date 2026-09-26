@@ -75,7 +75,12 @@ fn unfollow_hides_then_cleans_more_than_the_old_copy_cap() {
 #[test]
 fn original_removal_with_missing_event_still_hides_private_copies() {
     let mut initial=engine(true);sent(&mut initial,"follow","c",&[("authorId",id("a"))],1);sent(&mut initial,"publish","a",&[("postId",id("p"))],2);drain(&mut initial);
-    let images=snapshot(&initial).into_iter().filter(|(t,_)|t!="feedPosts").flat_map(|(t,rows)|rows.into_iter().map(move |r|(t.clone(),r)));
+    let images=snapshot(&initial).into_iter().filter(|(t,_)|t!="feedPosts").flat_map(|(t,rows)|rows.into_iter().map(move |mut r| {
+        // A trusted image with an absent event must carry the same filled slot.
+        // This preserves the missing-event cleanup witness under LLP 3000.016.
+        if t == "posts" && let Value::Row(fields) | Value::Map(fields) = &mut r { fields.insert("$timeline:feed:post".into(), Value::Bool(false)); }
+        (t.clone(),r)
+    }));
     let mut e=engine(true);e.load_trusted(images).unwrap();
     assert_eq!(e.query("following",context("c",&[],20)).unwrap().data.as_array().unwrap()[0].field("id").unwrap(),&id("p"));
     assert_eq!(rows(&e,"feedFeed").len(),2);

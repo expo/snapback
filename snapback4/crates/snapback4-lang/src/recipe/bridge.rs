@@ -109,7 +109,7 @@ fn public_table<'a>(schema: &'a Schema, name: &str) -> Result<&'a Table, String>
     let table = schema.table(name).ok_or_else(|| format!("no application table {name}"))?;
     if schema.maintain_for(name).is_some() || !table.rules.read.is_public()
         || !table.sync.as_ref().is_some_and(|sync| sync.audience == Audience::Public && sync.horizon.is_none())
-        || table.expire.is_some() {
+        || table.is_expiring() {
         return Err(format!("{name} must be an explicitly public, fully `sync public`, non-expiring application table; recipe events disclose its metadata publicly; keep private/online/horizon/expiring models on the manual integration path"));
     }
     Ok(table)

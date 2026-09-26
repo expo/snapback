@@ -5,9 +5,9 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "nod
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 import ts from "typescript";
 import { runInNewContext } from "node:vm";
-import { createClient } from "../dist/client.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(path, "utf8");
@@ -127,7 +127,8 @@ test("Queries teach predicate reads and engine-chosen scope lanes", () => {
   const queries = read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).replace(/\s+/g, " ");
   assert.ok(queries.includes("messages where .roomId = roomId"));
   assert.ok(queries.includes("last 20 by .at after c"));
-  assert.ok(queries.includes("the author writes no lane list"));
+  const why = execFileSync(process.env.SNAPBACK4_BIN ?? join(root, "../../target/debug/snapback4"), ["why", "N_SPARSE_FILTER"], {encoding: "utf8"}).replace(/\s+/g, " ");
+  assert.ok(why.includes("the author writes no lane list"));
   assert.ok(read(join(root, "README.md")).includes("`guide reads`"));
 });
 
@@ -154,133 +155,46 @@ test("Expo Go README session store preserves encoded SecureStore keys and round-
 });
 
 
+// Execute the published hook with a controlled provider clock. React's actual
+// subscriptions, replacement deadlines and unmount run in react.test.mjs.
+const expiryPaths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "CLIENT-AND-OPERATIONS.md"];
+function expiryRecipe(path, clock, deadlines) {
+  const source = read(join(root, path)).match(/function useExpiringRows[\s\S]*?\n}/)?.[0];
+  assert.ok(source, `${path}: published server-answer hook`);
+  return runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nuseExpiringRows;`, {
+    useClient: () => ({ now: clock }),
+    useNow: deadline => { deadlines.push(deadline); return clock(); },
+    Date: { now: () => { throw Error("render recipe must use the client's server time"); } },
+  });
+}
+
 test("W9a expiry client form drops deadlines locally and keeps null lifetimes", () => {
-  const paths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "CLIENT-AND-OPERATIONS.md"];
-  for (const path of paths) {
-    const source = read(join(root, path)).match(/const paint = [^\n]+\n\s*paint\(\); const timers = [^\n]+/)?.[0];
-    assert.ok(source, `${path}: two-line expiry client form`);
+  for (const path of expiryPaths) {
     let now = 1000;
+    const deadlines = [], filter = expiryRecipe(path, () => now, deadlines);
     const rows = [{ id: "kept", expiresAt: null }, { id: "due", expiresAt: 1000 }, { id: "later", expiresAt: 1100 }];
-    const painted = [];
-    const timers = [];
-    runInNewContext(source, {
-      rows, render: visible => painted.push(Array.from(visible, row => row.id)), Date: { now: () => now },
-      setTimeout: (fn, delay) => { timers.push({ fn, delay }); return timers.length; },
-    });
-    assert.deepEqual(painted, [["kept", "later"]]);
-    assert.deepEqual(timers.map(timer => timer.delay), [0, 100]);
+    assert.deepEqual(Array.from(filter(rows), row => row.id), ["kept", "later"]);
+    assert.deepEqual(deadlines, [1100]);
     now = 1100;
-    timers[1].fn();
-    assert.deepEqual(painted.at(-1), ["kept"]);
+    assert.deepEqual(Array.from(filter(rows), row => row.id), ["kept"]);
+    assert.deepEqual(deadlines, [1100, null]);
     assert.equal(rows.length, 3, "the received answer stays intact; rendering drops the expired row");
   }
 });
 
-test("W10b typing guidance hides a short-lived row before the next answer", () => {
-  for (const path of ["../../crates/snapback4-lang/src/guide/reads.rs", "../../crates/snapback4-lang/src/guide.rs", "CLIENT-AND-OPERATIONS.md"]) {
+test("W10b typing guidance hides a short-lived server answer before the next answer", () => {
+  for (const path of expiryPaths) {
     const text = read(join(root, path));
-    assert.match(text, /typing indicator/);
-    assert.match(text, /presence row/);
-    const source = text.match(/const paint = [^\n]+\n\s*paint\(\); const timers = [^\n]+/)?.[0];
+    assert.match(text, /[Tt]yping/);
+    assert.match(text, /[Hh]eld device observations republish/);
+    assert.match(text, /[Oo]nly server-answered reads need a render-deadline/);
     let now = 1000;
-    const rows = [{ principal: "alice", expiresAt: 5500 }], painted = [], timers = [];
-    runInNewContext(source, {
-      rows, render: visible => painted.push(Array.from(visible, row => row.principal)), Date: { now: () => now },
-      setTimeout: (fn, delay) => { timers.push({ fn, delay }); return timers.length; },
-    });
-    assert.deepEqual(painted, [["alice"]]);
-    assert.equal(timers[0].delay, 4500);
+    const deadlines = [], filter = expiryRecipe(path, () => now, deadlines);
+    const rows = [{ principal: "alice", expiresAt: 5500 }];
+    assert.deepEqual(Array.from(filter(rows), row => row.principal), ["alice"]);
+    assert.deepEqual(deadlines, [5500]);
     now = 5500;
-    timers[0].fn();
-    assert.deepEqual(painted.at(-1), []);
+    assert.deepEqual(Array.from(filter(rows), row => row.principal), []);
     assert.equal(rows.length, 1, "no replacement answer or server removal arrived");
   }
-});
-
-test("W10R1 typing renderer replaces deadlines on a live watch and cleans up on unmount", { timeout: 10_000 }, async t => {
-  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function showExpiringRows[\s\S]*?\n}/)?.[0];
-  assert.ok(source, "use the published renderer, including its cleanup");
-  const start = Date.now() + 60_000; // Real client timers cannot race the controlled rendering clock.
-  let now = start, serial = 0, seq = 1, queries = 0;
-  let answer = [{ principal: "alice", expiresAt: start + 4500 }];
-  let pendingChange;
-  const timers = new Map(), painted = [], cleared = [];
-  const show = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nshowExpiringRows;`, {
-    Date: { now: () => now },
-    setTimeout: (fn, delay) => { const id = ++serial; timers.set(id, { fn, at: now + delay }); return id; },
-    clearTimeout: id => { cleared.push(id); timers.delete(id); },
-  });
-  const advance = at => {
-    now = at;
-    for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.fn(); }
-  };
-  const until = async check => {
-    const deadline = performance.now() + 5000;
-    while (!check()) {
-      assert.ok(performance.now() < deadline, "live watch did not receive its next answer");
-      await new Promise(resolve => setTimeout(resolve, 5));
-    }
-  };
-  // Real observe/subscribe and change-feed invalidation; the transport controls
-  // reply order, while the Rust fixture exercises these rows on both stores.
-  const client = createClient({ url: "http://typing.invalid", persona: "alice", fetch: async (input, init) => {
-    const path = new URL(input).pathname;
-    if (path === "/q/typingNow") {
-      queries++;
-      return Response.json({ data: answer, complete: true, nextExpiry: answer[0]?.expiresAt ?? null, seq, tables: ["typing"], viewer: "dev:alice" });
-    }
-    assert.equal(path, "/changes");
-    return new Promise((resolve, reject) => {
-      const abort = () => { pendingChange = undefined; reject(init.signal.reason); };
-      init.signal.addEventListener("abort", abort, { once: true });
-      pendingChange = () => {
-        init.signal.removeEventListener("abort", abort);
-        pendingChange = undefined;
-        resolve(Response.json({ seq, tables: ["typing"], generation: 1 }));
-      };
-    });
-  } });
-  t.after(() => client.close());
-  const watch = client.observe({ kind: "query", name: "typingNow" }, { roomId: "room" });
-  let cleanup = () => {};
-  const unsubscribe = watch.subscribe(() => {
-    const read = watch.getSnapshot();
-    if (!("data" in read)) return;
-    cleanup();
-    cleanup = show(read.data, rows => painted.push(Array.from(rows, row => row.principal)));
-  });
-  const unmount = () => { unsubscribe(); watch.close(); cleanup(); };
-  t.after(unmount);
-  await until(() => painted.length === 1 && pendingChange);
-  assert.deepEqual(painted, [["alice"]]);
-  const originalTimer = [...timers.keys()][0];
-  const originalAnswer = watch.getSnapshot().data;
-  advance(start + 3000);
-  answer = [{ principal: "alice", expiresAt: start + 7500 }];
-  seq++; pendingChange();
-  await until(() => watch.getSnapshot().data?.[0]?.expiresAt === start + 7500 && pendingChange);
-  assert.deepEqual(painted, [["alice"], ["alice"]], "online observations publish only the two server answers");
-  assert.ok(cleared.includes(originalTimer), "the extended answer cancels the old deadline");
-  assert.notEqual(watch.getSnapshot().data, originalAnswer);
-  const paintsBeforeOldDeadline = painted.length;
-  advance(start + 4500);
-  assert.equal(painted.length, paintsBeforeOldDeadline, "the old answer's timer must not repaint an empty indicator");
-  assert.deepEqual(painted.at(-1), ["alice"]);
-  advance(start + 7500);
-  assert.deepEqual(painted.at(-1), [], "the replacement deadline hides Alice without another answer");
-  assert.equal(watch.getSnapshot().data.length, 1, "rendering does not mutate the watch answer");
-  answer = [{ principal: "bob", expiresAt: start + 12_000 }];
-  seq++; pendingChange();
-  await until(() => painted.at(-1)?.[0] === "bob" && pendingChange);
-  const queriesBeforeUnmount = queries, paintsBeforeUnmount = painted.length;
-  assert.equal(timers.size, 1);
-  unmount();
-  assert.equal(timers.size, 0, "unmount cancels the replacement answer's timer");
-  answer = [{ principal: "carol", expiresAt: start + 15_000 }];
-  seq++; pendingChange();
-  await new Promise(resolve => setImmediate(resolve));
-  advance(start + 20_000);
-  assert.equal(painted.length, paintsBeforeUnmount, "neither old timers nor later changes paint an unmounted reader");
-  assert.equal(queries, queriesBeforeUnmount, "a closed watch does not refetch");
-  t.diagnostic("live typing: answers=3 initial_deadline_ms=4500 extended_deadline_ms=7500 old_deadline_repaints=0 timers_after_unmount=0");
 });

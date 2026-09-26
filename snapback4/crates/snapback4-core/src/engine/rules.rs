@@ -46,7 +46,8 @@ pub fn upsert_absence(schema: &Schema, name: &str, index: &str, key: &[Expr]) ->
 pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     let index = table.index(&scan.index)?;
-    let pinned = index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
+    let pinned: BTreeMap<_,_> = index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
+    if table.through.as_ref().is_some_and(|t| pinned.contains_key(&t.reference)) { return Some(table.rules.read.clone()); }
     let rule = simplify_prefix(&table.rules.read, &scan.table, table, &pinned);
     if matches!(rule, RuleExpr::Allow) { return None; }
     let terms = conjuncts(rule);
@@ -105,6 +106,7 @@ pub fn prefix_visibility(table_name: &str, table: &Table, rule: &RuleExpr, pinne
 
 // @ref LLP 3000.007#20.24 — visibility borrows compiled rule/scan images; word lanes allocate no analysis maps or field sets.
 fn visibility<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> Visibility {
+    if table.through.as_ref().is_some_and(|t| pinned(&t.reference).is_some()) { return Visibility {uniform:true,decided_true:false}; }
     let decided_true = rule_true(rule, name, table, pinned);
     Visibility { uniform: decided_true || fields_pinned(name, table, rule, pinned), decided_true }
 }
@@ -129,6 +131,7 @@ fn fields_pinned<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl F
 /// Fields that decide a rule after absorbing same-row equalities into
 /// self-probes in each `or`. Shared by runtime hoisting and compiler notes.
 pub fn deciding_fields(table_name: &str, table: &Table, rule: &RuleExpr) -> BTreeSet<String> {
+    if let Some(t) = &table.through { return BTreeSet::from([t.reference.clone()]); }
     let mut used = BTreeSet::new();
     match rule {
         RuleExpr::Or(_) => {
@@ -224,8 +227,8 @@ pub trait Probe {
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Verdict { Readable, Denied, Unknown }
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum Verdict { Readable, Denied, #[default] Unknown }
 
 impl Verdict {
     fn not(self) -> Self {

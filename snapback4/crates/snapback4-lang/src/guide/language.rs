@@ -1,5 +1,46 @@
-//! The complete, compiled and executed Quarry language card.
+//! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
+
+Quarry defines tables, rules and backend operations; eligible programs run on devices too.
+Coming from SQL or Convex: `snapback4 guide from-sql` translates familiar idioms.
+
+```quarry
+table notes:
+  owner: principal
+  body: text
+  at: time default now
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner last 500 by .at
+query myNotes(c: cursor ?):
+  return notes where .owner = viewer last 20 by .at after c
+mutation addNote(body: text):
+  return insert notes { owner: viewer, body }
+```
+
+`table` declares stored columns; every row also has an `id`.
+`read` and `insert` give the owner access; `sync` brings those rows to their device.
+`query` returns the newest page; pass its `next` back as `c`.
+`mutation` inserts atomically, using the default time.
+
+## Limits
+
+- Use Quarry spellings such as `count(x)` and `first 20`: E_QUARRY_UNSUPPORTED.
+- A field or argument must fit its declared type: E_QUARRY_TYPE.
+- Queries only read; writes belong in mutations or jobs: E_QUARRY_PLACEMENT.
+
+## Details
+
+Repeated predicates and qualified helpers use the same reads and helpers:
+
+```quarry
+query familiarHelpers(kind: enum('open', 'closed')):
+  return schema.kindLabel(kind)          -- a helper in schema.q also accepts its file prefix
+query nestedRoomRoster(c: cursor ?):
+  return members where .principal = viewer first 20 by .roomId after c { roomId, roster: members[roomId = .roomId] }
+query repeatedFilters(roomId: rooms, c: cursor ?):
+  return messages where .roomId = roomId where .body != null last 20 by .at after c
+```
 
 Quarry defines your tables, access rules and backend operations.
 Queries and eligible mutations can run on devices that hold their inputs.
@@ -8,6 +49,21 @@ Queries and eligible mutations can run on devices that hold their inputs.
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
 use personas alice, bob, carol        -- a development cast: `--as alice` and the persona header act as dev:alice
 effect notify                         -- a name a mutation or job may `emit` under; a worker with a service token performs it (guide effects)
+
+table folders:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync last 500 by .id
+
+table documents:
+  folder: folders
+  body: text
+  immutable folder
+  read through .folder             -- the whole read rule; captures its immutable parent's audience and lifetime
+  insert <- allow
+  sync last 500 by .id              -- infers the captured owner audience
 
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
@@ -475,16 +531,6 @@ image against all pending writes. `edit` of retained history after leaving
 the room also predicts, but the edited image is hidden until settlement.
 See `guide prediction`.
 
-Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
-An enum fits `text <=N` when every variant has at most N characters and
-contains no control characters except tab, LF and CR. This is
-static and total: no variant is truncated or converted at runtime. If one
-variant is too long, declare the helper parameter with the enum instead.
-After a scalar `where` predicate, a declared shape name shapes the page:
-`where not .hidden card` and `where not .hidden { ...card }` agree. A valid
-row/object shape inside a predicate keeps its meaning; parenthesize it to
-make that scope explicit, or use `{ ...card }` explicitly for the page.
-
 Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.
 Named keys select columns explicitly. `t where predicate first 20 by .at
 after c` pages matching rows. `last` reverses the order; id breaks ties.
@@ -500,25 +546,6 @@ is unavailable, never a partial answer (even before `?? 2`). A device needs
 complete coverage of the domain. Rules apply before any comparison. `exists` stops
 at a visible match; an unknown domain cannot establish absence.
 
-Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
-instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
-`'text'` or `"text"` with `\n`, `\t` and `\\`, `[a, b]` (a bounded list),
-`{ a, b: c }` (an object; a bare name is `name: name`). `=` and `!=` are total
-(null equals null); `<` and friends, `+`, `-` and `*` need present operands:
-narrow with `if x != null:`, `x ! else CODE`, `x ?? default`, or `require x
-!= null else CODE`. Guards narrow fields of a bound row too, through `and`/`or`,
-conditional arms and the paths that survive an early return; rebinding clears the fact. `time - time` is an int of milliseconds; `time + int` a
-time. Text `+` concatenates two present texts. `count(text | page | list)` counts characters or items; `lower(text)`, `trim(text)`, `join(list, separator)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,
-`max(a, b)`, `min(page, .col)`, `max(page, .col)` (also lists of rows), `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
-`group(list, 'col')`, `first(list)`, `last(list)`, `at(list, index)` (element or null),
-`tokens(text)`, `sha256(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,
-`(lo, hi) = sorted(a, b)`. `x = expr` binds or reassigns a local with a compatible type; reassignment resets its refinements. Arguments cannot be shadowed. A program ends
-with `return [value]`, or with its last expression, or with its final write.
-An inline ordered page needs parentheses to separate its order keys from
-the column argument: `min((t first 20 by .at), .col)`. Binary `min(a, b)`
-and `max(a, b)` retain their meaning; a collection followed by `.col` selects
-the aggregate.
-
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
 
 `sha256` is for high-entropy capability tokens and content checksums. It hashes
@@ -532,12 +559,6 @@ order, rule probes, sync, caps and expiry (`guide indexes`).
 
 ## With `use server`
 
-One `use server` in any module (`schema.q` is usual) enables the whole
-project; repeating it is harmless. Actions, routes and schedules naming an
-action require it. Effects (including secrets, retry, backoff, deadline and
-cancellation), jobs, schedules naming a job and service seats need no directive.
-This block extends the core schema above.
-
 ```quarry
 use server
 -- Server handlers declare results, secrets and work settings (guide actions).
@@ -548,85 +569,19 @@ route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry bod
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
 
-## Starting in an existing directory
-
-E_INIT_CONFLICT means `init` found files or package entries it would
-overwrite, and wrote nothing. Rename the listed files or reconcile the
-named package.json entries, then rerun `snapback4 init --expo` (or `--web`).
-Unrelated files and symlinks can stay. An existing README.md stays intact;
-the starter writes its setup instructions to README.snapback.md instead.
-
-## Refusals
-
-For a present row, `{ ...p, extra }` and `p { *, extra: extra }` contribute
-the same columns and extra value. Shapes keep `*`; object fields and spreads
-can replace inherited fields with an explicit field and its type, as `handle`
-does above. Two explicit fields with the same name are refused.
-
-E_QUARRY_SYNTAX means the parser could not read the form at the reported
-file, line and column. For example, `query answer:` is missing its argument
-parentheses: write `query answer():`, then indent `return 42` by two spaces
-on the next line. Keep the colon, close each `(`, `[` and `{`, and separate
-arguments and object fields with commas. Follow the diagnostic's rewrite;
-`snapback4 check --fix` applies it only when marked mechanical. Fix the first
-bad line and rerun `check`; a later empty-body error may be its consequence.
-
-E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local,
-argument, table, column, index or helper may be misspelled or undeclared.
-For example, after `message = 'hello'`, `return mesage` must be
-`return message`. Check the declared spelling and the diagnostic's suggested
-name; declare a missing local before using it. For a page, name its predicate and order: `posts where .authorId = viewer
-last 20 by .at after c`. `snapback4 check --fix` applies only mechanical repairs.
-
 ## Left out on purpose, and the idiom
-
-- `while` and recursion → `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.
-- Floats → integer minor units in `decimal S` and `money CUR S`, or a native job.
-- A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.
-Before editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project.
-
-Ordinary field access propagates null: `row.body` is null when `row` is null.
-`check --fix` removes only the `?` in `a?.b`, preserving the base expression
-and evaluating it once, including when it is a call or read.
-
-- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
-
-Maintained columns put an aggregate on the row it describes. Their source
-is ordinary and non-expiring. Omit `by` when exactly one source column references
-the parent; otherwise name that reference explicitly. The
-engine owns the column; a write result omits it. Read the row for its value.
-Adding or redefining it recounts existing sources in atomic activation.
-The event-free generation barrier makes devices reacquire; a missing stored
-field reads 0 without an authored literal default. See `guide maintains`
-for disclosure and stream cost, and `guide feeds` for Trending.
 
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
-<CODE>` explains a refusal.
-
-
-## Unsupported forms
-
-E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form.
-For example, `return len(items)` must be `return count(items)`. The
-reported rewrite names the accepted spelling; `snapback4 check --fix`
-applies it when marked mechanical. For a different algorithm, use the
-language card's bounded loop, helper or native-job idiom. Accepting a
-rewrite does not add an alias to the language.
+<CODE>` explains a refusal. Also see from-sql (aliases sql, convex, rosetta).
 
 ## An ID belongs to one intent
 
-E_ID_REUSED means the request ID already belongs to another operation or
-different arguments. For example, retrying an invitation with the same ID
-but a different email changes its intent. To collect or retry the original,
-keep its operation, ID and raw arguments exactly; for a new invitation,
-use a new ID. Explicit null and an omitted optional argument are different
-raw inputs even when validation gives them the same value. See `guide
-actions` for durable invocation collection and `guide writes` for mutations.
-
 For a public Following feed, see `guide feeds`. Materialization requires
-public, fully synced sources with immutable mappings and owner write rules.
+public sources with immutable mappings and owner write rules. Posts and reposts
+may bound acquisition by time; public follows may sync fully, use a horizon,
+or stay online only.
 
 ## Reads and planned views
 
@@ -636,7 +591,6 @@ The compiler selects or synthesizes indexes. A positional key must name one
 unambiguous declared unique key; named keys make the intended columns explicit.
 `search` declares searchable text, and unnamed `unique` declares a unique key.
 Duration literals are integer milliseconds in any expression.
-
 
 ## Materialized Following
 
@@ -661,7 +615,7 @@ table timelineCards:
   public 'cards'
   insert <- .authorId = viewer
   update <- .authorId = viewer
-  sync public
+  sync public last 1000 by .at
 table timelineReposts:
   actorId: principal
   postId: timelineCards
@@ -671,7 +625,7 @@ table timelineReposts:
   public 'timelineReposts'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  sync public
+  online only
 table timelineFollows:
   followerId: principal
   followedId: principal
@@ -682,7 +636,7 @@ table timelineFollows:
   public 'edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  sync public
+  online only
 
 view timelineActivity:
   timelineCards where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
@@ -819,5 +773,4 @@ query unread(chat: id):
 query inbox(c: cursor ?):
   return unreadCounts where .principal = viewer first 20 after c
 ```
-
 "##;

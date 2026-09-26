@@ -385,6 +385,10 @@ for (const tier of ["online", "process-device"]) for (const queued of [false, tr
     const attempts = [], replies = [];
     const transport = async (input, init) => {
       if (offline) throw new TypeError("offline");
+      // Exercise the HTTP replay receipt deterministically. Acquisition is
+      // temporarily unavailable until that reply arrives; otherwise sync can
+      // acknowledge the id first and correctly avoid the second POST.
+      if (String(input).endsWith("/sync") && dropped && replies.length < 2) return Response.json({}, { status: 503 });
       if (!String(input).endsWith("/m/record")) return fetch(input, init);
       attempts.push(JSON.parse(init.body));
       const response = await fetch(input, init);
@@ -906,8 +910,16 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
   const source = cutSource.replace("  sync public", "  sync public last 1 by byId").replace("query search(room: text <=10, q: text <=100, c: cursor ?):", "query search(room: text <=10, q: text <=100, c: cursor ?) held:");
   const f = await fixture(t, false, source);
   assert.equal((await f.post("/seed", [1, 2].map(n => ({ table: "entries", row: { id: `r${n}`, room: "normal", body: "coffee", at: n } })))).seeded, 2);
-  const requests = [];
-  const client = await createLocalClient({ url: f.url, persona: "alice", device: tier === "native" ? f.device : f.web, waitSeconds: 1,
+  const requests = [], observed = [];
+  const opener = tier === "native" ? f.device : f.web;
+  const client = await createLocalClient({ url: f.url, persona: "alice", device: { open: async (...args) => {
+      const core = await opener.open(...args);
+      return { close: () => core.close(), call: async request => {
+        const reply = await core.call(request);
+        if (request.op === "query") observed.push({ args: request.args, ...reply.ok });
+        return reply;
+      } };
+    } }, waitSeconds: 1,
     fetch: (url, init) => { if (String(url).includes("/q/")) requests.push(url); return fetch(url, init); } });
   f.clients.push(client); await client.sync();
   const op = { kind: "query", name: "search" };
@@ -915,9 +927,13 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
   assert.equal(read.data.length, 1); assert.equal(read.complete, false); assert.equal(read.cut, null);
   const watch = client.observe(op, { room: "normal", q: "absent" });
   t.after(() => watch.close());
-  await until(() => "data" in watch.getSnapshot());
-  assert.deepEqual(watch.getSnapshot().data, []);
-  assert.equal(watch.getSnapshot().complete, false); assert.equal(watch.getSnapshot().cut, null);
+  await until(() => observed.some(reply => reply.args.q === "absent"));
+  const empty = await client.query(op, { room: "normal", q: "absent" });
+  assert.deepEqual(empty.data, []); assert.equal(empty.complete, false);
+  assert.deepEqual(watch.getSnapshot().data, [], "an empty horizon scan has no speculative value");
+  assert.equal(watch.getSnapshot().complete, false);
+  const raw = observed.find(reply => reply.args.q === "absent");
+  assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true); assert.equal(raw.complete, false);
   assert.deepEqual(requests, [], "held must not turn incomplete local coverage into a server call");
 });
 

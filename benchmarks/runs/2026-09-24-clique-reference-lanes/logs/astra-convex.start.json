@@ -1,0 +1,38 @@
+{
+  "lane": "astra-convex",
+  "phase": "builder",
+  "pid": 20791,
+  "startedAt": "2026-09-24T17:57:58Z",
+  "startedEpoch": 1790272678,
+  "command": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-C",
+    "/Users/ccheever/clique-ref-20260924/lanes/astra-convex",
+    "-o",
+    "/Users/ccheever/clique-ref-20260924/lanes/astra-convex/FINAL.md",
+    "-"
+  ],
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "prompt": "/Users/ccheever/clique-ref-20260924/prompts/astra-convex.md",
+  "cwd": "/Users/ccheever/clique-ref-20260924/lanes/astra-convex",
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/astra-convex.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/astra-convex.stderr.log",
+  "packages": {
+    "snapback4": "0.4.0",
+    "snapback4-expo": "0.4.0",
+    "convex": "1.46.0",
+    "@supabase/supabase-js": "2.117.1"
+  },
+  "ports": "49600-49619"
+}

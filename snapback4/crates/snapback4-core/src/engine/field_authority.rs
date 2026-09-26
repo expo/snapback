@@ -13,7 +13,7 @@ struct DeliveryProbe<'a, 'b> {
 }
 
 impl Probe for DeliveryProbe<'_, '_> {
-    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
         let (present, known) = self.runner.probe_witness(self.allowance, table, index, key, equalities, false)?;
@@ -28,13 +28,14 @@ impl<'r> Runner<'r> {
     pub(crate) fn field_owner_can_read(&mut self, rule: &RuleExpr, owner: &str, row: &Value) -> Result<bool, RuntimeError> {
         // Recipient witnesses are exact but are not the caller's observations.
         // Partition accounting prepays their schema-derived probe/step bound.
-        let expiry = self.next_expiry;
+        // A recipient's witness deadline never enters the writer's answer: the scope is dropped, not emitted.
+        let delivery_expiry = self.next_expiry.scope();
         let result = self.authorized_scratch(self.rule_scratch(rule), &[], |runner, allowance| {
             let mut probe = DeliveryProbe { runner, known: true, allowance };
             let readable = rules::evaluate(rule, owner, None, row, false, &mut probe)?;
             Ok(readable && probe.known)
         });
-        self.next_expiry = expiry;
+        drop(delivery_expiry);
         result
     }
 

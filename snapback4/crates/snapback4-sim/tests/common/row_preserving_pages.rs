@@ -163,8 +163,10 @@ fn w13i_original_probe_walks_direct_and_merged_pages_to_completion() {
 #[test]
 fn w13i_helpers_preserve_a_meter_cut_and_continue_its_filtered_source() {
     let mut source = TABLE.to_owned();
+    // Seeded room ids start with r and row ids with m: a real column-to-column
+    // predicate rejects every row while retaining the metered scan.
     for (name, value) in [("plain", "page"), ("grouped", "group(page, 'roomId')"), ("sorted", "sort(page, 'id')")] {
-        source.push_str(&format!("\nquery {name}(c: cursor ?):\n  page = {PAGE} where .roomId != .roomId\n  return {value}\n"));
+        source.push_str(&format!("\nquery {name}(c: cursor ?):\n  page = {PAGE} where .roomId = .id\n  return {value}\n"));
     }
     with_fixture(&source, rows(8200), |q| {
         for name in ["plain", "grouped", "sorted"] {

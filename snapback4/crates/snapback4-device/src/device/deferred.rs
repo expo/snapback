@@ -193,6 +193,9 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page
 }
 
 fn events_recording<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
+    if expiry_clock::advance(tx, expiry_clock::KEY, page.now)? {
+        touched.extend(schema.tables.iter().filter(|(_, table)| table.is_expiring()).map(|(name, _)| name.clone()));
+    }
     let mut boundaries = boundary::Boundaries::editing(false);
     let mut markers = page.acquisitions.iter().peekable();
     boundary::validate_positions(page)?;
@@ -220,6 +223,8 @@ fn events_recording<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
                 if row.field("id")?.as_str()? != event.id {
                     return Err(RuntimeError::Input("row identity does not match its event".into()));
                 }
+                // Partial event state is in the source image, including through deferred folding.
+                if !snapback4_core::schema::timeline::holds_event(schema, &event.table, &row) { continue; }
                 let old = tx.get(&event.table, &event.id)?;
                 if !boundaries.accept(tx, &event.table, table, &row, old.is_some())? { continue; }
                 if let Some(old) = &old { media::forget(tx, table, old)?; }

@@ -123,7 +123,8 @@ impl Binder<'_> {
         // Pending conservatively includes every spread row, even if all its
         // fields were replaced. A spread local carries the same union, so
         // nested spreads and their flattened spelling always agree.
-        match failed { Some(error) => Err(error), None => Ok((result, pending_base(bases))) }
+        let retained = self.schema.tables.values().any(|table| table.through.is_some() && table.leave == snapback4_core::schema::LeavePolicy::DeliveredHistory);
+        match failed { Some(error) => Err(error), None => Ok((result, pending_base(bases, retained))) }
     }
 
     /// Write payloads share object syntax. Expand before ordinary column,
@@ -141,13 +142,18 @@ impl Binder<'_> {
     }
 }
 
-/// Combine metadata using the existing Shape semantics: a false fallback is
-/// overwritten only by a pending base. No absent-field read, new IR, or wire
-/// form is needed. These small projections and boolean operations all pay the
-/// interpreter's ordinary step and heap meters; source rows were bound once.
-fn pending_base(mut bases: Vec<Expr>) -> Option<Expr> {
+/// Shape accepts a metered array of row bases for the union of output metadata.
+/// Keep their provenance: recreating an object from field booleans would either
+/// lose retained history or mistake an application field for the engine's mark.
+fn pending_base(mut bases: Vec<Expr>, retained: bool) -> Option<Expr> {
     let first = bases.pop()?;
     if bases.is_empty() { return Some(first); }
+    if retained {
+        bases.push(first);
+        return Some(Expr::Array(bases));
+    }
+    // Preserve the existing lowering and its metering when no table can
+    // contribute the new retained-row metadata.
     let marked = |base| ir::field(Expr::Shape {
         base: Box::new(base),
         fields: BTreeMap::from([("pending".into(), Expr::Literal(Value::Bool(false)))]),

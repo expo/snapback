@@ -1,0 +1,25 @@
+TAP version 13
+# (node:1949958) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web admission review: recovery and transport respect the session boundary
+    # Subtest: an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+    ok 1 - an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+      ---
+      duration_ms: 6487.466876
+      type: 'test'
+      ...
+    1..1
+ok 1 - web admission review: recovery and transport respect the session boundary
+  ---
+  duration_ms: 7316.08738
+  type: 'test'
+  ...
+1..1
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7416.484127

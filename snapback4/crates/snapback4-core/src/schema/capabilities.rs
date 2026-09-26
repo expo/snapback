@@ -37,12 +37,15 @@ struct Wire {
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
+    ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
     ("sequence-by", |s| s.tables.values().any(|t| !t.sequences.is_empty())),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
+    // Source slots alter negative coverage, prediction and application row projection.
+    ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];
 
 impl Schema {

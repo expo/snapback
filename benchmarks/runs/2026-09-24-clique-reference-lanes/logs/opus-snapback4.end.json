@@ -1,0 +1,11 @@
+{
+  "lane": "opus-snapback4",
+  "phase": "builder",
+  "pid": 34190,
+  "endedAt": "2026-09-25T01:51:53Z",
+  "endedEpoch": 1790301113,
+  "wallSeconds": 6220.046,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/opus-snapback4.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/opus-snapback4.stderr.log"
+}

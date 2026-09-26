@@ -1,0 +1,61 @@
+{
+  "reads": {
+    "words": 3933,
+    "opening_words": 1715,
+    "opening_end": "## Nullable predicates",
+    "blocks": [
+      "00e1be3f9f584b7f4726abb074fce22c1bc69f0ba6f490c0b2ed6d1102c02fe5",
+      "7127116af9770f534e5759a0ba3fb8df6f58e67c6a48abb9470e8350917d7372",
+      "d039595c0cdef625063348f993c451ac5d362934e158b77b81261fed9cd9dafb",
+      "6bec9a03aaad3e3f5e02a4cfad0c88373f9f65fe27805db4662a2c83b27d70c4",
+      "ce92831c8af48ba6d4c3e48f35e13ace75566e7b7d2e502661487c05811be0e1"
+    ]
+  },
+  "writes": {
+    "words": 3987,
+    "opening_words": 3987,
+    "opening_end": "(end of card)",
+    "blocks": [
+      "3b2e19daf4d2b6fbbaa768aadb6052cb0d13d8f582eed6c5750b624e1b33f005",
+      "409ec7f4917655dd91e7fead76dfa8a4f00ec1b249f7585ac9ae2b1feeb93d40",
+      "905fa069fccfadf71e8b193a6fda1ec6a2b5d937caff7673a3f34f87a36f2fca"
+    ]
+  },
+  "programs": {
+    "words": 1266,
+    "opening_words": 627,
+    "opening_end": "## Operations",
+    "blocks": [
+      "1df9a7ede17b1d2b8b47a21924a100be28676bd745c7d437c0e3b9fd398e4b1d"
+    ]
+  },
+  "language": {
+    "words": 5686,
+    "opening_words": 4059,
+    "opening_end": "## With `use server`",
+    "blocks": [
+      "88fe986141fe2029091a3d4787b5d8737f4b0596086e4946ad91c5a2c6c6b76a",
+      "ad25ab2c0a29c7c0661f1adf1154abbdc9672e1d1b20260389e159a5336f4c15",
+      "de70d41d3dcdc139ea80e2f0fc5905158890a29be19c0aafda5b97e30e1c3a60",
+      "1b30ee17c3d59b123d4675d45d90c31746878421d052fdf6d198ae6c062799e5",
+      "5dd290852d420ee934dadffcef8e861fe9b1794843bbc1f0becb5db1bc993f66"
+    ]
+  },
+  "shapes": {
+    "words": 1415,
+    "opening_words": 1415,
+    "opening_end": "(end of card)",
+    "blocks": [
+      "151d7ebbe1a60ba7c0cbfc516c8a32776bfb2151a7685a9c5e5ccd237fad46c9",
+      "e1f6f75cf66b0ecec134ac951886e5905b0422fad217b99f542b0fc6f08ec0b5"
+    ]
+  },
+  "types": {
+    "words": 2013,
+    "opening_words": 737,
+    "opening_end": "## Tables",
+    "blocks": [
+      "9422ed71eb72b237758ae4644e4279e16d0ee207327ec593cb83dc7631c11ccb"
+    ]
+  }
+}

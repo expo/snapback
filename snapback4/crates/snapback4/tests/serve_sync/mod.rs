@@ -54,7 +54,8 @@ fn generation_case(reader: bool, stream: bool) {
     assert_eq!(ahead, stale);
     assert_eq!(count(), 0, "a client ahead of the server also skips materialization");
 
-    let current = request(Some(generation));
+    let before = host.shared.now();
+    let mut current = request(Some(generation));
     assert_eq!(count(), 1);
     assert!(current.get("denied").is_none(), "{current}");
     assert_eq!(current["acknowledged"]["committed-write"], receipt["seq"]);
@@ -62,8 +63,12 @@ fn generation_case(reader: bool, stream: bool) {
     assert_eq!(current["watermark"], watermark, "engine.seq equals the caught-up page head");
     assert_eq!(current["events"].as_array().unwrap().len(), if stream { 2 } else { 1 });
     assert_eq!(current["events"][0]["data"]["added"], 0);
-    let absent = request(None);
+    let mut absent = request(None);
     assert_eq!(count(), 2);
+    // Each request pins its own clock; generation changes neither its bounds nor the page.
+    let current_time = current.as_object_mut().unwrap().remove("now").unwrap().as_i64().unwrap();
+    let absent_time = absent.as_object_mut().unwrap().remove("now").unwrap().as_i64().unwrap();
+    assert!(before <= current_time && current_time <= absent_time && absent_time <= host.shared.now());
     assert_eq!(absent, current, "omitting generation returns the same page as a matching generation");
 
     // Both snapshot and stream continuations stop before page materialization.

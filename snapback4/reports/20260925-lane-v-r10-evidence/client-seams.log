@@ -1,0 +1,93 @@
+✔ W7c dev exposes meters by default and explicitly for a real account (571.891577ms)
+ℹ meter={"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":195,"probes":0,"rowsWritten":0,"steps":5}
+✔ W7c serve ignores meters by default and explicitly for a real account (122.717245ms)
+✔ W6d online: caller id retries share pending writes and retained receipts (296.382258ms)
+ℹ tier=online posts=1 applied=1 terminal_events=1
+✔ W6d online: malformed caller ids fail locally (32.580352ms)
+✔ W6d online: input key order is immaterial and an evicted receipt never readmits on the same client (377.787105ms)
+ℹ tier=online retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d online: two client POSTs with the caller id apply once after a lost reply (297.789295ms)
+ℹ tier=online retry_posts=2 applied=1 historical_results=0
+✔ W6d web: caller id retries share pending writes and retained receipts (529.782084ms)
+ℹ tier=web posts=1 applied=1 terminal_events=1
+✔ W6d web: malformed caller ids fail locally (55.747289ms)
+✔ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (1459.477019ms)
+ℹ tier=web retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d web: two client POSTs with the caller id apply once after a lost reply (1067.646179ms)
+ℹ tier=web retry_posts=2 applied=1 historical_results=0
+✔ W6d web: reopen deduplicates the queued caller id before prediction (1055.739407ms)
+ℹ tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6d native: caller id retries share pending writes and retained receipts (113.17107ms)
+ℹ tier=native posts=1 applied=1 terminal_events=1
+✔ W6d native: malformed caller ids fail locally (87.69266ms)
+✔ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (4871.403739ms)
+ℹ tier=native retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d native: two client POSTs with the caller id apply once after a lost reply (1191.251044ms)
+ℹ tier=native retry_posts=2 applied=1 historical_results=0
+✔ W6d native: reopen deduplicates the queued caller id before prediction (1120.829046ms)
+ℹ tier=native reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6b password character minimum and byte maximum through HTTP (340.590876ms)
+ℹ HTTP: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b password character minimum and byte maximum through client (362.757091ms)
+ℹ client: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b identity forms advertise and enforce the guest choice (284.176427ms)
+✔ sent results reach online, process-device and queued-write callers (1116.926458ms)
+✔ online: immediate lost first acknowledgement preserves the same-id replay receipt (321.402621ms)
+ℹ wire={"head":3,"id":"01M3CZCDB87ETSWZRN8CZ5HAMV","replayed":true,"seq":3,"state":"sent","store_id":"2fbeb3fa3319f010d55e5b4790e88637"}; client={"state":"sent","id":"01M3CZCDB87ETSWZRN8CZ5HAMV","seq":3,"replayed":true}; result key=false
+✔ online: queued lost first acknowledgement preserves the same-id replay receipt (821.284248ms)
+ℹ wire={"head":3,"id":"01M3CZCDN70PPHAWAGME6GQ96W","replayed":true,"seq":3,"state":"sent","store_id":"e25824c0b518f7dcd0e908f842d57a59"}; client={"state":"sent","id":"01M3CZCDN70PPHAWAGME6GQ96W","seq":3,"replayed":true}; result key=false
+✔ process-device: immediate lost first acknowledgement preserves the same-id replay receipt (1143.008372ms)
+ℹ wire={"head":3,"id":"01M3CZCEHHYJX92TAVXEJWGXF7","replayed":true,"seq":3,"state":"sent","store_id":"4e875a917f680ee9bd3e0a9fa474e752"}; client={"state":"sent","id":"01M3CZCEHHYJX92TAVXEJWGXF7","seq":3,"replayed":true}; result key=false
+✔ process-device: queued lost first acknowledgement preserves the same-id replay receipt (1122.24688ms)
+ℹ wire={"head":3,"id":"01M3CZCFMPAR0RBTFSNCMMS22C","replayed":true,"seq":3,"state":"sent","store_id":"74cd308c35d834b10a68855e395abd8d"}; client={"state":"sent","id":"01M3CZCFMPAR0RBTFSNCMMS22C","seq":3,"replayed":true}; result key=false
+✔ write types require replay narrowing through mutate, onWrite and useMutation (645.695684ms)
+✔ createApp forwards asset retention (viewed, 68 bytes) through a real offline reopen (1150.698184ms)
+✔ createApp forwards asset retention (viewed, 67 bytes) through a real offline reopen (122.873259ms)
+✔ createApp forwards asset retention (none, 68 bytes) through a real offline reopen (141.135626ms)
+✔ createApp forwards local waitSeconds while retaining app-owned identity (122.990375ms)
+✔ online createApp ignores settings that apply only with a device (61.489934ms)
+✔ ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes (2141.000071ms)
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+✔ dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits (547.416259ms)
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 494 ms
+✔ id-only video predicts after offline reopen and its ordinary bytes are retained (2137.092456ms)
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+✔ W7r1 hidden versus absent non-uniform reads under dev (100.477949ms)
+ℹ absent={"cut":null,"examined":0,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2} hidden={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2}
+✔ W7r1 hidden versus absent non-uniform reads under serve (161.561355ms)
+✔ W8R1a dev withholds hidden population cuts (513.558603ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a serve withholds hidden population cuts (585.22061ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a online server-run observations retain nothing during a replacing fetch (391.706794ms)
+✔ W8R1a native server-run observations retain nothing during a replacing fetch (461.935274ms)
+✔ W8R1a web server-run observations retain nothing during a replacing fetch (442.521592ms)
+✔ W8a online uniform words continue while nonuniform words and meter cuts remain bounded (323.967545ms)
+✔ W8a native uniform words continue while nonuniform words and meter cuts remain bounded (633.250945ms)
+✔ W8a web uniform words continue while nonuniform words and meter cuts remain bounded (678.876026ms)
+✔ W8a dev refuses held queries with a rewrite (36.336892ms)
+✔ W8a serve refuses held queries with a rewrite (60.929274ms)
+✔ W8a native held horizon stays local online, including observe (130.844685ms)
+✔ W8a web held horizon stays local online, including observe (90.171334ms)
+✔ W13b native cursorless incomplete read stays local online (87.510447ms)
+ℹ native cursorless: rows=1 complete=false /q/=0
+✔ W13b native meter incomplete read stays local online (644.489516ms)
+ℹ native meter: rows=0 complete=false /q/=0
+✔ W13b native horizon and presence use server knowledge only online (97.965774ms)
+✔ W13b web cursorless incomplete read stays local online (67.285189ms)
+ℹ web cursorless: rows=1 complete=false /q/=0
+✔ W13b web meter incomplete read stays local online (646.340431ms)
+ℹ web meter: rows=0 complete=false /q/=0
+✔ W13b web horizon and presence use server knowledge only online (68.785107ms)
+✔ W13b dev logs a measured cut (474.087844ms)
+ℹ snapback4 dev: read filtered (guest:01M3CZCXMKYTZY7KXTWGQA5NEX) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered
+ℹ snapback4 dev: read filtered (dev:alice) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered; suppressed 5 repeated read cuts
+✔ W13b serve hides a measured cut (477.863923ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 55
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33162.711903

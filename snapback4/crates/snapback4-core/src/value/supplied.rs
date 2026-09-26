@@ -40,4 +40,7 @@ impl Value {
     pub(crate) fn native_input(self, _: &crate::engine::native::NativeInput) -> Supplied { Supplied(self) }
     pub(crate) fn expression_input(self, _: crate::engine::runner::ExpressionAccess) -> Supplied { Supplied(self) }
     pub(crate) fn timeline_input(self, _: &crate::engine::timeline::TimelineInput) -> Supplied { Supplied(self) }
+    /// A read-through child's supplied image plus the parent capture stamped
+    /// under reserve_capture's declared allowance (LLP 3000.014 §4).
+    pub(crate) fn capture_input(self, _: &crate::engine::through::CaptureInput) -> Supplied { Supplied(self) }
 }

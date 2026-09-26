@@ -1,0 +1,64 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1057.899063ms)
+  ✔ a failed logout cannot commit after abort (798.709996ms)
+  ✔ a failed logout cannot commit after quota (937.535337ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (420.894485ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1005.547615ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (4.93099ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (76.259586ms)
+  ✖ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (467.119234ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (525.86803ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (776.213666ms)
+  ✖ an aborted epoch migration preserves the legacy fence for the next open (447.168537ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (775.214709ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (819.768424ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (9007.964936ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ tests 14
+ℹ suites 0
+ℹ pass 11
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9098.829108
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:281:50
+✖ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (467.119234ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '0' !== '5'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:306:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:281:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '0',
+    expected: '5',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-session-authority.test.mjs:336:11
+✖ an aborted epoch migration preserves the legacy fence for the next open (447.168537ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:357:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:336:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

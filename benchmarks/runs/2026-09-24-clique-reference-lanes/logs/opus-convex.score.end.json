@@ -1,0 +1,11 @@
+{
+  "lane": "opus-convex",
+  "phase": "score",
+  "pid": 43388,
+  "endedAt": "2026-09-25T03:06:23Z",
+  "endedEpoch": 1790305583,
+  "wallSeconds": 167.019,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/scores/opus-convex/raw.out",
+  "stderr": "/Users/ccheever/clique-ref-20260924/scores/opus-convex/raw.err"
+}

@@ -212,7 +212,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             }
             let valid = m.target == owner.target() && m.by.len() == 1 && m.computed.is_empty() && m.readable.is_none()
                 && schema.table(&owner.table).is_some_and(|t| t.maintained.get(&owner.column) == Some(&m.derivation_identity()))
-                && schema.table(&m.source).is_some_and(|t| t.expire.is_none()
+                && schema.table(&m.source).is_some_and(|t| !t.is_expiring()
                     && t.columns.get(&m.by[0]).is_some_and(|kind| kind.required() == &ColumnType::Ref { table: owner.table.clone() }))
                 && schema.table(&m.target).is_some_and(|t| t.sync.is_none() && t.rules == Rules::deny()
                     && schema.table(&owner.table).is_some_and(|parent|parent.columns.get(&owner.column) == t.columns.get("value")));

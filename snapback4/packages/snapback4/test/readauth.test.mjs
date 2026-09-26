@@ -101,11 +101,21 @@ for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation
         } else if(op==='ruleProbe')data=check; // raw pending note witnesses it
         else if(visible)data=op==='point'?note:op==='probe'?true:op==='total'?1:[note];
         else if(mode==='retained')complete=false;
-        const matches=r=>r&&isDeepStrictEqual(r.data,data)&&r.complete===complete&&!r.error&&!r.refusal;
+        // Unknown absence behind retained authority is a client placeholder.
+        // Keep the raw device oracle to prove every read still filters the row.
+        const placeholder=mode==='retained'&&!visible&&op!=='ruleProbe';
+        const matches=r=>placeholder?isDeepStrictEqual(r,{loading:true}):r&&isDeepStrictEqual(r.data,data)&&r.complete===complete&&!r.error&&!r.refusal;
         await until(()=>matches(watches[i]?.getSnapshot()),`${op} watch mismatch: ${JSON.stringify(watches[i]?.getSnapshot())}; expected ${JSON.stringify(data)}/${complete}`);
         const result=await client.query({kind:'query',name:op},args);
-        assert.deepEqual(result.data,data,op);assert.equal(result.complete,complete,op);
-        assert.ok(!result.error&&!result.refusal,JSON.stringify(result));
+        if(placeholder) {
+          assert.deepEqual(result,{loading:true},op);
+          const raw=(await core.call({op:'query',name:op,viewer:'dev:alice',args,now:Date.now()})).ok;
+          assert.deepEqual(raw.data,data,`${op} raw authorization filter`);
+          assert.equal(raw.complete,false);assert.equal(raw.unknown,true);
+        } else {
+          assert.deepEqual(result.data,data,op);assert.equal(result.complete,complete,op);
+          assert.ok(!result.error&&!result.refusal,JSON.stringify(result));
+        }
       }
       const queue=(await core.call({op:'queued'})).ok;
       assert.ok(queue.length>0 && queue.every(q=>q.predictable),JSON.stringify(queue));

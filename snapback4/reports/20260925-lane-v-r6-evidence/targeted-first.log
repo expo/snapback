@@ -1,0 +1,71 @@
+(node:2875470) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (967.926418ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (745.50128ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1857.00992ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2157.187834ms)
+  ✔ a hide during the startup probe waits for its accepted decision (830.900643ms)
+  ✔ a hide during the startup probe waits for its refused decision (855.544202ms)
+  ✔ a hide during the startup probe waits for its restore decision (854.230133ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1304.081025ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1559.783151ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (847.695972ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (857.515507ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (846.082745ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (890.198373ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (800.555572ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (849.806265ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (835.079487ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (832.735905ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (852.410368ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (774.016473ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (761.685895ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (872.506953ms)
+  ✔ a successful reconnect enables exit after startup 503s (845.780563ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4906.92954ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4782.301636ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4828.849985ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4960.70015ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5984.597456ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6101.035247ms)
+  ✔ same-epoch logout tombstone refuses live admission (565.620019ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (487.77081ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (372.034876ms)
+✔ web admission review: recovery and transport respect the session boundary (56999.902233ms)
+ℹ {"mode":"held-sync","id":"01M3CENE2YSGYZGY17C0H6EPG2","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CENEV8DD3ZHENF7Q1NK0CQ","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CENJRPWCTFWN9DDBMYDK33","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CENKJYK7HE2SCKCX83G0ST","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CENME2VYSSHNJHAKNRWH0Z","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CENN8F3TMRQ27MZGXXZ7S7","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CENPNDX5TEYYECVM9N8HZ7","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"orphan":"01M3CEPP5J8QYK8A11RYJ2FWKP","hidden":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CEPW43ZN61ZPMVSH65PX18","hidden":true,"enqueuedInB":0,"auditA":10,"auditB":0}
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1041.78712ms)
+  ✔ a failed logout cannot commit after abort (762.976266ms)
+  ✔ a failed logout cannot commit after quota (883.94436ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (409.395128ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (886.961251ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (4.10355ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (77.47647ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (590.64199ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (528.263034ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (468.996733ms)
+  ✔ a committed session reopens with actually full localStorage and no separate epoch key (1223.232712ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (874.945696ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (472.482846ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (884.586703ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (676.358228ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (11814.437323ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ {"fullStorageReopen":true,"filledCharacters":5241876,"mutationCode":"E_ADMISSION"}
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57083.019947

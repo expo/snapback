@@ -98,7 +98,7 @@ test("wasm: persisted device reacquires after two backend replacements and prese
   assert.equal(b.watermark, 0); assert.equal(queue.length, 1); assert.equal(queue[0].id, pending.id);
   assert.equal(queue[0].predictable, false); assert.deepEqual(queue[0].predicted, []);
   f.offline(true); await client.sync(); await client.close(); client = await f.open();
-  assert.equal((await client.query(query, {})).denied?.code, "E_OFFLINE");
+  assert.deepEqual(await client.query(query, {}), { loading: true });
   f.interrupt(false); f.offline(false); await client.sync();
   await until(async () => (await f.core().call({ op: "queued" })).ok.length === 0, "pending write did not flush");
   await client.sync();
@@ -126,11 +126,15 @@ test("sync store identity survives a server restart; a live client detects an eq
   assert.equal(f.pages.at(-1).reply.store_id, first.store_id, "reopening the same database keeps its identity");
   assert.equal((await client.query(query, {})).data.length, 3);
   await f.start(); await f.seed("B", 3);
+  let second;
   await until(async () => {
     const read = await client.query(query, {});
-    return read.fresh && read.complete && read.data.length === 3 && read.data.every((row) => row.body === "B");
+    second = (await f.core().call({ op: "sync_state" })).ok;
+    return second.acquired && second.store_id !== first.store_id
+      && read.fresh && read.complete && read.data.length === 3 && read.data.every((row) => row.body === "B");
   }, "a live client must verify store identity on an unchanged heartbeat");
-  const second = f.pages.at(-1).reply;
+  // The public query may reach the replacement server before reacquisition;
+  // and an old in-flight HTTP reply is not the device's adopted store identity.
   assert.equal(second.watermark, first.watermark);
   assert.notEqual(second.store_id, first.store_id);
   // The HTTP protocol accepts legacy requests, while a foreign snapshot

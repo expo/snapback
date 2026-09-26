@@ -1,0 +1,1244 @@
+{
+  "astra-snapback4": {
+    "lane": "astra-snapback4",
+    "status": "complete",
+    "started_at": "2026-09-24T17:57:58Z",
+    "started_epoch": 1790272678,
+    "start_source": {
+      "path": "logs/astra-snapback4.start.json",
+      "sha256": "bebc96a5c7845a9ca0efbc4ace8e079d973b71a6a9747081d6a38feaf41f1d1d",
+      "fields": [
+        "startedAt",
+        "startedEpoch"
+      ]
+    },
+    "ended_at": "2026-09-24T20:06:01Z",
+    "ended_epoch": 1790280361,
+    "builder_wall_seconds": 7683,
+    "end_file_wall_seconds": 7055.022,
+    "wall_discrepancy_seconds": 627.978,
+    "last_output_at": null,
+    "last_output_epoch": null,
+    "milestones": {
+      "M1": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790273289.995,
+        "first_green_at": "2026-09-24T18:08:09.995Z",
+        "seconds_from_harness_start": 611.995,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 11,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790273289.995,
+          "at": "2026-09-24T18:08:09.995Z",
+          "seconds_from_harness_start": 611.995,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m1.json",
+          "suite_receipt_sha256": "sha256:58c49507f20a4862e95aeed4a0d1811b5da4d1da48cca3d1aedb0557d538d28b",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m1.jsonl",
+            "sha256": "1f3b634629ff1062d709dd0bb567c270357a48fcc3023b293ef76a2a6413470e",
+            "line": 4
+          }
+        }
+      },
+      "M2": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274168.087,
+        "first_green_at": "2026-09-24T18:22:48.087Z",
+        "seconds_from_harness_start": 1490.087,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 12,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790274168.087,
+          "at": "2026-09-24T18:22:48.087Z",
+          "seconds_from_harness_start": 1490.087,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m2.json",
+          "suite_receipt_sha256": "sha256:9340d1cae22a0ba26300fb8d0bf91b2fe479928a087d976465502738f5e31be5",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m2-1790274135291.jsonl",
+            "sha256": "03ed21afa3995bd999121f4e0d9d79250086f66390e5efd5077df158dfb96706",
+            "line": 10
+          }
+        }
+      },
+      "M3": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274668.623,
+        "first_green_at": "2026-09-24T18:31:08.623Z",
+        "seconds_from_harness_start": 1990.623,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 13,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790274668.623,
+          "at": "2026-09-24T18:31:08.623Z",
+          "seconds_from_harness_start": 1990.623,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m3.json",
+          "suite_receipt_sha256": "sha256:06e17ffd427c96ce5e6327e9e1cd3f79dc2136fc5ff2e495599d019740877d0b",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m3-1790274635322.jsonl",
+            "sha256": "0c0e31d08d18cd1a62348fea5bab23bfb9cb37468ca68cd97a6a655c6b74ee50",
+            "line": 8
+          }
+        }
+      },
+      "M4": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274977.405,
+        "first_green_at": "2026-09-24T18:36:17.405Z",
+        "seconds_from_harness_start": 2299.405,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 14,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790274977.405,
+          "at": "2026-09-24T18:36:17.405Z",
+          "seconds_from_harness_start": 2299.405,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m4.json",
+          "suite_receipt_sha256": "sha256:bdd6b1dcd8a624cd5eb628c2a702c6b96e7b10cf9e316065972017f0c243f737",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m4-1790274970192.jsonl",
+            "sha256": "a29dac35c713f3bbdb022ec8697df86714f14a19382f920cdb43144fdbc659e1",
+            "line": 6
+          }
+        }
+      },
+      "M5": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790275899.922,
+        "first_green_at": "2026-09-24T18:51:39.922Z",
+        "seconds_from_harness_start": 3221.922,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 15,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790275899.922,
+          "at": "2026-09-24T18:51:39.922Z",
+          "seconds_from_harness_start": 3221.922,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m5.json",
+          "suite_receipt_sha256": "sha256:74832124eba748d9fb1ff09ff6886bfe337a9860b9b1ca962aba7bca7f3c06ae",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m5-1790275565353.jsonl",
+            "sha256": "17d2ca6bc5375675f439ec93614cfa00238f820573337e8ae202e64448ad57cd",
+            "line": 5
+          }
+        }
+      },
+      "M6": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790276325.408,
+        "first_green_at": "2026-09-24T18:58:45.408Z",
+        "seconds_from_harness_start": 3647.408,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 16,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790276325.408,
+          "at": "2026-09-24T18:58:45.408Z",
+          "seconds_from_harness_start": 3647.408,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m6.json",
+          "suite_receipt_sha256": "sha256:4795db5e82b2259d426b0674ef04a69d287d2e916de38e025af32ec6d76c4259",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m6-1790276322787.jsonl",
+            "sha256": "608629155116d22486b4094a8cd2716dc85985450559069001576182ad89aefb",
+            "line": 2
+          }
+        }
+      },
+      "M8": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790276752.898,
+        "first_green_at": "2026-09-24T19:05:52.898Z",
+        "seconds_from_harness_start": 4074.898,
+        "source": {
+          "path": "lanes/astra-snapback4/final-report.md",
+          "sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+          "line": 17,
+          "column": "First retained green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790276752.898,
+          "at": "2026-09-24T19:05:52.898Z",
+          "seconds_from_harness_start": 4074.898,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "evidence/suite-m8.json",
+          "suite_receipt_sha256": "sha256:ad05016c7784ba73f9fc94d0b06a40c52c43135270a796cc1a03f1eb7c88b736",
+          "source": {
+            "path": "lanes/astra-snapback4/evidence/choreo-m8-1790276746102.jsonl",
+            "sha256": "a8c4bdbf23db3cc79abaa1b7425a0f1c9a2a701935220c8c111c1093047b0bf9",
+            "line": 6
+          }
+        }
+      },
+      "M7": {
+        "status": "not run",
+        "first_green_epoch": null
+      }
+    },
+    "end_source": {
+      "path": "logs/astra-snapback4.end.json",
+      "sha256": "bb2262f374b371195e1e632acd001ad21be9d34d55620683e832cf0a6ac783be",
+      "fields": [
+        "endedAt",
+        "endedEpoch",
+        "wallSeconds"
+      ]
+    }
+  },
+  "astra-convex": {
+    "lane": "astra-convex",
+    "status": "complete",
+    "started_at": "2026-09-24T17:57:58Z",
+    "started_epoch": 1790272678,
+    "start_source": {
+      "path": "logs/astra-convex.start.json",
+      "sha256": "b5d27b9a359538eb4c01a3224ebf14b033ec806ab45106899c969fa20dc4f513",
+      "fields": [
+        "startedAt",
+        "startedEpoch"
+      ]
+    },
+    "ended_at": "2026-09-24T20:31:11Z",
+    "ended_epoch": 1790281871,
+    "builder_wall_seconds": 9193,
+    "end_file_wall_seconds": 8564.868,
+    "wall_discrepancy_seconds": 628.132,
+    "last_output_at": null,
+    "last_output_epoch": null,
+    "milestones": {
+      "M1": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790273429.0,
+        "first_green_at": "2026-09-24T18:10:29.000Z",
+        "seconds_from_harness_start": 751.0,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 11,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790279588.533,
+          "at": "2026-09-24T19:53:08.533Z",
+          "seconds_from_harness_start": 6910.533,
+          "report_minus_receipt_seconds": -6159.533,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m1-suite-1790279586104.json",
+          "suite_receipt_sha256": "sha256:5ddc04638d258c9725c710b2cd1cf6e49b64fc68feb682d0784b8d0c526bba38",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m1-choreography-1790279586165.jsonl",
+            "sha256": "4638d708ee4c86d2fefc78692c9cea0d11620d5921bfb3d1ae31fe900b6d4e2a",
+            "line": 4
+          }
+        }
+      },
+      "M2": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790273859.0,
+        "first_green_at": "2026-09-24T18:17:39.000Z",
+        "seconds_from_harness_start": 1181.0,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 12,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790276837.84,
+          "at": "2026-09-24T19:07:17.840Z",
+          "seconds_from_harness_start": 4159.84,
+          "report_minus_receipt_seconds": -2978.84,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m2-suite-1790276820711.json",
+          "suite_receipt_sha256": "sha256:a0908df262ce068a1538b2daa9e50a75c939d73261efa5d90fffbd27c40cb413",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m2-choreography-1790276820743.jsonl",
+            "sha256": "a05ff795c651eb0f85461f9e2e79bab2024c5779bde7fe56ecf3fea1a0f39e7e",
+            "line": 10
+          }
+        }
+      },
+      "M3": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274119.0,
+        "first_green_at": "2026-09-24T18:21:59.000Z",
+        "seconds_from_harness_start": 1441.0,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 13,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790277288.638,
+          "at": "2026-09-24T19:14:48.638Z",
+          "seconds_from_harness_start": 4610.638,
+          "report_minus_receipt_seconds": -3169.638,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m3-suite-1790277264732.json",
+          "suite_receipt_sha256": "sha256:7f13e8417fe498c0ead0bb592368867691bf388280b3180ced2ff6fe98e03f19",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m3-choreography-1790277264764.jsonl",
+            "sha256": "db22700909b9fd4a3585a8f091df417cd61866d6e11045180a959916c6b359d1",
+            "line": 8
+          }
+        }
+      },
+      "M4": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274361.0,
+        "first_green_at": "2026-09-24T18:26:01.000Z",
+        "seconds_from_harness_start": 1683.0,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 14,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790277421.208,
+          "at": "2026-09-24T19:17:01.208Z",
+          "seconds_from_harness_start": 4743.208,
+          "report_minus_receipt_seconds": -3060.208,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m4-suite-1790277416999.json",
+          "suite_receipt_sha256": "sha256:fdd75ec04941ee7c2de41c89881b2f7afcc34de9c9b9d7fe5e8c473197feeb77",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m4-choreography-1790277417029.jsonl",
+            "sha256": "b6fbcfa2a0c3f3ffc35fda76f4c7d0b7dded17ce0cbacde58df00132e95ca037",
+            "line": 6
+          }
+        }
+      },
+      "M5": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274850.843,
+        "first_green_at": "2026-09-24T18:34:10.843Z",
+        "seconds_from_harness_start": 2172.843,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 15,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790274850.843,
+          "at": "2026-09-24T18:34:10.843Z",
+          "seconds_from_harness_start": 2172.843,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m5-suite.json",
+          "suite_receipt_sha256": "sha256:4ae41726f7f1d6e16b1a8a1f64e9e34d43aa8309c8a26cc8e40db27c114d1580",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m5-choreography-before-final-search.jsonl",
+            "sha256": "742ada76de75ee6abfc7e293009eaa77d25819543347b6ceb0d82bdb341fb0ff",
+            "line": 5
+          }
+        }
+      },
+      "M6": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790275864.825,
+        "first_green_at": "2026-09-24T18:51:04.825Z",
+        "seconds_from_harness_start": 3186.825,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 16,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790275864.825,
+          "at": "2026-09-24T18:51:04.825Z",
+          "seconds_from_harness_start": 3186.825,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m6-suite-1790275694114.json",
+          "suite_receipt_sha256": "sha256:87746d5616311f7a90b0b593c044d82ae4b0e0d1626c0df2d89690adb0a90b26",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m6-choreography-1790275863812.jsonl",
+            "sha256": "30729fe21156a5d2acc271fed80b7a812719c325629370a0472885bff5a3cd05",
+            "line": 2
+          }
+        }
+      },
+      "M8": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790276522.543,
+        "first_green_at": "2026-09-24T19:02:02.543Z",
+        "seconds_from_harness_start": 3844.543,
+        "source": {
+          "path": "lanes/astra-convex/final-report.md",
+          "sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+          "line": 17,
+          "column": "First green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790276522.543,
+          "at": "2026-09-24T19:02:02.543Z",
+          "seconds_from_harness_start": 3844.543,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m8-suite-1790276520380.json",
+          "suite_receipt_sha256": "sha256:730f3f01dcd4fd32233e531cb03fb4b9ddf7313f68d211c640e5c365c1be77a8",
+          "source": {
+            "path": "lanes/astra-convex/evidence/m8-choreography-1790276520409.jsonl",
+            "sha256": "9a5e2ae1ab9c5b062548823b7f2762424d467a6103bcfa104aeb7613c22db6e6",
+            "line": 6
+          }
+        }
+      },
+      "M7": {
+        "status": "not run",
+        "first_green_epoch": null
+      }
+    },
+    "end_source": {
+      "path": "logs/astra-convex.end.json",
+      "sha256": "efce369833b6180d47ac55cb5ace338013343016252f6b3b6c37a29c0cd8da99",
+      "fields": [
+        "endedAt",
+        "endedEpoch",
+        "wallSeconds"
+      ]
+    }
+  },
+  "astra-supabase": {
+    "lane": "astra-supabase",
+    "status": "complete",
+    "started_at": "2026-09-24T17:57:58Z",
+    "started_epoch": 1790272678,
+    "start_source": {
+      "path": "logs/astra-supabase.start.json",
+      "sha256": "93807cb164dbd1b5cff2637cd083f7f83b22e009d3cc539b3a7ea750872a62cf",
+      "fields": [
+        "startedAt",
+        "startedEpoch"
+      ]
+    },
+    "ended_at": "2026-09-25T00:07:42Z",
+    "ended_epoch": 1790294862,
+    "builder_wall_seconds": 22184,
+    "end_file_wall_seconds": 21555.225,
+    "wall_discrepancy_seconds": 628.775,
+    "last_output_at": null,
+    "last_output_epoch": null,
+    "milestones": {
+      "M1": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790273209.877,
+        "first_green_at": "2026-09-24T18:06:49.877Z",
+        "seconds_from_harness_start": 531.877,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 13,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790273209.877,
+          "at": "2026-09-24T18:06:49.877Z",
+          "seconds_from_harness_start": 531.877,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m1-suite.json",
+          "suite_receipt_sha256": "sha256:5b4f956dfba4c0fcd914380574c760e144ad7a147ab70ab34b00baa4509d411e",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m1-choreo.jsonl",
+            "sha256": "7d95ecc280d872d9c2b74e6921d31a65448d529814812e5e908d15f854977bd5",
+            "line": 4
+          }
+        }
+      },
+      "M2": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790274392.918,
+        "first_green_at": "2026-09-24T18:26:32.918Z",
+        "seconds_from_harness_start": 1714.918,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 14,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790274392.918,
+          "at": "2026-09-24T18:26:32.918Z",
+          "seconds_from_harness_start": 1714.918,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m2-suite.json",
+          "suite_receipt_sha256": "sha256:b39f0cc13b22c93f1858304a07e86c0bb73ec7cce6f1e164a8961608f8488ef7",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m2-choreo.jsonl",
+            "sha256": "7fb45790021b937987baae6394acaae5747ae63c0a752b7cd93e7ad1ce16918f",
+            "line": 10
+          }
+        }
+      },
+      "M3": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790276092.118,
+        "first_green_at": "2026-09-24T18:54:52.118Z",
+        "seconds_from_harness_start": 3414.118,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 15,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790276092.118,
+          "at": "2026-09-24T18:54:52.118Z",
+          "seconds_from_harness_start": 3414.118,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m3-suite.json",
+          "suite_receipt_sha256": "sha256:a7fb9ff82e91a5fddf5ad096c0b410af7ee4916b5d63a689ba120012d9a9dcf4",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m3-choreo.jsonl",
+            "sha256": "de8020b4c7a648f849b85460a11f6b49fd13682ca78c8e3d31a111bd6bc4701a",
+            "line": 8
+          }
+        }
+      },
+      "M4": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790276686.384,
+        "first_green_at": "2026-09-24T19:04:46.384Z",
+        "seconds_from_harness_start": 4008.384,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 16,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790276686.384,
+          "at": "2026-09-24T19:04:46.384Z",
+          "seconds_from_harness_start": 4008.384,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m4-suite.json",
+          "suite_receipt_sha256": "sha256:6149104dfaf4ee7a07de8db7f1c7983a4e180614aeb39c37ff12e200315b9f1e",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m4-choreo.jsonl",
+            "sha256": "cdf21b51a9745f608ce1303dd7f869999020613227b217a68d048078ad24e4d7",
+            "line": 6
+          }
+        }
+      },
+      "M5": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790277727.741,
+        "first_green_at": "2026-09-24T19:22:07.741Z",
+        "seconds_from_harness_start": 5049.741,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 17,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790277727.741,
+          "at": "2026-09-24T19:22:07.741Z",
+          "seconds_from_harness_start": 5049.741,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m5-suite.json",
+          "suite_receipt_sha256": "sha256:c64966bf9a86be2a8d870ddc1b447f081c8f6a5e6e3fe22223fcf83f1437b104",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m5-choreo.jsonl",
+            "sha256": "657cb22b8b9defe7aa20fa357540d010d8515e0dad83d8db2f1bc9f995b5b718",
+            "line": 5
+          }
+        }
+      },
+      "M6": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790279927.276,
+        "first_green_at": "2026-09-24T19:58:47.276Z",
+        "seconds_from_harness_start": 7249.276,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 18,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790279927.276,
+          "at": "2026-09-24T19:58:47.276Z",
+          "seconds_from_harness_start": 7249.276,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m6-suite.json",
+          "suite_receipt_sha256": "sha256:d3e7f1166be00595a4594b698614beaa73fbce69f4d8007c947a05ffa759248d",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m6-choreo.jsonl",
+            "sha256": "a22381cff4ce44d1f5af0a2fe89665c0b5c8b520ad71d31c714dbbbfb0e29a47",
+            "line": 2
+          }
+        }
+      },
+      "M8": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790280706.954,
+        "first_green_at": "2026-09-24T20:11:46.954Z",
+        "seconds_from_harness_start": 8028.954,
+        "source": {
+          "path": "lanes/astra-supabase/final-report.md",
+          "sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+          "line": 19,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790280706.954,
+          "at": "2026-09-24T20:11:46.954Z",
+          "seconds_from_harness_start": 8028.954,
+          "report_minus_receipt_seconds": 0.0,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "m8-suite.json",
+          "suite_receipt_sha256": "sha256:ac64f635d45435b4c968868f38500ccd0ee6dd7d9729bba0e6873da7a5b79248",
+          "source": {
+            "path": "lanes/astra-supabase/evidence/m8-first-green-choreo.jsonl",
+            "sha256": "7d2ed5f0766f4c6d72a5b310a46822e02bac7ddc413047629951e47a6d180eca",
+            "line": 6
+          }
+        }
+      },
+      "M7": {
+        "status": "not run",
+        "first_green_epoch": null
+      }
+    },
+    "end_source": {
+      "path": "logs/astra-supabase.end.json",
+      "sha256": "ea25a22494e576322cf9aed5b8bc836581ce12ba242c969e63f00829d60792d8",
+      "fields": [
+        "endedAt",
+        "endedEpoch",
+        "wallSeconds"
+      ]
+    }
+  },
+  "opus-snapback4": {
+    "lane": "opus-snapback4",
+    "status": "complete",
+    "started_at": "2026-09-25T00:08:13Z",
+    "started_epoch": 1790294893,
+    "start_source": {
+      "path": "logs/opus-snapback4.start.json",
+      "sha256": "b853ad0f30a15f479bada09c1b0a31eb41d72dd29a64f9f697fdcb09d429026a",
+      "fields": [
+        "startedAt",
+        "startedEpoch"
+      ]
+    },
+    "ended_at": "2026-09-25T01:51:53Z",
+    "ended_epoch": 1790301113,
+    "builder_wall_seconds": 6220,
+    "end_file_wall_seconds": 6220.046,
+    "wall_discrepancy_seconds": -0.046,
+    "last_output_at": null,
+    "last_output_epoch": null,
+    "milestones": {
+      "M1": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790296126.0,
+        "first_green_at": "2026-09-25T00:28:46.000Z",
+        "seconds_from_harness_start": 1233.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 19,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790296120.553,
+          "at": "2026-09-25T00:28:40.553Z",
+          "seconds_from_harness_start": 1227.553,
+          "report_minus_receipt_seconds": 5.447,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m1-1790296105.json",
+          "suite_receipt_sha256": "sha256:6d879d7cf33f6367e58927bb5d64af0208b11024cce7d40f1533c6f671565051",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m1-1790296109.jsonl",
+            "sha256": "0667129310f4db8662e52cd5a685da1b89952182954b1bc033e3f3aa52d43c56",
+            "line": 4
+          }
+        }
+      },
+      "M2": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790296571.0,
+        "first_green_at": "2026-09-25T00:36:11.000Z",
+        "seconds_from_harness_start": 1678.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 20,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790296567.439,
+          "at": "2026-09-25T00:36:07.439Z",
+          "seconds_from_harness_start": 1674.439,
+          "report_minus_receipt_seconds": 3.561,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m2-1790296550.json",
+          "suite_receipt_sha256": "sha256:b26099d3a3c9ea434626b809726076459b8f34b349b3281b2fa93347d8436cd6",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m2-1790296555.jsonl",
+            "sha256": "cb28e099a2774a232190558b88ad49b886fac6fb2a596ad411118e361e9d3a42",
+            "line": 10
+          }
+        }
+      },
+      "M3": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790297057.0,
+        "first_green_at": "2026-09-25T00:44:17.000Z",
+        "seconds_from_harness_start": 2164.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 21,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790297044.831,
+          "at": "2026-09-25T00:44:04.831Z",
+          "seconds_from_harness_start": 2151.831,
+          "report_minus_receipt_seconds": 12.169,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m3-1790297007.json",
+          "suite_receipt_sha256": "sha256:a89a6e8203d07e9e698b2e7f87543f4afa0430b2087a2e8252be4e233b56df19",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m3-1790297010.jsonl",
+            "sha256": "4e9607f2581e321653d5800be75600868284327ad81317878d70197672c8fb5f",
+            "line": 8
+          }
+        }
+      },
+      "M4": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790297301.0,
+        "first_green_at": "2026-09-25T00:48:21.000Z",
+        "seconds_from_harness_start": 2408.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 22,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790297259.378,
+          "at": "2026-09-25T00:47:39.378Z",
+          "seconds_from_harness_start": 2366.378,
+          "report_minus_receipt_seconds": 41.622,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m4-1790297203.json",
+          "suite_receipt_sha256": "sha256:813e30a913514aa4c6fe8a93b3343acb112493296e088119bda50fa4546218fd",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m4-1790297248.jsonl",
+            "sha256": "a13997a0a530966a2167f11aece3f2b18691b71970cadd9e48d91838bef7276b",
+            "line": 6
+          }
+        }
+      },
+      "M5": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790298123.0,
+        "first_green_at": "2026-09-25T01:02:03.000Z",
+        "seconds_from_harness_start": 3230.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 23,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790298075.493,
+          "at": "2026-09-25T01:01:15.493Z",
+          "seconds_from_harness_start": 3182.493,
+          "report_minus_receipt_seconds": 47.507,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m5-1790297740.json",
+          "suite_receipt_sha256": "sha256:873aad8370d7ac783adb7b7e32d89e2c6274b4aacd72827663aaa0c413a82720",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m5-1790297740.jsonl",
+            "sha256": "96633f7358e0db0274cc6c5ad60f0eeda4dc8d756a50b5e833fe260b0d316ad1",
+            "line": 5
+          }
+        }
+      },
+      "M6": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790298150.0,
+        "first_green_at": "2026-09-25T01:02:30.000Z",
+        "seconds_from_harness_start": 3257.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 24,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790298139.384,
+          "at": "2026-09-25T01:02:19.384Z",
+          "seconds_from_harness_start": 3246.384,
+          "report_minus_receipt_seconds": 10.616,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m6-1790298136.json",
+          "suite_receipt_sha256": "sha256:e126ed487f6ef6bce3746bd8e3dff4b68ed8869df0d82d4ff9a518f5d6d1902e",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m6-1790298136.jsonl",
+            "sha256": "8d4cc8fd17b31283d86909f51278597c6b1d83146a488e0b3ef55821f64d017b",
+            "line": 2
+          }
+        }
+      },
+      "M8": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790298506.0,
+        "first_green_at": "2026-09-25T01:08:26.000Z",
+        "seconds_from_harness_start": 3613.0,
+        "source": {
+          "path": "lanes/opus-snapback4/final-report.md",
+          "sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+          "line": 26,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790298498.741,
+          "at": "2026-09-25T01:08:18.741Z",
+          "seconds_from_harness_start": 3605.741,
+          "report_minus_receipt_seconds": 7.259,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m8-1790298459.json",
+          "suite_receipt_sha256": "sha256:7d869faa58f76e560e5fb1385c57d64f7163a648803ed36100956c6f19c1ed4c",
+          "source": {
+            "path": "lanes/opus-snapback4/receipts/choreo-m8-1790298493.jsonl",
+            "sha256": "2d55611268a700c21a2bab9961ed632c99b173300778916dfaabb787eab4971c",
+            "line": 6
+          }
+        }
+      },
+      "M7": {
+        "status": "not run",
+        "first_green_epoch": null
+      }
+    },
+    "end_source": {
+      "path": "logs/opus-snapback4.end.json",
+      "sha256": "4da6c10b70cf9ff85ae5bb999669182e03eead4f845b6d0929ee60eedf8792ab",
+      "fields": [
+        "endedAt",
+        "endedEpoch",
+        "wallSeconds"
+      ]
+    }
+  },
+  "opus-convex": {
+    "lane": "opus-convex",
+    "status": "complete",
+    "started_at": "2026-09-25T00:08:13Z",
+    "started_epoch": 1790294893,
+    "start_source": {
+      "path": "logs/opus-convex.start.json",
+      "sha256": "db805394f6382333878a1d1ac22f3b70909edca91a5230ec6eb8f0d86b919968",
+      "fields": [
+        "startedAt",
+        "startedEpoch"
+      ]
+    },
+    "ended_at": "2026-09-25T03:02:49Z",
+    "ended_epoch": 1790305369,
+    "builder_wall_seconds": 10476,
+    "end_file_wall_seconds": 10475.873,
+    "wall_discrepancy_seconds": 0.127,
+    "last_output_at": null,
+    "last_output_epoch": null,
+    "milestones": {
+      "M1": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790297156.0,
+        "first_green_at": "2026-09-25T00:45:56.000Z",
+        "seconds_from_harness_start": 2263.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 14,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790297141.978,
+          "at": "2026-09-25T00:45:41.978Z",
+          "seconds_from_harness_start": 2248.978,
+          "report_minus_receipt_seconds": 14.022,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m1.json",
+          "suite_receipt_sha256": "sha256:067b479c70693424569ea2a77873717145edeffeb043b11bb00f6b52b86931d6",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m1-green.jsonl",
+            "sha256": "0ee1a5d35b237a6281059e2eb1dc3fb7521c1f2904695e893310873caace3def",
+            "line": 4
+          }
+        }
+      },
+      "M2": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790297559.0,
+        "first_green_at": "2026-09-25T00:52:39.000Z",
+        "seconds_from_harness_start": 2666.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 15,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790297556.093,
+          "at": "2026-09-25T00:52:36.093Z",
+          "seconds_from_harness_start": 2663.093,
+          "report_minus_receipt_seconds": 2.907,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m2.json",
+          "suite_receipt_sha256": "sha256:7eea63c0e7e50f031bb3d0361a8f97184a5926bf1fc3686984481444128c70d9",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m2-green.jsonl",
+            "sha256": "baf89ad738c530279c76b4d3aa06ab8ac28f36afa99803b3b0d4f365c5f916d3",
+            "line": 10
+          }
+        }
+      },
+      "M3": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790297846.0,
+        "first_green_at": "2026-09-25T00:57:26.000Z",
+        "seconds_from_harness_start": 2953.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 16,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790297817.287,
+          "at": "2026-09-25T00:56:57.287Z",
+          "seconds_from_harness_start": 2924.287,
+          "report_minus_receipt_seconds": 28.713,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m3.json",
+          "suite_receipt_sha256": "sha256:1ae7ff0c776990a11fae6d42f0ae25a169dc5889e524ef16c1598ee0a37f083b",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m3-green3.jsonl",
+            "sha256": "5c41eb7b603fec5db9edf6553bd34fbc4ff8ffe5f529319bd54459eb1b8e93fc",
+            "line": 8
+          }
+        }
+      },
+      "M4": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790298066.0,
+        "first_green_at": "2026-09-25T01:01:06.000Z",
+        "seconds_from_harness_start": 3173.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 17,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790298057.807,
+          "at": "2026-09-25T01:00:57.807Z",
+          "seconds_from_harness_start": 3164.807,
+          "report_minus_receipt_seconds": 8.193,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m4.json",
+          "suite_receipt_sha256": "sha256:e9abfab1c2e676a2f367fc473d78e15eff182daf792536e732d6bc7b70015de1",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m4-green.jsonl",
+            "sha256": "a647df5131b27f4eaa82c044886529cb251c20437054be3320bfe5fc41bc5211",
+            "line": 6
+          }
+        }
+      },
+      "M5": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790299405.0,
+        "first_green_at": "2026-09-25T01:23:25.000Z",
+        "seconds_from_harness_start": 4512.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 18,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790299393.952,
+          "at": "2026-09-25T01:23:13.952Z",
+          "seconds_from_harness_start": 4500.952,
+          "report_minus_receipt_seconds": 11.048,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m5.json",
+          "suite_receipt_sha256": "sha256:4327e0e85e4cbd74478676942dce698eaf718d3ec04d3266aa139e399c2c924a",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m5-green.jsonl",
+            "sha256": "0c0eee94a539b46338bc8d5b62678c17af79b89816cb73c761f62f97251370ea",
+            "line": 5
+          }
+        }
+      },
+      "M6": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790299740.0,
+        "first_green_at": "2026-09-25T01:29:00.000Z",
+        "seconds_from_harness_start": 4847.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 19,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790299694.193,
+          "at": "2026-09-25T01:28:14.193Z",
+          "seconds_from_harness_start": 4801.193,
+          "report_minus_receipt_seconds": 45.807,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m6.json",
+          "suite_receipt_sha256": "sha256:c00aa52ae40672fb17f9971fd764cebf4c51250592cd76941a9d1ec056a28098",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m6-green.jsonl",
+            "sha256": "098f001f5b1ba985f945bf47fdf7bc2553d0069734be46a72cf333f85dec7696",
+            "line": 2
+          }
+        }
+      },
+      "M8": {
+        "status": "builder-reported green (not an independent grade)",
+        "first_green_epoch": 1790300256.0,
+        "first_green_at": "2026-09-25T01:37:36.000Z",
+        "seconds_from_harness_start": 5363.0,
+        "source": {
+          "path": "lanes/opus-convex/final-report.md",
+          "sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+          "line": 21,
+          "column": "First-green epoch"
+        },
+        "earliest_retained_combined_green": {
+          "epoch": 1790300251.382,
+          "at": "2026-09-25T01:37:31.382Z",
+          "seconds_from_harness_start": 5358.382,
+          "report_minus_receipt_seconds": 4.618,
+          "suite_pass": true,
+          "choreography_pass": true,
+          "suite_receipt": "suite-m8.json",
+          "suite_receipt_sha256": "sha256:c77683b1c8550e617028803191023b50e06fdf0b85cfb1f32edcf1325a55fd0f",
+          "source": {
+            "path": "lanes/opus-convex/evidence/choreo-m8-green2.jsonl",
+            "sha256": "f1a7af383a0768142df601606b800adf7ef43f00727ffef834ec191017bf25ef",
+            "line": 6
+          }
+        }
+      },
+      "M7": {
+        "status": "not run",
+        "first_green_epoch": null
+      }
+    },
+    "end_source": {
+      "path": "logs/opus-convex.end.json",
+      "sha256": "b50fa1c72aa930e2c50b85a95b5d24888c330a8ddb83fa776ce93d2cf1c3fffd",
+      "fields": [
+        "endedAt",
+        "endedEpoch",
+        "wallSeconds"
+      ]
+    }
+  },
+  "opus-supabase": {
+    "lane": "opus-supabase",
+    "status": "incomplete",
+    "started_at": "2026-09-25T00:08:13Z",
+    "started_epoch": 1790294893,
+    "start_source": {
+      "path": "logs/opus-supabase.start.json",
+      "sha256": "0ce5e9d0e6cacee5025fdb96ea9d5b777e9999f6d0a628040e79354f13b7d8a3",
+      "fields": [
+        "startedAt",
+        "startedEpoch"
+      ]
+    },
+    "ended_at": null,
+    "ended_epoch": null,
+    "builder_wall_seconds": null,
+    "end_file_wall_seconds": null,
+    "wall_discrepancy_seconds": null,
+    "last_output_at": "2026-09-25T10:03:48Z",
+    "last_output_epoch": 1790330628,
+    "milestones": {
+      "M1": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790297042,
+        "first_green_at": "2026-09-25T00:44:02.000Z",
+        "seconds_from_harness_start": 2149,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790297042 M1 GREEN (first green)"
+        }
+      },
+      "M2": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790297454,
+        "first_green_at": "2026-09-25T00:50:54.000Z",
+        "seconds_from_harness_start": 2561,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790297454 M2 GREEN (first green)"
+        }
+      },
+      "M3": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790297828,
+        "first_green_at": "2026-09-25T00:57:08.000Z",
+        "seconds_from_harness_start": 2935,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790297828 M3 GREEN (first green)"
+        }
+      },
+      "M4": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790298265,
+        "first_green_at": "2026-09-25T01:04:25.000Z",
+        "seconds_from_harness_start": 3372,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790298265 M4 GREEN (first green)"
+        }
+      },
+      "M5": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790299498,
+        "first_green_at": "2026-09-25T01:24:58.000Z",
+        "seconds_from_harness_start": 4605,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790299498 M5 GREEN (first green)"
+        }
+      },
+      "M6": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790300269,
+        "first_green_at": "2026-09-25T01:37:49.000Z",
+        "seconds_from_harness_start": 5376,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790300269 M6 GREEN (first green)"
+        }
+      },
+      "M8": {
+        "status": "recovered builder first-green marker; ungraded",
+        "first_green_epoch": 1790300871,
+        "first_green_at": "2026-09-25T01:47:51.000Z",
+        "seconds_from_harness_start": 5978,
+        "source": {
+          "path": "logs/opus-supabase.ndjson",
+          "sha256": "6c1701e84d7a43e2a412a46aad42b64122a4aecf0adbb6a83f02173d7a2031c3",
+          "line": 2706,
+          "excerpt": "1790300871 M8 GREEN (first green)"
+        }
+      },
+      "M7": {
+        "status": "not run",
+        "first_green_epoch": null
+      }
+    },
+    "not_run_reason": "Harness terminated; no end.json or final-report.md; not rerun, graded or scored.",
+    "observed_output_span_seconds": 35735,
+    "termination_source": {
+      "path": "logs/opus-supabase.terminated.json",
+      "sha256": "63fb30b7164242b9999ee77673d8e97122aaa6b94424f605a990e5324489e639"
+    }
+  }
+}

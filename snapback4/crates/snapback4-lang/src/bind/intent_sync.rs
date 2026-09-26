@@ -11,7 +11,7 @@ pub(super) struct AudienceNeed {
 pub(super) fn need(table: &TableInfo, tables: &BTreeMap<String, TableInfo>) -> AudienceNeed {
     let empty = || AudienceNeed { prefix: Vec::new(), inverse: None };
     let Some(sync) = &table.decl.sync else { return empty(); };
-    let rule = table.decl.rules.iter().find(|rule| rule.effect == Effect::Read).map(|rule| &rule.value);
+    let rule = table.decl.rules.iter().find(|rule| rule.effect == Effect::Read).and_then(|rule| audience(&rule.value));
     if let Some(Expr::Exists { read, .. }) = rule && let Some(target) = tables.get(&read.table) {
         let named = read.keys.iter().all(|key| key.column.is_some());
         let candidates: Vec<_> = target.indexes.iter().filter(|index| index.is_plain() && index.columns.len() == read.keys.len()
@@ -44,4 +44,16 @@ pub(super) fn need(table: &TableInfo, tables: &BTreeMap<String, TableInfo>) -> A
         SyncAudience::Public => Vec::new(),
     };
     AudienceNeed { prefix, inverse: None }
+}
+
+// Match the core service strip: only complete service disjuncts disappear.
+fn audience(rule: &Expr) -> Option<&Expr> {
+    if let Expr::Binary { op, left, right, .. } = rule {
+        if op == "or" {
+            return match (audience(left), audience(right)) { (Some(rule), None) | (None, Some(rule)) => Some(rule), (None, None) => None, _ => Some(rule) };
+        }
+        if op == "=" && [(left.as_ref(), right.as_ref()), (right.as_ref(), left.as_ref())].iter().any(|(a,b)|
+            matches!(a, Expr::Name { name, .. } if name == "viewer") && matches!(b, Expr::Literal { value: Literal::Str(principal), .. } if principal.starts_with("service:") && principal.len() > 8)) { return None; }
+    }
+    Some(rule)
 }

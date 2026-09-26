@@ -1,6 +1,6 @@
 //! HTTP identity admission. Password work owns a bounded KDF slot, never
 //! the engine guard. Rate keys use the socket peer, never forwarded headers.
-use crate::serve::{Shared, principal_of, refusal_json, respond};
+use crate::serve::{Shared, principal_of, refusal_json, respond_timed};
 use serde_json::{Value as Json, json};
 use snapback4_core::error::Refusal;
 use snapback4_core::{RuntimeError, identity};
@@ -75,7 +75,7 @@ impl Drop for Kdf<'_> {
         self.0.fetch_sub(1, Ordering::Release);
     }
 }
-fn limited(request: Request) {
+fn limited(request: Request, shared: &Shared) {
     let mut refusal = Refusal::new(
         "E_RATE_LIMIT",
         "auth",
@@ -83,15 +83,14 @@ fn limited(request: Request) {
     )
     .guide("personas");
     refusal.retryable = true;
-    respond(request, 429, json!({ "denied": refusal_json(&refusal) }));
+    respond_timed(request, shared, 429, json!({ "denied": refusal_json(&refusal) }));
 }
 
 pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
     let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { body }) {
         Ok(value) => value,
         Err(_) => {
-            return respond(
-                request,
+            return respond_timed(request, shared,
                 400,
                 json!({ "denied": Refusal::new("E_INPUT", "input", "identity takes a JSON object") }),
             );
@@ -112,12 +111,12 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
             .auth
             .attempt(&peer, password_route.then_some(email), Instant::now())
     {
-        return limited(request);
+        return limited(request, shared);
     }
     let kdf = if password_route {
         match shared.auth.kdf(dev_loopback) {
             Some(permit) => Some(permit),
-            None => return limited(request),
+            None => return limited(request, shared),
         }
     } else {
         None
@@ -125,12 +124,11 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
     let outcome = perform(&request, shared, path, email, password);
     drop(kdf);
     match outcome {
-        Ok(Outcome::Logout) => respond(request, 200, json!({ "ok": true })),
+        Ok(Outcome::Logout) => respond_timed(request, shared, 200, json!({ "ok": true })),
         Ok(Outcome::LogoutAll(revoked)) => {
-            respond(request, 200, json!({ "ok": true, "revoked": revoked }))
+            respond_timed(request, shared, 200, json!({ "ok": true, "revoked": revoked }))
         }
-        Ok(Outcome::Session(session)) => respond(
-            request,
+        Ok(Outcome::Session(session)) => respond_timed(request, shared,
             200,
             json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } }),
         ),
@@ -142,7 +140,7 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
             } else {
                 503
             };
-            respond(request, status, json!({ "denied": refusal_json(&error.refusal()) }));
+            respond_timed(request, shared, status, json!({ "denied": refusal_json(&error.refusal()) }));
         }
     }
 }

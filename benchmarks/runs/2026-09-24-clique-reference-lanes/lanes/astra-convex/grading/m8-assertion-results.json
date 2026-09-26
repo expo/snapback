@@ -1,0 +1,115 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-convex",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a01 — all six lifetime totals equal an independent recount of the base tables {posts 303, likesReceived 8, repostsReceived 18, repliesReceived 28, followers 4, following 2}; the Insights screen shows the same six values",
+      "suiteResult": "pass"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: m8-a02-insights-like-refresh, passed — beforeLikes 7 -> afterLikes 8, refresh visible in 87.7 ms"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a03 — a post created now buckets under the server UTC day 2026-09-25 while the host local date was 2026-09-24, so the UTC boundary is genuinely exercised; today's bucket incremented by exactly 1",
+      "suiteResult": "fail",
+      "note": "The lane's mapped suite test server-utc-today-and-zero-day-buckets failed on the grader's clean re-run — see defect d-02. The failure is in the test's own extra assumption that the previous six UTC days carry no activity; the two clauses this assertion states both hold under independent re-execution."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a04 — metrics:insights returns the 7 consecutive UTC days; 5 of them have no stored daily row and each renders as {posts:0, likesReceived:0} rather than being omitted",
+      "suiteResult": "fail",
+      "note": "Same mapped test as m8-a03; see defect d-02."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a05 — the trending head carries the maximum like count in the trailing 24 h and the full top-10 matches an independent base-table ranking",
+      "suiteResult": "pass"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a06 — every trending row is inside the trailing-24 h window; the shared boundary predicate excludes t-86 400 001 ms and exactly t-86 400 000 ms and admits a fresh post; the projection table only admits in-window posts and a periodic sweep retires them",
+      "suiteResult": "pass",
+      "note": "The strongest empirical form of this assertion is unavailable: the whole corpus is younger than 24 hours and the replay contract forbids backdating, so no genuinely >24 h heavily-liked post can exist. The lane's mapped suite test is a pure unit test of the shared boundary function rather than a query-level check — named as such ('production-trending-time-predicate...') and forced by the same constraint. See the coverage spot-verification detail."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a07 — 8 adjacent like-count ties in the live ranking, every one ordered newest-first",
+      "suiteResult": "pass"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a08 — three fresh personas, no client ever opened; for the seeded period exactly one digest each for the two active users, with all four counts correct (A {newFollowers 1, newPostsInFollowing 0, unreadMessages 2, unreadChats 1}; B {0,1,3,1}) and the payload's periodStart/periodEnd equal to the shortened 120 s window"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a09 — the persona whose only activity was outbound received no digest at all, while its period bookkeeping row still advanced"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a10 — in the following quiet period none of the three personas received a digest, and the earlier active period still holds exactly one each"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a11 — the backend was killed at 03:43:49Z and restarted at 03:44:14Z, straddling the 03:44:00Z period boundary; the digest ledger survived and across ~8 further 30 s ticks computing the same period end each active persona still had exactly one digest"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-a12 — 3 messages in a group the target is not a member of counted for the member (unreadMessages 3) and contributed nothing to the non-member (unreadMessages 2 = the DM only); the non-member's direct read of that chat is refused"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: m8-a13-same-account-message-live, passed, visible on the second device in 248.1 ms"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: m8-a14-cross-device-read-state, passed, unread cleared on the other device in 342.1 ms"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: m8-a15-dual-offline-convergence, passed, firstFlushMs 183.9 / secondFlushMs 84.2 with no loss and no duplicates"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: m8-a16-dual-offline-receipts, passed, firstReadMs 5.2 / secondReadMs 5.3"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: supplementalExternal ios-simulator-m8 = not-recorded",
+      "note": "No iOS-simulator artifact exists: evidence/m8-choreography.jsonl records supplementalExternal ios-simulator-m8 as status 'not-recorded', pass null, and the frozen harness emits no check for this assertion. The durable-across-restart queue behaviour was demonstrated only in a browser persistent context (evidence/offline-restart-proof.json), which the lane itself labels 'web persistent browser restart, not a native simulator proof'. Recorded not-run; under O1 it scores as not passed."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreography.jsonl :: supplementalExternal ios-simulator-m8 = not-recorded",
+      "note": "No iOS-simulator artifact exists: evidence/m8-choreography.jsonl records supplementalExternal ios-simulator-m8 as status 'not-recorded', pass null, and the frozen harness emits no check for this assertion. The durable-across-restart queue behaviour was demonstrated only in a browser persistent context (evidence/offline-restart-proof.json), which the lane itself labels 'web persistent browser restart, not a native simulator proof'. Recorded not-run; under O1 it scores as not passed."
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const backend = { generation: 1, schema: { tables: {}, operations: { counter: { runs: "device", held: true } } }, programs: [] };
+const backend = { generation: 1, schema: { tables: {}, operations: { counter: { runs: "device", held: true } } }, programs: [{ name: "counter", kind: "Query", args: {}, body: [{ table: "counters" }], held: true }] };
 const query = { kind: "query", name: "counter", held: true };
 const pause = () => new Promise(resolve => setTimeout(resolve, 0));
 

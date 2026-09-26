@@ -31,6 +31,9 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
+        if self.device && if_absent && self.schema.tables[table_name].through.is_some() {
+            return Err(RuntimeError::Prediction("insert if absent on a read-through child queues without a row".into()));
+        }
         self.target_attempt(table_name, |runner| {
             let mark = runner.meter.mark();
             let result = runner.insert_attempt(table_name, row, if_absent, None).map_err(|error| error.authorization_context(table_name, Effect::Insert));
@@ -53,6 +56,9 @@ impl Runner<'_> {
         if upsert_index.is_none() && supplied_sequence.is_err() { return supplied_sequence.map(|_| false); }
         let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
+        // @ref LLP 3000.014#4-the-capture — reserve, then stamp the parent capture before any rule sees the image.
+        self.reserve_capture(&self.schema.tables[table_name])?;
+        let row = self.capture_insert(table_name, row)?;
         let table = &self.schema.tables[table_name];
         let independent = !table.sequences.is_empty() && !super::rules::deciding_fields(table_name, table, &table.rules.insert)
             .iter().any(|field| table.sequences.contains_key(field));
@@ -85,6 +91,8 @@ impl Runner<'_> {
         if upsert_index.is_some() {
             self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
         } else { self.authorize_fields(table_name, &row, &supplied)?; }
+        // The image copy an event slot costs is the writer's own supplied bytes (LLP 3000.015 §1).
+        let image_bytes = row.heap_bytes();
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
         if let Some(index) = upsert_index {
             if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
@@ -116,7 +124,7 @@ impl Runner<'_> {
         let row = self.record_insert(table_name, row)?;
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
-        validate_row(self.schema, table_name, &row)?;
+        super::validate::validate_before_slots(self.schema, table_name, &row)?;
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -144,11 +152,31 @@ impl Runner<'_> {
         // and reserved both target proofs. Retiring an expired predecessor
         // uses that same allowance, not a third read-rule reservation.
         let collision_probes = if upsert_index.is_some() { 0 } else { super::rules::rule_probes(&table.rules.read) };
+        let has_children = self.schema.children(table_name).next().is_some();
         let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
-            if let Some(row) = &existing && !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+            if let Some(row) = &existing {
+                if !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+                // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical
+                // children collides like a live birth: check the old image's authority under the same
+                // reservation, without treating expiry as denial. A non-reader never probes the children.
+                else if has_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
+                    return Err(RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert });
+                }
+            }
             Ok(existing)
         })?;
+        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && has_children {
+            let mark = self.meter.mark();
+            if self.physical_children(table_name, &Value::Id(id.clone()))? {
+                // The bounded probes have completed. Their occupancy is not
+                // disclosed by the collision's logical meter or heap peak.
+                self.meter.restore(mark);
+                return Err(if predecessor.is_some() {
+                    RuntimeError::Constraint(format!("{table_name} already has a row with id {id}"))
+                } else { RuntimeError::Rule {table:table_name.into(),effect:Effect::Insert} });
+            }
+        }
         if let Some(existing) = &predecessor {
             if !self.expired(&table, &existing) {
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
@@ -161,6 +189,8 @@ impl Runner<'_> {
         // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
         self.commit_sequences(table_name, &row)?;
+        let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
+        validate_row(self.schema, table_name, &row)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
@@ -186,8 +216,8 @@ impl Runner<'_> {
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
         let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
-        let new = self.merge_patch(table_name, &old, &patch, readable)?;
-        self.replace(table_name, old, new, readable, &patch)
+        let (new, copy) = self.merge_patch(table_name, &old, &patch, readable)?;
+        self.replace(table_name, old, new, readable, &patch, copy)
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
@@ -208,8 +238,8 @@ impl Runner<'_> {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
-                let new = self.merge_patch(table_name, &old, &row, readable)?;
-                self.replace(table_name, old, new, readable, &row)
+                let (new, copy) = self.merge_patch(table_name, &old, &row, readable)?;
+                self.replace(table_name, old, new, readable, &row, copy)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
             None => self.insert_upsert(table_name, "byId", row),
@@ -218,30 +248,43 @@ impl Runner<'_> {
 
     pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
+        if self.schema.tables[table_name].through.is_some() {
+            // A read-through child's insert arm keeps the hidden-target word for every authority refusal.
+            return self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()).map_err(|e| match e {
+                RuntimeError::Rule {..} | RuntimeError::Input(_) => self.no_write_target(), other => other,
+            });
+        }
         match self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
     }
 
-    fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
+    fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value, copy: u64) -> Result<(), RuntimeError> {
         self.authorize_update_fields(table_name, &old, &new, patch, readable)?;
-        self.replace_authorized(table_name, old, new, readable, patch)
+        self.replace_authorized(table_name, old, new, readable, patch, copy)
     }
 
-    pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
+    /// `copy` is the merged image's lawful price, charged again for an engine slot copy.
+    pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value, copy: u64) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
         self.authorize_fields(table_name, &old, patch)?;
-        for path in self.schema.tables[table_name].recorded.keys() {
+        let definition = &self.schema.tables[table_name];
+        for path in definition.columns.keys().filter(|field| definition.engine_field(field) && field.as_str() != crate::schema::through::DEADLINE) {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
             }
         }
+        let mut new = new;
+        self.schema.tables[table_name].recompute_deadline(&mut new)?;
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
+        let new = self.prepare_event_slots(table_name, Some(&old), new, copy)?;
+        // A predicting device keeps another owner's omitted private field as an omission.
+        super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str()))?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
         self.charge_source_indexes(&table, Some(&old), Some(&new), entries)?;
@@ -261,6 +304,9 @@ impl Runner<'_> {
         let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
+        if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
+            return Err(self.no_write_target());
+        }
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
             return Err(if self.check_rule(table_name, Effect::Read, None, &old)? {
                 RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete }
@@ -271,6 +317,7 @@ impl Runner<'_> {
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
         let table = self.schema.tables[table_name].clone();
+        self.refuse_live_children(table_name,old.field("id")?)?;
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;
         self.charge_source_indexes(&table, Some(&old), None, entries)?;
@@ -301,18 +348,19 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
         let Some(now) = self.context.now else { return Ok(Default::default()) };
-        let mut born: Vec<(String, String)> = self.born_rows.keys().filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.expire.is_some())).cloned().collect();
+        let mut born: Vec<(String, String)> = self.born_rows.keys().filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.is_expiring())).cloned().collect();
         if born.is_empty() {
             return Ok(Default::default());
         }
         // The log's order must not depend on a map's iteration order.
-        born.sort();
+        let order = self.schema.through_order();
+        born.sort_by_key(|(name,id)| (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone()));
         let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
         self.retiring = Some(Default::default());
         let retired = born.iter().try_for_each(|(table_name, id)| {
             let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(()) };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-            if table.expired(&row, now) { self.remove(table_name, &row) } else { Ok(()) }
+            if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }
         });
         let aggregates = self.retiring.take().map(|retiring| retiring.aggregates).unwrap_or_default();
         let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));
@@ -508,7 +556,7 @@ impl Runner<'_> {
                     // its physical count cannot establish room on the server.
                     // A count at the last delivered watermark would also be
                     // stale after a sweep whose sync has not arrived yet.
-                    if self.device && table.expire.is_some() {
+                    if self.device && table.is_expiring() {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
@@ -518,7 +566,7 @@ impl Runner<'_> {
                         (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
                         (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
                     ], |runner, allowance| {
-                        if !private_cap && table.expire.is_none() {
+                        if !private_cap && !table.is_expiring() {
                             return runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1);
                         }
                         // Main's transactional occupancy is a cheap upper bound
@@ -555,7 +603,7 @@ impl Runner<'_> {
                         self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
                         let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
-                        return Err(if table.expire.is_some() {
+                        return Err(if table.is_expiring() {
                             RuntimeError::ExpiringCap { message, site: self.statement_site.clone() }
                         } else { RuntimeError::Constraint(message) });
                     }

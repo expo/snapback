@@ -1,0 +1,48 @@
+✖ receipt custody retains the first sent outcome across repeated save failures (3.186044ms)
+✖ receipt custody retains the first failed outcome across repeated save failures (0.339399ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 83.609306
+
+✖ failing tests:
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ receipt custody retains the first sent outcome across repeated save failures (3.186044ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'failed' !== 'sent'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/acquisition.test.mjs:417:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ receipt custody retains the first failed outcome across repeated save failures (0.339399ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_STORE_REPLACED'
+  - 'NOT_ADMIN'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/acquisition.test.mjs:418:64)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_STORE_REPLACED',
+    expected: 'NOT_ADMIN',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

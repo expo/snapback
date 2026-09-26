@@ -1,10 +1,11 @@
 // The link watchdog belongs to the transport, shared by both client tiers.
 // A stalled fetch must not depend on the host eventually rejecting it.
+import { sampleChanges } from "./clock.ts";
 import type { Refusal } from "./contract.ts";
 
 const SILENCE_MS = 4000;
 const HEARTBEAT_SECONDS = 2;
-interface Change { seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
+interface Change { serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
 
 export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortSignal, offline: () => void, online: () => void) {
   const active = new Set<AbortController>();
@@ -63,6 +64,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
           }
           json = JSON.parse(text + decoder.decode()) as Change;
         } else json = await response.json() as Change;
+        sampleChanges(response, json);
         return { response, json };
       })();
       return await Promise.race([work, aborted]);

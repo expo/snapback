@@ -1,0 +1,286 @@
+{
+  "at": "2026-09-25T07:42:44.319Z",
+  "browser": "151.0.7922.34",
+  "actor": "u0500",
+  "fixture": {
+    "bytes": 13014016,
+    "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+  },
+  "sourceStore": "/home/ccheever/clique-cmp-20260925/lanes/astra-snapback4/scale-instance/.snapback4/store.sqlite",
+  "scope": "whole authorized device partition, including all additional application tables; snapshot row bytes are UTF-8 JSON of event.data, wire bytes include snapshot and catch-up envelopes; time is authenticated createLocalClient through completed IndexedDB acquisition, excluding login, page load and UI rendering",
+  "floor": 1000,
+  "inboxFloor": 1000,
+  "historyWindow": 1000,
+  "clientWasm": {
+    "bytes": 1776065,
+    "sha256": "22a9c4cacaad2eee8f387ebc2a297f418f7a30b3bd72e611d4e18d647fbfc995"
+  },
+  "binaries": {
+    "before": {
+      "path": "/home/ccheever/.cache/clique/snapback4-0.4.1/snapback4",
+      "bytes": 14821688,
+      "sha256": "9549fd7314bfc9dca3f24405d527bdc7c7c95f9af7eb3d04aca74d1784b6e9fe"
+    },
+    "after": {
+      "path": "/home/ccheever/sb4-intent/lane-u/snapback4/target/production/snapback4",
+      "bytes": 14939576,
+      "sha256": "5dddf731d940a4b4430911481eeffa14bc2a975eb73e37aa27f7ca62b0422385"
+    }
+  },
+  "runs": [
+    {
+      "mode": "before",
+      "acquisitionMs": 274347.59999990463,
+      "acquired": true,
+      "tables": {
+        "conversations": {
+          "rows": 100,
+          "bytes": 23596
+        },
+        "followerCounts": {
+          "rows": 1006,
+          "bytes": 110689
+        },
+        "followingCounts": {
+          "rows": 1005,
+          "bytes": 110588
+        },
+        "followingEdges": {
+          "rows": 500,
+          "bytes": 102500
+        },
+        "followingFeed": {
+          "rows": 24555,
+          "bytes": 7938537
+        },
+        "followingPosts": {
+          "rows": 49228,
+          "bytes": 7796444
+        },
+        "followingRemovedEvents": {
+          "rows": 0,
+          "bytes": 0
+        },
+        "followingWork": {
+          "rows": 63,
+          "bytes": 22132
+        },
+        "follows": {
+          "rows": 5921,
+          "bytes": 852624
+        },
+        "likes": {
+          "rows": 5008,
+          "bytes": 826312
+        },
+        "members": {
+          "rows": 248,
+          "bytes": 42556
+        },
+        "messages": {
+          "rows": 500,
+          "bytes": 127606
+        },
+        "posts": {
+          "rows": 50228,
+          "bytes": 13496683
+        },
+        "profiles": {
+          "rows": 1008,
+          "bytes": 357825
+        },
+        "reactionCounts": {
+          "rows": 2000,
+          "bytes": 301000
+        },
+        "reactions": {
+          "rows": 2000,
+          "bytes": 288500
+        },
+        "recipients": {
+          "rows": 25000,
+          "bytes": 3225000
+        },
+        "replyCounts": {
+          "rows": 1956,
+          "bytes": 117339
+        },
+        "reposts": {
+          "rows": 1004,
+          "bytes": 161640
+        },
+        "typing": {
+          "rows": 0,
+          "bytes": 0
+        }
+      },
+      "wireBytes": 48521623,
+      "snapshotPages": 43,
+      "catchupPages": 1,
+      "rows": 171330,
+      "rowBytes": 35901571
+    },
+    {
+      "mode": "after",
+      "acquisitionMs": 56699.09999990463,
+      "acquired": true,
+      "tables": {
+        "conversations": {
+          "rows": 100,
+          "bytes": 23596
+        },
+        "followerCounts": {
+          "rows": 1006,
+          "bytes": 110689
+        },
+        "followingCounts": {
+          "rows": 1005,
+          "bytes": 110588
+        },
+        "followingEdges": {
+          "rows": 500,
+          "bytes": 102500
+        },
+        "followingFeed": {
+          "rows": 1000,
+          "bytes": 327458
+        },
+        "followingPosts": {
+          "rows": 1000,
+          "bytes": 167006
+        },
+        "followingRemovedEvents": {
+          "rows": 0,
+          "bytes": 0
+        },
+        "followingWork": {
+          "rows": 63,
+          "bytes": 22132
+        },
+        "follows": {
+          "rows": 5921,
+          "bytes": 852624
+        },
+        "likes": {
+          "rows": 5008,
+          "bytes": 826312
+        },
+        "members": {
+          "rows": 248,
+          "bytes": 42556
+        },
+        "messages": {
+          "rows": 500,
+          "bytes": 127606
+        },
+        "posts": {
+          "rows": 1000,
+          "bytes": 299000
+        },
+        "profiles": {
+          "rows": 1008,
+          "bytes": 357825
+        },
+        "reactionCounts": {
+          "rows": 2000,
+          "bytes": 301000
+        },
+        "reactions": {
+          "rows": 2000,
+          "bytes": 288500
+        },
+        "recipients": {
+          "rows": 25000,
+          "bytes": 3225000
+        },
+        "replyCounts": {
+          "rows": 1956,
+          "bytes": 117339
+        },
+        "reposts": {
+          "rows": 1000,
+          "bytes": 161000
+        },
+        "typing": {
+          "rows": 0,
+          "bytes": 0
+        }
+      },
+      "wireBytes": 11552467,
+      "snapshotPages": 13,
+      "catchupPages": 1,
+      "rows": 50315,
+      "rowBytes": 7462731
+    }
+  ],
+  "reduction": {
+    "rows": 3.4051475703070655,
+    "rowBytes": 4.8107818706047425,
+    "wireBytes": 4.20010920611156,
+    "acquisitionMs": 4.838658814696637
+  },
+  "sourceSnapshot": {
+    "bytes": 2632142848,
+    "sha256": "3b8ad8663ce39b448b88df095a3f0fc58e686ae507fe65984571d46af87b840d"
+  },
+  "browserBundle": {
+    "index.html": {
+      "bytes": 124,
+      "sha256": "13fb3a8f94c6750eb4a06504eadabd6514b0b422d89a7fcb2b9b6bd5e52f1587"
+    },
+    "assets/index-pG70SgkA.js": {
+      "bytes": 142240,
+      "sha256": "d400fe3d77dc4c07daa0bd0570365ccfc2515490c9068dfcc49ec12cae3ecd02"
+    },
+    "assets/snapback4_device_bg-FJ3SB1x3.wasm": {
+      "bytes": 1776065,
+      "sha256": "22a9c4cacaad2eee8f387ebc2a297f418f7a30b3bd72e611d4e18d647fbfc995"
+    }
+  },
+  "quarry": {
+    "before": {
+      "config.q": {
+        "bytes": 228,
+        "sha256": "f656a3c65eeeab4b5dd92a0407848859f9b73ce21c5679ecb24f22b47a2cab52"
+      },
+      "digest.q": {
+        "bytes": 1361,
+        "sha256": "73a2fffe281c8b3a133c8b04f5aa07bd2273f21eae95834dcbb749b69e2b1d9c"
+      },
+      "insights.q": {
+        "bytes": 1177,
+        "sha256": "8c2941aa8553ffae893c5995dd97fb498305a290b885650a286b10551cf787fc"
+      },
+      "schedule.q": {
+        "bytes": 103,
+        "sha256": "881f80743ac5b57cecb2cc2ebf70399449203ad11a13684845f56ecda3e82b65"
+      },
+      "schema.q": {
+        "bytes": 17394,
+        "sha256": "842fad47b8d9134ae75f4213f59893ca09f5245447f58d92ac76789158d54217"
+      }
+    },
+    "after": {
+      "config.q": {
+        "bytes": 228,
+        "sha256": "f656a3c65eeeab4b5dd92a0407848859f9b73ce21c5679ecb24f22b47a2cab52"
+      },
+      "digest.q": {
+        "bytes": 1361,
+        "sha256": "73a2fffe281c8b3a133c8b04f5aa07bd2273f21eae95834dcbb749b69e2b1d9c"
+      },
+      "insights.q": {
+        "bytes": 1177,
+        "sha256": "8c2941aa8553ffae893c5995dd97fb498305a290b885650a286b10551cf787fc"
+      },
+      "schedule.q": {
+        "bytes": 103,
+        "sha256": "881f80743ac5b57cecb2cc2ebf70399449203ad11a13684845f56ecda3e82b65"
+      },
+      "schema.q": {
+        "bytes": 17428,
+        "sha256": "19fd846f513025c9d101eb6309d30bf3d547435d186536cf2cec7efe49d5d1cf"
+      }
+    }
+  }
+}

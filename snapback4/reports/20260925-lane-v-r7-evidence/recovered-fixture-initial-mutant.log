@@ -1,0 +1,79 @@
+(node:4074107) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1000.593372ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (789.965259ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1735.604087ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2174.480464ms)
+  ✔ a hide during the startup probe waits for its accepted decision (858.879293ms)
+  ✔ a hide during the startup probe waits for its refused decision (768.565651ms)
+  ✔ a hide during the startup probe waits for its restore decision (794.383981ms)
+  ✔ a hide during the startup probe waits for its replacement decision (2515.125597ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (2756.868937ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (1026.389024ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (1055.085938ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (741.071549ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (765.998031ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (819.539114ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (819.902758ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (907.612117ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (944.540319ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (784.416447ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (758.913721ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (822.316166ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (918.63005ms)
+  ✔ a successful reconnect enables exit after startup 503s (1746.844326ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4772.262981ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4724.038512ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4698.616872ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5007.008605ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6348.643635ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6503.349133ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6320.540182ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (5989.391055ms)
+  ✖ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1293.905178ms)
+  ✖ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1428.528674ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6162.947875ms)
+  ✔ same-epoch logout tombstone refuses live admission (517.184634ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (521.289397ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (408.651845ms)
+✖ web admission review: recovery and transport respect the session boundary (81131.640282ms)
+ℹ {"mode":"held-sync","id":"01M3CJAPYBCBEB5ZXPRK3MAY10","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CJAQQVSR10NAFZJ7QADXMN","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CJAVJ83EMK0G7BJ18YYQ5R","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CJAWD72ZQD5N8RVCMCJ4Y5","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CJAX622GR9Y9DZ1510GM19","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CJAXX9D6N7F0DJXVNQ7E13","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CJB0N9DF96RPGD4JK5GXCC","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3CJC24STRC7ANGC9QQWNH8H","originalStore":"d02869370a83c151796931fe104bde67","refusal":"E_STORE_REPLACED","auditA":10,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3CJC8BPSH0PJC9RVJC5AWEA","originalStore":"d02869370a83c151796931fe104bde67","refusal":"E_STORE_REPLACED","auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CJCF25W7WBDVH4T1F3M6ZH","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CJCMX7E24AEBZTNRA3063Q","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ tests 37
+ℹ suites 0
+ℹ pass 34
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81218.885314
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:552:86
+✖ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1293.905178ms)
+  TypeError: Cannot read properties of null (reading 'recovered')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:571:29)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:552:78)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:552:86
+✖ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1428.528674ms)
+  TypeError: Cannot read properties of null (reading 'recovered')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:571:29)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:552:78)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

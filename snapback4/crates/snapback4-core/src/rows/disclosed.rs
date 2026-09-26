@@ -7,7 +7,8 @@ use crate::schema::ColumnType;
 /// nodes and geometric array growth. Id/Principal/Ref have the admission bound
 /// of 144 canonical tagged bytes (value::validate_identities), on every host.
 pub fn actual_size(table: &Table) -> bool {
-    table.rules.read.is_uniformly_readable() && table.expire.is_none()
+    // A read-through child inherits its parent's rule and lifetime; it is never public.
+    table.rules.read.is_uniformly_readable() && !table.is_expiring() && table.through.is_none()
         && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience)
 }
 

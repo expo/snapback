@@ -1,0 +1,11 @@
+{
+  "lane": "opus-snapback4",
+  "phase": "score",
+  "pid": 48220,
+  "endedAt": "2026-09-25T03:06:58Z",
+  "endedEpoch": 1790305618,
+  "wallSeconds": 176.92,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/scores/opus-snapback4/raw.out",
+  "stderr": "/Users/ccheever/clique-ref-20260924/scores/opus-snapback4/raw.err"
+}

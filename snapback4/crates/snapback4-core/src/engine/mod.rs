@@ -37,6 +37,11 @@ mod aggregate_expiry;
 pub(crate) mod authorized_scan;
 pub use authorized_scan::{Authorization, InternalLedger, InternalMeter};
 pub(crate) mod authorized_point;
+mod read_point;
+#[cfg(all(test, feature = "sqlite"))]
+mod read_candidate;
+mod provenance;
+mod expiry;
 pub mod rules;
 pub mod runner;
 pub mod validate;
@@ -47,20 +52,29 @@ mod field_authority;
 mod field_authority_tests;
 mod maintains;
 pub mod row_views;
+mod live_aggregate;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
 mod sequences;
+pub(crate) mod through;
+mod through_read;
+#[cfg(feature = "sqlite")]
+pub mod through_activation;
 pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 mod column_activation;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
 use write::target as write_target;
+pub(crate) use write_target::row_copy_ceiling;
 mod receipt;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod retire_tests;
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod aggregate_metadata_tests;
 pub(crate) mod presence;
 #[cfg(feature = "postgres")]
 pub mod postgres;
@@ -118,6 +132,7 @@ pub struct Context {
     pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
+    pub(crate) row_provenance: bool,
     /// Digest only: the core resolves it in the admission transaction.
     pub(crate) session_digest: Option<String>,
     /// Original HTTP arguments, before typed decoding or default insertion.
@@ -135,7 +150,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -143,6 +158,9 @@ impl Context {
         self.session_digest = Some(crate::identity::digest(token));
         self
     }
+
+    /// Request the metered, output-only source-identity envelope for a query.
+    pub fn with_row_provenance(mut self) -> Self { self.row_provenance = true; self }
 
     pub fn with_wire_args(mut self, args: serde_json::Value) -> Self {
         self.wire_args = Some(args);
@@ -459,6 +477,11 @@ impl Engine {
         self.ceilings
     }
 
+    /// Counts shortened by the last schema activation, committed with its generation.
+    pub fn read_through_shortened(&self) -> Result<BTreeMap<String,u64>,RuntimeError> {
+        self.store.meta("read_through_shortened")?.map(|s|crate::json_codec::from_text(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose().map(Option::unwrap_or_default)
+    }
+
     /// Replace the schema and programs in place (a successor generation);
     /// the store keeps every row and rebuilds changed indexes; the
     /// generation advances so every device re-derives its partition.
@@ -502,7 +525,7 @@ impl Engine {
                 return Err(RuntimeError::Schema("scheduled work takes periodStart: time and periodEnd: time, or nothing".into()));
             }
         }
-        store.activate(schema, Some(programs), false, |tx, changed| {
+        store.activate_at(schema, Some(programs), false, now, |tx, changed| {
             if let Some((release, expected)) = release {
                 use rusqlite::OptionalExtension;
                 let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
@@ -520,7 +543,7 @@ impl Engine {
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
-                    || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
+                    || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
             let attribution = recorded::paths_changed(schema, previous.as_ref());
@@ -756,7 +779,7 @@ impl Engine {
     /// Stop between row removals; a short sweep can still leave due rows.
     pub fn sweep_expired_for(&mut self, now: i64, limit: usize, budget: std::time::Duration) -> Result<u64, RuntimeError> {
         let started = std::time::Instant::now();
-        let expiring: Vec<(String, String)> = self.schema.tables.iter().filter_map(|(name, table)| table.expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
+        let expiring: Vec<(String, String)> = self.schema.through_order().into_iter().rev().filter_map(|name| self.schema.tables[&name].expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
         if expiring.is_empty() {
             return Ok(0);
         }
@@ -775,6 +798,7 @@ impl Engine {
                 let count = rows.len();
                 for (row, _) in rows {
                     if removed > 0 && started.elapsed() >= budget { break 'tables; }
+                    if runner.physical_children(table_name,row.field("id")?)? { break 'tables; }
                     runner.remove(table_name, &row)?;
                     removed += 1;
                 }
@@ -832,7 +856,7 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry };
+                let outcome = QueryOutcome { unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 tx.rollback()?;
                 return Ok(outcome);
@@ -859,7 +883,7 @@ impl Engine {
             seq,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
-            next_expiry: runner.next_expiry,
+            next_expiry: runner.next_expiry.get(),
         };
         drop(runner);
         tx.rollback()?;
@@ -882,7 +906,9 @@ impl Engine {
         let mut acknowledged = BTreeMap::new();
         let mut committed_above = BTreeMap::new();
         for id in pending {
-            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
+            // @ref LLP 3000.013#6 — idempotency also records refusals; only
+            // committed success can acknowledge execution in a device outbox.
+            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3 AND json_extract(outcome, '$.state') = 'sent'", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
             if let Some(seq) = seq {
                 let seq = u64::try_from(seq).map_err(|_| RuntimeError::Store("negative stored operation sequence".into()))?;
                 if seq <= through { acknowledged.insert(id.clone(), seq); }
@@ -1039,6 +1065,7 @@ impl Engine {
 
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let rows = through_activation::ancestor_order(&self.schema, rows);
         let targets: std::collections::BTreeSet<_> = self.schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
         let tx = self.store.transaction()?;
         let mut imports = BTreeMap::<(String, String), Value>::new();
@@ -1131,6 +1158,7 @@ impl Engine {
     /// cannot supply it. Device stores restore/page-apply at their own trusted
     /// transaction boundary with the same stored row representation.
     pub fn load_mode(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
+        if mode == LoadMode::Import && self.schema.tables.values().any(|t| t.through.is_some()) { return self.seed(rows); }
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
@@ -1191,7 +1219,8 @@ impl Engine {
         let mut seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
-        for (table_name, row) in rows {
+        for (table_name, mut row) in rows {
+            if let Some(table) = self.schema.table(&table_name) { table.recompute_deadline(&mut row)?; }
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
             let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
             let row = runner.import_sequences(&table_name, row, old.as_ref(), mode == LoadMode::Restore)?;
@@ -1205,6 +1234,7 @@ impl Engine {
             if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
             count += 1;
         }
+        through_activation::validate_restore(&tx,&self.schema,now)?;
         let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);

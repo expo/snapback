@@ -1,0 +1,32 @@
+{
+  "lane": "opus-convex",
+  "phase": "grade",
+  "pid": 43385,
+  "startedAt": "2026-09-25T03:03:36Z",
+  "startedEpoch": 1790305416,
+  "command": [
+    "/Users/ccheever/.local/bin/claude",
+    "-p",
+    "--dangerously-skip-permissions",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    "claude-opus-5",
+    "--add-dir",
+    "/Users/ccheever/clique-ref-20260924/instrument"
+  ],
+  "model": "claude-opus-5",
+  "effort": "provider-default",
+  "prompt": "/Users/ccheever/clique-ref-20260924/prompts/opus-convex.grade.md",
+  "cwd": "/Users/ccheever/clique-ref-20260924/lanes/opus-convex",
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/opus-convex.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/opus-convex.grade.stderr.log",
+  "packages": {
+    "snapback4": "0.4.0",
+    "snapback4-expo": "0.4.0",
+    "convex": "1.46.0",
+    "@supabase/supabase-js": "2.117.1"
+  },
+  "ports": "49300-49319"
+}

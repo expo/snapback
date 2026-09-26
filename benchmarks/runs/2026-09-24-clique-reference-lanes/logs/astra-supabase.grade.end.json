@@ -1,0 +1,11 @@
+{
+  "lane": "astra-supabase",
+  "phase": "grade",
+  "pid": 43387,
+  "endedAt": "2026-09-25T03:55:37Z",
+  "endedEpoch": 1790308537,
+  "wallSeconds": 3120.894,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/astra-supabase.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/astra-supabase.grade.stderr.log"
+}

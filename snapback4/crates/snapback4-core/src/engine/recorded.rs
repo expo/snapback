@@ -5,7 +5,10 @@ use super::runner::Runner;
 use crate::{error::{MeterKind, RuntimeError}, schema::Table, value::Value};
 
 pub(crate) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<(), RuntimeError> {
-    if let Some(field) = row.as_object()?.keys().find(|field| table.recorded.contains_key(*field)) {
+    if let Some(field) = row.as_object()?.keys().find(|field| crate::schema::timeline::is_slot(field)) {
+        return Err(RuntimeError::Structural { code: "E_TIMELINE_OWNED", message: format!("{name}.{field} is an engine event slot; omit it and write the post or repost's application fields (guide feeds)") });
+    }
+    if let Some(field) = row.as_object()?.keys().find(|field| table.engine_field(field)) {
         return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{field} is engine-recorded; omit it from the write payload (guide maintains)") });
     }
     if let Some(field) = row.as_object()?.keys().find(|field| table.maintained.contains_key(*field)) {
@@ -15,8 +18,8 @@ pub(crate) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<()
 }
 
 pub(crate) fn public_image(table: &Table, mut row: Value) -> Value {
-    if table.recorded.is_empty() { return row; }
-    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| !table.recorded.contains_key(field)); }
+    if table.recorded.is_empty() && table.through.is_none() && !table.columns.keys().any(|f| crate::schema::timeline::is_slot(f)) { return row; }
+    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| !table.engine_field(field) && !crate::schema::timeline::is_slot(field)); }
     row
 }
 
@@ -198,7 +201,7 @@ mod tests {
         tx.put("likes",&schema.tables["likes"],&row,None).unwrap();
         let stored=tx.get("likes","l").unwrap().unwrap();
         match &mut replacement {Value::Row(fields) | Value::Map(fields) => {assert!(fields.remove("postId.authorId").is_some());}, _ => panic!("object")};
-        let err = runner.replace_authorized("likes",row,replacement,false,&object([] as [(&str,Value);0])).unwrap_err();
+        let err = runner.replace_authorized("likes",row,replacement,false,&object([] as [(&str,Value);0]),0).unwrap_err();
         assert_eq!(err.refusal().code,"NOT_FOUND");
         for hidden in ["capture","alice","postId.authorId"] {assert!(!err.to_string().contains(hidden));}
         assert_eq!(tx.get("likes","l").unwrap(),Some(stored));

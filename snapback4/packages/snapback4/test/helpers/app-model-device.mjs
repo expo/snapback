@@ -6,9 +6,16 @@ import { webDevice, memoryPersistence } from "../../dist/web.js";
 const wasm = readFileSync(new URL("../../src/wasm/snapback4_device_bg.wasm", import.meta.url));
 export const modelBackend = {
   generation: 1,
-  schema: { tables: {}, operations: { viewer: { runs: "server" }, write: { predicts: "never" } } },
+  // The viewer probe must actually require a remote fact. A static `runs`
+  // class cannot override a known complete local answer (LLP 3000.016 rule 2).
+  schema: { tables: { remote: {
+    columns: { id: "Id" }, indexes: { byId: { components: [{ Column: "id" }], unique: true } },
+    rules: { read: "Allow", insert: "Deny", update: "Deny", delete: "Deny" }, sync: null,
+  } }, operations: { viewer: { runs: "server" }, write: { predicts: "never" } } },
   programs: [
-    { name: "viewer", kind: "Query", args: {}, body: [], runs: "server" },
+    { name: "viewer", kind: "Query", args: {}, body: [{ Return: { Get: {
+      table: "remote", index: "byId", key: [{ Literal: { String: "viewer" } }], provenance: "Shape", site: "programs.viewer.0",
+    } } }], runs: "server" },
     { name: "write", kind: "Mutation", args: { hiddenHandle: "Bool", refuse: "Bool" }, body: [], predicts: "never" },
   ],
 };

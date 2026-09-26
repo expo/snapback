@@ -1,0 +1,42 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✖ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1011.921382ms)
+  ✔ a failed logout cannot commit after abort (806.874327ms)
+  ✔ a failed logout cannot commit after quota (793.274052ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (360.389453ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (885.208544ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (4.662818ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (75.443024ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (775.514254ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (697.056701ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (6206.012487ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6302.68534
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:123:11
+✖ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1011.921382ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '{"id":"01M3C8NWH6WQW21DNHSG822K1G","seq":1,"op":"click","args":{},"new_ids":["01M3C8NWH8D30HABSYFXKKDZQY","01M3C8NWH8D30HABSYFXKKDZQZ","01M3C8NWH8D30HABSYFXKKDZR0","01M3C8NWH8D30HABSYFXKKDZR1","01M3C8NWH8D30HABSYFXKKDZR2","01M3C8NWH8D30HABSYFXKKDZR3","01M3C8NWH8D30HABSYFXKKDZR4","01M3C8NWH8D30HABSYFXKKDZR5"],"predicted":[],"viewer":"user:01M3C8NVN5SSGD1602XM2534YT","now":1790339379752,"predictable":false,"sent_seq":null,"observed_seq":null}'
+  - null
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:153:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:123:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '{"id":"01M3C8NWH6WQW21DNHSG822K1G","seq":1,"op":"click","args":{},"new_ids":["01M3C8NWH8D30HABSYFXKKDZQY","01M3C8NWH8D30HABSYFXKKDZQZ","01M3C8NWH8D30HABSYFXKKDZR0","01M3C8NWH8D30HABSYFXKKDZR1","01M3C8NWH8D30HABSYFXKKDZR2","01M3C8NWH8D30HABSYFXKKDZR3","01M3C8NWH8D30HABSYFXKKDZR4","01M3C8NWH8D30HABSYFXKKDZR5"],"predicted":[],"viewer":"user:01M3C8NVN5SSGD1602XM2534YT","now":1790339379752,"predictable":false,"sent_seq":null,"observed_seq":null}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

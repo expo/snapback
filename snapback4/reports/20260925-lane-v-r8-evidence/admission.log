@@ -1,0 +1,135 @@
+(node:1059796) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1327.777603ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (1076.416218ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1942.163035ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2505.186026ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1116.248743ms)
+  ✔ a hide during the startup probe waits for its refused decision (939.891262ms)
+  ✔ a hide during the startup probe waits for its restore decision (955.713603ms)
+  ✔ a hide during the startup probe waits for its replacement decision (2737.800423ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (2751.58001ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (1035.991212ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (994.040199ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (889.947256ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1033.514799ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (971.705355ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (931.589385ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1039.113932ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (960.367929ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1208.731659ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (919.15328ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (1176.370093ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (1016.869693ms)
+  ✔ a successful reconnect enables exit after startup 503s (1944.374684ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5041.166488ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4783.612627ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4876.257835ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4943.616884ms)
+  ✖ A's committed ordinary result owns settlement when keepalive answers first (509.739456ms)
+  ✖ A's committed ordinary result owns settlement when ordinary answers first (584.083531ms)
+  ✖ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (5892.458174ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6426.548931ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6440.229244ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5962.45083ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (5989.292736ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1474.090806ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1464.912446ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6087.674358ms)
+  ✔ same-epoch logout tombstone refuses live admission (537.189636ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (570.53173ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (455.861482ms)
+✖ web admission review: recovery and transport respect the session boundary (94671.684572ms)
+ℹ {"mode":"held-sync","id":"01M3CNF4C3VX0WEBVMFZMK5E4G","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CNF5CRWK7CX06X057TD4CD","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CNF9R16ETHN1RA2W46STQY","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CNFAT09Z28EFCVYEVQ7C06","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CNFBQS2Y7CF2JX2V7ZHP0N","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CNFCNVVKCGBN90K4VZ0HH1","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CNFFKSG8HEY9N6SHW7GT6P","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3CNGT7E9F5GNW8JXRKNMM09","originalStore":"1a454b7c4524f384861b094fca2f8c2f","refusal":"E_STORE_REPLACED","auditA":12,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3CNH0HBCWXPK3A1G6G4P1RP","originalStore":"1a454b7c4524f384861b094fca2f8c2f","refusal":"E_STORE_REPLACED","auditA":12,"auditB":0}
+ℹ {"orphan":"01M3CNH6S76M260MP5JWZEV6BW","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":12,"auditB":0}
+ℹ {"orphan":"01M3CNHCMTXX1XCQTDAEK2CEGY","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":12,"auditB":0}
+ℹ {"orphan":"01M3CNHJG7CH3PPTZ057PAMAJJ","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":12,"auditB":0}
+ℹ {"orphan":"01M3CNHKXAH44ZGJT0RDWT8AVV","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":12,"auditB":0}
+ℹ tests 40
+ℹ suites 0
+ℹ pass 36
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94766.650102
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:518:58
+✖ A's committed ordinary result owns settlement when keepalive answers first (509.739456ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'sent'
+  - ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:547:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:518:50)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'sent' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:518:58
+✖ A's committed ordinary result owns settlement when ordinary answers first (584.083531ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'sent'
+  - ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:547:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:518:50)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'sent' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:561:11
+✖ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (5892.458174ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'failed'
+  - ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:601:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:561:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'failed' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

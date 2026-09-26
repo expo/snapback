@@ -33,6 +33,29 @@ impl Runner<'_> {
     }
 
     fn authorize_read_inner(&mut self, allowance: &Authorization, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
+        let verdict = self.read_authority_inner(allowance, table, row, prepaid)?;
+        if verdict == Verdict::Unknown {
+            self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
+            self.components.note(|frame| frame.speculative = true);
+        }
+        Ok(verdict == Verdict::Readable)
+    }
+
+    /// 0.4.2's three-valued verdict for a parent row, under the same prepaid,
+    /// restoring authorization scope as a provisional read.
+    pub(super) fn read_authority(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<Verdict, RuntimeError> {
+        self.device_work(|runner| {
+            let probes = if prepaid { 0 } else { rules::rule_probes(&runner.schema.tables[table].rules.read) };
+            runner.authorized_scratch(runner.rule_scratch(&runner.schema.tables[table].rules.read), &[(MeterKind::RuleProbes, probes)], |runner, allowance| {
+                let scratch = runner.meter.mark();
+                let result = runner.read_authority_inner(allowance, table, row, prepaid || !runner.device_work_active);
+                if runner.device_work_active { runner.meter.release_heap(scratch); }
+                result
+            })
+        })
+    }
+
+    fn read_authority_inner(&mut self, allowance: &Authorization, table: &str, row: &Value, prepaid: bool) -> Result<Verdict, RuntimeError> {
         let provisional = self.is_provisional(table, row)?;
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
@@ -41,11 +64,7 @@ impl Runner<'_> {
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
         let verdict = rules::evaluate_verdict(&rule, &viewer, None, &row, false, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;
-        if self.read_capped() { return Ok(false); }
-        if verdict == Verdict::Unknown {
-            self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
-        }
-        Ok(verdict == Verdict::Readable)
+        Ok(if self.read_capped() { Verdict::Unknown } else { verdict })
     }
 
     pub(super) fn witness_covered(&self, table: &str, index: &str, key: &[Value], row: &Value) -> Result<bool, RuntimeError> {
@@ -80,7 +99,7 @@ impl Runner<'_> {
 struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, allowance: &'a Authorization, table: &'a str, provisional: bool, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
     fn take_unknown(&mut self) -> bool { std::mem::take(&mut self.unknown) }
-    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, _old: bool) {
         self.runner.provisional_sequence_read |= self.provisional && self.runner.schema.tables[self.table].sequences.contains_key(field);
     }
@@ -115,9 +134,11 @@ mod tests {
                     let mut runner = Runner::new(&rows, &schema, Context::new("alice", Default::default()).at(1000), Meter::new(Ceilings::default(), Cut::Cap), 0);
                     runner.device = true;
                     runner.provisional_rows.insert(("notes".into(), "own".into()));
-                    runner.next_expiry = Some(9000); // A separate earlier read's dependency survives.
+                    runner.next_expiry = crate::engine::expiry::Expiry::from(Some(9000)); // A separate earlier read's dependency survives.
+                    let scope = runner.next_expiry.scope(); // Deadlines are provisional until a read emits them.
                     assert_eq!(runner.authorize_read("notes", &candidate, false).unwrap(), rule != witness || kind == "admin");
-                    assert_eq!(runner.next_expiry, Some(if rule == witness && kind == "admin" { until } else { 9000 }), "{kind}/{rule}");
+                    scope.emit();
+                    assert_eq!(runner.next_expiry.get(), Some(if rule == witness && kind == "admin" { until } else { 9000 }), "{kind}/{rule}");
                 }
             }
         }
@@ -141,9 +162,11 @@ mod tests {
                         let mut runner = Runner::new(&rows, &schema, Context::new("alice", Default::default()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
                         runner.device = true;
                         runner.provisional_rows.insert(("notes".into(), "own".into()));
-                        runner.next_expiry = Some(9000);
+                        runner.next_expiry = crate::engine::expiry::Expiry::from(Some(9000));
+                        let scope = runner.next_expiry.scope();
                         assert_eq!(runner.authorize_read("notes", &candidate, false).unwrap(), rule != a || permanent || now < 8000);
-                        assert_eq!(runner.next_expiry, Some(if rule == a && !permanent && now < 8000 { 8000 } else { 9000 }), "{rule}/{now}/{permanent}");
+                        scope.emit();
+                        assert_eq!(runner.next_expiry.get(), Some(if rule == a && !permanent && now < 8000 { 8000 } else { 9000 }), "{rule}/{now}/{permanent}");
                     }
                 }
             }
@@ -194,9 +217,11 @@ mod row_view_tests {
                 let mut runner=Runner::new(&rows,&schema,Context::new("alice",Default::default()).at(1000),Meter::new(Ceilings::default(),Cut::Cap),0);
                 runner.device=true;
                 runner.provisional_rows.insert(("gates".into(),"gate".into()));
-                runner.next_expiry=Some(9000);
+                runner.next_expiry=crate::engine::expiry::Expiry::from(Some(9000));
+                let scope=runner.next_expiry.scope();
                 assert!(runner.authorize_read("gates",&gate,false).unwrap());
-                assert_eq!(runner.next_expiry,Some(if rule==witness {until} else if rule.contains(".backup") {1200} else {9000}),"{rule}");
+                scope.emit();
+                assert_eq!(runner.next_expiry.get(),Some(if rule==witness {until} else if rule.contains(".backup") {1200} else {9000}),"{rule}");
             }
         }
     }

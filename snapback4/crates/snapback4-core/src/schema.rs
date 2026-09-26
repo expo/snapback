@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 pub mod columns;
+pub mod through;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
@@ -224,6 +225,9 @@ pub struct Table {
     pub written_by: BTreeMap<String, FieldAuthority>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub update_transition: bool,
+    /// Lifetime-bound inherited authority. Absent on legacy schemas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub through: Option<through::Through>,
     /// Engine-maintained readable fields, with their derivation identity.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub maintained: BTreeMap<String, String>,
@@ -301,17 +305,13 @@ impl Table {
     /// Whether `row` is past its `expire` column at `now`: absent to every
     /// reader, pending the sweep. A null time never expires.
     pub fn expired(&self, row: &Value, now: i64) -> bool {
-        self.expire.as_ref().is_some_and(|column| matches!(row_image(row, self).field(column), Ok(Value::Int(at)) if *at <= now))
-    }
-
-    pub(crate) fn expires_at(&self, row: &Value) -> Option<i64> {
-        match row.field(self.expire.as_deref()?).ok()? { Value::Int(at) => Some(*at), _ => None }
+        self.deadline(row).is_some_and(|at| at <= now)
     }
 
     /// The index the expiry sweep walks: the first leading with the
     /// `expire` column, as the declaration requires.
     pub fn expiry_index(&self) -> Option<(&str, &Index)> {
-        let column = self.expire.as_deref()?;
+        let column = self.expiry_column()?;
         self.indexes.iter().find(|(_, index)| {
                 index.is_plain() && index.columns().first().map(String::as_str) == Some(column)
             }).map(|(name, index)| (name.as_str(), index))
@@ -729,6 +729,9 @@ impl TextFormat {
 pub struct Maintain {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub row_key: Option<crate::maintain::RowKey>,
+    pub parent_key: Option<through::Through>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub aliases: BTreeMap<String,String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub private: Option<columns::ColumnOwner>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -773,7 +776,7 @@ pub fn sequence_index(column: &str) -> String { format!("$sequence:{column}") }
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
-        sequences: Default::default(), written_by: Default::default(), update_transition: false,
+        sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None,
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
@@ -800,6 +803,7 @@ pub struct SchemaIssue {
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = columns::validate(schema);
     issues.extend(field_authority::validate(schema));
+    issues.extend(through::validate(schema));
     timeline::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
     let mut route_paths = BTreeSet::new();
@@ -867,7 +871,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     }
                     IndexComponent::Contribution(maintain) => {
                         let format_valid = index.components.len() == 1 || (index.components.len() == 2
-                            && table.expire.as_ref().is_some_and(|expiry| index.components[1].column() == Some(expiry)));
+                            && table.expiry_column().is_some_and(|expiry| index.components[1].column().map(String::as_str) == Some(expiry)));
                         if index.unique || !format_valid || maintain.source != *table_name || name != &maintain.contribution_index() {
                             issue(&mut issues, ipath.clone(), "invalid internal contribution index".into());
                         }
@@ -1053,21 +1057,22 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         return;
     }
     // @ref LLP 3000.007#20.9 — stored value order cannot rank live sums between expiry and sweep; enforce at every schema entry point.
-    if source.expire.is_some() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
+    if source.is_expiring() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
         issue(issues, format!("maintain {} cannot order by value because source {} expires", maintain.target, maintain.source));
     }
     // The sweep, and a commit retiring its expired births, delete expired
     // rows as source writes; a maintained row is the engine's to write.
-    if target.expire.is_some() {
+    if target.is_expiring() {
         issue(issues, format!("maintain {} cannot expire; give its source {} the lifetime", maintain.target, maintain.source));
     }
+    if let Some(message) = maintain.expiring_read_refusal(schema) { issue(issues, message); }
     if maintain.by.is_empty() {
         issue(issues, "maintain by needs at least one source column".into());
     }
     if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
     for (field, target_field) in maintain.by.iter().zip(maintain.group_fields()) {
         let calendar_type = if maintain.computed.get(field).is_some_and(|key| source.recorded.contains_key(&key.column)) { ColumnType::Optional(Box::new(ColumnType::Int)) } else { ColumnType::Int };
-        let expected = if maintain.computed.contains_key(field) { Some(&calendar_type) } else { source.columns.get(field) };
+        let expected = if maintain.computed.contains_key(field) { Some(&calendar_type) } else { source.columns.get(maintain.aliases.get(field).unwrap_or(field)) };
         match expected {
             None => issue(issues, format!("maintain names unknown source column {}.{field}", maintain.source)),
             Some(kind) if target.columns.get(&target_field) != Some(kind) => issue(issues, format!("maintain target column {field} must match the source type {kind}")),
@@ -1108,10 +1113,12 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if let Some(target_sync) = &target.sync
         && !source.rules.read.is_uniformly_readable()
     {
+        let preserves = |column: &String, source_column: &String| maintain.group_fields().contains(column)
+            && if let Some(capture) = maintain.aliases.get(column) { capture == source_column } else { column == source_column && maintain.bare_key(column) };
         let sound = match (&target_sync.audience, source.sync.as_ref().map(|sync| &sync.audience)) {
             (Audience::Public, Some(Audience::Public)) => true,
-            (Audience::Column(column), Some(Audience::Column(source_column))) => column == source_column && maintain.bare_key(column),
-            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix == source_prefix && prefix.iter().all(|column| maintain.bare_key(column)),
+            (Audience::Column(column), Some(Audience::Column(source_column))) => preserves(column, source_column),
+            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix.len() == source_prefix.len() && prefix.iter().zip(source_prefix).all(|(column, source_column)| preserves(column, source_column)),
             _ => false,
         };
         if !sound {
@@ -1124,6 +1131,17 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
 fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
     let audience_rule = table.rules.read.device_audience_rule();
+    // @ref LLP 3000.014#5 — a child admits exactly its substituted audience, never a public subset.
+    if table.through.is_some() {
+        let exact = match (audience_rule.as_ref(), &sync.audience) {
+            (RuleExpr::Allow | RuleExpr::Public { .. }, Audience::Public) => true,
+            (RuleExpr::Eq(RuleTerm::Field(field), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(field)), Audience::Column(column)) => field == column,
+            (RuleExpr::Exists { table, key, equalities, .. }, Audience::Target { table: target, prefix, .. }) => table == target && equalities.is_empty() && key == &prefix.iter().cloned().map(RuleTerm::Field).chain([RuleTerm::Viewer]).collect::<Vec<_>>(),
+            _ => false,
+        };
+        if !exact { issue(issues, "read through sync must exactly equal its inherited audience; use `sync` to infer it, or `online only`".into()); }
+    }
+
     match &sync.audience {
         Audience::Public => {
             if !audience_rule.is_uniformly_readable() {
@@ -1341,7 +1359,7 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
         index_columns[..prefix.len()].to_vec()
     };
     for column in prefix {
-        if table.columns.get(column).is_some_and(ColumnType::is_optional) {
+        if table.columns.get(column).is_some_and(ColumnType::is_optional) && !table.through.as_ref().is_some_and(|t| t.fields.contains_key(column)) {
             return Err(format!("sync to {target_name}[{spelled_prefix}] needs required group keys; {table_name}.{column} is optional. Make every content group column required so online rules and device partitions name the same group"));
         }
     }

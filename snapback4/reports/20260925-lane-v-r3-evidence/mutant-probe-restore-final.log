@@ -1,0 +1,75 @@
+(node:422882) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (911.209867ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (913.776884ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1725.489111ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2132.762975ms)
+  ✔ a hide during the startup probe waits for its accepted decision (860.459692ms)
+  ✔ a hide during the startup probe waits for its refused decision (810.271589ms)
+  ✖ a hide during the startup probe waits for its restore decision (785.390611ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1280.082473ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (769.290794ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (731.644336ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (801.441466ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (798.194101ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (881.558873ms)
+  ✖ same-epoch logout tombstone refuses live admission (459.041095ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (481.647123ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (447.455762ms)
+✖ web admission review: recovery and transport respect the session boundary (15565.041569ms)
+ℹ {"mode":"held-sync","id":"01M3C55T1JMV3NA32BBXD3VAZE","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C55TWS6F1XKZ0WQJS1S55C","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C55YQE1X96BR9XASD023XZ","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C55ZGJHP099G7RWYZKW4HZ","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C5612Y7T4VMYMFARZKT9KD","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15663.469216
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:249:81
+✖ a hide during the startup probe waits for its restore decision (785.390611ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 'E_STORE_RESTORE'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:307:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:249:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_STORE_RESTORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:362:53
+✖ same-epoch logout tombstone refuses live admission (459.041095ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'sent' !== 'failed'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:380:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:362:45)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'sent',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

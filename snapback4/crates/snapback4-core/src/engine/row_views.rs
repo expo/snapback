@@ -744,12 +744,12 @@ impl Runner<'_> {
             _ => Bounds::default(),
         };
         let limit = self.scan_room(m).min(RECOUNT_CHUNK);
-        let saved_expiry = self.next_expiry.take();
+        // The chunk's earliest contributing expiry is recorded on the work row, never emitted as an answer deadline.
+        let recount_expiry = self.next_expiry.scope();
         let (n, complete, last) = if self.schema.tables[&m.source].expire.is_some() {
             self.live_basis_scan(m,&member,Some(cursor),limit)?
         } else { self.view_scan(m,&member,None,&k.source_index(),bounds,limit,false)? };
-        let deadline = self.next_expiry.take().into_iter().chain(if restart { None } else { work.field("deadline").ok().and_then(|v|v.as_int().ok()) }).min();
-        self.next_expiry = saved_expiry;
+        let deadline = recount_expiry.defer().deadline().into_iter().chain(if restart { None } else { work.field("deadline").ok().and_then(|v|v.as_int().ok()) }).min();
         if !complete && last.is_none() {
             return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "one source row does not fit a recount chunk; reduce its payload, then retry the pending view (guide maintains)".into() });
         }

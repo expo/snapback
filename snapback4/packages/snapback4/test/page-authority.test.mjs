@@ -66,7 +66,7 @@ async function fixture(t, online = false) {
   return { client, post, requests, core: () => core, hold: (name = 'serverPage') => { held = name; entered = false; }, entered: () => entered, release: () => release?.(), offline: () => { offline = true; }, failServer: value => { failServer = value; }, loadingServer: () => { serverLoading = true; }, failAfterApply: () => { failApply = true; }, holdWrites: () => { holdWrites = true; } };
 }
 
-test('a loading server reply retires the remembered answer before a later transport failure', async t => {
+test('a loading server reply retires memory before a speculative transport failure', async t => {
   const f = await fixture(t);
   assert.equal((await f.client.query(query('serverPage'), {})).data[0].body, 'private');
   // Change only the query response: no replica commit may clear the cache
@@ -75,8 +75,10 @@ test('a loading server reply retires the remembered answer before a later transp
   assert.deepEqual(await f.client.query(query('serverPage'), {}), { loading: true });
   f.failServer(true);
   const unavailable = await f.client.query(query('serverPage'), {});
-  assert.ok(!('data' in unavailable), 'an unavailable answer cannot reappear as remembered data');
-  assert.equal(unavailable.denied.code, 'E_OFFLINE');
+  assert.equal(unavailable.denied.code, 'E_OFFLINE', 'unfenced speculative reads have no answer after loading retires memory');
+  const local = (await f.core().call({ op: 'query', name: 'serverPage', viewer: 'dev:alice', args: {}, now: Date.now() })).ok;
+  assert.equal(local.data[0].body, 'private', 'the device still holds its authorized prefix');
+  assert.equal(local.unknown, true); assert.equal(local.speculative, true);
 });
 
 for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {
@@ -158,12 +160,13 @@ test('a local observation has no remembered answer after a failed replacing fetc
   watch.close();
 });
 
-test('a local server-run observation never retains a previous answer during HTTP', { timeout: 30_000 }, async t => {
+test('a server-class observation uses ordinary device-fallback retention during HTTP', { timeout: 30_000 }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('serverPage'), {});
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
   f.hold(); watch.close(); watch.subscribe(() => {});
   await until(f.entered, 'server rerun without a local commit');
-  assert.deepEqual(watch.getSnapshot(), { loading: true }, 'only a device fallback may retain an answer');
+  assert.equal(watch.getSnapshot().data[0].body, 'private', 'local-first fallback may retain an answer during transport');
+  assert.equal(watch.getSnapshot().fresh, false);
   f.release();
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'replacement server answer');
   watch.close();

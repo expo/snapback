@@ -1,0 +1,83 @@
+(node:907064) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (873.218308ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (756.748222ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1713.453019ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2106.066214ms)
+  ✔ a hide during the startup probe waits for its accepted decision (873.299431ms)
+  ✔ a hide during the startup probe waits for its refused decision (837.918381ms)
+  ✔ a hide during the startup probe waits for its restore decision (823.765672ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1233.510339ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (810.736067ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (818.097378ms)
+  ✖ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (781.857572ms)
+  ✖ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (730.15397ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (870.411385ms)
+  ✔ same-epoch logout tombstone refuses live admission (481.490884ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (507.047913ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (456.239553ms)
+✖ web admission review: recovery and transport respect the session boundary (15608.466691ms)
+ℹ {"mode":"held-sync","id":"01M3C6HRDWPDMCNAYFVYANDB5F","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6HS6ZJMKBM1494FP7VK7S","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C6HWZ647PHGZ9TH8W87MJA","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C6HXVA2GRR5CTAB3R3FQ17","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C6HYMZ5XGVKST2CJVSE62K","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C6HZD4MF4FMA467WPKRAWM","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15690.672501
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:348:166
+✖ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (781.857572ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   id: '01M3C6J26BTD7K6SRDSJBHXVJ0',
+  +   replayed: true,
+  +   seq: 17,
+  +   state: 'sent'
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:366:17)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:348:158)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'sent', id: '01M3C6J26BTD7K6SRDSJBHXVJ0', seq: 17, replayed: true },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:348:166
+✖ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (730.15397ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '{"key":"snapback4-admission:snapback4-http%253A%252F%252F127.0.0.1%253A37067%253Auser%253A01M3C6J2MDZVREA6J7KWRGEJ51:5b713023c813a39e0078c7e1a0e53c3d:01M3C6J2XAHNXAJRR6G0KY629Y","storeId":"5b713023c813a39e0078c7e1a0e53c3d","entry":{"id":"01M3C6J2XAHNXAJRR6G0KY629Y","seq":1,"op":"removeMember","args":{"room":"room","principal":"user:other"},"viewer":"user:01M3C6J2MDZVREA6J7KWRGEJ51","now":1790337158058,"new_ids":["01M3C6J2XAHNXAJRR6G0KY629Z","01M3C6J2XAHNXAJRR6G0KY62A0","01M3C6J2XAHNXAJRR6G0KY62A1","01M3C6J2XAHNXAJRR6G0KY62A2","01M3C6J2XAHNXAJRR6G0KY62A3","01M3C6J2XAHNXAJRR6G0KY62A4","01M3C6J2XAHNXAJRR6G0KY62A5","01M3C6J2XAHNXAJRR6G0KY62A6"],"predicted":[],"predictable":false,"replay_candidate":true},"authority":{"key":"snapback4.0068007400740070003a002f002f003100320037002e0030002e0030002e0031003a00330037003000360037.session","epoch":"0","principal":"user:01M3C6J2MDZVREA6J7KWRGEJ51"}}'
+  - null
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:367:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:348:158)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '{"key":"snapback4-admission:snapback4-http%253A%252F%252F127.0.0.1%253A37067%253Auser%253A01M3C6J2MDZVREA6J7KWRGEJ51:5b713023c813a39e0078c7e1a0e53c3d:01M3C6J2XAHNXAJRR6G0KY629Y","storeId":"5b713023c813a39e0078c7e1a0e53c3d","entry":{"id":"01M3C6J2XAHNXAJRR6G0KY629Y","seq":1,"op":"removeMember","args":{"room":"room","principal":"user:other"},"viewer":"user:01M3C6J2MDZVREA6J7KWRGEJ51","now":1790337158058,"new_ids":["01M3C6J2XAHNXAJRR6G0KY629Z","01M3C6J2XAHNXAJRR6G0KY62A0","01M3C6J2XAHNXAJRR6G0KY62A1","01M3C6J2XAHNXAJRR6G0KY62A2","01M3C6J2XAHNXAJRR6G0KY62A3","01M3C6J2XAHNXAJRR6G0KY62A4","01M3C6J2XAHNXAJRR6G0KY62A5","01M3C6J2XAHNXAJRR6G0KY62A6"],"predicted":[],"predictable":false,"replay_candidate":true},"authority":{"key":"snapback4.0068007400740070003a002f002f003100320037002e0030002e0030002e0031003a00330037003000360037.session","epoch":"0","principal":"user:01M3C6J2MDZVREA6J7KWRGEJ51"}}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

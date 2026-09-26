@@ -1,0 +1,88 @@
+▶ round 9-12 client head observations and startup installation
+  ✔ native: first-install-overlap head 15, snapshot false (62.513284ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-overlap head 19, snapshot true (57.423256ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-healthy head 20, snapshot false (59.536743ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: fresh head 25, snapshot false (36.544596ms)
+  ✔ native: startup-generation head 15, snapshot false (53.773305ms)
+  ✔ native: startup-generation head 19, snapshot false (53.868298ms)
+  ✔ native: startup-generation head 19, snapshot true (53.114488ms)
+  ✔ native: startup-generation-native head 15, snapshot false (49.254493ms)
+  ✔ native: startup-generation-native head 19, snapshot true (52.924082ms)
+  ✔ native: healthy-generation head 20, snapshot false (41.804929ms)
+  ✔ native: replacement-generation head 15, snapshot false (38.327308ms)
+  ✔ native: offline-generation head 0, snapshot false (36.896954ms)
+  ✔ native: startup head 7, snapshot false (47.23019ms)
+  ✔ native: startup head 15, snapshot false (51.62138ms)
+  ✔ native: startup head 15, snapshot true (49.877407ms)
+  ✔ native: probe head 15, snapshot false (2062.979679ms)
+  ✔ native: changes head 7, snapshot false (58.608051ms)
+  ✔ native: generation head 15, snapshot false (54.707085ms)
+  ✔ native: generation head 15, snapshot true (54.196199ms)
+  ✔ native: snapshot-restart head 20, snapshot true (38.011264ms)
+  ✔ native: stale-send head 7, snapshot false (38.841318ms)
+  ✔ native: stale-published head 7, snapshot false (38.939215ms)
+  ✔ native: healthy head 20, snapshot false (41.082116ms)
+  ✔ native: private-overlap head 7, snapshot false (58.852187ms)
+  ✔ native: private-overlap head 15, snapshot false (56.476256ms)
+  ✔ native: private-generation head 15, snapshot false (54.879834ms)
+  ✔ native: private-generation-declaration head 15, snapshot false (58.305327ms)
+  ✔ native: late-evidence head 20, snapshot false (47.469238ms)
+  ✔ native: image-only head 20, snapshot false (39.239895ms)
+  ✔ native: late-first-evidence head 7, snapshot false (40.4579ms)
+  ✔ native: schema-overlap head 20, snapshot false (40.430189ms)
+  ✔ native: schema-preflight-gap head 20, snapshot false (42.415134ms)
+  ✔ wasm: first-install-overlap head 15, snapshot false (434.375541ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: first-install-overlap head 19, snapshot true (8.33455ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: first-install-healthy head 20, snapshot false (9.790322ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: fresh head 25, snapshot false (3.082749ms)
+  ✔ wasm: startup-generation head 15, snapshot false (5.998689ms)
+  ✔ wasm: startup-generation head 19, snapshot false (5.821234ms)
+  ✔ wasm: startup-generation head 19, snapshot true (5.680954ms)
+  ✔ wasm: startup-generation-native head 15, snapshot false (5.005422ms)
+  ✔ wasm: startup-generation-native head 19, snapshot true (6.08561ms)
+  ✔ wasm: healthy-generation head 20, snapshot false (6.679109ms)
+  ✔ wasm: replacement-generation head 15, snapshot false (6.59924ms)
+  ✔ wasm: offline-generation head 0, snapshot false (3.582689ms)
+✔ round 9-12 client head observations and startup installation (4127.963382ms)
+✔ startup never treats another open failure as an empty store (0.989082ms)
+✔ native open preserves a refusal arriving after process exit (10.436881ms)
+(node:419656) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (985.385872ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (844.563944ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1807.65668ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2169.491482ms)
+  ✔ a hide during the startup probe waits for its accepted decision (850.361184ms)
+  ✔ a hide during the startup probe waits for its refused decision (847.877542ms)
+  ✔ a hide during the startup probe waits for its restore decision (839.739637ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1264.656805ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (898.302541ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (774.084105ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (795.918286ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (779.246952ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (822.408847ms)
+  ✔ same-epoch logout tombstone refuses live admission (514.833558ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (542.189965ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (483.526001ms)
+✔ web admission review: recovery and transport respect the session boundary (16059.339914ms)
+ℹ {"mode":"held-sync","id":"01M3C543VPW2Q85VJJNP6YK607","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C544P43JRRYFKY88N9FS4K","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C548JFQ6QBFDTYSR5XBBWK","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C549CQ77GF2FRSBW1R2VBA","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C54A76A2V8H3876FF1456D","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C54B09ZJBQ7NR8HGJ48XRF","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ tests 64
+ℹ suites 0
+ℹ pass 64
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16163.307031

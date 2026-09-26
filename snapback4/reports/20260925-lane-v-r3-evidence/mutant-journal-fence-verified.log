@@ -1,0 +1,22 @@
+(node:540911) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ web admission review: recovery and transport respect the session boundary (5580.89478ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5677.660665
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:10:1
+✖ web admission review: recovery and transport respect the session boundary (5580.89478ms)
+  Error: dev readiness timed out:
+      at devServer (file:///home/ccheever/sb4-intent/lane-v/snapback4/witness/lib.mjs:84:48)
+      at async launch (file:///home/ccheever/sb4-intent/lane-v/snapback4/witness/lib.mjs:111:15)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:69:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

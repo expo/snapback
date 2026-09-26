@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "opus-convex",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "Six lifetime totals verified against independently constructed content, on both surfaces: insights:mine returned {posts:2, likesReceived:3, repostsReceived:1, repliesReceived:3, followers:2, following:1} and the Insights screen's six tiles rendered the same six numbers. Replies the account authored are correctly excluded from its post count."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo",
+      "note": "Harness assertion m8-a02-insights-like-refresh passed (360.8 ms): after the other client's like, a refresh of Insights moved likes-received 4 -> 5 (refreshMs 106.4)."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "insights:mine returns exactly 7 trailing UTC days and today's bucket carried the post created today ({day:'2026-09-25', posts:1, likesReceived:1}); the Insights screen renders 7 day rows with a non-zero 'Today' row."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "All six inactive days are present with posts:0 and likesReceived:0 rather than omitted, and each renders an explicit zero on screen."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "The trailing-24h post with the most likes ranks first, in the API and on the Trending screen."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "A post backdated to 25 hours old and given the highest like count of all is absent from Trending in the API and on screen."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "Two posts tied on like count rank newest-first (ranks 2 and 3), in the API and on screen. Trending returns at most 10 items, all original posts."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "Shortened digest config (120 s periods, anchored 00:00:00 UTC), every client closed. Grader seeded one period with 2 new followers, 2 posts by a followed account, 2 unread DMs and 1 unread group message, then idled. Exactly one digest payload was logged for the target, with newFollowers 2, newPostsInFollowing 2, unreadMessages 3, unreadChats 2 and periodEnd exactly the period boundary 2026-09-25T03:40:00.000Z."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "A persona created in the same period with no activity received 0 digest payloads."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "The grader then idled through the following full period (ending 2026-09-25T03:42:00.000Z): the target's digest log still held exactly the one payload from the active period - a quiet period emits nothing."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "Grader killed the backend 65 s into a seeded period and restarted it 4 s later (back up at 69 s, well before the boundary). After the period closed, the user had exactly one digest for that period with the correct counts - no double emission across the restart."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "During the same period 5 extra messages were sent in a DM the target is not a member of. The target's digest counted unreadMessages 3 / unreadChats 2 - only its own authorized chats - so unauthorized traffic contributed nothing."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo",
+      "note": "Harness assertion m8-a13-same-account-message-live passed (179 ms, visibleMs 55): with one account signed in on two clients, a message sent on client 1 appeared live on client 2."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo",
+      "note": "Harness assertion m8-a14-cross-device-read-state passed (432.1 ms, clearVisibleMs 158.6): opening the conversation on client 1 cleared the unread indication on client 2."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo",
+      "note": "Harness assertion m8-a15-dual-offline-convergence passed (635 ms): both warm-offline clients composed one message each in the same chat and both settled in server-arrival order on reconnect (firstFlushMs 75.2, secondFlushMs 79.8), with no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo",
+      "note": "Harness assertion m8-a16-dual-offline-receipts passed (4.1 ms): after the dual-offline reconnect both flushed messages' receipts advanced normally (firstReadMs 3.8, secondReadMs 3.8)."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists for this lane. The M8 choreography segment summary records supplementalExternal ios-simulator-m8 as status \"not-recorded\", pass null, reason \"M8 simulator evidence is recorded separately from web green\". The frozen spec is explicit that a screenshot taken before process termination cannot satisfy m8-a17 and that missing M8 evidence never inherits a pass from the M8 web segment. Scored not-run (not passed for O1); the grader must not re-run the simulator."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists for this lane. The M8 choreography segment summary records supplementalExternal ios-simulator-m8 as status \"not-recorded\", pass null, reason \"M8 simulator evidence is recorded separately from web green\". The frozen spec is explicit that a screenshot taken before process termination cannot satisfy m8-a17 and that missing M8 evidence never inherits a pass from the M8 web segment. Scored not-run (not passed for O1); the grader must not re-run the simulator."
+    }
+  }
+}
