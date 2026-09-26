@@ -1,15 +1,18 @@
 # Snapback 5 — agent command sheet
 
-Read [LLP 4001](../llp/4001-snapback5-sql-front-end.rfc.md) (the current bet),
-then [LLP 4000](../llp/4000-snapback5.rfc.md) (the first bet, Shelved; under LLP 4001
-the runtime is the unchanged Snapback 4 binary, so LLP 4000's §4–§5 are history, not
-design of record), then
+Read [LLP 4001](../llp/4001-snapback5-sql-front-end.rfc.md) (the second bet,
+**Shelved** after pre-test 1 on 2026-09-25), then
+[LLP 4000](../llp/4000-snapback5.rfc.md) (the first bet, **Shelved**), then
 [LLP 3000.015](../llp/3000.015-shared-baseline-for-snapback5.spec.md), then
-this directory's [JOURNAL.md](./JOURNAL.md). Read [NOT-DOING.md](./NOT-DOING.md)
-as the historical LLP 4000 fence: its bans on authored sync/horizons/server
-markers and the README opening describe the shelved bet. For the current
-bet, LLP 4001 §2–§3 supersede them; no engine or predictor changes. LLPs for Snapback 5 are numbered **4000 and up**;
-extend LLP 4001 or an existing child before allocating another number.
+this directory's [JOURNAL.md](./JOURNAL.md) and [NOT-DOING.md](./NOT-DOING.md).
+**There is no live Snapback 5 bet.** This fence remains for the stubs, reports
+and tools. The [pre-test 1 record](./reports/20260925-pretest1/README.md)
+applies the registered stop at LLP 4001 §9 step 4; pre-test 2 and compiler
+work do not proceed. LLP 3000.015's additions live in Snapback 4.
+The README opening and the earlier NOT-DOING residency bans describe LLP
+4000's historical treatment; LLP 4001 used the unchanged Snapback 4 runtime.
+Neither shelved proposal authorizes implementation. LLPs for Snapback 5
+are numbered **4000 and up**; a new bet needs an explicit decision.
 
 This is a fenced sibling of Snapback 4. The repository-root Snapback 1–3
 gates, inventories, bootstraps and proofs do not apply here. None of
@@ -18,11 +21,12 @@ Snapback 4's gates applies inside this fence except its inherited
 shared `snapback4-*` crates follows that directory's own instructions and
 checks. A lane's explicit verification brief still applies to that lane.
 
-- Keep the engine shared. Shared authoring additions land in Snapback 4
-  first. LLP 4001's treatment is a separate SQL front end, not feature-gated
-  runtime hooks; the control is the unchanged Snapback 4 binary. Do not silently change the control's feature set,
+- Keep the engine shared. Shared authoring additions live in Snapback 4.
+  LLP 4001 proposed a separate SQL front end; its historical control is the
+  unchanged Snapback 4 binary. Do not silently change the control's feature set,
   client contract or predictor.
-- SQL authoring lowers to Quarry; one unchanged interpreter and partition stream. No
+- The shelved SQL design lowers to Quarry; it has no implemented transpiler.
+  The recorded design uses one unchanged interpreter and partition stream. No
   Snapback 1–3 runtime dependency. Copy source only deliberately, identify
   its origin in the journal and keep source files below 1,500 lines.
 - The journal is append-only and dated. Update governing LLPs with code

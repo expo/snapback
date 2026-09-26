@@ -1,0 +1,2320 @@
+{
+  "counts": {
+    "top": {
+      "pairs": 354,
+      "agreement": 334,
+      "disagreements": 20,
+      "resolved_disagreements": 1
+    },
+    "body": {
+      "pairs": 354,
+      "agreement": 299,
+      "disagreements": 55,
+      "resolved_disagreements": 29
+    },
+    "signature": {
+      "pairs": 37,
+      "agreement": 33,
+      "disagreements": 4,
+      "resolved_disagreements": 0
+    },
+    "table_child": {
+      "pairs": 546,
+      "agreement": 394,
+      "disagreements": 152,
+      "resolved_disagreements": 0
+    }
+  },
+  "totals": {
+    "builder": {
+      "top": {
+        "n": 354,
+        "raw": 191,
+        "post": 152,
+        "classes": {
+          "refused": 152,
+          "admitted": 79,
+          "rewritten": 45,
+          "canonicalized": 11,
+          "ignored": 67
+        }
+      },
+      "plpgsql_body": {
+        "n": 333,
+        "raw": 210,
+        "post": 201,
+        "classes": {
+          "rewritten": 14,
+          "admitted": 118,
+          "refused": 201
+        }
+      },
+      "sql_body": {
+        "n": 18,
+        "raw": 14,
+        "post": 14,
+        "classes": {
+          "refused": 14,
+          "rewritten": 3,
+          "admitted": 1
+        }
+      },
+      "do_body": {
+        "n": 13,
+        "raw": 9,
+        "post": 9,
+        "classes": {
+          "refused": 9,
+          "admitted": 4
+        }
+      },
+      "signature": {
+        "n": 37,
+        "raw": 36,
+        "post": 32,
+        "classes": {
+          "rewritten": 4,
+          "refused": 32,
+          "canonicalized": 1
+        }
+      },
+      "table_child": {
+        "n": 989,
+        "raw": 303,
+        "post": 262,
+        "classes": {
+          "refused": 262,
+          "admitted": 673,
+          "canonicalized": 12,
+          "rewritten": 42
+        }
+      },
+      "all_body": {
+        "n": 364,
+        "raw": 233,
+        "post": 224,
+        "classes": {
+          "rewritten": 17,
+          "admitted": 123,
+          "refused": 224
+        }
+      },
+      "nonignored_top": {
+        "n": 287,
+        "raw": 191,
+        "post": 152,
+        "classes": {
+          "refused": 152,
+          "admitted": 79,
+          "rewritten": 45,
+          "canonicalized": 11
+        }
+      },
+      "authored_plpgsql": {
+        "n": 327,
+        "raw": 210,
+        "post": 201,
+        "classes": {
+          "rewritten": 14,
+          "admitted": 112,
+          "refused": 201
+        }
+      }
+    },
+    "blind": {
+      "top": {
+        "n": 354,
+        "raw": 192,
+        "post": 152,
+        "classes": {
+          "refused": 152,
+          "admitted": 78,
+          "rewritten": 46,
+          "canonicalized": 11,
+          "ignored": 67
+        }
+      },
+      "plpgsql_body": {
+        "n": 327,
+        "raw": 222,
+        "post": 201,
+        "classes": {
+          "rewritten": 26,
+          "admitted": 100,
+          "refused": 201
+        }
+      },
+      "sql_body": {
+        "n": 18,
+        "raw": 15,
+        "post": 15,
+        "classes": {
+          "refused": 15,
+          "rewritten": 3
+        }
+      },
+      "do_body": {
+        "n": 9,
+        "raw": 9,
+        "post": 9,
+        "classes": {
+          "refused": 9
+        }
+      },
+      "signature": {
+        "n": 37,
+        "raw": 36,
+        "post": 32,
+        "classes": {
+          "rewritten": 4,
+          "refused": 32,
+          "canonicalized": 1
+        }
+      },
+      "table_child": {
+        "n": 548,
+        "raw": 299,
+        "post": 258,
+        "classes": {
+          "refused": 258,
+          "admitted": 237,
+          "canonicalized": 12,
+          "rewritten": 41
+        }
+      },
+      "all_body": {
+        "n": 354,
+        "raw": 246,
+        "post": 225,
+        "classes": {
+          "rewritten": 29,
+          "admitted": 100,
+          "refused": 225
+        }
+      },
+      "nonignored_top": {
+        "n": 287,
+        "raw": 192,
+        "post": 152,
+        "classes": {
+          "refused": 152,
+          "admitted": 78,
+          "rewritten": 46,
+          "canonicalized": 11
+        }
+      },
+      "authored_plpgsql": {
+        "n": 327,
+        "raw": 222,
+        "post": 201,
+        "classes": {
+          "rewritten": 26,
+          "admitted": 100,
+          "refused": 201
+        }
+      }
+    }
+  },
+  "changes": [
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:0:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:2:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:4:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:7:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:7:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:6:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:8:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:8:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:9:5",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:8:9",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:9:16",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:13:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:12:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:13:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:12:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:14:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:13:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:14:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:13:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:14:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:14:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:20:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:20:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:21:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:22:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:22:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:21:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:23:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:23:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:23:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:24:5",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:24:8",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:23:8",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:24:13",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:25:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:26:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:26:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:25:6",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:31:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:31:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:32:5",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:34:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:35:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:37:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:38:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:38:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:37:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:40:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:41:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:44:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:45:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:45:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:44:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:52:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:53:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:54:5",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:54:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:55:6",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:55:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:56:5",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:56:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/schema.sql:57:3",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:57:6",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:80:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/mutations.sql:0:15",
+      "group": "plpgsql_body",
+      "rule": "B06 / A-BODY-CONTEXT",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/mutations.sql:0:54",
+      "group": "plpgsql_body",
+      "rule": "B06 / A-BODY-CONTEXT",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/mutations.sql:0:90",
+      "group": "plpgsql_body",
+      "rule": "B06 / A-BODY-CONTEXT",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/mutations.sql:0:103",
+      "group": "plpgsql_body",
+      "rule": "A-IN-LIST",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/mutations.sql:0:105",
+      "group": "plpgsql_body",
+      "rule": "A-IN-LIST",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/mutations.sql:0:109",
+      "group": "plpgsql_body",
+      "rule": "A-IN-LIST",
+      "before": "rewritten",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/m7-migration.sql:5:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/scripts/m7-migration.sql:6:4",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/m7-migration.sql:5:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "builder",
+      "id": "astra-supabase/scripts/m7-migration.sql:8:2",
+      "group": "table_child",
+      "rule": "B04 (reference type required)",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/m7-migration.sql:7:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/scripts/m7-migration.sql:7:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:0",
+      "group": "top",
+      "rule": "A-EXTENSION / B25",
+      "before": "refused",
+      "after": "ignored",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:1:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:2:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:3:16",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:4:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:7:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:7:11",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:11:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:13:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:16:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:16:12",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:18:4",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:19:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:21:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:21:15",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:24:6",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:26:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:27:4",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:28:4",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:29:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:31:6",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:32:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:33:4",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:34:4",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:35:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:35:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:37:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:0:0",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:0:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:1:0",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:1:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:1:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:2:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:2:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:2:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:2:8",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:7:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:7:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:7:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:8:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:8:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:8:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:10:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:10:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:10:6",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:11:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:11:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:11:8",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:13:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:13:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:13:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:13:4",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:13:11",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:15:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:15:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:15:8",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:16:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:16:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:16:7",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:17:0",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:17:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:18:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:18:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:18:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:19:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:19:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:21:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:22:1",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:22:3",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:23:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:23:7",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:25:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:25:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/schema.sql:26:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:49",
+      "group": "top",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:53",
+      "group": "top",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:55",
+      "group": "top",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:59",
+      "group": "top",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:61",
+      "group": "top",
+      "rule": "A-EXPIRY",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:63",
+      "group": "top",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rls.sql:65",
+      "group": "top",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:0:0",
+      "group": "signature",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:0:1",
+      "group": "sql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:1:0",
+      "group": "signature",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:1:1",
+      "group": "sql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:2:0",
+      "group": "signature",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:2:1",
+      "group": "sql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "rewritten",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:0:6",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:0:7",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:0:8",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:0:9",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:4:17",
+      "group": "plpgsql_body",
+      "rule": "B21 / A-BODY-CONTEXT",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:4:21",
+      "group": "plpgsql_body",
+      "rule": "A-NULL",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/rpcs.sql:9:1",
+      "group": "plpgsql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:0:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:0:5",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:1:0",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:1:2",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:1:8",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:3:1",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:3:2",
+      "group": "table_child",
+      "rule": "A-KEYS / B01",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:3:4",
+      "group": "table_child",
+      "rule": "A-UUID / B02",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:6:0",
+      "group": "table_child",
+      "rule": "B17 (\u00a77 final-catalog enum replacement)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "builder",
+      "id": "muse-supabase/db/migrate-m7.sql:10:1",
+      "group": "signature",
+      "rule": "B22 (creation alias)",
+      "before": "admitted",
+      "after": "canonicalized",
+      "raw_before": false,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:10:10",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:14:5",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT",
+      "before": "admitted",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:15:6",
+      "group": "plpgsql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:15:9",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:16:6",
+      "group": "plpgsql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:16:14",
+      "group": "plpgsql_body",
+      "rule": "B06 / A-BODY-CONTEXT",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:16:21",
+      "group": "plpgsql_body",
+      "rule": "B06 / A-BODY-CONTEXT",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:17:8",
+      "group": "plpgsql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:19:1",
+      "group": "plpgsql_body",
+      "rule": "A-PROBE-CLASS / B14 / B16",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:22:7",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:22:8",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:22:9",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:22:10",
+      "group": "plpgsql_body",
+      "rule": "A-BODY-CONTEXT (no signature taint)",
+      "before": "refused",
+      "after": "admitted",
+      "raw_before": true,
+      "raw_after": false
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:2",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "canonicalized",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "astra-supabase/schema.sql:4",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "canonicalized",
+      "after": "refused",
+      "raw_before": false,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:11",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:13",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:18",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:19",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:2",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:24",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:26",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:27",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:33",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:37",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "grok-supabase/server/schema.sql:4",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "rewritten",
+      "after": "refused",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:0",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:1",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/functions.sql:2",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "refused",
+      "after": "rewritten",
+      "raw_before": true,
+      "raw_after": true
+    },
+    {
+      "family": "blind",
+      "id": "muse-supabase/db/migrate-m7.sql:6",
+      "group": "top",
+      "rule": "\u00a77 worst-child propagation",
+      "before": "refused",
+      "after": "canonicalized",
+      "raw_before": true,
+      "raw_after": false
+    }
+  ]
+}

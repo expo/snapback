@@ -989,6 +989,10 @@ shelved derived-residency design); only §4.5 here, as a restatement of Snapback
 4's predictor, is cited by it. Its §9 instruments are reused with the language
 as the treatment (corrected 2026-09-25 after LLP 4001's round-1 reviews).
 
+That second bet also stopped on 2026-09-25: pre-test 1 fired all three
+registered predicates in both families, and [LLP 4001 §13](./4001-snapback5-sql-front-end.rfc.md#13-shelving-record)
+records its shelving at step 4.
+
 ## Non-claims
 
 This RFC does not claim the surface of §3 is sufficient for every

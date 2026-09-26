@@ -1,8 +1,17 @@
 # What Snapback 5 does not do
 
-Scope comes from [LLP 4000 §3.2 and Non-claims](../llp/4000-snapback5.rfc.md).
-Moving an item onto the doing-list needs an explicit decision recorded in
-that LLP and the journal, with the scope it replaces.
+Both Snapback 5 bets are Shelved; there is no live implementation scope.
+Moving an item onto the doing-list needs a new explicit decision recorded
+in the governing LLP and the journal, with the scope it replaces.
+
+- A SQL front end over the Quarry engine: [LLP 4001](../llp/4001-snapback5-sql-front-end.rfc.md)
+  was shelved on **2026-09-25** after both pre-test 1 families exceeded the
+  registered refusal thresholds and found no preserving spelling for Muse's
+  counters, message windows and feed. The [record](./reports/20260925-pretest1/README.md)
+  stops at step 4; pre-test 2 and compiler work are not run.
+
+The remaining list records the first bet's historical fence from
+[LLP 4000 §3.2 and Non-claims](../llp/4000-snapback5.rfc.md):
 
 - Authored `sync`, `sync to`, `sync public`, `sync last N by` or horizons.
   Declared queries, the warm set and one depth step determine residency;

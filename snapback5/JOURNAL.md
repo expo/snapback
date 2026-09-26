@@ -176,3 +176,30 @@ witnesses. LLP 4001 §7 now records pre-test 1 as authorized from
 `da443e4d44`, subject to its instrument freeze. This recheck stops before
 that test and makes no transpiler, equivalence or runtime-performance claim.
 Root `./ref-check --verbose` passes with 0 errors and 0 unchecked refs.
+
+
+## 2026-09-25 — Pre-test 1 stop; both Snapback 5 bets Shelved
+
+Recorded the [builder Astra and blind Grok 4.7 replay](./reports/20260925-pretest1/README.md),
+verified both hash receipts, and resolved the 27 builder readings and 25
+blind ambiguity texts. Original class disagreements: 20 top-level, 55 body,
+4 signature, 152 column/constraint bundles. The differing parser versions,
+index bases, attached column attributes, SQL/DO bodies and synthetic returns
+are reconciled explicitly; the original classifier records remain unchanged.
+
+After resolution the builder refuses 152/354 top-level (42.94%) and 201/333
+routine-body (60.36%); blind Grok refuses 152/354 top-level (42.94%) and
+225/354 combined-body (63.56%). Original blind rates were 143/354 (40.40%)
+and 242/354 (68.36%). No resolution moves a stop predicate. Both exceed
+one third under every reported denominator and both find no preserving
+spelling for Muse's bump_counters, enforce_message_windows and feed.
+is_member remains online-only; the Astra counter passes under the
+manifested-writer A-COUNTER-SCOPE reading.
+
+LLP 4001 is Shelved at §9 step 4; pre-test 2 is not run because those
+failing counter, edit-window and ordered-pagination behaviors are what its
+messaging task would exercise. Removed the current/ link and updated the
+root/fence pointers beside LLP 4000's historical shelving. The fence remains
+for stubs, reports and tools; there is no live Snapback 5 bet. LLP 3000.015's
+additions and accounting law remain in Snapback 4. No compiler, runtime,
+guide page, review artifact or publication changed.

@@ -1,11 +1,12 @@
 # LLP 4001: Snapback 5, second bet — the same engine under a language builders already know
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Shelved
 **Role:** Root of the Snapback 5 corpus's second bet (LLP 4000, the first, is Shelved)
 **Systems:** A SQL front-end for the Snapback 4 engine: Postgres's own parser, a resolver, a lowering to the Quarry declaration AST, a document printer, and the unchanged `snapback4` binary; policies as rules; a residency spelling; views and maintained aggregates; SQL and plpgsql subsets as queries, mutations and jobs; the guide; the pre-tests and the calibration protocol
 **Author:** Claude Fable 5.1, at Charlie Cheever's request ("let's try it", 2026-09-25)
 **Date:** 2026-09-25
+**Revised:** 2026-09-25 (pre-test 1 ran in the builder and blind third families and its registered stop fired; Shelved beside LLP 4000 at step 4; the three LLP 3000.015 additions remain landed Snapback 4 work)
 **Revised:** 2026-09-25 (step 3 shared-baseline recheck at `da443e4d44`: all nine lowered projects bind, including field authority with both visibility forms, sequence and row-keyed count; their three rows return from ✗ to ≈ without spelling changes; pre-test 1 authorized from this commit)
 **Revised:** 2026-09-25 (six-lane reference record: five complete lanes, terminated Opus Supabase, timestamp-derived clocks, grades and holistic scores); 2026-09-25 (step 3 verification after revision 4: executable SQL calls and actual Quarry binding; effect WorkDecl spelling, boolean-rule lowering, bounded reads, argument locals and missing shared-baseline additions corrected or marked GAP; transcript under snapback5/reports); 2026-09-25 (revision 4, after the round-3 reviews: finite SQL spellings and routine classes, in-process equivalence, re-registered pre-tests, mechanism-not-shown and joint power; §12 records every disposition; verification follows separately); 2026-09-25 (revision 3, after the round-2 delta reviews, all NOT READY and all saying "close, nothing needs a redesign" — [Astra](./reviews/4001-snapback5-sql-front-end.astra.md), [Grok](./reviews/4001-snapback5-sql-front-end.grok.md), [Opus](./reviews/4001-snapback5-sql-front-end.opus.md): every Snapback fact that is not legal Postgres after the stubs respelled as a `select snapback.…(…)` call or a `comment on`; reference columns, the principal type and the scalar mapping given rows; the update-rule combination stated as one formula; the transition form made the ordinary `returns trigger` function; `immutable` as a call that binds every writer; the document printer, the resolver and two-level parsing named as lane work; the equivalence gate redefined on the bound IR of the original pinned `.q` with the unchanged tools as oracle; the null ruling decided; the pre-tests re-registered with a corpus manifest, per-kind classes, per-instance idiom stops and margins; §8's floors restored to LLP 4000's design with the all-zero case and the N = 3 power stated; #19's forms given rows or GAPs; §12 records round-2 dispositions; **this is the bounded stop: the document goes to the author with the round-3 verdicts**); 2026-09-25 (revision 2); 2026-09-25 (§11 ruling); 2026-09-25 (initial)
 **Related:** [LLP 4000](./4000-snapback5.rfc.md) (the first bet, Shelved; §13 corrected again by this revision), [LLP 3000](./3000-snapback4.explainer.md), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) §5–§6, [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md), [LLP 3000.015](./3000.015-shared-baseline-for-snapback5.spec.md), [LLP 3000.009](./3000.009-general-purpose-backend.rfc.md) §6.2 (server-only SQL reads over declared projections; not a relief valve for this bet), [LLP 3000.012](./3000.012-application-still-owns-derived-data.research.md), [LLP 0329](./0329-agent-native-rebuild-diagnosis.research.md) and [LLP 0252](./0252-convex-familiar-authoring-profile.rfc.md), the [September 5 three-backend run](../benchmarks/runs/2026-09-05-clique-full-3x3/README.md)
@@ -644,6 +645,50 @@ passing is permission to build, not evidence of superiority.
 **The reading judgment** (three families read the pinned SQL program cold)
 is a reported number and gates nothing.
 
+### Pre-test 1 ran — 2026-09-25
+
+The instrument was frozen before replay: the rubric is this section at
+`da443e4d44`, SHA-256 `ed4b3f6136e8049d7132c11838a539caffa530aacecb6034d03bb9cfdc1fa7b5`,
+and the nine-file manifest is [freeze.json](../snapback5/reports/20260925-pretest1/freeze.json).
+Both families' hash records match it. The [comparison and complete disagreement record](../snapback5/reports/20260925-pretest1/README.md)
+preserves original submissions, resolves all 27 builder readings and 25
+blind ambiguity texts, and reports each count effect before its unblinded
+table. The recording pass fixed its resolution rules before reading blind
+totals; the author's draft had already disclosed builder rates, so no
+claim of a wholly blinded recorder is made.
+
+Both counted Postgres AST units. Builder: pglast 7.10 / PostgreSQL 17.4;
+blind third family: pglast 6.2 / libpg_query 16.1. The freeze did not pin the
+parser build. Muse prefix substitution (`clqfm_` / `ns_`) is preparation,
+not classification. Both have 354 top-level statements and 37 signatures;
+builder has 333 routine PL/pgSQL bodies and 989 table/ALTER children;
+blind has 354 combined authored PL/pgSQL/SQL/DO bodies and 548 bundled
+children. The linked comparison reconciles these by statement content.
+
+| Family, after resolution | Top-level post-rewrite refusal | Body post-rewrite refusal | Raw top-level | Raw body | Idioms without an admitted spelling |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Builder (Astra, gpt-6-astra xhigh) | 152/354 (42.94%) | 201/333 (60.36%) | 191/354 (53.95%) | 210/333 (63.06%) | Muse `bump_counters`, `enforce_message_windows`, `feed` |
+| Blind third family (Grok 4.7 xhigh) | 152/354 (42.94%) | 225/354 (63.56%) | 192/354 (54.24%) | 246/354 (69.49%) | The same three instances |
+
+The builder's headline rates are unchanged by resolution; the original
+blind rates were top 143/354 (40.40%), body 242/354 (68.36%), raw top
+198/354 (55.93%), raw body 269/354 (75.99%). Exact probe inlining remains
+rewrite work but is not a raw refusal when its spelling was already
+recognized; the original blind raw table counted all rewrites as refusals.
+No resolution changed a stop predicate. Original class disagreements were
+20 top-level, 55 body, 4 signature and 152 column/constraint bundles.
+
+**Stop rules:** top-level refusal exceeds one third in both families
+(152/354, or 152/287 excluding ignored boilerplate); body refusal exceeds
+one third in both families under every reported routine/SQL/DO and
+synthetic-return denominator; the same three named instances have no
+behavior-preserving admitted spelling. `is_member` is admitted online-only
+in both; the Astra like counter passes in both under the resolved
+A-COUNTER-SCOPE reading of manifested insert/delete writers. **The registered
+stop fires.** Per §9 and the Non-claims, the bet stops at step 4; pre-test 2
+is not run because the three failing idioms expose the counter, edit-window
+and ordered-pagination behaviors its messaging task would exercise.
+
 ## 8. Evaluation, pre-registered
 
 - **Treatment:** the transpiled SQL surface, plus what it still reads in
@@ -896,6 +941,56 @@ chose revision 4 and step 3 verification; no new review verdict is claimed.
 | Masking sample size and reused holdout (Astra I; Grok 7) | Development dictionary then independent balanced 40-note final audit, threshold/uncertainty, fresh audit after any revision; no claim of proven blindness. |
 | Step order/instruments; behavior-check cross-reference (Astra/Opus) | §9 freezes pre-test instruments before step 4, remaining instruments before lanes; §8 points behavior checks to step 6. Current commission stops after step 3. |
 | Fence points at shelved runtime (all three) | Existing AGENTS pointer retained and conflicting bullets superseded by LLP 4001 §2/3; README/NOT-DOING historical scope called out in AGENTS because those files are outside this commission's edit set. |
+
+### Pre-test 1
+
+2026-09-25: the [two-family corpus replay](../snapback5/reports/20260925-pretest1/README.md)
+ran on the frozen §3/§7 instrument after the shared-baseline recheck.
+Builder Astra and blind Grok 4.7 both exceed one third on top-level and
+body post-rewrite refusals, before and after the recorded ambiguity
+resolutions, and both fail the same three named instances. All three stop
+predicates fire. §7 records original/resolved totals and denominator
+sensitivities; §13 records the authorized shelving. This is pre-test
+evidence, not a fourth design-review verdict. The existing reviews remain
+unchanged.
+
+## 13. Shelving record
+
+**Shelved, 2026-09-25.** The registered pre-test 1 stop fires in both
+families (§7). Agents writing this Supabase corpus relied on Postgres
+behavior the proposed front end cannot preserve within its finite forms:
+policy-authorized retargeting with history-dependent counters,
+runtime-configurable edit/delete windows covering direct and privileged
+writes, and an ordered feed over mutable mapped columns with supplied
+viewer and keyset continuation. Familiar syntax does not remove these
+semantic restrictions. This is the registered investment stop, not a
+calibrated falsification of SQL authoring in general.
+
+The bet stops at §9 step 4. Pre-test 2 is not run because the three failing
+idioms expose the counter, edit-window and ordered-pagination behaviors its
+messaging task would exercise. No SQL card, transpiler lanes, maturity
+comparison, fourth review round or publication follows from this record.
+The registered text and independent classifications remain intact beside
+the outcome. LLP 4000 and LLP 4001 are both Shelved; there is no live
+Snapback 5 bet.
+
+**What survives:** LLP 3000.015's three additions, present at `da443e4d44`,
+and its accounting law remain landed Snapback 4 work; the
+[six-lane reference record](../benchmarks/runs/2026-09-24-clique-reference-lanes/README.md)
+remains reference evidence; the
+[verified form table and transcript](../snapback5/reports/20260925-form-table-postgres17.md),
+stubs, classification instruments, reviews and concept-count tools remain
+available as records. Keeping them is not a claim that a SQL front end was
+implemented or that either bet passed.
+
+**What would justify a new bet:** independently motivated evidence that
+builders stay within an admitted subset, or an explicitly authorized
+different engine/semantic contract that preserves the needed SQL behavior.
+Either requires a new registered experiment, not optional retesting to
+upgrade this result. This bet forbade engine changes. The alternative null
+lowering discussed in §11 does **not** itself require an engine change;
+it concerns resolver/lowering complexity and would not by itself preserve
+the three failed idioms.
 
 ## Non-claims
 
