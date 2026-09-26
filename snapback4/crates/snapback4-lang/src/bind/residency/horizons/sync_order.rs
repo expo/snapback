@@ -46,6 +46,9 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             let cursor_index = index.uses_column("id") || index.unique
                 && index.columns().iter().all(|column| table.columns.get(column).is_some_and(|ty| !ty.is_optional()));
             if scan.merge_site.is_none()
+                // Presence branches share a site, so page_sources may hold
+                // another branch's page without this variant's predicate.
+                && scan.variant.is_none()
                 // A page needs an unpinned component; a point replacement
                 // would change the query's result type.
                 && prefix < index_columns.len()

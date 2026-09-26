@@ -7,6 +7,11 @@ pub(super) const PAGE: &str = "messages where .conversationId = conversationId l
 pub(super) fn apply_repair(source: &str, original: &str) -> String {
     let bound = bind(source);
     let note = bound.notes.iter().find(|n| n.code == "N_SYNC_ORDER").expect("order note");
+    apply_note_repair(source, original, note)
+}
+
+fn apply_note_repair(source: &str, original: &str, note: &snapback4_lang::Diagnostic) -> String {
+    let bound = bind(source);
     let quoted: Vec<_> = note.rewrite.split('`').skip(1).step_by(2).collect();
     let page = *quoted.last().expect("paste-ready page");
     assert!(page.starts_with("messages["), "{note}");
@@ -79,15 +84,25 @@ fn engine(source: &str) -> Engine {
 }
 
 fn page(e: &mut Engine, cursor: Value) -> snapback4_core::QueryOutcome {
-    e.query("thread", Context::new("alice", [("conversationId".into(), id("room")), ("c".into(), cursor)].into()).at(1000)).unwrap()
+    page_with(e, cursor, &[])
+}
+
+fn page_with(e: &mut Engine, cursor: Value, extra: &[(&str, Value)]) -> snapback4_core::QueryOutcome {
+    let mut args = [("conversationId".into(), id("room")), ("c".into(), cursor)].into_iter().collect::<std::collections::BTreeMap<_, _>>();
+    args.extend(extra.iter().map(|(name, value)| ((*name).into(), value.clone())));
+    e.query("thread", Context::new("alice", args).at(1000)).unwrap()
 }
 
 fn drain(e: &mut Engine, second_page: bool) -> Vec<Value> {
+    drain_with(e, second_page, &[])
+}
+
+fn drain_with(e: &mut Engine, second_page: bool, extra: &[(&str, Value)]) -> Vec<Value> {
     let mut cursor = Value::Null;
     let mut rows = Vec::new();
     let mut pages = 0;
     loop {
-        let result = page(e, cursor);
+        let result = page_with(e, cursor, extra);
         assert!(result.complete, "{result:?}");
         rows.extend(result.data.as_array().unwrap().iter().cloned());
         pages += 1;
@@ -98,20 +113,48 @@ fn drain(e: &mut Engine, second_page: bool) -> Vec<Value> {
     rows
 }
 
+fn canonical(rows: &[Value]) -> Vec<String> {
+    let mut values = rows.iter().map(|row| serde_json::to_string(row).unwrap()).collect::<Vec<_>>();
+    values.sort(); values
+}
+
 fn same_population(source: &str, original: &str, second_page: bool) -> String {
     let repaired = apply_repair(source, original);
     let fixed = bind(&repaired);
     assert!(fixed.notes.is_empty(), "{:?}", fixed.notes);
     let before = drain(&mut engine(source), second_page);
     let after = drain(&mut engine(&repaired), second_page);
-    let canonical = |rows: &[Value]| {
-        let mut values = rows.iter().map(|row| serde_json::to_string(row).unwrap()).collect::<Vec<_>>();
-        values.sort(); values
-    };
     assert_eq!(canonical(&before), canonical(&after), "exact same rows across changed page order");
     let ordered: Vec<_> = after.iter().map(|row| (row.field("at").unwrap().as_int().unwrap(), row.field("ordinal").unwrap().as_int().unwrap(), row.field("id").unwrap().as_str().unwrap())).collect();
     assert!(ordered.windows(2).all(|pair| pair[0] > pair[1]), "window order: {ordered:?}");
     repaired
+}
+
+#[test]
+fn optional_filter_variants_get_words_for_present_and_null_arguments() {
+    for (name, ty, predicate, present, expected) in [
+        ("sender", "principal", "sender = null or .sender = sender", id("alice"), vec!["low", "a", "b", "c", "d", "e"]),
+        ("lo", "int", "lo = null or .ordinal >= lo", Value::Int(2), vec!["b", "c", "d", "e", "sender"]),
+    ] {
+        let original = format!("messages where .conversationId = conversationId and ({predicate}) first 2 by .ordinal after c");
+        let source = named().replace("query thread(", &format!("query thread({name}: {ty} ?, ")).replace(PAGE, &original);
+        let bound = bind(&source);
+        let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_SYNC_ORDER").collect();
+        assert!(!notes.is_empty());
+        for value in [present, Value::Null] {
+            let args = [(name, value.clone())];
+            let before = drain_with(&mut engine(&source), true, &args);
+            assert_eq!(ids(&before), if value == Value::Null { vec!["low", "a", "b", "c", "d", "e", "sender"] } else { expected.clone() });
+            for note in &notes {
+                if note.rewrite.contains('`') {
+                    let repaired = apply_note_repair(&source, &original, note);
+                    let after = drain_with(&mut engine(&repaired), true, &args);
+                    assert_eq!(canonical(&before), canonical(&after), "{name}={value:?}: {note}");
+                }
+            }
+        }
+        words_only(&source);
+    }
 }
 
 #[test]
