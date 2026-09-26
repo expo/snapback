@@ -1090,10 +1090,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           settling.add(entry.id);
           ownsSettlement = true;
           try {
+            const revision = credentialRevision;
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
             const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }>; qualified?: boolean } | undefined)?.receipt;
             if (receipt) { const known = await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
+            if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const };
             ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
             if (response.ok) {
@@ -1446,7 +1448,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       exitDone = sendOnExit(entries, request.headers, () => {
         const started = (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend();
         if (started) pending.notify();
-        return started;
+        return started && !closed && !sessionDead && !rotating && credentialRevision === request.revision;
       });
     });
   }

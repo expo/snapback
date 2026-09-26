@@ -472,6 +472,8 @@ export function createClient(options: ClientOptions): Client {
         const entry = pending.find(entry => entry.id === (body as { id: string }).id);
         if (entry) { entry.state = "sent"; delete entry.reason; pendingEvents.notify(); }
       }
+      // A synchronous dispatch subscriber can end or rotate this session.
+      if (closed || !credentials || storeRefusal || refreshing || revision !== credentialRevision) return { ok: false };
       const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
       const json = (await response.json()) as Record<string, unknown>;
       // Late bodies are consumed without adoption. A parsed effect response

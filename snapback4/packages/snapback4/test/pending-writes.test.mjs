@@ -13,6 +13,7 @@ import { memorySessionStore } from "../dist/auth.js";
 import { onlineCustody } from "../dist/app-online.js";
 import { prepareClient } from "../dist/client-start.js";
 import { guardClient } from "../dist/app-client.js";
+import { ownDispatch } from "../dist/online-dispatch.js";
 
 const binary = process.env.SNAPBACK4_BIN ?? new URL("../../../target/debug/snapback4", import.meta.url).pathname;
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
@@ -59,7 +60,8 @@ async function fixture(t, tier) {
     assert.deepEqual(errors, []);
   });
   await until(() => { if (server.exitCode != null) throw Error(log); return url; }, "server startup");
-  const device = tier === "process" ? processDevice({ dir: join(dir, "devices"), binary }) : webDevice({ wasm, persist: memoryPersistence() });
+  const opener = tier === "process" ? processDevice({ dir: join(dir, "devices"), binary }) : webDevice({ wasm, persist: memoryPersistence() });
+  const cores = [], device = { async open(...args) { const core = await opener.open(...args); cores.push(core); return core; } };
   const transport = async (input, init) => {
     if (!new URL(input).pathname.startsWith("/m/")) return fetch(input, init);
     const body = JSON.parse(init.body); posts.push(body);
@@ -80,9 +82,38 @@ async function fixture(t, tier) {
     if (!prepared) { await start(); if (local) await client.sync(); }
     return { client, start };
   };
-  return { open, posts, gates, pass() { gateWrites = false; },
+  return { open, posts, gates, cores, pass() { gateWrites = false; },
     rows: () => fetch(url + "/q/records", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: '{"args":{}}' }).then(r => r.json()).then(r => r.data),
   };
+}
+
+for (const tier of ["online", "wasm", "process"]) for (const end of ["signOut", "close"]) {
+  test(`${tier}: dispatch subscriber ${end} prevents the POST`, async t => {
+    const f = await fixture(t, tier), { client } = await f.open();
+    f.pass(); // An accidental POST would reach the real server.
+    let dispatching = false, ending, notices = 0;
+    if (tier === "online") ownDispatch(client, { observe() {}, async before() { dispatching = true; } });
+    else {
+      const core = f.cores[0], call = core.call.bind(core);
+      t.mock.method(core, "call", async (...args) => {
+        const reply = await call(...args);
+        if (args[0].op === "begin_send" && !reply.denied) dispatching = true;
+        return reply;
+      });
+    }
+    const stop = client.onPendingWrites(() => {
+      if (!dispatching) return;
+      notices++; stop(); ending = client[end]();
+    });
+    const result = await client.mutate(op("record"), { n: 1 }, { waitSeconds: 0 });
+    await until(() => !!ending, "dispatch subscriber never ended the client");
+    await ending;
+    assert.equal(notices, 1);
+    assert.equal(result.state, "pending", "dispatch shutdown preserves admitted custody");
+    if (end === "signOut") assert.equal(client.viewer(), null);
+    assert.deepEqual(f.posts, [], "no POST starts after the dispatch callback ends the client");
+    assert.deepEqual(await f.rows(), [], "the server must not execute the cancelled dispatch");
+  });
 }
 
 for (const tier of ["online", "app-online", "wasm", "process"]) for (const status of [409, 503]) {
