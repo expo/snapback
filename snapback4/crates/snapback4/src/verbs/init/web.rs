@@ -18,6 +18,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
 import { App } from "./App.tsx";
 createRoot(document.getElementById("root")!).render(<App />);
 "#.to_owned()),
+        ("src/intents.ts", include_str!("../../../../../apps/chat/src/intents.ts").to_owned()),
         ("src/state.ts", include_str!("../../../../../apps/chat/src/state.ts").to_owned()),
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("index.html", include_str!("../../../../../apps/chat/index.html").to_owned()),

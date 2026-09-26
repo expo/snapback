@@ -23,7 +23,7 @@ import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
-import { MutationIds, WriteHistory } from "./writes.ts";
+import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
@@ -1249,10 +1249,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (closed) { settled.delete(id); return pending; }
         void flush();
-        if (link !== "online") { settled.delete(id); return pending; }
+        const wait = mutationWaitSeconds(options?.waitSeconds) ?? 4;
+        if (link !== "online" || wait === 0) { settled.delete(id); return pending; }
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
-          const outcome = await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>;
+          const outcome = await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), wait * 1_000); })]) as Write<R>;
           if (outcome.state === "pending" && closed) { await closingResponses.done; return response.write(outcome); }
           return outcome;
         }
