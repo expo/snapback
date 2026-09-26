@@ -63597,3 +63597,13 @@ gated on `native` where the module is gated on `wasm-host`; `a371edf776`).
 
 Report: `reports/20260926-publication-0.4.3/REPORT.md`. Calibration #22 on
 0.4.3 started at 12:05Z (`~/clique-sb4-20260926-astra-cal22`).
+
+## 2026-09-26 — LLP 3000.008.002.000: the full suite on the landed commit
+
+`scripts/test.sh` on `992cec75cb` (the landing), run on the Apartment M5 Pro mini
+because the black M5 was publishing 0.4.3 and then running calibration #22:
+`== 0 failure(s) in 1000 s`; every stage ok; Rust 3,590 passed, 0 failed, 19
+ignored across 942 result lines; Node 2,312 tests, 2,303 passed, 0 failed, 9
+skipped (the optional published-fence, managed-profile and pinned-binary
+qualifications). 0.4.3 was cut from `8442e53ede` and does not contain this
+landing; the next publication does.
