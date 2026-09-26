@@ -570,10 +570,9 @@ fn full_poll_admission_preserves_short_request_progress() {
     extra.write_all(b"GET /changes?wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\n\r\n").unwrap();
     assert_closed(&mut extra);
     assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
-    *host.shared.seq.lock().unwrap() = 1;
-    host.shared.committed.notify_all();
-    lock(&host.shared.wake).seq=1;
-    host.shared.polls.notify_all();
+    let reply = body(&host.request("POST", "/seed", "x-snapback-persona: alice\r\n",
+        r#"[{"table":"items","row":{"id":"wake","n":1,"photo":null}}]"#));
+    assert_eq!(reply["seeded"], 1, "{reply}");
     wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
 }
 
@@ -650,10 +649,13 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
         status(&host.request("POST", "/auth/logout", &bearer, "{}")),
         200
     );
-    *host.shared.seq.lock().unwrap() = 1;
-    host.shared.committed.notify_all();
-    lock(&host.shared.wake).seq=1;
-    host.shared.polls.notify_all();
+    {
+        let mut engine = lock(&host.shared.engine);
+        engine.seed([("items".into(), snapback4_core::value::object([
+            ("id", snapback4_core::Value::Id("wake".into())), ("n", snapback4_core::Value::Int(1)),
+        ]))]).unwrap();
+        host.shared.durable_committed(&engine);
+    }
     assert_eq!(status(&poll.join().unwrap()), 401);
 }
 

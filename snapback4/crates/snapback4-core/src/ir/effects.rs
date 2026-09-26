@@ -12,10 +12,10 @@ pub struct Effects {
     pub emit: bool,
 }
 impl Effects {
-    pub fn of(program: &Program) -> Self {
+    pub fn of(program: &Program, schema: &crate::schema::Schema) -> Self {
         let mut effects = Self::default();
         effects.statements(&program.body);
-        effects.renews = renewal::prove(program);
+        effects.renews = renewal::prove(program, schema);
         effects
     }
     fn write(&mut self, table: &str) {

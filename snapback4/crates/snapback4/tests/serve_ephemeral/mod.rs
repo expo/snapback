@@ -202,7 +202,7 @@ fn rate_and_input_refusals_are_http_200_failed_under_dev_and_serve() {
         let headers = format!("Authorization: Bearer {token}\r\n");
         // Drain a deterministic bucket at one instant; the HTTP request checks
         // that same session and preserves the failed wire status under both hosts.
-        let key = snapback4_core::value::digest(&format!("Bearer {token}"));
+        let key = snapback4_core::value::digest(&token);
         let now = Instant::now();
         for _ in 0..40 {
             assert!(h.shared.ephemeral_rate.admit(key.clone(), now));
@@ -220,6 +220,12 @@ fn rate_and_input_refusals_are_http_200_failed_under_dev_and_serve() {
         assert_eq!(reply["why"]["family"], "auth");
         assert_eq!(reply["why"]["retryable"], true);
         assert!(reply.get("seq").is_none());
+        for spaces in 2..=7 {
+            let headers = format!("Authorization: Bearer{}{token}  \r\n", " ".repeat(spaces));
+            let reply = body(&h.request("POST", "/m/setTyping", &headers,
+                r#"{"args":{"roomId":"r","payload":""}}"#));
+            assert_eq!(reply["why"]["code"], "E_RATE_LIMIT", "spacing {spaces}: {reply}");
+        }
     }
 }
 #[test]
@@ -368,7 +374,8 @@ fn bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_l
         let generation = engine.generation();
         assert_eq!(engine.seq().unwrap(), before);
         *lock(&h.shared.bound) = b;
-        h.shared.publish_engine(&engine);
+        // Pause before serve_adoption publishes its other metadata: the hub
+        // rebind must already have published the new generation atomically.
         let (done, result) = mpsc::channel();
         thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
         let reply = result.recv_timeout(Duration::from_millis(250));
@@ -431,4 +438,37 @@ fn admission_rechecks_classification_when_adoption_passes_the_early_route_check(
     }
     drop(h);
     std::fs::remove_dir_all(dir.unwrap()).unwrap();
+}
+
+#[test]
+fn durable_publication_does_not_acquire_the_ephemeral_hub() {
+    let (h, dir) = host(true);
+    let hub = h.shared.ephemeral.lock().unwrap();
+    let shared = h.shared.clone();
+    let (done, result) = mpsc::channel();
+    let worker = thread::spawn(move || {
+        shared.publish_engine(&lock(&shared.engine));
+        done.send(()).unwrap();
+    });
+    let outcome = result.recv_timeout(Duration::from_millis(250));
+    drop(hub);
+    worker.join().unwrap();
+    outcome.expect("publishing durable state cannot wait for an ephemeral program");
+    drop(h);
+    std::fs::remove_dir_all(dir.unwrap()).unwrap();
+}
+
+#[test]
+fn action_admission_notifies_held_polls_without_maintenance() {
+    let h = Host::with_store(true, Store::memory().unwrap(),
+        "use personas alice\nuse server\naction work() <- allow\n");
+    let before = lock(&h.shared.engine).seq().unwrap();
+    let (poll, wakes) = blocked_as(&h, format!("/changes?since={before}&wait=1"), ALICE.into());
+    let answer = body(&h.request("POST", "/a/work?wait=0", ALICE, r#"{"id":"work","args":{}}"#));
+    assert_eq!(answer["state"], "pending", "{answer}");
+    // Action custody commits do not advance the row log. They must still
+    // notify the held poll directly, which checks its predicate and waits again.
+    wakes.recv_timeout(Duration::from_millis(250)).expect("action commit wakes the poll directly");
+    assert_eq!(lock(&h.shared.wake).seq, lock(&h.shared.engine).seq().unwrap());
+    assert_eq!(body(&poll.join().unwrap())["seq"], before);
 }

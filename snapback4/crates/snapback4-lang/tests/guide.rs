@@ -243,8 +243,10 @@ fn w10b_typing_card_compiles_and_expires_at_the_deadline() {
     let before = engine.query("typingIn", context("bob", 4999)).unwrap();
     assert_eq!(before.data.as_array().unwrap().len(), 1);
     assert_eq!(before.next_expiry, Some(5000));
+    sent(&engine.mutate("setTyping", None, context("bob", 1000)).unwrap());
     let hints = engine.query("typingInMyRooms", Context::new("bob", args(&[("c", Value::Null)])).at(4999)).unwrap();
     assert_eq!(hints.data.as_array().unwrap()[0].field("typing").unwrap().as_array().unwrap().len(), 1);
+    assert_eq!(hints.data.as_array().unwrap()[0].field("typing").unwrap().as_array().unwrap()[0].field("principal").unwrap(), &id("alice"));
     assert!(engine.query("typingIn", context("bob", 5000)).unwrap().data.as_array().unwrap().is_empty());
     sent(&engine.mutate("markViewing", None, context("alice", 6000)).unwrap());
     assert_eq!(engine.query("viewingIn", context("bob", 6001)).unwrap().data.as_array().unwrap().len(), 1);

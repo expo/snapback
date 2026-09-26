@@ -63,7 +63,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   let possible = program && !program.native ? new Set(staticTables) : null;
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null };
   const key = `${op.name}:${JSON.stringify(args)}`;
-  const ephemeralTables = env.backend.schema.operations?.[op.name]?.ephemeralReads ?? program?.ephemeralReads ?? op.ephemeralReads ?? [];
+  const ephemeralTables = env.backend.schema.operations?.[op.name]?.ephemeralReads ?? program?.ephemeralReads ?? [];
   const ephemeral = ephemeralTables.length > 0;
   let remember = !ephemeral;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;

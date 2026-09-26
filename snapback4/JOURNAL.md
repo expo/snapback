@@ -61910,3 +61910,38 @@ again. Repeated sequence reads and allocations no longer repeat sqlite_master
 or CREATE TABLE checks. All 16 sequence_by tests pass, including absent reads,
 first-creation rollback, successful allocation and activation before allocation.
 This is a separate checkpoint for Opus F4; it changes no wire/schema bytes.
+
+### 2026-09-26 — LLP 3000.017 fix round 1: review corrections
+
+The hub snapshot now includes store identity and generation, published with its
+incarnation/ring under the wake mutex. Held polls compare their entry generation
+and return the newly published one. Durable commits use one publication helper
+for seq plus both condition variables, including action/effect/route custody;
+maintenance publishes only changes and never takes the hub under the engine.
+The former tests' fabricated wake.seq writes now use real commits. A server test
+pauses adoption before its later metadata publication; a real dev test holds a
+durable-only poll across a file edit and requires generation 2 within 500 ms.
+
+Both client tiers omit eph/ephi/ephTables for durable-only backends. The online
+tier reads /schema when starting observation and on adoption, falling back to
+generated facts for a server without schema facts. This is the smallest way to
+know about an ephemeral table even when no mounted operation reads it. Adopted
+facts replace every mounted watch's interests, including removals; growth
+reissues the poll. Both tiers have real dev regressions for typing → viewing →
+durable, without remounting, and frozen base change-request/response bytes.
+
+Renewal guards may read only durable tables. The existing ephemeral-exists guard
+expectation changes from true to false as required by the fix brief; a self-
+invalidating guard is now a negative and a durable guard remains positive.
+setTyping and markViewing still renew. Session buckets digest the parsed bearer
+token, with equivalent-spacing coverage under dev and serve. The chats-list
+card filters out the viewer, asserted with both viewer and peer rows present.
+
+The acceptance test uses separate servers/phases for the ephemeral burst and
+its durable control, asserts first sight follows a typing poll answer without a
+seq move, and checks nonnegative disappearance time and at most four requests.
+Watch tests settle initial queries before the signal, so removing publisher
+notification cannot hide behind startup reads. Qualification and mutation-test
+results will be appended after completion. No new schema/type fixtures were
+regenerated; no durable expected output was changed. RFC §3.3 now explicitly
+follows §3.6's durable wire guarantee, recording the author's review clarification.

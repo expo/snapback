@@ -22,6 +22,8 @@ pub struct Change {
 }
 #[derive(Clone, Debug)]
 pub struct Snapshot {
+    pub identity: String,
+    pub generation: u64,
     pub version: Version,
     pub ring: VecDeque<(u64, Vec<String>)>,
     pub tables: Vec<String>,
@@ -243,6 +245,8 @@ impl HubState {
     }
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
+            identity: self.identity.clone(),
+            generation: self.generation,
             version: self.version.clone(),
             ring: self.ring.clone(),
             tables: self.tables.keys().cloned().collect(),

@@ -18,7 +18,7 @@ export const until = async (read, label = "condition") => {
   }
   assert.fail(`timed out: ${label}`);
 };
-export async function server(t, residency = "sync to .owner", source) {
+export async function server(t, residency = "sync to .owner", source, { watch = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source ?? `use identity
@@ -35,7 +35,7 @@ query list():
   return notes[viewer] first 100 by byOwner
 `));
   let output = "";
-  const host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const host = spawn(binary, ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   host.stdout.on("data", bytes => { output += bytes; }); host.stderr.on("data", bytes => { output += bytes; });
   t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null) { host.kill("SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
   const url = await until(() => { assert.equal(host.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");

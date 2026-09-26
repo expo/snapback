@@ -1,3 +1,4 @@
+import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission } from "./admission.ts";
@@ -145,6 +146,22 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const ephemeralReads = new EphemeralReads(aborter.signal);
+  let backend: BackendJson | undefined;
+  let backendLoaded = false;
+  const ephemeralTables = (op: Query<unknown, unknown>) => backend
+    ? backend.schema.operations?.[op.name]?.ephemeralReads ?? [] : op.ephemeralReads ?? [];
+  const hasEphemeral = () => backend ? Object.values(backend.schema.tables).some(table => table.ephemeral)
+    : [...watches.values()].some(watch => ephemeralTables(watch.op).length);
+  async function refreshBackend() {
+    const revision = credentialRevision;
+    const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal });
+    const next = await response.json() as BackendJson;
+    if (closed || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
+    backend = next;
+    generation = next.generation;
+    for (const watch of watches.values()) watchEphemeral(watch);
+    return true;
+  }
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
@@ -406,7 +423,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<QueryResult<R>> {
-    const eph = op.ephemeralReads?.length ? ephemeralReads.request() : undefined;
+    const eph = ephemeralTables(op).length ? ephemeralReads.request() : undefined;
     const result = await runQueryOnce(op, args, eph);
     return { ...result, ...(eph ? { ephemeralRequest: eph } : {}) };
   }
@@ -432,8 +449,9 @@ export function createClient(options: ClientOptions): Client {
     && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
 
   function watchEphemeral(watch: Watch) {
-    if (!watch.op.ephemeralReads?.length) return;
-    ephemeralReads.add(watch, watch.op.ephemeralReads, reset => {
+    const tables = ephemeralTables(watch.op);
+    if (!tables.length) { ephemeralReads.remove(watch); return; }
+    ephemeralReads.add(watch, tables, reset => {
       if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }
       void refresh(watch);
     });
@@ -531,13 +549,17 @@ export function createClient(options: ClientOptions): Client {
         if (!closed && credentials && link === "offline") await probe();
         continue;
       }
+      if (!backendLoaded) {
+        try { await refreshBackend(); } catch { /* Generated facts cover older servers. */ }
+        backendLoaded = true;
+      }
       const eph = ephemeralReads.pollRequest();
       try {
         if (refreshing) await refreshing;
         if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, ephemeralReads.parameters(), eph.signal);
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, hasEphemeral() ? ephemeralReads.parameters() : undefined, eph.signal);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
         if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
@@ -547,9 +569,12 @@ export function createClient(options: ClientOptions): Client {
         if (closed || storeRefusal || !credentials) break;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
-        generation = json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
-        if (changedGeneration) queryEpoch++;
+        if (changedGeneration) {
+          queryEpoch++;
+          if (!await refreshBackend() && backend) throw new Error("schema: adoption facts unavailable");
+        }
+        generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);

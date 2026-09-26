@@ -19,11 +19,14 @@ for (const tier of ['online', 'wasm']) {
   test(`${tier}: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry`, async t => {
     const { url } = await ephemeralServer(t), polls = [];
     let syncs = 0;
-    const fetch = (input, init) => {
+    const fetch = async (input, init) => {
       const parsed = new URL(input);
-      if (parsed.pathname === '/changes') polls.push({ params: parsed.searchParams, signal: init.signal });
+      const poll = parsed.pathname === '/changes' ? { params: parsed.searchParams, signal: init.signal } : null;
+      if (poll) polls.push(poll);
       if (parsed.pathname === '/sync') syncs++;
-      return defaultFetch(input, init);
+      const response = await defaultFetch(input, init);
+      if (poll) void response.clone().json().then(answer => { poll.answer = answer; poll.at = performance.now(); }).catch(() => {});
+      return response;
     };
     const b = await open(t, tier, url, fetch);
     const list = watch(t, b, api.list); await until(() => ready(list));
@@ -33,11 +36,16 @@ for (const tier of ['online', 'wasm']) {
     await until(() => ready(typing));
     await until(() => polls.some(p => p.params.get('ephTables') === 'typing'));
     assert.equal(held.signal.aborted, true);
+    await until(() => polls.some(p => !p.answer && !p.signal.aborted && p.params.get('ephi') && p.params.get('ephTables') === 'typing'));
+    await delay(150); // No startup query or incarnation-reset response can deliver the following write.
     const count = syncs;
     const a = createClient({ url, persona: 'alice' }); t.after(() => a.close());
     const began = performance.now(); assert.equal((await a.mutate(api.setTyping, { room: 'r' })).state, 'sent');
     await until(() => typing.getSnapshot().data?.length === 1, 'peer typing');
     assert.ok(performance.now() - began <= 500, `${performance.now() - began} ms`);
+    const delivery = polls.findLast(p => p.answer && p.at >= began);
+    assert.ok(delivery?.answer.ephemeral.tables.includes('typing'), 'typing arrives through a poll notification');
+    assert.equal(delivery.answer.seq, Number(delivery.params.get('since')));
     assert.equal(syncs, count, 'ephemeral wake does not sync');
     await until(() => typing.getSnapshot().data?.length === 0, 'nextExpiry fetch');
     assert.equal(syncs, count, 'silent expiry does not sync');

@@ -188,7 +188,7 @@ pub fn execution(
     if !schema.tables.values().any(|t| t.ephemeral.is_some()) {
         return Ok(());
     }
-    let mut effects = Effects::of(program);
+    let mut effects = Effects::of(program, schema);
     if program.native {
         effects.reads.extend(schema.tables.keys().cloned());
     }

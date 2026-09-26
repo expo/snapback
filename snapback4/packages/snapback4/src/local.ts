@@ -701,6 +701,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (adopted.denied) return false;
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
+            for (const watch of watches.values()) watchEphemeral(watch);
             partitionDenied = null;
             nativeReady = false;
             adoptedGeneration = true;
@@ -825,7 +826,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture) return false;
-      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, ephemeralReads.parameters(), eph.signal);
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal);
       if (!ephemeralReads.current(eph)) return false;
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
@@ -916,8 +917,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
 
   function watchEphemeral(watch: Watch) {
-    const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? watch.op.ephemeralReads ?? [];
-    if (!tables.length) return;
+    const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
+    if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
       if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); notify(watch); }
       void rerun(watch);

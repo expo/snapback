@@ -1099,18 +1099,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         return ephemeral::serve(request, shared, &op, &body);
                     }
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
+                    if matches!(&outcome, Ok(outcome) if matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
                     (outcome, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
-                        if let WriteState::Sent { seq, .. } = &outcome.state {
-                            let mut current = lock(&shared.seq);
-                            *current = (*current).max(*seq);
-                            shared.committed.notify_all();
-                            let mut wake = lock(&shared.wake); wake.seq = *current;
-                            shared.polls.notify_all();
-                        }
                         let mut body = outcome.reply(id.as_deref());
                         body["store_id"] = json!(store_id);
                         body["head"] = json!(head);
@@ -1209,12 +1203,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let outcome = lock(&shared.engine).seed_at(typed, shared.now());
             match outcome {
                 Ok(count) => {
-                    if let Ok(seq) = lock(&shared.engine).seq() {
-                        let mut current = lock(&shared.seq);
-                        *current = (*current).max(seq);
-                        shared.committed.notify_all();
-                        lock(&shared.wake).seq=*current; shared.polls.notify_all();
-                    }
+                    shared.durable_committed(&lock(&shared.engine));
                     respond_timed(request, shared, 200, json!({ "seeded": count }));
                 }
                 Err(error) => respond_timed(request, shared, 200, json!({ "denied": refusal_json(&error.refusal()) })),

@@ -74,7 +74,6 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
         loop {
             let actions = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_actions_for(shared.now(), budget)), drain, "the action lease sweep")?;
             let effects = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_effects_for(shared.now(), budget)), drain, "the effect lease sweep")?;
-            if actions + effects > 0 { shared.committed.notify_all(); }
             if effects > 0 { eprintln!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
             if !drain || actions + effects == 0 { break; }
         }
