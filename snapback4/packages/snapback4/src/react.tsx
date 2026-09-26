@@ -172,8 +172,12 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
     let cut: import("./contract.ts").ReadCut = null;
     let since: number | undefined;
     let knownSince = true;
+    let loadingMore = false;
     for (const page of this.pages) {
       const read = page.observed.getSnapshot();
+      // @ref LLP 3000.019#3.3 — a pending next page keeps the ready prefix on screen.
+      // Resets of the first page and refusals still replace the combined read.
+      if ("loading" in read && isReady(last)) { loadingMore = true; break; }
       last = read;
       if (!isReady(read)) break;
       if (!Array.isArray(read.data)) { last = LOADING as Read<R>; break; }
@@ -186,7 +190,7 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
         else since = Math.min(since ?? read.since, read.since);
       }
     }
-    const hasMore = isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
+    const hasMore = !loadingMore && isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
     const read: Read<R> = isReady(last)
       ? { data: items as unknown as R, complete, cut, fresh, ...(knownSince && since != null ? { since } : {}), ...(last.next !== undefined ? { next: last.next } : {}) }
       : last;

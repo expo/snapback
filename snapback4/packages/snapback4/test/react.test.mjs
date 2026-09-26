@@ -975,13 +975,14 @@ const cases = {
       await unmount(); allClosed(client);
     }
   },
-  async "usePage discards an in-flight suffix and does not claim a ready combined read"() {
+  async "usePage keeps the ready prefix while replacing an in-flight suffix"() {
     const client = controlled(args => args.c == null ? ready(["a", "b"], "b") : { loading: true }); let latest;
     function Probe() { latest = usePage(query, {}); return null; }
     await mount(h(Probe), client);
     await act(async () => { latest.loadMore(); latest.loadMore(); });
     check(active(client).length === 2, "only one next page request at a time");
-    check("loading" in latest.read && !latest.hasMore, "unresolved suffix has no combined freshness claim");
+    equal(latest.read.data, ["a", "b"], "unresolved suffix keeps the ready prefix");
+    check(!latest.hasMore, "unresolved suffix admits no further request");
     const first = active(client)[0], obsolete = active(client)[1];
     await act(async () => first.set(ready(["z", "a"], "a")));
     check(obsolete.closes === 1, "pending old boundary is closed");
@@ -990,6 +991,35 @@ const cases = {
     await act(async () => active(client)[1].set(ready(["b", "c"], null, { fresh: false, since: 30 })));
     equal(latest.items, ["z", "a", "b", "c"], "replacement completes the contiguous range");
     check(!latest.read.fresh && latest.read.since === 30 && !latest.hasMore, "last page contributes freshness and end position");
+    await unmount(); allClosed(client);
+  },
+  async "usePage keeps loaded pages while another loads and withdraws them on a first-page reset"() {
+    const client = controlled(() => ({ loading: true })); let latest, mounts = 0;
+    function Content() { useEffect(() => { mounts++; }, []); return h("input", { defaultValue: "draft" }); }
+    function Probe() { latest = usePage(query, {}); return latest.read.loading ? null : h(Content); }
+    await mount(h(Probe), client);
+    check(latest.read.loading && latest.items.length === 0, "the first page starts loading");
+    const first = active(client)[0];
+    await act(async () => first.set(ready(["a"], "a", { fresh: false, since: 30, complete: false, cut: "words" })));
+    const input = host.querySelector("input"), mounted = mounts;
+    input.value = "unsent draft";
+    await act(async () => latest.loadMore());
+    equal(latest.read.data, ["a"], "a pending second page leaves the first ready");
+    check(host.querySelector("input") === input && input.value === "unsent draft" && mounts === mounted, "loading more preserves the mounted editor and draft");
+    const second = active(client)[1];
+    await act(async () => second.set(ready(["b"], "b")));
+    await act(async () => latest.loadMore());
+    equal(latest.read.data, ["a", "b"], "a pending third page keeps both loaded pages");
+    check(!latest.read.fresh && latest.read.since === 30 && !latest.read.complete && latest.read.cut === "words", "the prefix retains its freshness, completeness and cut");
+    const third = active(client)[2];
+    await act(async () => third.set({ denied: { code: "E_RULE", family: "rule", message: "revoked" } }));
+    check(latest.read.denied?.code === "E_RULE", "a later refusal is not hidden by the prefix");
+    await act(async () => first.set({ loading: true }));
+    check(latest.read.loading && latest.items.length === 0 && active(client).length === 1, "a first-page reset immediately discards every old page");
+    await act(async () => third.set(ready(["late"], null)));
+    check(latest.read.loading && latest.items.length === 0, "an old suffix cannot reappear after reset");
+    await act(async () => first.set(ready([], "empty")));
+    equal(latest.read.data, [], "an empty ready prefix also stays ready while the next page loads");
     await unmount(); allClosed(client);
   },
 };

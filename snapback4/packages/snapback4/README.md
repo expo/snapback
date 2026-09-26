@@ -228,8 +228,8 @@ const add = useMutation(api.addNote);
 const asset = useAsset(photoId);
 ```
 
-Import these hooks from `snapback4/react`. `usePage` supplies accumulated items, `hasMore`, `loadMore` and read
-completeness; `useQuery` observes one answer. `useMutation` tracks pending, sent and failed writes; `useAsset` resolves
+Import these hooks from `snapback4/react`. `usePage` keeps loaded pages while the next loads; it supplies accumulated
+items, `hasMore`, `loadMore` and read completeness. `useQuery` observes one answer; `useMutation` tracks writes; `useAsset` resolves
 a placed asset. Upload bytes with `client.upload` before passing the asset id to `addNote`. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
 
