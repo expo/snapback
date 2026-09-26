@@ -712,28 +712,34 @@ export function createClient(options: ClientOptions): Client {
     if (flushing) return flushing;
     if (retry) { clearTimeout(retry); retry = undefined; }
     const run = async () => {
-      while (!closed && !storeRefusal && pending.length > 0 && link !== "signed-out") {
-        const entry = pending[0]!;
-        sending = entry;
-        let sent: boolean;
-        try { sent = await send(entry); }
-        finally { sending = null; }
-        if (!sent) {
-          if (closed || storeRefusal || !credentials) return;
-          retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
-          (retry as { unref?: () => void }).unref?.();
-          retryMs = Math.min(retryMs * 2, 5000);
-          return;
+      try {
+        while (!closed && !storeRefusal && pending.length > 0 && link !== "signed-out") {
+          const entry = pending[0]!;
+          sending = entry;
+          let sent: boolean;
+          try { sent = await send(entry); }
+          finally { sending = null; }
+          if (!sent) {
+            if (closed || storeRefusal || !credentials) return;
+            retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
+            (retry as { unref?: () => void }).unref?.();
+            retryMs = Math.min(retryMs * 2, 5000);
+            return;
+          }
+          retryMs = 250;
+          pending.shift();
         }
-        retryMs = 250;
-        pending.shift();
+      } finally {
+        // Release custody before this run resolves. A caller receiving the
+        // last receipt may admit its successor before promise adoption ends.
+        if (flushing === result) flushing = null;
       }
     };
     // A pending-list subscriber may submit another write at dispatch. Install
     // the flush owner before notifying it, so the same head is not sent twice.
     const result = Promise.resolve().then(run);
     flushing = result;
-    void result.finally(() => { if (flushing === result) flushing = null; }).catch(() => {});
+    void result.catch(() => {});
     return result;
   }
 

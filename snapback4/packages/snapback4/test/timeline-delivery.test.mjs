@@ -19,7 +19,10 @@ test('oversized historical timeline commit recovers by snapshot with pending wri
     assert.equal(device.recoveredNotes,1020);
     assert.equal(device.settledNotes,1020);
     assert.ok(device.heldSubmissions>0);
-    assert.deepEqual(device.pendingAfter,device.pendingBefore);
+    // @ref LLP 3000.019#3.3 — retryable delivery may change presentation
+    // status while snapshot recovery must retain every original intent field.
+    const intent = ({ dispatch, ...entry }) => entry;
+    assert.deepEqual(device.pendingAfter.map(intent),device.pendingBefore.map(intent));
     assert.deepEqual(device.finalFollowing,report.serverFollowing);
   }
   t.diagnostic(JSON.stringify(report));
