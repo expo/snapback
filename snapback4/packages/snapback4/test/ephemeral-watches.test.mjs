@@ -66,7 +66,7 @@ for (const tier of ['online', 'wasm']) {
       if (poll) polls.push(poll);
       if (parsed.pathname === '/sync') syncs++;
       const response = await defaultFetch(input, init);
-      if (poll) void response.clone().json().then(answer => { poll.answer = answer; poll.at = performance.now(); }).catch(() => {});
+      if (poll) { poll.answer = await response.clone().json(); poll.at = performance.now(); }
       return response;
     };
     const b = await open(t, tier, url, fetch);
@@ -81,10 +81,22 @@ for (const tier of ['online', 'wasm']) {
     await delay(150); // No startup query or incarnation-reset response can deliver the following write.
     const count = syncs;
     const a = createClient({ url, persona: 'alice' }); t.after(() => a.close());
-    const began = performance.now(); assert.equal((await a.mutate(api.setTyping, { room: 'r' })).state, 'sent');
-    await until(() => typing.getSnapshot().data?.length === 1, 'peer typing');
-    assert.ok(performance.now() - began <= 500, `${performance.now() - began} ms`);
-    const delivery = polls.findLast(p => p.answer && p.at >= began);
+    let published;
+    t.after(typing.subscribe(() => {
+      if (published === undefined && typing.getSnapshot().data?.length === 1) published = performance.now();
+    }));
+    const began = performance.now();
+    const result = await a.mutate(api.setTyping, { room: 'r' });
+    const replied = performance.now();
+    assert.equal(result.state, 'sent');
+    await until(() => published !== undefined, 'peer typing');
+    // The old clock included the mutation round trip and until()'s polling
+    // delay. Time the publication itself after the write's reply instead;
+    // the held poll may deliver it even before that reply reaches the writer.
+    const deliveryMs = Math.max(0, published - replied);
+    t.diagnostic(`mutation reply ${(replied - began).toFixed(1)} ms; publication after reply ${(published - replied).toFixed(1)} ms; old elapsed ${(performance.now() - began).toFixed(1)} ms`);
+    assert.ok(deliveryMs <= 500, `notification delivery ${deliveryMs} ms (must precede the 1 s refresh)`);
+    const delivery = polls.findLast(p => p.answer && p.at >= began && p.at <= published);
     assert.ok(delivery?.answer.ephemeral.tables.includes('typing'), 'typing arrives through a poll notification');
     assert.equal(delivery.answer.seq, Number(delivery.params.get('since')));
     assert.equal(syncs, count, 'ephemeral wake does not sync');
@@ -101,7 +113,7 @@ for (const tier of ['online', 'wasm']) {
       if (path === '/sync') syncs++;
       // Cadence schedules requests, not response-body delivery. A slow body
       // followed by a prompt one can arrive only milliseconds apart.
-      const query = path === '/q/typingIn' ? { at: performance.now(), reachable: queried.length >= 2 } : null;
+      const query = path === '/q/typingIn' ? { at: performance.now(), reachable: queried.length >= 3 } : null;
       if (query) queried.push(query);
       const response = await defaultFetch(input, init);
       if (!query) return response;
@@ -109,7 +121,7 @@ for (const tier of ['online', 'wasm']) {
       if (query === queried[1]) await delay(900);
       Object.assign(query, { arrived: performance.now(), version: json.ephemeral, seq: json.seq });
       // Model an authorization-cut prefix whose hidden rows are silently
-      // reclaimed before the third request; neither notification counter nor
+      // reclaimed before the fourth request; neither notification counter nor
       // nextExpiry changes. Capture this at dispatch so the test runner need
       // not toggle it in the short window between the delayed reply and a tick.
       return Response.json({ ...json, complete: query.reachable, data: query.reachable ? [{ principal: 'dev:alice' }] : [], nextExpiry: null });
@@ -122,11 +134,13 @@ for (const tier of ['online', 'wasm']) {
     const typing = watch(t, b, api.typingIn, { room: 'r' });
     await until(() => ready(typing)); const count = syncs;
     await until(() => queried[1]?.arrived !== undefined, 'first incomplete refresh');
-    const first = queried[1];
     await until(() => typing.getSnapshot().data?.length === 1, 'reachable row after silent reclamation');
-    const last = queried.at(-1);
-    assert.ok(last.at - first.at >= 850 && last.at - first.at <= 1250, `cadence ${last.at - first.at}`);
-    t.diagnostic(`request cadence ${(last.at - first.at).toFixed(1)} ms; response gap ${(last.arrived - first.arrived).toFixed(1)} ms`);
+    const last = queried[3];
+    // The delayed call serializes its successor even with a broken fast timer.
+    // Measure the following pair of prompt requests to retain both bounds.
+    const cadence = last.at - queried[2].at;
+    assert.ok(cadence >= 850 && cadence <= 1250, `cadence ${cadence}`);
+    t.diagnostic(`request cadence ${cadence.toFixed(1)} ms; delayed response gap ${(queried[2].arrived - queried[1].arrived).toFixed(1)} ms`);
     assert.ok(queried.every(q => q.seq === last.seq && q.version.epoch === last.version.epoch));
     const calls = queried.length; await delay(1100); assert.equal(queried.length, calls, 'complete stops the cadence');
     assert.equal(syncs, count);
