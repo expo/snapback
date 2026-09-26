@@ -575,7 +575,7 @@ impl Engine {
                 capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-            runner.activate_columns(previous.as_ref(), &rebuild, &columns)?;
+            runner.activate_columns(previous.as_ref(), &rebuild, &columns, Some(report))?;
             for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {
                 if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {
                     runner.rebuild_maintain_reported(maintain, report)?;

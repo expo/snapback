@@ -120,6 +120,13 @@ impl Store {
                 return Err(step.refusal(schema));
             }
         }
+        let previous: Option<Schema> = if schema_changed && programs.is_some() && !reset {
+            tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0)).optional()?
+                .map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?
+        } else { None };
+        #[cfg(test)]
+        let previous = if self.full_adoption { None } else { previous };
+        let plans = super::activation_plan::plans(schema, previous.as_ref());
         report.phase("preflight", &mut phase);
         if schema_changed {
             // Removed names retain only their catalog number, never live row
@@ -133,11 +140,13 @@ impl Store {
             }
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let t = catalog[name];
-                for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
+                let plan = &plans[name];
+                if !plan.project && plan.indexes.is_empty() { continue; }
+                for index in &plan.indexes { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
                 walk_metered(&tx, t, work, |row| if work.index_entries != 0 { crate::rows::adoption::contribution_bytes(row, table) } else { crate::value::InternalPrice::zero() }, |id, mut row, contribution_meter| {
                     let original = row.clone();
-                    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
+                    if plan.project { if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); } }
                     // Persist only a destructive projection. Defaults and
                     // optionals are an interpretation of the stored image.
                     if row != original {
@@ -149,7 +158,8 @@ impl Store {
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
                     // Maintained rows are replaced by the candidate builder.
                     if schema.maintain_for(name).is_none() { crate::engine::validate::validate_row(schema, name, &row)?; }
-                    for (index_name, index) in &table.indexes {
+                    for index_name in &plan.indexes {
+                        let index = &table.indexes[index_name];
                         let scratch = contribution_meter.mark();
                         let contribution = match index.components.first() { Some(crate::schema::IndexComponent::Contribution(m)) => Some(m), _ => None };
                         if let Some(m) = contribution {
@@ -163,7 +173,7 @@ impl Store {
                                 return Err(crate::rows::index_key_refusal(name, index_name, 1));
                             }
                             if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
-                            tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], key, id])?;
+                            tx.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![catalog[&format!("{name}.{index_name}")], key, id])?;
                         }
                         contribution_meter.release_heap(scratch);
                     }
@@ -188,6 +198,8 @@ impl Store {
         report.phase("derived rebuild", &mut phase);
         if schema_changed {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
+                let plan = &plans[name];
+                if plan.project || schema.maintain_for(name).is_some_and(|m| previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))) {
                 walk(&tx, catalog[name], |_, mut row| {
                     materialize_optional_fields(&mut row, table);
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
@@ -195,10 +207,11 @@ impl Store {
                     for (column, kind) in &table.columns { validate_assets(&tx, kind, row.field(column).ok())?; }
                     Ok(())
                 })?;
-                for (index_name, index) in table.indexes.iter().filter(|(_, i)| i.unique) {
+                }
+                for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || plan.indexes.contains(*name))) {
                     validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
                 }
-                for constraint in &table.constraints {
+                for constraint in table.constraints.iter().filter(|_| plan.project) {
                     if let Constraint::Cap { by, max } = constraint {
                         let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
                         validate_groups(&tx, name, index_name, by.len(), u64::from(*max), false)?;

@@ -64872,3 +64872,36 @@ history/distribution is not claimed. Evidence: reports/20260926-lane-ad-baseline
 and reports/20260926-lane-ad-adoption.md. Before optimization, pristine lane-base
 wasm is 2,025,652 B raw / 582,552 B gzip, 458 B above the unchanged budget;
 instrumentation changes gzip by +2 B. No budget increase or publication.
+
+Continuation of lane AD: corrected the M7 extraction to retain unrelated
+trending/digest operations; the first run had removed them and therefore also
+rebuilt unread. The corrected shared M7 fixture has 1,447,960 rows and 9,077,125
+indexes. Rebuilt the pristine instrumented implementation and measured 167,083 ms
+adoption / 167,084 ms waiting read. Optimized adoption is 9,601 ms / <1 ms detached
+read: preflight 3,008.926 ms, projection/index work 476.216 ms, capture 2,120.956 ms
+inside 2,801.141 ms derived work, validation 473.078 ms, commit 2,837.892 ms. The
+six folds together take about 679 ms. The one-second end-to-end target remains
+unmet. The original measurement record above is retained, with its scope corrected
+here and in the report. Streaming comparison of both corrected M8 stores matches
+all 1,447,966 rows, 9,077,137 index entries, 1,973,177 log images and 316,734 commits.
+The scripts/compare-adoption.py witness reproduces that exact comparison.
+
+Activation now preserves unchanged physical indexes/table invariants and caches
+SQLite inserts; aggregate folds, captures, sequence and images remain unchanged.
+Dev/serve query, sync and bearer-authentication reads use an independent factory
+for fresh identity-checked WAL snapshots. Atomic adoption remains the writer;
+new queries report pending, existing ones read the old generation. Writes queue
+and execute exactly once after adoption. Startup/adoption logs include per-view
+source visits and milliseconds without extra scans or meter charges. `--fresh`
+and its `--memory` alias use a new private temporary WAL file each run; orderly
+exit removes it, a force-kill can leave its directory. The banner, pinned test and
+operations reference describe this storage change. No new Quarry syntax, diagnostic,
+budget, publication or claim of interleaved writes. LLP 3000.019 §3.6 records the
+design, and LLP 3000.015 still requires atomic adoption.
+
+The broader all-read claim is unfinished: `/changes` still durably records
+presence reconnects under the writer lock. A queued reconnect acknowledged before
+its durable write, followed by a crash, could leave a loss notification eligible
+despite acknowledging reconnection; that shortcut was not taken. The report gives
+the held-adoption reproduction and preserves this limitation alongside the
+nine-second adoption cost. No claim that safe chunking is impossible is made.

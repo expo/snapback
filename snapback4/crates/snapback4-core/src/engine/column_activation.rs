@@ -34,17 +34,19 @@ impl Runner<'_> {
         let saved=self.event_free;self.event_free=true;
         let result=(|| {
             for m in self.schema.maintains.iter().filter(|m|m.private.is_none()){self.rebuild_maintain(m)?;}
-            self.activate_columns(previous,&self.schema.maintains.iter().collect::<Vec<_>>(),&changed_parents(self.schema,previous))
+            self.activate_columns(previous,&self.schema.maintains.iter().collect::<Vec<_>>(),&changed_parents(self.schema,previous), None)
         })();
         self.event_free=saved;result
     }
-    pub(super) fn activate_columns(&mut self, previous: Option<&Schema>, rebuild: &[&Maintain], parents: &BTreeSet<String>) -> Result<(), RuntimeError> {
+    pub(super) fn activate_columns(&mut self, previous: Option<&Schema>, rebuild: &[&Maintain], parents: &BTreeSet<String>, mut report: Option<&mut crate::store::adoption_report::AdoptionReport>) -> Result<(), RuntimeError> {
         let saved = self.event_free;
         self.event_free = true;
         let result = (|| {
             // Even an all-zero addition/removal wakes server-run parent watches.
             self.written_tables.extend(parents.iter().cloned());
-            for m in rebuild.iter().filter(|m| m.private.is_some()) { self.rebuild_maintain(m)?; }
+            for m in rebuild.iter().filter(|m| m.private.is_some()) {
+                if let Some(report) = report.as_deref_mut() { self.rebuild_maintain_reported(m, report)?; } else { self.rebuild_maintain(m)?; }
+            }
             for m in self.schema.maintains.iter().filter(|m| m.private.is_some()) {
                 let owner = m.private.as_ref().unwrap();
                 if rebuild.contains(&m) || previous.is_some_and(|old| lifetime_changed(self.schema, old, &owner.table)) {

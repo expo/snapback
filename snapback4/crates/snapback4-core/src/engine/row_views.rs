@@ -289,6 +289,8 @@ impl Runner<'_> {
                     let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true)?;
                     let Some((stored, position)) = rows.into_iter().next() else { return Ok(None); };
                     let Some(stored) = stored else { return Err(RuntimeError::Prediction("row-view source authority is not covered".into())); };
+                    #[cfg(feature = "sqlite")]
+                    { self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1); }
                     let source = stored.into_value();
                     let selected = (!live
                         || !self.expired(&self.schema.tables[&m.source], &source))

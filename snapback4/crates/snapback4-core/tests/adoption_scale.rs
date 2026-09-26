@@ -8,7 +8,8 @@ const NOW: i64 = 1_790_000_000_000;
 const SOURCE: &str = include_str!("../../../../benchmarks/runs/2026-09-26-snapback4-clique-astra-0.4.3/astra/source/snapback/schema.q");
 const WINDOWS: &str = include_str!("../../../../benchmarks/runs/2026-09-26-snapback4-clique-astra-0.4.3/astra/source/snapback/windows.q");
 fn bound(m8: bool) -> snapback4_lang::Bound {
-    let source = if m8 { SOURCE } else { SOURCE.split("view originalTotals:").next().unwrap() };
+    let m7 = format!("{}{}", SOURCE.split("view originalTotals:").next().unwrap(), &SOURCE[SOURCE.find("query trending():").unwrap()..]);
+    let source = if m8 { SOURCE } else { &m7 };
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into()), ("windows.q".into(), WINDOWS.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     b
@@ -76,12 +77,19 @@ fn m7_to_m8() {
         }
         build(&baseline); std::fs::write(root.join("m7.ready"),"ready").unwrap();
     }
+    // The retained M7 program removes only the six views and insights; trending
+    // and digest do not depend on them and stay present in both generations.
+    let b = bound(false);
+    let prepared = Engine::new_at(Store::open(&baseline).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),NOW).unwrap();
+    prepared.store().conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
+    drop(prepared);
     let working=root.join("adopt.db");
     for suffix in ["", "-wal", "-shm"] { let _=std::fs::remove_file(format!("{}{suffix}",working.display())); }
     std::fs::copy(&baseline,&working).unwrap();
     let engine=Engine::open_at(Store::open(&working).unwrap(),NOW).unwrap();
     let counts:(i64,i64)=engine.store().conn().query_row("SELECT (SELECT count(*) FROM r), (SELECT count(*) FROM i)",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
     eprintln!("fixture rows={} indexes={}",counts.0,counts.1);
+    let mut detached = std::env::var("SNAPBACK4_ADOPTION_DETACHED").ok().map(|_|engine.reader().unwrap());
     let shared=Arc::new(Mutex::new(engine));
     let (send,recv)=mpsc::channel();
     let owner=shared.clone();
@@ -94,9 +102,12 @@ fn m7_to_m8() {
     });
     recv.recv().unwrap();
     let started=Instant::now();
-    let mut e=shared.lock().unwrap();
+    let mut held = if detached.is_none() {Some(shared.lock().unwrap())} else {None};
+    let e=match detached.as_mut() {Some(reader)=>reader,None=>held.as_deref_mut().unwrap()};
     let result=e.query_at("myProfile",Context::new("u0000",Default::default()).at(NOW)).0.unwrap();
     assert!(result.complete);
     eprintln!("read_wait_ms={}",started.elapsed().as_millis());
-    drop(e); adoption.join().unwrap();
+    drop(detached);
+    // End a mutex loan before joining its writer.
+    drop(held); adoption.join().unwrap();
 }

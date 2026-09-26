@@ -10,6 +10,7 @@ pub struct AdoptionReport {
 #[derive(Debug)]
 pub struct ViewBuild {
     pub name: String,
+    /// Source row visits; a row-keyed rebuild can visit one source per member.
     pub rows: u64,
     pub elapsed: Duration,
 }

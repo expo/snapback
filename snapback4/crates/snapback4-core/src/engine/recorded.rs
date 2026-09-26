@@ -227,7 +227,7 @@ mod tests {
         tx.put("likes",&schema.tables["likes"],&row,None).unwrap();
         let maintains = schema.maintains.iter().collect::<Vec<_>>();
         let mut runner = Runner::new(&tx,&schema,Context::system(),Meter::new(Ceilings::unbounded(),Cut::Abort),1);
-        runner.rebuild_recorded_activation(None,&maintains).unwrap();
+        runner.rebuild_recorded_activation(None,&maintains, &mut Default::default()).unwrap();
         assert!(!runner.event_free);
         assert!(runner.rows_written>0);
         assert!(runner.events.is_empty(),"populated activation rebuild emits no events");
@@ -235,7 +235,7 @@ mod tests {
         for saved in [false,true] {
             runner.event_free=saved;
             runner.meter=Meter::new(Ceilings {heap_bytes:0,..Ceilings::unbounded()},Cut::Abort);
-            assert!(runner.rebuild_recorded_activation(None,&maintains).is_err());
+            assert!(runner.rebuild_recorded_activation(None,&maintains, &mut Default::default()).is_err());
             assert_eq!(runner.event_free,saved);
         }
     }
