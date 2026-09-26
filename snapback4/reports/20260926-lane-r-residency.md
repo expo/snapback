@@ -727,3 +727,124 @@ meters, versions and publication pins are unchanged. Evidence is from this
 Linux host, direct C-ABI/process clients and wasm; it does not claim an
 Expo iOS/Android app build, power-loss injection, or live-file migration.
 No push or publication was performed.
+
+
+## Round 4 — 2026-09-26
+
+Read the original lane prompt, this report through round 3, and Grok's
+`r2-r3.grok.md` (READY WITH CHANGES). Accepted its sole remaining finding:
+the process host lost startup refusals written only to stderr. The replaced-path
+readers, embedded shared lock, address-file order and reopen recount are unchanged.
+
+Orientation scope is the native process opening handshake. Governing context:
+current LLP 3000.019 §3.4 (coded ownership refusal), current LLP 3000.007 §18.4
+(the Node process opener), LLP 3000 §4 (the Snapback 4 fence), and the residency
+guide card. Preserve the existing refusal envelope and ownership behavior;
+LLP 2000.000 §6's meters are unaffected. No design question or additional
+handoff remains. Documentation updates are this section and one journal entry.
+
+### Change, file by file
+
+Paths are relative to `snapback4/`.
+
+- `crates/snapback4/src/verbs.rs`: every failure before the device ready line
+  now produces one stdout denial. Missing arguments and unreadable backend
+  files use existing `E_INPUT`, family `input`; parsed backend errors retain
+  their own refusal, including `E_SCHEMA_CAPABILITY`, family `schema`.
+  Ownership acquisition reports `E_STORE_BUSY` or `E_STORE`, family `store`,
+  with the original diagnostic message. Existing stderr text and exit codes
+  are retained. The later device-open branch already emitted its typed denial
+  and is unchanged. An `@ref LLP 3000.019#3.4` explains the process boundary.
+- `packages/snapback4/test/native-opening.test.mjs`: five regression tests
+  exercise the real binary, process opener and public local client, plus direct
+  CLI usage/store errors. The tests capture stdout and stderr independently.
+- `JOURNAL.md`: one appended dated round-4 entry with the measurements and result.
+- `reports/20260926-lane-r-residency.md`: this round-4 handoff section.
+
+`packages/snapback4/src/native.ts` needs no change: its existing denial branch
+throws `${code}: ${message}`. The JS Error remains that existing message-shaped
+error; `family` is verified on the stdout refusal envelope, not claimed as a new
+property on the thrown Error.
+
+There are no new Quarry forms. The existing public call now reports the busy
+store instead of `native device exited (2)`:
+
+```ts
+await createLocalClient({
+  url: "http://127.0.0.1:4400", persona: "alice",
+  device: processDevice({ dir: ".snapback4/devices" }),
+}); // rejects with E_STORE_BUSY when another descriptor exclusively owns its database
+```
+
+```sh
+snapback4 device /tmp/device.sqlite malformed-backend.json
+# stdout: one {"denied":{"code":"E_INPUT","family":"input","message":...}} line
+# stderr: the existing device/file diagnostic; exit 2
+```
+
+### Tests
+
+The five new cases prove:
+
+1. Another process holds `LOCK_EX` on the actual database descriptor. With a
+   backend available, `createLocalClient` still rejects with `E_STORE_BUSY`;
+   the envelope has family `store`, the path and no-admission message. There
+   is one process attempt, no backend-install fallback, no ready line, and
+   no database initialization. Stderr retains `E_STORE_BUSY`.
+2. A malformed backend JSON file rejects the public client with `E_INPUT`,
+   family `input`, after the normal never-synced first-open refusal.
+3. A missing backend file likewise returns `E_INPUT` and preserves the file
+   diagnostic on stderr.
+4. An unsupported backend capability retains `E_SCHEMA_CAPABILITY`, family
+   `schema`, rather than flattening that parser refusal to `E_INPUT`.
+5. Missing CLI arguments and an invalid store path each print one denial and
+   no ready line, retain stderr, and exit 2 (`E_INPUT` and `E_STORE`, respectively).
+
+Before rebuilding the binary, all five tests failed against the previous
+implementation: the four public-client cases reproduced `native device
+exited (2)`, and the CLI test found no JSON denial. After the fix, focused
+startup/residency tests passed **10/10**, the complete guide target passed
+**86/86**, and package build passed. Frozen dependency installation made no
+changes. These deliberate negative regression results are separate from the
+green final complete invocation.
+
+Implementation commit: **`624e18144`**, with
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### Final qualification
+
+Ran **`bash scripts/test.sh` exactly once in round 4**, on `624e18144`, with
+source unchanged throughout. Exit **0**, exact final summary:
+
+```text
+== 0 failure(s) in 1331 s
+```
+
+Every check passed. The cargo-test phase reported **3,594 passed / 19 ignored**
+(including doctests); the docs-budget phase separately passed one guide test,
+giving **3,595 Rust passes recorded across the script**. Fixture wrapper
+**9 passed**; clients **2,225 passed / 10 skipped** (2,235 tests); seeded models
+**78 passed**. No failed or cancelled case, no failure to classify as lane-owned,
+baseline or environmental, and no post-suite repair or test rerun. The ten skips
+are the same platform/external-artifact prerequisites listed earlier in this
+report; all five new regressions ran and passed in the complete client phase.
+
+The suite rebuilt wasm at **2,021,689 B raw / 581,094 B gzip**, **+0 / +0 B**
+against round 3 and **1,000 B below the unchanged 582,094 B budget**. The client
+suite used that rebuilt artifact. This is a whole-artifact size comparison.
+
+Toolchain: Node **24.13.1**, Rust **1.97.0**, Bun **1.3.14**, wasm-bindgen
+**0.2.127**, no wasm-opt. Cargo build jobs were capped at eight; Rust test
+processes at 24; `RUST_TEST_THREADS=4`; debug symbols/incremental builds disabled.
+The script selected normal client concurrency (load 6.92 across 96 CPUs), with
+no serial-client override. Rust took **854 s**, clients **193 s**, models **256 s**.
+Evidence is under `target/lane-r4-evidence/`: the full log, exit, source commit,
+environment, toolchain, start time, wasm hash, and focused/before-fix logs.
+
+No deviation from the round-4 brief and no known remaining round-4 problem.
+The refusal transport is the only production behavior changed. No change to
+authorization, disclosure, ownership mechanics, residency accounting, meters,
+wasm budget, versions or publication pins. Evidence is from this Linux host;
+no mobile app build or additional independent review is claimed. No push or
+publication occurred. Only the report and single journal entry changed after
+the complete invocation.

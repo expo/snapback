@@ -63764,3 +63764,41 @@ C-ABI/process clients and wasm, without mobile app builds or power-loss
 injection; replacement testing is not a live migration protocol. The
 [round-3 report](reports/20260926-lane-r-residency.md#round-3--2026-09-26)
 records the file-by-file changes, forms, tests and complete result.
+
+
+## 2026-09-26 — Lane R round 4: process hosts receive startup refusals
+
+Accepted Grok's sole round-3 finding. Every failure before the `device`
+ready line now emits one stdout denial while retaining existing stderr and
+exit behavior. Ownership refusals carry E_STORE_BUSY/E_STORE and family
+store; unreadable backend files and usage use E_INPUT; parsed backend errors
+retain their own code, including E_SCHEMA_CAPABILITY. The existing Node
+process opener consequently rejects with the code and message. Its JS API
+and the reviewed ownership/residency implementation are unchanged.
+
+Five new process/CLI regressions cover an independently held exclusive
+database descriptor, malformed and missing backend files, unsupported schema
+capabilities, and usage/invalid-store errors. They assert one denial, its
+family, no ready line, and retained stderr. The busy public-client case also
+proves no initialization or backend-install fallback. All five failed against
+the previous binary and passed after rebuilding. Focused startup/residency
+tests passed 10/10, the full guide target 86/86, and package build passed.
+Implementation commit 624e18144 carries the requested GPT-6 Astra co-author.
+
+Ran `bash scripts/test.sh` exactly once, on that committed source, unchanged
+throughout. Exit 0; exact summary **`== 0 failure(s) in 1331 s`**. The cargo-test
+phase passed 3,594 tests / 19 ignored (including doctests), with one additional
+guide pass in docs-budget; fixture wrapper 9 passed; clients 2,225 passed /
+10 existing environment-gated skips; models 78 passed. No failure or cancelled
+case, no repair or rerun. Rust took 854 s, clients 193 s, models 256 s. Build
+jobs were eight, Rust test processes 24, and normal client concurrency was
+selected on this 96-CPU host. Toolchain matches round 3.
+
+Rebuilt wasm: **2,021,689 B raw / 581,094 B gzip**, +0/+0 from round 3 and
+**1,000 B below the unchanged 582,094 B budget**. The complete client suite
+used it. Logs, exact qualification metadata and the wasm hash are in
+`target/lane-r4-evidence/`. No remaining round-4 finding, design deviation,
+meter/budget change, new Quarry form, version change, push or publication.
+No additional independent review or mobile app build is claimed. The
+[round-4 report](reports/20260926-lane-r-residency.md#round-4--2026-09-26)
+records the exact coverage and result.
