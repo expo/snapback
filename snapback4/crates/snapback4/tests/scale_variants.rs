@@ -11,8 +11,8 @@ fn certificates_classify_each_presence_choice_and_name_residual_probes() {
     assert_eq!(board.class, Class::Constant);
     assert_eq!(board.variants.len(), 4, "{board:?}");
     assert!(board.variants.iter().all(|variant| variant.class == Class::Constant && variant.indexes.len() == 1));
-    assert!(board.variants.iter().any(|variant| variant.when == "status and assignee are both absent"), "{board:?}");
-    assert!(board.line().contains("when status and assignee are both absent: constant"));
+    assert!(board.variants.iter().any(|variant| variant.when == "assignee and status are both absent"), "{board:?}");
+    assert!(board.line().contains("when assignee and status are both absent: constant"));
     let total = certificate("total");
     assert_eq!(total.variants.len(), 2); assert_eq!(total.class, Class::Grows);
     assert!(total.line().contains("when status is absent: grows with issues"), "{}", total.line());
@@ -39,7 +39,7 @@ fn one_growing_presence_variant_prevents_a_constant_certificate() {
     assert_eq!(c.class, Class::Grows);
     assert_eq!(c.variants.len(), 4);
     assert_eq!(c.variants.iter().filter(|v| v.class == Class::Constant).count(), 2);
-    assert!(c.line().contains("when status and assignee are both absent: grows with t skipped by its per-row read rule"), "{}", c.line());
+    assert!(c.line().contains("when assignee and status are both absent: grows with t skipped by its per-row read rule"), "{}", c.line());
 }
 
 #[test]
@@ -61,8 +61,8 @@ fn a_variant_whose_only_extra_work_is_cleanup_says_so_inside_a_growing_certifica
         assert!(!line.contains(&format!("when {}: grows with", variant.when)), "{line}");
         assert!(json["growth_sites"].as_array().unwrap().iter().any(|g| g["when"] == variant.when.as_str() && g["backlog"] == true), "{json}");
     }
-    assert!(line.contains("when status and assignee are both absent: grows with t skipped by its per-row read rule"), "{line}");
-    assert!(line.contains("when status and assignee are both absent: also, until background cleanup catches up, expired t rows"), "{line}");
+    assert!(line.contains("when assignee and status are both absent: grows with t skipped by its per-row read rule"), "{line}");
+    assert!(line.contains("when assignee and status are both absent: also, until background cleanup catches up, expired t rows"), "{line}");
     // Unconditional growth runs in every variant: none of them is only a cleanup backlog then.
     let grown = source.replace("  return t where", "  extra = t first 2 by .at after c\n  return t where");
     let b = snapback4_lang::compile(&[("schema.q".into(), grown.into())]);
@@ -168,13 +168,86 @@ fn only_an_arguments_presence_defines_a_variant() {
     // branch never runs.
     let nested = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  if assignee != null:\n    return t where (selected = null or .assignee = selected) first 2 by .at\n  return []\n");
     let c = certificate(&nested);
-    assert!(c.variants.iter().all(|v| !v.when.contains(" and ")), "{:?}", c.variants);
-    assert!(c.variants.iter().filter(|v| v.when == "assignee is present").all(|v| v.class == Class::Backlog), "{:?}", c.variants);
+    assert_eq!(c.variants.len(), 1, "{:?}", c.variants);
+    assert_eq!((c.class, c.variants[0].when.as_str(), c.variants[0].class), (Class::Backlog, "assignee is present", Class::Backlog), "{}", c.line());
+    assert!(c.growth_sites.len() == 1 && c.growth_sites[0].backlog, "only the reachable pinned scan's cleanup: {:?}", c.growth_sites);
+    // The mirror: tested inside `assignee = null`, the copy is absent too, so the unpinned scan runs and grows.
+    let mirrored = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  if assignee = null:\n    return t where (selected = null or .assignee = selected) first 2 by .at\n  return []\n");
+    let c = certificate(&mirrored);
+    assert_eq!(c.variants.len(), 1, "{:?}", c.variants);
+    assert_eq!((c.class, c.variants[0].when.as_str(), c.variants[0].class), (Class::Grows, "assignee is absent", Class::Grows), "{}", c.line());
     // Searching one argument twice is one condition.
     let searched = "table notes:\n  title: text <=100\n  search title\n  public\n  online only\nquery q(needle: text <=100):\n  extra = notes matching needle first 2 by .id\n  return notes matching needle first 2 by .id\n";
     let c = certificate(searched);
     assert_eq!(c.variants.len(), 2, "{:?}", c.variants);
     assert!(c.line().contains("when search needle is absent: constant"), "{}", c.line());
+}
+
+#[test]
+fn what_follows_a_branch_that_leaves_runs_only_in_the_other_case() {
+    // Grok, scale round 5: the second `return` runs only when the assignee is absent, as if
+    // it were written under `else:`.
+    let unpinned = "    return t first 2 by .at\n";
+    let pinned = "    return t where (assignee = null or .assignee = assignee) first 2 by .at\n";
+    let after = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n{pinned}  return t first 2 by .at\n");
+    let within = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n{pinned}  else:\n{unpinned}");
+    let (after, within) = (certificate(&after), certificate(&within));
+    let classes = |c: &scale::Certificate| c.variants.iter().map(|v| (v.when.clone(), v.class)).collect::<Vec<_>>();
+    assert_eq!(classes(&after), vec![("assignee is present".to_owned(), Class::Backlog), ("assignee is absent".to_owned(), Class::Grows)], "{}", after.line());
+    assert_eq!(classes(&after), classes(&within));
+    assert!(after.line().contains("when assignee is present: constant once background cleanup catches up"), "{}", after.line());
+    let json = serde_json::to_value(&after).unwrap();
+    assert!(json["growth_sites"].as_array().unwrap().iter().all(|g| g["when"].is_string()), "no site runs in every call: {json}");
+    // The mirror: after `if assignee = null: return …`, what follows has the assignee.
+    let mirrored = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee = null:\n{unpinned}  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
+    assert_eq!(classes(&certificate(&mirrored)), vec![("assignee is absent".to_owned(), Class::Grows), ("assignee is present".to_owned(), Class::Backlog)]);
+    // Inside a decided test, what follows a branch that leaves never runs.
+    let decided = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    if assignee != null:\n  {pinned}    return t first 2 by .at\n  return []\n");
+    let c = certificate(&decided);
+    assert_eq!(classes(&c), vec![("assignee is present".to_owned(), Class::Backlog)], "{}", c.line());
+}
+
+#[test]
+fn every_way_out_of_a_body_conditions_what_follows() {
+    let pinned = "return t where (assignee = null or .assignee = assignee) first 2 by .at";
+    // Both branches return: what follows never runs, whether the test is of an argument or not.
+    let both = format!("{EXPIRING}query q(assignee: principal ?):\n  if assignee != null:\n    {pinned}\n  else:\n    return []\n  return t first 3 by .at\n");
+    let c = certificate(&both);
+    assert_eq!((c.class, c.growth_sites.len()), (Class::Backlog, 1), "{}", c.line());
+    let computed = format!("{EXPIRING}query q():\n  x = 1\n  if x = 1:\n    return []\n  else:\n    return []\n  return t first 3 by .at\n");
+    assert_eq!(certificate(&computed).class, Class::Constant);
+    // `continue` leaves a loop's body: what follows it there runs only in the other case.
+    let skipped = format!("{EXPIRING}query q(assignee: principal ?):\n  for k in [1, 2]:\n    if assignee = null:\n      continue\n    extra = t first 2 by .at\n  {pinned}\n");
+    let c = certificate(&skipped);
+    assert!(c.growth_sites.iter().all(|g| g.when.is_some()), "no site runs in every call: {:?}", c.growth_sites);
+    assert!(c.growth_sites.iter().any(|g| g.when.as_deref() == Some("assignee is present") && !g.backlog), "{:?}", c.growth_sites);
+    // A test whose branches both return leaves too.
+    let nested = format!("{EXPIRING}query q(assignee: principal ?, status: enum('todo', 'done') ?):\n  if assignee != null:\n    if status != null:\n      {pinned}\n    else:\n      return []\n  return t first 2 by .at\n");
+    let c = certificate(&nested);
+    assert!(c.growth_sites.iter().all(|g| g.when.is_some()), "no site runs in every call: {:?}", c.growth_sites);
+    assert!(c.growth_sites.iter().any(|g| g.when.as_deref() == Some("assignee is absent") && !g.backlog), "{:?}", c.growth_sites);
+}
+
+#[test]
+fn one_presence_state_has_one_spelling() {
+    // Grok, scale round 5: the same two conditions tested in opposite orders are one state.
+    let source = "table t:\n  assignee: principal\n  status: enum('todo', 'done')\n  at: time\n  until: time\n  expire at .until\n  read <- .assignee = viewer\nquery q(status: enum('todo', 'done') ?, assignee: principal ?, c: cursor ?):\n  a = t where (status = null or .status = status) and (assignee = null or .assignee = assignee) first 2 by .at after c\n  return t where (assignee = null or .assignee = assignee) and (status = null or .status = status) first 2 by .at after c\n";
+    let c = certificate(source);
+    let states: std::collections::BTreeSet<_> = c.variants.iter().map(|v| v.when.clone()).collect();
+    assert_eq!(states.len(), c.variants.len(), "{:?}", c.variants);
+    assert!(c.growth_sites.iter().all(|g| g.when.as_ref().is_none_or(|when| states.contains(when))), "every site's condition is a variant: {:?} {:?}", c.growth_sites, states);
+    assert!(c.line().contains("when assignee and status are both present: constant once background cleanup catches up"), "{}", c.line());
+}
+
+#[test]
+fn a_value_computed_from_an_argument_is_not_the_argument() {
+    // Grok, scale round 5: `needle ?? 'x'` searches 'x' when the needle is absent, so the search
+    // runs in every call; its binding is reassigned only inside an expression block.
+    let source = "table notes:\n  title: text <=100\n  search title\n  public\n  online only\nquery q(needle: text <=100 ?):\n  return notes matching (needle ?? 'x') first 2 by .id\n";
+    let c = certificate(source);
+    assert_eq!(c.class, Class::Grows, "{}", c.line());
+    assert!(c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    assert!(!c.line().contains("search needle is absent: constant"), "{}", c.line());
 }
 
 #[test]

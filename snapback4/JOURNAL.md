@@ -59523,3 +59523,30 @@ runs both ways, so its branches count as unconditional. A test that an
 enclosing test already decided adds no fact, and its other branch is recorded
 as unreachable. A searched argument is one condition however often it is
 searched.
+
+## 2026-09-26 — Scale certificate round 6: what follows a returning branch
+
+Astra (READY WITH CHANGES) and Grok (READY WITH CHANGES) reviewed round 5.
+Astra asked for sharper tests of the nested case. The nested test now pins its
+one variant and its one cleanup site, and a mirrored case checks the absent
+branch. Grok found two more gaps:
+
+- Code after a branch that returns was treated as running in every call. In
+  `if assignee != null: return <pinned>` followed by `return <unpinned>`, the
+  second scan runs only when the assignee is absent, yet it grew the present
+  variant. The walk now covers the whole body at once. What follows a branch
+  that leaves the body (`return`, `break`, `continue`) is analyzed in the
+  other branch's case. When both branches leave, or the branch an enclosing
+  test decided leaves, what follows never runs.
+- One presence state could be spelled two ways when its tests nested in
+  opposite orders. Condition names are now sorted, so `status and assignee`
+  reads `assignee and status` everywhere.
+
+Grok also named a surviving mutation: skipping expression blocks when
+finding reassigned bindings. A new test covers it: `matching (needle ?? 'x')`
+searches in every call, so it must not claim a constant absent case.
+
+Ten mutants of the change fail the tests. Four of them needed a new test of
+every way out of a body: both branches returning, `continue` in a loop, and
+a nested test whose branches both return. Quarry accepts code after such a
+test, so the certificate must not charge it.

@@ -61,7 +61,9 @@ pub(super) fn author_name(name: &str) -> String {
 pub(super) fn conditions(conditions: &[(String, bool)]) -> Option<String> {
     if conditions.is_empty() { return None; }
     let render = |present| {
-        let names: Vec<_> = conditions.iter().filter(|(_, value)| *value == present).map(|(name, _)| name.as_str()).collect();
+        // One spelling for one state, whatever order the tests nest in.
+        let mut names: Vec<_> = conditions.iter().filter(|(_, value)| *value == present).map(|(name, _)| name.as_str()).collect();
+        names.sort_unstable();
         if names.is_empty() { return None; }
         let verb = if names.len() == 1 { "is" } else if names.len() == 2 { "are both" } else { "are all" };
         Some(format!("{} {verb} {}", names.join(" and "), if present { "present" } else { "absent" }))

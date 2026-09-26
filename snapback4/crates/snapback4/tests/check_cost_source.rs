@@ -59,7 +59,7 @@ fn extrema_cost_names_seek_or_scan_and_prices_the_endpoint() {
 fn board_quotes_source_read_with_four_planner_variants() {
     let p = Project::new(SOURCE);
     let cost = p.run(&["check", "--cost"]);
-    assert!(cost.contains("when status and assignee are both absent: constant"), "{cost}");
+    assert!(cost.contains("when assignee and status are both absent: constant"), "{cost}");
     assert!(!cost.contains("issues skipped by"), "{cost}");
     let read = format!("read: issues where .org = org and {FILTER} last 50 by .at after c");
     assert!(cost.contains(&read), "{cost}");
@@ -89,7 +89,7 @@ fn presence_variants_keep_the_authored_read_before_expansion() {
     let authored = "(status=null  or  .status=status) and (assignee = null or .assignee = assignee)";
     let source = SOURCE.replace(FILTER, authored).replace(".org = org and", ".org=org  and");
     let cost = Project::new(&source).run(&["check", "--cost"]);
-    assert!(cost.contains("when status and assignee are both absent: constant"), "{cost}");
+    assert!(cost.contains("when assignee and status are both absent: constant"), "{cost}");
     assert!(cost.contains(&format!("read: issues where .org=org  and {authored} last 50")), "{cost}");
 }
 

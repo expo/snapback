@@ -107,17 +107,15 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
     } else {
         // @ref LLP 3000.013#5.2 — automatic sweeps commit at most 64 items;
         // retries only shrink that size. Inner domains still use the meter.
-        for stmt in &program.body {
+        // One walk of the whole body, so a branch that leaves it conditions what follows.
+        let body: Vec<Stmt> = program.body.iter().map(|stmt| {
+            let mut stmt = stmt.clone();
             if program.kind == ProgramKind::Job
-                && let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt
-                && scan.take == Bound::Meter {
-                let mut chunk = stmt.clone();
-                if let Stmt::For { domain: LoopDomain::Page(scan), .. } = &mut chunk {
-                    scan.take = Bound::Literal(64);
-                }
-                a.body(std::slice::from_ref(&chunk), 1);
-            } else { a.body(std::slice::from_ref(stmt), 1); }
-        }
+                && let Stmt::For { domain: LoopDomain::Page(scan), .. } = &mut stmt
+                && scan.take == Bound::Meter { scan.take = Bound::Literal(64); }
+            stmt
+        }).collect();
+        a.body(&body, 1);
         if program.kind == ProgramKind::Job {
             for stmt in &program.body {
                 if let Stmt::For { binding, domain: LoopDomain::Page(scan), .. } = stmt {
@@ -186,6 +184,16 @@ fn reassigned(program: &Program) -> BTreeSet<String> {
     out
 }
 
+/// Whether every path through a body leaves it: a `return`, `break` or
+/// `continue`, or a test both of whose branches leave. A loop may not run.
+fn leaves(body: &[Stmt]) -> bool {
+    body.iter().any(|stmt| match stmt {
+        Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
+        Stmt::If { then_body, else_body, .. } => leaves(then_body) && leaves(else_body),
+        _ => false,
+    })
+}
+
 impl Analysis<'_> {
     /// The binding a presence test finally reads, through any aliases.
     fn identity(&self, name: &str) -> String {
@@ -252,7 +260,7 @@ impl Analysis<'_> {
     }
 
     fn body(&mut self, body: &[Stmt], times: u64) {
-        for stmt in body {
+        for (at, stmt) in body.iter().enumerate() {
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
                     if name.starts_with("$intentNeedle") {
@@ -294,26 +302,42 @@ impl Analysis<'_> {
                             if search { (format!("search {root}"), format!("search {name}"), present) } else { (root, name, present) }
                         })
                     });
+                    // What follows the test runs only after a branch that does not leave the body.
+                    let rest = &body[at + 1..];
+                    let (then_leaves, else_leaves) = (leaves(then_body), leaves(else_body));
                     match fact {
-                        None => { self.body(then_body, times); self.body(else_body, times); }
+                        None => {
+                            self.body(then_body, times); self.body(else_body, times);
+                            if then_leaves && else_leaves { self.never(rest, times); return; }
+                        }
                         Some((identity, name, present)) => match self.identities.iter().find(|(known, _)| *known == identity).map(|(_, value)| *value) {
                             // An enclosing test already decided it: one branch is that same case, the other never runs.
                             Some(known) => {
-                                let (same, never) = if known == present { (then_body, else_body) } else { (else_body, then_body) };
+                                let (same, never, same_leaves) = if known == present { (then_body, else_body, then_leaves) } else { (else_body, then_body, else_leaves) };
                                 self.body(same, times);
-                                self.unreachable += 1;
-                                self.body(never, times);
-                                self.unreachable -= 1;
+                                self.never(never, times);
+                                if same_leaves { self.never(rest, times); return; }
                             }
                             None => {
-                                self.conditions.push((name, present));
-                                self.identities.push((identity, present));
+                                self.conditions.push((name.clone(), present));
+                                self.identities.push((identity.clone(), present));
                                 self.body(then_body, times);
                                 self.conditions.last_mut().unwrap().1 ^= true;
                                 self.identities.last_mut().unwrap().1 ^= true;
                                 self.body(else_body, times);
                                 self.conditions.pop();
                                 self.identities.pop();
+                                if then_leaves && else_leaves { self.never(rest, times); return; }
+                                // @ref LLP 3000.013#14.4 — after one branch leaves, what follows runs only in the other's case.
+                                if then_leaves || else_leaves {
+                                    let value = present != then_leaves;
+                                    self.conditions.push((name, value));
+                                    self.identities.push((identity, value));
+                                    self.body(rest, times);
+                                    self.conditions.pop();
+                                    self.identities.pop();
+                                    return;
+                                }
                             }
                         },
                     }
@@ -360,6 +384,13 @@ impl Analysis<'_> {
                 Stmt::Break | Stmt::Continue => {}
             }
         }
+    }
+
+    /// Statements that never run: walked for their bindings, but no site of theirs counts.
+    fn never(&mut self, body: &[Stmt], times: u64) {
+        self.unreachable += 1;
+        self.body(body, times);
+        self.unreachable -= 1;
     }
 
     fn domain(&mut self, domain: &LoopDomain, times: u64, spelling: Option<&str>) -> (u64, bool) {
