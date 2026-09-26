@@ -891,6 +891,64 @@ const cases = {
     } finally { await unmount(); }
   },
 
+  async "keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset"() {
+    let phase = "ready", seq = 0, latest, reading = 0;
+    const held = [];
+    const { client: raw } = await onlineHooks({ url: "http://keep-hooks.test", persona: "alice", sessionStore: memorySessionStore(), fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      if (path === "/probe") return Response.json({ ok: true, store_id: "keep-hooks", seq });
+      if (path === "/m/write") return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: ++seq });
+      if (path === "/q/read") {
+        reading++;
+        if (phase === "held") await new Promise(resolve => held.push(resolve));
+        const { c } = JSON.parse(init.body).args;
+        return Response.json(phase === "denied" ? { denied: { code: "HIDDEN", family: "rule", message: "withdrawn" }, seq }
+          : { data: c === "b" ? ["c"] : c ? ["b"] : ["a"], next: c === "b" ? null : c ? "b" : "a", complete: true, seq });
+      }
+      throw Error(path);
+    } });
+    function Probe({ keep = true }) {
+      latest = { query: useQuery(query, {}, { keep }), page: usePage(query, {}, { keep }) };
+      return latest.query.loading || latest.page.read.loading ? h("span", null, "Loading")
+        : latest.query.denied || latest.page.read.denied ? h("span", null, "Refused") : h("input", { defaultValue: "draft" });
+    }
+    const settle = async condition => {
+      for (let n = 0; n < 200; n++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+        if (condition()) return;
+      }
+      throw Error("kept hooks did not settle: " + JSON.stringify({ phase, latest, held: held.length, reading }));
+    };
+    try {
+      await mount(h(Probe), raw); await settle(() => latest.page.hasMore);
+      const editor = host.querySelector("input"); editor.value = "unsent draft";
+      await act(async () => latest.page.loadMore()); await settle(() => latest.page.items.length === 2);
+      phase = "held";
+      await act(async () => latest.page.loadMore()); await settle(() => held.length > 0);
+      equal(latest.page.items, ["a", "b"], "ready pages stay while a new page loads");
+      check(host.querySelector("input") === editor && editor.value === "unsent draft", "load-more preserves the editor");
+      await act(async () => { await raw.mutate(mutation, {}); });
+      await settle(() => !latest.query.fresh && !latest.page.read.fresh);
+      equal(latest.page.items, ["a", "b"], "a mutation re-read keeps both pages");
+      check(!latest.query.loading && !latest.page.read.loading && Number.isFinite(latest.query.since), "kept metadata reaches both hooks");
+      check(host.querySelector("input") === editor && editor.value === "unsent draft", "re-read preserves the editor and draft");
+      phase = "ready"; await act(async () => held.splice(0).forEach(resolve => resolve()));
+      await settle(() => latest.page.items.length === 3 && latest.query.fresh);
+      phase = "denied"; await act(async () => { await raw.mutate(mutation, {}); });
+      await settle(() => latest.query.denied && latest.page.read.denied);
+      check(!host.querySelector("input"), "a refusal replaces kept data");
+      phase = "ready"; await act(async () => { await raw.mutate(mutation, {}); });
+      await settle(() => latest.page.read.data && latest.query.data);
+      phase = "held"; const before = reading;
+      await render(h(Probe, { keep: false }), raw); await settle(() => reading > before);
+      check(latest.query.loading && latest.page.read.loading, "turning keep off opens default watches");
+      phase = "ready"; await act(async () => held.splice(0).forEach(resolve => resolve()));
+      await render(h(Probe), raw); await settle(() => latest.query.data);
+      await act(async () => { await raw.signOut(); });
+      check(!latest.query.data && !latest.page.read.data, "sign-out clears both hooks");
+    } finally { held.splice(0).forEach(resolve => resolve()); await unmount(); await raw.close(); }
+  },
   async "online observations clear pages during fetches and on unavailable settlement, refusal and close"() {
     let phase = "ready", seq = 0, latest;
     const held = [];
