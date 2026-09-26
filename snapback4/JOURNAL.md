@@ -59351,3 +59351,29 @@ never. The read-through fixture now observes such a query and requires it to
 keep refreshing. The local failure, loading and overtaken-reply cases now run on
 the wasm and process devices, and an online case shows a background reply older
 than an observed commit is never published.
+
+## 2026-09-26 — Live presence round 9: remembered answers in the order reads began
+
+Both reviews of round 8 confirmed its three fixes; Astra reproduced the
+session-death Low's fix with a timer barrier. They then found opposite faults
+in the staged cache's guard, which compared entries by identity:
+
+- **Astra:** a newer one-shot refusal deleted an answer that was never
+  remembered, and the older background reply, accepted anyway, wrote it back.
+- **Grok:** an older one-shot answer that landed while a refresh ran made the
+  newer accepted reply skip its write, so recovery stepped backward.
+
+Both are about order, so round 9 orders the remembered answers by when each
+read began. Every read takes a ticket as it begins, and a write of a key,
+deletions included, applies only if no read that began later has written it.
+That also makes round 8's staging unnecessary: an overtaken reply can never
+outrank the read that overtook it. So staging and its acceptance hook are gone.
+
+The online client now gates its timer the way the local one does: ended
+credentials keep no interval, whatever read settles last. The race lies
+between a reply and its caller resuming, so no fake transport reaches it, and
+the gate is structural. The RFC and the contract now say a composed sample
+keeps the `fresh: false` it arrived with. New local cases: an accepted
+background reply is what recovery shows, and it replaces an older one-shot
+answer that landed while it ran; an older refusal landing later does not erase
+it; and the accepted loading and refusal cases run through an outage.

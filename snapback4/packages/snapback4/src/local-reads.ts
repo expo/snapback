@@ -36,29 +36,36 @@ export type ServerAnswer = {
   tables: Set<string>;
 };
 
-/** The answer cache a background presence read writes through. Its writes wait
- * until the read is accepted, and then touch only entries that no other read
- * replaced meanwhile (LLP 3000.017 §3.2). */
-export function stagedAnswers(target: Map<string, ServerAnswer>) {
-  const initial = new Map(target);
-  const writes = new Map<string, ServerAnswer | null>();
-  return {
-    get: (key: string) => writes.has(key) ? writes.get(key) ?? undefined : target.get(key),
-    set: (key: string, answer: ServerAnswer) => { writes.set(key, answer); },
-    delete: (key: string) => { writes.set(key, null); },
-    commit() {
-      for (const [key, answer] of writes) {
-        if (target.get(key) !== initial.get(key)) continue; // Another read replaced it since this one began.
-        if (answer) target.set(key, answer); else target.delete(key);
-      }
-    },
-  };
+/** Remembered server answers, which a later recovery may show. Every read takes
+ * a ticket as it begins, and a write of a key applies only if no read that began
+ * later has written that key: an older reply never replaces a newer one, nor a
+ * newer deletion (LLP 3000.017 §3.2). */
+export class RememberedAnswers {
+  private readonly answers = new Map<string, ServerAnswer>();
+  private readonly written = new Map<string, number>();
+  private tickets = 0;
+  /** The ticket of a read that is about to begin. */
+  begin(): number { return ++this.tickets; }
+  get(key: string): ServerAnswer | undefined { return this.answers.get(key); }
+  set(key: string, answer: ServerAnswer, ticket: number): void {
+    if ((this.written.get(key) ?? 0) > ticket) return;
+    this.answers.set(key, answer); this.written.set(key, ticket);
+  }
+  delete(key: string, ticket: number): void {
+    if ((this.written.get(key) ?? 0) > ticket) return;
+    this.answers.delete(key); this.written.set(key, ticket);
+  }
+  clear(): void { this.answers.clear(); this.written.clear(); }
+  /** The cache as one read writes it, under that read's ticket. */
+  view(ticket = this.begin()) {
+    return { get: (key: string) => this.get(key), set: (key: string, answer: ServerAnswer) => this.set(key, answer, ticket), delete: (key: string) => this.delete(key, ticket) };
+  }
 }
 
 /** Every local commit retires retained answers. */
 export class LocalReads {
   revision = 0;
-  readonly serverAnswers = new Map<string, ServerAnswer>();
+  readonly serverAnswers = new RememberedAnswers();
 
   clear(watches: Iterable<LocalWatch>): void {
     this.revision++;

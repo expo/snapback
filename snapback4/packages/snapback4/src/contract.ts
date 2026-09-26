@@ -45,9 +45,10 @@ export type ReadCut = "meter" | "words" | null;
  * the newest server state it does reflect, so a screen can say "as of three minutes ago".
  * Online observations withdraw an answer that a change or expiry made stale, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
  * Presence is the exception. No commit announces that `connected[p]` changed, so an answer of a query that
- * may read it is a sample: it keeps the `fresh` it arrived with until a newer answer replaces it. A background
- * re-read about 5 seconds after each reply settles does that while refreshes succeed; failed refreshes or a
- * suspended client leave the sample on screen, still marked fresh, with no bound on its age.
+ * may read it is a sample: it keeps the `fresh` it arrived with (true for a server's whole answer, false when
+ * a local answer composes retained rows) until a newer answer replaces it. A background re-read about
+ * 5 seconds after each reply settles does that while refreshes succeed; failed refreshes or a suspended
+ * client leave the sample on screen, with the same flag, and no bound on its age.
  * A local observation may keep its last answer with `fresh: false` and `since`
  * only during an unavailable device read's server fallback, ending at fetch
  * settlement or any local commit, reset, adoption, generation, account change or close.

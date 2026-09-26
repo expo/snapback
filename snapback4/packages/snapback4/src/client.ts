@@ -440,8 +440,10 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000.017#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
   function schedulePresence(watch: Watch, answered: boolean, after?: number) {
-    if (answered) watch.presenceEvery = after;
-    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
+    // A closed client or ended credentials keep no interval, whichever read settles last.
+    if (closed || !credentials) watch.presenceEvery = undefined;
+    else if (answered) watch.presenceEvery = after;
+    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, watch.presenceEvery, () => {
       watch.presenceRefresh = null;
       void refreshPresence(watch);
     });

@@ -18,7 +18,7 @@ import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 import { evaluateLocal } from "./local-query.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, predictedTables, LocalReads, stagedAnswers, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
@@ -872,8 +872,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false) {
-    // @ref LLP 3000.017#3.2 — a background read remembers nothing until its reply is accepted.
-    const staged = quiet ? stagedAnswers(answers.serverAnswers) : null;
     const queryEnvironment = {
       get backend() { return backend!; },
       get partitionDenied() { return partitionDenied; },
@@ -891,15 +889,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
       post: quiet ? (path: string, body: unknown, captured?: ClosingResponse) => post(path, body, captured, true) : post,
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
-      offline, serverAnswers: staged ?? answers.serverAnswers,
+      // @ref LLP 3000.017#3.2 — remembered answers are ordered by when each read began.
+      offline, serverAnswers: answers.serverAnswers.view(),
     };
     const work = (async () => {
       while (true) {
         const revision = incarnation, authority = answers.revision;
         const result = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
-        if (denied) return { ...result, read: { denied }, incarnation: revision, authority, accept: undefined };
-        if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority, accept: staged?.commit };
+        if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
+        if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
       }
     })();
     active.add(work);
@@ -960,13 +959,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
     const shown = watch.snapshot;
     try {
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, incarnation: revision, authority, accept } = await runLocal(watch.op, watch.args, undefined, true);
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, incarnation: revision, authority } = await runLocal(watch.op, watch.args, undefined, true);
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
-      // A reply that a newer publication or re-run overtook decides and remembers nothing: the newer one armed the timer.
+      // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
       if (watch.snapshot !== shown || watch.running) return;
       // An answer the server gave, current for this store and authority, is published whatever it says.
       if (served && revision === incarnation && authority === answers.revision) {
-        accept?.();
         watch.tables = tables;
         scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
         const denied = unavailable();
