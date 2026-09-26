@@ -212,6 +212,9 @@ impl Live {
     /// Whether any held poll follows this principal.
     pub(crate) fn followed(&self, principal: &str) -> bool { lock(&self.followers).contains_key(principal) }
 
+    /// Whether any held poll follows anyone.
+    pub(crate) fn any_followed(&self) -> bool { !lock(&self.followers).is_empty() }
+
     /// Whether this poll brought the principal online: nothing was open and
     /// no grace was running. A client re-polling within its grace never does.
     fn enter(&self, principal: &str) -> bool {

@@ -147,8 +147,9 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         Ok(now) => now,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
-    // @ref LLP 3000.017#3.2 — an advance can end a followed principal's grace; held polls recheck.
-    shared.committed.notify_all();
+    // @ref LLP 3000.017#3.2 — an advance can end a followed principal's grace;
+    // wake held polls only when one follows presence, so open polls survive.
+    if shared.presence.any_followed() { shared.committed.notify_all(); }
     match work(shared, true, 0) {
         Ok(work) => respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "work":work})),
         // Time remains advanced if maintenance fails; callers must not
