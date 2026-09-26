@@ -291,6 +291,11 @@ const cases = {
     await mount(h(Receipts, { visible: false }), late);
     equal(acked(late), ["delivered:401-500"], "a member who joined at 100 and fetched 401..500 reports it");
     await unmount();
+    const beyond = receiptsClient(new Map([[null, ready(ordinals(500, 401), "p2")], ["p2", { loading: true }]]),
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 100, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), beyond);
+    equal(acked(beyond), ["delivered:401-500"], "a member with a prefix at 100 reports a run above the gap after it");
+    await unmount();
     const waiting = receiptsClient(new Map([[null, ready(ordinals(80, 61), "p2")], ["p2", { loading: true }]]),
       ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: false }), waiting);

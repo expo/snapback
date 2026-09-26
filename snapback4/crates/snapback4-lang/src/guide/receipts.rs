@@ -63,7 +63,7 @@ fn receipt(m: messages):
     if member.principal != m.sender and member.joinedOrdinal < m.ordinal:
       remaining = remaining + 1
       if m.ordinal > member.deliveredOrdinal:
-        run = first(runs where .conversation = m.conversation and .principal = member.principal and .fromOrdinal <= m.ordinal last 1 by .fromOrdinal)
+        run = first(runs[conversation = m.conversation, principal = member.principal, fromOrdinal <= m.ordinal] last 1 by .fromOrdinal)
         if run = null or run.throughOrdinal < m.ordinal:
           return 'sent'
       if member.seenOrdinal < m.ordinal:

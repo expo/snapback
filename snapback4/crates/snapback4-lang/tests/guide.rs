@@ -396,6 +396,32 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     };
     let all = states_of(&mut engine);
     assert!(all.len() == 20 && all.iter().all(|r| r == "delivered"), "the newest 20, 11 to 30, lie in the one merged run 5 to 30: {all:?}");
+    // The worst page: 49 recipients at the 16-run cap, and a page every one of
+    // them covers from its lowest run. Each lookup seeks one run, so the page
+    // stays within the read meter.
+    let wide = || ("conversation", id("wide"));
+    let people: Vec<String> = (1..=49).map(|n| format!("w{n}")).collect();
+    let mut rows = vec![chat("wide"), member("wa", "wide", "alice")];
+    rows.extend(people.iter().map(|p| member(&format!("m-{p}"), "wide", p)));
+    engine.seed(rows).unwrap();
+    for n in 1..=80 {
+        let row = format!("w-msg-{n}");
+        sent(&engine.mutate("send", None, at("alice", 7_000 + n, &[wide(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    }
+    for (k, p) in people.iter().enumerate() {
+        let now = 8_000 + 20 * k as i64;
+        sent(&engine.mutate("delivered", None, at(p, now, &run(wide(), 21, 40))).unwrap());
+        for (j, n) in (42..=70).step_by(2).enumerate() { sent(&engine.mutate("delivered", None, at(p, now + 1 + j as i64, &run(wide(), n, n))).unwrap()); }
+    }
+    let (mut cursor, mut page) = (Value::Null, None);
+    for _ in 0..3 {
+        let read = engine.query("history", at("alice", 9_000, &[wide(), ("c", cursor.clone())])).unwrap();
+        cursor = read.next.clone().map(Value::String).unwrap_or(Value::Null);
+        page = Some(read);
+    }
+    let page = page.unwrap();
+    let states: Vec<String> = page.data.as_array().unwrap().iter().map(receipt).collect();
+    assert!(page.complete && states.len() == 20 && states.iter().all(|r| r == "delivered"), "ordinals 21 to 40 under 49 members' runs: complete {}, {states:?}", page.complete);
 }
 
 fn compile(source: &str) -> snapback4_lang::Bound {
