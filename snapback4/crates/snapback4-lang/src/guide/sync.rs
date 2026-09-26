@@ -12,7 +12,10 @@ table notices:
   insert <- deny
   update <- deny
   delete <- deny
-  sync last 100 by .at            -- everyone holds the newest 100
+  sync last 500 by .at, .id       -- everyone holds the newest 500, with id breaking time ties
+
+query recentNotices(c: cursor ?):
+  return notices last 20 by .at, .id after c
 
 table todos:
   ownerId: principal
@@ -71,14 +74,22 @@ group column to be non-optional: `null` cannot name a device partition, so
 Checks also cover insert-if-absent and upsert.
 Read rules may add `or viewer = 'service:pusher'` (or several service grants);
 sync infers its audience without them, so device snapshots and streams stay the same. The horizon
-`last N by .at` bounds what a device acquires per group. The server sends
+`last N by .at, .id` bounds what a device acquires per group. The server sends
 an acquisition boundary: a suffix starting at the Nth delivered readable key,
 or `whole` when fewer than N readable rows exist, including an empty group.
 A descending page on that index is complete while it stays at or above that
 boundary by key; crossing it returns only the known suffix with `complete: false`
 and unknown coverage, so the online client asks the server. Without a boundary
-the group is unknown. Ascending reads and other indexes keep their ordinary
-horizon rule. An unheld put below the boundary is dropped; a held row whose key
+the group is unknown. Ascending reads and other indexes have unknown coverage.
+N_SYNC_ORDER notes these query orders at their source sites and names the
+window's order for ordinary pages. Whole-domain aggregates and word searches
+have separate coverage requirements; this ordering note does not cover them.
+Use `last N by .at, .id` for the example above, keeping the
+audience predicate and cursor. A query on the window's own index, newest first,
+can answer offline within the acquired boundary, including timestamp ties.
+Other orders need the server; a held query stays local with incomplete coverage.
+`online only` currently applies to tables and views, not query headers.
+An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
 A put moving above the boundary joins the suffix. Continuous renewal keeps the
 boundary. A join reacquiring retained history leaves the horizon unknown until
@@ -107,6 +118,11 @@ put; applying it twice replaces the same row by id. A later deletion still delet
 Snapshot replies echo `after`; the device checks every
 continuation and requires the terminal page before catch-up publishes coverage.
 Empty groups consume page room too, so even a page with no rows can continue.
+
+`last N by .a, .b` creates an ordinary index with the audience columns first,
+then the listed order and an `id` tiebreaker if not already listed. A named
+index still works. Repeating a listed column or an audience column is
+E_QUARRY_SYNTAX: keep each order column once and omit the audience pins.
 
 A synced table with no horizon delivers every row of
 every group a device holds, at every cold start, as the table grows;

@@ -219,11 +219,22 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             }
             let prefix = need.prefix;
             if !prefix.is_empty() { requests.index(original, prefix.clone(), None, &sync.site, false); }
-            if let Some((_, by)) = &mut sync.horizon && let Some(column) = by.strip_prefix('.') {
+            if let Some((last, by @ SyncOrder::Columns(_))) = &mut sync.horizon {
+                let SyncOrder::Columns(order) = by else { unreachable!() };
+                // @ref LLP 3000.019#3.1 — audience pins lead, then authored order, then the id tiebreaker once.
+                let repeated: Vec<_> = order.iter().filter(|column| prefix.contains(column)).cloned().collect();
+                if !repeated.is_empty() {
+                    let mut repaired: Vec<_> = order.iter().filter(|column| !prefix.contains(column)).cloned().collect();
+                    if repaired.is_empty() && !prefix.iter().any(|column| column == "id") { repaired.push("id".into()); }
+                    let rewrite = if repaired.is_empty() { "remove the last ... by clause; the audience already pins the row id".into() }
+                        else { format!("last {last} by {}", SyncOrder::Columns(repaired)) };
+                    requests.errors.push(crate::diag::syntax_with(&sync.site,
+                        format!("window order repeats audience columns {}; the audience already pins them", SyncOrder::Columns(repeated)), rewrite).guide("sync"));
+                }
                 let mut columns = prefix;
-                if !columns.iter().any(|key| key == column) { columns.push(column.into()); }
-                if columns.last().map(String::as_str) != Some("id") { columns.push("id".into()); }
-                *by = requests.index(original, columns, None, &sync.site, true);
+                for column in order { if !columns.contains(column) { columns.push(column.clone()); } }
+                if !columns.iter().any(|column| column == "id") { columns.push("id".into()); }
+                *by = SyncOrder::Index(requests.index(original, columns, None, &sync.site, true));
             }
         }
     }
@@ -295,7 +306,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     for table in catalog.tables.values_mut() {
         for rule in &mut table.decl.rules { walk::expression(&mut rule.value, &mut resolve); }
         for (value, _) in &mut table.decl.final_exists { walk::expression(value, &mut resolve); }
-        if let Some((_, by)) = table.decl.sync.as_mut().and_then(|sync| sync.horizon.as_mut())
+        if let Some((_, SyncOrder::Index(by))) = table.decl.sync.as_mut().and_then(|sync| sync.horizon.as_mut())
             && let Some(name) = names.get(&(table.decl.name.clone(), by.clone())) { *by = name.clone(); }
     }
     for doc in &mut catalog.documents { walk::document(doc, &mut resolve); }

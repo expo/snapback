@@ -305,8 +305,24 @@ pub struct ColumnAggregate {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SyncDecl {
     pub audience: SyncAudience,
-    pub horizon: Option<(u32, String)>,
+    pub horizon: Option<(u32, SyncOrder)>,
     pub site: Site,
+}
+
+// @ref LLP 3000.019#3.1 — column intent resolves to the same ordinary index as a named window.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SyncOrder {
+    Index(String),
+    Columns(Vec<String>),
+}
+
+impl std::fmt::Display for SyncOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Index(name) => f.write_str(name),
+            Self::Columns(columns) => f.write_str(&columns.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

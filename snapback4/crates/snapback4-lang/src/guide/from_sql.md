@@ -47,7 +47,7 @@ existence or cascade deletion; guard required visible targets in the mutation.
 table projects:
   title: text
   public
-  sync public
+  online only
 
 table members:
   conversation: projects
@@ -68,7 +68,7 @@ table entries:
   read <- .owner = viewer
   insert <- .owner = viewer
   update <- .owner = viewer
-  sync to .owner last 500 by .at
+  online only
 
 view entryCounts: count entries by .owner
 view entryTotals: sum entries of .amount by .owner
@@ -114,6 +114,10 @@ mutation remove(id: entries):
 | Stemming, phrase search, relevance rank | No equivalent; use word-prefix search in a declared column order. |
 | Soft delete | `removed: bool default false`, `update`, and `where not .removed`; authorization and physical retention remain your policy. |
 | `ctx.db.query().withIndex().order().paginate()` | `latest` states predicates, column order and continuation; the compiler selects the index. |
+
+This select-and-aggregate example runs online so its pages and searches can
+choose different orders. For offline pages, choose a sync window and read its
+own order newest first; see `guide sync` and N_SYNC_ORDER.
 
 `count(read)` and `sum(read, .amount)` compute a live total without storing a
 view; `count(page)` counts that page only. A meter cut never becomes an exact
