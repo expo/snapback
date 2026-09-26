@@ -1,0 +1,13 @@
+diff --git a/snapback4/native-fixtures/following/Cargo.lock b/snapback4/native-fixtures/following/Cargo.lock
+index 67f5824e5b..03bcaefcd8 100644
+--- a/snapback4/native-fixtures/following/Cargo.lock
++++ b/snapback4/native-fixtures/following/Cargo.lock
+@@ -84,7 +84,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-native"
+-version = "0.4.1"
++version = "0.4.2"
+ dependencies = [
+  "serde",
+  "serde_json",
