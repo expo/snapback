@@ -17,10 +17,7 @@ fn engine_work<T>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine,
     let result = run(&mut engine, budget);
     // Publish from this guard: a second ordinary admission would both delay
     // notification and mistake maintenance for a newly arrived request.
-    if let Ok(seq) = engine.seq() {
-        let mut current = lock(&shared.seq);
-        if seq > *current { *current = seq; shared.committed.notify_all(); }
-    }
+    shared.publish_engine(&engine);
     result
 }
 
@@ -34,6 +31,7 @@ fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bo
 // @ref LLP 3000#7-decisions-during-execution — lifetimes are swept into the partition log; missed schedule boundaries fire once.
 fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
+    shared.ephemeral.sweep(shared.now())?;
     work.delivery_chunks = delivery(shared, drain)?;
     loop {
         if phase(shared, engine_work(shared, |engine, budget| engine.run_view_chunk_for(shared.now(), budget)), drain, "view recount")?.is_none() {break;}
@@ -107,6 +105,7 @@ pub(super) fn maintain(shared: Arc<Shared>) {
     let mut last_tick = std::time::Instant::now();
     loop {
         if crate::lifecycle::stopping() { return; }
+        if let Err(error) = shared.ephemeral.sweep(shared.now()) { eprintln!("snapback4: ephemeral sweep: {error}"); }
         let observed = *lock(&shared.seq);
         {
             let _maintenance = lock(&shared.maintenance);

@@ -10,6 +10,9 @@ mod adoption_tests;
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
 
+#[path = "../tests/serve_ephemeral/mod.rs"]
+mod ephemeral_tests;
+
 #[path = "../tests/serve_presence/mod.rs"]
 mod presence_tests;
 
@@ -68,6 +71,8 @@ impl Host {
         engine.set_presence(Some(presence.clone()));
         let generation = engine.generation();
         let shared = Arc::new(Shared {
+            ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
+            wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: super::engine_lock::FairMutex::new(engine),
             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
@@ -126,7 +131,9 @@ impl Host {
 impl Drop for Host {
     fn drop(&mut self) {
         *self.shared.seq.lock().unwrap() = u64::MAX;
+        lock(&self.shared.wake).seq=u64::MAX;
         self.shared.committed.notify_all();
+        self.shared.polls.notify_all();
         self.server.unblock();
         self.worker.take().unwrap().join().unwrap();
     }
@@ -564,6 +571,8 @@ fn full_poll_admission_preserves_short_request_progress() {
     assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
     *host.shared.seq.lock().unwrap() = 1;
     host.shared.committed.notify_all();
+    lock(&host.shared.wake).seq=1;
+    host.shared.polls.notify_all();
     wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
 }
 
@@ -642,6 +651,8 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
     );
     *host.shared.seq.lock().unwrap() = 1;
     host.shared.committed.notify_all();
+    lock(&host.shared.wake).seq=1;
+    host.shared.polls.notify_all();
     assert_eq!(status(&poll.join().unwrap()), 401);
 }
 
