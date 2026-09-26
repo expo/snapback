@@ -683,6 +683,17 @@ pub fn doctor(options: &Options) -> i32 {
         };
         lines.push(format!("native    {} declared: {}; {built}; {toolchain}", if native_jobs.len() == 1 { "program" } else { "programs" }, native_jobs.join(", ")));
     }
+    let temporary_host = if options.flags.contains_key("store") || options.flags.contains_key("release") { None }
+        else { adoption::project_host(&project).filter(|host| host["temporary"] == true) };
+    if let Some(host) = temporary_host {
+        lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"], host["generation"]));
+        latency_snapshot = latency::read(&project, &host, false);
+        if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
+        if let Some(reason) = host["adoption"].as_str() {
+            ok = false;
+            lines.push(format!("adoption  pending: {reason}; serving the previous generation"));
+        }
+    } else {
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.
     match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
@@ -763,6 +774,7 @@ pub fn doctor(options: &Options) -> i32 {
             ok = false;
             lines.push(format!("store     FAIL {error}"));
         }
+    }
     }
     lines.push(format!("types     {}", if project.generated_dir().join("api.ts").is_file() { "generated" } else { "not generated yet (`snapback4 check` writes them)" }));
     if !personas.is_empty() {

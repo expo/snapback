@@ -11,8 +11,9 @@ impl Fixture {
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
     fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
-    fn start(&self) -> Host {
-        let mut child = Command::new(BIN).current_dir(&self.0).args(["dev", "--no-watch", "--port", "0"]).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+    fn start(&self) -> Host { self.start_with(&[]) }
+    fn start_with(&self, args: &[&str]) -> Host {
+        let mut child = Command::new(BIN).current_dir(&self.0).args(["dev", "--no-watch", "--port", "0"]).args(args).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
         assert!(!host.address.is_empty()); host
@@ -81,4 +82,67 @@ fn doctor_latency_reads_and_resets_snapshots_above_the_http_chunk_threshold() {
         assert_eq!(snapshot["operations"].as_object().unwrap().len(), 309);
         assert_eq!(snapshot["operations"]["/q/sample299"]["n"], 0);
     }
+}
+
+
+#[test]
+fn doctor_discovers_fresh_and_memory_without_a_persisted_store_and_cleans_up() {
+    use std::os::unix::process::ExitStatusExt;
+    for flag in ["--fresh", "--memory"] {
+        let fixture = Fixture::new(flag);
+        let mut host = fixture.start_with(&[flag]);
+        let data = fixture.0.join(".snapback4");
+        assert!(!data.join("store.sqlite").exists());
+        assert!(!data.join("serve.lock").exists(), "discovery must not impersonate store ownership");
+        host.request("POST", "/q/fast", json!({"args":{}}));
+        for args in [vec!["doctor", "--latency", "--json"], vec!["doctor", "--json"]] {
+            let answer: Value = serde_json::from_str(&success(fixture.command(&args))).unwrap();
+            let snapshot = if args.contains(&"--latency") { &answer } else { assert_eq!(answer["ok"], true); &answer["latency"] };
+            assert_eq!(snapshot["operations"]["/q/fast"]["n"], 1);
+        }
+        let reset: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--reset", "--json"]))).unwrap();
+        assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
+        let record = data.join(format!("dev-address-{}.json", host.address.rsplit(':').next().unwrap()));
+        assert!(record.is_file());
+        unsafe { libc::kill(host.child.id() as i32, libc::SIGTERM); }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(status) = host.child.try_wait().unwrap() { assert_eq!(status.signal(), Some(libc::SIGTERM)); break; }
+            assert!(Instant::now() < deadline); std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!record.exists(), "orderly exit removes the address record");
+        assert!(!fixture.command(&["doctor", "--latency"]).status.success());
+    }
+}
+
+#[test]
+fn doctor_uses_live_temporary_host_even_beside_an_older_persisted_store() {
+    let fixture = Fixture::new("alongside");
+    let persisted = fixture.start();
+    let store_id = persisted.request("GET", "/dev/status", Value::Null)["storeId"].clone();
+    let fresh = fixture.start_with(&["--fresh"]);
+    assert_ne!(fresh.request("GET", "/dev/status", Value::Null)["storeId"], store_id);
+    fresh.request("POST", "/q/idle", json!({"args":{}}));
+    let answer: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--json"]))).unwrap();
+    assert_eq!(answer["latency"]["operations"]["/q/idle"]["n"], 1);
+    assert!(answer["lines"].as_array().unwrap().iter().any(|line| line.as_str().unwrap().contains("temporary dev store")));
+    drop(fresh); // SIGKILL leaves a stale file; discovery must ignore its unlocked record.
+    let answer: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--json"]))).unwrap();
+    assert_eq!(answer["operations"]["/q/idle"]["n"], 0);
+}
+
+#[test]
+fn doctor_refuses_mismatched_address_identity_without_resetting() {
+    let fixture = Fixture::new("wrong-identity");
+    let host = fixture.start_with(&["--fresh"]);
+    host.request("POST", "/q/fast", json!({"args":{}}));
+    let path = fixture.0.join(".snapback4").join(format!("dev-address-{}.json", host.address.rsplit(':').next().unwrap()));
+    let original = fs::read(&path).unwrap();
+    let mut wrong: Value = serde_json::from_slice(&original).unwrap();
+    wrong["store_id"] = json!("a different store");
+    fs::write(&path, wrong.to_string()).unwrap();
+    assert!(!fixture.command(&["doctor", "--latency", "--reset", "--json"]).status.success());
+    assert_eq!(host.request("GET", "/dev/latency", Value::Null)["operations"]["/q/fast"]["n"], 1);
+    fs::write(path, original).unwrap();
+    success(fixture.command(&["doctor", "--latency", "--json"]));
 }

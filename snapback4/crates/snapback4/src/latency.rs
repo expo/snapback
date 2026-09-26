@@ -59,8 +59,8 @@ pub(crate) struct Distribution { pub p50: f64, pub p95: f64, pub p99: f64, pub m
 pub(crate) struct Summary { pub n: u64, pub refused: u64, pub total: Distribution, pub wait: Distribution }
 #[derive(Serialize, serde::Deserialize, Debug)]
 pub(crate) struct Snapshot { pub since: i64, pub operations: BTreeMap<String, Summary> }
-struct Window { since: i64, started: Instant, operations: BTreeMap<String, Operation> }
-pub(crate) struct Registry(Mutex<Window>, #[cfg(test)] std::sync::atomic::AtomicBool);
+struct Window { since: i64, started: Instant, operations: BTreeMap<String, Arc<Mutex<Operation>>> }
+pub(crate) struct Registry(Mutex<Arc<Window>>, Mutex<()>, #[cfg(test)] std::sync::atomic::AtomicBool);
 
 const FIXED: &[&str] = &["/sync", "/changes", "/assets (upload)", "/assets (download)", "/q/<unknown>", "/m/<unknown>", "/a/<unknown>"];
 fn names(bound: &Bound) -> BTreeSet<String> {
@@ -71,31 +71,38 @@ fn names(bound: &Bound) -> BTreeSet<String> {
 }
 impl Registry {
     pub fn new(bound: &Bound) -> Self {
-        Self(Mutex::new(Window { since: snapback4_core::now_ms(), started: Instant::now(), operations: names(bound).into_iter().map(|name| (name, Operation::default())).collect() }), #[cfg(test)] std::sync::atomic::AtomicBool::new(true))
+        Self(Mutex::new(Arc::new(Window { since: snapback4_core::now_ms(), started: Instant::now(), operations: names(bound).into_iter().map(|name| (name, Arc::default())).collect() })), Mutex::new(()), #[cfg(test)] std::sync::atomic::AtomicBool::new(true))
     }
     #[cfg(test)]
-    pub fn measure_enabled(&self, enabled: bool) { self.1.store(enabled, std::sync::atomic::Ordering::Relaxed); }
+    pub fn measure_enabled(&self, enabled: bool) { self.2.store(enabled, std::sync::atomic::Ordering::Relaxed); }
     pub fn adopt(&self, bound: &Bound) {
-        let names = names(bound);
-        let mut window = lock(&self.0);
-        window.operations.retain(|name, _| names.contains(name));
-        for name in names { window.operations.entry(name).or_default(); }
+        let _update = lock(&self.1);
+        let old = lock(&self.0).clone();
+        let operations = names(bound).into_iter().map(|name| {
+            let op = old.operations.get(&name).cloned().unwrap_or_default();
+            (name, op)
+        }).collect();
+        *lock(&self.0) = Arc::new(Window { since: old.since, started: old.started, operations });
     }
     pub fn snapshot(&self, reset: bool) -> Snapshot {
-        // Copy the fixed arrays under the lock; percentile scans/JSON never hold it.
-        let (since, operations) = {
-            let mut window = lock(&self.0);
-            if reset {
-                window.since = snapback4_core::now_ms();
-                window.started = Instant::now();
-                for op in window.operations.values_mut() { *op = Operation::default(); }
-            }
-            (window.since, window.operations.clone())
-        };
-        Snapshot { since, operations: operations.into_iter().map(|(name, op)| (name, Summary { n: op.total.n, refused: op.refused, total: op.total.summary(), wait: op.wait.summary() })).collect() }
+        let window = if reset {
+            let _update = lock(&self.1);
+            let old = lock(&self.0).clone();
+            let operations = old.operations.keys().map(|name| (name.clone(), Arc::default())).collect();
+            let mut current = lock(&self.0);
+            let next = Arc::new(Window { since: snapback4_core::now_ms(), started: Instant::now(), operations });
+            *current = next.clone();
+            next
+        } else { lock(&self.0).clone() };
+        // @ref LLP 3000.019#3.7 — topology is an O(1) Arc capture; copy just one
+        // fixed histogram pair under its own lock. No registry-sized recording stall.
+        Snapshot { since: window.since, operations: window.operations.iter().map(|(name, op)| {
+            let op = lock(op).clone();
+            (name.clone(), Summary { n: op.total.n, refused: op.refused, total: op.total.summary(), wait: op.wait.summary() })
+        }).collect() }
     }
     fn record(&self, path: &str, accepted: Instant, total: Duration, wait: Duration, refused: bool) {
-        let mut window = lock(&self.0);
+        let window = lock(&self.0).clone();
         // A reset starts a new arrival window, excluding old in-flight requests.
         if accepted < window.started { return; }
         let key = if window.operations.contains_key(path) { path }
@@ -103,7 +110,7 @@ impl Registry {
             else if path.starts_with("/m/") { "/m/<unknown>" }
             else if path.starts_with("/a/") { "/a/<unknown>" }
             else { return; };
-        let op = window.operations.get_mut(key).unwrap();
+        let mut op = lock(&window.operations[key]);
         op.total.record(total);
         op.wait.record(wait);
         op.refused = op.refused.saturating_add(u64::from(refused));
@@ -120,7 +127,7 @@ pub(super) struct Sample { registry: Arc<Registry>, path: String, accepted: Inst
 impl Sample {
     pub fn new(request: &Request, registry: &Arc<Registry>) -> Option<Self> {
         #[cfg(test)]
-        if !registry.1.load(std::sync::atomic::Ordering::Relaxed) { return None; }
+        if !registry.2.load(std::sync::atomic::Ordering::Relaxed) { return None; }
         let path = request.url().split('?').next().unwrap_or("");
         let path = match (request.method(), path) {
             (Method::Post, "/sync") | (Method::Get, "/changes") => path,

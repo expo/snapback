@@ -276,7 +276,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev { project.check_server_at(&mut source_stamp)?; }
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
-    let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
+    let _host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
         let path = project.store_path();
         let path = if path.exists() { path.canonicalize().map_err(|e| e.to_string())? } else { path };
         Some(crate::verbs::deployment_lock(path.parent().ok_or("store path has no parent")?)?)
@@ -323,11 +323,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     shared.install_ephemeral_wake();
     let server = Arc::new(server);
     let address = server.server_addr();
-    // Discover the live dev inspector through the existing lifetime lock file.
-    if let Some(file) = &mut host_lock {
-        file.set_len(0).map_err(|e| e.to_string())?;
-        write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
-    }
+    // Independent of the store path and the store-ownership record (lane R).
+    let _dev_address = if dev {
+        Some(crate::dev_address::Registration::new(&project,
+            address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port(),
+            lock(&shared.adoption).store_id.clone(), matches!(mode, Mode::Dev { fresh: true, .. }))?)
+    } else { None };
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
     let mut worker = match &mode {
         Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,
@@ -651,7 +652,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
         for header in cors(&request) { response.add_header(header); }
     }
     if status >= 400 && request.method() == &Method::Post {
-        latency::finished(request.respond_and_close(response).is_err() || refused);
+        let _ = request.respond_and_close_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
     }
     // `into_writer` drops the request reader before it returns. tiny_http
@@ -662,7 +663,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
             || (h.field.equiv("Connection") && h.value.as_str().split(',').any(|v| v.trim().eq_ignore_ascii_case("upgrade")))
     });
     if may_drain {
-        latency::finished(request.respond_checked(response).is_err() || refused);
+        let _ = request.respond_checked_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
     }
     // @ref LLP 3000#7-decisions-during-execution — coalesce buffered JSON HTTP responses

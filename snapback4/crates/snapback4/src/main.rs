@@ -11,6 +11,7 @@ mod serve;
 mod dev_worker;
 mod dev_replay;
 mod dev_clock;
+mod dev_address;
 mod lifecycle;
 mod verbs;
 mod timeline_cost;

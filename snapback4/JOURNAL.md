@@ -64944,3 +64944,126 @@ rules, governing LLPs, bounds card and server sources, without delegating work.
 Implementation commits: `f5bc3daab`, `e4fc2cb27`, `3714a34bd`, with the requested
 GPT-6 Astra co-author trailer. Final evidence/documentation follows in this
 entry's commit; the supervisor owns integration and blind review.
+
+## 2026-09-26 — 0.4.4 lane LT round 1: completion, snapshot contention, temporary dev discovery
+
+Addressed both blind round-0 reviews and the supervisor's four scoped requests
+on `sb4-intent/lt-latency`. Read both reviews in full, the binding lane prompt,
+the round-0 journal entry and LLP 3000.019 §3.7. The missing `llp-orient` skill
+remains unavailable at both linked paths; orientation used the governing
+LLPs, rules, command sheet, bounds card and sources directly. No delegation.
+
+**Changes, by file.** `vendor/tiny_http/src/request.rs` exposes checked response
+completion callbacks immediately after final write/flush, before request-reader
+disposal or transport cleanup. `serve.rs` uses them for draining-body JSON and
+close-after-refusal paths; `assets.rs` uses them for asset bodies and range
+refusals. `serve_changes.rs` stamps immediately after the final frame, before
+`finish_stream` can drain an unread body. This corrects round 0's stated
+write-boundary claim; the older implementation sometimes included cleanup.
+
+`latency.rs` separates immutable topology (one Arc capture under a short
+mutex) from each operation's fixed histogram pair and mutex. Snapshot
+formatting and percentile scans run outside the statistics locks; topology
+construction for adoption/reset runs outside the recording mutex. Snapshot
+consistency is per operation, not a simultaneous all-operation cut. Recording
+now uses two bounded critical sections, with no whole-registry copy in either;
+statistics remain 7,720 bytes/operation plus locks/Arcs and names/map entries.
+
+`dev_address.rs`, wired through `main.rs` and `serve.rs`, writes independent
+project-local `.snapback4/dev-address-<port>.json` records with canonical
+project, port, store identity and temporary-store status. Both sides use
+`O_NOFOLLOW`, owned regular single-link files, inode checks and a separate
+lifetime lock. Doctor rejects stale/unlocked and mismatched records; multiple
+hosts coexist, with the newest live project host preferred unless `--store`
+selects one. `verbs/adoption.rs`, `verbs/latency.rs` and `verbs.rs` use that
+record; ordinary doctor reports the live temporary store without trying to
+inspect a nonexistent persisted database. `lifecycle.rs` allows orderly address
+cleanup and preserves the old signal exit status. Fatal/uncatchable exits can
+leave an ignored stale record. Store ownership records are not rewritten;
+this record is independent of lane AD's eventual temporary WAL placement.
+The bounds card and LLP 3000.019 §3.7 describe the changed design.
+
+**Forms exercised.** Start `snapback4 dev --fresh --no-watch --port 0` or
+`snapback4 dev --memory --no-watch --port 0`; in that same project,
+`snapback4 doctor` and `snapback4 doctor --json` now include latency,
+`snapback4 doctor --latency --json` returns the complete snapshot, and
+`snapback4 doctor --latency --reset --json` resets the discovered server.
+Persisted dev and direct HTTP forms retain their existing meaning. No Quarry,
+client, authorization, execution-meter, storage policy or package surface change.
+
+**New tests.** `tests/latency/duration.rs` checks both of Astra's unread-body
+cases, a 150-ms query engine-work hold using the existing hook, a held poll
+with a first heartbeat, final-frame wake and later unread-body drain, and a
+32-MiB asset with socket reads withheld for 200 ms. `tests/latency/histogram.rs`
+adds the 10,000-operation snapshot/record concurrency test: one snapshot is
+blocked on its first operation while an unrelated record must finish within
+100 ms; three unblocked snapshots then run while records must stay below
+10 ms. These are regression witnesses on this host, not OS scheduling bounds.
+`tests/latency/discovery.rs` covers symlinks, hardlinks, directories, FIFOs,
+wrong projects, stale records and replacement-inode cleanup. `tests/latency.rs`
+adds both temporary spellings, ordinary doctor, reset, SIGTERM cleanup, a
+simultaneous persisted host, crash leftovers and HTTP identity mismatch.
+`tests/latency/serve.rs` includes the new duration tests.
+
+Final targeted measurements before the full suite:
+
+| Witness | Observed |
+| --- | --- |
+| `/changes?wait=0`, 2,048-byte body withheld 500 ms | response complete 1.129 ms; total 0.830 ms |
+| Asset download, 2,048-byte body withheld 300 ms | response complete 0.734 ms; total 0.378 ms |
+| Query engine work held 150 ms | total 150.803 ms |
+| Held heartbeat poll, then body withheld another 300 ms | final frame 181.397 ms after heartbeat; total 181.989 ms |
+| 32-MiB asset, socket reads withheld 200 ms | total 270.179 ms |
+| Snapshot blocked on another operation | record 3.896 µs |
+| Three 10,000-operation snapshots | 23.911 ms; 24,190 concurrent records; worst record 6.439 µs |
+| 1,000,000 uncontended recordings | 69.6 ns/record |
+| Alternating real HTTP reads, 2,000 per mode | off p50/p95 329.614/463.264 µs; on 327.802/440.991 µs; median delta −1.812 µs |
+
+**Mutation evidence.** Applied and restored each mutation separately; each
+compiled and failed exactly its intended test (Cargo exit 101):
+
+- Zero `finished` elapsed time: the held query recorded 0.000 ms and failed
+  the `total >= 150 ms` assertion.
+- Finish after the first heartbeat: total 0.788 ms, final frame after
+  182.145 ms; failed `total >= 180 ms`.
+- Finish before the asset response write: total 0.550 ms; failed
+  `total >= 200 ms` while delivering the 32-MiB body.
+
+Restored tests pass: the focused latency set is 14 passed, 0 failed, 2 ignored;
+both ignored measurement tests were explicitly run and passed. The complete
+affected CLI/server unit target is 127 passed, 0 failed, 2 ignored; real CLI
+latency 5/5, HTTP framing 2/2, lifecycle 20/20, whole guide 86/86. Discovery's
+single unit test also passed separately. Evidence is under
+`target/lane-lt-evidence/r1-*`. The required final full-suite and reference
+results follow below. No unrelated changes, budget/version changes, push or
+publication; the supervisor retains integration and review custody.
+
+Final qualification: all four existing `check` target `w8c_` adoption/doctor
+regressions passed (10.58 s). `./ref-check --verbose` passed:
+`ref-check: ok — 513 LLP docs, 9502 refs in 26964 files, 0 errors, 0 unchecked`.
+
+Ran the required `scripts/test.sh` **once**, unmodified, after the affected
+checks and whole guide: **`== 1 failure(s) in 975 s`**, exit **1**. Its sole
+failure is **`wasm build` — baseline on this host**, not introduced here:
+2,025,652 B raw / 582,552 B gzip against the unchanged 582,094 B gzip budget,
+**458 B over**. Raw/gzip delta from round 0: **0 / 0 B**, with exactly the same
+SHA-256 `14fe563acc6ce7743674b034f7d0a7a2914cad172db7e18b8dc5e1d4abe98a64`.
+Reproduce from `snapback4/` with `bash scripts/build-wasm.sh` on this toolchain.
+No introduced or separate environmental test failure was observed.
+
+Full Rust: **3,683 passed, 0 failed, 21 ignored**, 507 s (including every new
+regression and the whole guide). Main client batch: **2,377 passed, 0 failed,
+10 existing skips**, 197 s; all seven separate acquisition/server shards also
+passed. Models: **78 passed, 0 failed**, 259 s. Native build, docs budget,
+release guard, package typecheck/build, chat check and both app typechecks,
+and fixture-wrapper tests all passed. The round-0 ephemeral-watch timing
+failure did not recur. Exact output and exit status:
+`target/lane-lt-evidence/r1-test.log` and `r1-test.exit`.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo build
+jobs, dev/test debug info disabled. `bun install --frozen-lockfile` reported
+no changes. Restored only the suite-generated `native-fixtures/following/Cargo.lock`
+0.4.2→0.4.3 rewrite. No source file exceeds 1,500 lines. No scope deviation;
+the topology/per-operation locking and newest-live-host choice are the design
+changes recorded above. The existing wasm budget is the only open qualification
+problem; no push or publication.

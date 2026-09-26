@@ -1,4 +1,6 @@
 use super::*;
+#[path = "duration.rs"]
+mod duration;
 
 const SOURCE: &str = "use server\nuse personas alice\ntable notes:\n  n: int\n  public\n  insert <- allow\n  sync public\nquery read():\n  return {denied: 'user data', state: 'failed'}\nmutation put(n: int):\n  require n >= 0 else NONNEGATIVE\n  return insert notes {n: n}\naction echo()\n";
 const PERSONA: &str = "x-snapback-persona: alice\r\n";

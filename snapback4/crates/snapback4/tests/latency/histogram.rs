@@ -63,3 +63,55 @@ fn latency_record_cost_and_memory() {
     println!("latency recorder: {:.1} ns/request; {} bytes/operation; {} buckets/distribution", start.elapsed().as_nanos() as f64 / 1_000_000.0, std::mem::size_of::<Operation>(), BINS);
     assert_eq!(registry.snapshot(false).operations["/q/one"].n, 1_000_000);
 }
+
+#[test]
+fn snapshot_of_ten_thousand_operations_does_not_serialize_recording() {
+    use std::{sync::mpsc, thread};
+    let source = (0..10_000).map(|n| format!("query op{n}():\n  return 1\n")).collect::<String>();
+    let registry = Arc::new(Registry::new(&snapback4_lang::compile(&[("schema.q".into(), source)])));
+    let window = lock(&registry.0).clone();
+    // Stop the snapshot on its first operation. An unrelated record must still
+    // finish; no assumption about scheduling or snapshot memcpy speed is needed.
+    let first = lock(window.operations.first_key_value().unwrap().1);
+    let r = registry.clone();
+    let snapshot = thread::spawn(move || r.snapshot(false));
+    let start = Instant::now();
+    while Arc::strong_count(&window) < 3 {
+        assert!(start.elapsed() < Duration::from_secs(3)); thread::yield_now();
+    }
+    let (tx, rx) = mpsc::channel();
+    let r = registry.clone();
+    let recorder = thread::spawn(move || {
+        let start = Instant::now();
+        r.record("/q/op0", start, Duration::from_millis(1), Duration::ZERO, false);
+        tx.send(start.elapsed()).unwrap();
+    });
+    let elapsed = rx.recv_timeout(Duration::from_millis(100));
+    drop(first); // Always release before asserting so a failed test can unwind.
+    recorder.join().unwrap();
+    let result = snapshot.join().unwrap();
+    assert_eq!(result.operations.len(), 10_007);
+    println!("record with snapshot held on another operation: {:?}", elapsed);
+    assert!(elapsed.is_ok(), "record waited for unrelated operation's snapshot");
+
+    let (tx, rx) = mpsc::channel();
+    let r = registry.clone();
+    let snapshot = thread::spawn(move || {
+        let start = Instant::now();
+        tx.send(()).unwrap();
+        for _ in 0..3 { assert_eq!(r.snapshot(false).operations.len(), 10_007); }
+        start.elapsed()
+    });
+    rx.recv().unwrap();
+    let mut worst = Duration::ZERO;
+    let mut count = 0;
+    while !snapshot.is_finished() {
+        let start = Instant::now();
+        registry.record("/q/op0", start, Duration::from_millis(1), Duration::ZERO, false);
+        worst = worst.max(start.elapsed()); count += 1;
+        thread::yield_now();
+    }
+    println!("10,000-operation concurrent snapshots: {:?}; {count} records; max record wait+work: {worst:?}", snapshot.join().unwrap());
+    assert!(count > 0);
+    assert!(worst < Duration::from_millis(10), "record stalled: {worst:?}");
+}

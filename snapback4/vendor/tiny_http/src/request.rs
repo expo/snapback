@@ -565,11 +565,18 @@ impl Request {
 
     /// Sends a response and preserves disconnect/write/flush errors for a
     /// caller whose durable state depends on complete delivery.
-    pub fn respond_checked<R>(mut self, response: Response<R>) -> Result<(), IoError>
+    pub fn respond_checked<R>(self, response: Response<R>) -> Result<(), IoError>
     where
         R: Read,
     {
-        let res = self.respond_checked_impl(response);
+        self.respond_checked_with_completion(response, |_| {})
+    }
+
+    /// Invoke `completed` immediately after the final write/flush (or its
+    /// error), before disposing of the request reader, which may drain.
+    // @ref LLP 3000.019#3.7 — response latency excludes unread request-body disposal.
+    pub fn respond_checked_with_completion<R: Read>(mut self, response: Response<R>, completed: impl FnOnce(&Result<(), IoError>)) -> Result<(), IoError> {
+        let res = self.respond_checked_impl(response, completed);
         if self.limits.is_some() { drop(self.data_reader.take()); }
         if let Some(sender) = self.notify_when_responded.take() {
             let _ = sender.send(());
@@ -577,7 +584,7 @@ impl Request {
         res
     }
 
-    fn respond_checked_impl<R>(&mut self, response: Response<R>) -> Result<(), IoError>
+    fn respond_checked_impl<R>(&mut self, response: Response<R>, completed: impl FnOnce(&Result<(), IoError>)) -> Result<(), IoError>
     where
         R: Read,
     {
@@ -592,6 +599,7 @@ impl Request {
                 None,
             )
             .and_then(|()| writer.flush());
+        completed(&result);
         if result.is_err() {
             if let Some(abort) = self.abort_writers.as_ref() {
                 abort.abort();
@@ -612,6 +620,13 @@ impl Request {
         let res = self.respond_impl(response);
         self.abort();
         res
+    }
+
+    /// Checked completion notification before closing and discarding an unread body.
+    pub fn respond_and_close_with_completion<R: Read>(mut self, response: Response<R>, completed: impl FnOnce(&Result<(), IoError>)) -> Result<(), IoError> {
+        let result = self.respond_checked_impl(response, completed);
+        self.abort();
+        result
     }
 
     fn respond_impl<R>(&mut self, response: Response<R>) -> Result<(), IoError>

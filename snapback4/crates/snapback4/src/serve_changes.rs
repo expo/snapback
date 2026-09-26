@@ -161,9 +161,11 @@ impl PollResponse<'_> {
         frame.extend_from_slice(&bytes.0);
         frame.extend_from_slice(b"\r\n0\r\n\r\n");
         if self.request.as_mut().unwrap().write_response_frame(&frame).is_ok() {
-            self.request.take().unwrap().finish_stream();
             // @ref LLP 3000.019#3.7 — the final frame completes a held poll, not its first heartbeat.
             super::latency::finished(refused);
+            self.request.take().unwrap().finish_stream();
+        } else {
+            super::latency::finished(true);
         }
     }
 }
