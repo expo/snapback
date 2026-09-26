@@ -236,6 +236,8 @@ base images and staging, not physical disk allocation. Separate media and wasm
 code caches are excluded. wasmHeapBytes is allocated linear memory shared by
 all web devices in this realm, not live allocations or Chromium RSS. The online
 tier and mock return null. Closed/signed-out local clients reject with a coded error.
+If the device host fails during this read, E_STORE at client.residency names
+the failure; restart the device host and reopen the client before retrying.
 
 Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
 fixture, `token`, `deploy`, `rollback`) take the host's lifetime lock. A live

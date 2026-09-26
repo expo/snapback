@@ -34,7 +34,13 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     async residency() {
       const denied = await refusal();
       if (denied) throw residencyError(denied);
-      const result = await raw.residency();
+      let result;
+      try { result = await raw.residency(); }
+      catch (error) {
+        const after = await refusal();
+        if (after) throw residencyError(after);
+        throw error;
+      }
       const after = await refusal();
       if (after) throw residencyError(after);
       return result;

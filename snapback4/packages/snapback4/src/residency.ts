@@ -8,7 +8,16 @@ export function residencyError(why: Refusal): Error {
 export async function readResidency(call: (request: Record<string, unknown>) => Promise<{ ok?: unknown; denied?: Refusal }>, unavailable: () => Refusal | null): Promise<Residency> {
   const before = unavailable();
   if (before) throw residencyError(before);
-  const result = await call({ op: "residency" });
+  let result;
+  try { result = await call({ op: "residency" }); }
+  catch (error) {
+    throw residencyError(unavailable() ?? {
+      code: "E_STORE", family: "store", site: "client.residency",
+      message: `cannot read device residency: ${String(error)}`,
+      rewrite: "restart the failed device host and reopen the client, then retry client.residency()",
+      guide: "residency",
+    });
+  }
   const denied = unavailable() ?? result.denied;
   if (denied) throw residencyError(denied);
   return result.ok as Residency;
