@@ -1,0 +1,21 @@
+{
+  "name": "attempt-1-full-suite",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "-u",
+    "SNAPBACK4_RUST_TEST_PROCESSES",
+    "-u",
+    "SNAPBACK4_TEST_SERIAL_CLIENT_FILES",
+    "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "scripts/test.sh"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-042/snapback4",
+  "started_at": "2026-09-25T21:16:57.987909+00:00",
+  "pid": 7319,
+  "log": "attempt-1-full-suite.log",
+  "finished_at": "2026-09-25T21:55:59.412343+00:00",
+  "seconds": 2265.082,
+  "exit_code": 1
+}

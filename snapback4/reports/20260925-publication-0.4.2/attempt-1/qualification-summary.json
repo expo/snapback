@@ -1,0 +1,120 @@
+{
+  "source": "f49c22f58625a85b17c6e40146adefe6bcd6b5c2",
+  "suiteExit": 1,
+  "suiteSummary": "== 1 failure(s) in 2341 s",
+  "suiteWallSeconds": 2341,
+  "wrapperMonotonicSeconds": 2265.082,
+  "clockNote": "The suite uses date +%s and the wrapper uses time.monotonic(); the retained measurements differ. No cause is established.",
+  "rust": {
+    "passed": 3212,
+    "failed": 0,
+    "ignored": 19,
+    "resultSummaries": 918
+  },
+  "clients": {
+    "tests": 1978,
+    "passed": 1970,
+    "failed": 3,
+    "cancelled": 0,
+    "skipped": 5,
+    "duration_ms": 1279410.8025
+  },
+  "models": {
+    "tests": 78,
+    "passed": 78,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 169346.166416,
+    "sequenceCounts": [
+      5000,
+      5000,
+      3000
+    ],
+    "results": [
+      "\u2714 online session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences (40238.6635ms)",
+      "\u2714 local session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences (92418.549417ms)",
+      "\u2714 publication seed 11: fair recovery waits for overlapping model work before owning its clock (700.129417ms)",
+      "\u2714 online clients preserve R1\u2013R6 across 3,000 seeded interleavings (34055.502875ms)"
+    ]
+  },
+  "stages": [
+    {
+      "result": "ok",
+      "name": "cargo build",
+      "seconds": 17
+    },
+    {
+      "result": "ok",
+      "name": "wasm build",
+      "seconds": 21
+    },
+    {
+      "result": "ok",
+      "name": "docs budget",
+      "seconds": 119
+    },
+    {
+      "result": "ok",
+      "name": "release guard",
+      "seconds": 4
+    },
+    {
+      "result": "ok",
+      "name": "package typecheck",
+      "seconds": 1
+    },
+    {
+      "result": "ok",
+      "name": "package build",
+      "seconds": 1
+    },
+    {
+      "result": "ok",
+      "name": "chat app check",
+      "seconds": 2
+    },
+    {
+      "result": "ok",
+      "name": "cargo test",
+      "seconds": 726
+    },
+    {
+      "result": "ok",
+      "name": "chat app typecheck",
+      "seconds": 1
+    },
+    {
+      "result": "ok",
+      "name": "expo app typecheck",
+      "seconds": 1
+    },
+    {
+      "result": "ok",
+      "name": "fixture wrapper tests",
+      "seconds": 5
+    },
+    {
+      "result": "FAIL",
+      "name": "client tests",
+      "seconds": 1281
+    },
+    {
+      "result": "ok",
+      "name": "client models",
+      "seconds": 169
+    }
+  ],
+  "wasm": {
+    "rawBytes": 1850804,
+    "gzipBytes": 521627,
+    "budgetBytes": 522000
+  },
+  "productionBinary": null,
+  "stagedTarballs": null,
+  "registryIntegrities": null,
+  "nativeWitnesses": "not attempted; full suite failed",
+  "publicationCommands": "not attempted; full suite failed",
+  "push": "not attempted; stopped on failure",
+  "attempts": 1
+}

@@ -7,6 +7,23 @@ use snapback4_core::{engine::local, error::RuntimeError, meter::Ceilings, rows::
 use snapback4_device::store::{DeviceStore, DeviceTx};
 use std::collections::BTreeMap;
 
+#[test]
+fn speculative_coverage_is_true_only_and_absence_decodes_as_false() {
+    use snapback4_core::{engine::components::Coverage, json_codec};
+    let ordinary = serde_json::json!({"complete": false, "unknown": true, "retained": false});
+    let mut coverage: Coverage = json_codec::from_value(ordinary.clone()).unwrap();
+    assert!(!coverage.speculative);
+    assert_eq!(json_codec::to_value(&coverage).unwrap(), ordinary);
+    let mut explicit_false = ordinary.clone();
+    explicit_false["speculative"] = serde_json::json!(false);
+    assert_eq!(json_codec::from_value::<Coverage>(explicit_false).unwrap(), coverage);
+    coverage.speculative = true;
+    let mut speculative = ordinary;
+    speculative["speculative"] = serde_json::json!(true);
+    assert_eq!(json_codec::to_value(&coverage).unwrap(), speculative);
+    assert_eq!(json_codec::from_value::<Coverage>(speculative).unwrap(), coverage);
+}
+
 const SOURCE: &str = r#"
 table members:
   room: text <=40

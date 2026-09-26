@@ -344,10 +344,10 @@ for (const reply of [{ loading: true }, { denied: { code: "NO", family: "applica
 }
 
 // Round 6: provenance is supplied by the interpreter, never inferred from shape.
-for (const value of [[], 0, null, [{ body: "held", at: 1 }]]) {
-  test(`rule 4: non-speculative unknown ${JSON.stringify(value)} stays partial without an id`, async () => {
+for (const provenance of [{}, { speculative: false }]) for (const value of [[], 0, null, [{ body: "held", at: 1 }]]) {
+  test(`rule 4: non-speculative unknown ${JSON.stringify(value)} stays partial without an id (provenance=${JSON.stringify(provenance)})`, async () => {
     const f = routing(); f.entries = []; f.env.link = "offline";
-    f.outcome = { data: value, unknown: true, complete: false, speculative: false, held: true, tables: ["posts"] };
+    f.outcome = { data: value, unknown: true, complete: false, ...provenance, held: true, tables: ["posts"] };
     assert.deepEqual((await f.read()).data, value);
     assert.equal((await f.read()).complete, false);
     assert.equal(f.requests.length, 0);

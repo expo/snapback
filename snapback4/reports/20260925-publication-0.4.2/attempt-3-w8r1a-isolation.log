@@ -1,0 +1,10 @@
+run 1 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (957.820417ms) ℹ pass 1 ℹ fail 0 
+run 2 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (738.146375ms) ℹ pass 1 ℹ fail 0 
+run 3 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (1071.543ms) ℹ pass 1 ℹ fail 0 
+run 4 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (264.424125ms) ℹ pass 1 ℹ fail 0 
+run 5 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (260.71575ms) ℹ pass 1 ℹ fail 0 
+run 6 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (263.348209ms) ℹ pass 1 ℹ fail 0 
+run 7 load 19.34: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (287.749791ms) ℹ pass 1 ℹ fail 0 
+run 8 load 18.03: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (262.684125ms) ℹ pass 1 ℹ fail 0 
+run 9 load 18.03: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (275.709125ms) ℹ pass 1 ℹ fail 0 
+run 10 load 18.03: ✔ W8R1a native server-run observations retain nothing during a replacing fetch (267.202709ms) ℹ pass 1 ℹ fail 0 

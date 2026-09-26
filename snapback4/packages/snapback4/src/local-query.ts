@@ -63,9 +63,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const key = `${op.name}:${JSON.stringify(args)}`;
   let remember = true;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
-  // Missing provenance from an older device is conservatively speculative.
+  // The wire omits false provenance, including replies from older devices.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
-    && latest.outcome.speculative !== false;
+    && latest.outcome.speculative === true;
   // Rule 4: retained siblings cannot validate a speculative component. The
   // atomic Read<T> contract has no per-component loading word; withhold it all.
   const fallback = () => placeholder() ? loading : latest?.result ?? loading;

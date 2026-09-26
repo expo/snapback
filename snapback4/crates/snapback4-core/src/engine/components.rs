@@ -7,7 +7,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Coverage { pub complete: bool, pub unknown: bool, pub retained: bool, pub speculative: bool }
+pub struct Coverage {
+    pub complete: bool,
+    pub unknown: bool,
+    pub retained: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub speculative: bool,
+}
 
 /// Read provenance, independent of the returned value's shape.
 // @ref LLP 3000.007#6.5 — placeholder recovery needs read facts, including through projections and presence wrappers.
