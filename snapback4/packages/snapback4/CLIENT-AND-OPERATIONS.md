@@ -1330,9 +1330,9 @@ import type { Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 const url = "http://127.0.0.1:4400";
 
-function initialProfileRoute() { // Own once above routes; recreate on account/backend change.
+function initialProfileRoute(client: Client) { // Own above routes; recreate on account/backend change.
   let route: "profile" | "app" | undefined;
-  return async (client: Client) => {
+  return async () => {
     if (route) return route;
     const profile = await client.query(api.myProfile, {});
     if ("loading" in profile) return "loading";
@@ -1356,7 +1356,8 @@ async function register(email: string, password: string, handle: string) {
   // Keep client/session on failure; the profile screen retries createProfile, not signup.
   if (write.state === "failed") return { client, screen: "profile", error: write.why.message };
   if (write.state === "pending") return { client, screen: "profile", waiting: true };
-  return { client, screen: await initialProfileRoute()(client) };
+  const route = initialProfileRoute(client);
+  return { client, route, screen: await route() };
 }
 ```
 
