@@ -59479,3 +59479,160 @@ across a remount, so giving the owed runs back a per-mount memory survived.
 A case now drops a run at the 64-run cap, replaces its page, remounts the
 screen on the same client and frees capacity, and requires the run to go
 again.
+
+## 2026-09-26 — Live presence round 7: what a background reply may decide
+
+Astra's review of round 6 confirmed the static decision and found five smaller
+gaps, all in what a background reply may change:
+
+- **An overtaken reply decides nothing.** It could clear the interval that a
+  newer read had set. Now a reply that a publication or another read overtook
+  touches neither the answer nor the timer.
+- **An accepted loading answer publishes.** A query whose authoritative answer
+  is loading no longer shows its previous value as fresh.
+- **A background failure is quiet.** A 503 marked the link offline and
+  withdrew answers. Background reads now use a quiet request that keeps the
+  answer and the interval and retries; the change feed notices a real outage.
+- **Eligibility comes from the evaluating schema.** It now comes from the
+  engine or reader that runs the query, not the schema looked up before an
+  adoption could land.
+- **The contract says a presence answer is a sample.**
+
+The per-run memo's heap charge moved the w15a meters by 67 bytes per guard read
+outside the effect path, and the pins now name that charge.
+
+## 2026-09-26 — Live presence round 8: an overtaken reply remembers nothing
+
+Astra's review of round 7 found one Medium and two Lows:
+
+- **An overtaken reply rewrote the recovery cache.** The local client stored a
+  background reply's answer as it settled, before asking whether a newer read
+  had overtaken it. So a later outage recovered the discarded answer. A
+  background read now writes through a staged cache. Its writes apply only when
+  the reply is published, and only to entries no other read replaced
+  meanwhile.
+- **A read that settled after sign-out rearmed the timer.** Arming now consults
+  the session itself, so no completion order can leave an interval behind.
+- **`fresh` promised more than a sample gives.** The contract and the RFC now
+  say a presence sample keeps the flag it arrived with until replaced, and that
+  failures and suspension remove any bound on its age.
+
+Round 7 also claimed the retained-row composition was unreachable for a
+presence query. Astra reached it: a device evaluates `connected` as unknown, not
+never. The read-through fixture now observes such a query and requires it to
+keep refreshing. The local failure, loading and overtaken-reply cases now run on
+the wasm and process devices, and an online case shows a background reply older
+than an observed commit is never published.
+
+## 2026-09-26 — Live presence round 9: remembered answers in the order reads began
+
+Both reviews of round 8 confirmed its three fixes; Astra reproduced the
+session-death Low's fix with a timer barrier. They then found opposite faults
+in the staged cache's guard, which compared entries by identity:
+
+- **Astra:** a newer one-shot refusal deleted an answer that was never
+  remembered, and the older background reply, accepted anyway, wrote it back.
+- **Grok:** an older one-shot answer that landed while a refresh ran made the
+  newer accepted reply skip its write, so recovery stepped backward.
+
+Both are about order, so round 9 orders the remembered answers by when each
+read began. Every read takes a ticket as it begins, and a write of a key,
+deletions included, applies only if no read that began later has written it.
+That also makes round 8's staging unnecessary: an overtaken reply can never
+outrank the read that overtook it. So staging and its acceptance hook are gone.
+
+The online client now gates its timer the way the local one does: ended
+credentials keep no interval, whatever read settles last. The race lies
+between a reply and its caller resuming, so no fake transport reaches it, and
+the gate is structural. The RFC and the contract now say a composed sample
+keeps the `fresh: false` it arrived with. New local cases: an accepted
+background reply is what recovery shows, and it replaces an older one-shot
+answer that landed while it ran; an older refusal landing later does not erase
+it; and the accepted loading and refusal cases run through an outage.
+
+## 2026-09-26 — Live presence round 10: the server's cut orders what recovery remembers
+
+Astra's review of round 9 confirmed its fixes and found request-start order
+insufficient on its own. A one-shot read held before reaching the server, then
+refused at a later store cut, lost to an earlier answer because its read began
+first. A read retried after the store changed kept its first ticket, so it lost
+to reads that began while it waited. Now a server's answer or refusal carries
+the store cut it read (`seq`), and a remembered answer is replaced only by one
+that is not older: a later cut wins, and at the same cut the attempt that began
+later wins. Every evaluation attempt, a retry included, takes a new ticket.
+Local cleanup of an expired or composed answer forgets it without changing the
+order.
+
+Astra also showed the online credentials gate was testable after all. A barrier
+on the observation's fetch holds a completed read while a change-feed `E_AUTH`
+ends the credentials, and a timer spy then sees no presence timer. The latency
+bound in RFC §3.3 now counts the read in flight when presence changed.
+
+Grok's review of round 9 was READY WITH CHANGES. It found the local-reads unit
+test still treating the remembered answers as a map, so its assertions after the
+first never ran; that test and the prediction-routing fakes now use the ordered
+cache. A new local case shows that forgetting an expired answer, offline, leaves
+the next server answer free to be remembered.
+
+## 2026-09-26 — Live presence round 11: a refusal names its own cut
+
+Both reviews of round 10 found the store-cut order leaking in three places:
+
+- A refusal was labeled with the store head taken before its query ran, so a
+  commit in between made it look older than it was. The engine now returns
+  the cut its query transaction read beside the result (`Engine::query_at`),
+  and a refusal reply names it as `seq`.
+- A refetch after the credentials changed, and an expired device answer
+  re-routed to the server, reused the attempt's ticket. Each refetch now
+  renews it.
+- A reply with no cut was ordered as cut 0, so it could never replace a
+  remembered answer. A missing cut is now unknown, and then only when the
+  reads began decides.
+
+The later-cut test now refuses with `head` alone, as older servers do. New
+unit cases cover the order itself, both renewals through `evaluateLocal`, and
+a reply without a cut. The prediction-routing tests run on the real cache.
+
+## 2026-09-26 — Live presence round 12: a cut once named stays known
+
+Astra's round-11 review found two more ways an older reply could replace a
+newer one, and a server test too weak to catch the round-10 defect:
+
+- The order compared each reply only with the one remembered. A refusal at
+  cut 8, then a loading reply with no cut, let an answer read at cut 7 win on
+  its ticket. Each query now keeps the highest cut any reply has named, kept
+  or not, and a reply below it is older. An answer remembered with a cut is
+  therefore always at the highest cut named. A brute-force check of every
+  arrival order of 20,000 small reply sets found no lower-cut answer
+  remembered. Replies without a cut are still ordered only by their reads, so
+  the final state can depend on arrival order.
+- A composed read, which remembers no whole answer, erased memory
+  unconditionally: its cleanup when it composed, and its reply when it
+  arrived. Both are now ordered deletions, so a later read's answer stays.
+- The server test required `seq == head` on an uncontended store, which the
+  round-10 defect also satisfies. A test hook now commits between the reply's
+  metadata and the query's own read, and the refusal must name the cut one
+  past its head.
+
+New client cases: Astra's three-reply schedule, a cut named by a reply that
+lost on its ticket, both composed-read paths through `evaluateLocal`, and a
+refusal carrying `seq` and an older `head`. Of nine mutants, one survived: a
+composed read's whole answer could be remembered with no test noticing, a gap
+older than this round. A case now requires that nothing is remembered.
+
+## 2026-09-26 — Live presence round 13: a composed answer is ordered too
+
+Astra's round-12 review found the last path around the order. A composed
+answer (retained rows beside the server's page, or a retained field beside
+the server's) was published without its cut and wrote nothing to the order.
+So an older answer that landed after it was remembered, and a later outage
+showed that older answer. Both composition branches now carry the server's
+cut, and publishing a composed answer is an ordered deletion, as a composed
+refusal already was. New cases cover a composed answer of each kind against
+an older answer that lands later, and a composed refusal at a later cut.
+
+Round 14 is a test. Astra's round-13 review (READY WITH CHANGES) found every
+round-11 and round-12 finding fixed and one gap: nothing required a store
+replacement to clear the order as well as the answers. A case now remembers a
+refusal at cut 100, clears, and requires the new store's first answer at cut 1
+to be remembered.

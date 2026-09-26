@@ -36,10 +36,69 @@ export type ServerAnswer = {
   tables: Set<string>;
 };
 
+/** Where a server's answer or refusal stands: the store cut the server read, if
+ * the reply named one, then when the read attempt began. */
+export type AnswerOrder = { seq: number | undefined; ticket: number };
+type Written = AnswerOrder & { highest: number | undefined };
+
+/** Remembered server answers, which a later recovery may show. A server's
+ * answer, or its refusal, replaces what is remembered for its key only if it
+ * is not older. A reply below the highest cut any reply for the key has named,
+ * kept or not, is older; otherwise a later cut than what is remembered wins,
+ * and at the same cut, or when either names none, the read attempt that began
+ * later wins (LLP 3000.017 §3.2). */
+export class RememberedAnswers {
+  private readonly answers = new Map<string, ServerAnswer>();
+  private readonly written = new Map<string, Written>();
+  private tickets = 0;
+  /** The ticket of a read attempt that is about to begin. */
+  begin(): number { return ++this.tickets; }
+  get(key: string): ServerAnswer | undefined { return this.answers.get(key); }
+  set(key: string, answer: ServerAnswer, order: AnswerOrder): void {
+    if (this.admit(key, order)) this.answers.set(key, answer);
+  }
+  /** A server's refusal or loading answer, or a composed read's, which is not
+   * remembered: nothing is remembered for the key. */
+  delete(key: string, order: AnswerOrder): void {
+    if (this.admit(key, order)) this.answers.delete(key);
+  }
+  /** Local cleanup of an expired answer: the order stands. */
+  forget(key: string): void { this.answers.delete(key); }
+  clear(): void { this.answers.clear(); this.written.clear(); }
+  get size(): number { return this.answers.size; }
+  /** The cache as one read attempt writes it: the server's cut, then the attempt's
+   * ticket. A refetch within the attempt is a new read, so it renews the ticket. */
+  view() {
+    let ticket = this.begin();
+    return {
+      get: (key: string) => this.get(key),
+      set: (key: string, answer: ServerAnswer, seq?: number) => this.set(key, answer, { seq, ticket }),
+      delete: (key: string, seq?: number) => this.delete(key, { seq, ticket }),
+      forget: (key: string) => this.forget(key),
+      renew: () => { ticket = this.begin(); },
+    };
+  }
+  /** Whether a reply is not older than what is remembered for its key. Either
+   * way the highest cut named for the key stays known, so an answer remembered
+   * with a cut is always at the highest cut any reply for its key has named. */
+  private admit(key: string, order: AnswerOrder): boolean {
+    const slot = this.written.get(key);
+    const highest = order.seq === undefined ? slot?.highest : Math.max(order.seq, slot?.highest ?? order.seq);
+    const newer = !slot ? true
+      // Below a cut some reply for the key named, kept or not: older, whatever its ticket.
+      : order.seq !== undefined && slot.highest !== undefined && order.seq < slot.highest ? false
+      // Cuts compare only when both replies name one.
+      : order.seq !== undefined && slot.seq !== undefined && order.seq > slot.seq ? true
+      : order.ticket >= slot.ticket;
+    this.written.set(key, newer ? { ...order, highest } : { ...slot!, highest });
+    return newer;
+  }
+}
+
 /** Every local commit retires retained answers. */
 export class LocalReads {
   revision = 0;
-  readonly serverAnswers = new Map<string, ServerAnswer>();
+  readonly serverAnswers = new RememberedAnswers();
 
   clear(watches: Iterable<LocalWatch>): void {
     this.revision++;

@@ -527,13 +527,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
 
-  function post(path: string, body: unknown, captured?: ClosingResponse) {
-    const work = sendPost(path, body, captured);
+  // A quiet request is a background presence refresh: its failure retries on the
+  // refresh timer and says nothing about the link (LLP 3000.017 §3.2).
+  function post(path: string, body: unknown, captured?: ClosingResponse, quiet = false) {
+    const work = sendPost(path, body, captured, quiet);
     active.add(work);
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
-  async function sendPost(path: string, body: unknown, captured?: ClosingResponse): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, quiet = false): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
@@ -543,14 +545,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // I12: delivered mutation/action outcomes still belong to their callers
       // after close. Reads continue to require the live view at delivery.
       if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
-      if (response.status >= 500) { setLink("offline"); return { ok: false }; }
+      if (response.status >= 500) { if (!quiet) setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
       await refusedSession(denied, request.revision);
       if (link !== "online") setLink("online");
       return { ok: true, json, obsoleteAuth };
     } catch {
-      setLink("offline");
+      if (!quiet) setLink("offline");
       return { ok: false };
     }
   }
@@ -869,7 +871,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // ----- reads -----
 
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
-  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false) {
+    // @ref LLP 3000.017#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
+    let answerCache = answers.serverAnswers.view();
     const queryEnvironment = {
       get backend() { return backend!; },
       get partitionDenied() { return partitionDenied; },
@@ -884,9 +888,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get partitionCurrent() { return partitionCurrent; },
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
-      principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify,
+      principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
+      post: quiet ? (path: string, body: unknown, captured?: ClosingResponse) => post(path, body, captured, true) : post,
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
-      offline, serverAnswers: answers.serverAnswers,
+      offline, get serverAnswers() { return answerCache; },
     };
     const work = (async () => {
       while (true) {
@@ -895,6 +900,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
         if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
+        answerCache = answers.serverAnswers.view();
       }
     })();
     active.add(work);
@@ -940,7 +946,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function armPresence(watch: Watch) {
-    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, closed ? undefined : watch.presenceEvery, () => {
+    // A closed client or a dead session keeps no interval, whichever read settles last.
+    if (unavailable()) watch.presenceEvery = undefined;
+    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, watch.presenceEvery, () => {
       watch.presenceRefresh = null;
       void refreshPresence(watch);
     });
@@ -953,18 +961,22 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
     const shown = watch.snapshot;
     try {
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, incarnation: revision, authority } = await runLocal(watch.op, watch.args);
-      if (closed || watches.get(watch.key) !== watch) return;
-      if (watch.snapshot === shown && !watch.running && revision === incarnation && authority === answers.revision && served && !("loading" in read)) {
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, incarnation: revision, authority } = await runLocal(watch.op, watch.args, undefined, true);
+      if (closed || sessionDead || watches.get(watch.key) !== watch) return;
+      // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
+      if (watch.snapshot !== shown || watch.running) return;
+      // An answer the server gave, current for this store and authority, is published whatever it says.
+      if (served && revision === incarnation && authority === answers.revision) {
         watch.tables = tables;
         scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
         const denied = unavailable();
         watch.publish(denied ? { denied } : read);
         notify(watch);
+        watch.presenceEvery = after;
       }
-      if (served) watch.presenceEvery = after;
     } catch {}
-    if (!watch.running) armPresence(watch);
+    // A failure, or an answer from this device, keeps the answer and the interval: it retries.
+    if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
 
   async function rerun(watch: Watch) {

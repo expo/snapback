@@ -810,7 +810,19 @@ impl Engine {
 
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
     /// card's `denied`; store failures surface as retryable refusals too.
-    pub fn query(&mut self, name: &str, mut context: Context) -> Result<QueryOutcome, Refusal> {
+    pub fn query(&mut self, name: &str, context: Context) -> Result<QueryOutcome, Refusal> {
+        self.query_at(name, context).0
+    }
+
+    /// A query and the store cut its transaction read, which a refusal also
+    /// carries, so a client can order it against answers (LLP 3000.017 §3.2).
+    pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
+        let mut cut = None;
+        let result = self.query_reading(name, context, &mut cut);
+        (result, cut)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
@@ -826,6 +838,7 @@ impl Engine {
         }
         let tx = self.store.read_transaction()?;
         let seq = tx.next_seq()? - 1;
+        *cut = Some(seq);
         if program.native {
             // A native read (LLP 3000.005 §9): the module over this viewer's
             // rules under the read meter; the same call a device makes over

@@ -91,6 +91,7 @@ impl Host {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            query_wait: Mutex::new(None),
         });
         let server = Arc::new(
             Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())
@@ -1252,6 +1253,33 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
     std::fs::remove_dir_all(project.root).unwrap();
 }
 
+
+/// LLP 3000.017 §3.2: a refusal names the cut its evaluation read. A commit
+/// between the reply's metadata and the query's own read makes that cut newer
+/// than the head, and the refusal is the newer state's; the head alone would
+/// order it before an answer read at a cut where the query succeeds.
+#[test]
+fn a_refusal_names_the_cut_its_evaluation_read() {
+    let directory = ReaderTestDirectory::new();
+    let source = "use personas alice\nuse identity\ntable flags:\n  name: text <=40\n  unique name\n  read <- true\n  insert <- true\nmutation stop():\n  insert flags { name: 'stop' }\n  return true\nquery gate():\n  require not exists flags[name = 'stop'] else STOPPED\n  return true\n";
+    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("store.sqlite")).unwrap(), source);
+    let alice = "x-snapback-persona: alice\r\n";
+    let open = body(&host.request("POST", "/q/gate", alice, "{}"));
+    assert_eq!(open["data"], true, "{open}");
+    let shared = Arc::downgrade(&host.shared);
+    *host.shared.query_wait.lock().unwrap() = Some(Arc::new(move || {
+        let Some(shared) = shared.upgrade() else { return };
+        // Once: the hook removes itself, then commits.
+        if shared.query_wait.lock().unwrap().take().is_none() { return; }
+        let now = shared.now();
+        lock(&shared.engine).mutate("stop", None, Context::new("dev:alice", Default::default()).at(now)).unwrap();
+    }));
+    let gate = body(&host.request("POST", "/q/gate", alice, "{}"));
+    assert!(host.shared.query_wait.lock().unwrap().is_none(), "the commit ran between the metadata and the query");
+    assert_eq!(gate["denied"]["code"], "STOPPED", "{gate}");
+    let head = gate["head"].as_u64().unwrap();
+    assert_eq!(gate["seq"].as_u64(), Some(head + 1), "the refusal names its evaluation's cut, past the head taken before it: {gate}");
+}
 
 struct ReaderTestDirectory(std::path::PathBuf);
 impl ReaderTestDirectory {

@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { createClient } from "../dist/client.js";
 import { PRESENCE_REFRESH_FLOOR_MS, presenceRefresh } from "../dist/presence-refresh.js";
+import { ReadObservation } from "../dist/read-observation.js";
 
 const query = { kind: "query", name: "presenceOf" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
@@ -103,4 +104,104 @@ test("an interval a timer cannot hold is clamped, not wrapped to an immediate re
   await delay(100);
   clearTimeout(timer);
   assert.equal(fired, 0);
+});
+
+test("a background reply that a newer read overtook leaves the newer interval alone", async t => {
+  const held = deferred(), invalidate = deferred();
+  let polls = 0;
+  const { client, reads } = transport(async n => {
+    if (n === 1) return data("v1");
+    if (n === 2) { await held.promise; return data("v2", 0, 2); } // overtaken, and says no refresh
+    return data(`v${n}`, 250, 2);
+  }, async signal => (++polls === 1 ? (await invalidate.promise, Response.json({ seq: 2, tables: [], generation: 0 })) : blocked(signal)));
+  const mark = client.observe(query, { p: "dev:bob" });
+  t.after(async () => { held.resolve(); mark.close(); await client.close(); });
+  await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
+  await delay(400); // the background refresh is held
+  invalidate.resolve();
+  await until(() => mark.getSnapshot().data === "v3", "the invalidation re-ran the watch");
+  held.resolve();
+  const settled = reads.length;
+  await until(() => reads.length >= settled + 1, "the newer interval still refreshes after the overtaken reply lands", 2000);
+  assert.notEqual(mark.getSnapshot().data, "v2");
+});
+
+test("an accepted loading answer is published, and a background failure keeps the answer and the link", async t => {
+  const loading = transport(n => n === 1 ? data("v1") : { loading: true, seq: 1, tables: [], refresh: 300 });
+  const a = loading.client.observe(query, { p: "dev:bob" });
+  await until(() => a.getSnapshot().data === "v1", "the first answer arrived");
+  await until(() => "loading" in a.getSnapshot(), "the server's own loading answer is published");
+  a.close(); await loading.client.close();
+  const failing = transport(n => n === 1 ? data("v1") : n === 2 ? new Response("unavailable", { status: 503 }) : data("v3"));
+  const b = failing.client.observe(query, { p: "dev:bob" });
+  t.after(async () => { b.close(); await failing.client.close(); });
+  await until(() => b.getSnapshot().data === "v1", "the first answer arrived");
+  const seen = [];
+  const stop = b.subscribe(() => seen.push(b.getSnapshot()));
+  await until(() => failing.reads.length >= 2, "the background refresh failed");
+  await delay(50);
+  assert.equal(b.getSnapshot().data, "v1", "a failed background refresh keeps the answer on screen");
+  assert.equal(failing.client.link(), "online", "a failed background refresh says nothing about the link");
+  await until(() => b.getSnapshot().data === "v3", "the refresh retried at its interval");
+  stop();
+  assert.ok(seen.every(read => "data" in read), `the failure published something other than an answer: ${JSON.stringify(seen)}`);
+});
+
+test("a background reply older than a commit the client observed is not published", async t => {
+  const held = deferred(), observed = deferred();
+  let polls = 0;
+  // The watch reads table t; the commit at seq 2 touches only table u, so nothing re-runs the watch.
+  const read = (value, seq) => ({ data: value, complete: true, seq, tables: ["t"], refresh: 300 });
+  const { client, reads } = transport(async n => {
+    if (n === 1) return read("v1", 1);
+    if (n === 2) { await held.promise; await observed.promise; await delay(100); return read("v2", 1); } // after the client took seq 2
+    return read(`v${n}`, 2);
+  }, async signal => (++polls === 1 ? (await held.promise, observed.resolve(), Response.json({ seq: 2, tables: ["u"], generation: 0 })) : blocked(signal)));
+  const mark = client.observe(query, { p: "dev:bob" });
+  t.after(async () => { held.resolve(); mark.close(); await client.close(); });
+  await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
+  const seen = [];
+  const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
+  await until(() => reads.length >= 2, "the background refresh started");
+  held.resolve();
+  await until(() => mark.getSnapshot().data === "v3", "the next refresh answered at the observed commit");
+  stop();
+  assert.ok(!seen.some(read => read.data === "v2"), `a reply older than the observed commit was published: ${JSON.stringify(seen)}`);
+});
+
+test("a read that settles after the credentials end arms no refresh timer", async t => {
+  // Hold a completed foreground read before its caller resumes, end the credentials
+  // meanwhile, then release it and watch the timers it arms.
+  const original = ReadObservation.prototype.fetch;
+  const barrier = deferred(), reached = deferred();
+  let holding = false;
+  ReadObservation.prototype.fetch = async function (...args) {
+    const result = await original.apply(this, args);
+    if (holding) { holding = false; reached.resolve(); await barrier.promise; }
+    return result;
+  };
+  const armed = [];
+  const setTimer = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, ms, ...rest) => { armed.push(ms); return setTimer(callback, ms, ...rest); };
+  t.after(() => { ReadObservation.prototype.fetch = original; globalThis.setTimeout = setTimer; barrier.resolve(); });
+  const invalidate = deferred(), deny = deferred();
+  let polls = 0;
+  const { client } = transport(n => data(`v${n}`, 300, n), async signal => {
+    polls++;
+    if (polls === 1) { await invalidate.promise; return Response.json({ seq: 2, tables: [], generation: 0 }); }
+    if (polls === 2) { await deny.promise; return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "session ended" } }); }
+    return blocked(signal);
+  });
+  const mark = client.observe(query, { p: "dev:bob" });
+  t.after(async () => { mark.close(); await client.close(); });
+  await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
+  holding = true;
+  invalidate.resolve(); // a commit re-reads the watch in the foreground
+  await reached.promise;
+  deny.resolve();
+  await until(() => client.link() === "signed-out", "the credentials ended");
+  armed.length = 0;
+  barrier.resolve();
+  await delay(50);
+  assert.ok(!armed.includes(300), `a presence timer was armed after the credentials ended: ${JSON.stringify(armed)}`);
 });

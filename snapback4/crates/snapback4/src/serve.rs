@@ -89,6 +89,8 @@ pub struct Shared {
     pub effect_wait: WorkHook,
     #[cfg(test)]
     pub poll_wait: WorkHook,
+    #[cfg(test)]
+    pub query_wait: WorkHook,
 }
 
 impl Shared {
@@ -302,6 +304,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
+        #[cfg(test)] query_wait: Mutex::new(None),
     });
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -957,12 +960,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(None) => {}
                 }
             }
-            let (signature, reads_presence) = {
-                let bound = lock(&shared.bound);
-                // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read: an answer discloses no branch.
-                let reads_presence = bound.schema.operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
-                (bound.programs.iter().find(|p| p.program.name == op).map(|p| (p.program.kind, p.program.args.clone())), reads_presence)
-            };
+            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
+                .map(|p| (p.program.kind, p.program.args.clone()));
+            // @ref LLP 3000.017#3.1 — refresh follows what a query may read on any path, never what one run read,
+            // and comes from the schema of the engine that evaluates it.
+            let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
             let Some((kind, arg_types)) = signature else {
                 operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
@@ -1000,21 +1002,26 @@ fn handle(mut request: Request, shared: &Shared) {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let (outcome, metadata) = match reader {
+                let (outcome, cut, metadata, reads_presence) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
-                        let outcome = reader.query(&op, context);
+                        #[cfg(test)]
+                        test_work(&shared.query_wait);
+                        let reads_presence = presence_of(&reader);
+                        let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        (outcome, metadata)
+                        (outcome, cut, metadata, reads_presence)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
-                        (engine.query(&op, context), metadata)
+                        let reads_presence = presence_of(&engine);
+                        let (outcome, cut) = engine.query_at(&op, context);
+                        (outcome, cut, metadata, reads_presence)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1060,6 +1067,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(refusal) => {
                         let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        // @ref LLP 3000.017#3.2 — a refusal names the cut its evaluation read, which the head
+                        // taken before it may predate, so a client can order it against a remembered answer.
+                        if let Some(cut) = cut { reply["seq"] = json!(cut); }
                         // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.017 §3.2).
                         if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
                         respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
@@ -1237,6 +1247,7 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
+            query_wait: Mutex::new(None),
         });
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {
