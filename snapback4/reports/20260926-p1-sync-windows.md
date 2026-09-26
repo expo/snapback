@@ -485,3 +485,275 @@ Implementation commits: `d7bdc37e6` (requested merge), `e2f4159e3` (cards),
 witnesses), `b7b43f2eb` (independent compatibility record). Each carries the
 requested GPT-6 Astra co-author trailer. The final documentation commit
 contains this round-1 report and one appended journal entry.
+
+## Round 2 — 2026-09-26
+
+Read the original lane prompt, this report, and both complete round-1 reviews
+(`p1-r1.astra.md`, `p1-r1.grok.md`). Accepted all four repair findings and both
+mutation gaps. No finding was dismissed. This section supersedes round 1's
+claim that its printed source-branch repairs were sufficient.
+
+### Integration and context
+
+Fetched origin, then merged exactly `992cec75c` before repairs, in
+`cf47b8105`. The only conflict was `JOURNAL.md`; both complete sides remain.
+The merge includes LLP 3000.019 itself. The post-merge controls passed before
+repairs: 20 sync-window compiler tests, 86 guide tests, one compatibility
+case, both device stores, three CLI checks and nine timeline-adoption cases.
+Git still lacked a configured committer; commits use the existing lane's
+GPT-6 Astra identity through per-command options, with the required trailer.
+
+Used `llp-orient` for the compiler, guide and device witness scope. Governing
+context: LLP 3000 §4 (fence), LLP 2000.000 §§6–7 (meter and authorized
+partitions), LLP 3000.007 §§6.2/18.2 (classification and full-key acquisition),
+and LLP 3000.019 §3.1 (P1, now in current/), refined by the user's explicit
+round-2 exact-repair rule. Relevant current authoring facts are in the sync
+and writes cards. No new design, protocol, LLP or budget was introduced.
+Hand-off: none. The runtime, wire, authorization, disclosure, durability and
+metering implementations remain unchanged.
+
+### Findings and implementation, file by file
+
+- `crates/snapback4-lang/src/bind/residency/horizons/sync_order.rs` now has
+  one full-page repair path. Every named-index repair lifts each audience
+  equality out of `where` into a bracket key, including reversed equalities.
+  This fixes Grok's ordinary page, ascending full-page and `count(page)`
+  reproductions. It never offers a bare `last N by name` fragment. For a
+  generated window, it prints the exact named index declaration, the sync
+  horizon replacement and the full page. This prevents another identical
+  physical index or an extra equality pin from silently selecting a
+  different acquisition index.
+- The same file rejects outer-focal key/seek operands before moving any
+  predicate. Astra's `.threshold` and `.ordinal` endpoints get only words
+  naming the window's order and index. A scope-independent named local such
+  as `floor` can still move into the residual without changing its binding.
+- Generated membership lanes (including nullable/null lanes), explicit
+  merges and projected views get prose only. A source lane lacks the full
+  authored predicate, merge cursor and/or projection. The note does not
+  pretend it is a complete read. Compiler-only bindings such as `$intentLane`
+  are omitted from both the repair and displayed source spelling.
+- A capped ordinary read without an authored range now gets an explicit
+  descending range with the bound scan's N (`last 50` in Astra's example).
+  Its cursor, if authored, is kept. Compatible seeks stay in bracket keys;
+  incompatible independent seeks become residual comparisons, preserving
+  calendar functions and any residual already present.
+- Conservative guards also keep advice in words when a target index cannot
+  carry the cursor, dropping pins would lose the cap that made a cursorless
+  page complete, rule-deciding fields would be unpinned, or the replacement
+  would introduce a sparse-filter/seek note. No executable-looking fallback
+  is printed if an exact page cannot be constructed.
+- `crates/snapback4-lang/src/bind/program/views.rs` drops the now-unused
+  diagnostic-only cursor copy into individual view lanes. Execution still
+  owns its original merge cursor; no IR or execution change.
+- `crates/snapback4-lang/src/guide/{sync.rs,codes.rs}` states the exact-page
+  versus words boundary and explains outer-row and merge scope. All Quarry
+  blocks and the existing guide/action facts still pass.
+- `crates/snapback4-lang/tests/sync_windows.rs` applies complete emitted
+  repairs instead of substituting independently written approximations.
+  Its view case now requires words, because a branch is not a whole view.
+- New `crates/snapback4-lang/tests/sync_windows/repairs.rs` extracts and
+  applies the emitted declaration/horizon/page text. It requires no compile
+  diagnostics, no N_SYNC_ORDER or N_NEVER_COMPLETE, and no newly introduced
+  note. The cursorless legacy regression retains its pre-existing
+  N_NO_CURSOR; all new executable repair fixtures have zero notes.
+- `crates/snapback4/tests/check_notes.rs` expects the new full repair through
+  the actual CLI. `tests/timeline_adoption.rs` requires all retirement/view
+  advice to stay in words, name the index and direction, preserve the
+  enclosing merge, and expose no compiler binding. Its runtime retirement
+  assertions are unchanged.
+- `crates/snapback4-device/tests/sync_windows.rs` applies the calendar
+  diagnostic's actual page. Both stores now delete the floor row through a
+  real mutation/stream, confirm it is absent, and stream the exact key back.
+  This exercises an unheld row equal to the floor rather than the held-row
+  shortcut. All previous tie, below-floor, moved-row, reopen and offline
+  coverage assertions remain.
+- `JOURNAL.md`: one appended round-2 entry; this report: this appended section.
+
+### Executable forms and deliberate prose boundaries
+
+Given the fixture's named `byWindow: conversationId, at, ordinal, id`:
+
+```quarry
+messages[conversationId = conversationId] after c last 2 by byWindow
+messages[conversationId = conversationId] after c last 2 by byWindow where .sender = viewer and .ordinal > 0
+messages[conversationId = conversationId] last 50 by byWindow where .sender = viewer
+count(messages[conversationId = conversationId] after c last 2 by byWindow)
+```
+
+These are emitted, applied, compiled and run in the tests. The first handles
+both named-index paths; the second preserves the moved seek and existing
+residual; the third is the implicit capped read; the fourth retains a count's
+audience pin and cursor. Full declaration/horizon/page repairs for generated
+indexes, identical named indexes, an order with id in its middle, calendar
+indexes/ranges and a named local range are also applied and run.
+
+Outer-row predicates, generated membership lanes, nullable membership,
+explicit merges and projected views print no Quarry replacement. For example,
+`.sender in [viewer]` is never printed as `.sender = $intentLane`; its
+lowered merge gets the window order and index in words. This uses the user's
+explicit no-rewrite alternative, not an unresolved finding. A hand rewrite
+would need to preserve the authored membership and whole merge cursor; this
+lane does not synthesize it from one compiler lane.
+
+An order change intentionally changes page order and potentially which rows
+fall on each page. Runtime repair tests drain both original and repaired
+pages, require the identical full row population, require descending window
+order, and follow a second page without repeats. Their fixture contains a
+second *readable* conversation (so authorization cannot hide a dropped
+predicate), an excluded sender, a below-range row, and differing time/ordinal
+orders. Count uses a companion page of its exact source to obtain the second
+cursor, since count itself does not expose the consumed page's continuation.
+The outer-threshold fixture has threshold 5 and candidate ordinals 3 and 6,
+both with threshold 0: only ordinal 6 is returned, and no false rewrite is
+offered. The cap fixture is consumed whole and needs no cursor.
+
+### Tests and mutation evidence
+
+Eight new compiler cases bring the sync-window target to **28**:
+
+1. `named_where_pages_lift_audience_and_keep_second_page`: both old repair
+   paths, reversed equality, extra sender equality, exact rows and paging.
+2. `count_applies_the_same_audience_page_repair_and_preserves_continuation`:
+   count's applied repair compiles without notes and returns the expected
+   counts, including a second cursor from its identical source page.
+3. `moved_range_keeps_existing_residual_and_second_page`: `.ordinal > 0`
+   and `.sender = viewer` both survive, with all five expected rows and
+   working continuation.
+4. `generated_indexes_calendar_ranges_and_named_locals_apply_and_run`:
+   every other emitted repair shape is applied and executes the same rows
+   over multiple pages in window order.
+5. `capped_read_without_range_gets_last_from_its_bound`: `last 50` is
+   synthesized, the note clears, and the whole capped population survives.
+6. `membership_and_explicit_merges_only_name_the_window_in_words`: present
+   and nullable membership, nullable list items and explicit merge advice
+   contain neither snippets nor compiler bindings.
+7. `outer_threshold_stays_outer_and_never_becomes_a_candidate_filter`:
+   the reviewer's threshold example executes correctly; both focal
+   endpoint spellings get words only.
+8. `advice_falls_back_if_an_index_or_cap_cannot_preserve_continuation`:
+   a noncursorable window, narrower caps with implicit and explicit page
+   bounds, and a would-be new seek note cannot produce a misleading repair.
+
+Both surviving mutations were actually run, failed assertions, and restored:
+
+| Temporary mutation | Result |
+| --- | --- |
+| `Boundaries::accept`: `>=` to `>` | Both stores fail “an unheld streamed key equal to the floor must be admitted”; 0 passed, 2 failed, exit 101 |
+| Clear cursor only when `source_page` moves an incompatible seek | Residual-plus-range test fails “cursor lost”; 0 passed, 1 failed, exit 101 |
+
+Logs: `/tmp/p1-r2-mutant-floor-strict.log` and
+`/tmp/p1-r2-mutant-cursor-cleared-on-move.log`. No runtime mutation is committed.
+Restored controls passed: 28 sync-window compiler tests, 86 guide, 21 intent,
+40 residency notes, five shape, four calendar and one compatibility case;
+81 authorization-census tests plus both device stores; three CLI notes and
+nine timeline-adoption tests. Logs: `/tmp/p1-r2-control-{lang,device,cli}.log`.
+The original compatibility records, assertions and fixture set remain intact.
+
+### Qualification and remaining limits
+
+No review finding remains open. The deliberate no-rewrite shapes above are
+conservative advice boundaries under the user's rule. The previous stops
+remain: query `online only` is not a supported modifier; word searches and
+whole-domain aggregates have separate coverage requirements. Existing query
+execution behavior and fallback are unchanged. There is no automatic rewrite
+of a whole merge or of an outer-row endpoint through a newly introduced local.
+
+The complete script's wasm build measured **2,021,689 B raw / 581,094 B gzip**
+against the unchanged **582,094 B** budget: **1,000 B headroom**. This is the
+same whole-artifact measurement recorded for the merged main; no independent
+fresh-control delta is claimed. The budget file is unchanged.
+
+The inherited source-length exception noted in round 1 remains outside P1:
+`packages/snapback4/src/local.ts` is 1,512 lines on requested main `992cec75c`
+and unchanged by this lane. Reproduce with
+`git show 992cec75c:snapback4/packages/snapback4/src/local.ts | wc -l`.
+All source files edited by round 2 remain below 1,500 lines.
+
+The single complete-suite command, from `snapback4/`, is:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh
+```
+
+Node is v24.13.1; Bun is 1.3.14. `bun install --frozen-lockfile` passed before
+JS checks (507 installs across 501 packages, unchanged). No skip condition,
+test count, model sequence count, timeout or resource ceiling was reduced.
+Full log: `/tmp/p1-r2-full-suite.log`; exit status:
+`/tmp/p1-r2-full-suite.exit`.
+
+The complete Rust stage passed: **3,605 passed, zero failed, 19 existing
+ignores**, reported as `-- ok: cargo test (859 s)`. Both app typechecks and
+all nine fixture-wrapper tests passed.
+
+Ordinary clients: **2,214 passed, one failed, 10 existing skips**, with no
+cancellations, reported as `-- FAIL: client tests (1815 s)`. The sole failed
+case is `predicted expireMember: every commit clears the pending observation`
+in `packages/snapback4/test/page-authority.test.mjs:192`. Its actual failure
+was **`AssertionError [ERR_ASSERTION]: timed out: server`**, at `until` line
+16 and fixture startup line 33, before the expiry scenario ran. The harness
+waits 500 × 10 ms for the dev server's URL. Classification: **environmental**
+(transient server startup), not a P1 assertion failure. The test, fixture,
+client and runtime sources match requested main, and its fixture has no
+horizon that could enter the changed advisory path.
+
+The exact affected-case rerun passed unchanged (**1 passed, zero failed**,
+exit 0, 5,300.469 ms total). No timeout was raised and no product code was
+changed for this failure. Reproduce the attempted case with:
+
+```sh
+node --test --test-name-pattern='^predicted expireMember:' packages/snapback4/test/page-authority.test.mjs
+```
+
+The isolated rerun did **not** reproduce the startup timeout. Its log and
+exit status are `/tmp/p1-r2-expire-member-rerun.{log,exit}`. The red complete
+run is retained; the rerun is not represented as a green complete run.
+The ten ordinary client skips are the unchanged platform/opt-in conditions
+listed in round 0 (macOS media APIs and optional managed/published inputs).
+
+All **78 seeded model tests passed**, with zero failures and zero skips,
+at the unchanged 5,000 / 5,000 / 3,000 sequence counts. The stage reported
+`-- ok: client models (255 s)`.
+
+Exact full-script result (exit **1**):
+
+```text
+== 1 failure(s) in 2955 s
+   client tests
+```
+
+Failure classification: **ours: zero; baseline: zero; environmental: one**
+(the startup timeout above). The underlying reason for the one delayed
+startup was not established. The full script ran once and was not repeated.
+
+### Final conservative guard after the full Rust stage
+
+Final review extended the cap regression to an *explicit* cursorless page:
+`cap 50 by conversationId, sender` plus a sender-pinned `first 50` read.
+Removing sender from the bracket keys also removes the cap that proved that
+this page needed no cursor. The previous guard covered only reads with no
+authored range. The expanded regression failed against that implementation
+(`/tmp/p1-r2-explicit-cap-before.log`, 0 passed, 1 failed, exit 101).
+
+The final guard compares the original scan's cap with the proposed audience
+prefix's cap whenever no cursor is present. If it would lose that completeness
+proof, the note prints words. This is the same no-new-note rule, applied to
+both implicit and explicit capped pages; the ordinary `cap 50 by
+conversationId` repair still prints `last 50` and runs without a note.
+
+Qualification boundary: the single full script compiled the preceding
+implementation. This final compiler-only guard is qualified by the affected
+compiler/guide/CLI targets below, not by a second full run. It changes neither
+the wasm artifact nor any runtime, client, schema or wire code. This is the
+only qualification-sequence deviation; every requested finding is addressed.
+Final affected targets all passed: **28** sync-window tests, **86** guide,
+**40** residency-note, **one** compatibility case, **three** CLI notes and
+**nine** timeline-adoption tests. Logs:
+`/tmp/p1-r2-final-affected-{lang,cli}.log`. Guard commit: `64ac359ac`.
+There is no remaining P1 product finding. The only unresolved observation is
+the non-reproduced environmental startup delay above; the unrelated inherited
+source-length exception is also retained in this report.
+Implementation commits: `cf47b8105` (requested merge), `193dc3e6b` (exact
+repairs, guide and compiler/CLI tests), `3b06badfd` (floor equality witness),
+and `64ac359ac` (explicit cursorless-cap guard).
+Every commit has the requested co-author trailer. No push or publication.

@@ -63677,3 +63677,66 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+
+## 2026-09-26 — 0.4.4 lane P1 round 2: exact sync-order repairs or words
+
+Read both complete round-1 reviews and accepted every finding. Merged exactly
+`992cec75c` first (`cf47b8105`), retaining both sides of the journal conflict;
+a line-by-line subsequence check confirms every journal line from each parent
+survives. Post-merge targeted compiler, guide, compatibility, device and CLI
+checks passed before repairs.
+
+Named-index advice now prints a complete page with audience equalities in
+bracket keys, all predicates intact, the original cursor, and `last N`.
+Both old repair paths and count pages use this single path. A capped read
+without an authored range gets N from the bound scan. A generated window's
+repair includes its explicit declaration and horizon replacement. Independent
+incompatible seeks move into residual filters; compatible seeks remain keys.
+An existing residual beside a moved range and the next page are both tested.
+Outer-focal endpoints, generated membership lanes, nullable membership,
+explicit merges and projected views get the window order and index in words.
+No compiler binding is printed. One lane is not a replacement for a whole
+merge. The sync card and why entry describe this boundary.
+
+The compiler target has 28 tests. Emitted text is applied and compiled with
+no diagnostics, no N_SYNC_ORDER or N_NEVER_COMPLETE, and no new note; new
+executable fixtures have no notes at all. Runtime tests compare the complete
+row populations in the new order and follow second pages. The outer-threshold
+case (5 versus candidate ordinals 3 and 6 with thresholds 0) returns only 6
+and gets no false rewrite. Both device stores delete the floor row, stream
+its exact key back while unheld, and require it to be admitted. Temporary
+mutations changing >= to > fail on both stores; clearing a cursor only when
+a range moves fails the residual-plus-range test. Both mutations were restored.
+Engine/device runtime, wire, authorization, durability and meters are unchanged.
+
+The single complete script ended **`== 1 failure(s) in 2955 s`**, exit **1**,
+with **`client tests`** as the sole failed stage. Rust: **3,605 passed, zero
+failed, 19 existing ignores** (859 s). Ordinary clients: **2,214 passed,
+one failed, 10 existing skips** (1815 s). All **78 seeded models passed**
+(255 s), with the original sequence counts. Both app typechecks, all nine
+fixture-wrapper tests and every other stage passed.
+
+The one full-suite failure is environmental: `predicted expireMember: every
+commit clears the pending observation` timed out waiting for its dev server's
+URL in fixture startup, before executing the expiry scenario. The exact case
+passed unchanged in isolation (1/1); no timeout or expectation was relaxed.
+The test, client, runtime and window-free fixture match requested main.
+The cause of the delayed startup was not established; the red full result
+remains recorded. Full log: `/tmp/p1-r2-full-suite.log`.
+
+Final review found one additional cap case: an explicit cursorless first-50
+page can rely on a cap over the sender key being moved into its residual.
+The expanded regression failed before the final guard. That guard now leaves
+both implicit and explicit cap-losing pages as words. This compiler-only
+follow-up is after the full Rust stage: the 28 compiler, 86 guide, 40 residency,
+one compatibility, three CLI and nine timeline-adoption cases pass again;
+the full script was not repeated. Its logs and exact qualification boundary
+are in `reports/20260926-p1-sync-windows.md`.
+
+Wasm: **2,021,689 B raw / 581,094 B gzip**, under the unchanged **582,094 B**
+budget by **1,000 B**. Runtime and budget files match `992cec75c`; no independent
+fresh-control delta is claimed. No query online-only modifier, whole-domain
+or word-search coverage change, automatic merge rewrite, push or publication.
+Commits: `193dc3e6b` (repairs and tests), `3b06badfd` (floor equality witness),
+`64ac359ac` (cursorless cap guard), each with the requested co-author trailer.
