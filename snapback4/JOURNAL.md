@@ -63618,3 +63618,49 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+## 2026-09-26 — Lane O round 1: pending writes agree with custody across exit and shared journals
+
+Merged the requested main commit `992cec75c` first (`b3c95fee9`), preserving
+both journal histories and both the pending-write API and the bounded mutation
+custody work. Fixed all four findings from the blind Astra/Grok reviews.
+Exit dispatch now records a synchronous, store-bound marker in the existing
+browser journal before keepalive may start; recovery updates only the original
+outbox row. An acknowledgement shares the status commit before cleanup, so
+failed marker removal cannot overwrite a later hold. Online journal changes
+invalidate all owners of the key, including other browser tabs, and detach at
+custody pause. Sent entries have no reason; prediction sentences belong to
+queued entries. A local restore halt hides the list and preserves the stored
+outbox for reconciliation. Bounded waits, saved ids/arguments and known terminal
+outcomes keep main's custody behavior.
+
+The merged tree passed 68 targeted tests. The review-fix integration run passed
+224/224; the final navigation/journal/restore run passed 92/92, known-outcome
+custody passed 12/12, and final exit-only tests passed 2/2. Chromium tests cover
+B's admission reaching A's hook and B's settlement clearing A's remounted hook,
+in one page and across two pages. Both requested mutants now fail: removing the
+exit `begin_send` id fails both durable-status cases; turning a dropped
+connection into held fails raw and journaled online cases. No production source
+was changed for the mutation trials.
+
+The single full `bash scripts/test.sh` run ended exactly
+`== 1 failure(s) in 1017 s` (exit 1, client tests). Builds, budgets, the 86-test
+guide target, Rust targets/doctests, fixtures, app typechecks and all 78 models
+passed. The main client invocation had 2,196 tests: 2,184 passed, two failed and
+10 existing optional skips. Both failures are inherited timing-sensitive tests:
+identity cancellation can precede the expected provider token request, and
+local sign-out returns before background server logout completes. Both pass in
+isolation on this lane and on main's `992cec75c` client sources; delaying
+`/token` by 150 ms and `/auth/logout` by 1,000 ms reproduces both exact assertions
+on the baseline. Neither assertion nor its product code was changed. The full
+run is recorded as red, and these baseline test assumptions remain open for
+the integration owner. No full-suite rerun was performed.
+
+Wasm rebuilt at 2,023,103 B raw / 581,523 B gzip, unchanged from round 0 and
+571 B below the unchanged 582,094 B budget. No engine meter, Rust runtime,
+package version or publication changed. The historical pre-0.4.4 record without
+dispatch evidence still cannot reveal an old unacknowledged send. No other part
+of LLP 3000.019 was implemented, and nothing was pushed or published. The
+round-1 section of [the lane report](reports/20260926-lane-o-pending-writes.md)
+records every changed file, test, mutant and baseline-failure reproduction;
+local logs are under `target/lane-o-r1-evidence/`.

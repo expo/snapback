@@ -265,3 +265,185 @@ final lane head to verify the repairs. No Rust input changed after the full
 suite’s passing 937 Rust executions and workspace doctests; only the repaired
 client tests and affected online models were rerun.
 
+## Round 1 — 2026-09-26
+
+Both blind reviews were read in full. All four findings are accepted and fixed;
+neither review is disputed. This section supersedes round 0's statement that
+only historical records had an exit-dispatch information gap.
+
+### Integration and commits
+
+Fetched origin and merged the requested `992cec75c` before making round-1
+repairs. Merge commit `b3c95fee9` preserves both journal histories and combines
+`MutateOptions.waitSeconds`, saved argument identity, drafts/known outcomes,
+and the pending-write methods. Conflicts in `client.ts`, `app-online.ts`,
+`local.ts`, `mock.ts`, `react.tsx`, `react.test.mjs` and `JOURNAL.md` keep both
+features. `contract.ts`, `writes.ts` and the guide/doc edits merged normally.
+The merged tree passed package typecheck/build and 68 targeted tests before
+review fixes began.
+
+Implementation commits, each ending with the requested co-author trailer:
+
+- `1bd762f0a`: pending reasons, restore halts, custody/transport regressions.
+- `c0df67fe3`: shared journal invalidations and shared-hook/known-outcome tests.
+- `515a96082`: synchronous exit-dispatch evidence, recovery and cleanup tests.
+
+### Findings, file by file
+
+Paths are relative to `snapback4/`.
+
+| Finding | Files and repair |
+| --- | --- |
+| Astra: first exit dispatch reopened as queued | `packages/snapback4/src/web-journal.ts` records a store-bound, id-only dispatch marker synchronously in the existing browser journal; `src/web.ts` requires that capture before permitting keepalive. Opening/recovering a device updates only the original outbox row through keyed `begin_send`. A host `j` acknowledgement shares its status commit, then removes the synchronous marker. Failed cleanup keeps that acknowledgement, so a leftover marker cannot overwrite a later hold. Settlement never recreates an entry. |
+| Astra: shared online journal notifications were instance-local | New `src/journal-changes.ts` shares subscribers by journal key and broadcasts invalidations, containing no arguments, across browser tabs. `src/app-online.ts` publishes after journal commits, reads dispatch/hold status from that shared journal, and detaches at custody pause; the last local subscriber closes the channel. A paused owner's already-running save can still notify active peers. |
+| Grok: sent writes carried queued prediction reasons | `src/pending-writes.ts` computes state first: only queued entries receive prediction sentences; held entries receive refusal codes; sent entries omit reason. `crates/snapback4-lang/src/guide/writes.rs` and `packages/snapback4/CLIENT-AND-OPERATIONS.md` state this distinction. |
+| Grok: restore-halted local client still listed writes | `src/local.ts` invalidates on restore halt and includes `E_STORE_RESTORE` in the list's pre/post-await availability checks. It returns `[]` without changing the stored outbox. |
+| Custody integration | The merge keeps each tier's bounded settlement wait. `CLIENT-AND-OPERATIONS.md` states that a pending custody return retains the entry's actual queue state. `test/pending-writes.test.mjs` covers zero/clamped waits through send, dropped connection, hold, retry and settlement; `test/app-online.test.mjs` verifies a known terminal outcome leaves the list even if its receipt save fails and durable replay custody remains. |
+
+### Public forms and regression evidence
+
+No new public spelling is introduced in round 1. The merged forms compile and
+run together:
+
+```ts
+const admitted = await client.mutate(api.send, { conversationId, body: "hello" }, {
+  id: savedId, waitSeconds: 0,
+});
+const pending = await client.pendingWrites();
+// If admitted is pending, the saved id stays listed as queued, sent or held.
+const stop = client.onPendingWrites(() => { void client.pendingWrites().then(render); });
+stop();
+```
+
+```tsx
+const sends = usePendingWrites(api.send); // args retain api.send's type
+const all = usePendingWrites();
+```
+
+These are the regression additions/strengthenings:
+
+- `test/web-navigation.test.mjs`: two first-dispatch reproductions block
+  ordinary `begin_send`, trigger pagehide, stall the status save after the
+  keepalive starts, and reopen independent copies of both persisted stores.
+  The copies must list `sent`; the original persisted outbox is still queued
+  before its blocked commit. After releasing that save, the keyed status must
+  be durable and the marker cleaned. The second case blocks marker removal,
+  commits a later hold and requires reopened `held`; eventual cleanup works.
+- `test/react.test.mjs`: A's mounted hook sees B's admission; A unmounts and
+  remounts while B is sending, then clears on B's settlement. Run with two
+  clients in one page and with two actual Chromium pages sharing localStorage.
+  Pausing A detaches its notifications. Existing StrictMode/filter/read-fence
+  tests remain unchanged.
+- `test/pending-writes.test.mjs`: four added cases, one per raw online,
+  journaled online, wasm and process tier, exercise `waitSeconds: 0` and a
+  fractional value clamped to zero with the original id and arguments. The
+  merged client-seams cases also verify nonzero bounded waits on all tiers. A rejected transport
+  promise (no HTTP response) must leave sent/unknown, followed by an HTTP hold,
+  same-id retry and settlement. Eight existing lifecycle cases now assert an
+  online-only mutation has no reason once dispatched.
+- `test/store-reset-reconnect.test.mjs`: both real local hosts retain a sent
+  write while a same-store lower head causes `E_STORE_RESTORE`; the list clears,
+  a listener is invalidated, and every stored outbox field remains equal.
+- `test/app-online.test.mjs`: six existing known-outcome cases (success/refusal
+  through mutate/lookup/background) now assert list/custody agreement even
+  while receipt persistence fails.
+
+Both requested mutation trials ran against the final implementations through
+Node module-loader substitutions, leaving source/build artifacts unchanged:
+
+- Remove `id` from only `web.ts`'s exit `begin_send`: **0 pass / 2 fail**;
+  each fails because persisted dispatch is absent instead of `""` after the
+  status save. The interrupted-save recovery assertions themselves still pass.
+- In online `sendPost`'s transport catch, call `hold(entry, "E_OFFLINE")`:
+  **0 pass / 2 fail**, raw and journaled online, on actual `held/E_OFFLINE`
+  versus required `sent` without a reason.
+
+Unmutated verification:
+
+- Merged tree before fixes: **68/68** targeted client/navigation/React tests.
+- Affected integration run: **224/224** (pending writes, navigation, React,
+  restore/reconnect, journal model, custody and client seams).
+- Final navigation/journal/restore run: **92/92**, including the additional
+  cleanup-failure case and the latest restore invalidation path.
+- Known-outcome custody run: **12/12**.
+- Final exit-only run after the last decoder guard: **2/2**.
+- Package typecheck/build and `git diff --check` passed.
+
+### Measurement, deviations and open problems
+
+The full script rebuilt wasm at **2,023,103 B raw / 581,523 B gzip**, identical
+to round 0. The budget remains **582,094 B**, with **571 B** headroom. No engine
+meter, Rust runtime, package version or budget changed in round 1. The largest
+changed source remains `local.ts`, at 1,485 of 1,500 lines.
+
+There is no scope deviation and no unfixed review finding. The synchronous
+marker is acknowledged in the existing host journal namespace rather than
+adding a second outbox; it contains no operation arguments and grants no
+permission to create or retry an intent. Shared browser notifications use
+BroadcastChannel and carry only invalidation. Raw online queues remain in
+memory. The previously documented pre-0.4.4 legacy-information limit remains:
+an old outbox without dispatch/sequence evidence cannot distinguish a past
+unacknowledged send from a never-sent write. Reproduce with the old client as
+recorded above; the new first-exit-dispatch path is now covered separately.
+
+The scoped orientation used the installed `llp-orient` fallback already named
+in round 0. Binding context is LLP 3000's fence, LLP 2000.000 §7's durable
+outbox/identity rules, LLP 3000.013 §6's admission/store custody, LLP 3000.007
+§17/§20.4's result-free receipt and browser recovery boundaries, the supplied
+LLP 3000.019 §3.3 part 4, and merged LLP 3000.008.002.000 §3's bounded custody
+waits. Only the guide's relevant write semantics and this report/journal need
+updates; the supervisor-owned design is unchanged.
+
+### Required full script
+
+Round 1 ran `bash scripts/test.sh` **once** at implementation commit
+`515a96082`, with implementation source unchanged throughout. Its literal
+summary is **`== 1 failure(s) in 1017 s`**, exit **1**. The failed script step
+is `client tests`; there are two failed test cases, listed below. No complete
+suite rerun was performed.
+
+- Rust targets and workspace doctests passed (530 s), including the full
+  guide target: **86 passed / 0 failed / 0 ignored**.
+- Builds, wasm budget, release guard, docs budget, fixture wrappers and both
+  app typechecks passed.
+- The main client invocation: **2,196 tests; 2,184 pass; 2 fail; 10 skipped**
+  by existing optional/host gates (193 s).
+- Client models: **78/78 passed**, including their unchanged seeded counts
+  (261 s).
+- Both failed cases rerun in isolation on the lane: **2/2 passed**. An isolated
+  package build from `992cec75c` also passes those two normally. Controlled
+  scheduling reproduces both exact failures on that baseline: **0/2 pass**.
+  This comparison uses the baseline client sources and unchanged assertions,
+  with this lane's same server binary/wasm and host/toolchain.
+
+| Failed case | Classification and concrete reproduction |
+| --- | --- |
+| `identity.test.mjs`: invocation lifetime releases provider and private-core fetch and body stalls without late identity effects | **Baseline timing-sensitive test.** At `provider-token-body`, the test expects one token request but observes zero. Its cancellation status arrives after a fixed interval; it marks the phase entered before the network request/body actually arrives. On the `992cec75c` package, delay fetch of `/token` by 150 ms: cancellation wins and the identical `0 !== 1` assertion fails. Identity/provider/server code and this test are unchanged by lane O. |
+| `local-e2e.test.mjs`: a device restores its session on its own | **Baseline timing-sensitive test.** The immediate old-token query expects `E_AUTH` but the response has no denial yet. `signOut()` deliberately starts logout without awaiting the remote request, on both main and this lane. On the `992cec75c` package, delay fetch of `/auth/logout` by 1,000 ms: the unchanged immediate assertion fails with `undefined !== 'E_AUTH'`. The sign-out code and this test are unchanged by lane O. |
+
+Neither failure is attributed to a lane-O product change; neither test was
+weakened or edited. These two baseline scheduling assumptions remain open for
+the owning integration program. No additional environmental failure occurred.
+The full run remains recorded as red despite passing isolated reruns.
+
+Reproduction commands (from `snapback4/`, with the documented toolchain PATH):
+
+```sh
+node --test --test-concurrency=1 \
+  --test-name-pattern='invocation lifetime releases|a device restores its session on its own' \
+  packages/snapback4/test/identity.test.mjs packages/snapback4/test/local-e2e.test.mjs
+node --import ./target/lane-o-r1-evidence/baseline-timing.mjs --test --test-concurrency=1 \
+  --test-name-pattern='invocation lifetime releases|a device restores its session on its own' \
+  target/lane-o-r1-evidence/baseline-992cec75c/snapback4/packages/snapback4/test/identity.test.mjs \
+  target/lane-o-r1-evidence/baseline-992cec75c/snapback4/packages/snapback4/test/local-e2e.test.mjs
+```
+
+The baseline is a `git archive 992cec75c` of the package and chat schema with
+shared dependencies and the same binary/wasm; it was built with the ordinary
+package build. The timing preload wraps `globalThis.fetch`, delays only the
+named paths above, then calls the original fetch with the original input and
+signal. It changes neither product code nor assertions. Evidence, baseline
+source, mutation preloads and exact logs remain under
+`target/lane-o-r1-evidence/` (`full-test.log`, `full-test.exit`,
+`failed-cases-isolated.log`, `baseline-failed-cases.log`, `baseline-timing.log`).
+No push or publication has been performed.
