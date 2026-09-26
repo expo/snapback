@@ -4,6 +4,40 @@ use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, Value, wire};
 use snapback4_device::device::{Device, StreamPage};
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/row-keyed-view.q");
+
+fn inherited_expiry_replay<H: Host>(h: &mut H) {
+    for (name, source) in [
+        ("member", include_str!("../../snapback4-lang/tests/fixtures/row-view-inherited-member.q")),
+        ("source", include_str!("../../snapback4-lang/tests/fixtures/row-view-inherited-source.q")),
+    ] {
+        let source = source.replace("  read through .room", "  read through .room\n  sync public");
+        let (mut e, mut b) = compile(&source);
+        b.schema = b.schema.public_projection();
+        let seeded = e.mutate("seed", None, Context::new("alice", Default::default()).at(1000)).unwrap();
+        assert!(matches!(seeded.state, snapback4_core::WriteState::Sent { .. }), "{seeded:?}");
+        let mut d = h.open(name, Some(b)).unwrap();
+        for (n, p) in snapshot(&mut e, 1000, 1000).iter().enumerate() { d.apply(p, n == 0).unwrap(); }
+        for now in [1000, 1999, 2000, 3000] {
+            let count = d.query("countFor", "bob", &json!({}), now).unwrap();
+            assert!(count.complete && !count.unavailable, "{name}: {count:?}");
+            assert_eq!(count.data, Value::Int(i64::from(now < 2000)), "{name} at {now}");
+            assert_eq!(count.next_expiry, (now < 2000).then_some(2000));
+            let point = d.query("message", "bob", &json!({}), now).unwrap();
+            assert_eq!(point.data != Value::Null, now < 2000);
+        }
+        if name == "source" {
+            d.predict("mark", "bob", &json!({}), 3000, vec![], 1).unwrap();
+            assert_eq!(d.store().raw_rows("unread")[0].field("value"), Ok(&Value::Int(0)));
+        }
+        h.close(name, d);
+        let mut d = h.open(name, None).unwrap();
+        let count = d.query("countFor", "bob", &json!({}), 3000).unwrap();
+        assert!(count.complete);
+        assert_eq!(count.data, Value::Int(0));
+    }
+}
+#[test] fn inherited_expiry_replay_memory() { inherited_expiry_replay(&mut Memory::new()); }
+#[test] fn inherited_expiry_replay_sqlite() { inherited_expiry_replay(&mut Sqlite::new("inherited-expiry")); }
 fn setup() -> (Engine, snapback4_device::device::Backend) {
     let (mut e, mut b) = compile(SOURCE);
     b.schema = b.schema.public_projection();

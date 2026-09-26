@@ -5,6 +5,32 @@ use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_device::device::Device;
 use serde_json::json;
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/following-view.q");
+
+#[test]
+fn owned_event_examination_cut_withholds_card() {
+    use snapback4_core::{Ceilings, engine::local, rows::MemoryRows};
+    for sync in ["sync public last 3 by .at", "sync public"] {
+        let (_, b) = common::compile(&(source(sync) + "\nquery event(eventId: id):\n  return { card: feedPosts[eventId] }\n"));
+        assert!(b.schema.tables["feedPosts"].sync.as_ref().unwrap().horizon.is_none());
+        let p = b.programs.iter().find(|p| p.name == "event").unwrap();
+        for examined in [0, 1] {
+            let (result, unknown, _) = local::query_with_coverage(&MemoryRows::new(), &b.schema, p,
+                Context::new("alice", args(&[("eventId", id("missing"))])).at(1000),
+                Ceilings { examined, ..Default::default() });
+            let result = result.unwrap();
+            if sync != "sync public" {
+                assert!(unknown && result.unavailable && !result.complete, "examined={examined}: {result:?}, unknown={unknown}");
+                assert_eq!(result.data, Value::Null);
+                assert!(result.next.is_none());
+            } else {
+                assert!(!unknown && !result.unavailable, "fully synced control: {result:?}");
+                assert_eq!(result.data.field("card"), Ok(&Value::Null));
+            }
+            assert_eq!(result.metered.examined, 1, "only the attempted admission is charged");
+            assert_eq!(result.metered.index_entries, 0, "classification must not fetch a candidate");
+        }
+    }
+}
 fn source(sync: &str) -> String {
     SOURCE.replacen("sync public", sync, 2).replace("last 20 by .at", "last 2 by .at")
 }

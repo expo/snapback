@@ -210,3 +210,6 @@ fn exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep() {
     });
     assert_eq!(observations[0],observations[1]);
 }
+
+#[path = "inherited_tests.rs"]
+mod inherited;

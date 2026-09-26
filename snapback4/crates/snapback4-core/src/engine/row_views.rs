@@ -300,7 +300,7 @@ impl Runner<'_> {
                     self.meter.step(k.predicate.steps() * 2 + 4)?;
                     Ok(Some((
                         i64::from(selected) - i64::from(before),
-                        if live && self.schema.tables[&m.source].expire.is_some() {
+                        if live && self.schema.tables[&m.source].is_expiring() {
                             Value::Array(crate::key::decode(&position).unwrap().into_iter().skip(prefix.len()).collect())
                         } else { source.field("id")?.clone() },
                         position,
@@ -376,7 +376,7 @@ impl Runner<'_> {
             }
             _ => None,
         };
-        let live = self.schema.tables[&m.source].expire.is_some();
+        let live = self.schema.tables[&m.source].is_expiring();
         let changed = k.fields().iter().any(|name| {
             old.as_ref()
                 .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
@@ -502,8 +502,8 @@ impl Runner<'_> {
                 .saturating_mul(4);
             self.maintain_scratch(bytes,|r| {
                 let table = &r.schema.tables[&k.table];
-                let index = if table.expire.is_some() { k.live_member_index() } else { k.member_index() };
-                let ranges = if table.expire.is_some() {
+                let index = if table.is_expiring() { k.live_member_index() } else { k.member_index() };
+                let ranges = if table.is_expiring() {
                     vec![Bounds { lte: Some(Value::Null), ..Bounds::default() },
                          Bounds { gt: Some(Value::Int(r.context.now.unwrap_or(0))), ..Bounds::default() }]
                 } else { vec![Bounds::default()] };
@@ -516,7 +516,7 @@ impl Runner<'_> {
                     if r.device && r.retained_row(&k.table,&member)? {continue;}
                     live+=1;if live>k.fanout {return Err(RuntimeError::Structural {code:"E_VIEW_KEY", message:"recipient cap exceeded; repair the member group (guide maintains)".into()});}
                     let member=row_image(&member,&r.schema.tables[&k.table]).into_owned();
-                    if r.device && t.expire.is_some() {
+                    if r.device && t.is_expiring() {
                         // Reuse the bounded new-image recount; a wire count is never a raw delta basis.
                         r.row_view_member(m, None, Some(&member))?;
                         continue;
@@ -593,7 +593,7 @@ impl Runner<'_> {
             runner.meter.heap(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4)?;
             runner.meter.charge(MeterKind::Examined,1)?;
             let Some(key) = runner.tx.index_head(scope,table,"$viewLifetime",std::slice::from_ref(row.field("member")?),&Bounds::default(),Dir::Asc)? else { return Ok((false, None)); };
-            if runner.schema.tables[table].expire.is_some() && let Some(Value::Int(until)) = key.get(1) {
+            if runner.schema.tables[table].is_expiring() && let Some(Value::Int(until)) = key.get(1) {
                 if *until <= runner.context.now.unwrap_or(0) { return Ok((false, None)); }
                 return Ok((true, Some(*until)));
             }
@@ -678,7 +678,7 @@ impl Runner<'_> {
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
-        if self.schema.tables[&m.source].expire.is_some() {
+        if self.schema.tables[&m.source].is_expiring() {
             #[cfg(feature = "sqlite")]
             if !self.device {
                 let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source]);
@@ -746,7 +746,7 @@ impl Runner<'_> {
         let limit = self.scan_room(m).min(RECOUNT_CHUNK);
         // The chunk's earliest contributing expiry is recorded on the work row, never emitted as an answer deadline.
         let recount_expiry = self.next_expiry.scope();
-        let (n, complete, last) = if self.schema.tables[&m.source].expire.is_some() {
+        let (n, complete, last) = if self.schema.tables[&m.source].is_expiring() {
             self.live_basis_scan(m,&member,Some(cursor),limit)?
         } else { self.view_scan(m,&member,None,&k.source_index(),bounds,limit,false)? };
         let deadline = recount_expiry.defer().deadline().into_iter().chain(if restart { None } else { work.field("deadline").ok().and_then(|v|v.as_int().ok()) }).min();
@@ -757,7 +757,7 @@ impl Runner<'_> {
         if complete {
             self.set_view_basis(m, id)?;
             let row = self.view_image(m, &member, total, false)?;
-            self.view_put(&m.target, &row, existing.as_ref(), self.schema.tables[&m.source].expire.is_some())?;
+            self.view_put(&m.target, &row, existing.as_ref(), self.schema.tables[&m.source].is_expiring())?;
             self.view_delete(&m.work_table(), work, true)
         } else {
             let next = object([
@@ -823,7 +823,7 @@ impl super::Engine {
                 else {
                     break;
                 };
-                let private = self.schema.tables[&m.source].expire.is_some();
+                let private = self.schema.tables[&m.source].is_expiring();
                 let seq = if private { 0 } else { tx.next_seq()? };
                 let mut runner = Runner::new(
                     &tx,
