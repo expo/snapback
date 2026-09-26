@@ -654,7 +654,7 @@ impl Runner<'_> {
             if !source.rules.read.is_uniformly_readable() {
                 // Admission restricts this rule to the parent and viewer. Check
                 // current witnesses; never trust synthetic delivery provenance.
-                let row = object([("id", Value::Id(String::new())),
+                let row = crate::value::object([("id", Value::Id(String::new())),
                     (k.source_key.as_str(), parent.clone())]);
                 return Ok(self.read_authority(&m.source, &row, false)? == super::rules::Verdict::Readable);
             }
