@@ -253,7 +253,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let member = |row: &str, chat: &str, principal: &str| ("members".to_owned(), snapback4_core::value::object([("id", id(row)), ("conversation", id(chat)), ("principal", id(principal)), ("joinedOrdinal", Value::Int(0))]));
     let chat = |row: &str| ("conversations".to_owned(), snapback4_core::value::object([("id", id(row)), ("creatorId", id("alice")), ("lastOrdinal", Value::Int(0))]));
-    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), chat("lap"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob"), member("oa", "lap", "alice"), member("ob", "lap", "bob")]).unwrap();
+    engine.seed([chat("c"), chat("solo"), chat("pair"), chat("long"), chat("win"), member("ma", "c", "alice"), member("mb", "c", "bob"), member("mc", "c", "carol"), member("ms", "solo", "alice"), member("pa", "pair", "alice"), member("pb", "pair", "bob"), member("la", "long", "alice"), member("lb", "long", "bob"), member("xa", "win", "alice"), member("xb", "win", "bob")]).unwrap();
     let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
     let receipt = |m: &Value| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") };
     let receipts = |engine: &mut Engine, conversation: &str| -> Vec<String> {
@@ -291,19 +291,32 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(receipts(&mut engine, "c"), ["sent", "sent", "sent", "read"], "a view without the fetch reads nothing");
     sent(&engine.mutate("delivered", None, at("bob", 2_250, &run(c(), 2, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["sent", "read", "read", "read"], "dave is a recipient of m4 only");
+    // Dave's progress counts from his join: he has m4 left to fetch, and nothing before it.
+    let progress = |engine: &mut Engine, who: &str, now: i64, conversation: &str| engine.query("progress", at(who, now, &[("conversation", id(conversation))])).unwrap().data;
+    let next = |p: &Value| -> Vec<i64> { p.field("ahead").unwrap().as_array().unwrap().iter().map(|m| match m.field("ordinal").unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") }).collect() };
+    // progress returns the member's row; its watermarks count from the join.
+    let watermark = |p: &Value, name: &str| {
+        let member = p.field("member").unwrap();
+        let int = |field: &str| match member.field(field).unwrap() { Value::Int(n) => *n, other => panic!("{other:?}") };
+        match name { "delivered" => int("deliveredOrdinal").max(int("joinedOrdinal")), "seen" => int("seenOrdinal").max(int("joinedOrdinal")), other => int(other) }
+    };
+    let dave = progress(&mut engine, "dave", 2_260, "c");
+    assert_eq!((watermark(&dave, "delivered"), watermark(&dave, "seen"), next(&dave)), (3, 3, vec![4]), "{dave:?}");
     sent(&engine.mutate("delivered", None, at("dave", 2_300, &run(c(), 4, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["delivered", "read", "read", "read"]);
-    let row = engine.query("membership", at("dave", 2_310, &[c()])).unwrap().data;
-    assert_eq!(row.field("deliveredOrdinal").ok(), Some(&Value::Int(4)), "a run from the join extends the prefix: {row:?}");
     sent(&engine.mutate("seen", None, at("dave", 2_350, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     // A rejoin starts after the messages already sent.
     sent(&engine.mutate("add", None, at("alice", 2_400, &[c(), ("principal", id("carol"))]).with_ids(["mc2".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
+    let carol = progress(&mut engine, "carol", 2_410, "c");
+    assert_eq!((watermark(&carol, "delivered"), next(&carol)), (4, vec![]), "a rejoined member starts caught up: {carol:?}");
     sent(&engine.mutate("delivered", None, at("bob", 2_500, &run(c(), 1, 1))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "watermarks only move forward");
     sent(&engine.mutate("seen", None, at("bob", 2_550, &[c(), through(1)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"], "a stale seen does not lower the seen watermark");
+    let stranger = engine.query("progress", at("erin", 2_560, &[c()]));
+    assert!(format!("{stranger:?}").contains("NOT_MEMBER"), "only a member has progress: {stranger:?}");
     // A receipt never moves back: once every recipient leaves, the requirement is met.
     let pair = || ("conversation", id("pair"));
     sent(&engine.mutate("send", None, at("alice", 2_600, &[pair(), ("text", text("p1"))]).with_ids(["p1".into()])).unwrap());
@@ -317,14 +330,14 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // A message with no recipients stays sent.
     sent(&engine.mutate("send", None, at("alice", 3_000, &[("conversation", id("solo")), ("text", text("alone"))]).with_ids(["s1".into()])).unwrap());
     assert_eq!(receipts(&mut engine, "solo"), ["sent"]);
-    // Past the 500 synced messages a receipt still comes from the runs alone,
-    // however old the message.
+    // Back after 250 messages: progress pages forward from the watermark, and
+    // each acknowledgement turns exactly its page delivered, oldest first.
     let long = || ("conversation", id("long"));
     let post = |engine: &mut Engine, n: i64| {
         let row = format!("l{n}");
         sent(&engine.mutate("send", None, at("alice", 4_000 + n, &[long(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
     };
-    for n in 1..=501 { post(&mut engine, n); }
+    for n in 1..=250 { post(&mut engine, n); }
     let everything = |engine: &mut Engine| -> Vec<String> {
         let (mut all, mut cursor) = (Vec::new(), Value::Null);
         loop {
@@ -335,70 +348,117 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     };
     // `everything` is oldest first: index n - 1 is ordinal n.
     fn states(all: &[String], from: usize, to: usize) -> std::collections::BTreeSet<&str> { all[from - 1..to].iter().map(String::as_str).collect() }
-    let all = everything(&mut engine);
-    assert!(all.len() == 501 && all.iter().all(|r| r == "sent"), "nothing fetched is delivered: {all:?}");
-    sent(&engine.mutate("seen", None, at("bob", 5_000, &[long(), through(501)])).unwrap());
-    assert!(everything(&mut engine).iter().all(|r| r == "sent"), "an offline view reads nothing yet");
-    // Bob is back holding the newest 400 messages, not the ones before them.
-    sent(&engine.mutate("delivered", None, at("bob", 5_100, &run(long(), 102, 501))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 1, 101), states(&all, 102, 501)), (["sent"].into(), ["read"].into()), "the fetched run turns read under the recorded view; the gap stays sent");
-    // A second gap: the window above it is delivered at once, the gap stays sent.
-    for n in 502..=511 { post(&mut engine, n); }
-    sent(&engine.mutate("delivered", None, at("bob", 5_200, &run(long(), 505, 511))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 502, 504), states(&all, 505, 511)), (["sent"].into(), ["delivered"].into()), "every fetched window is delivered, however many gaps lie between");
-    // A run below both, and one that joins it to the run above.
-    sent(&engine.mutate("delivered", None, at("bob", 5_210, &run(long(), 50, 75))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 50, 75), states(&all, 76, 101)), (["read"].into(), ["sent"].into()), "a run claims itself and not the gap above it");
-    sent(&engine.mutate("delivered", None, at("bob", 5_220, &run(long(), 76, 101))).unwrap());
-    sent(&engine.mutate("delivered", None, at("bob", 5_230, &run(long(), 502, 504))).unwrap());
-    sent(&engine.mutate("delivered", None, at("bob", 5_240, &run(long(), 300, 400))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 1, 49), states(&all, 50, 501), states(&all, 502, 511)), (["sent"].into(), ["read"].into(), ["delivered"].into()), "adjacent runs merge; a covered run changes nothing");
-    // The gap fetched: the prefix takes in every run it meets.
-    sent(&engine.mutate("delivered", None, at("bob", 5_300, &run(long(), 1, 49))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 1, 501), states(&all, 502, 511)), (["read"].into(), ["delivered"].into()));
-    let row = engine.query("membership", at("bob", 5_310, &[long()])).unwrap().data;
-    assert_eq!(row.field("deliveredOrdinal").ok(), Some(&Value::Int(511)), "the prefix took in the merged run: {row:?}");
-    // A member keeps at most 16 runs: past that a run waits.
-    for n in 512..=546 { post(&mut engine, n); }
-    for (k, n) in (513..=543).step_by(2).enumerate() { sent(&engine.mutate("delivered", None, at("bob", 5_400 + k as i64, &run(long(), n, n))).unwrap()); }
-    sent(&engine.mutate("delivered", None, at("bob", 5_500, &run(long(), 545, 545))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 543, 543), states(&all, 544, 546)), (["delivered"].into(), ["sent"].into()), "a seventeenth run waits, unrecorded");
-    // Its runs reach the prefix, and the waiting run, sent again, is recorded.
-    sent(&engine.mutate("delivered", None, at("bob", 5_510, &run(long(), 512, 544))).unwrap());
-    sent(&engine.mutate("delivered", None, at("bob", 5_520, &run(long(), 545, 545))).unwrap());
-    assert_eq!(states(&everything(&mut engine), 512, 545), ["delivered"].into(), "the waiting run, sent again once room frees, is delivered");
-    // Leaving drops a member's runs, so a rejoin starts clean.
-    sent(&engine.mutate("leave", None, at("bob", 5_600, &[long()])).unwrap());
-    sent(&engine.mutate("add", None, at("alice", 5_610, &[long(), ("principal", id("bob"))]).with_ids(["lb2".into()])).unwrap());
-    for n in 547..=550 { post(&mut engine, n); }
-    sent(&engine.mutate("delivered", None, at("bob", 5_620, &run(long(), 549, 550))).unwrap());
-    let all = everything(&mut engine);
-    assert_eq!((states(&all, 547, 548), states(&all, 549, 550)), (["sent"].into(), ["delivered"].into()), "a rejoined member starts a run of their own");
-    // Overlapping runs merge into one: a later, wider run swallows an earlier one.
-    let lap = || ("conversation", id("lap"));
-    for n in 1..=30 {
-        let row = format!("o{n}");
-        sent(&engine.mutate("send", None, at("alice", 6_000 + n, &[lap(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    sent(&engine.mutate("seen", None, at("bob", 5_000, &[long(), through(250)])).unwrap());
+    assert!(everything(&mut engine).iter().all(|r| r == "sent"), "a view without the fetch reads nothing");
+    for (k, (from, to)) in [(1, 100), (101, 200), (201, 250)].into_iter().enumerate() {
+        let now = 5_100 + 10 * k as i64;
+        let bob = progress(&mut engine, "bob", now, "long");
+        assert_eq!((watermark(&bob, "delivered"), next(&bob)), (from - 1, (from..=to).collect::<Vec<_>>()), "the page after the watermark, at most 100");
+        sent(&engine.mutate("delivered", None, at("bob", now + 1, &run(long(), from, to))).unwrap());
+        let all = everything(&mut engine);
+        assert_eq!(states(&all, 1, to as usize), ["read"].into(), "through {to}, fetched and seen");
+        if to < 250 { assert_eq!(states(&all, to as usize + 1, 250), ["sent"].into(), "above {to}, not yet fetched"); }
     }
-    sent(&engine.mutate("delivered", None, at("bob", 6_100, &run(lap(), 10, 20))).unwrap());
-    sent(&engine.mutate("delivered", None, at("bob", 6_110, &run(lap(), 5, 30))).unwrap());
-    let states_of = |engine: &mut Engine| -> Vec<String> {
-        let page = engine.query("history", at("alice", 9_000, &[lap()])).unwrap();
-        let mut all: Vec<String> = page.data.as_array().unwrap().iter().map(receipt).collect();
-        all.reverse();
-        all
+    assert_eq!(next(&progress(&mut engine, "bob", 5_200, "long")), Vec::<i64>::new(), "caught up");
+    post(&mut engine, 251);
+    assert_eq!(next(&progress(&mut engine, "bob", 5_210, "long")), vec![251], "an arriving message is the next to acknowledge");
+    // Runs above gaps: whatever a client fetched is delivered at once, and catching up folds it in.
+    let win = || ("conversation", id("win"));
+    let say = |engine: &mut Engine, n: i64| {
+        let row = format!("x{n}");
+        sent(&engine.mutate("send", None, at("alice", 6_000 + n, &[win(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
     };
-    let all = states_of(&mut engine);
-    assert!(all.len() == 20 && all.iter().all(|r| r == "delivered"), "the newest 20, 11 to 30, lie in the one merged run 5 to 30: {all:?}");
-    // The worst page: 49 recipients at the 16-run cap, and a page every one of
-    // them covers from its lowest run. Each lookup seeks one run, so the page
-    // stays within the read meter.
+    for n in 1..=300 { say(&mut engine, n); }
+    let every = |engine: &mut Engine| -> Vec<String> {
+        let (mut all, mut cursor) = (Vec::new(), Value::Null);
+        loop {
+            let page = engine.query("history", at("alice", 9_000, &[win(), ("c", cursor)])).unwrap();
+            all.extend(page.data.as_array().unwrap().iter().map(receipt));
+            match page.next { Some(next) => cursor = Value::String(next), None => { all.reverse(); return all } }
+        }
+    };
+    let deliver = |engine: &mut Engine, now: i64, from: i64, to: i64| { sent(&engine.mutate("delivered", None, at("bob", now, &run(win(), from, to))).unwrap()); };
+    let stored = |p: &Value| -> Vec<(i64, i64)> {
+        let mut runs: Vec<(i64, i64)> = p.field("runs").unwrap().as_array().unwrap().iter().map(|r| match (r.field("fromOrdinal").unwrap(), r.field("throughOrdinal").unwrap()) { (Value::Int(a), Value::Int(b)) => (*a, *b), other => panic!("{other:?}") }).collect();
+        runs.sort();
+        runs
+    };
+    deliver(&mut engine, 6_500, 201, 300);
+    deliver(&mut engine, 6_505, 101, 120);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 1, 100), states(&all, 101, 120), states(&all, 121, 200), states(&all, 201, 300)), (["sent"].into(), ["delivered"].into(), ["sent"].into(), ["delivered"].into()), "every fetched run is delivered at once, the gaps stay sent");
+    let bob = progress(&mut engine, "bob", 6_506, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (0, vec![(101, 120), (201, 300)], (1..=100).collect::<Vec<_>>()), "{:?}", stored(&bob));
+    deliver(&mut engine, 6_510, 150, 210);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 121, 149), states(&all, 150, 300)), (["sent"].into(), ["delivered"].into()), "a run that meets a stored run merges with it");
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_511, "win")), vec![(101, 120), (150, 300)], "the merged run keeps the stored run's end");
+    deliver(&mut engine, 6_520, 1, 100);
+    let bob = progress(&mut engine, "bob", 6_521, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (120, vec![(150, 300)]), "catching up folds in the run it meets");
+    deliver(&mut engine, 6_530, 121, 149);
+    assert_eq!(states(&every(&mut engine), 1, 300), ["delivered"].into());
+    let bob = progress(&mut engine, "bob", 6_531, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (300, vec![]), "reaching a run folds it into the prefix");
+    for n in 301..=340 { say(&mut engine, n); }
+    deliver(&mut engine, 6_600, 331, 340);
+    deliver(&mut engine, 6_610, 321, 330);
+    deliver(&mut engine, 6_620, 311, 320);
+    let all = every(&mut engine);
+    assert_eq!((states(&all, 301, 310), states(&all, 311, 340)), (["sent"].into(), ["delivered"].into()), "adjacent runs merge");
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_625, "win")), vec![(311, 340)]);
+    deliver(&mut engine, 6_630, 301, 310);
+    let bob = progress(&mut engine, "bob", 6_635, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (340, vec![]), "the prefix takes the run it reaches");
+    let covered = engine.mutate("delivered", None, at("bob", 6_640, &run(win(), 10, 20))).unwrap();
+    assert_eq!((covered.events, progress(&mut engine, "bob", 6_645, "win")), (0, bob), "a covered report writes nothing");
+    sent(&engine.mutate("seen", None, at("bob", 6_650, &[win(), through(300)])).unwrap());
+    let stale = engine.mutate("seen", None, at("bob", 6_655, &[win(), through(10)])).unwrap();
+    assert_eq!(stale.events, 0, "an older view writes nothing");
+    // A member keeps at most 64 runs: one more waits until a merge frees room.
+    for n in 341..=480 { say(&mut engine, n); }
+    for (k, n) in (342..=468).step_by(2).enumerate() { deliver(&mut engine, 6_700 + k as i64, n, n); }
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_800, "win")).len(), 64);
+    let full = engine.mutate("delivered", None, at("bob", 6_810, &run(win(), 472, 472))).unwrap();
+    sent(&full);
+    assert_eq!((full.events, states(&every(&mut engine), 472, 472)), (0, ["sent"].into()), "a sixty-fifth run waits, unrecorded, without a refusal");
+    deliver(&mut engine, 6_820, 343, 345);
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_825, "win")).len(), 62, "a merge frees room");
+    deliver(&mut engine, 6_830, 472, 472);
+    assert_eq!(states(&every(&mut engine), 472, 472), ["delivered"].into(), "the waiting run, sent again, is recorded");
+    // Leaving drops a member's runs, so a rejoin starts clean.
+    sent(&engine.mutate("leave", None, at("bob", 6_840, &[win()])).unwrap());
+    sent(&engine.mutate("add", None, at("alice", 6_850, &[win(), ("principal", id("bob"))]).with_ids(["xb2".into()])).unwrap());
+    let bob = progress(&mut engine, "bob", 6_860, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (480, vec![], vec![]), "a rejoined member has no runs and nothing ahead");
+    // A fetched run above a stored one extends it upward; one that encloses runs takes them in.
+    for n in 481..=520 { say(&mut engine, n); }
+    sent(&engine.mutate("delivered", None, at("bob", 6_870, &run(win(), 490, 495))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_871, &run(win(), 496, 500))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_872, &run(win(), 505, 506))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 6_873, &run(win(), 510, 512))).unwrap());
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_874, "win")), vec![(490, 500), (505, 506), (510, 512)], "a run just above a stored one extends it");
+    sent(&engine.mutate("delivered", None, at("bob", 6_875, &run(win(), 502, 515))).unwrap());
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_876, "win")), vec![(490, 500), (502, 515)], "an enclosing run takes in every run it covers");
+    // A conversation holds more than 800 runs: 13 members at their 64 each all fit.
+    let busy = || ("conversation", id("busy"));
+    let crowd: Vec<String> = (1..=13).map(|n| format!("b{n}")).collect();
+    let mut rows = vec![chat("busy"), member("ba", "busy", "alice")];
+    rows.extend(crowd.iter().map(|p| member(&format!("m-{p}"), "busy", p)));
+    engine.seed(rows).unwrap();
+    for n in 1..=130 {
+        let row = format!("b-msg-{n}");
+        sent(&engine.mutate("send", None, at("alice", 7_000 + n, &[busy(), ("text", text(&row))]).with_ids([row.as_str().into()])).unwrap());
+    }
+    for (k, p) in crowd.iter().enumerate() {
+        for (j, n) in (2..=128).step_by(2).enumerate() {
+            let outcome = engine.mutate("delivered", None, at(p, 7_500 + 100 * k as i64 + j as i64, &run(busy(), n, n))).unwrap();
+            assert_eq!(outcome.events, 1, "{p}'s run {j} is stored");
+        }
+    }
+    // The worst page: 49 recipients with 16 runs each, and a page every one of them
+    // covers from a run, not the prefix. Each receipt seeks one run per member, so the
+    // page stays within the read meter.
     let wide = || ("conversation", id("wide"));
     let people: Vec<String> = (1..=49).map(|n| format!("w{n}")).collect();
     let mut rows = vec![chat("wide"), member("wa", "wide", "alice")];
