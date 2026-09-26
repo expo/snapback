@@ -63721,3 +63721,36 @@ this lane. The complete file-by-file record, examples, commands, mutants,
 measurement and suite result are in `reports/20260926-p5-unread-range.md`.
 Only local commits with the requested Astra co-author footer; no push or
 publication.
+
+## 2026-09-26 — P5 round 3: every member read is priced; strict wins in either order
+
+Closed the two final-round findings from both round-2 reviews. The certificate
+now charges one member fetch for every evaluated row-keyed read, an additional
+certification unit only for expiring sources, and the member read rule per
+evaluated row. The existing source-rule allowance remains. Server execution
+and accounting are unchanged. Extended the real-receipt regression: the
+non-expiring page allows 202 examined against 200, and its point allows 2
+against 2. For an expiring public source with 100 members in one conversation
+and an `exists grants[.conversationId, viewer]` member rule, the page allows
+204 probes against 101 and its point 4 against 2. The original expiring
+page/point receipts remain covered.
+
+Added the reversed equal-bound scenario: `.ordinal > m.readUpTo` then
+`.ordinal >= m.joinedAt`, both 4, with the acquired full floor at ordinal 4.
+Count 2 is complete and not unknown on memory, SQLite and wasm, including
+reopen. Changing `strict |= candidate_strict` to assignment makes both native
+runners return count 2 incomplete/unknown and fail; restored the mutation
+byte-for-byte. The selector implementation has no final diff.
+
+Affected checks pass: certificate 5, native unread-range 7 (54 shared
+scenarios on both stores), guide 86 and wasm/client 62, with no final failures
+or skips. An initial test-only Option/Result assertion typo was fixed before
+these runs. Rebuilt wasm stays 2,024,909 B raw / 582,036 B gzip, unchanged
+from round 2 and 58 B below the unchanged 582,094 B budget. No new index,
+migration, design deviation, server accounting change or open round-3 finding.
+
+Per the final-round brief, did not rerun `scripts/test.sh`: round 2's green
+qualification remains `== 0 failure(s) in 3119 s`, exit 0. The server walk and
+remembered-answer expiry remain outside scope. This entry and the round-3
+report append preserve all previous text. Local commit with the requested
+Astra co-author footer; no push or publication.

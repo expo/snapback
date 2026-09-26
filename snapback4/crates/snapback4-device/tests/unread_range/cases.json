@@ -92,6 +92,20 @@
     ]
   },
   {
+    "name": "strict-wins-equal-bound-first",
+    "value": 2,
+    "complete": true,
+    "unknown": false,
+    "mark": 4,
+    "joinedAt": 4,
+    "replace": [
+      [
+        "and not .tombstone",
+        "and not .tombstone and .ordinal >= m.joinedAt"
+      ]
+    ]
+  },
+  {
     "name": "null-bound",
     "value": 0,
     "complete": false,

@@ -592,12 +592,13 @@ impl Analysis<'_> {
         if authorize && let Some(table) = self.schema.table(table) { self.rule(&table.rules.read, site, times); }
     }
 
-    // @ref LLP 3000.020#3.4 — each evaluated live view fetches its member and
-    // reserves certification, even inside a page; the source rule costs probes too.
+    // @ref LLP 3000.020#3.4 — every evaluated row-keyed read fetches and
+    // authorizes its member; only an expiring source reserves certification.
     fn row_view_work(&mut self, name: &str, site: &str, times: u64) {
-        if let Some(m) = self.schema.maintain_for(name) && m.row_key.is_some() {
+        if let Some(m) = self.schema.maintain_for(name) && let Some(k) = &m.row_key {
             let source = &self.schema.tables[&m.source];
-            if source.is_expiring() { self.rows(times.saturating_mul(2)); }
+            self.rows(times.saturating_mul(if source.is_expiring() { 2 } else { 1 }));
+            self.rule(&self.schema.tables[&k.table].rules.read, site, times);
             self.rule(&source.rules.read, site, times);
         }
     }
