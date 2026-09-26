@@ -332,7 +332,7 @@ interpreter the server runs: as wasm on the web (`webDevice()`, the
 partition in memory and kept in IndexedDB behind each call), as the
 native module on Expo (§7), as a process in Node (`processDevice({ dir, binary?, spawn?, writeFile? })` from
 `snapback4/native`) — syncs the viewer's partition into it, runs every
-query on it, queues every mutation durably and predicts its rows when local
+query on it, queues every durable mutation durably and predicts its rows when local
 facts permit, and follows the server's stream for the rest. The device keeps the compiled
 backend too, so a device that starts with no network opens on what it
 holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
@@ -690,6 +690,75 @@ notifications until resumed. Closing a client removes timers and event
 listeners. Custom fetch transports must honor abort and forward response
 chunks promptly when exposing streams.
 
+### Ephemeral writes
+
+Declare a short-lived table with `ephemeral 4s` for typing, or `ephemeral 30s`
+for room viewing (`snapback4 guide ephemeral`). Its rows live only in server
+memory and disappear on expiry, restart or schema adoption. Keep its read as
+its own query beside your durable, device-held list: a query that reads an
+ephemeral table needs the server.
+
+Generated ephemeral mutations have type `Ephemeral<A, R>`.
+`client.mutate(op, args)` and `app.mutate(op, args)` return `Signal<R>`:
+`{ state: "sent", id, result }` or `{ state: "failed", id, why }`.
+There is no `pending`, sequence, replay, prediction, outbox entry, admission
+journal, `write(id)` receipt or `onWrite` event. The id correlates this call;
+it does not deduplicate it. Ephemeral calls take no mutation options.
+`useMutation(op)` keeps `{ run, last, inFlight }`, with a `Signal<R>` result;
+`usePendingWrite` accepts only durable mutations.
+
+Each client sends ephemeral calls in one ordered lane, one request at a time.
+Only operations the compiler proves to be renewals (`renews: true`) coalesce:
+an identical waiting operation and canonical JSON argument pair moves to the
+end of the lane, and the replaced caller receives its replacement's outcome.
+A request already in flight stays in place. Other operations, including
+`stopTyping`, are sent once per call in order.
+
+A renewal identical to the last successful send returns that result immediately
+within its generated `renewMs` window, provided no other call was sent and none
+is waiting. This check also runs at dequeue. `renewMs` is one quarter of the
+shortest life the operation writes. A typing row therefore expires between
+`0.75 × life` and `life` after the last call, plus delivery; use `ephemeral 4s`
+or less for a five-second bound. The lane holds at most 256 waiting calls;
+excess calls fail with retryable `E_RATE_LIMIT`.
+
+Calls while offline, and calls waiting when the link drops, fail with
+`E_OFFLINE`: they are dropped, never held or retried. A lost response can follow
+execution; its failure is not proof that the server did nothing. Rate, capacity,
+rule and generation refusals leave the link online. Only a transport failure
+changes the link. Closing drops the lane and ends outstanding waits.
+
+A watched query registers its generated `ephemeralReads` before its first
+answer. Growing that interest reissues the held `/changes` poll. Ephemeral
+table notifications rerun matching watches without a durable change or `/sync`.
+Watches also refetch at `nextExpiry`; incomplete ephemeral answers refresh at a
+fixed one-second cadence until complete or closed. No application expiry timer
+is needed. Offline ephemeral reads have no retained data.
+
+Query answers and polls carry an incarnation and epoch, separately from the
+durable sequence. Each watch rejects older epochs. Accepting a new incarnation
+advances the client's ephemeral request revision, invalidates outstanding
+requests, and reruns every ephemeral watch and the poll. Responses tagged with
+an older revision are discarded before considering their incarnation.
+
+```tsx
+import { useMutation, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+function Typing({ room }: { room: string }) {
+  const typing = useQuery(api.typingIn, { room });
+  const setTyping = useMutation(api.setTyping);
+  const stopTyping = useMutation(api.stopTyping);
+  return <>
+    <input onChange={event => void (event.target.value ? setTyping.run({ room }) : stopTyping.run({ room }))} />
+    {"data" in typing && typing.data.length > 0 && <span>Someone is typing</span>}
+  </>;
+}
+```
+
+For room viewing, call the generated renewal on mount and every ten seconds,
+and its delete operation on unmount. Rules still decide every read and write;
+renewing a row must satisfy its insert rule as well as its update rule.
+
 ### The card
 
 Every word a screen reads is on the card (`snapback4/contract`):
@@ -754,10 +823,10 @@ A complete empty page has `cut: null` and `complete: true`.
 
 Held device observations republish at `nextExpiry`, including offline, so render their
 ready rows directly. The browser witness measured publication within a frame; suspended
-pages still depend on host timer scheduling. Only server-answered reads need a render-deadline
+pages still depend on host timer scheduling. For durable expiring tables, only server-answered reads need a render-deadline
 filter while the next network answer is pending. Return `expiresAt` with each row
-(`guide reads` has the typing table and query). This is an application table, separate
-from the server's `connected[p]`, which has no `expiresAt`.
+(`guide reads` has the durable expiring-row recipe). Ephemeral typing uses the
+section above; its hidden deadline is handled by the client.
 
 `client.now()` returns estimated server Unix milliseconds, monotonically. In React,
 `useNow(deadline)` returns that time and re-renders at the deadline and when the estimate
@@ -1421,7 +1490,15 @@ card over in-memory tables, for component tests: `ops` is `{ queries:
 mutation named `t.verb` marks the rows of table `t` pending until
 `settle()` commits it (`commitDelayMs` and an initial `link` are options);
 `setLink("offline")` flips the link; `upload` accepts anything as a 1×1
-PNG and `asset` is always denied.
+PNG and `asset` is always denied. For ephemeral fixtures, set
+`ephemeral: { typing: 4000 }` on the mock options and provide `ops.signals` handlers.
+They receive the same tables/args/viewer/mint arguments and return the operation's
+result or a Refusal. Use `Map.set` for an insert or renewal, including an empty
+patch, and `Map.delete` for a deletion. Each configured table expires rows at its
+own life, in memory only; refused handlers roll back. The same ordered sender
+coalesces proven renewals. Signals never settle as durable writes. With the
+legacy `table.verb` convention and no metadata, one table's life is inferred as
+four times the generated `renewMs`; multiple table lives need explicit metadata.
 
 ```ts
 import { createMockClient, mockId, page } from "snapback4/mock";

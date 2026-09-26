@@ -26,7 +26,7 @@ export interface ProgramJson extends OperationFacts {
 }
 
 export interface TableJson {
-  ephemeral?: { lifeMs: number };
+  ephemeral?: { life_ms: number };
   columns: Record<string, unknown>;
   indexes: Record<string, { components: ({ Column: string } | { WordPrefixes: unknown })[]; unique: boolean }>;
   sync?: { audience: unknown; horizon?: { last: number; by: string } | null } | null;

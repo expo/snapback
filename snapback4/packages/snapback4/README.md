@@ -6,7 +6,7 @@ Rust interpreter as the server. The package carries the TypeScript client and th
 ## Start here: your first working account screen
 
 Follow this `README.md` through password signup, profile, avatar and reopen. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`).
-
+Typing and room viewing use `ephemeral` tables: `npx snapback4 guide ephemeral`; [client writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes).
 ### 1. Create and run the backend
 
 Use Node 24. In a new app directory, install the exact package and Expo starter:
