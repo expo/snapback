@@ -47,7 +47,7 @@ async function fixture(t, tier) {
   ]) }).then(r => r.json());
   assert.equal(seeded.seeded, 2);
   const clock = new ServerClock(() => wall); clock.raiseIssued(deviceNow);
-  let liveClock = clock, offline = false, hold = false, queries = 0, localQueries = 0;
+  let liveClock = clock, offline = false, hold = false, queries = 0, localQueries = 0, answerDeadline = serverDeadline;
   const fork = clock.fork.bind(clock); clock.fork = () => liveClock = fork();
   const gate = Promise.withResolvers();
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
@@ -66,6 +66,7 @@ async function fixture(t, tier) {
     if (path.startsWith("/q/")) {
       queries++;
       if (hold) return Response.json({ loading: true, seq: json.seq, tables: json.tables });
+      json.nextExpiry = answerDeadline;
     }
     // Strip server samples: the fixture owns both clocks, and they disagree.
     return Response.json(json, { status: response.status });
@@ -76,7 +77,8 @@ async function fixture(t, tier) {
   assert.equal(client.now(), deviceNow);
   assert.equal(liveClock.estimatedServerNow(), wall);
   return { client, clock: liveClock, wall, serverDeadline, deviceDeadline, queries: () => queries, localQueries: () => localQueries,
-    hold: () => { hold = true; }, offline: async () => { offline = true; await client.sync(); } };
+    hold: () => { hold = true; }, release: () => { hold = false; gate.resolve(); },
+    answerDeadline: value => { answerDeadline = value; }, offline: async () => { offline = true; await client.sync(); } };
 }
 
 for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-clock correction expires active and lingering answers; rollback cannot resurrect them`, async t => {
@@ -119,6 +121,60 @@ for (const tier of ["wasm", "process"]) test(`${tier} keep: lingering remembered
   assert.equal(joined.getSnapshot().data, true);
   f.clock.sample(f.serverDeadline, f.wall, f.wall, "server:1");
   await until(() => joined.getSnapshot().loading, "server expiry still withdraws during the held local wakeup");
+});
+
+for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) {
+  test(`${tier} keep: expired remembered answer never returns after rollback and released reads (${lingering ? "lingering" : "active"})`, async t => {
+    const f = await fixture(t, tier), op = { kind: "query", name: "branch" };
+    assert.equal((await f.client.query(op, {})).data, true);
+    await f.offline();
+    const watch = f.client.observe(op, {}, { keep: true });
+    await until(() => watch.getSnapshot().data === true);
+    assert.equal(watch.getSnapshot().fresh, false);
+    let withdrew = false;
+    if (lingering) watch.close();
+    else watch.subscribe(() => {
+      if (!withdrew && watch.getSnapshot().loading) {
+        withdrew = true;
+        // Cleanup must precede notification: a subscriber can correct the clock.
+        f.clock.sample(f.wall, f.wall, f.wall, "server:2");
+      }
+    });
+    f.hold();
+    const reads = f.localQueries();
+    f.clock.sample(f.serverDeadline + 1, f.wall, f.wall, "server:1");
+    await until(() => watch.getSnapshot().loading && f.localQueries() > reads, "expiry withdraws and starts a held replacement");
+    if (lingering) f.clock.sample(f.wall, f.wall, f.wall, "server:2");
+    else assert.equal(withdrew, true, "the subscriber rolled back the clock inside withdrawal");
+    const joined = lingering ? f.client.observe(op, {}, { keep: true }) : watch;
+    assert.deepEqual(joined.getSnapshot(), { loading: true });
+    const snapshots = [];
+    joined.subscribe(() => snapshots.push(joined.getSnapshot()));
+    const serverReads = f.queries();
+    f.release();
+    await until(() => snapshots.length > 0, "held replacement finishes after rollback");
+    assert.ok(snapshots.every(read => !("data" in read)), JSON.stringify(snapshots));
+    assert.deepEqual(joined.getSnapshot(), { loading: true });
+    assert.equal((await f.client.query(op, {})).denied?.code, "E_OFFLINE", "one-shot recovery cannot resurrect the entry either");
+    assert.equal(f.queries(), serverReads, "no new server answer was supplied");
+  });
+}
+
+for (const tier of ["wasm", "process"]) test(`${tier} keep: an older displayed deadline preserves a newer unexpired remembered answer`, async t => {
+  const f = await fixture(t, tier), op = { kind: "query", name: "branch" };
+  const watch = f.client.observe(op, {}, { keep: true });
+  await until(() => watch.getSnapshot().data === true);
+  f.answerDeadline(f.serverDeadline + 3_600_000);
+  assert.equal((await f.client.query(op, {})).data, true, "a later one-shot answer replaces memory without replacing the watch");
+  await f.offline();
+  watch.close(); f.hold();
+  const reads = f.localQueries();
+  f.clock.sample(f.serverDeadline + 1, f.wall, f.wall, "server:1");
+  await until(() => watch.getSnapshot().loading && f.localQueries() > reads);
+  const joined = f.client.observe(op, {}, { keep: true });
+  f.release();
+  await until(() => joined.getSnapshot().data === true, "the newer answer is still recoverable");
+  assert.equal(joined.getSnapshot().fresh, false);
 });
 
 for (const first of ["device", "server"]) test(`armReadExpiry: split clocks schedule the ${first} deadline in its own domain`, t => {

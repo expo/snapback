@@ -959,6 +959,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
     armReadExpiry(watch, { device: nextExpiry, server: serverExpiry ?? null, localWakeup }, clock,
       () => !closed && watches.get(watch.key) === watch, serverDue => {
+        // @ref LLP 3000.018#3.2 — expiry forgets the answer, not its highest cut, before callbacks can roll the clock back.
+        if (serverDue) {
+          const key = `${watch.op.name}:${JSON.stringify(watch.args)}`, last = answers.serverAnswers.get(key);
+          if (last?.nextExpiry != null && last.nextExpiry <= clock.estimatedServerNow()) answers.serverAnswers.forget(key);
+        }
         // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before
         // asynchronous recovery, including an already-running replacement.
         const denied = unavailable();

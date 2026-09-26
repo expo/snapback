@@ -48,6 +48,17 @@ test("a reply below a cut already named is older, through replies without one", 
   assert.equal(lost.get("k").read.data, "cut 9", "and a later cut still wins");
 });
 
+test("forgetting an expired answer preserves its highest store cut", () => {
+  const answers = new RememberedAnswers();
+  answers.view().set("expired", answer("cut 10"), 10);
+  answers.forget("expired");
+  assert.equal(answers.get("expired"), undefined);
+  answers.view().set("expired", answer("late cut 9"), 9);
+  assert.equal(answers.get("expired"), undefined, "expiry must not admit an older reply");
+  answers.view().set("expired", answer("new cut 10"), 10);
+  assert.equal(answers.get("expired")?.read.data, "new cut 10", "a newer read at the highest cut can still replace it");
+});
+
 // A read of a device program: the device's observation, then the server's reply.
 function reading(answers, { call, reply }) {
   const program = { name: "read", kind: "Query", args: {}, body: [], runs: "device" };
