@@ -231,31 +231,31 @@ const acked = client => [...new Set(client.acks)];
 const cases = {
   async "the receipts card delivers an unbroken fetched run, paging through ready gaps, and sees what is on screen"() {
     const history = new Map([[null, ready(ordinals(60, 41), "p2")], ["p2", ready(ordinals(40, 21), "p3")], ["p3", ready(ordinals(20, 1))]]);
-    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 }));
+    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: false }), client);
     equal(acked(client), ["delivered:41-60", "delivered:21-60", "delivered:1-60"], "ready later pages keep paging, each longer run reported, until the run meets the prefix");
     check(client.acks.filter(ack => ack.startsWith("delivered")).length <= 4, "one write per page, and one replayed by Strict Mode: " + JSON.stringify(client.acks));
     const member = active(client).find(record => !("c" in record.args));
     client.acks.length = 0;
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 })));
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, seenOrdinal: 0 })));
     equal(client.acks, [], "a delivered run is not sent again");
     await render(h(Receipts, { visible: true }), client);
     equal(acked(client), ["seen:60"], "on screen the newest message is seen");
     client.acks.length = 0;
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, spanFrom: 0, spanThrough: 0, seenOrdinal: 60 })));
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 60, seenOrdinal: 60 })));
     equal(client.acks, [], "a seen message is not sent again");
     await unmount();
   },
   async "the receipts card starts at the join, skips pending rows and records a view before its gap is fetched"() {
     const joined = receiptsClient(new Map([[null, ready([{ ordinal: 104, pending: true }, ...ordinals(103, 85)], "older")], ["older", { loading: true }]]),
-      ready({ joinedOrdinal: 100, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 }));
+      ready({ joinedOrdinal: 100, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: true }), joined);
     equal(acked(joined), ["delivered:85-103", "seen:103"], "a new member's run meets the join, and never includes a pending row");
     check(active(joined).filter(record => "c" in record.args).length === 1, "no page older than the join is loaded");
     await unmount();
     // Offline past the synced window: a stale page, then an incomplete one.
     const returning = receiptsClient(new Map([[null, ready(ordinals(30, 11), "p2", { fresh: false, since: 50 })], ["p2", ready([], null, { complete: false, fresh: false, since: 50 })]]),
-      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 }, null, { fresh: false, since: 50 }));
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }, null, { fresh: false, since: 50 }));
     await mount(h(Receipts, { visible: true }), returning);
     equal(acked(returning), ["delivered:11-30", "seen:30"], "the run above a gap the client cannot fetch is a span, and the view is recorded");
     await render(h(Receipts, { visible: false }), returning);
@@ -264,28 +264,25 @@ const cases = {
     equal(acked(returning), ["delivered:11-30", "seen:30", "delivered:1-30"], "the gap fetched after the screen closed meets the prefix");
     await unmount();
   },
-  async "the receipts card grows a span above a gap, and a run that meets nothing waits for pages"() {
+  async "the receipts card reports a run above a gap at once, and grows it as the walk fetches older pages"() {
     const history = new Map([[null, ready(ordinals(530, 521), "p2")], ["p2", ready(ordinals(520, 501), "p3")], ["p3", { loading: true }]]);
-    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 102, spanThrough: 500, seenOrdinal: 500 }));
+    const client = receiptsClient(history, ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 500 }));
     const pages = () => active(client).filter(record => "c" in record.args).length;
     await mount(h(Receipts, { visible: false }), client);
-    equal(acked(client), ["delivered:501-530"], "a run that meets the span only after one more page grows it then, and not before");
+    equal(acked(client), ["delivered:521-530", "delivered:501-530"], "each longer run is reported as the walk fetches it");
     check(pages() === 3, "the walk goes on toward the prefix");
     await unmount();
   },
-  async "the receipts card reports the fetched suffix of an incomplete page, and retries a run once the span meets it"() {
+  async "the receipts card reports the fetched suffix of an incomplete page, and nothing under the prefix"() {
     const offline = receiptsClient(new Map([[null, ready(ordinals(600, 101), null, { complete: false, fresh: false, since: 50 })]]),
-      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 }));
+      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 }));
     await mount(h(Receipts, { visible: false }), offline);
     equal(acked(offline), ["delivered:101-600"], "exactly the fetched suffix, never the gap below it");
     await unmount();
-    const later = receiptsClient(new Map([[null, ready(ordinals(80, 61), "p2")], ["p2", { loading: true }]]),
-      ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 101, spanThrough: 120, seenOrdinal: 0 }));
-    await mount(h(Receipts, { visible: false }), later);
-    equal(later.acks, [], "a run below the span, with a gap between, is not reported");
-    const member = active(later).find(record => !("c" in record.args));
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 81, spanThrough: 120, seenOrdinal: 0 })));
-    equal(acked(later), ["delivered:61-80"], "once the span meets the run it is reported");
+    const caught = receiptsClient(new Map([[null, ready(ordinals(80, 61), "p2")]]), ready({ joinedOrdinal: 0, deliveredOrdinal: 80, seenOrdinal: 0 }));
+    await mount(h(Receipts, { visible: false }), caught);
+    equal(caught.acks, [], "a run the prefix already covers is not reported");
+    check(active(caught).filter(record => "c" in record.args).length === 1, "no older page is walked under the prefix");
     await unmount();
   },
   async "the receipts card records a view before its membership arrives"() {
@@ -294,7 +291,7 @@ const cases = {
     equal(acked(client), ["seen:20"], "a view on screen is recorded without waiting for the watermarks");
     await render(h(Receipts, { visible: false }), client);
     const member = active(client).find(record => !("c" in record.args));
-    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 0, spanFrom: 0, spanThrough: 0, seenOrdinal: 0 })));
+    await act(async () => member.set(ready({ joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: 0 })));
     equal(acked(client), ["seen:20", "delivered:1-20"], "the fetch is acknowledged once the watermarks arrive");
     await unmount();
   },

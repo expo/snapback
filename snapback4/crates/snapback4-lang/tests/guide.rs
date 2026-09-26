@@ -294,7 +294,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     sent(&engine.mutate("delivered", None, at("dave", 2_300, &run(c(), 4, 4))).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["delivered", "read", "read", "read"]);
     let row = engine.query("membership", at("dave", 2_310, &[c()])).unwrap().data;
-    assert_eq!((row.field("deliveredOrdinal").ok(), row.field("spanThrough").ok()), (Some(&Value::Int(4)), Some(&Value::Int(0))), "a run from the join extends the prefix: {row:?}");
+    assert_eq!(row.field("deliveredOrdinal").ok(), Some(&Value::Int(4)), "a run from the join extends the prefix: {row:?}");
     sent(&engine.mutate("seen", None, at("dave", 2_350, &[c(), through(4)])).unwrap());
     assert_eq!(receipts(&mut engine, "c"), ["read", "read", "read", "read"]);
     // A rejoin starts after the messages already sent.
@@ -342,32 +342,41 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     // Bob is back holding the newest 400 messages, not the ones before them.
     sent(&engine.mutate("delivered", None, at("bob", 5_100, &run(long(), 102, 501))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 1, 101), states(&all, 102, 501)), (["sent"].into(), ["read"].into()), "the fetched span turns read under the recorded view; the gap stays sent");
-    // A later run that meets neither the prefix nor the span waits.
+    assert_eq!((states(&all, 1, 101), states(&all, 102, 501)), (["sent"].into(), ["read"].into()), "the fetched run turns read under the recorded view; the gap stays sent");
+    // A second gap: the window above it is delivered at once, the gap stays sent.
     for n in 502..=511 { post(&mut engine, n); }
     sent(&engine.mutate("delivered", None, at("bob", 5_200, &run(long(), 505, 511))).unwrap());
-    assert_eq!(states(&everything(&mut engine), 502, 511), ["sent"].into(), "a run above a second gap claims nothing");
-    sent(&engine.mutate("delivered", None, at("bob", 5_210, &run(long(), 502, 511))).unwrap());
-    // A run below the span waits too, until one meets the span from below.
-    sent(&engine.mutate("delivered", None, at("bob", 5_212, &run(long(), 50, 75))).unwrap());
-    assert_eq!(states(&everything(&mut engine), 50, 101), ["sent"].into(), "a run below the span claims neither itself nor the gap above it");
-    sent(&engine.mutate("delivered", None, at("bob", 5_214, &run(long(), 76, 101))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 50, 75), states(&all, 76, 101)), (["sent"].into(), ["read"].into()), "a run that meets the span from below grows it down");
-    sent(&engine.mutate("delivered", None, at("bob", 5_220, &run(long(), 300, 400))).unwrap());
+    assert_eq!((states(&all, 502, 504), states(&all, 505, 511)), (["sent"].into(), ["delivered"].into()), "every fetched window is delivered, however many gaps lie between");
+    // A run below both, and one that joins it to the run above.
+    sent(&engine.mutate("delivered", None, at("bob", 5_210, &run(long(), 50, 75))).unwrap());
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 1, 75), states(&all, 76, 501), states(&all, 502, 511)), (["sent"].into(), ["read"].into(), ["delivered"].into()), "a run that meets the span grows it; one inside it changes nothing");
-    // The gap fetched: the prefix meets the span and takes it in, so a run above
-    // a new gap can start a span of its own.
-    sent(&engine.mutate("delivered", None, at("bob", 5_300, &run(long(), 1, 101))).unwrap());
+    assert_eq!((states(&all, 50, 75), states(&all, 76, 101)), (["read"].into(), ["sent"].into()), "a run claims itself and not the gap above it");
+    sent(&engine.mutate("delivered", None, at("bob", 5_220, &run(long(), 76, 101))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 5_230, &run(long(), 502, 504))).unwrap());
+    sent(&engine.mutate("delivered", None, at("bob", 5_240, &run(long(), 300, 400))).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((states(&all, 1, 49), states(&all, 50, 501), states(&all, 502, 511)), (["sent"].into(), ["read"].into(), ["delivered"].into()), "adjacent runs merge; a covered run changes nothing");
+    // The gap fetched: the prefix takes in every run it meets.
+    sent(&engine.mutate("delivered", None, at("bob", 5_300, &run(long(), 1, 49))).unwrap());
     let all = everything(&mut engine);
     assert_eq!((states(&all, 1, 501), states(&all, 502, 511)), (["read"].into(), ["delivered"].into()));
-    for n in 512..=520 { post(&mut engine, n); }
-    sent(&engine.mutate("delivered", None, at("bob", 5_400, &run(long(), 515, 520))).unwrap());
+    let row = engine.query("membership", at("bob", 5_310, &[long()])).unwrap().data;
+    assert_eq!(row.field("deliveredOrdinal").ok(), Some(&Value::Int(511)), "the prefix took in the merged run: {row:?}");
+    // A member keeps at most 16 runs: past that a run waits.
+    for n in 512..=546 { post(&mut engine, n); }
+    for (k, n) in (513..=543).step_by(2).enumerate() { sent(&engine.mutate("delivered", None, at("bob", 5_400 + k as i64, &run(long(), n, n))).unwrap()); }
+    let refused = engine.mutate("delivered", None, at("bob", 5_500, &run(long(), 545, 545))).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { .. }), "a seventeenth run is refused");
     let all = everything(&mut engine);
-    assert_eq!((states(&all, 512, 514), states(&all, 515, 520)), (["sent"].into(), ["delivered"].into()), "after the merge a run above a new gap is a span again");
-    let row = engine.query("membership", at("bob", 5_410, &[long()])).unwrap().data;
-    assert_eq!([row.field("deliveredOrdinal").ok(), row.field("spanFrom").ok(), row.field("spanThrough").ok()], [Some(&Value::Int(511)), Some(&Value::Int(515)), Some(&Value::Int(520))], "{row:?}");
+    assert_eq!((states(&all, 543, 543), states(&all, 544, 546)), (["delivered"].into(), ["sent"].into()));
+    // Leaving drops a member's runs, so a rejoin starts clean.
+    sent(&engine.mutate("leave", None, at("bob", 5_600, &[long()])).unwrap());
+    sent(&engine.mutate("add", None, at("alice", 5_610, &[long(), ("principal", id("bob"))]).with_ids(["lb2".into()])).unwrap());
+    for n in 547..=550 { post(&mut engine, n); }
+    sent(&engine.mutate("delivered", None, at("bob", 5_620, &run(long(), 549, 550))).unwrap());
+    let all = everything(&mut engine);
+    assert_eq!((states(&all, 547, 548), states(&all, 549, 550)), (["sent"].into(), ["delivered"].into()), "a rejoined member starts a run of their own");
 }
 
 fn compile(source: &str) -> snapback4_lang::Bound {
