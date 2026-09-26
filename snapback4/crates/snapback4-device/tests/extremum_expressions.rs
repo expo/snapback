@@ -101,3 +101,61 @@ fn projection_coverage<H: Host>(host: &mut H) {
 }
 #[test] fn expression_extrema_memory_unheld_projection_is_unavailable() { projection_coverage(&mut Memory::new()); }
 #[test] fn expression_extrema_sqlite_unheld_projection_is_unavailable() { projection_coverage(&mut Sqlite::new("extremum-projection")); }
+
+fn projection_errors<H: Host>(host: &mut H) {
+    for (name, sync, divisor) in [("unknown-divisor", "online only", 5), ("held-divisor", "sync public", 5), ("zero-divisor", "sync public", 0)] {
+        let source = format!(r#"table t:
+  target: id
+  n: int
+  cap 3
+  public
+  sync public
+table secrets:
+  n: int
+  public
+  {sync}
+query column():
+  return min(t, .n)
+query minimum():
+  return min(t, 10 / (secrets[.target].n ?? 0))
+query maximum():
+  return max(t, 10 / (secrets[.target].n ?? 0)) ?? -1
+query page():
+  rows = t first 1 by .id
+  return min(rows, 10 / (secrets[.target].n ?? 0))
+"#);
+        let (mut server, backend) = compile(&source);
+        server.seed([("t".into(), object([("id", id("row")), ("target", id("s")), ("n", Value::Int(5))])),
+            ("secrets".into(), object([("id", id("s")), ("n", Value::Int(divisor))]))]).unwrap();
+        let mut device = host.open(name, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        for reopen in [false, true] {
+            if reopen {
+                host.close(name, device);
+                device = host.open(name, None).unwrap();
+            }
+            let column = device.query("column", "alice", &json!({}), 100).unwrap();
+            assert!(column.complete, "the aggregate source is held: {column:?}");
+            assert_eq!(column.data, Value::Int(5));
+            for op in ["minimum", "maximum", "page"] {
+                let remote = server.query(op, context("alice", &[]).at(100));
+                let local = device.query(op, "alice", &json!({}), 100);
+                if divisor == 0 {
+                    assert_eq!(remote.unwrap_err().code, "E_DIV_ZERO", "{name} {op}");
+                    assert_eq!(local.unwrap_err().code, "E_DIV_ZERO", "{name} {op}, reopen={reopen}");
+                } else {
+                    let remote = remote.unwrap();
+                    assert!(remote.complete);
+                    assert_eq!(remote.data, Value::Int(2));
+                    let local = local.unwrap_or_else(|error| panic!("{name} {op}, reopen={reopen}: {error:?}"));
+                    let complete = sync == "sync public";
+                    assert_eq!(local.data, if complete { Value::Int(2) } else { Value::Null }, "{name} {op}, reopen={reopen}: {local:?}");
+                    assert_eq!(local.complete, complete, "{name} {op}, reopen={reopen}: {local:?}");
+                    assert!(local.capped_at.is_none(), "coverage, not a meter cut: {local:?}");
+                }
+            }
+        }
+    }
+}
+#[test] fn expression_extrema_memory_unknown_projection_precedes_errors() { projection_errors(&mut Memory::new()); }
+#[test] fn expression_extrema_sqlite_unknown_projection_precedes_errors() { projection_errors(&mut Sqlite::new("extremum-errors")); }

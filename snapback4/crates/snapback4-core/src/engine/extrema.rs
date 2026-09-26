@@ -56,13 +56,17 @@ impl<'a> Aggregate<'a> {
 
 impl Runner<'_> {
     // @ref LLP 3000.019#3.2 — sums and extrema bind projections identically.
-    // A cut point read's null placeholder must not escape as an application
-    // error (for example 10 / (details[.target].n ?? 0)). Restore scope first.
+    // A cut or unknown point read's null placeholder must not escape as an
+    // application error (10 / (details[.target].n ?? 0)). Restore scope first.
     fn aggregate_projection(&mut self, row: &Value, projection: &Expr) -> Result<Value, RuntimeError> {
         let prior = self.env.insert("$filter".into(), row.clone());
         let result = self.expr(projection);
         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
         self.meter.require_uncapped()?;
+        if self.components.scalar.as_ref().is_some_and(|frame| frame.coverage().unknown) {
+            self.scalar_unavailable = true;
+            return Err(RuntimeError::Prediction("aggregate needs known projection inputs".into()));
+        }
         result
     }
 
