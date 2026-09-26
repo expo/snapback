@@ -1202,3 +1202,175 @@ Full log and exit: `target/lane-k-round6-evidence/test-sh.log` and
 `ephemeral-rerun.exit` in the same directory. This final documentation commit
 adds only the report and one dated round-6 journal entry; qualified code and
 tests are unchanged.
+
+## Round 7 — 2026-09-26: expired reads cannot restore memory; remounts render the live answer
+
+Read the lane prompt, rounds 0–6 report and Grok's complete delayed round-5
+review (`k2-r5.grok.md`, NOT READY). Both new defects survived round 6:
+`forget` still only deleted the answer, and the React resources still returned
+loading before subscribing. Round 6's two-phase expiry sweep and synchronous
+facade withdrawal addressed different races and remain intact. The review's
+confirmed earlier fixes (slow online replies, expiry/presence timer cleanup,
+adoption, clock domains, viewer discovery, scope resets and custody) remain.
+No push or publication.
+
+### Findings and files
+
+Paths below are relative to `snapback4/`.
+
+- **High: a server body begun before expiry could restore withdrawn memory.**
+  `packages/snapback4/src/local-reads.ts`: `forget` preserves `seq` and
+  `highest`, advances the ticket counter and records an expiry barrier.
+  `admit` rejects a ticket below that barrier before considering a higher cut.
+  Even a rejected answer or refusal contributes its named cut to `highest`.
+  Accepting another answer preserves the barrier. A read begun or renewed
+  after withdrawal can remember a new answer under the existing cut ordering.
+- `packages/snapback4/test/keep-clock.test.mjs`: eight real-device cases,
+  wasm/process × active/lingering × rollback/exact deadline. Rollback cases
+  hold a background refetch's HTTP body, expire the displayed answer, roll
+  back the server clock, release the same body and fail every later `/q/`.
+  No notification or final snapshot may contain the withdrawn answer; a
+  one-shot recovery must return `E_OFFLINE`. Exact-deadline cases start a
+  separate read before expiry, hold its body, release and await it at exactly
+  the deadline, then roll back and release the watch's held device retry.
+  This prevents a later recovery from hiding a missing synchronous cleanup.
+  Existing split-clock cases also check the same peek on all three tiers.
+- `packages/snapback4/test/remembered-answers.test.mjs`: four new ordering
+  tests cover unnamed/equal/higher cuts, an absent key, rejected refusals,
+  cut learning from rejected bodies, preservation of the barrier after a new
+  answer, and a renewed read's ability to remember a replacement.
+- **Medium: React committed loading before acquiring a lingering watch.**
+  `packages/snapback4/src/observe-watch.ts`: internal read-only watch-map
+  peek, keyed by the client's observation implementation. It checks the
+  current scope and `linger.until`, returns the existing snapshot by identity,
+  and neither acquires/closes a watch nor touches its timer. Write-only client
+  wrappers share the same observation implementation and therefore the peek.
+  `src/client.ts` and `src/local.ts` bind their existing live maps.
+- `packages/snapback4/src/react.tsx`: `Observation.getSnapshot` peeks before
+  subscription; `Pages.getSnapshot` derives its first page from that same live
+  peek, rechecking snapshot identity and the cutoff while unsubscribed.
+  Subscription still owns acquisition. Current `fresh`/`since`, page-prefix
+  behavior and reset semantics remain unchanged.
+- `packages/snapback4/src/app-client.ts`: the facade permits a peek only for
+  the exact live snapshot it previously authorized. A weak identity set
+  retains no answers; new data still waits for the asynchronous authority
+  check. An opening facade rechecks the live peek so a reset while storage is
+  held withdraws synchronously. Retirement disables the peek permanently.
+- `packages/snapback4/test/react.test.mjs`: four Chromium cases, both hooks
+  directly and through the facade, capture the first committed DOM and read
+  in a layout effect. Remounting inside the window commits the editor and
+  data immediately, preserves metadata, and adds no read. At exactly 30 s,
+  before the timer runs, the first commit is loading. StrictMode replay also
+  must not commit an intermediate loading frame inside the window.
+- `packages/snapback4/test/keep-observation.test.mjs`: two additional tests
+  prove that peeking leaves the timer, map and snapshot untouched, respects
+  scope/key/options and the exact cutoff, and that facade peeks cannot expose
+  unapproved replacements or cross withdrawal/retirement.
+- `packages/snapback4/CLIENT-AND-OPERATIONS.md`: states the first-commit
+  remount behavior and the facade's authority boundary. This report and one
+  dated appended `JOURNAL.md` entry record qualification.
+
+The existing forms still compile and run; no public API or Quarry syntax was
+added:
+
+```tsx
+const inbox = useQuery(api.inbox, {}, { keep: true });
+const pages = usePage(api.thread, { conversationId }, { keep: true });
+const watch = client.observe(api.inbox, {}, { keep: true });
+```
+
+### Tests and mutation evidence
+
+Eighteen new regressions. Before the barrier fix, the selected expiry/order
+run produced **8 expected failures and 4 passes**: every rollback case and
+all four new ordering cases failed. The exact-deadline comparison was already
+correct; its new tests specifically kill its surviving mutation. A partial
+React implementation reproduced both facade first-commit failures and was
+completed before qualification.
+
+Focused expiry/ordering/observation/Chromium run: **108/108**. Final broader
+run, including the strengthened Chromium cutoff assertions: **287/287**, no
+failures, skips or cancellations. It covers all keep tests, memory ordering,
+publication/session/authority fences, presence and ephemeral refresh/adoption,
+app handles and retirement, React, and the README examples (30 blocks,
+46 public functions). Package build/typecheck and docs budget pass.
+
+Six independent mutations were tested and restored, with **20 expected
+behavioral assertion failures**, plus the two React harness parent failures:
+
+| Mutation | Failing behavioral tests |
+| --- | ---: |
+| Reduce `forget` to `this.answers.delete(key)` | 8 |
+| Change local expiry cleanup from `<=` to `<` | 4 |
+| Remove the barrier check before the higher-cut shortcut | 3 |
+| Ignore `linger.until` in the peek | 1 |
+| Make `useQuery` render loading before subscription | 2 |
+| Make `usePage` render loading before subscription | 2 |
+
+The first four mutate generated JavaScript; the last two temporarily mutate
+React source because Chromium transpiles it directly. All files were restored
+in `finally`. No mutation is committed. A runner initially matched the cutoff
+comparison in both peek and acquisition; its uniqueness check stopped without
+editing that file, and the corrected experiment targets only peek. Commands,
+diffs, logs and exits are in `target/lane-k-round7-evidence/` (`mutations.py`,
+`mutations.json`, `expiry-before.log`, `focused.log`, `affected.log`).
+Reference audit: **513 LLP docs, 9,450 refs in 26,815 files, 0 errors,
+0 unchecked**. Largest changed source: `local.ts`, **1,493 lines**.
+
+Implementation commits, both carrying the requested co-author trailer:
+`0b936e0ab` (expiry barrier and real-device/order tests), `18927fafb` (live
+peek, guarded facade, React and timer evidence, client reference).
+
+### Scope, decisions and open problems
+
+Every requested finding is addressed; no design deviation or deferred fix.
+The internal peek avoids adding to the public client contract. The facade's
+weak approval identities preserve its existing asynchronous authority boundary
+without a second answer store or lifetime. No engine, authorization, meter,
+outbox, version or wasm-budget change; no delegated agent, push or publication.
+
+Orientation used `llp-orient` from
+`/home/ccheever/sb4-intent/lane-z/vendor/llp/skills/llp-orient/SKILL.md` because
+this lane's link remains broken. Governing context: LLP 3000 §7, LLP 2000.000
+§7.2, LLP 3000.001 repair B, LLP 3000.007 §6.5/§18.2, LLP 3000.018 §3.2 and
+LLP 3000.019 §3.3 with the user's live-linger and round-7 rulings. The reads
+card and client reference were read; no supervisor-owned RFC was rewritten.
+No new LLP decision or hand-off is needed.
+
+No known unresolved requested defect remains. The previously recorded baseline
+cadence-startup and 500 ms notification assertions remain test-timing risks;
+their reproduction and attribution are in rounds 3 and 6. The unchanged tests
+passed this round's affected suite. Full-run results follow without replacing
+the single required run with a later green run.
+
+### Exact round-7 full qualification
+
+Required `scripts/test.sh` ran **once**, unmodified, and finished:
+
+```text
+== 0 failure(s) in 966 s
+```
+
+Exit **0**. **No failures** to classify as introduced, baseline or
+environmental. No repair, affected rerun or second full run was needed.
+
+- Rust: **3,573 passed, 0 failed, 19 ignored**, in **503 s**; whole guide
+  **86/86**.
+- Main client batch: **2,314 tests; 2,304 passed, 0 failed, 10 existing skips**.
+  All seven separate acquisition/server shards passed. Client group: **194 s**.
+- Models: **78 passed, 0 failed, 0 skipped**, in **256 s**, including both
+  5,000-sequence session models.
+- All **18 new regressions** and the earlier expiry, withdrawal, publication,
+  scope and custody cases passed. Both previously recorded timing-sensitive
+  ephemeral tests passed unchanged in this full run.
+- Package typecheck/build, documentation budget, release guard, both app
+  typechecks and fixture wrappers passed.
+- Wasm: **2,021,689 B raw / 581,094 B gzip**, delta **0 B** from round 6;
+  unchanged budget **582,094 B**, headroom **1,000 B**.
+
+Runtime: Node **24.13.1**, Bun **1.3.14**; `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`. Full log and exit:
+`target/lane-k-round7-evidence/test-sh.log` and `test-sh.exit`; reproduction
+commands: `commands.txt` in that directory. This final documentation commit
+adds only this report and the single dated round-7 journal entry; qualified
+code and tests are unchanged. No push or publication.

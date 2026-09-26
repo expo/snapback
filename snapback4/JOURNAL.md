@@ -63875,3 +63875,42 @@ agent, push or publication. Evidence: target/lane-k-round6-evidence/.
 Detailed report: reports/20260926-lane-k-answers-stay.md, round 6. The baseline
 notification-timing risk and the older distinct cadence-test startup risk remain
 recorded there, with reproduction commands and qualification limits.
+
+## 2026-09-26 — 0.4.4 lane K, round 7: fence expired server bodies and render lingering answers immediately
+
+Read Grok's complete delayed round-5 review and checked it against round 6.
+Both new findings remained. Remembered-answer expiry now preserves the last
+and highest store cuts and advances a ticket barrier: a body begun before
+withdrawal cannot restore memory, even with a higher cut, while a new read can.
+Rejected bodies/refusals still contribute their named cut. Both React hooks
+peek the existing watch before subscription without acquiring it or cancelling
+its timer, and honor the exact 30-second cutoff. The app facade peeks only
+unchanged live snapshots it already authorized; new data still waits for its
+authority check. Round 6's two-phase expiry and synchronous withdrawal remain.
+
+Eighteen new regressions cover held HTTP bodies on wasm/process with active
+and lingering watches, release at the exact expiry deadline, cut/barrier
+ordering, inert peeking, facade authority, and both hooks' first committed DOM
+in Chromium, directly and through the facade. Focused tests passed 108/108;
+final affected tests passed 287/287. Six mutations killed: 20 behavioral
+assertion failures plus two harness parent failures. Both previously surviving
+mutations now fail: delete-only forget (eight tests) and strict-less expiry
+(four). Every mutation was restored. Reference audit: 513 LLP docs, 9,450 refs
+in 26,815 files, zero errors/unchecked. local.ts is 1,493 lines.
+
+Implementation commits: 0b936e0ab and 18927fafb, each with the requested
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Updated the client
+reference and reports/20260926-lane-k-answers-stay.md. No design deviation,
+new answer store, public API/syntax, engine/authorization/meter/outbox change,
+version or budget change. No delegated agent, push or publication. Evidence:
+target/lane-k-round7-evidence/. Full-suite qualification follows below.
+
+Required scripts/test.sh ran once, unmodified: `== 0 failure(s) in 966 s`,
+exit 0. No introduced, baseline or environmental failures; no repair or rerun.
+Rust: 3,573 passed, 0 failed, 19 ignored (503 s); whole guide 86/86. Main client
+batch: 2,304 passed, 0 failed, 10 existing skips (2,314 tests); seven separate
+shards passed (client group 194 s). Models: 78/78 (256 s). All 18 new regressions
+and both previously recorded timing-sensitive ephemeral tests passed unchanged.
+Wasm: 2,021,689 B raw / 581,094 B gzip, delta 0 B, 1,000 B below the unchanged
+582,094 B budget. Node 24.13.1, Bun 1.3.14; eight Cargo build jobs and dev/test
+debug info disabled. Exact output and exit are retained in the evidence folder.
