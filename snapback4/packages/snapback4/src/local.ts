@@ -284,9 +284,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
     if (closed || (!revised && Math.abs(shift) < 10)) return;
-    correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
-      watch => { if (watches.get(watch.key) === watch) void rerun(watch); });
+    sweepExpiries();
     void media?.reconcile().catch(() => {});
     scheduleRefresh();
   });
@@ -961,10 +959,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
     const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
     armReadExpiry(watch, deadlines, clock,
-      () => !closed && watches.get(watch.key) === watch, serverDue => {
-        withdrawExpiry(watch, deadlines, serverDue, clock.estimatedServerNow())();
-        void rerun(watch);
-    });
+      () => !closed && watches.get(watch.key) === watch, sweepExpiries);
+  }
+
+  function sweepExpiries() {
+    correctReadExpiries(watches.values(), clock, withdrawExpiry,
+      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
+      watch => { if (watches.get(watch.key) === watch) void rerun(watch); });
   }
 
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {

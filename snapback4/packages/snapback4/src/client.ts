@@ -548,10 +548,13 @@ export function createClient(options: ClientOptions): Client {
 
   function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
     armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false }, clock,
-      () => !closed && watches.get(watch.key) === watch, () => {
-        withdrawExpiry(watch)();
-        void refresh(watch);
-      });
+      () => !closed && watches.get(watch.key) === watch, sweepExpiries);
+  }
+
+  function sweepExpiries() {
+    correctReadExpiries(watches.values(), clock, withdrawExpiry,
+      (watch, d) => scheduleExpiry(watch, d.server),
+      watch => { if (watches.get(watch.key) === watch) void refresh(watch); });
   }
 
   function withdrawExpiry(watch: Watch): () => void {
@@ -784,9 +787,7 @@ export function createClient(options: ClientOptions): Client {
   const stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
     if (closed || (!revised && Math.abs(shift) < 10)) return;
-    correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.server),
-      watch => { if (watches.get(watch.key) === watch) void refresh(watch); });
+    sweepExpiries();
     scheduleRefresh();
   });
   const client: Client = {

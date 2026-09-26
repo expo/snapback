@@ -47,7 +47,8 @@ async function fixture(t, tier, refresh) {
     { table: "remoteRows", row: { id: "private", expiresAt: serverDeadline } },
   ]) }).then(r => r.json());
   assert.equal(seeded.seeded, 2);
-  const clock = new ServerClock(() => wall); clock.raiseIssued(deviceNow);
+  let now = wall;
+  const clock = new ServerClock(() => now); clock.raiseIssued(deviceNow);
   let liveClock = clock, offline = false, hold = false, queries = 0, localQueries = 0, answerDeadline = serverDeadline;
   const fork = clock.fork.bind(clock); clock.fork = () => liveClock = fork();
   const gate = Promise.withResolvers();
@@ -87,7 +88,7 @@ async function fixture(t, tier, refresh) {
   if (client.sync) await client.sync();
   assert.equal(client.now(), deviceNow);
   assert.equal(liveClock.estimatedServerNow(), wall);
-  return { client, clock: liveClock, wall, serverDeadline, deviceDeadline, queries: () => queries, localQueries: () => localQueries,
+  return { client, clock: liveClock, wall, serverDeadline, deviceDeadline, advance: value => { now = value; }, queries: () => queries, localQueries: () => localQueries,
     hold: () => { hold = true; }, release: () => { hold = false; gate.resolve(); },
     holdBody: () => { holdBody = true; }, releaseBody: () => bodyGate.resolve(),
     bodiesHeld: () => bodiesHeld, failedQueries: () => failedQueries,
@@ -171,9 +172,19 @@ for (const tier of ["wasm", "process"]) test(`${tier} keep: lingering remembered
   await until(() => joined.getSnapshot().loading, "server expiry still withdraws during the held local wakeup");
 });
 
-for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: one expiry subscriber's rollback cannot spare another expired watch`, async t => {
+for (const entry of ["correction", "timer"]) for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: one expiry subscriber's rollback cannot spare another expired watch (${entry})`, async t => {
+  const timers = new Map(), setTimer = globalThis.setTimeout, clearTimer = globalThis.clearTimeout;
+  if (entry === "timer") {
+    t.mock.method(globalThis, "setTimeout", (callback, ms, ...args) => {
+      if (ms !== 3_600_000) return setTimer(callback, ms, ...args);
+      const id = { unref() {} }; timers.set(id, callback); return id;
+    });
+    t.mock.method(globalThis, "clearTimeout", id => { if (!timers.delete(id)) clearTimer(id); });
+  }
   const f = await fixture(t, tier), op = { kind: "query", name: "remote" }, idleOp = { ...op, name: "idle" };
-  const active = f.client.observe(op, {}, { keep: true }), idle = f.client.observe(idleOp, {}, { keep: true });
+  const active = f.client.observe(op, {}, { keep: true });
+  await until(() => active.getSnapshot().data === true);
+  const idle = f.client.observe(idleOp, {}, { keep: true });
   await until(() => active.getSnapshot().data === true && idle.getSnapshot().data === true);
   idle.close(); f.hold();
   if (tier !== "online") await f.offline();
@@ -181,12 +192,18 @@ for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: one expiry
   active.subscribe(() => {
     if (!rolledBack && active.getSnapshot().loading) {
       rolledBack = true;
-      f.clock.sample(f.wall, f.wall, f.wall, "server:2");
+      const now = entry === "timer" ? f.serverDeadline + 1 : f.wall;
+      f.clock.sample(f.wall, now, now, "server:2");
       duringCallback = idle.getSnapshot();
       remount = f.client.observe(idleOp, {}, { keep: true });
     }
   });
-  f.clock.sample(f.serverDeadline + 1, f.wall, f.wall, "server:1");
+  if (entry === "timer") {
+    assert.equal(timers.size, 2, "both watches have an expiry timer");
+    f.advance(f.serverDeadline + 1); // Time advances without a clock-correction notification.
+    const [id, fire] = timers.entries().next().value;
+    timers.delete(id); fire(); // Deliver only the active watch's timer.
+  } else f.clock.sample(f.serverDeadline + 1, f.wall, f.wall, "server:1");
   await until(() => rolledBack);
   assert.deepEqual(duringCallback, { loading: true }, "all due snapshots withdraw before the first subscriber runs");
   assert.deepEqual(remount.getSnapshot(), { loading: true }, "rollback cannot expose the other watch on remount");
@@ -269,4 +286,23 @@ for (const first of ["device", "server"]) test(`armReadExpiry: split clocks sche
   if (first === "device") device += 100; else server += 100;
   timer.callback();
   assert.deepEqual(expirations, [first === "server"]);
+});
+
+
+test("armReadExpiry: long deadlines clamp and rearm without premature expiry", t => {
+  const limit = 2_147_483_647, timers = new Map(); let now = 0, expired = 0;
+  t.mock.method(globalThis, "setTimeout", (callback, delay) => { const id = { unref() {} }; timers.set(id, { callback, delay }); return id; });
+  t.mock.method(globalThis, "clearTimeout", id => timers.delete(id));
+  const clock = { deviceDelay: d => Math.max(0, d - now), serverDelay: d => Math.max(0, d - now) };
+  const deadlines = { device: null, server: limit + 100, localWakeup: false }, watch = { expiryTimer: null };
+  armReadExpiry(watch, deadlines, clock, () => true, () => { expired++; });
+  const fire = () => { const [id, timer] = timers.entries().next().value; timers.delete(id); timer.callback(); };
+  assert.equal(timers.get(watch.expiryTimer).delay, limit);
+  now = limit; fire();
+  assert.equal(expired, 0);
+  assert.equal(watch.deadlines, deadlines);
+  assert.equal(timers.get(watch.expiryTimer).delay, 100);
+  now += 100; fire();
+  assert.equal(expired, 1);
+  assert.equal(watch.deadlines, deadlines, "the triggering deadline remains visible to the sweep");
 });
