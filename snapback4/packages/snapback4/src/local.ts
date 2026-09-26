@@ -1,4 +1,4 @@
-import { armReadExpiry } from "./read-expiry.ts";
+import { armReadExpiry, correctReadExpiries, type ReadDeadlines } from "./read-expiry.ts";
 import { endLingering, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
@@ -284,7 +284,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
     if (closed || (!revised && Math.abs(shift) < 10)) return;
-    for (const watch of watches.values()) { const d = watch.deadlines; if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup); void rerun(watch); }
+    correctReadExpiries(watches.values(), clock, withdrawExpiry,
+      (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
+      watch => { if (watches.get(watch.key) === watch) void rerun(watch); });
     void media?.reconcile().catch(() => {});
     scheduleRefresh();
   });
@@ -957,26 +959,25 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
-    armReadExpiry(watch, { device: nextExpiry, server: serverExpiry ?? null, localWakeup }, clock,
+    const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
+    armReadExpiry(watch, deadlines, clock,
       () => !closed && watches.get(watch.key) === watch, serverDue => {
-        // @ref LLP 3000.018#3.2 — expiry forgets the answer, not its highest cut, before callbacks can roll the clock back.
-        if (serverDue) {
-          const key = `${watch.op.name}:${JSON.stringify(watch.args)}`, last = answers.serverAnswers.get(key);
-          if (last?.nextExpiry != null && last.nextExpiry <= clock.estimatedServerNow()) answers.serverAnswers.forget(key);
-        }
-        // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before
-        // asynchronous recovery, including an already-running replacement.
-        const denied = unavailable();
-        if (denied || !localWakeup || serverDue) {
-          watch.reset(denied ? { denied } : { loading: true });
-          notify(watch);
-        } else {
-          // A remembered page survives its local wakeup. Its server deadline
-          // must still withdraw it if the local reobservation is slow.
-          scheduleExpiry(watch, null, serverExpiry, localWakeup);
-        }
+        withdrawExpiry(watch, deadlines, serverDue, clock.estimatedServerNow())();
         void rerun(watch);
     });
+  }
+
+  function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
+    // @ref LLP 3000.018#3.2 — expiry forgets the answer, not its highest cut, using the pre-callback sample.
+    if (serverDue) {
+      const key = `${watch.op.name}:${JSON.stringify(watch.args)}`, last = answers.serverAnswers.get(key);
+      if (last?.nextExpiry != null && last.nextExpiry <= serverNow) answers.serverAnswers.forget(key);
+    }
+    // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before asynchronous recovery.
+    const denied = unavailable(), reset = denied || !d.localWakeup || serverDue;
+    if (reset) watch.reset(denied ? { denied } : { loading: true });
+    else scheduleExpiry(watch, null, d.server, d.localWakeup); // A local wakeup preserves the server deadline.
+    return () => { if (reset && watches.get(watch.key) === watch) notify(watch); };
   }
 
   function armPresence(watch: Watch) {

@@ -123,6 +123,35 @@ for (const tier of ["wasm", "process"]) test(`${tier} keep: lingering remembered
   await until(() => joined.getSnapshot().loading, "server expiry still withdraws during the held local wakeup");
 });
 
+for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: one expiry subscriber's rollback cannot spare another expired watch`, async t => {
+  const f = await fixture(t, tier), op = { kind: "query", name: "remote" }, idleOp = { ...op, name: "idle" };
+  const active = f.client.observe(op, {}, { keep: true }), idle = f.client.observe(idleOp, {}, { keep: true });
+  await until(() => active.getSnapshot().data === true && idle.getSnapshot().data === true);
+  idle.close(); f.hold();
+  if (tier !== "online") await f.offline();
+  let duringCallback, remount, rolledBack = false;
+  active.subscribe(() => {
+    if (!rolledBack && active.getSnapshot().loading) {
+      rolledBack = true;
+      f.clock.sample(f.wall, f.wall, f.wall, "server:2");
+      duringCallback = idle.getSnapshot();
+      remount = f.client.observe(idleOp, {}, { keep: true });
+    }
+  });
+  f.clock.sample(f.serverDeadline + 1, f.wall, f.wall, "server:1");
+  await until(() => rolledBack);
+  assert.deepEqual(duringCallback, { loading: true }, "all due snapshots withdraw before the first subscriber runs");
+  assert.deepEqual(remount.getSnapshot(), { loading: true }, "rollback cannot expose the other watch on remount");
+  if (tier !== "online") {
+    const snapshots = [];
+    remount.subscribe(() => snapshots.push(remount.getSnapshot()));
+    f.release();
+    await until(() => snapshots.length > 0);
+    assert.ok(snapshots.every(read => !("data" in read)), JSON.stringify(snapshots));
+    assert.equal((await f.client.query(idleOp, {})).denied?.code, "E_OFFLINE", "the other expired remembered entry was forgotten too");
+  }
+});
+
 for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) {
   test(`${tier} keep: expired remembered answer never returns after rollback and released reads (${lingering ? "lingering" : "active"})`, async t => {
     const f = await fixture(t, tier), op = { kind: "query", name: "branch" };

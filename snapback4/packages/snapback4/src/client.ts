@@ -1,4 +1,4 @@
-import { armReadExpiry } from "./read-expiry.ts";
+import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
 import { endLingering, observeWatch } from "./observe-watch.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
@@ -549,9 +549,14 @@ export function createClient(options: ClientOptions): Client {
   function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
     armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false }, clock,
       () => !closed && watches.get(watch.key) === watch, () => {
-        if (watch.keep) { watch.reset({ loading: true }); notify(watch); }
+        withdrawExpiry(watch)();
         void refresh(watch);
       });
+  }
+
+  function withdrawExpiry(watch: Watch): () => void {
+    watch.reset({ loading: true });
+    return () => { if (watches.get(watch.key) === watch) notify(watch); };
   }
 
   // @ref LLP 3000.018#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
@@ -779,7 +784,9 @@ export function createClient(options: ClientOptions): Client {
   const stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
     if (closed || (!revised && Math.abs(shift) < 10)) return;
-    for (const watch of watches.values()) { if (watch.deadlines) scheduleExpiry(watch, watch.deadlines.server); void refresh(watch); }
+    correctReadExpiries(watches.values(), clock, withdrawExpiry,
+      (watch, d) => scheduleExpiry(watch, d.server),
+      watch => { if (watches.get(watch.key) === watch) void refresh(watch); });
     scheduleRefresh();
   });
   const client: Client = {

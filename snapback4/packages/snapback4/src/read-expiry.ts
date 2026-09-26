@@ -12,6 +12,27 @@ interface ExpiringRead {
   expiryTimer: ReturnType<typeof setTimeout> | null;
 }
 
+// @ref LLP 3000.019#3.3 — clock corrections withdraw every due answer before any subscriber can roll time back.
+export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>, clock: ServerClock,
+  withdraw: (watch: W, deadlines: ReadDeadlines, serverDue: boolean, serverNow: number) => () => void,
+  rearm: (watch: W, deadlines: ReadDeadlines) => void, refresh: (watch: W) => void): void {
+  const deviceNow = clock.issuedDeviceNow(), serverNow = clock.estimatedServerNow();
+  const current = [...watches], deliveries: (() => void)[] = [];
+  for (const watch of current) {
+    const d = watch.deadlines;
+    if (!d) continue;
+    const serverDue = d.server !== null && d.server <= serverNow;
+    if (serverDue || (d.device !== null && d.device <= deviceNow)) {
+      if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      watch.expiryTimer = null;
+      watch.deadlines = undefined;
+      deliveries.push(withdraw(watch, d, serverDue, serverNow));
+    } else rearm(watch, d);
+  }
+  for (const deliver of deliveries) deliver();
+  for (const watch of current) refresh(watch);
+}
+
 // @ref LLP 3000.019#3.3 — deadlines belong to the displayed answer, including while its replacement loads.
 export function armReadExpiry(watch: ExpiringRead, deadlines: ReadDeadlines | undefined, clock: ExpiryClock,
   current: () => boolean, expired: (serverDue: boolean) => void): void {
