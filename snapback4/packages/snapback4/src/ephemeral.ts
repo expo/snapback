@@ -126,8 +126,9 @@ export function ephemeralLane(options: Options) {
         { code: "E_RATE_LIMIT", family: "auth", retryable: true, message: "the ephemeral lane already holds 256 waiting calls" }));
       const displaced = replace < 0 ? undefined : waiting.splice(replace, 1)[0];
       const promise = new Promise<Signal<R>>(resolve => {
-        waiting.push({ op, args: snapshot, id, key, resolve(outcome) { displaced?.resolve(outcome); resolve(outcome as Signal<R>); } });
+        waiting.push({ op, args: snapshot, id, key, resolve(outcome) { resolve(outcome as Signal<R>); } });
       });
+      if (displaced) void promise.then(outcome => displaced.resolve(outcome));
       void drain();
       return promise;
     },
