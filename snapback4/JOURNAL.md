@@ -59154,3 +59154,34 @@ The language card, the operations doc's keyword line and the README's
 reference map list the card. Aliases: receipt, delivered, read receipts, ticks,
 watermark. The operations doc's alias example now says `sql` → from-sql; it
 had said personas.
+
+## 2026-09-26 — A live query follows presence (LLP 3000.017)
+
+A supervisor probe on 0.4.2 source found a defect. Alice observed
+`{ online: exists connected[bob] }` while Bob opened a client. A one-shot query
+said `online: true` after 3 s, but the live snapshot stayed `false` for over a
+minute, with `fresh: true` and `complete: true`. The engine recorded no
+dependency for `connected[p]`, and presence changes signal nothing. The 0.4.1
+Grok comparative's builder had polled `memberPresence` from the client to work
+around it.
+
+- **Server.** A query evaluated on the server now names the principals it read
+  and the bit it saw, as `presence: { p: bit }` beside its data. A held
+  `/changes` poll takes `follow=p:bit,…`, at most 64 principals. It answers at
+  once if a bit already differs. It also answers on a followed principal's
+  first poll after its grace, and when a followed grace ends; a development
+  clock advance wakes held polls for this. The answer carries each moved
+  principal's new bit and keeps `seq` when only presence moved.
+- **Clients.** Both clients keep the newest bit per principal and send the
+  principals their live watches read. They restart a held poll whose follow list
+  changed, and treat that as a restart, not a lost link. They re-run exactly the
+  watches that read a moved principal.
+- **Evidence.** Server tests cover every wake, the parser and the unchanged
+  plain poll. A client test on the online, native and web tiers saw Alice's
+  mark turn true about 20 ms after Bob started watching, and false about 1 s
+  after Bob closed and the clock passed his grace.
+- **Cost.** 719 B gzip on the web device (524,732 B), within the 525,000 B
+  ratchet.
+
+`NOT-DOING.md` keeps a presence API, last-seen storage and multi-server
+presence out.

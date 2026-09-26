@@ -65,6 +65,8 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
         next_expiry: runner.next_expiry.get(),
+        // A device never knows presence, so it names nothing to follow.
+        presence: Default::default(),
     })
     })();
     let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
@@ -161,6 +163,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
             next_expiry: runner.next_expiry.get(),
+            presence: Default::default(),
         })
     })();
     (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), runner.components.provenance())

@@ -5,7 +5,12 @@ import type { Refusal } from "./contract.ts";
 
 const SILENCE_MS = 4000;
 const HEARTBEAT_SECONDS = 2;
-interface Change { serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
+interface Change { serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal; presence?: Record<string, boolean> }
+
+/** Ends a held poll so its client polls again at once, following a changed
+ * set of principals (LLP 3000.017 §3.2). A caller treats it as a restart,
+ * never as a lost link. */
+export const FOLLOW_RESTART = new Error("changes: the followed presence changed");
 
 export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortSignal, offline: () => void, online: () => void) {
   const active = new Set<AbortController>();
@@ -24,7 +29,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     }
   };
   lifetime.addEventListener("abort", close, { once: true });
-  return async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string) => {
+  const poll = async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string, follow?: ReadonlyMap<string, boolean>) => {
     const controller = new AbortController();
     active.add(controller);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -45,7 +50,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     try {
       if (lifetime.aborted) controller.abort(lifetime.reason);
       const work = (async () => {
-        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}`, { headers, signal: controller.signal });
+        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${followQuery(follow)}`, { headers, signal: controller.signal });
         if (controller.signal.aborted) throw controller.signal.reason;
         arm();
         let json: Change;
@@ -75,4 +80,11 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
       active.delete(controller);
     }
   };
+  return Object.assign(poll, { restart() { for (const request of active) request.abort(FOLLOW_RESTART); } });
+}
+
+// @ref LLP 3000.017#3.2 — a held poll carries the presence its client's live watches follow.
+function followQuery(follow?: ReadonlyMap<string, boolean>): string {
+  if (!follow?.size) return "";
+  return `&follow=${[...follow].map(([principal, bit]) => `${encodeURIComponent(principal)}:${bit ? 1 : 0}`).join(",")}`;
 }

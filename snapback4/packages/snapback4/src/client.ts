@@ -10,7 +10,7 @@ import { deferStart, trackRotation } from "./client-start.ts";
 // Every word a screen reads is on the card (contract.ts).
 
 import { ReadObservation } from "./read-observation.ts";
-import { changeFeed } from "./changes.ts";
+import { changeFeed, FOLLOW_RESTART } from "./changes.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
@@ -18,6 +18,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
+import { PresenceFollow, sameFollow } from "./presence-follow.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -42,6 +43,8 @@ interface Watch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
+  /** Principals whose `connected[p]` the last answer read. */
+  presence: Set<string>;
   subscribers: Set<() => void>;
   inFlight: boolean;
   dirty: boolean;
@@ -392,7 +395,7 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean }> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean; presence?: Record<string, boolean> | undefined }> {
     const epoch = queryEpoch;
     if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
@@ -404,10 +407,11 @@ export function createClient(options: ClientOptions): Client {
     if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry };
+    const presence = json.presence as Record<string, boolean> | undefined;
+    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, presence };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry };
+    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, presence };
   }
 
   const currentRead = (result: { seq: number; epoch: number }) => result.epoch === queryEpoch && result.seq >= minimumReadSeq;
@@ -448,6 +452,7 @@ export function createClient(options: ClientOptions): Client {
         return;
       }
       watch.tables = new Set(tables);
+      followAnswer(watch, result.presence);
       scheduleExpiry(watch, exhausted ? null : nextExpiry);
     } finally {
       watch.inFlight = false;
@@ -492,6 +497,20 @@ export function createClient(options: ClientOptions): Client {
     } catch {}
   }
 
+  // @ref LLP 3000.017#3.2 — live watches follow the presence they read.
+  const presenceBits = new PresenceFollow();
+  let sentFollow: ReadonlyMap<string, boolean> = new Map();
+  function followAnswer(watch: Watch, presence: Record<string, boolean> | undefined) {
+    watch.presence = new Set(Object.keys(presence ?? {}));
+    rerunPresence(presenceBits.observe(presence), watch);
+    // A held poll sent before this answer does not follow its principals yet.
+    if (!sameFollow(presenceBits.follow(watches.values()), sentFollow)) changes.restart();
+  }
+  function rerunPresence(principals: Iterable<string>, except?: Watch) {
+    const moved = new Set(principals);
+    if (!moved.size) return;
+    for (const other of watches.values()) if (other !== except && [...other.presence].some((p) => moved.has(p))) void refresh(other);
+  }
   const changes = changeFeed(doFetch, base, aborter.signal, () => { if (!closed && credentials) setLink("offline"); }, () => { if (!closed && credentials && link === "offline") void probe(); });
 
   async function poll() {
@@ -508,7 +527,8 @@ export function createClient(options: ClientOptions): Client {
         if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity);
+        sentFollow = presenceBits.follow(watches.values());
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, sentFollow);
         if (closed || storeRefusal) break;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
@@ -519,6 +539,10 @@ export function createClient(options: ClientOptions): Client {
         generation = json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) queryEpoch++;
+        if (json.presence) {
+          presenceBits.observe(json.presence);
+          rerunPresence(Object.keys(json.presence));
+        }
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
@@ -528,7 +552,8 @@ export function createClient(options: ClientOptions): Client {
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
-      } catch {
+      } catch (error) {
+        if (error === FOLLOW_RESTART) continue;
         if (closed || storeRefusal) break;
         if (credentials) setLink("offline");
         await new Promise((r) => setTimeout(r, 1000));
@@ -619,7 +644,7 @@ export function createClient(options: ClientOptions): Client {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presence: new Set<string>(), subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
         watches.set(key, watch);
         void refresh(watch);
         void poll();

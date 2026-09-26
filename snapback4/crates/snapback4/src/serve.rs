@@ -175,15 +175,67 @@ use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
 pub struct Live {
     polls: Mutex<BTreeMap<String, (u32, Option<i64>)>>,
     clock: Arc<Mutex<crate::dev_clock::Clock>>,
+    /// How many held polls follow each principal (LLP 3000.017 §3.2).
+    followers: Mutex<BTreeMap<String, u32>>,
+}
+
+/// A held poll's followed principals, counted while it waits.
+pub(crate) struct Following<'a> {
+    live: &'a Live,
+    principals: Vec<String>,
+}
+
+impl Drop for Following<'_> {
+    fn drop(&mut self) {
+        let mut followers = lock(&self.live.followers);
+        for principal in &self.principals {
+            if let Some(count) = followers.get_mut(principal) {
+                *count -= 1;
+                if *count == 0 { followers.remove(principal); }
+            }
+        }
+    }
 }
 
 impl Live {
     // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
-    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock } }
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock, followers: Mutex::new(BTreeMap::new()) } }
 
-    fn enter(&self, principal: &str) {
+    /// Counts a poll's followed principals until the guard drops.
+    pub(crate) fn following(&self, follow: &[(String, bool)]) -> Following<'_> {
+        let mut followers = lock(&self.followers);
+        let principals: Vec<String> = follow.iter().map(|(principal, _)| principal.clone()).collect();
+        for principal in &principals { *followers.entry(principal.clone()).or_insert(0) += 1; }
+        Following { live: self, principals }
+    }
+
+    /// Whether any held poll follows this principal.
+    pub(crate) fn followed(&self, principal: &str) -> bool { lock(&self.followers).contains_key(principal) }
+
+    /// Whether this poll brought the principal online: nothing was open and
+    /// no grace was running. A client re-polling within its grace never does.
+    fn enter(&self, principal: &str) -> bool {
         let mut map = lock(&self.polls);
-        map.entry(principal.to_owned()).or_insert((0, None)).0 += 1;
+        let now = lock(&self.clock).presence_now();
+        let entry = map.entry(principal.to_owned()).or_insert((0, None));
+        let connected = entry.0 > 0 || entry.1.is_some_and(|at| now.saturating_sub(at) < PRESENCE_GRACE.as_millis() as i64);
+        entry.0 += 1;
+        !connected
+    }
+
+    /// A followed principal's connected bit, and how long its grace has left
+    /// while only the grace keeps it connected (LLP 3000.017 §3.2).
+    fn follow(&self, principal: &str) -> (bool, Option<Duration>) {
+        let map = lock(&self.polls);
+        let now = lock(&self.clock).presence_now();
+        match map.get(principal) {
+            Some((open, _)) if *open > 0 => (true, None),
+            Some((_, Some(last))) => {
+                let remaining = (PRESENCE_GRACE.as_millis() as i64).saturating_sub(now.saturating_sub(*last));
+                if remaining > 0 { (true, Some(Duration::from_millis(remaining as u64))) } else { (false, None) }
+            }
+            _ => (false, None),
+        }
     }
 
     fn leave(&self, principal: &str) {
@@ -1032,6 +1084,9 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter: Option<Json>,
                             #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
                             row_provenance: Option<wire::Plain<'a>>,
+                            // @ref LLP 3000.017#3.1 — the presence this answer read, for the client to follow.
+                            #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+                            presence: &'a BTreeMap<String, bool>,
                         }
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
@@ -1042,11 +1097,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
+                            if !outcome.presence.is_empty() { reply["presence"] = json!(outcome.presence); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
+                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, presence: &outcome.presence });
                         }
                     }
                     Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),

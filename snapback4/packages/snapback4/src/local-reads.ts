@@ -18,6 +18,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
+  /** Principals whose `connected[p]` the last server answer read (LLP 3000.017). */
+  presence: Set<string>;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
