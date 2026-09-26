@@ -37,8 +37,7 @@ fn scan<const ALLOW_EMIT: bool>(scan: &Scan) -> bool {
 fn expression<const ALLOW_EMIT: bool>(value: &Expr) -> bool {
     match value {
         Expr::Block { body, value } => statements::<ALLOW_EMIT>(body) && expression::<ALLOW_EMIT>(value),
-        Expr::Array(values) => values.iter().all(expression::<ALLOW_EMIT>),
-        Expr::Builtin { args: values, .. } => values.iter().all(expression::<ALLOW_EMIT>),
+        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().all(expression::<ALLOW_EMIT>),
         Expr::Object(fields) => fields.values().all(expression::<ALLOW_EMIT>),
         Expr::Shape { base, fields } => expression::<ALLOW_EMIT>(base) && fields.values().all(expression::<ALLOW_EMIT>),
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expression::<ALLOW_EMIT>(base),
