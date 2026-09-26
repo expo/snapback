@@ -74,9 +74,9 @@ impl Runner<'_> {
 
     pub(super) fn record_insert(&mut self, name: &str, row: Value) -> Result<Value, RuntimeError> {
         if self.schema.tables[name].recorded.is_empty() { return Ok(row); }
-        let table = self.schema.tables[name].clone();
+        let table = &self.schema.tables[name];
         let paths = table.recorded.keys().cloned().collect::<Vec<_>>();
-        self.capture_recorded(&table, row, &paths)
+        self.capture_recorded(table, row, &paths)
     }
 }
 

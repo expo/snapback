@@ -87,3 +87,14 @@ The narrow interface shares the real/recording applicator, history, boundaries a
 ## Candidate 4: witness / aggregate / point consolidation
 
 574,735 → **574,660 B gzip** (1,985,947 → **1,985,645 B raw**): **75 B gzip saved**. One authorized-point completion tail and event-slot check; one contribution-selection predicate shared by lifetime and aggregate paths. An initial extra source lookup measured 574,699 and was removed. The two-seek server branch was already cfg-gated. The remaining decode loops differ materially: lifetime probes aggregate the latest alternative deadline and use physical authority work; scalar recounts charge ordinary examined/step work, authorize provisional candidates and accumulate totals. Their common selection is shared without merging those policies.
+
+## Additional contributor: immutable descriptor cloning
+
+The baseline's largest functions (`row_changed`, `insert_attempt`, parent authorization) exposed cloned table/maintain/timeline definitions. Runner holds an immutable schema reference for the whole call, so borrow the descriptors instead. Preserve explicit charges and every runtime value copy.
+
+| Component | Raw | Gzip | Gzip saved from prior stage |
+|---|---:|---:|---:|
+| Write and maintain descriptor borrows | 1,983,713 | 573,820 | 840 |
+| Plus read-through, write targets, Following transitions/slots | 1,982,094 | 573,320 | 500 |
+
+Combined **1,340 B gzip saved**. No new representation, format or algorithm. Matching declarations stay in schema order; cloned filter iterators repeat only immutable schema comparisons. This removes allocations but no quantitative latency claim is made.

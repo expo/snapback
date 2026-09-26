@@ -6,8 +6,8 @@ impl Runner<'_> {
     /// `copy` is the image's lawful price (LLP 3000.015 §1): the supplied bytes on
     /// insert, the merge's price on update; never a stored length read here.
     pub(crate) fn prepare_event_slots(&mut self, table: &str, old: Option<&Value>, mut row: Value, copy: u64) -> Result<Value, RuntimeError> {
-        let timelines: Vec<_> = self.schema.timelines.iter().filter(|t| table == t.posts[0] || table == t.reposts[0]).cloned().collect();
-        if timelines.is_empty() { return Ok(row); }
+        let mut timelines = self.schema.timelines.iter().filter(|t| table == t.posts[0] || table == t.reposts[0]).peekable();
+        if timelines.peek().is_none() { return Ok(row); }
         self.meter.heap(copy)?;
         for t in timelines {
             let repost = table == t.reposts[0];
@@ -17,20 +17,20 @@ impl Runner<'_> {
                 match old {
                     Some(old) => field(old, &slot)?,
                     None => {
-                        self.timeline_aggregate_fence(&t, true)?;
+                        self.timeline_aggregate_fence(t, true)?;
                         Value::Id(self.context.mint()?)
                     }
                 }
             } else {
                 let removed = !t.posts[3].is_empty() && field(&row, &t.posts[3])? == Value::Bool(true);
                 if let Some(old) = old {
-                    let live = self.timeline_original_live(&t, old)?;
-                    if removed && live { self.timeline_aggregate_fence(&t, false)?; }
+                    let live = self.timeline_original_live(t, old)?;
+                    if removed && live { self.timeline_aggregate_fence(t, false)?; }
                     Value::Bool(live && !removed)
                 } else {
                     if let Some(filter) = &t.filter { self.meter.step(filter.steps())?; }
                     let live = !removed && t.filter.as_ref().is_none_or(|filter| filter.matches(&row));
-                    if live { self.timeline_aggregate_fence(&t, false)?; }
+                    if live { self.timeline_aggregate_fence(t, false)?; }
                     Value::Bool(live)
                 }
             };

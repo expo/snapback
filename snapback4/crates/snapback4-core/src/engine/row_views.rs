@@ -44,9 +44,7 @@ impl Runner<'_> {
                 m.row_key
                     .as_ref()
                     .is_some_and(|k| m.source == table || k.table == table)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+            });
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let result = (|| {
             for m in views {
@@ -55,11 +53,11 @@ impl Runner<'_> {
                 }
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
-                    self.reserve_row_view(&m, 1)?;
+                    self.reserve_row_view(m, 1)?;
                     // Reserve the same bounded scan even if the private predicate is unchanged.
                     // Execute against its original allowance, then retain only the public charge.
                     let scan = self.meter.clone();
-                    let limit = self.scan_room(&m).min(WRITER_RECOUNT) as u64;
+                    let limit = self.scan_room(m).min(WRITER_RECOUNT) as u64;
                     self.meter.charge(MeterKind::Examined, limit)?;
                     self.meter.step(limit * (key.predicate.steps() * 2 + 4))?;
                     let heap = self
@@ -71,15 +69,15 @@ impl Runner<'_> {
                     self.meter.used.heap_bytes -= heap;
                     let reserved = std::mem::replace(&mut self.meter, scan);
                     self.maintain_prepaid = true;
-                    let result = self.row_view_member(&m, old, new);
+                    let result = self.row_view_member(m, old, new);
                     self.meter = reserved;
                     self.maintain_prepaid = false;
                     result?;
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
-                    self.reserve_row_view(&m, key.fanout.saturating_mul(2))?;
+                    self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
                     self.maintain_prepaid = true;
-                    self.row_view_source(&m, old, new)?;
+                    self.row_view_source(m, old, new)?;
                     self.maintain_prepaid = false;
                 }
             }

@@ -1,0 +1,32 @@
+   Compiling snapback4-core v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 27.92s
+     Running tests/event_slots.rs (target/debug/deps/event_slots-c180ebea179a8883)
+
+running 6 tests
+test source_transitions::memory ... ok
+test interrupted_activation::memory ... ok
+test interrupted_activation::sqlite ... ok
+test source_transitions::sqlite ... ok
+test residencies::memory ... ok
+test residencies::sqlite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-4976ad882dd8c4e3)
+
+running 10 tests
+test unchanged_mark_after_clock_expiry_memory ... ok
+test snapshot_spans_expiry_memory ... ok
+test inherited_expiry_replay_memory ... ok
+test catchup_expired_before_and_after_watermark_memory ... ok
+test snapshot_after_expiry_then_stream_memory ... ok
+test unchanged_mark_after_clock_expiry_sqlite ... ok
+test snapshot_spans_expiry_sqlite ... ok
+test snapshot_after_expiry_then_stream_sqlite ... ok
+test catchup_expired_before_and_after_watermark_sqlite ... ok
+test inherited_expiry_replay_sqlite ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+

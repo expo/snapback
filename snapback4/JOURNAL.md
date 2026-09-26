@@ -61666,3 +61666,16 @@ the retained form avoids that extra lookup. The server's two-seek lifetime
 path was already behind the SQLite feature. The decode loops have different
 accounting and coverage semantics; merging their traversal would require a
 larger mode-driven routine for no demonstrated saving.
+
+## 2026-09-25 — device diet: borrow immutable execution descriptors
+
+The largest named wasm functions led to redundant schema clones in writes,
+maintains, read-through authorization and Following transitions/slots. The
+runner already borrows one immutable schema for its lifetime; those paths now
+borrow its table/maintain/timeline descriptors and iterate matching declarations
+without building owned copies. All explicit runtime charges, image copies,
+iteration order and refusal conditions remain. No schema or IR representation
+changes. Same build: **1,982,094 B raw / 573,320 B gzip**, **1,340 B gzip saved**
+from 574,660. The write/maintain portion measured 573,820; the additional
+read-through, target and Following borrows save another 500 B. This removes
+runtime allocations as well as bytes; no timing improvement is asserted.

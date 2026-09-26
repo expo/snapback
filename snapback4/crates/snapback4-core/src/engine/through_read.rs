@@ -5,20 +5,20 @@ use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Audi
 
 impl Runner<'_> {
     pub(super) fn parent_verdict(&mut self, child: &str, through: &Through, id: &Value) -> Result<ParentVerdict, RuntimeError> {
-        let parent = self.schema.tables[&through.parent].clone();
+        let parent = &self.schema.tables[&through.parent];
         self.read_tables.insert(through.parent.clone());
         self.rule_dependencies(&parent.rules.read);
         for (kind, amount) in [
             (MeterKind::Examined, 1),
             (MeterKind::RuleProbes, rules::rule_probes(&parent.rules.read)),
-            (MeterKind::HeapBytes, super::write_target::row_copy_ceiling(&parent)),
+            (MeterKind::HeapBytes, super::write_target::row_copy_ceiling(parent)),
         ] {
             if !self.read_charge(kind, amount)? { return Ok(ParentVerdict::Unknown); }
         }
         // @ref LLP 3000.015#2 — the parent fetch draws from the request's physical allowance; its logical charges were reserved above.
         let parent_id = id.as_str()?.to_owned();
         let row = self.authorized_scan(&[], |runner, scope| runner.tx.get(scope, &through.parent, &parent_id))?;
-        let live = row.as_ref().filter(|row| !self.expired(&parent, row));
+        let live = row.as_ref().filter(|row| !self.expired(parent, row));
         if self.device {
             self.read_tables.insert(child.into());
             if !self.read_charge(MeterKind::HeapBytes, super::write_target::row_copy_ceiling(&self.schema.tables[child]).saturating_mul(2))? { return Ok(ParentVerdict::Unknown); }
@@ -40,7 +40,7 @@ impl Runner<'_> {
             Verdict::Unknown => Ok(ParentVerdict::Unknown),
             Verdict::Denied => Ok(ParentVerdict::Unreadable),
             Verdict::Readable => {
-                self.note_expiry(&parent, row);
+                self.note_expiry(parent, row);
                 // A parent authorizes; it cannot certify acquisition of its children.
                 if self.device && !self.child_coverage(child, through, row)? {
                     self.unknown_fact(child, CHILDREN, &[id.clone()], "read through child coverage");
@@ -78,7 +78,7 @@ impl Runner<'_> {
     }
 
     fn captures_match(&mut self, child: &str, through: &Through, id: &Value, parent: Option<&Value>) -> Result<bool, RuntimeError> {
-        let table = self.schema.tables[child].clone();
+        let table = &self.schema.tables[child];
         let mut expected = crate::value::object([] as [(&str, Value); 0]);
         if let Some(parent) = parent { stamp(&self.schema.tables[&through.parent], through, parent, &mut expected)?; }
         let mut bounds = Bounds::default();
@@ -88,7 +88,7 @@ impl Runner<'_> {
             if self.read_capped() { return Ok(false); }
             let Some((row, key)) = page.into_iter().next() else { return Ok(true) };
             if !self.read_charge(MeterKind::Examined, 1)? || !self.read_charge(MeterKind::Steps, through.fields.len() as u64 + 1)? { return Ok(false); }
-            let current = !self.expired(&table, &row) && !self.tx.retained_row(child, &row)?;
+            let current = !self.expired(table, &row) && !self.tx.retained_row(child, &row)?;
             if current && (parent.is_none() || !capture_matches(through, &expected, &row)) { return Ok(false); }
             bounds.after = crate::key::decode(&key).map(|key| key.into_iter().skip(1).collect());
             // One cursor is retained, with a schema-sized reservation; row scratch is reusable.

@@ -59,8 +59,8 @@ fn required(value: Option<Value>, code: &str) -> Result<Value, RuntimeError> {
 impl Runner<'_> {
     // @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — process actual transitions, including delete/reinsert in one mutation.
     pub(super) fn timeline_transition(&mut self, table: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        let timelines: Vec<_> = self.schema.timelines.iter().filter(|timeline| timeline.maps(table)).cloned().collect();
-        if self.device && timelines.iter().any(|timeline| table == timeline.edges[0]) {
+        let timelines = self.schema.timelines.iter().filter(|timeline| timeline.maps(table));
+        if self.device && timelines.clone().any(|timeline| table == timeline.edges[0]) {
             return Err(RuntimeError::Prediction("timeline follow/unfollow/refollow uses server-owned background work; queue the whole mutation without prediction".into()));
         }
         for timeline in timelines {
@@ -70,7 +70,7 @@ impl Runner<'_> {
             let page = runner.page.take();
             let depth = runner.page_depth;
             runner.page_depth += 1;
-            let result = runner.timeline_apply(&timeline, table, old, new);
+            let result = runner.timeline_apply(timeline, table, old, new);
             runner.page_depth = depth;
             runner.page = page;
             result?;
@@ -271,7 +271,7 @@ impl Runner<'_> {
 
     pub(super) fn timeline_read_pending(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
         if self.meter.cut != crate::meter::Cut::Cap || !matches!(index, "byReaderTime" | "byReaderPage") || prefix.len() != 1 { return Ok(()); }
-        let Some(t) = self.schema.timelines.iter().find(|t| table == t.table("Feed")).cloned() else { return Ok(()); };
+        let Some(t) = self.schema.timelines.iter().find(|t| table == t.table("Feed")) else { return Ok(()); };
         let pending = self.timeline_get(&t.table("Work"), "byReader", prefix.to_vec())?.is_some();
         if pending { self.timeline_pending = true; self.components.note(|frame| frame.pending = true); }
         Ok(())
