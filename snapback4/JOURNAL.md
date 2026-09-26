@@ -61839,3 +61839,64 @@ and final ring/incarnation equal the hub. Both pass. All 12 ephemeral HTTP tests
 pass, including held-wait notification, interest/pacing and bearer/adoption
 cases. Their two direct-reader tests now rely on automatic commit publication,
 without a separate test-driven publish call. No expected HTTP values changed.
+
+
+### 2026-09-26 — E3 publication fence repair and integrated qualification
+
+Reproduced all three published-0.2.33 fences failing at "current adoption
+refusal preserves the old store" on an isolated git archive of main 0badac987,
+with base CLI and base wasm. Every tracked archive file is verified unchanged.
+Evidence is in target/eph-e3-evidence/base-published.log and base-inputs.txt.
+The base opens legacy stores by adding _sequences. Opening now creates no
+sequence table; sequence-bearing activation or the first counter write creates
+it inside the transaction. A missing-table read returns 0 without creating it.
+Reset deletes counters only if their table exists. Tests pin read-only absence,
+first-write DDL rollback, successful first write, and activation before allocation.
+All 16 sequence tests and all 15 core ephemeral tests pass. The three unchanged
+published fences pass with the requested E2 tarball cache.
+
+The supplemental durable baseline captures only main's two new inherited-row-view
+fixtures at 0badac987. The original 26 JSON/TypeScript pairs stay byte-for-byte
+unchanged; all 28 comparisons pass. This preserves the inventory assertion too.
+The initial integration inventory failure is resolved by adding main's captures,
+not regenerating any expected output from the ephemeral implementation.
+
+Integrated wasm: 2,013,198 B raw / 578,796 B gzip, within the inherited
+579,833 B budget by 1,037 B. Main 0badac987 on this host: 2,008,325 B raw /
+576,981 B gzip. No E3 budget increase is needed. Full blocking qualification
+uses pinned Node 24.18.0 and SNAPBACK4_FENCE_PUBLISHED pointing to the supplied
+E2 0.2.33 cache; its final counts and five additional trials follow below and
+in the uncommitted EPH-REPORT-E3.md.
+
+
+### 2026-09-26 — E3 final green qualification
+
+Full `bash scripts/test.sh` at d735389d6, pinned Node 24.18.0 and the supplied
+SNAPBACK4_FENCE_PUBLISHED cache: `== 0 failure(s) in 861 s`, exit 0. No FAIL
+line and no load-sensitive failure occurred. Rust totals: 3,566 passed,
+0 failed, 19 ignored. JavaScript totals: 2,121 tests, 2,116 passed, 0 failed,
+5 skipped (existing optional witnesses), including all 78 seeded models.
+All three published-0.2.33 capability fences passed without edits. README
+remains 300 lines; wasm repeats 2,013,198 B raw / 578,796 B gzip against
+579,833 B. Evidence: target/eph-e3-evidence/full-suite.log, full-suite-counts.log,
+full-suite-commit.txt and full-suite.exit. Source stayed fixed through the run;
+only this append-only record and the uncommitted report changed afterward.
+
+The five full-suite typing trials first displayed the peer in 5.742–17.354 ms
+and removed it 3,823.176–3,868.514 ms after the last call, with 2 ephemeral
+requests versus 45 durable-control requests per burst. The requested additional
+standalone ephemeral-e2e run passed all five trials (one test, zero failures):
+
+| Trial | Ephemeral first seen (ms) | Ephemeral gone after last call (ms) | Durable first seen (ms) | Durable gone after last call (ms) | Ephemeral requests | Durable requests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 12.303 | 3830.603 | 17.732 | 4501.93 | 2 | 45 |
+| 2 | 12.086 | 3850.261 | 13.776 | 4009.974 | 2 | 45 |
+| 3 | 11.141 | 3830.056 | 13.264 | 4447.946 | 2 | 45 |
+| 4 | 11.559 | 3826.8 | 13.5 | 4234.137 | 2 | 45 |
+| 5 | 11.086 | 3842.203 | 12.457 | 4009.727 | 2 | 45 |
+
+Standalone evidence is acceptance-extra.log/json beside the suite log. No
+isolation reruns were needed: there were no timing failures. The final report
+is EPH-REPORT-E3.md at the worktree root and remains uncommitted. E3's requested
+work is complete; no push, stash, merge, rebase, publication or other-worktree
+edit was performed. Lead review/publication/calibration phases remain separate.
