@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.7",
+      "note": "The six lifetime totals were compared against read-only store SQL twice - before and after controlled activity - and then against the rendered UI. Before {posts 93, likesReceived 97, repostsReceived 14, repliesReceived 21, followers 4, following 2}; after 1 post + 4 likes + 2 reposts + 1 reply {94, 101, 16, 22, 4, 2}; observed deltas exactly {1,4,2,1,0,0}. The Insights screen rendered the same six numbers."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7, §4.9",
+      "note": "Grader-driven harness run: m8-a02-insights-like-refresh passed, beforeLikes 123 -> afterLikes 124, refreshMs 563.4."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.7",
+      "note": "7 buckets; the newest bucket's day index 20722 equals floor(Date.now()/86400000) - a server-time UTC day boundary - and a post created now moved today's count 89 -> 90."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.7",
+      "note": "The screen renders exactly 7 day rows and the payload retains 5 all-zero buckets explicitly (days = [0,0,0,0,0,3,87]) rather than omitting them."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.7, §6 d-01",
+      "note": "Grader-built fixture: two posts created 25 ms apart each liked by 7 personas, plus a backdated post liked by all 8. Trending's head is a trailing-24h post with likeCount 7 and the whole ranking is at the maximum in-window like count; the Trending tab rendered 10 ranked rows matching the query's 10. At the full envelope the ranking was also compared against read-only SQL ground truth over 48270 in-window top-level posts and matched exactly in order. Related defect d-01 concerns the UI not surfacing the query's complete:false flag, not the ranking."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.7",
+      "note": "A post backdated to now-90000000 ms (25.0 h old) and liked by all 8 personas - more likes than any in-window post - is absent from Trending."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.7",
+      "note": "Tie at likeCount 7 broken newest-first: rank1 at 1790432589220 before rank2 at 1790432589190."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md §4.7 (digest block)",
+      "note": "[grader], shortened digest config (period 120 s, anchor 00:00:00), four fresh accounts, NO client open for any of them. Aligned to a real period boundary (1790431560000..1790431680000). Exactly ONE digest row per active user with exactly the expected counts: ga {newFollowers 0, newPostsInFollowing 1, unreadMessages 1, unreadChats 1}, gb {1, 0, 1, 1}. A tombstoned message in the same group did not count."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md §4.7 (digest block)",
+      "note": "[grader]. The persona with no activity in the period received 0 digest rows."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md §4.7 (digest block)",
+      "note": "[grader]. The following period (1790431680000..1790431800000), with no new activity, emitted 0 digest rows for any of the four accounts."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md §4.7 (digest block)",
+      "note": "[grader]. The backend was SIGTERM'd and restarted mid-period at 14:06:38Z - 35 s after the activity, 82 s before the period closed. Per-user digest row counts for that period stayed ga=1, gb=1, gc=0, gidle=0: no double emission. Two layers enforce it: the schema's `once [principal, periodEnd]` guard and the provider worker's effect-id dedupe. The worker logged one transient UND_ERR_SOCKET at the restart, survived and resumed."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md §4.7 (digest block), §5",
+      "note": "[grader], trust-boundary. Activity in a second group the target is not a member of never reached that target: its counts stayed unreadChats 1 / unreadMessages 1 from the shared chat only, and the outsider who sent the message received no digest."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7, §4.9",
+      "note": "Grader-driven harness run: m8-a13-same-account-message-live passed, visibleMs 1323.9."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7, §4.9",
+      "note": "Grader-driven harness run: m8-a14-cross-device-read-state passed, clearVisibleMs 1886.2."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7, §4.9",
+      "note": "Grader-driven harness run: m8-a15-dual-offline-convergence passed - both of the account's clients warm-offline, each composing one message in the same chat, both settling in server-arrival order with no loss and no duplicates (firstFlushMs 2300.6, secondFlushMs 2846.1)."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7, §4.9",
+      "note": "Grader-driven harness run: m8-a16-dual-offline-receipts passed, totalMs 3541.4 - receipts advance normally after the dual-offline reconnect."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7",
+      "note": "No qualifying iOS-simulator artifact exists; simulator.md extends the same M6 separation to M8's durable offline queue across app termination. artifacts/m8-ios/ contains only an Expo/Hermes bundle export, which the lane states accurately. greenRequired:false; counts as not-passed in O1's denominator."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md §4.7",
+      "note": "No qualifying iOS-simulator artifact exists; simulator.md extends the same M6 separation to M8's durable offline queue across app termination. artifacts/m8-ios/ contains only an Expo/Hermes bundle export, which the lane states accurately. greenRequired:false; counts as not-passed in O1's denominator."
+    }
+  }
+}
