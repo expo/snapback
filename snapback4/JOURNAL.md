@@ -59154,3 +59154,41 @@ The language card, the operations doc's keyword line and the README's
 reference map list the card. Aliases: receipt, delivered, read receipts, ticks,
 watermark. The operations doc's alias example now says `sql` → from-sql; it
 had said personas.
+
+## 2026-09-26 — `guide receipts` round 1: ordinals, not the clock
+
+Grok's review of the first card was NOT READY. Time watermarks tie at a
+millisecond, cover messages the client never fetched, and accept any
+`through`. The card now uses ordinals throughout:
+
+- Every message takes the conversation's next ordinal, and a member records
+  the last ordinal when they join. Commit order decides a message's
+  recipients, including a join in the same millisecond as a send.
+- A watermark is an ordinal. It only moves forward and never passes the last
+  message (`PAST_LAST_MESSAGE`). `seen` writes only when it advances.
+- A message with no recipients stays `sent`.
+- `delete` is the member's own, via `leave`.
+- The client snippet acknowledges only settled rows of a complete, fresh page,
+  and lists `client` in its dependencies.
+- The cost sentence says what `check --cost` certifies: one scan of at most 50
+  member rows per message.
+
+The card states one limit. A member who returns after more than the 500
+synced messages acknowledges the newest ones, so older ones count as
+delivered.
+
+The engine test now commits m2 before anyone fetches m1. It covers a join in
+the same millisecond as a send, a leave, a rejoin, a refused `through: 99`, a
+backward acknowledgement and a conversation with no recipients. Six recipe
+mutants each fail it:
+
+- `<=` for joining;
+- no bound on `through`;
+- `read` with no recipients;
+- storing the last ordinal instead of `through`;
+- counting the sender;
+- moving a watermark backward.
+
+A probe on the online, native and web tiers moved sent → delivered → read
+within about 20 ms of each acknowledgement. The readauth census lists the
+card's ten entries.
