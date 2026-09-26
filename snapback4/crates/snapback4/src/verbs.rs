@@ -542,7 +542,8 @@ pub fn data(options: &Options) -> i32 {
         return 2;
     };
     let project = project_or_exit();
-    let mut store = match project.open_store() {
+    // @ref LLP 3000.019#3.4 — inspection must not acquire a writer through store initialization.
+    let mut store = match snapback4_core::Store::open_read_only(&project.store_path()) {
         Ok(store) => store,
         Err(error) => {
             eprintln!("cannot open the store: {error}");

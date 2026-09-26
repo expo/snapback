@@ -111,6 +111,8 @@ fn validate_receipt(segment: &str, value: &Value, prime: &Value, barrier: Option
 }
 
 fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
+    // @ref LLP 3000.019#3.4 — a restart witness writes only while the backend store is unowned.
+    let _owner = crate::store_owner::command(path).map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let append = || -> std::result::Result<u64, snapback4_core::RuntimeError> {
         let mut store = snapback4_core::Store::open(path)?;
         if store.meta("store_id")?.as_deref() != Some(store_id) || store.seq()? < prime {
@@ -154,6 +156,13 @@ mod tests {
         let row: String = engine.store().conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
         let before = engine.seq().unwrap();
         let identity = engine.store().meta("store_id").unwrap().unwrap();
+        {
+            let mut owner = crate::store_owner::command(&path).unwrap();
+            crate::store_owner::announce(&mut owner, "127.0.0.1:1234".parse().unwrap()).unwrap();
+            let refused = barrier(&path, &identity, before).unwrap_err();
+            assert!(refused.contains("E_STORE_BUSY") && refused.contains("http://127.0.0.1:1234"), "{refused}");
+            assert_eq!(engine.store().seq().unwrap(), before);
+        }
         drop(engine);
         let seq = barrier(&path, &identity, before).unwrap();
         assert!(seq > before);

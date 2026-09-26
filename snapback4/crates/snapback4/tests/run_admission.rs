@@ -182,6 +182,12 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
         assert_eq!(p.jobs(), 0); assert_eq!(p.generation(), generation);
         // The dev inspector still understands the lock's first-line legacy port.
         assert!(p.run(&["doctor", "--json"]).status.success());
+        let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let inspected = p.run(&["data", "items", "--json"]);
+        assert!(inspected.status.success(), "{inspected:?}");
+        let row: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
+        assert_eq!(row["n"], 0);
+        conn.execute_batch("ROLLBACK").unwrap();
         drop(host);
         // The leftover lock file and address alone must never refuse work.
         let out = p.run(&["run", "backfill", "--json"]);

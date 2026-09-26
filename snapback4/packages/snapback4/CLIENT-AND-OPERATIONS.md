@@ -1642,6 +1642,8 @@ step.
   refuses `E_STORE_BUSY` with the store site and server address. Stop the host, run once, then restart it.
   The same rule covers `token`, `test` without a fixture, `deploy` and `rollback`; HTTP `/seed` already
   runs through the dev host. Read-only inspection and fixture tests remain available beside the server.
+  `data` opens a read-only snapshot without writable store initialization. The native smoke driver's
+  stopped-backend restart marker also takes the lifetime lock before advancing the commit clock.
   Without a competing lifetime owner, opening/adoption retries SQLite BUSY/LOCKED for up to 15 seconds,
   reporting the operation and elapsed wait. `E_RUN_BUSY` stops without admitting the operation; other store
   errors keep their meaning. The deadline bounds contention retries; it cannot cancel an atomic activation
