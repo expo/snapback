@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { webDevice, memoryPersistence, indexedDbPersistence } from "../dist/web.js";
 import { createLocalClient } from "../dist/local.js";
 import { exitTransport } from "../dist/local-exit.js";
+import { prepareClient } from "../dist/client-start.js";
 import { devServer } from "../../../witness/lib.mjs";
 
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
@@ -249,6 +250,63 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   f.window.dispatchEvent(new Event("pagehide"));
   assert.equal(f.requests.length, 1);
   await until(() => f.responses.length === 1);
+});
+
+for (const blockedCleanup of [false, true]) test(`first pagehide dispatch survives a stalled status save (cleanup blocked=${blockedCleanup})`, async t => {
+  const f = await fixture(t, { stallExitBody: true, applyExit: false });
+  let storage = new Map(), cleanupFails = blockedCleanup;
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const localStorage = { get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
+    getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem(key) { if (cleanupFails) throw Error("cleanup unavailable"); storage.delete(key); } };
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: localStorage });
+  t.after(() => previous ? Object.defineProperty(globalThis, "localStorage", previous) : delete globalThis.localStorage);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "first dispatch at exit" }, { waitSeconds: 0 });
+  assert.equal((await f.client.pendingWrites())[0].state, "queued");
+  const save = f.persist.save.bind(f.persist);
+  let release, saving = false, stall = true;
+  f.persist.save = async (name, changes) => {
+    // A send revision commits even if begin_send loses its id (the mutant).
+    if (stall && !saving && changes.some(c => c.s === "m" && c.k === "device:send_revision")) {
+      saving = true; await new Promise(resolve => { release = resolve; });
+    }
+    await save(name, changes);
+  };
+  try {
+    await tick();
+    f.window.dispatchEvent(new Event("pagehide"));
+    await until(() => saving);
+    assert.equal(f.requests.length, 1, "the keepalive request has started before IDB finishes");
+    assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "dispatch evidence precedes the request");
+    const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
+    assert.ok(name);
+    assert.equal(JSON.parse((await f.persist.load(name)).find(c => c.s === "o" && c.k === admitted.id).v).dispatch, undefined);
+    async function reopenCopy(state = "sent") {
+      const copy = memoryPersistence();
+      for (const [name, entries] of f.persist.stores) copy.stores.set(name, new Map(structuredClone([...entries])));
+      const options = { url: f.requests[0].input.split("/m/")[0], persona: "alice", device: webDevice({ wasm, persist: copy }),
+        fetch: () => Promise.reject(new TypeError("reopen offline")) };
+      const originalStorage = storage; storage = new Map(storage);
+      const opened = await prepareClient(options, () => createLocalClient(options));
+      try { assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state]), [[admitted.id, state]]); }
+      finally { await opened.client.close(); storage = originalStorage; }
+    }
+    await reopenCopy();
+    assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "crash copy did not clean the original journal");
+    release(); await call({ op: "queued" });
+    assert.equal(JSON.parse((await f.persist.load(name)).find(c => c.s === "o" && c.k === admitted.id).v).dispatch, "",
+      "the keyed begin_send itself must persist sent before journal cleanup");
+    if (blockedCleanup) {
+      assert.ok([...storage.keys()].some(k => k.includes(":exit:")), "failed cleanup retains its acknowledged marker");
+      await call({ op: "hold_write", id: admitted.id, reason: "E_BUSY" });
+      await reopenCopy("held"); // An acknowledged marker must not regress a later refusal.
+      cleanupFails = false; await call({ op: "queued" });
+    }
+    assert.equal([...storage.keys()].some(k => k.includes(":exit:")), false);
+    await reopenCopy(blockedCleanup ? "held" : "sent");
+  } finally { stall = false; release?.(); }
 });
 
 test("IndexedDB save resolves on transaction completion, not request success", async t => {

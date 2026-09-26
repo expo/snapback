@@ -19,7 +19,7 @@ import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
  * outbox, `b` confirmed images, `s` staged snapshot), the key, the value;
- * null removes. The web host also persists `j` admission-transfer markers,
+ * null removes. The web host also persists `j` admission/exit acknowledgements,
  * which it keeps outside the wasm device. */
 export interface Change {
   s: string;
@@ -198,6 +198,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         committed.clear();
         remember(saved);
         journal.fence(device);
+        journal.recoverExits(device);
         await settle();
         needsRecovery = true;
       };
@@ -230,6 +231,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
             // its metadata is persisted in order behind any current IDB save.
             const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send", id })));
             if (started.denied) return false;
+            if (!journal.captureExit(id)) return false;
             // A failed save discards the device like a failed call; the next call reopens it.
             chain = chain.then(async () => { if (device) await settle([], undefined, true); }).catch(() => discard());
             return true;
