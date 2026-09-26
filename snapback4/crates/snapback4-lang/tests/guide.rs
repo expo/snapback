@@ -357,7 +357,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     assert_eq!(next(&progress(&mut engine, "bob", 5_200, "long")), Vec::<i64>::new(), "caught up");
     post(&mut engine, 251);
     assert_eq!(next(&progress(&mut engine, "bob", 5_210, "long")), vec![251], "an arriving message is the next to acknowledge");
-    // At once: a window above a gap is delivered immediately, and catching up folds it in.
+    // Runs above gaps: whatever a client fetched is delivered at once, and catching up folds it in.
     let win = || ("conversation", id("win"));
     let say = |engine: &mut Engine, n: i64| {
         let row = format!("x{n}");
@@ -373,37 +373,58 @@ fn receipts_card_ticks_follow_the_recipient_set() {
         }
     };
     let deliver = |engine: &mut Engine, now: i64, from: i64, to: i64| { sent(&engine.mutate("delivered", None, at("bob", now, &run(win(), from, to))).unwrap()); };
+    let stored = |p: &Value| -> Vec<(i64, i64)> {
+        let mut runs: Vec<(i64, i64)> = p.field("runs").unwrap().as_array().unwrap().iter().map(|r| match (r.field("fromOrdinal").unwrap(), r.field("throughOrdinal").unwrap()) { (Value::Int(a), Value::Int(b)) => (*a, *b), other => panic!("{other:?}") }).collect();
+        runs.sort();
+        runs
+    };
     deliver(&mut engine, 6_500, 201, 300);
+    deliver(&mut engine, 6_505, 101, 120);
     let all = every(&mut engine);
-    assert_eq!((states(&all, 1, 200), states(&all, 201, 300)), (["sent"].into(), ["delivered"].into()), "the fetched window is delivered at once, the gap stays sent");
-    let bob = progress(&mut engine, "bob", 6_505, "win");
-    assert_eq!((watermark(&bob, "delivered"), watermark(&bob, "windowFrom"), watermark(&bob, "windowThrough"), next(&bob)), (0, 201, 300, (1..=100).collect::<Vec<_>>()), "{bob:?}");
-    deliver(&mut engine, 6_510, 101, 120);
-    assert_eq!(states(&every(&mut engine), 101, 120), ["sent"].into(), "a second window disjoint from the held one waits");
-    deliver(&mut engine, 6_520, 150, 210);
+    assert_eq!((states(&all, 1, 100), states(&all, 101, 120), states(&all, 121, 200), states(&all, 201, 300)), (["sent"].into(), ["delivered"].into(), ["sent"].into(), ["delivered"].into()), "every fetched run is delivered at once, the gaps stay sent");
+    let bob = progress(&mut engine, "bob", 6_506, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (0, vec![(101, 120), (201, 300)], (1..=100).collect::<Vec<_>>()), "{:?}", stored(&bob));
+    deliver(&mut engine, 6_510, 150, 210);
     let all = every(&mut engine);
-    assert_eq!((states(&all, 101, 149), states(&all, 150, 300)), (["sent"].into(), ["delivered"].into()), "a run that meets the window merges with it");
-    deliver(&mut engine, 6_530, 1, 100);
-    let all = every(&mut engine);
-    assert_eq!((states(&all, 1, 100), states(&all, 101, 149), states(&all, 150, 300)), (["delivered"].into(), ["sent"].into(), ["delivered"].into()), "catching up extends the prefix below the window");
-    deliver(&mut engine, 6_540, 101, 149);
-    assert_eq!(states(&every(&mut engine), 1, 300), ["delivered"].into(), "reaching the window folds it in");
-    let bob = progress(&mut engine, "bob", 6_545, "win");
-    assert_eq!((watermark(&bob, "delivered"), watermark(&bob, "windowFrom"), watermark(&bob, "windowThrough")), (300, 0, 0), "{bob:?}");
+    assert_eq!((states(&all, 121, 149), states(&all, 150, 300)), (["sent"].into(), ["delivered"].into()), "a run that meets a stored run merges with it");
+    deliver(&mut engine, 6_520, 1, 100);
+    let bob = progress(&mut engine, "bob", 6_521, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (120, vec![(150, 300)]), "catching up folds in the run it meets");
+    deliver(&mut engine, 6_530, 121, 149);
+    assert_eq!(states(&every(&mut engine), 1, 300), ["delivered"].into());
+    let bob = progress(&mut engine, "bob", 6_531, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (300, vec![]), "reaching a run folds it into the prefix");
     for n in 301..=340 { say(&mut engine, n); }
     deliver(&mut engine, 6_600, 331, 340);
     deliver(&mut engine, 6_610, 321, 330);
     deliver(&mut engine, 6_620, 311, 320);
     let all = every(&mut engine);
-    assert_eq!((states(&all, 301, 310), states(&all, 311, 340)), (["sent"].into(), ["delivered"].into()), "adjacent runs merge into the window");
+    assert_eq!((states(&all, 301, 310), states(&all, 311, 340)), (["sent"].into(), ["delivered"].into()), "adjacent runs merge");
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_625, "win")), vec![(311, 340)]);
     deliver(&mut engine, 6_630, 301, 310);
     let bob = progress(&mut engine, "bob", 6_635, "win");
-    assert_eq!((watermark(&bob, "delivered"), watermark(&bob, "windowThrough")), (340, 0), "the prefix takes the window it reaches: {bob:?}");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob)), (340, vec![]), "the prefix takes the run it reaches");
     let covered = engine.mutate("delivered", None, at("bob", 6_640, &run(win(), 10, 20))).unwrap();
     assert_eq!((covered.events, progress(&mut engine, "bob", 6_645, "win")), (0, bob), "a covered report writes nothing");
     sent(&engine.mutate("seen", None, at("bob", 6_650, &[win(), through(300)])).unwrap());
     let stale = engine.mutate("seen", None, at("bob", 6_655, &[win(), through(10)])).unwrap();
     assert_eq!(stale.events, 0, "an older view writes nothing");
+    // A member keeps at most 64 runs: one more waits until a merge frees room.
+    for n in 341..=480 { say(&mut engine, n); }
+    for (k, n) in (342..=468).step_by(2).enumerate() { deliver(&mut engine, 6_700 + k as i64, n, n); }
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_800, "win")).len(), 64);
+    let full = engine.mutate("delivered", None, at("bob", 6_810, &run(win(), 472, 472))).unwrap();
+    sent(&full);
+    assert_eq!((full.events, states(&every(&mut engine), 472, 472)), (0, ["sent"].into()), "a sixty-fifth run waits, unrecorded, without a refusal");
+    deliver(&mut engine, 6_820, 343, 345);
+    assert_eq!(stored(&progress(&mut engine, "bob", 6_825, "win")).len(), 62, "a merge frees room");
+    deliver(&mut engine, 6_830, 472, 472);
+    assert_eq!(states(&every(&mut engine), 472, 472), ["delivered"].into(), "the waiting run, sent again, is recorded");
+    // Leaving drops a member's runs, so a rejoin starts clean.
+    sent(&engine.mutate("leave", None, at("bob", 6_840, &[win()])).unwrap());
+    sent(&engine.mutate("add", None, at("alice", 6_850, &[win(), ("principal", id("bob"))]).with_ids(["xb2".into()])).unwrap());
+    let bob = progress(&mut engine, "bob", 6_860, "win");
+    assert_eq!((watermark(&bob, "delivered"), stored(&bob), next(&bob)), (480, vec![], vec![]), "a rejoined member has no runs and nothing ahead");
     // The worst page: 49 recipients, each read against every message on it.
     let wide = || ("conversation", id("wide"));
     let people: Vec<String> = (1..=49).map(|n| format!("w{n}")).collect();
