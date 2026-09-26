@@ -51,11 +51,11 @@ table messages:
   recipients: int
   text: text <=2000
   at: time
-  unique conversation, ordinal
+  unique byConversationOrdinal: conversation, ordinal
   immutable conversation, sender, ordinal, recipients, at
   read <- exists members[.conversation, viewer]
   insert <- .sender = viewer and exists members[.conversation, viewer]
-  sync to members[.conversation] last 500 by .ordinal
+  sync to members[.conversation] last 500 by byConversationOrdinal
 
 fn receipt(m: messages):
   state = 'read'
@@ -77,7 +77,7 @@ query history(conversation: conversations, c: cursor ?):
 query progress(conversation: conversations, c: cursor ?):
   me = members[conversation, viewer] ! else NOT_MEMBER
   delivered = max(me.deliveredOrdinal, me.joinedOrdinal)
-  return { member: me, runs: runs where .conversation = conversation and .principal = viewer, ahead: messages where .conversation = conversation and .ordinal > delivered first 100 by .ordinal after c }
+  return { member: me, runs: runs where .conversation = conversation and .principal = viewer, ahead: messages where .conversation = conversation and .ordinal > delivered and .ordinal <= delivered + 100 last 100 by .ordinal after c }
 
 mutation send(conversation: conversations, text: text <=2000):
   require exists members[conversation, viewer] else NOT_MEMBER
@@ -155,8 +155,10 @@ message the client did not fetch, nor moves back.
 Three things keep every fetched message moving:
 
 - **Catching up.** `progress` answers with the member's row, their stored runs
-  and the page of at most 100 messages ahead of the prefix, counted from the
-  join, then the next page as the prefix moves, until the client is caught up.
+  and the next 100 ordinals ahead of the prefix, counted from the join,
+  newest first within that interval. Then the next interval as the prefix
+  moves, until the client is caught up. Ordinals are contiguous: this card
+  never deletes messages. An interval below the acquired window needs the server.
   It never needs the page's cursor.
 - **Owing.** For the life of the signed-in client, a remount included, the
   hook keeps what it has fetched, merged into disjoint runs, for this viewer
