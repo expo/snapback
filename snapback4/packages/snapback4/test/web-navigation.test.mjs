@@ -316,6 +316,58 @@ for (const blockedCleanup of [false, true]) test(`first pagehide dispatch surviv
   } finally { stall = false; release?.(); }
 });
 
+test("a second exit before its status commit supersedes the first acknowledged exit and later hold", async t => {
+  const f = await fixture(t, { holdExit: true });
+  let storage = new Map();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null,
+    getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value),
+    removeItem() { throw Error("cleanup unavailable"); },
+  } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "localStorage", previous) : delete globalThis.localStorage);
+  const core = f.cores[0], call = core.call.bind(core);
+  core.call = (request, ...args) => request.op === "begin_send"
+    ? Promise.resolve({ denied: { code: "E_OFFLINE", family: "link", message: "ordinary dispatch blocked" } }) : call(request, ...args);
+  const admitted = await f.client.mutate(send, { conversationId: "c1", body: "two exits" }, { waitSeconds: 0 });
+  await tick();
+  f.window.dispatchEvent(new Event("pagehide"));
+  await until(async () => (await f.client.pendingWrites())[0]?.reason === "E_BUSY");
+  await tick(); // The first exit releases its active transport slot.
+  const name = [...f.persist.stores].find(([, entries]) => [...entries.values()].some(c => c.s === "o" && c.k === admitted.id))?.[0];
+  assert.ok(name);
+  const first = (await f.persist.load(name)).find(c => c.s === "j" && c.k === `exit:${admitted.id}`).v;
+  assert.equal(storage.get(JSON.parse(first).key), first, "blocked cleanup retains the acknowledged first marker");
+  const save = f.persist.save.bind(f.persist);
+  let release, saving = false;
+  f.persist.save = async (name, changes) => {
+    if (!saving && changes.some(c => c.s === "m" && c.k === "device:send_revision")) {
+      saving = true; await new Promise(resolve => { release = resolve; });
+    }
+    await save(name, changes);
+  };
+  try {
+    f.holdExit();
+    f.window.dispatchEvent(new Event("pageshow"));
+    f.window.dispatchEvent(new Event("pagehide"));
+    await until(() => saving);
+    assert.equal(f.requests.length, 2);
+    const saved = await f.persist.load(name);
+    assert.equal(saved.find(c => c.s === "j" && c.k === `exit:${admitted.id}`).v, first);
+    assert.equal(JSON.parse(saved.find(c => c.s === "o" && c.k === admitted.id).v).dispatch, "E_BUSY");
+    const copy = memoryPersistence();
+    for (const [key, entries] of f.persist.stores) copy.stores.set(key, new Map(structuredClone([...entries])));
+    const options = { url: f.url, persona: "alice", device: webDevice({ wasm, persist: copy }), fetch: () => Promise.reject(new TypeError("reopen offline")) };
+    const originalStorage = storage; storage = new Map(storage);
+    const opened = await prepareClient(options, () => createLocalClient(options));
+    try {
+      assert.deepEqual((await opened.client.pendingWrites()).map(w => [w.id, w.state, w.reason]), [[admitted.id, "sent", undefined]],
+        "the first acknowledgement cannot swallow a second exit whose status never committed");
+    } finally { await opened.client.close(); storage = originalStorage; }
+    assert.deepEqual(f.ordinaryRequests, []);
+  } finally { release?.(); f.persist.save = save; f.releaseExit(); }
+});
+
 for (const fault of ["failed marker capture", "denied begin_send", "throwing begin_send"])
 for (const cleanup of (fault === "failed marker capture" ? ["available"] : ["available", "remove throws", "remove and overwrite throw"]))
 test(`first pagehide dispatch with ${fault} starts no keepalive and reopens queued (cleanup ${cleanup})`, async t => {

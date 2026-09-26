@@ -149,7 +149,7 @@ export class AdmissionJournal {
     const key = `${prefix(this.name)}exit:${id}`;
     remove(key);
     if (!absent(key)) {
-      // A refused dispatch is not send evidence. If both stores fail, keep
+      // A refused dispatch is not send evidence. If both attempts fail, keep
       // the staged acknowledgement for the next ordinary commit to retire it.
       try {
         const store = storage();
