@@ -4,7 +4,7 @@ import { mintId } from "snapback4/client";
 import type { Write } from "snapback4/contract";
 import { useClient, usePendingWrite, usePage, useViewer } from "snapback4/react";
 import { api } from "../../chat/snapback/generated/api";
-import { IntentJournal, clearSubmitted, intentOutcome, type Intent } from "./intents";
+import { IntentJournal, intentOutcome, type Intent } from "./intents";
 import { intentStorage } from "./intent-store";
 
 type Props = { conversationId: string; backend: string; onBack(): void };
@@ -24,7 +24,7 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
   const [intents, setIntents] = useState<Intent[]>([]);
   const [outcomes, setOutcomes] = useState<Record<string, Write>>({});
   const [problem, setProblem] = useState("");
-  const [admitting, setAdmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<string>();
   const lifetime = useRef({ active: true, admitting: false });
   useEffect(() => {
     const owner = { active: true, admitting: false }; lifetime.current = owner;
@@ -37,19 +37,21 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
     if (!owner.active || owner.admitting || !text) return;
     const intent: Intent = { id: mintId(), room: conversationId, op: "send", body: text };
     const current = () => owner.active && client.viewer() === viewer && client.link() !== "signed-out";
+    // Save before dispatch. A crash in this gap leaves an unknown receipt;
+    // only the SDK owns replay, under the original ID and arguments.
+    try { journal.remember(intent); }
+    catch { setProblem("Not sent: could not save it on this device; your draft is kept."); return; }
     try {
-      // Save before dispatch. A crash in this gap leaves an unknown receipt;
-      // only the SDK owns replay, under the original ID and arguments.
-      journal.remember(intent);
       setIntents(saved => [...saved, intent]);
-      owner.admitting = true; setAdmitting(true); setProblem("");
+      owner.admitting = true; setSubmitting(intent.id); setProblem("");
+      setBody("");
       const outcome = await client.mutate(api.send, { conversationId, body: text }, { id: intent.id, waitSeconds: 0 });
       if (!current()) return;
       setOutcomes(saved => ({ ...saved, [intent.id]: outcome }));
-      if (outcome.state !== "failed") setBody(current => clearSubmitted(current, submitted));
+      if (outcome.state === "failed") setBody(current => current || submitted);
     } catch (error) {
-      if (current()) setProblem(`Could not confirm this write. Keep the draft and check the conversation before sending again. ${String(error)}`);
-    } finally { if (current()) { owner.admitting = false; setAdmitting(false); } }
+      if (current()) setProblem(`Could not confirm this write. Check the receipt and the conversation before sending again. ${String(error)}`);
+    } finally { if (current()) { owner.admitting = false; setSubmitting(undefined); } }
   };
   const dismiss = useCallback((id: string) => {
     try {
@@ -67,7 +69,7 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
     {"loading" in read ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
     {"denied" in read ? <Text style={styles.alert}>{read.denied.message}</Text> : null}
     {"data" in read && !read.complete ? <Text style={styles.note}>History may be incomplete.</Text> : null}
-    <FlatList inverted data={"data" in read ? items : []}
+    <FlatList inverted data={"denied" in read ? [] : items}
       keyExtractor={message => message.id} onEndReached={hasMore ? loadMore : undefined}
       renderItem={({ item }) => <View style={[styles.bubble, item.authorId === viewer ? styles.own : null, item.pending ? styles.pending : null]}>
         <Text>{item.body}</Text><Text style={styles.note}>{item.pending ? "Sending…" : new Date(item.at).toLocaleTimeString()}</Text>
@@ -75,24 +77,27 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
     />
     <View style={styles.composer}>
       <TextInput style={styles.input} value={body} onChangeText={setBody} placeholder="Message" />
-      <Button title="Send" disabled={admitting || !body.trim()} onPress={() => { void submit(); }} />
+      <Button title="Send" disabled={!!submitting || !body.trim()} onPress={() => { void submit(); }} />
     </View>
     {problem ? <Text style={styles.alert}>{problem}</Text> : null}
     <View accessibilityLabel="Writes"><Text>Writes</Text>
-      {intents.map(intent => <Receipt key={intent.id} intent={intent} outcome={outcomes[intent.id]} dismiss={dismiss} edit={setBody} />)}
+      {intents.map(intent => <Receipt key={intent.id} intent={intent} outcome={outcomes[intent.id]} submitting={submitting === intent.id} dismiss={dismiss} edit={text => setBody(current => current ? `${current} ${text}` : text)} />)}
     </View>
   </View>;
 }
 
-function Receipt({ intent, outcome, dismiss, edit }: { intent: Intent; outcome?: Write; dismiss(id: string): void; edit(body: string): void }) {
+function Receipt({ intent, outcome, submitting, dismiss, edit }: { intent: Intent; outcome?: Write; submitting: boolean; dismiss(id: string): void; edit(body: string): void }) {
   const receipt = usePendingWrite(api.send, intent.id);
   const write = receipt.last && receipt.last.state !== "pending" ? receipt.last : outcome ?? receipt.last;
   useEffect(() => { if (write?.state === "sent") dismiss(intent.id); }, [write?.state, intent.id, dismiss]);
   if (write?.state === "sent") return null;
+  const checking = !write && receipt.restoring;
+  const actionable = !submitting && !checking && write?.state !== "pending";
   return <View>
-    <Text style={write?.state === "failed" ? styles.alert : styles.note}>{intentOutcome(write)}</Text>
-    {write?.state === "failed" ? <><Text selectable>{intent.body}</Text><Button title="Edit" onPress={() => edit(intent.body)} /></> : null}
-    {write?.state !== "pending" ? <Button title="Dismiss" onPress={() => dismiss(intent.id)} /> : null}
+    <Text style={write?.state === "failed" ? styles.alert : styles.note}>{submitting ? "Saving…" : checking ? "Checking…" : intentOutcome(write)}</Text>
+    {actionable ? <Text selectable>{intent.body}</Text> : null}
+    {actionable && write?.state === "failed" ? <Button title="Edit" onPress={() => edit(intent.body)} /> : null}
+    {actionable ? <Button title="Dismiss" onPress={() => dismiss(intent.id)} /> : null}
   </View>;
 }
 

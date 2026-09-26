@@ -223,12 +223,14 @@ interface WriteHook<A, R> {
   inFlight: boolean;
 }
 function useTrackedMutation<A, R>(op: Ephemeral<A, R>): MutationHook<A, Signal<R>>;
-function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string): WriteHook<A, R>;
+function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string): WriteHook<A, R> & { restoring: boolean };
 function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: string): MutationHook<A, Write<R> | Signal<R>> | WriteHook<A, R>;
-function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: string) {
+function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: string): MutationHook<A, Write<R> | Signal<R>> & { restoring?: boolean } {
   const client = useClient();
   const [last, setLast] = useState<Write<R> | Signal<R> | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
+  const restoration = useMemo(() => ({ pending: !!id }), [client, op, id]);
+  const [, refreshRestoration] = useState(0);
   const lifetime = useRef({ active: true, pending: 0, next: 0, latest: 0, ids: new Map<string, number>(), early: new Map<string, Exclude<Write, { state: "pending" }>>() });
   useEffect(() => {
     if (!lifetime.current.active) {
@@ -237,6 +239,12 @@ function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: str
       setInFlight(false);
     }
     const owner = lifetime.current;
+    const restoredLookup = () => {
+      if (owner.active && lifetime.current === owner && restoration.pending) {
+        restoration.pending = false;
+        refreshRestoration(n => n + 1);
+      }
+    };
     if (id) owner.ids.set(id, owner.latest);
     let restored = false;
     const unsubscribe = op.ephemeral ? () => {} : client.onWrite((write) => {
@@ -251,16 +259,16 @@ function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: str
         return;
       }
       owner.ids.delete(write.id);
-      if (write.id === id) restored = true;
+      if (write.id === id) { restored = true; restoredLookup(); }
       if (owner.active && lifetime.current === owner && run === owner.latest) setLast(write as Write<R>);
     });
     if (id) void client.write(id).then(write => {
       if (!restored && owner.active && lifetime.current === owner && owner.latest === 0) {
         setLast(write as Write<R> | undefined);
       }
-    }).catch(() => { /* No receipt is not a failed mutation. Keep the subscribed outcome. */ });
+    }).catch(() => { /* No receipt is not a failed mutation. Keep the subscribed outcome. */ }).finally(restoredLookup);
     return () => { owner.active = false; unsubscribe(); };
-  }, [client, op, id]);
+  }, [client, op, id, restoration]);
   const run = useCallback(async (args: A, options?: MutateOptions): Promise<Write<R> | Signal<R>> => {
     const owner = lifetime.current;
     const serial = ++owner.next;
@@ -291,7 +299,7 @@ function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: str
     }
     return outcome;
   }, [client, op]);
-  return { run, last, inFlight };
+  return { run, last, inFlight, restoring: restoration.pending };
 }
 
 /** A write's latest outcome and in-flight calls, including terminal settlement. */
@@ -303,7 +311,9 @@ export function useMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>) {
 
 /** Track one write from submit to sent/failed. Pass its saved mutation id to
  * recover after remount/reopen without submitting it again. Unknown ids leave
- * last undefined. pending includes the interval before mutate returns an id. */
+ * last undefined. pending includes the interval before mutate returns an id.
+ * `restoring` is true while a saved id's recorded outcome is being looked up;
+ * `last === undefined` means unknown only once `restoring` is false. */
 export function usePendingWrite<A, R>(op: Mutation<A, R>, id?: string) {
   const write = useTrackedMutation(op, id);
   return { ...write, pending: write.inFlight || write.last?.state === "pending" };

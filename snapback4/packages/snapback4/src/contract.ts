@@ -119,7 +119,9 @@ export interface MutateOptions {
    * id — or with the refusal that prevented custody, so a composer can clear its
    * draft and take the next send. Custody is the device outbox, `createApp`'s
    * online intent journal, or the online client's memory queue. Settlement still
-   * reaches `onWrite`, `client.write(id)` and a hook's `last`. */
+   * reaches `onWrite`, `client.write(id)` and a hook's `last`.
+   * `createApp`'s online tier identifies its store before its first custody,
+   * which needs the network. */
   // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — admission is its own boundary, before settlement.
   readonly waitSeconds?: number;
 }

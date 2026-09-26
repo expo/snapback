@@ -62,10 +62,13 @@ A ready list read always carries an array; an absent point can still be null.
 remain visible while a later page is unavailable.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
-as do held queries and retained left groups. A query the device cannot answer
-completely stays `loading` and asks no server while this device holds a
-predictable pending write to a table the query reads; writes to unrelated
-tables do not hold it. A total or extremum (`count`, `sum`, `min`, `max`) over input past the sync horizon, or a point read past it (a quoted message, a joined row), withholds the whole answer on the device; an order differing from the horizon's order alone gives partial data (`complete: false`).
+as do held queries and retained left groups. While this device holds a predictable pending write to a table a query reads,
+that query asks no server; a write with an unknown predicted footprint blocks
+every query. Writes to unrelated tables do not hold it. A withheld answer
+(a total/extremum over input past the horizon, a point read past it, or another
+speculative answer) stays `loading`; a local partial answer (`complete: false`,
+e.g. an order unlike the window's) stays partial. See `prediction-routing.test.mjs`
+for the unchanged Rules 1–5.
 Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
 decorations in their own query so the main list never waits on them.
 Keep the screen shell and draft mounted; render current reads.

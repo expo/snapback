@@ -62,8 +62,3 @@ export function intentOutcome(write: Write | undefined): string {
   if (write.state === "pending") return `Queued on this device${write.reason ? `: ${write.reason}` : ""}`;
   return write.state === "failed" ? write.why.message : "Sent";
 }
-
-// @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — remove the submitted prefix, preserving edits made during admission.
-export function clearSubmitted(current: string, submitted: string): string {
-  return current.startsWith(submitted) ? current.slice(submitted.length) : current;
-}

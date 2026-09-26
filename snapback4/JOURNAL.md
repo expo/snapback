@@ -63475,3 +63475,47 @@ includes six admission/edit outcomes. Initial test-only mistakes (a Result
 assertion spelled as Option, and not draining the VM's async continuation)
 were corrected; no pre-existing product failure was observed. The uncommitted
 `CCP-REPORT-F1.md` records exact summaries, CLI verification and file sizes.
+
+### 2026-09-26 — CCP F2 review corrections
+
+Applied the F2 brief for LLP 3000.008.002.000 on `sb4/ccp-f2`, from
+`def8935a08`. The brief supersedes the RFC's earlier prefix-clearing and
+receipt-recipe wording. Both starters clear the composer at submit, after the
+saved-intent journal accepts the reference and before zero-wait dispatch.
+Immediate refusal restores only an empty field; failed intents retain their
+text and Edit/Dismiss. Web now saves the body, tolerates old references without
+it (`text not kept`), and keeps its input mounted through room loading. Edit
+uses a space to append to an occupied single-line field: a newline was stripped
+by the browser in the first regression run. Unknown receipts show saved text
+and Dismiss only after submission and lookup finish. `usePendingWrite` exposes
+`restoring`, ended by a resolved/rejected lookup or a live receipt for that id.
+Expo retains page one's current rows while page two loads; first-page gaps and
+denial still hide protected rows.
+
+Existing online intent/receipt lookup skips an unchanged journal save, so a
+storage outage cannot replace known custody with a fresh-admission refusal.
+Fresh admission still fails with E_STORE on save failure. The mock reserves
+supplied ids through MutationIds, compares input, and recovers the original
+pending write or receipt; its internal mock-id format stays unchanged. Nullish
+wait values preserve tier defaults. The only contract edit is the lead's exact
+network-before-first-online-custody note.
+
+The reads/client cards distinguish withheld answers from local partial data
+under the unchanged prediction fence, including unknown predicted footprints.
+The client card delegates receipts to `guide receipts`, removes its competing
+Quarry and engine test/census entry, and names acquisition-gated background
+hooks and foreground newest-message `seen`. PendingSend is a single-send
+example; reload-safe observation points to the client card. README stays at
+300 lines and no budget, device Rust, wasm artifact, outbox, retention law or
+local-query rule changes. LLP 3000.019 P3 and per-caller wait policy for
+simultaneous same-id calls remain the lead's deferred work. The existing
+`state.ts` export already carries the expanded web Intent type; init sources
+include the reference composer/journal directly, with the separate web-app
+room owner corrected too.
+
+Verification is targeted, per the explicit F2 override: no scripts/test.sh.
+Focused React, docs, online custody and mock regressions passed 56 tests after
+the separator correction; the guide suite passed 86 tests. Final targeted
+counts and command logs will be recorded in the uncommitted CCP-REPORT-F2.md
+and /tmp/ccp-f2. No push, merge, rebase, stash, other-worktree edit, new Cargo
+target directory, node_modules copy or changes to other processes.

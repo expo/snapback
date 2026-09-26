@@ -1,6 +1,6 @@
 import type { Client } from "snapback4/contract";
 
-export type Intent = { id: string; room: string; operation: "send" | "markRead" };
+export type Intent = { id: string; room: string; operation: "send" | "markRead"; body?: string };
 type Saved = { route?: string; intents: Intent[] };
 
 // @ref LLP 3000.011.003.000#2 — view references belong to one backend and principal; the SDK owns replay.
@@ -18,7 +18,7 @@ export class ViewState {
       const value = JSON.parse(raw) as Saved;
       return {
         ...(typeof value.route === "string" ? { route: value.route } : {}),
-        intents: Array.isArray(value.intents) ? value.intents.filter(i => typeof i.id === "string" && typeof i.room === "string" && (i.operation === "send" || i.operation === "markRead")) : [],
+        intents: Array.isArray(value.intents) ? value.intents.filter(i => typeof i.id === "string" && typeof i.room === "string" && (i.operation === "send" || i.operation === "markRead")).map(i => ({ ...i, body: typeof i.body === "string" ? i.body : undefined })) : [],
       };
     } catch { return { intents: [] }; }
   }
@@ -29,9 +29,4 @@ export class ViewState {
   route(room: string) { this.update(saved => ({ ...saved, route: room })); }
   remember(intent: Intent) { this.update(saved => ({ ...saved, intents: [...saved.intents, intent] })); }
   forget(id: string) { this.update(saved => ({ ...saved, intents: saved.intents.filter(i => i.id !== id) })); }
-}
-
-// @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — remove the submitted prefix, preserving edits made during admission.
-export function clearSubmitted(current: string, submitted: string): string {
-  return current.startsWith(submitted) ? current.slice(submitted.length) : current;
 }

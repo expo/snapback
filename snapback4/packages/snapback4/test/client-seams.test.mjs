@@ -1090,3 +1090,31 @@ for (const tier of ["native", "web", "online", "app-online"]) test(`CCP admissio
   assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_WRITE_ID");
   hold = false;
 });
+
+for (const tier of ["native", "web"]) for (const fault of ["reject", "deny"]) test(`CCP zero-wait ${tier} admit ${fault} fails before dispatch`, async t => {
+  const f = await fixture(t), opener = tier === "native" ? f.device : f.web;
+  let admissions = 0, dispatches = 0;
+  const device = { async open(...args) {
+    const core = await opener.open(...args);
+    return { ...core, async call(request, committed) {
+      if (request.op === "admit") {
+        admissions++;
+        if (fault === "reject") throw Error("admission store unavailable");
+        return { denied: { code: "E_STORE", family: "store", message: "admission denied" } };
+      }
+      return core.call(request, committed);
+    } };
+  } };
+  const client = await createLocalClient({ url: f.url, persona: "alice", device, fetch: (input, init) => {
+    if (new URL(input).pathname.startsWith("/m/")) dispatches++;
+    return fetch(input, init);
+  } });
+  f.clients.push(client);
+  await client.query({ kind: "query", name: "receipts" }, {});
+  const outcome = await client.mutate(mutation("record"), { n: 42 }, { waitSeconds: 0 });
+  assert.equal(admissions, 1, "the refusal reaches the device admission boundary");
+  assert.equal(outcome.state, "failed"); assert.equal(outcome.why.code, "E_STORE");
+  await sleep(30);
+  assert.equal(dispatches, 0, "zero wait cannot dispatch an unadmitted write");
+  t.diagnostic(`${tier} ${fault}: ${admissions} admission, ${dispatches} dispatches, outcome=${outcome.state}`);
+});
