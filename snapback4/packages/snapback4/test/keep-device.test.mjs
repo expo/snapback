@@ -160,14 +160,14 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
     assert.deepEqual(other.getSnapshot(), { loading: true }, "option, operation and arguments isolate keys");
     other.close();
   }
+  let wall = Date.now();
+  t.mock.method(Date, "now", () => wall);
   watch.close();
-  const wall = Date.now();
-  const now = t.mock.method(Date, "now", () => wall + 29_999);
+  wall += 29_999;
   watch = client.observe(query, {}, { keep: true });
   assert.ok("data" in watch.getSnapshot(), "before the 30-second boundary");
-  now.mock.restore(); watch.close();
-  const expiredAt = Date.now();
-  t.mock.method(Date, "now", () => expiredAt + 30_000);
+  watch.close();
+  wall += 30_000;
   watch = client.observe(query, {}, { keep: true });
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "at 30 seconds memory has expired");
   t.mock.restoreAll(); watch.close();
