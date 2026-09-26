@@ -59445,8 +59445,27 @@ The certificate now has a third class, `backlog`, which reads
 examined: …`. It keeps the read meter's allowance, because a burst or downtime
 can leave any backlog, and the summary counts it apart:
 `2 constant once background cleanup catches up (home, cards); 0 grow with
-data`. A timeline read cannot carry a filter of its own (`E_TIMELINE_READ`),
-so a Feed scan's filter is always the platform's retirement check. A residual
-filter over application data, a per-row read rule and a maintained aggregate
-over expiring contributions still grow. `guide bounds` says so, and the pinned
-certificates in the scale, expiry and Following tests moved with it.
+data`. Only the scan the compiler generates for a timeline read qualifies:
+its one filter is the platform's retirement check. A residual filter over
+application data, a per-row read rule and a maintained aggregate over expiring
+contributions still grow. `guide bounds` says so, and the pinned certificates
+in the scale, expiry and Following tests moved with it.
+
+## 2026-09-26 — Scale certificate round 1: only the compiler's own timeline scan is a backlog
+
+Both review families found the same High: the first cut trusted a table's
+name. A scan of the owned feed table with a filter of its own
+(`feedFeed[viewer] … where not .repost`) was called a backlog, though live
+reposts survive cleanup. So was any application table whose name ended in
+`Broadcast`, which is not even an owned suffix. Now the binder records the one
+scan it generates when it expands a timeline read, and the certificate grants
+`backlog` to that scan alone. An authored scan grows, even one that spells the
+platform's check by hand. Without the binder's record there is no proof, and
+the read grows too.
+
+Inside a growing certificate a cleanup site now keeps its own words. Under a
+condition whose only extra work is cleanup, it reads `constant once background
+cleanup catches up (…)`. Beside real growth, it reads `also, until background
+cleanup catches up, …`. The README and `guide bounds` describe three classes,
+and apply `backlog` only when cleanup explains all of an operation's variable
+work.

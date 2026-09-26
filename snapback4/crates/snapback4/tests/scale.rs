@@ -1,7 +1,7 @@
 //! Certificates are tested against compiled programs and actual meter work.
 #[path = "../src/scale.rs"]
 mod scale;
-use scale::{Class, analyze};
+use scale::{Class, analyze, analyze_bound};
 use snapback4_core::{Context, Engine, Value};
 use snapback4_lang::{Bound, compile, guide};
 use std::{collections::BTreeMap, fs, process::Command};
@@ -12,7 +12,7 @@ fn bound(source: &str) -> Bound {
     b
 }
 fn classes(b: &Bound) -> BTreeMap<String, Class> {
-    b.programs.iter().map(|p| (p.program.name.clone(), analyze(&b.schema, &p.program).class)).collect()
+    b.programs.iter().map(|p| (p.program.name.clone(), analyze_bound(&b.schema, p).class)).collect()
 }
 
 #[test]
@@ -75,12 +75,47 @@ fn clique_operation_classes() {
     // and removal inside hour lanes. A page limit does not bound those skips.
     // The paved Following read skips only what cleanup purges: a backlog, not growth.
     pin_backlog(&b, &["follow", "insights", "like", "post", "register", "remove", "reply", "repost", "thread", "unfollow", "unlike", "unrepost"], &["following"], &["trending"]);
-    let certificate = |name: &str| analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == name).unwrap().program);
+    let certificate = |name: &str| analyze_bound(&b.schema, b.programs.iter().find(|p| p.program.name == name).unwrap());
+    let certificates: Vec<_> = b.programs.iter().map(|p| analyze_bound(&b.schema, p)).collect();
+    let summary = scale::summary(&certificates);
+    assert!(summary.contains("; 1 constant once background cleanup catches up (following); 1 grow with data (trending)"), "{summary}");
+    // Without the binder's record of its own expansion there is no proof: the read grows.
+    let following = &b.programs.iter().find(|p| p.program.name == "following").unwrap().program;
+    assert_eq!(analyze(&b.schema, following).class, Class::Grows);
     let trending = certificate("trending").line();
     assert!(trending.contains("not .removed") && trending.contains(".at") && !trending.contains("$bool"), "{trending}");
     assert!(certificate("following").line().contains("Following `feed` entries"));
     let like = certificate("like").line();
     assert!(like.contains("recorded-attribution point reads") && like.contains("`posts.likeCount`: at most 4 derived writes"), "{like}");
+}
+
+#[test]
+fn only_the_compilers_own_timeline_scan_is_a_cleanup_backlog() {
+    // A filter of one's own over the owned feed table, even the platform's check
+    // spelled out by hand, and a table that merely ends in Broadcast all grow.
+    let source = format!("{}{}", include_str!("../../../examples/clique-03/snapback/schema.q"), r#"
+query onlyOriginals(c: cursor ?):
+  return feedFeed[viewer] after c last 20 by byReaderPage where not .repost
+query spelledOut(c: cursor ?):
+  return feedFeed[viewer] after c last 20 by byReaderPage where (.actorId = viewer or exists feedEdges[readerId = viewer, actorId = .actorId, epoch = .epoch]) and not exists feedRemovedEvents[eventId = .eventId]
+table feedBroadcast:
+  hidden: bool
+  at: time
+  by byAt: at, id
+  public
+  online only
+query broadcasts(c: cursor ?):
+  return feedBroadcast after c last 20 by byAt where not .hidden
+"#);
+    let b = bound(&source);
+    let certificate = |name: &str| analyze_bound(&b.schema, b.programs.iter().find(|p| p.program.name == name).unwrap());
+    assert_eq!(certificate("following").class, Class::Backlog);
+    for name in ["onlyOriginals", "spelledOut", "broadcasts"] {
+        let c = certificate(name);
+        assert_eq!(c.class, Class::Grows, "{name}: {}", c.line());
+        assert!(c.growth_sites.iter().all(|g| !g.backlog), "{name}: {:?}", c.growth_sites);
+    }
+    assert!(certificate("onlyOriginals").line().contains("skipped by `not .repost`"), "{}", certificate("onlyOriginals").line());
 }
 
 const READS: &str = r#"

@@ -5,10 +5,22 @@ impl Certificate {
         let scope = if self.per_chunk { "per chunk — " } else { "" };
         let verdict = match self.class {
             Class::Constant => format!("constant — at most {} rows examined, {} probes, {} lanes", self.bounds.rows_examined, self.bounds.probes, self.bounds.lanes.map_or_else(|| "meter-bounded".into(), |n| n.to_string())),
-            Class::Grows if self.growth_sites.iter().any(|g| g.when.is_some()) => self.growth_sites.iter().map(|g| match &g.when {
-                Some(when) => format!("when {when}: grows with {}", g.reason), None => format!("grows with {}", g.reason),
+            // A cleanup site keeps its own words inside a growing certificate: under a condition
+            // whose only extra work is cleanup, that variant is constant once cleanup catches up.
+            Class::Grows if self.growth_sites.iter().any(|g| g.when.is_some()) => self.growth_sites.iter().map(|g| match (&g.when, g.backlog) {
+                (Some(when), true) if self.variants.iter().any(|v| &v.when == when && v.class == Class::Backlog) =>
+                    format!("when {when}: constant once background cleanup catches up ({})", g.reason),
+                (Some(when), true) => format!("when {when}: also, until background cleanup catches up, {}", g.reason),
+                (None, true) => format!("also, until background cleanup catches up, {}", g.reason),
+                (Some(when), false) => format!("when {when}: grows with {}", g.reason),
+                (None, false) => format!("grows with {}", g.reason),
             }).collect::<Vec<_>>().join("; "),
-            Class::Grows => format!("grows with {}", self.growth_sites.iter().map(|g| g.reason.as_str()).collect::<Vec<_>>().join("; ")),
+            Class::Grows => {
+                let (cleanup, grows): (Vec<_>, Vec<_>) = self.growth_sites.iter().partition(|g| g.backlog);
+                let reasons = |sites: &[&Growth]| sites.iter().map(|g| g.reason.as_str()).collect::<Vec<_>>().join("; ");
+                let also = if cleanup.is_empty() { String::new() } else { format!("; also, until background cleanup catches up, {}", reasons(&cleanup)) };
+                format!("grows with {}{also}", reasons(&grows))
+            }
             Class::Backlog => format!("constant once background cleanup catches up; until then at most {} rows examined: {}",
                 self.bounds.rows_examined, self.growth_sites.iter().map(|g| match &g.when {
                     Some(when) => format!("when {when}: {}", g.reason), None => g.reason.clone(),

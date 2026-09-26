@@ -452,11 +452,16 @@ impl Analysis<'_> {
             grows = true;
         }
         if let Some(filter) = &scan.filter {
-            let timeline = self.schema.timelines.iter().find(|t| ["Feed", "Broadcast"].iter().any(|suffix| t.table(suffix) == scan.table));
+            // A timeline read carries no filter of its own (E_TIMELINE_READ): the scan the
+            // compiler generates for it filters only by the platform's retirement check, and
+            // cleanup purges what that skips. Any authored scan, even of the owned feed table,
+            // can skip rows no cleanup removes, so it grows. Without the binder's record there
+            // is no proof, and the scan grows too. The expansion is a plain scan, never a lane,
+            // so it has no window.
+            let timeline = self.source.filter(|source| source.timeline_scan(&scan.site))
+                .and_then(|_| self.schema.timelines.iter().find(|t| t.table("Feed") == scan.table));
             let authored = self.source.and_then(|source| source.filter_source(&scan.site));
-            // A timeline read carries no filter of its own (E_TIMELINE_READ): its only
-            // filter is the platform's retirement check, and cleanup purges what it skips.
-            if let (None, Some(t)) = (&window, timeline) {
+            if let Some(t) = timeline {
                 self.backlog(&scan.site, format!("Following `{}` entries retired by an unfollow or a removal and not yet purged, skipped before {} match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)", t.name, display::bound(&scan.take)), "");
             } else {
                 let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };

@@ -189,7 +189,8 @@ Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; nev
 authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
 mutation commits atomically. A job sweeps; an effect records external work. An asset follows its row's read rule.
 `snapback4 check` ends with a scale line; `check --cost` gives each operation's certificate: **constant**
-(bounded work at any data size) or **grows with** a named site. A constant verdict is the structural proof
+(bounded work at any data size), **constant once background cleanup catches up** (only expired or retired rows
+that a background sweep removes add work, bounded by the read meter meanwhile), or **grows with** a named site. A constant verdict is the structural proof
 for a degradation rule; timing a constant operation measures noise. Cite the verdicts in scale reports.
 
 ```quarry
