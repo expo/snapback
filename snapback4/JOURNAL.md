@@ -63573,3 +63573,51 @@ frees this host (lanes' full suites were red only with load-sensitive cases that
 pass isolated and at base; the web starter witness times out at `Local data
 acquired` at the exact base too); a publication; the RFC's §8 cold build and
 native witness.
+
+
+## 2026-09-26 — P5: the device certifies the unread suffix (LLP 3000.020 revision 1)
+
+Implemented the supplied draft in lane `sb4-intent/p5-unread-range`, based on
+`992cec75c`. The device normalizes lower source/member comparisons, chooses
+the strongest bound on the sync horizon's first order column, and certifies
+against the saved full-key floor on the same parent prefix. Any null candidate
+falls back to whole-group coverage. Read and prediction use the same proof;
+retained rows never contribute. An uncovered expiring range publishes its
+current authorized live lower bound and an unknown fact, so the existing client
+asks the server online. A covered meter cut publishes its partial without
+asking. Non-expiring pending values keep their prior meaning.
+
+The guide now runs the complete private Clique shape with sequence positions,
+a conversation timer, expiry and `last 500` message sync. `check` reports the
+range/index/operators/horizon. The certificate calls the server's unmetered
+whole-live-basis count `grows`; a pure rule witness is constant. Expression
+`exists` retains its existing full-read semantics and is still `grows` over an
+expiring source. The guide's three new authorization sites are registered.
+The optional comparison binder admits matching scalar types with null ordering.
+
+Measured wasm: 2,024,421 B raw / 581,517 B gzip, versus baseline 2,021,689 /
+581,094: +2,732 raw / +423 gzip; 577 B below the unchanged 582,094 B ceiling.
+Borrowed bounds/prefixes and shared predicate/comparison traversal keep it
+inside that budget. There is no new index or adoption requirement, and the
+legacy `live_range` helper remains. Server certification, private accounting
+and durable recount cursors are unchanged. Remembered-answer expiry and
+bounding the server walk remain outside this RFC.
+
+Evidence: 39 shared scenarios on memory, SQLite and wasm, including cold
+reopen, floor ties, expiry/deletion, retained rejoin, authority and prediction;
+503 real guide sends yield exact 2 after reopening, then 0 at expiry. All eight
+required mutants are caught. Final affected reruns pass: native 37 tests, CLI/
+certificate 101, server accounting/legacy/witness 10, complete guide 86, census
+1, and wasm/client 43. `bun run build` and the wasm gate pass.
+
+The one complete `scripts/test.sh` run ended exactly
+`== 3 failure(s) in 3270 s`: `wasm build`, `cargo test`, `client tests`.
+The first two were ours: a 116 B wasm overrun and the three missing guide
+census entries; both are fixed and their checks pass. The two client failures
+were environmental dev-readiness timeouts in the memory legacy old-page empty-
+and replacement-history cases; both pass isolated (2/2). No persistent
+baseline failure is claimed. The complete run's remaining stages passed,
+including the client models and server/device disclosure tests; it was not
+repeated after the fixes. The full commands, failure reproductions and
+file-by-file record are in `reports/20260926-p5-unread-range.md`.
+This lane made local commits only; no push or publication.
