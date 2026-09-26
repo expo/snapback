@@ -20,14 +20,14 @@ fn key(name: &str, index: &str, group: &[Value]) -> Result<String, RuntimeError>
 }
 
 impl Boundaries {
-    pub fn load<T: DeviceTx>(tx: &T, staged: bool) -> Result<Self, RuntimeError> {
+    pub fn load(tx: &dyn crate::store::StreamTx, staged: bool) -> Result<Self, RuntimeError> {
         let prefix = if staged { STAGED } else { BOUNDARIES };
         Ok(Self { values: tx.meta_prefix(prefix)?.into_iter().map(|(k, v)| (k[prefix.len()..].to_owned(), (!v.is_empty()).then_some(v))).collect(), ..Self::default() })
     }
     /// Stream application addresses only the groups on this page. A read
     /// transaction instead loads the namespace once for all its merge lanes.
     pub fn editing(staged: bool) -> Self { Self { editing: Some(staged), ..Self::default() } }
-    fn ensure<T: DeviceTx>(&mut self, tx: &T, k: &str) -> Result<(), RuntimeError> {
+    fn ensure(&mut self, tx: &dyn crate::store::StreamTx, k: &str) -> Result<(), RuntimeError> {
         if let Some(staged) = self.editing && self.loaded.insert(k.to_owned()) {
             let prefix = if staged { STAGED } else { BOUNDARIES };
             if let Some(value) = tx.meta(&format!("{prefix}{k}"))? {
@@ -36,7 +36,7 @@ impl Boundaries {
         }
         Ok(())
     }
-    pub fn save<T: DeviceTx>(&self, tx: &T, staged: bool) -> Result<(), RuntimeError> {
+    pub fn save(&self, tx: &dyn crate::store::StreamTx, staged: bool) -> Result<(), RuntimeError> {
         let prefix = if staged { STAGED } else { BOUNDARIES };
         // A replacement publishes all staged groups and removes absent ones.
         // Ordinary pages compare only their cached, individually addressed entries.
@@ -53,7 +53,7 @@ impl Boundaries {
         for k in &self.removed { tx.delete_meta(&[&format!("{prefix}{k}")])?; }
         Ok(())
     }
-    pub fn marker<T: DeviceTx>(&mut self, tx: &T, schema: &Schema, marker: &wire::Acquisition, snapshot: bool) -> Result<(), RuntimeError> {
+    pub fn marker(&mut self, tx: &dyn crate::store::StreamTx, schema: &Schema, marker: &wire::Acquisition, snapshot: bool) -> Result<(), RuntimeError> {
         let valid = (|| {
             let table = schema.table(&marker.table)?;
             let horizon = table.sync.as_ref()?.horizon.as_ref()?;
@@ -94,7 +94,7 @@ impl Boundaries {
         }
         Ok(())
     }
-    pub fn accept<T: DeviceTx>(&mut self, tx: &T, name: &str, table: &Table, row: &Value, held: bool) -> Result<bool, RuntimeError> {
+    pub fn accept(&mut self, tx: &dyn crate::store::StreamTx, name: &str, table: &Table, row: &Value, held: bool) -> Result<bool, RuntimeError> {
         if held { return Ok(true); }
         let Some(sync) = &table.sync else { return Ok(true) };
         let Some(horizon) = &sync.horizon else { return Ok(true) };
@@ -105,7 +105,7 @@ impl Boundaries {
         let index = table.index(&horizon.by).expect("horizon index");
         Ok(snapback4_core::rows::index_key(index, row, row.field("id")?.as_str()?) >= snapback4_core::value::decode_bytes_hex(floor).unwrap_or_default())
     }
-    pub fn scope<T: DeviceTx>(&mut self, tx: &T, name: &str, table: &Table, group: &[Value]) -> Result<(), RuntimeError> {
+    pub fn scope(&mut self, tx: &dyn crate::store::StreamTx, name: &str, table: &Table, group: &[Value]) -> Result<(), RuntimeError> {
         if let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref()) {
             let k = key(name, &horizon.by, group)?;
             self.ensure(tx, &k)?;

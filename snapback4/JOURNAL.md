@@ -61622,3 +61622,22 @@ prevention, including every earlier failed case. The assertion was removed
 after qualification. `./ref-check --verbose` and `git diff --check` pass.
 The external `fix-forward-1.final.md` report retains the before/after regression
 logs, both failed suite attempts, the successful suite and the wasm measurement.
+
+## 2026-09-25 — device diet: share the cold stream applicator
+
+On `sb4/diet-20260925` from `0badac9872`, twiggy top/dominators/monos
+attribute the post-bindgen device before edits. The top 40 and the six
+candidate priorities are in `reports/20260925-diet/REPORT.md`; shallow raw
+symbol sizes are distinct from measured whole-artifact gzip deltas.
+
+The real transaction and the rollback-only recording transaction now borrow
+one rows/metadata interface through the cold stream applicator, boundary,
+history and media helpers. No boxed allocation, storage order, wire format,
+publication procedure or runtime ceiling changes. On Rust 1.97.0 /
+wasm-bindgen 0.2.127, the unchanged `build-wasm.sh` measures **1,991,416 B raw /
+576,762 B gzip**, from **2,009,397 / 577,221**: **459 B gzip saved**.
+The script tries wasm-opt 132 and keeps the smaller unoptimized gzip.
+Full-interface erasure saved no gzip; additionally sharing generic
+prepaid-scan bookkeeping increased gzip by 194 B and was discarded. The
+42 device library tests pass. Final blocking qualification and the lowered
+ratchet follow after the remaining candidates.

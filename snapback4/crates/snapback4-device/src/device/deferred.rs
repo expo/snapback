@@ -173,7 +173,7 @@ pub(super) fn acknowledge<T: DeviceTx>(tx: &T, watermark: u64, current: &BTreeMa
 
 type RecordedRows = RefCell<BTreeMap<(String, String), RecordedRow>>;
 
-fn upgrade_admission<T: DeviceTx>(tx: &T, name: &str, table: &Table, row: &Value, boundaries: &mut boundary::Boundaries, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
+fn upgrade_admission(tx: &dyn crate::store::StreamTx, name: &str, table: &Table, row: &Value, boundaries: &mut boundary::Boundaries, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
     if let Some(admissions) = admissions {
         let key = (name.to_owned(), row.field("id")?.as_str()?.to_owned());
         if let Some(recorded) = admissions.borrow_mut().get_mut(&key)
@@ -192,7 +192,9 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page
     events_recording(tx, schema, generation, page, touched, None)
 }
 
-fn events_recording<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
+// The real and recording transactions share one applicator; borrowing a trait
+// object avoids cloning the entire cold event path for each store wrapper.
+fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
     if expiry_clock::advance(tx, expiry_clock::KEY, page.now)? {
         touched.extend(schema.tables.iter().filter(|(_, table)| table.is_expiring()).map(|(name, _)| name.clone()));
     }

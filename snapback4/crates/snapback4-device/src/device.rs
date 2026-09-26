@@ -1106,7 +1106,7 @@ fn scope_group(table: &Table, event: &StreamEvent) -> Result<Vec<Value>, Runtime
 
 /// A group the device left: drop its rows (`until-revoked`) or keep what
 /// was delivered (`delivered-history`).
-fn leave<T: DeviceTx>(tx: &T, schema: &Schema, table_name: &str, group: &[Value]) -> Result<(), RuntimeError> {
+fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, group: &[Value]) -> Result<(), RuntimeError> {
     let Some(table) = schema.table(table_name) else { return Ok(()) };
     if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
     let Some(sync) = &table.sync else { return Ok(()) };
