@@ -23,7 +23,7 @@ import { changeFeed } from "./changes.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
+import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -1283,18 +1283,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         })();
       });
     },
-    async write(id) {
-      if (unavailable()) return undefined;
-      const entry = (await queued()).find(entry => entry.id === id);
-      if (unavailable()) return undefined;
-      const seq = entry?.sent_seq ?? entry?.observed_seq;
-      // @ref LLP 3000.013#6 — a shared correction answers only an id this device holds no outbox entry for.
-      const receipt = seq == null ? await (entry ? history.read(id) : history.lookup(id)) : await history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id));
-      if (unavailable()) return undefined;
-      if (!entry || (receipt && receipt.state !== "pending")) return receipt;
-      return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
-        ? { reason: !acquired ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
-    },
+    write(id) { return lookupWrite(history, queued, id, unavailable, () => acquired); },
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     async upload(bytes) {
@@ -1437,7 +1426,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   // @ref LLP 3000.007#20.4 — recover existing IDs before accepting a fresh synchronous web admission; custody stays with the outbox and its receipt window.
   await queued();
-  const keptWrites = (await call({ op: "meta", key: "write-history" })).ok as string | null;
+  // Remember shared ids to route retries through lookup, without retaining or
+  // settling their outcomes. Settlement's history.read remains strictly local.
+  const keptWrites = (await call({ op: "meta", key: "write-history", lookup: true })).ok as string | null;
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   const prepared = startDeferred(options);

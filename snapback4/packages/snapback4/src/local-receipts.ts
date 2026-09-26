@@ -26,3 +26,27 @@ export async function recoverReceipt(history: WriteHistory, call: Call, id: stri
   await settleReceipt(history, call, known);
   return known;
 }
+
+// @ref LLP 3000.013#6 — shared lookup is never settlement authority. Orphan
+// adoption can add custody while lookup awaits history; recompute locally.
+export async function lookupWrite(history: WriteHistory, queued: () => Promise<Queued[]>, id: string, unavailable: () => unknown, acquired: () => boolean): Promise<Write | undefined> {
+  if (unavailable()) return;
+  let entry = (await queued()).find(entry => entry.id === id);
+  if (unavailable()) return;
+  let receipt: Write | undefined;
+  if (!entry) {
+    receipt = await history.lookup(id);
+    if (unavailable()) return;
+    const adopted = (await queued()).find(entry => entry.id === id);
+    entry = adopted;
+  }
+  if (unavailable()) return;
+  if (entry) {
+    const seq = entry.sent_seq ?? entry.observed_seq;
+    receipt = seq == null ? await history.read(id) : await history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id));
+  }
+  if (unavailable()) return;
+  if (!entry || (receipt && receipt.state !== "pending")) return receipt;
+  return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
+    ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
+}

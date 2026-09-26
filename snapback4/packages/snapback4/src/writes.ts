@@ -192,12 +192,11 @@ export class WriteHistory {
     return durable ?? (receiptsOnly ? undefined : this.values.get(id));
   }
 
-  /** A caller's lookup of an id this device holds no outbox entry for. Only
-   * a durable replacement refusal consults the host's shared corrections, and
-   * nothing it returns is kept or settled. */
+  /** A caller's lookup without outbox custody may recover absent history or
+   * correct a replacement refusal from the shared window. It never settles it. */
   async lookup(id: string): Promise<Write | undefined> {
     const own = await this.read(id);
-    if (own?.state !== "failed" || own.why.code !== "E_STORE_REPLACED" || this.unpersisted.has(id) || !this.storage?.lookup) return own;
+    if ((own && (own.state !== "failed" || own.why.code !== "E_STORE_REPLACED")) || this.unpersisted.has(id) || !this.storage?.lookup) return own;
     const saved = await this.storage.lookup();
     return (saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined) ?? own;
   }

@@ -541,7 +541,7 @@ for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts pre
   incoming.push(sentReceipt("A0", 9999)); // Destination wins an id collision too.
   for (const receipt of incoming) await keepReceipt(orphan, receipt);
   await orphanClient.close(); await client.sync();
-  const kept = JSON.parse(ok(await destination.call({ op: "meta", key: "write-history" })));
+  const kept = JSON.parse(ok(await destination.call({ op: "meta", key: "write-history", lookup: true })));
   const surviving = kept.filter(receipt => receipt.id.startsWith("A")).length;
   const stores = [...f.persist.stores.entries()];
   const shared = stores.find(([name]) => name.endsWith(":receipts"))[1];
