@@ -1,0 +1,48 @@
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/social
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/social/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/social/snapback/schema.q`
+check: ok — 23 tables (21 synced), 25 operations, no problems, 6 notes, 25.8 ms
+note: schema.q:144:1 — N_NO_HORIZON: table messages: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync to members[.conversationId] last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+note: schema.q:10:1 — N_NO_HORIZON: table profiles: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync public last 500 by .createdAt
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+note: schema.q:100:1 — N_NO_CURSOR: query trending returns a page of 10 posts rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` in trending and append `after c` to this posts page, keeping its current predicate, direction and column order; read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+note: schema.q:209:1 — N_NEVER_COMPLETE: query receiptExample: the page over receipts[..] by read or declaration on receipts (message, id) at schema.q:195:12 is never `complete` — the read rule `.principal = viewer` reads .principal, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: pin .principal with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+  why: snapback4 why N_NEVER_COMPLETE
+
+note: schema.q:87:1 — N_MAINTAIN_SYNCED: 9 synced maintains.
+  rewrite: keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`
+  guide: residency
+  why: snapback4 why N_MAINTAIN_SYNCED
+
+note: schema.q:42:3 — N_MAINTAINED_COLUMN_STREAM: posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change
+  rewrite: use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use a view with online only
+  guide: maintains
+  why: snapback4 why N_MAINTAINED_COLUMN_STREAM
+
+scale: 14 of 25 operations are constant; 11 grow with data (home, trending, people, history, searchAll, daily, peopleAlternative, messageTotal, receiptExample, helperReads, twoSweeps); 3 job(s) assessed per chunk — `check --cost` gives the certificate
+1 mutations never predict: setFollow (reads online-only table followingWork) — snapback4 why <op>
+
+[exit 0]

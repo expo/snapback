@@ -353,7 +353,7 @@
     "id": "3.2-13",
     "form": "LLP 3000.015 `written by .principal` (+ `readable by audience`)",
     "before": "≈",
-    "after": "✗",
+    "after": "≈",
     "sql_lines": [
       142
     ],
@@ -362,13 +362,13 @@
       "field-authority-visible"
     ],
     "sql": "PASS",
-    "quarry": "FAIL — missing shared-baseline addition"
+    "quarry": "PASS"
   },
   {
     "id": "3.2-14",
     "form": "LLP 3000.015 `sequence by conversationId`",
     "before": "≈",
-    "after": "✗",
+    "after": "≈",
     "sql_lines": [
       11
     ],
@@ -376,7 +376,7 @@
       "sequence"
     ],
     "sql": "PASS",
-    "quarry": "FAIL — missing shared-baseline addition"
+    "quarry": "PASS"
   },
   {
     "id": "3.2-15",
@@ -607,7 +607,7 @@
     "id": "3.4-07",
     "form": "LLP 3000.015 `view unread: count messages by members m where …`",
     "before": "≈",
-    "after": "✗",
+    "after": "≈",
     "sql_lines": [
       244
     ],
@@ -615,7 +615,7 @@
       "row-keyed"
     ],
     "sql": "PASS",
-    "quarry": "FAIL — missing shared-baseline addition"
+    "quarry": "PASS"
   },
   {
     "id": "3.4-08",

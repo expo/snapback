@@ -1,13 +1,18 @@
 # LLP 4001 §9 step 3 — Postgres 17 and Quarry form-table verification
 
-**Status:** completed on the assigned checkout, with explicit GAPs; **not a
-shared-baseline qualification**. RFC remains Draft. Pre-test 1 was not run.
+**Status:** shared-baseline form-table binding recheck completed at
+`da443e4d44` on 2026-09-25. All three provisional GAP rows now bind and
+return from ✗ to ≈; the eight predeclared GAPs remain. RFC remains Draft.
+Pre-test 1 is authorized from this commit and was not run. The
+[dated recheck](#2026-09-25--shared-baseline-recheck-at-da443e4d44) records the
+new commands and exact output; the original failures below remain historical
+evidence, not current verdicts.
 
-The starting commit was `d9f177a434082e30dc295a0ed31440e1239bf75c`, branch
+The original verification starting commit was `d9f177a434082e30dc295a0ed31440e1239bf75c`, branch
 `sb5/proposal`. Revision 4 is local commit `0a2f2ce4f8`. Both commits have the
 same Snapback 4 subtree, `f301a6910c90123238c26de7a2c6def2f9369843`.
 No engine changes, other worktree, push, stash, publication or deployment.
-This report and its fixtures are the second local commit.
+The original report and its fixtures were the second local commit.
 
 PostgreSQL is **17.10 (Homebrew)** at `/opt/homebrew/opt/postgresql@17/bin`.
 Rust and Cargo are **1.97.0**. Cargo built the unchanged Snapback 4 workspace
@@ -28,12 +33,15 @@ to checked projects under [lowered](../stubs/lowered/).
 | --- | ---: | ---: | ---: | ---: |
 | Revision 3 (input) | 69 | 11 | 55 | 3 |
 | Revision 4, before verification | 82 | 10 | 64 | 8 |
-| After verification | 82 | 10 | 61 | 11 |
+| After original verification | 82 | 10 | 61 | 11 |
+| After shared-baseline recheck at `da443e4d44` | 82 | 10 | 64 | 8 |
 
-**74 SQL rows PASS; 71 Quarry rows PASS; 3 Quarry rows FAIL and are marked ✗;
-8 predeclared GAP rows have neither SQL nor a lowered column.** The three
-failed rows occupy four isolated negative projects because field authority
-is checked both with and without `readable by audience`.
+**74 SQL rows PASS (original Postgres 17 run); 74 Quarry rows PASS
+(shared-baseline recheck); 0 Quarry rows FAIL; 8 predeclared GAP rows have
+neither SQL nor a lowered column.** The three rows that originally failed
+occupy four isolated projects because field authority is checked both with
+and without `readable by audience`. The SQL fixtures and all lowered
+sources are unchanged; this recheck reruns Quarry only.
 
 SQL stubs are IMMUTABLE typed constants with no side effects. The fixed mint
 returns one dummy id, not a real allocator. PostgreSQL's FK/RLS/materialized
@@ -47,7 +55,7 @@ non-owner `form_reader` as well as ordinary calls. Expected E_RULE,
 NOT_FOUND and CANNOT_FOLLOW_SELF are caught only by harness blocks that
 assert the exact error message; unexpected failures abort the session.
 
-## What verification changed
+## What the original verification changed
 
 | Row / contract | Observation and correction |
 | --- | --- |
@@ -75,7 +83,7 @@ helpers, hidden-miss-preserving shape spelling, jobs and qualified calls
 are included. PostgreSQL successful execution is not a witness of future
 Snapback disclosure behavior.
 
-## Quarry failures retained as GAPs
+## Original Quarry failures (resolved by the dated recheck)
 
 | RFC row | Exact final fixture | Observed diagnostic |
 | --- | --- | --- |
@@ -83,18 +91,21 @@ Snapback disclosure behavior.
 | §3.2-14 | `sequence/snapback/schema.q` | E_QUARRY_SYNTAX: expected the end of the line, got `by`. |
 | §3.4-07 | `row-keyed/snapback/schema.q` | E_QUARRY_SYNTAX: unknown maintain property `where`, with subsequent indentation recovery errors; this parser has no row-keyed maintain form. |
 
-LLP 3000.015 is still Draft and its three additions are absent from the
-assigned Snapback 4 source tree. No baseline implementation was imported
-from another worktree or branch. They must land and these rows be rechecked
-before shared-baseline qualification or pre-test 1. Their ordinary-column
-lookalikes are never counted as passes for these rows.
+At the original verification, LLP 3000.015 was still Draft and its three
+additions were absent from the assigned Snapback 4 source tree. No baseline
+implementation was imported from another worktree or branch during that
+verification. The required landing and recheck are now complete at
+`da443e4d44`; the dated section below supersedes these failure verdicts.
+Ordinary-column lookalikes were never counted as passes for these rows.
 
 ## Row-by-row results
 
 SQL line links point to the relevant ROW marker (some DDL rows share setup).
 Quarry links name representative programs that were actually bound; when
 there is no emitted syntax (RLS enablement, implicit id, default residency)
-the surrounding bound declaration is the witness.
+the surrounding bound declaration is the witness. For the three rechecked
+rows, the mark history is revision 4 → original verification → recheck;
+`rows.json` retains revision 4 in `before` and the current mark in `after`.
 
 | Row | Quarry form | Before → after | Postgres 17 | Quarry check |
 | --- | --- | --- | --- | --- |
@@ -122,8 +133,8 @@ the surrounding bound declaration is the witness.
 | §3.2-10 | `sync public`, `sync to members[.conversationId]`, `sync to .principal`, `sync … last N by .k`, `by .principal` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L127) | PASS — [social](../stubs/lowered/social/snapback/schema.q), [types](../stubs/lowered/types/snapback/schema.q) |
 | §3.2-11 | `likeCount: count likes`, `count posts by .parentId`, `sum likes of .weight`, `count … where …` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L11) | PASS — [types](../stubs/lowered/types/snapback/schema.q) |
 | §3.2-12 | `public 'reason'` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L146) | PASS — [social](../stubs/lowered/social/snapback/schema.q), [types](../stubs/lowered/types/snapback/schema.q) |
-| §3.2-13 | LLP 3000.015 `written by .principal` (+ `readable by audience`) | ≈ → ✗ | [PASS](../stubs/form-table.sql#L142) | **FAIL → ✗** — [field-authority](../stubs/lowered/field-authority/snapback/schema.q), [field-authority-visible](../stubs/lowered/field-authority-visible/snapback/schema.q) |
-| §3.2-14 | LLP 3000.015 `sequence by conversationId` | ≈ → ✗ | [PASS](../stubs/form-table.sql#L11) | **FAIL → ✗** — [sequence](../stubs/lowered/sequence/snapback/schema.q) |
+| §3.2-13 | LLP 3000.015 `written by .principal` (+ `readable by audience`) | ≈ → ✗ → ≈ | [PASS](../stubs/form-table.sql#L142) | **PASS at `da443e4d44`** — [field-authority](../stubs/lowered/field-authority/snapback/schema.q), [field-authority-visible](../stubs/lowered/field-authority-visible/snapback/schema.q) |
+| §3.2-14 | LLP 3000.015 `sequence by conversationId` | ≈ → ✗ → ≈ | [PASS](../stubs/form-table.sql#L11) | **PASS at `da443e4d44`** — [sequence](../stubs/lowered/sequence/snapback/schema.q) |
 | §3.2-15 | `enable row level security` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L146) | PASS — [rules](../stubs/lowered/rules/snapback/schema.q), [social](../stubs/lowered/social/snapback/schema.q) |
 | §3.3-01 | `read <- expr` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L146) | PASS — [rules](../stubs/lowered/rules/snapback/schema.q), [social](../stubs/lowered/social/snapback/schema.q) |
 | §3.3-02 | `insert <- expr` | ✓ → ✓ | [PASS](../stubs/form-table.sql#L146) | PASS — [rules](../stubs/lowered/rules/snapback/schema.q), [social](../stubs/lowered/social/snapback/schema.q) |
@@ -140,7 +151,7 @@ the surrounding bound declaration is the witness.
 | §3.4-04 | `view originalPosts: count posts where .parentId = null by .authorId` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L234) | PASS — [social](../stubs/lowered/social/snapback/schema.q) |
 | §3.4-05 | `view receivedLikes: count likes by .postId.authorId` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L237) | PASS — [social](../stubs/lowered/social/snapback/schema.q) |
 | §3.4-06 | `view dailyLikes: count likes by .postId.authorId, day(.at)` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L240) | PASS — [social](../stubs/lowered/social/snapback/schema.q) |
-| §3.4-07 | LLP 3000.015 `view unread: count messages by members m where …` | ≈ → ✗ | [PASS](../stubs/form-table.sql#L244) | **FAIL → ✗** — [row-keyed](../stubs/lowered/row-keyed/snapback/schema.q) |
+| §3.4-07 | LLP 3000.015 `view unread: count messages by members m where …` | ≈ → ✗ → ≈ | [PASS](../stubs/form-table.sql#L244) | **PASS at `da443e4d44`** — [row-keyed](../stubs/lowered/row-keyed/snapback/schema.q) |
 | §3.4-08 | `view postTotals: … online only` | ≈ → ≈ | [PASS](../stubs/form-table.sql#L247) | PASS — [social](../stubs/lowered/social/snapback/schema.q) |
 | §3.4-09 | `shape postCard = { *, author: profiles[principal = .authorId], replyCount: replyCount[.id], liked: exists likes[.id, viewer] }`, applied to two sources | ≈ → ≈ | [PASS](../stubs/form-table.sql#L252) | PASS — [social](../stubs/lowered/social/snapback/schema.q) |
 | §3.4-10 | maintain residency without an override | ≈ → ≈ | [PASS](../stubs/form-table.sql#L230) | PASS — [social](../stubs/lowered/social/snapback/schema.q) |
@@ -1433,7 +1444,7 @@ server stopped
 Stopped only recorded postmaster PID 11240; pid file absent=True
 ```
 
-## Final Quarry transcripts
+## Original final Quarry transcripts
 
 ### effects — exit 0
 
@@ -1722,13 +1733,13 @@ scale: 9 of 9 operations are constant; 0 grow with data — `check --cost` gives
 | `snapback5/stubs/lowered/types/snapback/schema.q` | `91add289b7a3c8d199c68051f2616d40553eb43540c51bf95986e08efa66113c` |
 | `snapback5/stubs/lowered/writes/snapback/schema.q` | `4556d80eefed648c0e669ca4a581fb87deb94fb6658dc1fc4d3ba27dcf4ed17a` |
 
-## Reference validation
+## Original reference validation
 
 ```text
 ref-check: ok — 508 LLP docs, 9272 refs in 25996 files, 0 errors, 0 unchecked
 ```
 
-## Review dispositions and stopping point
+## Original review dispositions and stopping point
 
 Every round-3 item, including the choices where reviewers differed, is in
 [LLP 4001 §12](../../llp/4001-snapback5-sql-front-end.rfc.md#round-3-dispositions).
@@ -1736,3 +1747,159 @@ The three original reviews have append-only pointers, not fabricated new
 verdicts. The journal records the authoring-clarity choices and the missing
 baseline. No fourth review, pre-test 1, corpus replay, SQL compiler, runtime
 change, performance run, push, or publication occurred.
+
+
+## 2026-09-25 — shared-baseline recheck at da443e4d44
+
+Rechecked in `/Users/ccheever/projects/snapback-sb5`, branch `sb5/proposal`,
+on starting commit `da443e4d44a07d275acc392e68dc765658298486` and Snapback 4
+subtree `8baace2598b79ac6f2963cfbcbbcf4e2e6492781`. This commit carries LLP
+3000.015's three additions. Ran the existing runner unchanged:
+
+```sh
+python3 snapback5/stubs/run-quarry.py
+```
+
+The runner invokes `cargo run --locked --manifest-path …/snapback4/Cargo.toml
+-p snapback4 -- check …/snapback/schema.q` from each lowered project's root:
+`check` discovers that project's `snapback/*.q` from its working directory.
+Cargo rebuilt the landed shared crates once, on `effects` (19.20 s), then
+reused the build for the remaining eight projects. Cargo and rustc are
+1.97.0. The only compiler warning is the existing unused
+`MustBeShareDummy` trait in vendored tiny_http; exact output is retained.
+No lowered spelling needed correction, including the multiline row-keyed
+`count messages by members m` / `where …` form. All fixture digests above
+remain valid.
+
+| Row | Form | Before → after recheck | Quarry result |
+| --- | --- | --- | --- |
+| §3.2-13 | `written by .principal`, with and without `readable by audience` | ✗ → ≈ | Both projects exit 0; output distinguishes private-owner and audience visibility. |
+| §3.2-14 | `sequence by conversationId` | ✗ → ≈ | Exit 0; output identifies the shared parent counter, immutability and provisional state. |
+| §3.4-07 | `view unread: count messages by members m where …` | ✗ → ≈ | Exit 0; output identifies the row key, fanout ≤50, writer recount ≤1024 and background chunks ≤256. |
+
+The restored mark is ≈, the original mapping classification with the
+stated SQL/Snapback semantic differences, not ✓. Every other lowered
+project also exits 0. All 74 rows with lowerings now bind; the eight
+predeclared SQL GAPs remain. Postgres execution evidence is the original
+run above; the SQL fixtures were unchanged and Postgres was not rerun.
+
+| Lowered project | Exit | Exact recheck log |
+| --- | ---: | --- |
+| `effects` | 0 | [20260925-quarry-effects-attempt-04.log](./20260925-quarry-effects-attempt-04.log) |
+| `field-authority` | 0 | [20260925-quarry-field-authority-attempt-03.log](./20260925-quarry-field-authority-attempt-03.log) |
+| `field-authority-visible` | 0 | [20260925-quarry-field-authority-visible-attempt-02.log](./20260925-quarry-field-authority-visible-attempt-02.log) |
+| `row-keyed` | 0 | [20260925-quarry-row-keyed-attempt-03.log](./20260925-quarry-row-keyed-attempt-03.log) |
+| `rules` | 0 | [20260925-quarry-rules-attempt-03.log](./20260925-quarry-rules-attempt-03.log) |
+| `sequence` | 0 | [20260925-quarry-sequence-attempt-03.log](./20260925-quarry-sequence-attempt-03.log) |
+| `social` | 0 | [20260925-quarry-social-attempt-04.log](./20260925-quarry-social-attempt-04.log) |
+| `types` | 0 | [20260925-quarry-types-attempt-06.log](./20260925-quarry-types-attempt-06.log) |
+| `writes` | 0 | [20260925-quarry-writes-attempt-03.log](./20260925-quarry-writes-attempt-03.log) |
+
+LLP 4001 §3 and `rows.json` now carry the restored marks. §7 records that
+the shared-baseline prerequisite is met at `da443e4d44` and pre-test 1 is
+authorized from this commit, subject to its instrument freeze. The §6 and
+§9 baseline pointers agree. This is binding evidence, not execution of a
+transpiler or the future §4 equivalence gate. No pre-test, compiler/runtime
+change, push or publication was performed.
+
+### Exact check transcripts for the three rechecked rows
+
+#### field-authority — exit 0
+
+```text
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/field-authority
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/field-authority/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/field-authority/snapback/schema.q`
+check: ok — 1 tables (0 synced), 0 operations, no problems, 5.9 ms
+  members.readUpTo: written by .principal; visibility: private to owner
+scale: 0 of 0 operations are constant; 0 grow with data — `check --cost` gives the certificate
+
+[exit 0]
+```
+
+#### field-authority-visible — exit 0
+
+```text
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/field-authority-visible
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/field-authority-visible/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/field-authority-visible/snapback/schema.q`
+check: ok — 1 tables (0 synced), 0 operations, no problems, 5.4 ms
+  members.readUpTo: written by .principal; visibility: readable by audience
+scale: 0 of 0 operations are constant; 0 grow with data — `check --cost` gives the certificate
+
+[exit 0]
+```
+
+#### sequence — exit 0
+
+```text
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/sequence
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/sequence/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/sequence/snapback/schema.q`
+  sequence messages.ordinal: counter per conversations row through .conversationId; immutable, provisional while pending
+check: ok — 2 tables (0 synced), 0 operations, no problems, 6.7 ms
+scale: 0 of 0 operations are constant; 0 grow with data — `check --cost` gives the certificate
+
+[exit 0]
+```
+
+#### row-keyed — exit 0
+
+```text
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/row-keyed
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/row-keyed/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/row-keyed/snapback/schema.q`
+check: ok — 4 tables (0 synced), 0 operations, no problems, 10.3 ms
+scale: 0 of 0 operations are constant; 0 grow with data — `check --cost` gives the certificate
+  view unread: key messages.conversationId = members.conversationId; one value per members row; source fanout <= 50; writer recount <= 1024 examined source rows within remaining meter, then pending/background chunks <= 256
+
+[exit 0]
+```
+
+### Recheck reference validation
+
+```text
+$ ./ref-check --verbose
+ref-check: ok — 509 LLP docs, 9389 refs in 26776 files, 0 errors, 0 unchecked
+[exit 0]
+```

@@ -157,3 +157,22 @@ the checked fixtures have their own project wrappers under `stubs/lowered`.
 All routine bodies are executed; typed constant stubs make no runtime,
 authorization-equivalence, IR-equivalence or performance claim. No pre-test
 1, compiler implementation, fourth review, push or publication was run.
+
+
+## 2026-09-25 — LLP 4001 step 3 shared-baseline recheck
+
+Rechecked all nine lowered projects after the assigned `sb5/proposal`
+worktree reached `da443e4d44`, carrying LLP 3000.015. The existing runner
+rebuilt Snapback 4 once and all nine `check` invocations exited 0. Both
+`written by` visibility fixtures, `sequence by`, and the row-keyed count
+bind as written: no fixture correction or shared-engine change was needed.
+The [dated transcript](./reports/20260925-form-table-postgres17.md#2026-09-25--shared-baseline-recheck-at-da443e4d44)
+retains their exact commands and diagnostics and links every recheck log.
+
+The three provisional ✗ marks return to ≈ in `rows.json` and LLP 4001 §3;
+the table is now 82 rows (10 ✓ / 64 ≈ / 8 ✗), with all 74 lowerings bound.
+The unchanged SQL fixtures retain the original Postgres 17 execution
+witnesses. LLP 4001 §7 now records pre-test 1 as authorized from
+`da443e4d44`, subject to its instrument freeze. This recheck stops before
+that test and makes no transpiler, equivalence or runtime-performance claim.
+Root `./ref-check --verbose` passes with 0 errors and 0 unchecked refs.

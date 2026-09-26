@@ -6,6 +6,7 @@
 **Systems:** A SQL front-end for the Snapback 4 engine: Postgres's own parser, a resolver, a lowering to the Quarry declaration AST, a document printer, and the unchanged `snapback4` binary; policies as rules; a residency spelling; views and maintained aggregates; SQL and plpgsql subsets as queries, mutations and jobs; the guide; the pre-tests and the calibration protocol
 **Author:** Claude Fable 5.1, at Charlie Cheever's request ("let's try it", 2026-09-25)
 **Date:** 2026-09-25
+**Revised:** 2026-09-25 (step 3 shared-baseline recheck at `da443e4d44`: all nine lowered projects bind, including field authority with both visibility forms, sequence and row-keyed count; their three rows return from ✗ to ≈ without spelling changes; pre-test 1 authorized from this commit)
 **Revised:** 2026-09-25 (six-lane reference record: five complete lanes, terminated Opus Supabase, timestamp-derived clocks, grades and holistic scores); 2026-09-25 (step 3 verification after revision 4: executable SQL calls and actual Quarry binding; effect WorkDecl spelling, boolean-rule lowering, bounded reads, argument locals and missing shared-baseline additions corrected or marked GAP; transcript under snapback5/reports); 2026-09-25 (revision 4, after the round-3 reviews: finite SQL spellings and routine classes, in-process equivalence, re-registered pre-tests, mechanism-not-shown and joint power; §12 records every disposition; verification follows separately); 2026-09-25 (revision 3, after the round-2 delta reviews, all NOT READY and all saying "close, nothing needs a redesign" — [Astra](./reviews/4001-snapback5-sql-front-end.astra.md), [Grok](./reviews/4001-snapback5-sql-front-end.grok.md), [Opus](./reviews/4001-snapback5-sql-front-end.opus.md): every Snapback fact that is not legal Postgres after the stubs respelled as a `select snapback.…(…)` call or a `comment on`; reference columns, the principal type and the scalar mapping given rows; the update-rule combination stated as one formula; the transition form made the ordinary `returns trigger` function; `immutable` as a call that binds every writer; the document printer, the resolver and two-level parsing named as lane work; the equivalence gate redefined on the bound IR of the original pinned `.q` with the unchanged tools as oracle; the null ruling decided; the pre-tests re-registered with a corpus manifest, per-kind classes, per-instance idiom stops and margins; §8's floors restored to LLP 4000's design with the all-zero case and the N = 3 power stated; #19's forms given rows or GAPs; §12 records round-2 dispositions; **this is the bounded stop: the document goes to the author with the round-3 verdicts**); 2026-09-25 (revision 2); 2026-09-25 (§11 ruling); 2026-09-25 (initial)
 **Related:** [LLP 4000](./4000-snapback5.rfc.md) (the first bet, Shelved; §13 corrected again by this revision), [LLP 3000](./3000-snapback4.explainer.md), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) §5–§6, [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md), [LLP 3000.015](./3000.015-shared-baseline-for-snapback5.spec.md), [LLP 3000.009](./3000.009-general-purpose-backend.rfc.md) §6.2 (server-only SQL reads over declared projections; not a relief valve for this bet), [LLP 3000.012](./3000.012-application-still-owns-derived-data.research.md), [LLP 0329](./0329-agent-native-rebuild-diagnosis.research.md) and [LLP 0252](./0252-convex-familiar-authoring-profile.rfc.md), the [September 5 three-backend run](../benchmarks/runs/2026-09-05-clique-full-3x3/README.md)
 
@@ -121,9 +122,11 @@ check` on the shared baseline commit. The transcript of that run is
 committed with the table. Seed data and representative calls must execute every function and procedure
 body, including both branches and expected refusals; use a non-owner role
 for policy witnesses. Creating a plpgsql routine alone is not a pass. Rows
-that fail either check are corrected or marked ✗ before any pre-test. The assigned checkout lacks LLP 3000.015: its
-three rows are provisional GAPs pending baseline integration, not successful
-shared-baseline qualification. See the [step 3 transcript](../snapback5/reports/20260925-form-table-postgres17.md). This
+that fail either check are corrected or marked ✗ before any pre-test. LLP
+3000.015 is present at `da443e4d44`; the 2026-09-25 recheck binds all nine
+lowered projects, including its three previously provisional GAP rows,
+without spelling changes. Those rows return from ✗ to ≈; the eight
+predeclared GAPs remain. See the [step 3 transcript and dated recheck](../snapback5/reports/20260925-form-table-postgres17.md#2026-09-25--shared-baseline-recheck-at-da443e4d44). This
 is spelling/binding verification, not execution of the proposed transpiler
 or proof that the dummy SQL functions implement Snapback semantics.
 
@@ -163,8 +166,8 @@ Key: **✓** maps · **≈** maps with a stated difference · **✗** no spellin
 | `sync public`, `sync to members[.conversationId]`, `sync to .principal`, `sync … last N by .k`, `by .principal` | `select snapback.publish('messages');` with `horizon => 'last 500 by at'`, `recipient => 'principal'` as named arguments (omit `recipient` to infer a membership audience and its viewer column, emitting `by .principal` when the membership table has multiple principal columns) | `sync` (audience inferred from the select policy), `sync last N by .k`, `by .principal` | a published table whose select policy is not one of the three invertible shapes refuses with `E_SYNC`; publication means residency, not Supabase Realtime; `recipient` accepts one principal column only and must agree with the read rule; `horizon` is exactly `last <positive integer> by <column>` (**≈**, B) |
 | `likeCount: count likes`, `count posts by .parentId`, `sum likes of .weight`, `count … where …` | `like_count bigint generated always as (snapback.count('likes')) stored`; `snapback.count('posts', by => 'parent_id')`; `snapback.sum('likes', of => 'weight')`; `snapback.count('likes', by => 'post_id', "where" => 'selected')` | the maintained column | executes with an IMMUTABLE stub; exactly one contributor column must reference the owner, or it must be named by `by`; the filter string is parsed with the finite maintain-predicate grammar; expiring sources refuse as today (**≈**, B) |
 | `public 'reason'` | `create policy … for select using (true); comment on policy … on t is 'reason';` | `public 'reason'` | `using (true)` lowers to `public` even without a comment (default reason `<table> is public`); a comment supplies the reason only when the composed read rule is public (**≈**) |
-| LLP 3000.015 `written by .principal` (+ `readable by audience`) | `select snapback.written_by('members', 'read_up_to', by => 'principal');` and `, visible => true` for the opt-out | `written by .principal` | private to the owner by default; exempt from `snapback.immutable`; LLP 3000.015 §1's proposed authority contract; **✗** at `d9f177a434`: this checkout lacks `written by` / `readable by audience`; SQL executes but lowering does not bind (B) |
-| LLP 3000.015 `sequence by conversationId` | `ordinal bigint generated always as (snapback.sequence(conversation_id)) stored` | `sequence by conversationId` | Postgres's own "system-assigned, cannot be supplied" meaning is `E_SEQUENCE_SUPPLIED`; one counter per parent row shared across tables; the parent must be a reference; predicted values are provisional, settlement replaces them and reorders pages, never publishing provisional order as settled; **✗** at `d9f177a434`: `sequence by` is absent; SQL executes but lowering does not bind (B) |
+| LLP 3000.015 `written by .principal` (+ `readable by audience`) | `select snapback.written_by('members', 'read_up_to', by => 'principal');` and `, visible => true` for the opt-out | `written by .principal` | private to the owner by default; exempt from `snapback.immutable`; LLP 3000.015 §1's authority contract; SQL executes and both private and audience-visible lowerings bind at `da443e4d44` (**≈**, B) |
+| LLP 3000.015 `sequence by conversationId` | `ordinal bigint generated always as (snapback.sequence(conversation_id)) stored` | `sequence by conversationId` | Postgres's own "system-assigned, cannot be supplied" meaning is `E_SEQUENCE_SUPPLIED`; one counter per parent row shared across tables; the parent must be a reference; predicted values are provisional, settlement replaces them and reorders pages, never publishing provisional order as settled; SQL executes and lowering binds at `da443e4d44` (**≈**, B) |
 | `enable row level security` | required on every table with a policy | nothing | a policy on a table without it is refused; owners do not bypass (**≈**, B) |
 
 ### 3.3 Rules
@@ -253,7 +256,7 @@ An explicit maintain read override has no admitted SQL spelling yet (✗ below).
 | `view originalPosts: count posts where .parentId = null by .authorId` | `… select author_id, count(*) as count from posts where parent_id is null group by author_id` | the filtered count | `is null` spells Quarry's `= null` (§3.7 B) (**≈**) |
 | `view receivedLikes: count likes by .postId.authorId` | `… select snapback.recorded(post_id, 'author_id') as author_id, count(*) as count from likes group by 1` | the recorded-attribution view | binds only when `post_id` is a reference, the hop is immutable and the target public; a missing target captures null (**≈**, B) |
 | `view dailyLikes: count likes by .postId.authorId, day(.at)` | `… select snapback.recorded(post_id, 'author_id') as author_id, snapback.day(at) as day, count(*) as count from likes group by 1, 2` | same | `snapback.day` is the UTC millisecond day ordinal (**≈**, B) |
-| LLP 3000.015 `view unread: count messages by members m where …` | `create materialized view unread as select m.id, count(x.id) as count from members m left join messages x on x.conversation_id = m.conversation_id and x.ordinal > m.read_up_to and x.sender_id <> m.principal and not x.tombstone group by m.id` | the row-keyed view | LLP 3000.015 §3's contract: the member row's read rule; the writer-side bound; `complete: false` and a background recount above it; **✗** at `d9f177a434`: row-keyed maintains are absent; SQL executes but lowering does not bind (B) |
+| LLP 3000.015 `view unread: count messages by members m where …` | `create materialized view unread as select m.id, count(x.id) as count from members m left join messages x on x.conversation_id = m.conversation_id and x.ordinal > m.read_up_to and x.sender_id <> m.principal and not x.tombstone group by m.id` | the row-keyed view | LLP 3000.015 §3's contract: the member row's read rule; the writer-side bound; `complete: false` and a background recount above it; SQL executes and lowering binds at `da443e4d44` (**≈**, B) |
 | `view postTotals: … online only` | `select snapback.online_only('post_totals');` | `online only` on the maintain | (**≈**) |
 | `shape postCard = { *, author: profiles[principal = .authorId], replyCount: replyCount[.id], liked: exists likes[.id, viewer] }`, applied to two sources | `create function post_card(p posts) returns post_card_t language sql stable as $$ select p.*, (select pr from profiles pr where pr.principal = p.author_id) as author, (select c.count from reply_count c where c.parent_id = p.id) as reply_count, exists (select 1 from likes l where l.post_id = p.id and l.principal = auth.uid()) as liked $$` | the named shape | a function over a row type, not a PostgREST whole-shape convention; composites redeclare and type-check every field; a scalar point read keeps hidden groups null; `activity_card(a activity)` accepts Following via explicit `row(f.id, f.post, f.actor, f.at, f.repost)::activity` (**≈**, B) |
 | maintain residency without an override | no `snapback.online_only` call | inherited sync audience, no horizon | derivation stated above; table defaults do not apply (**≈**, B) |
@@ -541,10 +544,10 @@ policy checks only the proposed row, and a Postgres builder's habit of
   guide, the stub schema, the pinned programs and the verification
   transcript.
 - **Both arms must carry LLP 3000.015** before shared-baseline qualification.
-  Step 3 at the assigned `d9f177a434` checkout finds those additions absent;
-  its three rows are ✗ and the run is current-checkout verification, not a
-  shared-baseline pass. They require re-verification after integration,
-  before any pre-test.
+  Step 3 at `d9f177a434` found those additions absent. The 2026-09-25
+  recheck at `da443e4d44` binds all nine lowered projects on the shared
+  baseline; its three provisional ✗ rows return to ≈. This completes the
+  form-table binding prerequisite, not the future §4 equivalence gate.
 - **LLP 3000.009 §6.2** is not a relief valve for this bet; unlowerable
   reads are refused.
 - **LLP 4000 §13** already withdraws the earlier claim about "the item
@@ -554,9 +557,11 @@ policy checks only the proposed row, and a Postgres builder's habit of
 
 ## 7. Pre-tests, compiler-free, before any lane
 
-Both run on the verified form table (§3), after LLP 3000.015 has landed.
-The present checkout fails that prerequisite; neither pre-test is authorized
-by this transcript.
+Both run on the verified form table (§3). The prerequisite that LLP
+3000.015 has landed is met at `da443e4d44`, and the dated step 3 recheck
+binds its three additions on that baseline. Pre-test 1 is authorized from
+this commit, subject to the instrument freeze below; it was not run by
+this recheck.
 
 **Pre-test 1, the corpus replay (one day).** The manifest, committed by
 hash: `astra-supabase/schema.sql` (92 lines), `astra-supabase/scripts/mutations.sql`
@@ -726,8 +731,7 @@ is a reported number and gates nothing.
 
 1. Revision 4 under the author's ruling, with round-3 dispositions (§12).
    No fourth review round on this document.
-2. LLP 3000.015 landed in Snapback 4 (lanes B1–B3, in their final reviews
-   as this is written).
+2. LLP 3000.015 landed in Snapback 4 (lanes B1–B3, present at `da443e4d44`).
 3. The stub schema and the verification transcript (the current commission
    stops here, before pre-test 1): every row of §3
    executed on Postgres 17 with the stubs, and every lowered form bound by
