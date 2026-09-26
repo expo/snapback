@@ -35,12 +35,16 @@ fn failure(path: &Path, reason: impl std::fmt::Display) -> String {
 fn same_file(a: &fs::Metadata, b: &fs::Metadata) -> bool { a.dev() == b.dev() && a.ino() == b.ino() }
 
 #[cfg(unix)]
-fn regular(path: &Path, create: bool) -> Result<File, String> {
+fn regular(path: &Path, create: bool, database: Option<&fs::Metadata>) -> Result<File, String> {
     let file = OpenOptions::new().read(true).write(true).create(create).truncate(false)
         .mode(0o600).custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK).open(path)
         .map_err(|e| failure(path, e))?;
-    if !file.metadata().map_err(|e| failure(path, e))?.is_file() {
+    let meta = file.metadata().map_err(|e| failure(path, e))?;
+    if !meta.is_file() {
         return Err(failure(path, "expected a regular file"));
+    }
+    if database.is_some_and(|db| meta.nlink() != 1 || same_file(&meta, db)) {
+        return Err(failure(path, "address record must not be a hard link"));
     }
     file.set_permissions(fs::Permissions::from_mode(0o600)).map_err(|e| failure(path, e))?;
     Ok(file)
@@ -56,7 +60,7 @@ fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
         let path = resolve(store)?;
         snapback4_core::private_fs::directory(path.parent().ok_or("store path has no parent")?)
             .map_err(|e| failure(&path, e))?;
-        let database = regular(&path, true)?;
+        let database = regular(&path, true, None)?;
         let locked = if shared { database.try_lock_shared() } else { database.try_lock() };
         // stat/fstat only: opening and closing another database descriptor can
         // discard SQLite's process-wide POSIX locks. No SQLite exists yet here.
@@ -68,11 +72,7 @@ fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
         })?;
         let record = if shared { None } else {
             let record_path = path.with_file_name("serve.lock");
-            let file = regular(&record_path, true)?;
-            let meta = file.metadata().map_err(|e| failure(&record_path, e))?;
-            if same_file(&meta, &database.metadata().map_err(|e| failure(&path, e))?) || meta.nlink() != 1 {
-                return Err(failure(&record_path, "address record must not be a hard link"));
-            }
+            let file = regular(&record_path, true, Some(&database.metadata().map_err(|e| failure(&path, e))?))?;
             file.set_len(0).map_err(|e| failure(&record_path, e))?;
             Some(file)
         };

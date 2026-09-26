@@ -105,12 +105,13 @@ fn a_run_retry_keeps_database_a_when_its_alias_is_retargeted_to_live_b() {
 
 #[test]
 fn address_symlinks_and_nonregular_files_are_refused_without_truncation() {
-    for kind in ["database", "unrelated", "directory", "fifo", "hardlink"] {
+    for kind in ["database", "unrelated", "directory", "fifo", "hardlink", "unrelated-hardlink"] {
         let p = Project::new(); p.initialize();
         let record = p.0.join(".snapback4/serve.lock");
         fs::remove_file(&record).unwrap();
         let unrelated = p.0.join("unrelated");
         fs::write(&unrelated, "keep this unrelated file intact\n").unwrap();
+        fs::set_permissions(&unrelated, fs::Permissions::from_mode(0o644)).unwrap();
         let database_before = fs::read(p.store()).unwrap();
         match kind {
             "database" => symlink(p.store(), &record).unwrap(),
@@ -121,6 +122,7 @@ fn address_symlinks_and_nonregular_files_are_refused_without_truncation() {
                 assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
             }
             "hardlink" => fs::hard_link(p.store(), &record).unwrap(),
+            "unrelated-hardlink" => fs::hard_link(&unrelated, &record).unwrap(),
             _ => unreachable!(),
         }
         let out = p.run(&["run", "put"]);
@@ -129,6 +131,7 @@ fn address_symlinks_and_nonregular_files_are_refused_without_truncation() {
         assert!(error.contains("E_STORE") && error.contains("serve.lock") && error.contains("retry"), "{kind}: {error}");
         assert_eq!(fs::read(p.store()).unwrap(), database_before, "{kind}");
         assert_eq!(fs::read_to_string(&unrelated).unwrap(), "keep this unrelated file intact\n");
+        assert_eq!(fs::metadata(&unrelated).unwrap().permissions().mode() & 0o777, 0o644, "{kind}: refusal changed the mode");
     }
 }
 
