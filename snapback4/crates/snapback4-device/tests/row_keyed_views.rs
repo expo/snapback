@@ -270,12 +270,13 @@ fn source_horizon<H: Host>(host: &mut H) {
         observed_seq: None, dispatch: None,
     };
     let queued = device.admit(mark(1, 10)).unwrap();
-    assert!(queued.predictable, "{queued:?}");
+    // A public floor cannot certify a parent delta (LLP 3000.020 §3.2).
+    assert!(!queued.predictable, "{queued:?}");
     let r = device
         .query("unreadFor", "bob", &json!({"member":"member"}), 1)
         .unwrap();
     assert!(r.complete, "{r:?}");
-    assert_eq!(r.data, Value::Int(0));
+    assert_eq!(r.data, Value::Int(1));
     let outside = device.admit(mark(2, 0)).unwrap();
     assert!(!outside.predictable, "{outside:?}");
 }
@@ -601,3 +602,28 @@ fn large_live_certification<H: Host>(host: &mut H) {
 fn large_live_count_queues_and_settles_memory() {large_live_certification(&mut Memory::new());}
 #[test]
 fn large_live_count_queues_and_settles_sqlite() {large_live_certification(&mut Sqlite::new("landing-live-count"));}
+
+#[test]
+fn device_index_preparation_preserves_projection_and_legacy_work_schema() {
+    let (_, backend) = compile(SOURCE);
+    let mut projected = backend.schema.public_projection();
+    let public_bytes = snapback4_core::json_codec::to_text(&projected).unwrap();
+    assert!(projected.tables.keys().all(|name| !projected.is_recount_work(name)));
+    // Rebuild missing replica indexes without reconstructing any server tables.
+    for maintain in &projected.maintains {
+        let Some(key) = &maintain.row_key else { continue; };
+        for name in [&maintain.source, &key.table] {
+            projected.tables.get_mut(name).unwrap().indexes.retain(|name, _| !name.starts_with("$view"));
+        }
+    }
+    projected.prepare_row_view_indexes();
+    assert_eq!(snapback4_core::json_codec::to_text(&projected).unwrap(), public_bytes);
+
+    // Offline reopen may read a backend prepared by an older device. Its
+    // stored schema and identity must remain byte-for-byte reproducible.
+    let mut legacy = backend.schema;
+    assert!(legacy.tables.keys().any(|name| legacy.is_recount_work(name)));
+    let legacy_bytes = snapback4_core::json_codec::to_text(&legacy).unwrap();
+    legacy.prepare_row_view_indexes();
+    assert_eq!(snapback4_core::json_codec::to_text(&legacy).unwrap(), legacy_bytes);
+}

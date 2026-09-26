@@ -216,7 +216,38 @@ it never adopts current source for measurement. With no store it says not
 measured and names the fixture command. Add `--verbose` for every table,
 facts and notes (and on test, query meters and aggregate row counts).
 Measurements exclude transport framing, are not process RSS, and are not
-estimates for another fixture."##,
+estimates for another fixture.
+
+Measure the device that actually holds the window above:
+```ts
+const held = await client.residency();
+if (held) {
+  console.table(held.tables); // { notices: { rows, bytes }, ... }
+  console.log(held.totalBytes, held.totalBytesKind, held.wasmHeapBytes);
+}
+```
+Rows are physically held images, including predictions and retained/expired
+images still stored. They confer no query coverage or read authority. Table
+bytes are UTF-8 stored row payloads, excluding keys and indexes. Empty tables
+report zero. Native totalBytes is allocated SQLite pages, including indexes,
+metadata and free pages, excluding WAL/SHM files. Web totalBytes is UTF-8 logical
+persistence record keys and values before IndexedDB packing; it includes outbox,
+base images and staging, not physical disk allocation. Separate media and wasm
+code caches are excluded. wasmHeapBytes is allocated linear memory shared by
+all web devices in this realm, not live allocations or Chromium RSS. The online
+tier and mock return null. Closed/signed-out local clients reject with a coded error.
+A native handle whose store adopted another schema returns E_GENERATION; reopen it.
+If the device host fails during this read, E_STORE at client.residency names
+the failure; restart the device host and reopen the client before retrying.
+
+Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
+fixture, `token`, `deploy`, `rollback`) lock the database file for their lifetime.
+Native devices, including embedded C-ABI hosts, share ownership with each other
+and exclude backend writers until their stores close.
+A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the
+command once, then restart it. Another CLI writer also refuses; wait for it.
+The HTTP /seed development door already runs through the host. `check`, `data`,
+`sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time
 
 Expiry makes a row invisible when its declared deadline passes.
@@ -272,7 +303,7 @@ runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
 Disappearing messages are one field on
-insert; there is no purge job to write. A maintained `view` over an expiring table
+insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
 reads its physical total minus unswept expired contributions under the read
 meter through an internal group/expiry/source-id index. Live rows add no server
 read work. Devices still recompute live source contributions under their meter;
@@ -293,8 +324,9 @@ count index could bound a live threshold scan, but that read form is not built;
 it would have to refuse on devices, whose snapshots deliver live values rather
 than physical upper bounds. Signed sums have no such upper bound.
 A partial device counts only held live
-sources and says `complete: false`. A meter cut returns the contribution
-examined so far, also incomplete. A zero sum keeps its group while sources
+sources and says `complete: false`. A meter cut of an ordinary aggregate returns `data: null, complete: false`.
+An expiring row-keyed range read returns `{ value: L, recountPending: true }`
+with `complete: false`, the current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another.
 
 ## Operations

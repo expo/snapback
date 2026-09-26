@@ -56,7 +56,7 @@ impl Runner<'_> {
         name: &str,
         row: Supplied,
     ) -> Result<Supplied, RuntimeError> {
-        let table = self.schema.tables[name].clone();
+        let table = &self.schema.tables[name];
         let Some(through) = &table.through else {
             return Ok(row);
         };
@@ -181,12 +181,12 @@ impl Runner<'_> {
         let parent_id = id.as_str()?.to_owned();
         let parent_row = self.authorized_scan(&[], |runner, scope| runner.tx.get(scope, parent, &parent_id))?.ok_or_else(uncertain)?;
         for name in children {
-            let table = self.schema.tables[name].clone();
+            let table = &self.schema.tables[name];
             let through = table.through.as_ref().unwrap();
             if !self.child_coverage(name, through, &parent_row)? { return Err(uncertain()); }
             let table_scratch = self.meter.mark();
             // Expected captures plus a reusable row/cursor, reserved before seeking.
-            self.meter.heap(super::write_target::row_copy_ceiling(&table).saturating_mul(3))?;
+            self.meter.heap(super::write_target::row_copy_ceiling(table).saturating_mul(3))?;
             let mut expected = crate::value::object([] as [(&str, Value); 0]);
             stamp(&self.schema.tables[parent], through, &parent_row, &mut expected)?;
             let mut bounds = Bounds::default();
@@ -197,7 +197,7 @@ impl Runner<'_> {
                 let page = self.authorized_scan(&[], |runner, scope| runner.tx.scan_metered(scope, name, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut runner.meter))?;
                 let Some((row, key)) = page.into_iter().next() else { break };
                 if !self.tx.retained_row(name, &row)? {
-                    if self.expired(&table, &row)
+                    if self.expired(table, &row)
                         || !(self.tx.current_row(name, &row)? || self.is_provisional(name, &row)?)
                         || !capture_matches(through, &expected, &row) { return Err(uncertain()); }
                     return Ok(true);

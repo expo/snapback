@@ -215,7 +215,7 @@ pub fn check(options: &Options) -> i32 {
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
         "view": m.target, "source": m.source, "sourceKey": k.source_key, "member": k.table,
-        "memberKey": k.member_key, "fanout": k.fanout, "writerRecount": snapback4_core::engine::row_views::WRITER_RECOUNT, "recountChunk": snapback4_core::engine::row_views::RECOUNT_CHUNK
+        "memberKey": k.member_key, "fanout": k.fanout, "range": row_view_range(&bound.schema, m), "writerRecount": snapback4_core::engine::row_views::WRITER_RECOUNT, "recountChunk": snapback4_core::engine::row_views::RECOUNT_CHUNK
     }))).collect::<Vec<_>>();
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
@@ -252,6 +252,9 @@ pub fn check(options: &Options) -> i32 {
     }
     if !options.json { for m in &bound.schema.maintains { if let Some(k)=&m.row_key {
         println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= {} examined source rows within remaining meter, then pending/background chunks <= {}",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout,snapback4_core::engine::row_views::WRITER_RECOUNT,snapback4_core::engine::row_views::RECOUNT_CHUNK);
+        if let Some(range) = row_view_range(&bound.schema, m) {
+            println!("    device range: {}; index {}; horizon {} by {}; {}; {}", range["predicate"].as_str().unwrap(), range["index"].as_str().unwrap(), range["horizon"]["last"], range["horizon"]["index"].as_str().unwrap(), range["selection"].as_str().unwrap(), range["fallback"].as_str().unwrap());
+        }
     } } }
     if !options.json && !options.flags.contains_key("residency") {
         for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {
@@ -462,7 +465,11 @@ pub fn run(options: &Options) -> i32 {
         Some(principal) => principal.clone(),
         None => persona_principal("alice"),
     };
-    let mut engine = match run_admission::open(&project, &bound, &source, op, now) {
+    let _owner = match crate::store_owner::command(&project.store_path()) {
+        Ok(owner) => owner,
+        Err(error) => { eprintln!("{error}"); return 2; }
+    };
+    let mut engine = match run_admission::open(&project, &_owner, &bound, &source, op, now) {
         Ok(engine) => engine,
         Err(error) => {
             eprintln!("cannot open the store: {error}");
@@ -539,7 +546,8 @@ pub fn data(options: &Options) -> i32 {
         return 2;
     };
     let project = project_or_exit();
-    let mut store = match project.open_store() {
+    // @ref LLP 3000.019#3.4 — inspection must not acquire a writer through store initialization.
+    let mut store = match snapback4_core::Store::open_read_only(&project.store_path()) {
         Ok(store) => store,
         Err(error) => {
             eprintln!("cannot open the store: {error}");
@@ -864,7 +872,17 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
-    let mut engine = match test_fixture::engine(&project, &bound, options) {
+    let _owner = if options.flags.contains_key("fixture") { None } else {
+        match crate::store_owner::command(&project.store_path()) {
+            Ok(owner) => Some(owner),
+            Err(error) => { eprintln!("{error}"); return 1; }
+        }
+    };
+    let opened = match &_owner {
+        Some(owner) => owner.open_engine(&bound, std::time::Duration::from_secs(5), snapback4_core::now_ms()).map_err(|e| e.to_string()),
+        None => test_fixture::engine(&project, &bound, options),
+    };
+    let mut engine = match opened {
         Ok(engine) => engine,
         Err(error) => { eprintln!("{error}"); return 1; }
     };
@@ -976,7 +994,6 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 mod releases;
 pub use releases::{deploy, rollback, serve_release};
-pub(crate) use releases::deployment_lock;
 pub(crate) use releases::release_bind;
 
 /// `token --service <name> [--days N] [--release <dir>]`: a bearer session
@@ -989,17 +1006,18 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
-    let (store_path, store) = match options.flags.get("release") {
-        Some(dir) => {
-            let path = Path::new(dir).join("store.sqlite");
-            let store = snapback4_core::Store::open(&path);
-            (path, store)
-        }
-        None => {
-            let project = project_or_exit();
-            (project.store_path(), project.open_store())
-        }
+    let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
+        .unwrap_or_else(|| project_or_exit().store_path());
+    if !options.flags.contains_key("release") && !path.is_file() {
+        eprintln!("cannot open the store: no store at {}; run `snapback4 dev` first", path.display());
+        return 2;
+    }
+    let _owner = match crate::store_owner::command(&path) {
+        Ok(owner) => owner,
+        Err(error) => { eprintln!("{error}"); return 2; }
     };
+    let store_path = &path;
+    let store = _owner.open_store(std::time::Duration::from_secs(5));
     let store = match store {
         Ok(store) => store,
         Err(error) => {
@@ -1022,6 +1040,23 @@ pub fn token(options: &Options) -> i32 {
     }
 }
 
+// @ref LLP 3000.020#3.1 — report the same normalized candidates execution chooses between.
+fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::schema::Maintain) -> Option<serde_json::Value> {
+    let k = m.row_key.as_ref()?;
+    let source = &schema.tables[&m.source];
+    if !source.is_expiring() { return None; }
+    let range = k.device_range(source)?;
+    let horizon = source.sync.as_ref()?.horizon.as_ref()?;
+    Some(json!({
+        "column": range.column, "index": k.range_index(range.column),
+        "bounds": range.lower().iter().map(|(field, strict)| json!({"column": range.column, "memberField": field, "operator": if *strict { ">" } else { ">=" }})).collect::<Vec<_>>(),
+        "predicate": range.lower().iter().map(|(field, strict)| format!(".{} {} member.{field}", range.column, if *strict { ">" } else { ">=" })).collect::<Vec<_>>().join(" and "),
+        "horizon": {"index": horizon.by, "last": horizon.last},
+        "selection": "greatest encoded lower bound; strict wins equal values; null is weakest",
+        "fallback": "whole group when every range operand is null; Whole keeps the live-basis scan"
+    }))
+}
+
 /// The native module as a process: the same `Device` the Expo and Exact2
 /// hosts link, speaking one JSON request per line on stdin and one answer
 /// per line on stdout, so a JavaScript client can be tested end to end
@@ -1030,19 +1065,45 @@ pub fn token(options: &Options) -> i32 {
 pub fn device(options: &Options) -> i32 {
     let Some(path) = options.positionals.first() else {
         eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
+        println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "usage: snapback4 device <store.sqlite> [backend.json]" } }));
         return 2;
     };
     let backend = match options.positionals.get(1) {
-        Some(file) => match std::fs::read_to_string(file).map_err(|e| e.to_string()).and_then(|text| snapback4_device::opening::Opening::parse(Some(&text)).map_err(|e| e.to_string())) {
-            Ok(backend) => backend,
-            Err(error) => {
-                eprintln!("device: {file}: {error}");
-                return 2;
+        Some(file) => {
+            let text = match std::fs::read_to_string(file) {
+                Ok(text) => text,
+                Err(error) => {
+                    let message = format!("device: {file}: {error}");
+                    eprintln!("{message}");
+                    println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": message } }));
+                    return 2;
+                }
+            };
+            match snapback4_device::opening::Opening::parse(Some(&text)) {
+                Ok(backend) => backend,
+                Err(error) => {
+                    eprintln!("device: {file}: {error}");
+                    println!("{}", json!({ "denied": error.refusal() }));
+                    return 2;
+                }
             }
         },
         None => snapback4_device::opening::Opening::Kept,
     };
-    let mut device = match snapback4_device::native::Device::open_with(Path::new(path), backend) {
+    // Shared device ownership preserves multiple native-process handles while
+    // excluding backend hosts and offline commands before any store writes.
+    let owner = match crate::store_owner::device(Path::new(path)) {
+        Ok(owner) => owner,
+        Err(error) => {
+            // @ref LLP 3000.019#3.4 — process hosts must receive ownership refusals before readiness.
+            let code = if error.starts_with("E_STORE_BUSY ") { "E_STORE_BUSY" } else { "E_STORE" };
+            eprintln!("{error}");
+            println!("{}", json!({ "denied": { "code": code, "family": "store", "message": error } }));
+            return 2;
+        }
+    };
+    let opened = owner.path().and_then(|path| snapback4_device::native::Device::open_with(path, backend));
+    let mut device = match opened {
         Ok(device) => device,
         Err(error) => {
             println!("{}", json!({ "denied": error.refusal() }));

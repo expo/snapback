@@ -4,10 +4,13 @@
 
 use super::runner::Runner;
 use super::validate::validate_row;
+#[cfg(feature = "sqlite")]
 use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
-use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
+use crate::schema::{Constraint, Effect, Table, materialize_optional_fields};
+#[cfg(feature = "sqlite")]
+use crate::schema::ColumnType;
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{Value, Supplied, canonical_json};
@@ -114,7 +117,7 @@ impl Runner<'_> {
         // Retry keys independent of engine allocation still identify a no-op
         // at the ceiling. Never use the clamped authority candidate as a key.
         if sequence_full && if_absent {
-            let table = self.schema.tables[table_name].clone();
+            let table = &self.schema.tables[table_name];
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
                 let key = index_values(index, &row);
                 if key.contains(&Value::Null) { continue; }
@@ -160,7 +163,7 @@ impl Runner<'_> {
         let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing {
-                if !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+                if !runner.expired(table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
                 // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical
                 // children collides like a live birth: check the old image's authority under the same
                 // reservation, without treating expiry as denial. A non-reader never probes the children.
@@ -170,7 +173,7 @@ impl Runner<'_> {
             }
             Ok(existing)
         })?;
-        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && has_children {
+        if predecessor.as_ref().is_none_or(|old| self.expired(table, old)) && has_children {
             let mark = self.meter.mark();
             if self.physical_children(table_name, &Value::Id(id.clone()))? {
                 // The bounded probes have completed. Their occupancy is not
@@ -182,7 +185,7 @@ impl Runner<'_> {
             }
         }
         if let Some(existing) = &predecessor {
-            if !self.expired(&table, &existing) {
+            if !self.expired(table, &existing) {
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
             // The expired predecessor is internal authorization work, not a
@@ -195,8 +198,8 @@ impl Runner<'_> {
         self.commit_sequences(table_name, &row)?;
         let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
         validate_row(self.schema, table_name, &row)?;
-        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
-        self.charge_source_indexes(&table, None, Some(&row), entries)?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.put(table_name, table, &row, None))?;
+        self.charge_source_indexes(table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
         Ok(true)
     }
@@ -213,7 +216,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
         let id = key.as_str()?;
-        self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &patch, false)?;
+        self.reserve_target_resolution(table_name, self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &patch, false)?;
         let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
@@ -236,7 +239,7 @@ impl Runner<'_> {
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
-        self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &row, true)?;
+        self.reserve_target_resolution(table_name, self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &row, true)?;
         match self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? {
             Some(old) => {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
@@ -294,9 +297,9 @@ impl Runner<'_> {
         let new = self.prepare_event_slots(table_name, Some(&old), new, copy)?;
         // A predicting device keeps another owner's omitted private field as an omission.
         super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str()))?;
-        let table = self.schema.table(table_name).expect("validated").clone();
-        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
-        self.charge_source_indexes(&table, Some(&old), Some(&new), entries)?;
+        let table = self.schema.table(table_name).expect("validated");
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.put(table_name, table, &new, Some(&old)))?;
+        self.charge_source_indexes(table, Some(&old), Some(&new), entries)?;
         self.row_changed(table_name, Some(&old), Some(&new), Origin::Source)
     }
 
@@ -306,10 +309,10 @@ impl Runner<'_> {
 
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
-        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
-        self.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        self.reserve_write_rules(table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
-        self.reserve_maintains(table_name, &table)?;
+        self.reserve_maintains(table_name, table)?;
         let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
@@ -325,11 +328,11 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
-        let table = self.schema.tables[table_name].clone();
+        let table = &self.schema.tables[table_name];
         self.refuse_live_children(table_name,old.field("id")?)?;
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
-        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;
-        self.charge_source_indexes(&table, Some(&old), None, entries)?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.delete(table_name, table, &old))?;
+        self.charge_source_indexes(table, Some(&old), None, entries)?;
         self.row_changed(table_name, Some(&old), None, Origin::Source)
     }
 
@@ -338,9 +341,9 @@ impl Runner<'_> {
     /// aggregates and partition events apply as for any delete.
     pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
-        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
-        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, old))?;
-        self.charge_source_indexes(&table, Some(old), None, entries)?;
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.delete(table_name, table, old))?;
+        self.charge_source_indexes(table, Some(old), None, entries)?;
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
@@ -397,6 +400,13 @@ impl Runner<'_> {
     /// writer's own and of the column's kind and size. The system principal
     /// may name an asset that was never uploaded: a fixture's placeholder,
     /// metadata only, never served.
+    // Web stores hold received asset facts, never the authoritative upload ledger.
+    #[cfg(not(feature = "sqlite"))]
+    fn with_asset_facts(&mut self, _table_name: &str, row: Value, _old: Option<&Value>, _hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
+        Ok(row)
+    }
+
+    #[cfg(feature = "sqlite")]
     fn with_asset_facts(&mut self, table_name: &str, row: Value, old: Option<&Value>, hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
         if !self.tx.holds_assets() {
             // A device: the row keeps the asset value as sent; the server
@@ -451,6 +461,7 @@ impl Runner<'_> {
     /// One asset, one home: the column that now names an upload claims it
     /// for this row; the one it no longer names releases it, and the bytes
     /// are served no more. Part of every physical row change.
+    #[cfg(feature = "sqlite")]
     fn place_assets(&mut self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         if !self.tx.holds_assets() {
             return Ok(());
@@ -497,7 +508,7 @@ impl Runner<'_> {
     }
 
     fn check_constraints(&mut self, table_name: &str, old: Option<&Value>, new: &Value, effect: Effect) -> Result<(), RuntimeError> {
-        let table = self.schema.table(table_name).expect("validated").clone();
+        let table = self.schema.table(table_name).expect("validated");
         let id = new.field("id")?.as_str()?.to_owned();
         let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
@@ -540,9 +551,9 @@ impl Runner<'_> {
                         && effect == Effect::Update
                     {
                         let mut old_image = old.clone();
-                        materialize_optional_fields(&mut old_image, &table);
+                        materialize_optional_fields(&mut old_image, table);
                         let mut new_image = new.clone();
-                        materialize_optional_fields(&mut new_image, &table);
+                        materialize_optional_fields(&mut new_image, table);
                         for field in fields {
                             if old_image.field(field).ok() != new_image.field(field).ok() {
                                 return Err(if readable { RuntimeError::Constraint(format!("{table_name}.{field} is immutable")) } else { self.no_write_target() });
@@ -556,7 +567,7 @@ impl Runner<'_> {
                     }
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
                     // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
-                    let predecessor = old.filter(|row| !self.device || !self.expired(&table, row));
+                    let predecessor = old.filter(|row| !self.device || !self.expired(table, row));
                     let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
                     if !moved {
                         continue;
@@ -598,7 +609,7 @@ impl Runner<'_> {
                             let fetched = rows.len();
                             for (row, key) in rows {
                                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                                if !runner.expired(&table, &row) {
+                                if !runner.expired(table, &row) {
                                     if private_cap { runner.visible_collision(table_name, &row, effect)?; }
                                     count += 1;
                                 }
@@ -659,7 +670,7 @@ impl Runner<'_> {
     pub(super) fn check_final_exists(&mut self) -> Result<(), RuntimeError> {
         let inserted = std::mem::take(&mut self.inserted);
         for (table_name, row) in &inserted {
-            let table = self.schema.table(table_name).expect("validated").clone();
+            let table = self.schema.table(table_name).expect("validated");
             for constraint in &table.constraints {
                 let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue };
                 let key: Vec<Value> = key
@@ -753,7 +764,7 @@ impl Runner<'_> {
         self.rows_written += 1;
         if origin == Origin::Maintained { self.charge_maintain(MeterKind::RowsWritten, 1)?; }
         else { self.meter.charge(MeterKind::RowsWritten, 1)?; }
-        let table = self.schema.table(table_name).expect("validated").clone();
+        let table = self.schema.table(table_name).expect("validated");
         // Final-exists obligations retain immutable successful-insert images.
         // Current creation facts have separate per-row ownership, so updates
         // and deletes remove only that row's contributions in O(index count).
@@ -793,15 +804,16 @@ impl Runner<'_> {
             // Retire it now, in the same transaction, so a later correction/sweep
             // cannot subtract a contribution which was never added. Other derived
             // consumers see the same physical deletion (including an expiring update).
-            let new = if let Some(row) = new.filter(|row| self.expired(&table, row))
+            let new = if let Some(row) = new.filter(|row| self.expired(table, row))
                 && self.schema.maintains.iter().any(|m| m.source == table_name && m.row_key.is_some())
             {
-                let entries = self.tx.delete(table_name, &table, row)?;
+                let entries = self.tx.delete(table_name, table, row)?;
                 self.meter.charge(MeterKind::IndexEntries, entries)?;
                 None
             } else { new };
             if old.is_some() || new.is_some() {
-                self.place_assets(table_name, &table, old, new)?;
+                #[cfg(feature = "sqlite")]
+                self.place_assets(table_name, table, old, new)?;
                 self.maintain(table_name, old, new)?;
                 if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
             }

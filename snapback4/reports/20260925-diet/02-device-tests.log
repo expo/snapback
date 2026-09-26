@@ -1,0 +1,46 @@
+   Compiling snapback4-device v0.4.2 (/Users/ccheever/projects/snapback-diet-20260925/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 16.53s
+     Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-b66bd8407d3ba7b8)
+
+running 23 tests
+test covered_memory ... ok
+test private_member_source_prediction_memory ... ok
+test member_horizon_memory ... ok
+test expiry_memory ... ok
+test held_member_source_predicts_past_other_member_horizon_memory ... ok
+test metadata_witness_memory ... ok
+test member_horizon_never_persists_excluded_note_or_attribution_in_view ... ok
+test member_horizon_prefix_memory ... ok
+test source_horizon_memory ... ok
+test member_horizon_sqlite ... ok
+test covered_sqlite ... ok
+test held_member_source_predicts_past_other_member_horizon_sqlite ... ok
+test expiry_sqlite ... ok
+test metadata_witness_sqlite ... ok
+test covered_cut_memory ... ok
+test large_live_count_queues_and_settles_memory ... ok
+test private_member_source_prediction_sqlite ... ok
+test source_horizon_sqlite ... ok
+test member_horizon_prefix_sqlite ... ok
+test covered_cut_sqlite ... ok
+test large_live_count_queues_and_settles_sqlite ... ok
+test uncovered_memory ... ok
+test uncovered_sqlite ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+     Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-4976ad882dd8c4e3)
+
+running 10 tests
+test unchanged_mark_after_clock_expiry_memory ... ok
+test snapshot_spans_expiry_memory ... ok
+test snapshot_after_expiry_then_stream_memory ... ok
+test inherited_expiry_replay_memory ... ok
+test catchup_expired_before_and_after_watermark_memory ... ok
+test snapshot_spans_expiry_sqlite ... ok
+test unchanged_mark_after_clock_expiry_sqlite ... ok
+test snapshot_after_expiry_then_stream_sqlite ... ok
+test catchup_expired_before_and_after_watermark_sqlite ... ok
+test inherited_expiry_replay_sqlite ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s

@@ -1,9 +1,13 @@
 //! Birth and mirroring of maintained fields. Private totals are authoritative.
 // @ref LLP 3000.007.001#3.2 — never probe parent authority or resurrect expired rows.
-use super::{runner::Runner, write_target::row_copy_ceiling};
+use super::runner::Runner;
+#[cfg(feature = "sqlite")]
+use super::write_target::row_copy_ceiling;
 #[cfg(feature = "sqlite")]
 use super::write::Origin;
-use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, maintained_id}, value::Value};
+use crate::{error::RuntimeError, schema::Maintain, value::Value};
+#[cfg(feature = "sqlite")]
+use crate::{error::MeterKind, schema::maintained_id};
 
 pub(crate) fn write_result(table: &crate::schema::Table, mut row: Value) -> Value {
     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field,_| !table.maintained.contains_key(field)); }
@@ -37,6 +41,12 @@ impl Runner<'_> {
         Ok(())
     }
 
+    // @ref LLP 3000.007.001#3.2 — devices preserve synchronized column values;
+    // only the server reads private totals or reserves their mirrored writes.
+    #[cfg(not(feature = "sqlite"))]
+    pub(super) fn birth_columns(&mut self, _name: &str, row: Value) -> Result<Value,RuntimeError> { Ok(row) }
+
+    #[cfg(feature = "sqlite")]
     pub(super) fn birth_columns(&mut self, name: &str, mut row: Value) -> Result<Value,RuntimeError> {
         if self.device { return Ok(row); }
         let declarations: Vec<_> = self.schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|o|o.table == name)).cloned().collect();
@@ -80,6 +90,10 @@ impl Runner<'_> {
 
     /// Always prepaid, even for public unfiltered sources and the system.
     /// Ordinary maintains retain their separate reservation/actual charging.
+    #[cfg(not(feature = "sqlite"))]
+    pub(super) fn reserve_columns(&mut self, _source: &str) -> Result<(),RuntimeError> { Ok(()) }
+
+    #[cfg(feature = "sqlite")]
     pub(super) fn reserve_columns(&mut self, source: &str) -> Result<(),RuntimeError> {
         if self.device { return Ok(()) }
         let mut steps = 0_u64;

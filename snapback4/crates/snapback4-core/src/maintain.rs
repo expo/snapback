@@ -39,10 +39,15 @@ pub fn calendar_ordinal(at: i64, millis: i64, offset: i64) -> i64 {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Operand { Field(String), Literal(Value) }
 impl Operand {
-    fn value<'a>(&'a self, row: &'a Value) -> &'a Value {
-        match self { Self::Field(field) => row.field(field).unwrap_or(&Value::Null), Self::Literal(value) => value }
+    fn value<'a>(&'a self, row: &'a Value, member: Option<&'a Value>) -> &'a Value {
+        match self {
+            Self::Field(field) => match member.zip(field.strip_prefix("$row.")) {
+                Some((member, field)) => member.field(field),
+                None => row.field(field),
+            }.unwrap_or(&Value::Null),
+            Self::Literal(value) => value,
+        }
     }
-    fn fields(&self, out: &mut BTreeSet<String>) { if let Self::Field(field) = self { out.insert(field.clone()); } }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -52,14 +57,20 @@ pub enum Predicate {
 }
 impl Predicate {
     pub fn matches(&self, row: &Value) -> bool {
+        self.matches_with_member(row, None)
+    }
+
+    // One boolean/comparison walker; only comparison operands can refer to a
+    // keyed member. Bare boolean fields keep their source-row interpretation.
+    fn matches_with_member(&self, row: &Value, member: Option<&Value>) -> bool {
         match self {
             Self::Bool(value) => *value,
             Self::Field(field) => matches!(row.field(field), Ok(Value::Bool(true))),
-            Self::Not(value) => !value.matches(row),
-            Self::And(a, b) => a.matches(row) && b.matches(row),
-            Self::Or(a, b) => a.matches(row) || b.matches(row),
+            Self::Not(value) => !value.matches_with_member(row, member),
+            Self::And(a, b) => a.matches_with_member(row, member) && b.matches_with_member(row, member),
+            Self::Or(a, b) => a.matches_with_member(row, member) || b.matches_with_member(row, member),
             Self::Compare { op, left, right } => {
-                let (a, b) = (left.value(row), right.value(row));
+                let (a, b) = (left.value(row, member), right.value(row, member));
                 match op.as_str() { "=" => a == b, "!=" => a != b, "<" => a.total_cmp(b).is_lt(), "<=" => !a.total_cmp(b).is_gt(), ">" => a.total_cmp(b).is_gt(), ">=" => !a.total_cmp(b).is_lt(), _ => false }
             }
         }
@@ -67,11 +78,19 @@ impl Predicate {
     pub fn steps(&self) -> u64 {
         match self { Self::Not(p) => 1 + p.steps(), Self::And(a,b) | Self::Or(a,b) => 1 + a.steps() + b.steps(), Self::Compare { .. } => 3, _ => 1 }
     }
+    #[inline(never)] // Keep one owned-field collector around the borrowed traversal.
     pub fn fields(&self, out: &mut BTreeSet<String>) {
+        self.each_field(&mut |field| { out.insert(field.to_owned()); });
+    }
+    /// Borrow fields for dependency observation without constructing a copied set.
+    pub(crate) fn each_field<'a>(&'a self, out: &mut dyn FnMut(&'a str)) {
         match self {
-            Self::Field(field) => { out.insert(field.clone()); }
-            Self::Not(p) => p.fields(out), Self::And(a,b) | Self::Or(a,b) => { a.fields(out); b.fields(out); }
-            Self::Compare { left, right, .. } => { left.fields(out); right.fields(out); }
+            Self::Field(field) => out(field),
+            Self::Not(p) => p.each_field(out), Self::And(a,b) | Self::Or(a,b) => { a.each_field(out); b.each_field(out); }
+            Self::Compare { left, right, .. } => {
+                if let Operand::Field(field) = left { out(field); }
+                if let Operand::Field(field) = right { out(field); }
+            }
             Self::Bool(_) => {}
         }
     }

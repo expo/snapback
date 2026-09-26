@@ -59,19 +59,44 @@ impl Runner<'_> {
     pub(super) fn observe_sequence_selection(&mut self, name: &str, index_name: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
         if !self.device || self.device_allowance.is_none() || self.provisional_sequence_read { return Ok(()); }
         let table = &self.schema.tables[name];
-        let index = table.index(index_name).expect("validated index");
-        let Some(position) = index.columns().iter().position(|field| table.sequences.contains_key(field)) else { return Ok(()); };
-        let arity = index.components.len() + 1;
-        let stable = &prefix[..prefix.len().min(position)];
-        let dependent = self.authorized_scan(&[], |runner, allowance| runner.device_work(|runner| {
-            let mut bounds = Bounds::default();
+        let index = &table.indexes[index_name];
+        let Some(position) = index.components.iter().position(|part| part.column().is_some_and(|field| table.sequences.contains_key(field))) else { return Ok(()); };
+        self.observe_provisional_selection(name, index, &prefix[..prefix.len().min(position)])
+    }
+
+    // @ref LLP 3000.020#3.2 — inspect only overlay metadata, including rows whose
+    // eventual ordinal could enter an empty suffix. Confirmed history is irrelevant.
+    pub(super) fn observe_provisional_selection(&mut self, name: &str, index: &crate::schema::Index, prefix: &[Value]) -> Result<(), RuntimeError> {
+        let table = &self.schema.tables[name];
+        let bytes = crate::rows::disclosed::decode_reservation(table);
+        // Observation has no caller charge; both decoding and metadata iteration
+        // spend the device work allowance and the shared private fetch allowance.
+        let dependent = self.device_work(|runner| runner.prepaid_witnesses(|runner, allowance| {
+            let mut after = String::new();
+            let mut local = runner.provisional_rows.iter().filter(|(table, _)| table == name);
             loop {
-                let rows = runner.tx.scan_metered(allowance, name, index_name, stable, &bounds, Dir::Asc, 1, &mut runner.meter)?;
-                let Some((row, key)) = rows.first() else { return Ok(false); };
+                let mark = runner.meter.mark();
+                runner.meter.step(1)?;
+                runner.meter.heap(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4)?;
+                // Newly written rows cover raw core callers without overlay metadata.
+                let id = if let Some((_, id)) = local.next() { id.as_str() } else {
+                    let Some(id) = runner.tx.provisional_id_after(name, &after)? else {
+                        runner.meter.release_heap(mark); return Ok(false);
+                    };
+                    after = id;
+                    &after
+                };
                 runner.meter.charge(MeterKind::Examined, 1)?;
-                if runner.is_provisional(name, row)? { return Ok(true); }
-                runner.meter.heap(word_heap::key_decode(arity, key.len()))?;
-                bounds.after = crate::key::decode(key).map(|key| key.into_iter().skip(stable.len()).collect());
+                runner.meter.heap(bytes)?;
+                let provisional = if let Some(row) = runner.tx.get(allowance, name, id)? {
+                    // Non-column key components cannot disprove membership here.
+                    // Keep the stable column pins and conservatively observe the row.
+                    index.components.iter().zip(prefix)
+                        .all(|(field, value)| field.column().is_none_or(|field| row.field(field).ok() == Some(value)))
+                        && runner.is_provisional(name, &row)?
+                } else { false };
+                runner.meter.release_heap(mark);
+                if provisional { return Ok(true); }
             }
         }))?;
         self.provisional_sequence_read |= dependent;

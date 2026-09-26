@@ -135,6 +135,9 @@ pub enum RuntimeError {
     #[cfg(feature = "sqlite")]
     #[error("E_STORE: {0}")]
     Sql(#[from] rusqlite::Error),
+    #[cfg(feature = "sqlite")]
+    #[error("E_STORE_BUSY at {path}: a backend writer owns this database; no device work was admitted")]
+    StoreBusy { path: String },
     #[cfg(feature = "postgres")]
     #[error("E_STORE: {0}")]
     Postgres(#[from] postgres::Error),
@@ -183,6 +186,8 @@ impl RuntimeError {
             Self::Native { code, .. } => code.clone(),
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "E_STORE".into(),
+            #[cfg(feature = "sqlite")]
+            Self::StoreBusy { .. } => "E_STORE_BUSY".into(),
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "E_STORE".into(),
             Self::Store(_) => "E_STORE".into(),
@@ -196,7 +201,9 @@ impl RuntimeError {
         match self {
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", .. } => "input",
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
@@ -211,6 +218,8 @@ impl RuntimeError {
             Self::Native { .. } => "native",
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "store",
+            #[cfg(feature = "sqlite")]
+            Self::StoreBusy { .. } => "store",
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "store",
             Self::Store(_) => "store",
@@ -225,7 +234,7 @@ impl RuntimeError {
             return true;
         }
         #[cfg(feature = "sqlite")]
-        if matches!(self, Self::Sql(_)) {
+        if matches!(self, Self::Sql(_) | Self::StoreBusy { .. }) {
             return true;
         }
         matches!(self, Self::Store(_))
@@ -250,12 +259,15 @@ impl RuntimeError {
                 refusal.message = format!("the program refused with {code}");
                 refusal.guide = Some("programs".into());
             }
+            #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
             Self::Structural { code: "E_STRUCTURAL_FANOUT", message } => {
                 refusal.message = message.clone();
                 refusal.rewrite = Some("iterate the original capped group, read the page in a query, or use a job sweep; `snapback4 check` locates the source and names the bound".into());
                 refusal.guide = Some("programs".into());
             }
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
+            #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => refusal.guide = Some("routes".into()),
             Self::Structural { code: "E_STORE_RESTORE" | "E_SCHEMA_CAPABILITY", .. } => refusal.guide = Some("sync".into()),
             Self::Structural { code, message } if code.starts_with("E_TIMELINE_") => {
@@ -339,6 +351,12 @@ impl RuntimeError {
             }
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => refusal.retryable = true,
+            #[cfg(feature = "sqlite")]
+            Self::StoreBusy { path } => {
+                refusal.site = Some(path.clone());
+                refusal.rewrite = Some("open a separate device database, or stop the backend writer before retrying".into());
+                refusal.guide = Some("residency".into());
+            }
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => refusal.retryable = true,
             Self::Store(_) => refusal.retryable = true,

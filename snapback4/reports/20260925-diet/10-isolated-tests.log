@@ -1,0 +1,87 @@
+Isolated existing final-source target: target/debug/deps/born_perf-48a183a0e850c765
+
+running 2 tests
+born grants: 1,250 in 24.296125ms, 5,000 in 87.906625ms, growth 3.6x
+test born_grants_in_one_commit_grow_linearly ... ok
+born rows: 5,000 in 39.334917ms, 20,000 in 148.865541ms, growth 3.8x
+test born_rows_in_one_commit_grow_linearly ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+Exit 0 elapsed 0.288
+Isolated existing final-source target: target/debug/deps/lifecycle-f9b17c1c6c8eba90
+
+running 20 tests
+test a_dead_child_reports_its_status_and_stderr_without_waiting_for_the_deadline ...
+thread 'a_dead_child_reports_its_status_and_stderr_without_waiting_for_the_deadline' (9285147) panicked at crates/snapback4/tests/lifecycle.rs:81:17:
+deliberately dead child: server exited with exit status: 23; stderr:
+deliberate child refusal
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ok
+test a_real_mapping_fault_reports_before_the_os_terminates_the_process ... ok
+test a_signal_diagnostic_starts_a_line_after_interrupted_stderr ... ok
+test a_signal_still_cleans_up_the_application_worker ... ok
+test a_store_without_work_binding_columns_still_serves ... ok
+test abort_profile_reports_an_off_thread_panic_to_redirected_stderr ...
+thread 'abort_profile_reports_an_off_thread_panic_to_redirected_stderr' (9285597) panicked at crates/snapback4/tests/lifecycle.rs:350:9:
+abort probe did not reach main after 30s; stderr:
+
+FAILED
+test dev_and_serve_report_signals_without_a_configured_worker ... SNAPBACK4_SIGNAL verb=dev generation=2 reason=SIGTERM signal=15
+SNAPBACK4_SIGNAL verb=dev generation=2 reason=SIGINT signal=2
+SNAPBACK4_SIGNAL verb=dev generation=2 reason=SIGHUP signal=1
+SNAPBACK4_SIGNAL verb=dev generation=2 reason=SIGBUS signal=10
+SNAPBACK4_SIGNAL verb=dev generation=2 reason=SIGABRT signal=6
+SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGTERM signal=15
+SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGINT signal=2
+SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGHUP signal=1
+SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGBUS signal=10
+SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGABRT signal=6
+ok
+test dev_default_adoption_and_check_share_the_successor_refusal ... ok
+test dev_refuses_an_explicit_worker_path_instead_of_ignoring_it ... ok
+test development_banner_and_release_auth_boundary ... ok
+test killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children ... ok
+test memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill ... ok
+test off_thread_panic_and_watcher_return_have_one_line_reasons ... ok
+test service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved ... ok
+test sqlite_permissions_preserve_database_and_wal_locks ... ok
+test sqlite_replay_survives_counter_split_and_a_concurrent_cli_backfill ... ok
+test startup_refusals_name_the_unserved_generation ... ok
+test subprocess_probe ... ok
+test w10r1b_dev_reports_the_same_cascades_as_check ... W10R1b dev verbose=false:
+SNAPBACK4_TEST_MAIN_REACHED
+snapback4 dev: http://127.0.0.1:57209  (schema: snapback/, types: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-host-50297-28/snapback/generated/api.ts)
+store: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-host-50297-28/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+chat.q:2:10 — E_QUARRY_UNKNOWN: unknown table messages
+  rewrite: declared names: none
+  guide: language
+
+snapback4 dev: 1 problem in snapback/; serving the previous generation
+
+W10R1b dev verbose=true:
+SNAPBACK4_TEST_MAIN_REACHED
+snapback4 dev: http://127.0.0.1:57210  (schema: snapback/, types: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-host-50297-29/snapback/generated/api.ts)
+store: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-host-50297-29/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+chat.q:2:10 — E_QUARRY_UNKNOWN: unknown table messages
+  rewrite: declared names: none
+  guide: language
+
+snapback4 dev: 1 problem in snapback/; serving the previous generation
+
+ok
+test watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill ... ok
+
+failures:
+
+failures:
+    abort_profile_reports_an_off_thread_panic_to_redirected_stderr
+
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.32s
+
+Exit 101 elapsed 38.378

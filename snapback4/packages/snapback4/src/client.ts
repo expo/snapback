@@ -826,6 +826,7 @@ export function createClient(options: ClientOptions): Client {
     scheduleRefresh();
   });
   const client: Client = {
+    async residency() { return null; },
     now: clock.issuedDeviceNow,
     act(op, args, options) {
       const response = closingResponses.request();

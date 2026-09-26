@@ -1,6 +1,8 @@
 //! Indexed live basis and the timestamp that owns physical expiry subtraction.
 use super::*;
-use crate::{schema::Table, maintain::RowKey};
+use crate::schema::Table;
+#[cfg(feature = "sqlite")]
+use crate::maintain::RowKey;
 
 pub(super) fn expiry(table: &Table, row: &Value) -> Option<i64> {
     table.deadline(row)
@@ -8,6 +10,7 @@ pub(super) fn expiry(table: &Table, row: &Value) -> Option<i64> {
 pub(super) fn live_at(table: &Table, row: &Value, at: i64) -> bool {
     expiry(table,row).is_none_or(|until|until>at)
 }
+#[cfg(feature = "sqlite")]
 pub(super) fn before_cursor(k: &RowKey, table: &Table, row: &Value, cursor: &Value) -> bool {
     match cursor {
         Value::Id(cursor) => row.field("id").ok().and_then(|v|v.as_str().ok()).is_some_and(|id|id<=cursor.as_str()),
@@ -44,12 +47,14 @@ impl Runner<'_> {
         }
         Ok((total,true,last))
     }
+    #[cfg(feature = "sqlite")]
     pub(super) fn view_basis(&mut self, m: &Maintain, id: &str) -> Result<i64,RuntimeError> {
         if self.device || !self.schema.tables[&m.source].is_expiring() { return Ok(i64::MIN); }
         Ok(self.view_get(&format!("$basis:{}",m.target),id)?.as_ref().map_or(i64::MIN,|row|number(row,"at")))
     }
     // The basis update and count share the source/member transaction. A later
     // sweep subtracts only inputs live in this basis, never a second time.
+    #[cfg(feature = "sqlite")]
     pub(super) fn set_view_basis(&mut self, m: &Maintain, id: &str) -> Result<(),RuntimeError> {
         if self.device || !self.schema.tables[&m.source].is_expiring() { return Ok(()); }
         let table = format!("$basis:{}",m.target);

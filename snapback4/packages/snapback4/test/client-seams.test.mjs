@@ -93,6 +93,12 @@ async function fixture(t, release = false, schema = source) {
     const deployed = spawnSync(binary, ["deploy", join(dir, "release")], { cwd: dir, encoding: "utf8" });
     assert.equal(deployed.status, 0, deployed.stdout + deployed.stderr);
   }
+  if (!release) {
+    const initialized = spawnSync(binary, ["test", "--residency"], { cwd: dir, encoding: "utf8" });
+    assert.equal(initialized.status, 0, initialized.stderr);
+  }
+  const meterToken = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(dir, "release")] : [])], { cwd: dir, encoding: "utf8" });
+  assert.equal(meterToken.status, 0, meterToken.stderr);
   const server = spawn(binary, release ? ["serve", join(dir, "release"), "--port", "0"] : ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(server, "exit");
   let log = "", url;
@@ -106,7 +112,7 @@ async function fixture(t, release = false, schema = source) {
   const device = { async open(name, backend) { const core = await native.open(name, backend); cores.push(core); return core; } };
   const post = async (path, body, persona = true) => (await fetch(url + path, { method: "POST", headers: persona ? { "x-snapback-persona": "alice" } : {}, body: JSON.stringify(body) })).json();
   const web = webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
-  return { dir, url, device, web, cores, clients, post, log: () => log };
+  return { dir, url, device, web, cores, clients, post, meterToken, log: () => log };
 }
 
 const meterSource = `use personas alice
@@ -157,10 +163,9 @@ for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "de
     for (const field of ["examined", "indexEntries", "probes", "steps", "heapBytes", "outputBytes", "rowsWritten"]) assert.equal(typeof read.meter?.[field], "number", field);
     assert.ok(read.meter.examined > 0); assert.ok(read.meter.heapBytes > 0);
     const cli = spawnSync(binary, ["run", "rows", "--as", session.principal, "--json"], { cwd: f.dir, encoding: "utf8" });
-    assert.equal(cli.status, 0, cli.stdout + cli.stderr);
-    const result = JSON.parse(cli.stdout), m = result.metered;
-    assert.deepEqual(result.data, read.data);
-    assert.deepEqual(read.meter, { examined: m.examined, indexEntries: m.index_entries, probes: m.rule_probes, steps: m.steps, heapBytes: m.heap_bytes, outputBytes: m.output_bytes, rowsWritten: m.rows_written, cut: null });
+    assert.notEqual(cli.status, 0);
+    assert.match(cli.stderr, /E_STORE_BUSY/);
+    assert.ok(cli.stderr.includes(f.url));
     const watch = client.observe(op, {});
     await until(() => watch.getSnapshot().data);
     assert.deepEqual(watch.getSnapshot().meter, read.meter); watch.close();
@@ -691,7 +696,7 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
   const observations = [];
   for (const hidden of [false, true]) {
     const f = await fixture(t, release, schema);
-    const token = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(f.dir, "release")] : [])], { cwd: f.dir, encoding: "utf8" });
+    const token = f.meterToken;
     assert.equal(token.status, 0, token.stderr);
     const session = await mintSession(f.url, token.stdout.trim(), "member:viewer");
     const headers = { authorization: `Bearer ${session.token}` };
@@ -773,7 +778,7 @@ query search():
   const worlds = [];
   for (const hidden of [false, true]) {
     const f = await fixture(t, release, schema);
-    const token = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(f.dir, "release")] : [])], { cwd: f.dir, encoding: "utf8" });
+    const token = f.meterToken;
     assert.equal(token.status, 0, token.stderr);
     const session = await mintSession(f.url, token.stdout.trim(), "member:viewer");
     const headers = { authorization: `Bearer ${session.token}`, "x-snapback-meter": "1" };

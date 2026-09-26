@@ -17,7 +17,10 @@ use serde_json::{Value, json};
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SCHEMA: &str = "use personas alice\nquery alive():\n  return true\n";
 const MAIN_REACHED: &str = "SNAPBACK4_TEST_MAIN_REACHED";
-const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(30);
+// Fresh macOS executables can wait in the loader before reaching our code.
+// Keep that allowance separate from the unchanged 15-second readiness/exit
+// deadline, which starts only after the explicit main marker.
+const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(120);
 const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
@@ -317,13 +320,13 @@ fn a_signal_still_cleans_up_the_application_worker() {
         let release = dir.0.join("release");
         if verb == "serve" { assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success()); }
         let args = if verb == "dev" { vec!["dev"] } else { vec!["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()] };
-        let mut host = Host::start(&dir, &args);
-        host.until(|_| fs::read_to_string(dir.0.join("worker-pid")).ok().and_then(|text| text.parse::<u32>().ok()).is_some());
         let credential = if verb == "serve" {
             let out = dir.run(&["token", "--service", "probe", "--release", release.to_str().unwrap()]);
             assert!(out.status.success(), "{out:?}");
             format!("Authorization: Bearer {}", String::from_utf8(out.stdout).unwrap().trim())
         } else { "x-snapback-persona: alice".into() };
+        let mut host = Host::start(&dir, &args);
+        host.until(|_| fs::read_to_string(dir.0.join("worker-pid")).ok().and_then(|text| text.parse::<u32>().ok()).is_some());
         assert_eq!(post_as(host.port, "/q/alive", json!({"args":{}}), &credential)["data"], true);
         assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
         assert_eq!(fs::read_to_string(dir.0.join("worker-stopped")).unwrap(), "yes");
@@ -396,7 +399,7 @@ fn seed(port: u16, start: usize, end: usize) {
 }
 
 #[test]
-fn sqlite_replay_survives_counter_split_and_a_concurrent_cli_backfill() {
+fn sqlite_replay_survives_counter_split_and_an_offline_cli_backfill() {
     let dir = Directory::new(); let schema = dir.0.join("snapback/schema.q");
     fs::write(&schema, REPOST_BEFORE).unwrap();
     let mut host = Host::start(&dir, &["dev"]);
@@ -408,10 +411,14 @@ fn sqlite_replay_survives_counter_split_and_a_concurrent_cli_backfill() {
     });
     fs::write(schema, repost_after()).unwrap();
     host.until(|h| h.log().contains("schema adopted as generation 2"));
+    let refused = dir.run(&["run", "backfillRepostEdges", "--json"]);
+    assert!(!refused.status.success()); assert!(String::from_utf8_lossy(&refused.stderr).contains("E_STORE_BUSY"));
+    replay.join().unwrap();
+    host.signal(libc::SIGTERM);
     let job = dir.run(&["run", "backfillRepostEdges", "--json"]);
     assert!(job.status.success(), "{job:?}");
     assert_eq!(serde_json::from_slice::<Value>(&job.stdout).unwrap()["state"], "done");
-    replay.join().unwrap();
+    let mut host = Host::start(&dir, &["dev"]);
     let store = snapback4_core::Store::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
     assert_eq!(store.rows("entries").unwrap().len(), 1600);
     assert_eq!(store.rows("repostEdges").unwrap().len(), 62);
@@ -465,8 +472,10 @@ fn watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill() {
     assert!(run.rows_written > 0, "backfill must commit positive progress before the refusal");
     fs::write(&schema, repost_after()).unwrap();
     host.until(|h| h.log().contains("schema adopted as generation 3"));
+    host.signal(libc::SIGTERM);
     let job = dir.run(&["run", "backfillRepostEdges", "--json"]); assert!(job.status.success(), "{job:?}");
     assert_eq!(serde_json::from_slice::<Value>(&job.stdout).unwrap()["state"], "done");
+    let mut host = Host::start(&dir, &["dev"]);
     assert_eq!(post(host.port, "/q/entries", json!({"args": {"c": null}}))["complete"], true);
     assert_eq!(host.signal(libc::SIGTERM).signal(), Some(libc::SIGTERM));
     assert!(host.log().contains("SNAPBACK4_SIGNAL verb=dev generation=3 reason=SIGTERM signal=15"));

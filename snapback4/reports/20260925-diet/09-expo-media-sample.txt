@@ -1,0 +1,31 @@
+Analysis of sampling media-files-test (pid 50971) every 1 millisecond
+Process:         media-files-test [50971]
+Path:            /Users/USER/*/media-files-test
+Load Address:    0x100a5c000
+Identifier:      media-files-test
+Version:         ???
+Code Type:       ARM64
+Parent Process:  codex [69522]
+Target Type:     live task
+
+Date/Time:       2026-09-25 23:53:58.875 -0700
+Launch Time:     2026-09-25 23:53:43.888 -0700
+OS Version:      macOS 26.6.2 (25G83)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         96K
+Physical footprint (peak):  96K
+Idle exit:                  untracked
+----
+
+Call graph:
+    1788 Thread_8623972: Main Thread   DispatchQueue_<multiple>
+      1788 _dyld_start  (in dyld) + 0  [0x100b5c9c0]
+
+Total number in stack (recursive counted multiple, when >=5):
+
+Sort by top of stack, same collapsed (when >= 5):
+        _dyld_start  (in dyld)        1788
+
+Binary images description not available

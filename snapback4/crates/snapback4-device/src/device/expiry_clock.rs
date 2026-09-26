@@ -3,11 +3,11 @@
 use super::*;
 pub(super) const KEY: &str = "device:expiry-clock";
 pub(super) const STAGED: &str = "device:snapshot:expiry-clock";
-fn read<T: DeviceTx>(tx: &T, key: &str) -> Result<Option<i64>, RuntimeError> {
+fn read(tx: &dyn crate::store::StreamTx, key: &str) -> Result<Option<i64>, RuntimeError> {
     tx.meta(key)?.map(|text| text.parse().map_err(|_| RuntimeError::Store("invalid device expiry clock".into()))).transpose()
 }
 pub(super) fn now<T: DeviceTx>(tx: &T, local: i64) -> Result<i64, RuntimeError> { Ok(read(tx, KEY)?.map_or(local, |server| server.max(local))) }
-pub(super) fn advance<T: DeviceTx>(tx: &T, key: &str, server: Option<i64>) -> Result<bool, RuntimeError> {
+pub(super) fn advance(tx: &dyn crate::store::StreamTx, key: &str, server: Option<i64>) -> Result<bool, RuntimeError> {
     let Some(server) = server else { return Ok(false) };
     if !(snapback4_core::value::I53_MIN..=snapback4_core::value::I53_MAX).contains(&server) { return Err(RuntimeError::Input("sync clock is outside the time range".into())); }
     if read(tx,key)?.is_some_and(|old| old >= server) { return Ok(false); }

@@ -19,5 +19,7 @@ pub mod ffi;
 pub mod native;
 #[cfg(feature = "native")]
 mod sqlite;
+#[cfg(feature = "native")]
+mod sqlite_residency;
 #[cfg(feature = "web")]
 pub mod web;

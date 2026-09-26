@@ -48,6 +48,8 @@ pub(super) fn project_host(project: &Project) -> Option<serde_json::Value> {
     None
 }
 
+/// Read the live host through its address record's listener port. A
+/// store identity check prevents a stale port from inspecting another project.
 pub(super) fn host(project: &Project, store_id: &str) -> Option<serde_json::Value> {
     for address in crate::dev_address::read(project) {
         if address.store_id != store_id { continue; }
