@@ -486,7 +486,15 @@ impl Analysis<'_> {
                 self.result.bounds.arguments.insert(name.clone(), u64::from(*max));
                 (u64::from(*max), false)
             }
-            LoopDomain::DerivedArray { value, max, .. } => (u64::from(*max), self.expr(value, times)),
+            LoopDomain::DerivedArray { value, max, .. } => {
+                // @ref LLP 3000.019#3.2 — append's heap sentinel is not a
+                // length; use the completed census for loops as well as folds.
+                let max = if *max == u32::MAX {
+                    self.collections.bound(value, self.program, self.result.bounds.meters.examined)
+                        .unwrap_or(self.result.bounds.meters.steps)
+                } else { u64::from(*max) };
+                (max, self.expr(value, times))
+            }
             LoopDomain::Recurse(r) => {
                 self.expr(&r.seed, times);
                 // Execution visits depths 0..=depth: include the seed,
