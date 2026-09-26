@@ -31,3 +31,10 @@ insufficient.
 
 After the post-landing cold build of LLP 3000.008.002.000 §7: if the builder
 still hand-rolls an intent journal with the corrected docs and starters, build it.
+
+**Resolution (2026-09-26):** duplicate. [LLP 3000.019](../../llp/3000.019-what-the-builder-still-wrote.rfc.md)
+P3(4), filed in parallel from the same calibration run, proposes the same view —
+`client.pendingWrites()` and `usePendingWrites(op?)` with `queued`/`sent`/`held`
+states and predicted rows — as lane O after 0.4.3. LLP 3000.008.002.000 §9 now
+points there; this ticket's open edges (refused-argument retention and its
+privacy, multi-tab ownership, the sent-but-not-observed state) are for that lane.
