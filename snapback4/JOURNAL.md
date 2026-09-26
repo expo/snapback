@@ -61973,3 +61973,8 @@ changing its expected invalidations, and strengthened both paused-publisher test
 to compare identity/generation as well as version/ring. All 15 core ephemeral
 tests and both paused-commit tests pass. This was an introduced test-compilation
 omission, not a pre-existing failure; the final full suite is rerun after it.
+
+Kept the isolated durable control measurement-only, as in the original acceptance
+trial: a missed control expiry is recorded as null rather than failing the
+feature's timing bound. The <=500 ms appearance, 0..4500 ms disappearance,
+notification path and <=4 request assertions all remain on the ephemeral phase.

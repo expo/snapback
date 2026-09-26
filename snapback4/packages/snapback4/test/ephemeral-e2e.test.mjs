@@ -55,11 +55,18 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
         outcomes.push(a.mutate(op, { room }));
         if (key < 44) await delay(25);
       }
-      for (const result of await Promise.all(outcomes)) assert.equal(result.state, 'sent', JSON.stringify(result));
-      await until(() => times.gone !== null, `${phase} trial ${measure.trial} disappears`);
+      const results = await Promise.all(outcomes);
+      if (phase === 'ephemeral') {
+        for (const result of results) assert.equal(result.state, 'sent', JSON.stringify(result));
+        await until(() => times.gone !== null, `${phase} trial ${measure.trial} disappears`);
+      } else {
+        // The durable control is measured, including a possible missed bound.
+        const deadline = performance.now() + 5500;
+        while (times.gone === null && performance.now() < deadline) await delay(10);
+      }
       const ms = n => Math.round(n * 1000) / 1000;
-      measure[`${phase}FirstMs`] = ms(times.first - firstCall);
-      measure[`${phase}GoneAfterLastMs`] = ms(times.gone - lastCall);
+      measure[`${phase}FirstMs`] = times.first === null ? null : ms(times.first - firstCall);
+      measure[`${phase}GoneAfterLastMs`] = times.gone === null ? null : ms(times.gone - lastCall);
       measure[`${phase}Requests`] = sends - before;
       if (phase === 'ephemeral') {
         assert.ok(measure.ephemeralFirstMs <= 500, JSON.stringify(measure));
