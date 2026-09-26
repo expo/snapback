@@ -59509,3 +59509,17 @@ finally tests: the helper's parameter reads as `a`, and a copy of `status`
 as `status`. A reassigned copy stays its own binding. New tests cover the
 helper, the helper in a loop, the alias, a reassigned copy, two bindings
 that share a spelling, and conditional cleanup beside constant variants.
+
+## 2026-09-26 — Scale certificate round 5: only an argument's presence defines a variant
+
+Astra's review of round 4 found three more gaps. A loop variable, or a copy
+reassigned in a loop, takes both values in one call, yet it was treated as a
+fixed condition. Repeated searches of one argument got separate identities.
+And an alias tested inside a test of its own source merged two contradictory
+facts into one variant. Presence variants now come only from an argument's
+presence, which is fixed for the whole call. A copy counts only if it is never
+reassigned, and Quarry never reassigns an argument. A test of anything else
+runs both ways, so its branches count as unconditional. A test that an
+enclosing test already decided adds no fact, and its other branch is recorded
+as unreachable. A searched argument is one condition however often it is
+searched.

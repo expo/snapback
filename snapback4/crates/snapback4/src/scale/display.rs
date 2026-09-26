@@ -35,23 +35,20 @@ impl Certificate {
 }
 
 /// A presence test: the binding it tests (its runtime name, or the searched
-/// expression), the name the author wrote, and whether the test is "present".
-pub(super) fn presence(expr: &Expr, labels: &BTreeMap<String, String>) -> Option<(String, String, bool)> {
+/// expression's text), whether it tests a search, and whether it tests "present".
+pub(super) fn presence(expr: &Expr) -> Option<(String, bool, bool)> {
     match expr {
         Expr::Binary { op: op @ (BinaryOp::Eq | BinaryOp::Ne), left, right } => {
             let input = match (left.as_ref(), right.as_ref()) {
                 (Expr::Variable(name), Expr::Literal(Value::Null)) | (Expr::Literal(Value::Null), Expr::Variable(name)) => name,
                 _ => return None,
             };
-            Some((input.clone(), author_name(input), *op == BinaryOp::Ne))
+            Some((input.clone(), false, *op == BinaryOp::Ne))
         }
-        Expr::Builtin { builtin: Builtin::SearchPresent, args } => {
-            let (identity, shown) = match &args[0] {
-                Expr::Variable(name) => (name.clone(), labels.get(name).cloned().unwrap_or_else(|| author_name(name))),
-                value => (self::expr(value), self::expr(value)),
-            };
-            Some((format!("search {identity}"), format!("search {shown}"), true))
-        }
+        Expr::Builtin { builtin: Builtin::SearchPresent, args } => Some((match &args[0] {
+            Expr::Variable(name) => name.clone(),
+            value => self::expr(value),
+        }, true, true)),
         _ => None,
     }
 }

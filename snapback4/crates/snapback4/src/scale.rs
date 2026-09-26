@@ -93,6 +93,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
         },
         labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
         identities: Vec::new(), aliases: BTreeMap::new(), reassigned: reassigned(program),
+        arguments: program.args.keys().cloned().collect(), unreachable: 0,
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
@@ -159,6 +160,10 @@ struct Analysis<'a> {
     /// Bindings that only copy another binding, neither ever reassigned.
     aliases: BTreeMap<String, String>,
     reassigned: BTreeSet<String>,
+    /// The operation's arguments: only their presence, fixed for a call, defines a variant.
+    arguments: BTreeSet<String>,
+    /// Depth of branches an enclosing presence test rules out.
+    unreachable: u32,
     has_variants: bool,
 }
 
@@ -194,6 +199,7 @@ impl Analysis<'_> {
     }
 
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
+        if self.unreachable > 0 { return; }
         self.variant(Class::Grows, None);
         let growth = Growth { when: display::conditions(&self.conditions), backlog: false, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
@@ -202,12 +208,14 @@ impl Analysis<'_> {
     /// Rows a background sweep removes: bounded by the read meter while the
     /// backlog lasts, and absent once cleanup catches up.
     fn backlog(&mut self, site: &str, reason: String, rewrite: &str) {
+        if self.unreachable > 0 { return; }
         self.variant(Class::Backlog, None);
         let growth = Growth { when: display::conditions(&self.conditions), backlog: true, site: site.into(), reason, rewrite: rewrite.into(), conditions: self.identities.clone() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
     }
 
     fn variant(&mut self, class: Class, index: Option<String>) {
+        if self.unreachable > 0 { return; }
         let Some(when) = display::conditions(&self.conditions) else { return; };
         // One variant per combination of bindings, not per spelling: a helper's
         // parameter and a query argument can share a name.
@@ -275,18 +283,40 @@ impl Analysis<'_> {
                 }
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
-                    let presence = display::presence(condition, &self.labels).filter(|_| self.has_variants);
-                    if let Some((identity, name, present)) = &presence {
-                        // Name a binding by the one it copies, so a helper's parameter reads as the argument.
-                        let identity = self.identity(identity);
-                        let name = if identity.starts_with("search ") { name.clone() } else { display::author_name(&identity) };
-                        self.conditions.push((name, *present));
-                        self.identities.push((identity, *present));
+                    // @ref LLP 3000.013#14.4 — only an argument's presence, fixed for the whole call, defines a
+                    // variant. A test of anything else (a loop variable, a reassigned or computed binding) can
+                    // go both ways in one call, so its branches are recorded as unconditional.
+                    let fact = display::presence(condition).filter(|_| self.has_variants).and_then(|(binding, search, present)| {
+                        let root = self.identity(&binding);
+                        // Quarry never reassigns an argument (locals cannot shadow one).
+                        self.arguments.contains(&root).then(|| {
+                            let name = display::author_name(&root);
+                            if search { (format!("search {root}"), format!("search {name}"), present) } else { (root, name, present) }
+                        })
+                    });
+                    match fact {
+                        None => { self.body(then_body, times); self.body(else_body, times); }
+                        Some((identity, name, present)) => match self.identities.iter().find(|(known, _)| *known == identity).map(|(_, value)| *value) {
+                            // An enclosing test already decided it: one branch is that same case, the other never runs.
+                            Some(known) => {
+                                let (same, never) = if known == present { (then_body, else_body) } else { (else_body, then_body) };
+                                self.body(same, times);
+                                self.unreachable += 1;
+                                self.body(never, times);
+                                self.unreachable -= 1;
+                            }
+                            None => {
+                                self.conditions.push((name, present));
+                                self.identities.push((identity, present));
+                                self.body(then_body, times);
+                                self.conditions.last_mut().unwrap().1 ^= true;
+                                self.identities.last_mut().unwrap().1 ^= true;
+                                self.body(else_body, times);
+                                self.conditions.pop();
+                                self.identities.pop();
+                            }
+                        },
                     }
-                    self.body(then_body, times);
-                    if presence.is_some() { self.conditions.last_mut().unwrap().1 ^= true; self.identities.last_mut().unwrap().1 ^= true; }
-                    self.body(else_body, times);
-                    if presence.is_some() { self.conditions.pop(); self.identities.pop(); }
                 }
                 Stmt::Require { condition, .. } => { self.expr(condition, times); }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }

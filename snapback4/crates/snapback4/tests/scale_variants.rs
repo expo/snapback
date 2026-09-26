@@ -142,11 +142,39 @@ fn a_helper_parameter_is_its_own_condition_whatever_its_name() {
     // The helper's parameter reads as the argument it copies.
     let c = certificate(&source);
     assert!(c.variants.iter().any(|v| v.when == "a is present") && c.variants.iter().any(|v| v.when == "assignee is present"), "{:?}", c.variants);
-    // Bound to an expression, the parameter keeps its own identity though it shares the
-    // argument's name: two bindings, two variants each, never merged by their spelling.
+    // Bound to an expression, the parameter is no argument: both its branches can run in any
+    // call, so the argument's own variants take the growth of the unpinned one.
     let valued = format!("{EXPIRING}fn page(assignee: principal ?):\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\nquery q(a: principal ?, assignee: principal ?):\n  extra = page(a ?? assignee)\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\n");
     let c = certificate(&valued);
-    assert_eq!(c.variants.iter().filter(|v| v.when == "assignee is present").count(), 2, "{:?}", c.variants);
+    assert_eq!(c.variants.iter().filter(|v| v.when == "assignee is present").count(), 1, "{:?}", c.variants);
+    assert!(c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+}
+
+#[test]
+fn only_an_arguments_presence_defines_a_variant() {
+    // A loop variable takes both values in one call: the absent iteration grows whatever the argument.
+    let looped = format!("{EXPIRING}fn page(assignee: principal ?):\n  return t where (assignee = null or .assignee = assignee) first 2 by .at\nquery q(assignee: principal ?):\n  for who in [assignee, null]:\n    extra = page(who)\n  return null\n");
+    let c = certificate(&looped);
+    assert_eq!(c.class, Class::Grows);
+    assert!(c.variants.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    assert!(!c.line().contains("constant once background cleanup catches up"), "{}", c.line());
+    // A copy reassigned inside a loop is not its source after the loop: a test of it runs
+    // either way, so the argument's pinned variant takes the unpinned branch's growth.
+    let cleared = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  for k in [1, 2]:\n    selected = null\n  extra = t where (assignee = null or .assignee = assignee) first 2 by .at\n  if selected != null:\n    return t where .assignee = selected first 2 by .at\n  else:\n    return t first 2 by .at\n");
+    let c = certificate(&cleared);
+    let present: Vec<_> = c.variants.iter().filter(|v| v.when == "assignee is present").collect();
+    assert!(!present.is_empty() && present.iter().all(|v| v.class == Class::Grows), "{:?}", c.variants);
+    // An enclosing test of the same argument decides a copy's test: one fact, and the other
+    // branch never runs.
+    let nested = format!("{EXPIRING}query q(assignee: principal ?):\n  selected = assignee\n  if assignee != null:\n    return t where (selected = null or .assignee = selected) first 2 by .at\n  return []\n");
+    let c = certificate(&nested);
+    assert!(c.variants.iter().all(|v| !v.when.contains(" and ")), "{:?}", c.variants);
+    assert!(c.variants.iter().filter(|v| v.when == "assignee is present").all(|v| v.class == Class::Backlog), "{:?}", c.variants);
+    // Searching one argument twice is one condition.
+    let searched = "table notes:\n  title: text <=100\n  search title\n  public\n  online only\nquery q(needle: text <=100):\n  extra = notes matching needle first 2 by .id\n  return notes matching needle first 2 by .id\n";
+    let c = certificate(searched);
+    assert_eq!(c.variants.len(), 2, "{:?}", c.variants);
+    assert!(c.line().contains("when search needle is absent: constant"), "{}", c.line());
 }
 
 #[test]
