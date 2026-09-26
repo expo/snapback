@@ -1,7 +1,7 @@
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
-import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
+import type { ObserveOptions, Client, Observed, Query, Read, Refusal } from "./contract.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 
@@ -50,7 +50,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const read = await raw.query(op, args);
       return valid() ? read : { denied: why() };
     },
-    observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
+    observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       let snapshot: Read<R> = { loading: true };
       let refused: Read<R> | undefined;
@@ -69,7 +69,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         if (closed) return;
         if (refused) { snapshot = { denied: refused }; emit(); return; }
         if (valid()) {
-          source = raw.observe(op, args);
+          source = raw.observe(op, args, options);
           stop = source.subscribe(() => { void refresh().catch(() => {}); });
         }
         return refresh();

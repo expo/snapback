@@ -229,7 +229,7 @@ const asset = useAsset(photoId);
 ```
 
 Import these hooks from `snapback4/react`. `usePage` keeps loaded pages while the next loads; it supplies accumulated
-items, `hasMore`, `loadMore` and read completeness. `useQuery` observes one answer; `useMutation` tracks writes; `useAsset` resolves
+items, `hasMore`, `loadMore` and read completeness. Both read hooks accept `{ keep: true }`: stale rows, including revoked rows, stay during reload until the next answer/refusal; credential, viewer and store resets still clear them; a remount within 30 seconds reuses the stale answer. `useMutation` tracks writes; `useAsset` resolves
 a placed asset. Upload bytes with `client.upload` before passing the asset id to `addNote`. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
 

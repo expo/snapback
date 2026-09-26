@@ -2,7 +2,7 @@
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
@@ -101,10 +101,10 @@ class Observation<R> {
 }
 
 /** One live read. Re-renders when the value changes; never throws. */
-export function useQuery<A, R>(op: Query<A, R>, args: A): Read<R> {
+export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> {
   const client = useClient();
   const key = JSON.stringify(args);
-  const observed = useMemo(() => new Observation(() => client.observe(op, args)), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const observed = useMemo(() => new Observation(() => client.observe(op, args, { keep: options?.keep === true })), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
@@ -115,9 +115,9 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
   private subs = new Set<() => void>();
   private cache: { items: R[number][]; hasMore: boolean; read: Read<R> } | null = null;
   private reconciling = false;
-  constructor(private client: Client, private op: Query<A, R>, private args: A) {}
+  constructor(private client: Client, private op: Query<A, R>, private args: A, private options?: ObserveOptions) {}
   private open(c: Cursor | null) {
-    const observed = this.client.observe(this.op, { ...this.args, c });
+    const observed = this.client.observe(this.op, { ...this.args, c }, this.options);
     const page = { cursor: c, observed, unsubscribe: () => {} };
     this.pages.push(page);
     page.unsubscribe = observed.subscribe(() => {
@@ -204,10 +204,10 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
   };
 }
 
-export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">) {
+export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
   const client = useClient();
   const key = JSON.stringify(args);
-  const pages = useMemo(() => new Pages(client, op, args as A), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pages = useMemo(() => new Pages(client, op, args as A, { keep: options?.keep === true }), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
 }

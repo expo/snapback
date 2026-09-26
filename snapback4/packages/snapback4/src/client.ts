@@ -1,3 +1,4 @@
+import { KeptAnswers, observeWatch } from "./kept-answers.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
@@ -16,7 +17,7 @@ import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
-import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
+import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -162,6 +163,12 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
+  const keptAnswers = new KeptAnswers();
+  const resetKept = (publish = true) => {
+    keptAnswers.clear();
+    for (const watch of watches.values()) if (watch.keep) watch.reset({ loading: true });
+    if (publish) for (const watch of watches.values()) if (watch.keep) notify(watch);
+  };
   const ephemeralReads = new EphemeralReads(aborter.signal);
   let backend: BackendJson | undefined;
   let backendLoaded = false, ephemeralAdvertised = false;
@@ -212,6 +219,7 @@ export function createClient(options: ClientOptions): Client {
 
   const endCredentials = () => {
     if (!credentials) return;
+    keptAnswers.clear();
     session = null;
     stopRefresh(auth());
     credentialRevision += 1;
@@ -252,6 +260,7 @@ export function createClient(options: ClientOptions): Client {
   const setViewer = (next: Principal | null) => {
     if (viewer === next) return;
     viewer = next;
+    resetKept();
     for (const listener of viewerListeners) listener(next);
   };
 
@@ -264,6 +273,7 @@ export function createClient(options: ClientOptions): Client {
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
+    keptAnswers.clear();
     queryEpoch++;
     // Terminal connectivity is observable without discarding the session that
     // createApp may validate on its replacement client.
@@ -326,6 +336,7 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
+    resetKept(false);
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
@@ -367,6 +378,7 @@ export function createClient(options: ClientOptions): Client {
       return refreshed;
     })();
     refreshing = work;
+    for (const watch of watches.values()) if (watch.keep) notify(watch);
     void work.finally(() => { if (refreshing === work) refreshing = null; }).catch(() => {});
     return work;
   }
@@ -493,7 +505,10 @@ export function createClient(options: ClientOptions): Client {
     const delay = Math.min(clock.serverDelay(nextExpiry), 2_147_483_647);
     watch.expiryTimer = setTimeout(() => {
       watch.expiryTimer = null;
-      if (watches.get(watch.key) === watch) void refresh(watch);
+      if (watches.get(watch.key) === watch) {
+        if (watch.keep) { watch.reset({ loading: true }); notify(watch); }
+        void refresh(watch);
+      }
     }, delay);
     (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
@@ -532,6 +547,7 @@ export function createClient(options: ClientOptions): Client {
 
   async function refresh(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
+    if (watch.keep) { watch.reload(); notify(watch); }
     if (watch.inFlight) {
       watch.dirty = true;
       return;
@@ -544,7 +560,7 @@ export function createClient(options: ClientOptions): Client {
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
-        watch.reset(storeRefusal ? { denied: storeRefusal } : { loading: true });
+        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.reload();
         scheduleExpiry(watch, null);
         schedulePresence(watch, false);
         notify(watch);
@@ -630,6 +646,7 @@ export function createClient(options: ClientOptions): Client {
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
+          resetKept();
           queryEpoch++;
           if ((backend || ephemeralAdvertised) && !await refreshBackend() && backend) throw new Error("schema: adoption facts unavailable");
         }
@@ -731,50 +748,13 @@ export function createClient(options: ClientOptions): Client {
       if (!credentials) return { denied: auth() };
       return currentRead(result) ? result.read : { loading: true };
     },
-    observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
-      const key = `${op.name}:${JSON.stringify(args)}`;
-      let watch = watches.get(key);
-      if (!watch) {
-        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
-        watches.set(key, watch);
-        watchEphemeral(watch);
-        void refresh(watch);
-        void poll();
-      }
-      const own = watch;
-      const mine = new Set<() => void>();
-      return {
-        getSnapshot: () => own.read(storeRefusal ?? (closed ? ended() : !credentials ? auth() : null)) as Read<R>,
-        subscribe(notifyMe) {
-          mine.add(notifyMe);
-          own.subscribers.add(notifyMe);
-          // A screen that closed this key a moment ago (React unmounts the
-          // old component before the new one subscribes) may have removed
-          // the watch: put it back, and refresh it.
-          if (watches.get(own.key) !== own) {
-            watches.set(own.key, own);
-            watchEphemeral(own);
-            void refresh(own);
-            void poll();
-          }
-          return () => {
-            mine.delete(notifyMe);
-            own.subscribers.delete(notifyMe);
-          };
-        },
-        close() {
-          for (const s of mine) own.subscribers.delete(s);
-          if (own.subscribers.size === 0) {
-            if (watches.get(own.key) === own) watches.delete(own.key);
-            ephemeralReads.remove(own);
-            own.reset({ loading: true });
-            if (own.expiryTimer) clearTimeout(own.expiryTimer);
-            own.expiryTimer = null;
-            if (own.presenceRefresh) clearTimeout(own.presenceRefresh);
-            own.presenceRefresh = null;
-          }
-        },
-      };
+    observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      const keep = options?.keep === true;
+      const key = `${keep ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`;
+      return observeWatch(watches, key, keptAnswers, () => JSON.stringify([viewer, storeIdentity]),
+        () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null }),
+        watch => { watchEphemeral(watch); void refresh(watch); void poll(); },
+        watch => ephemeralReads.remove(watch), () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
@@ -896,6 +876,7 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      keptAnswers.clear();
       stopClock();
       closingResponses.begin();
       stopRefresh(ended());

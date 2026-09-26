@@ -1,3 +1,4 @@
+import { KeptAnswers } from "./kept-answers.ts";
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import type { BackendJson } from "./backend.ts";
@@ -95,16 +96,23 @@ export class RememberedAnswers {
   }
 }
 
-/** Every local commit retires retained answers. */
+/** Every local commit fences reads; only explicit keep survives an ordinary reload. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
+  readonly keptAnswers = new KeptAnswers();
 
-  clear(watches: Iterable<LocalWatch>): void {
+  // @ref LLP 3000.019#3.3 — ordinary commits can revoke rows; retaining them is explicitly opt-in.
+  committed(watches: Iterable<LocalWatch>, operation: string): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
+  }
+
+  clear(watches: Iterable<LocalWatch>, reset = true): void {
     this.revision++;
     this.serverAnswers.clear();
+    if (reset) this.keptAnswers.clear();
     for (const watch of watches) {
-      watch.reset({ loading: true });
+      if (reset) watch.reset({ loading: true }); else watch.reload();
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watch.expiryTimer = null;
       // A replaced store relearns presence intervals from its next server answer.
