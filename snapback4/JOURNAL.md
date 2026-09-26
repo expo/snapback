@@ -63084,6 +63084,12 @@ through held polls, which four review rounds could not make safe, then by a
 refresh. The full record is
 `reports/20260926-intent-integration-043/REPORT.md`.
 
+Round 21 is a test. Grok's review of round 20 (READY WITH CHANGES) found every
+earlier finding fixed and one gap: nothing showed a kept view staying kept
+across a loading answer, so honoring the kept mark only when the member's row
+is present survived. A case publishes a loading answer and then the same row,
+and requires no second `seen`.
+
 ### 2026-09-26 — LLP 3000.017 fix round 2: capability installation and savepoints
 
 Astra N1/N2/N3 and Opus N1 are fixed within the delta-review scope. Initial
