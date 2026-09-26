@@ -59104,3 +59104,27 @@ The affected client files pass 23 of 23 and the adoption cases 12 of 12. The
 typecheck, docs budget and `ref-check` pass. The full suite runs on the 0.4.3
 integration branch that merges this round. TypeScript only: no wasm, protocol,
 storage or meter change. Report: `reports/20260926-lane-v-r14.md`.
+
+## 2026-09-26 — Lane V round 15: settlement never reads a shared correction
+
+Grok's round-14 review found that the round-14 overlay reached settlement.
+`lookupReceipts` ran on every `meta write-history` reply, which
+`WriteHistory.acknowledged` also reads. A shared `NOT_ADMIN` or `sent` therefore
+hid this device's own `E_STORE_REPLACED` from the qualified-success repair. The
+overlay is now caller-only. Ordinary reads are local-first again. Only
+`client.write(id)` for an id with no local outbox entry, and whose own durable
+receipt is `E_STORE_REPLACED`, asks the host for `lookup: true`. Nothing it
+returns is kept or settled.
+
+A new browser case covers four states, each with a local `E_STORE_REPLACED` and
+a shared receipt:
+
+- A qualified success over shared `NOT_ADMIN` returns and keeps `sent`.
+- A qualified success over shared `sent` 99 returns and keeps its own `sent`.
+- A legacy sequence stays pending and keeps custody.
+- An unsent entry answers with the device's own refusal.
+
+Two new mutants, `settlement-overlay` (round 14's defect) and `custody-lookup`,
+fail that case. The three earlier mutants still fail theirs. The affected files
+pass 91 of 91 and adoption 12 of 12. TypeScript only. Report:
+`reports/20260926-lane-v-r15.md`.

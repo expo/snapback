@@ -351,8 +351,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               if (request.op === "meta" && request.key === "write-history" && !reply.denied) {
                 // Read through on every lookup: a sibling may have recovered a
                 // receipt after this client opened. Never copy it into this VM.
-                const shared = await receiptHistory(persist, name);
-                reply.ok = JSON.stringify(lookupReceipts(shared, terminalReceipts(reply.ok as string | null)));
+                // Settlement reads this device's receipts first; only a
+                // caller's lookup (`lookup: true`) takes a shared correction.
+                const shared = await receiptHistory(persist, name), local = terminalReceipts(reply.ok as string | null);
+                reply.ok = JSON.stringify(request.lookup === true ? lookupReceipts(shared, local) : localFirst(shared, local));
               }
               return reply;
             } catch (error) {
@@ -626,9 +628,11 @@ async function receiptHistory(persist: Persistence, name: string): Promise<Termi
 
 const unknownOutcome = (write: TerminalReceipt) => write.state === "failed" && write.why.code === "E_STORE_REPLACED";
 
-// @ref LLP 3000.013#6 — lookup applies adoption's correction rule. A shared,
-// verified outcome resolves this client's own unknown replacement refusal;
-// every other local outcome wins over shared history.
+const localFirst = (shared: TerminalReceipt[], local: TerminalReceipt[]) => [...new Map([...shared, ...local].map(write => [write.id, write])).values()];
+
+// @ref LLP 3000.013#6 — a caller's lookup applies adoption's correction rule.
+// A shared, verified outcome resolves this client's own unknown replacement
+// refusal; every other local outcome wins over shared history.
 function lookupReceipts(shared: TerminalReceipt[], local: TerminalReceipt[]): TerminalReceipt[] {
   const merged = new Map(shared.map(write => [write.id, write]));
   for (const write of local) {

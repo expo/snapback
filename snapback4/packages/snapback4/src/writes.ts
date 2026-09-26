@@ -4,6 +4,8 @@ import type { Write } from "./contract.ts";
 type Terminal = Exclude<Write, { state: "pending" }>;
 interface Storage {
   read(): Promise<string | null>;
+  /** The receipts a caller's lookup may answer from, including a web host's shared corrections. */
+  lookup?(): Promise<string | null>;
   save(value: string): Promise<void>;
 }
 
@@ -188,6 +190,16 @@ export class WriteHistory {
     // A local admission/storage error does not establish the server outcome;
     // its captured journal may still be recoverable and must not be retired.
     return durable ?? (receiptsOnly ? undefined : this.values.get(id));
+  }
+
+  /** A caller's lookup of an id this device holds no outbox entry for. Only
+   * a durable replacement refusal consults the host's shared corrections, and
+   * nothing it returns is kept or settled. */
+  async lookup(id: string): Promise<Write | undefined> {
+    const own = await this.read(id);
+    if (own?.state !== "failed" || own.why.code !== "E_STORE_REPLACED" || this.unpersisted.has(id) || !this.storage?.lookup) return own;
+    const saved = await this.storage.lookup();
+    return (saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined) ?? own;
   }
 
   retainEmissions(queued: Iterable<string>): void {

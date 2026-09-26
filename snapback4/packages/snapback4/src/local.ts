@@ -154,6 +154,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   attachAdmissionAuthority(core, options);
   history = new WriteHistory({
     read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
+    lookup: async () => (await call({ op: "meta", key: "write-history", lookup: true })).ok as string | null,
     save: async value => {
       const reply = await call({ op: "keep_write", value });
       if (reply.denied) throw new Error(`${reply.denied.code}: ${reply.denied.message}`);
@@ -1217,7 +1218,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const entry = (await queued()).find(entry => entry.id === id);
       if (unavailable()) return undefined;
       const seq = entry?.sent_seq ?? entry?.observed_seq;
-      const receipt = seq == null ? await history.read(id) : await history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id));
+      // @ref LLP 3000.013#6 — a shared correction answers only an id this device holds no outbox entry for.
+      const receipt = seq == null ? await (entry ? history.read(id) : history.lookup(id)) : await history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id));
       if (unavailable()) return undefined;
       if (!entry || (receipt && receipt.state !== "pending")) return receipt;
       return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length

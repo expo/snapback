@@ -904,9 +904,10 @@ a shared window for the same server and viewer, bounded to 256 receipts in
 recovery order. Verified terminal corrections replace shared `E_STORE_REPLACED`
 in place; authored refusals and retention positions stay unchanged. Every
 opener and `client.write(id)` reads that window alongside its own device's
-256 receipts; reads never copy or refresh it. Where the device's own receipt is
-still `E_STORE_REPLACED` and the window holds a verified outcome for that id,
-lookup answers with the window's outcome; every other local receipt answers first.
+256 receipts; reads never copy or refresh it. For an id with no outbox entry on
+this device, whose own receipt is still `E_STORE_REPLACED`, `client.write(id)`
+answers with a verified outcome from the window. Every other local receipt answers
+first, and settlement never reads the window.
 A different tab winning adoption
 cannot hide the receipt from a reload. Outboxes remain exclusively owned:
 a held Web Lock is never taken; a queued background lock request wakes recovery

@@ -1,0 +1,50 @@
+(node:4154318) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (1944.27257ms)
+  ✔ legacy binding survives adopted B on keepalive transport (2026.451466ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1953.217332ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (413.488288ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1385.602479ms)
+  ✖ a shared correction never hides this device's qualified or pending custody (1390.857173ms)
+✖ web receipt upgrades preserve original binding and corrected shared custody (9921.333444ms)
+ℹ {"transport":"ordinary","original":"ecb946f4d7b2a4481e5da14081c74a48","adopted":"6387cff4005d86801550cced061c4283","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"ecb946f4d7b2a4481e5da14081c74a48","adopted":"96a4b9111f9b1a49af4c271bdd33b652","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10023.60556
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-receipt-upgrade.test.mjs:98:74
+✖ a shared correction never hides this device's qualified or pending custody (1390.857173ms)
+  AssertionError [ERR_ASSERTION]: {"state":"failed","id":"01M3DGXB122MCCGCNG5H7WSCCV","why":{"code":"NOT_ADMIN","family":"rule","message":"write refused: NOT_ADMIN"}}
+  + actual - expected
+  
+    [
+  +   'failed',
+  +   undefined
+  -   'sent',
+  -   7
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:285:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-receipt-upgrade.test.mjs:256:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'failed', undefined ],
+    expected: [ 'sent', 7 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
