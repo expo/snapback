@@ -679,7 +679,7 @@ export function createClient(options: ClientOptions): Client {
         notify(watch);
         return;
       }
-      watch.publish(result.read);
+      watch.publish(result.transportOffline ? { loading: true } : result.read);
       if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
       notify(watch);
       watch.tables = new Set(tables);
