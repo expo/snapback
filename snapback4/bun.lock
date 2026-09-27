@@ -62,6 +62,7 @@
       },
       "optionalDependencies": {
         "snapback4-darwin-arm64": "0.4.4",
+        "snapback4-linux-x64": "0.4.4",
       },
       "peerDependencies": {
         "react": "^19.0.0",
@@ -85,6 +86,10 @@
         "expo": "*",
         "snapback4": "*",
       },
+    },
+    "packages/snapback4-linux-x64": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.4",
     },
   },
   "packages": {
@@ -893,6 +898,8 @@
     "snapback4-darwin-arm64": ["snapback4-darwin-arm64@workspace:packages/snapback4-darwin-arm64"],
 
     "snapback4-expo": ["snapback4-expo@workspace:packages/snapback4-expo"],
+
+    "snapback4-linux-x64": ["snapback4-linux-x64@workspace:packages/snapback4-linux-x64"],
 
     "source-map": ["source-map@0.5.7", "", {}, "sha512-LbrmJOMUSdEVxIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ=="],
 
