@@ -51,6 +51,7 @@ query total():
     sourceOverrides[path(file)] = source.replace(before, after);
   };
   if (mutant === 'transport') replace('web.ts', 'if (working) { publishPending = true; return; }', '/* mutant: publish while admission holds the session lock */');
+  if (mutant === 'lock-notifications') replace('app-storage.ts', 'if (!pending) { work(); return; }', 'work(); return;');
   if (mutant === 'legacy') replace('web-journal.ts', 'if (!stamp) return this.authority ? refused() : admitted();', 'if (!stamp) return admitted();');
   if (mutant === 'attach') replace('web.ts', 'chain = chain.then(() => run(recoverOpening)).catch(error => { discard(); throw error; });', 'needsRecovery = false;');
   if (mutant === 'fence') replace('app.ts', 'void authorized().catch(() => {});', '/* mutant: never confirm the mismatch */');
@@ -122,7 +123,8 @@ query total():
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
 import { mintId } from '${path('client.ts')}';
-Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessionKey, mintId });
+import { storeLock } from '${path('app-storage.ts')}';
+Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessionKey, mintId, storeLock });
 window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kind: 'query', name: 'roster' } };
 window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false, holdOrdinaryResponse = false, holdExitResponse = false, holdSend = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
@@ -315,6 +317,32 @@ window.abortReceipts = (store, limit = Infinity) => {
       assert.equal(await peer.evaluate(() => app.auth.state), 'signed-out');
       await page.evaluate(() => app.close()); await peer.evaluate(() => app.close());
     } finally { await peer.close(); }
+  });
+
+  await check('exit notification waits for a session turn queued after strict admission', async () => {
+    const { session } = await fresh();
+    await page.evaluate(options => boot(options), { url, session, holdAdmission: true });
+    await page.evaluate(() => captureClick());
+    await page.waitForFunction(() => window.admissionHeld && window.sessionLocks > 0);
+    await page.evaluate(url => {
+      window.followingTurn = storeLock(sessionKey(url), async () => {
+        window.followingHeld = true;
+        await new Promise(resolve => window.releaseFollowing = resolve);
+      });
+    }, url);
+    try {
+      await hide();
+      await page.evaluate(() => releaseAdmission());
+      await page.waitForFunction(() => window.followingHeld && window.sessionLocks > 0);
+      assert.deepEqual(await page.evaluate(() => exitLocks), [], 'notification must wait for the following session turn');
+      await page.evaluate(() => releaseFollowing());
+      await page.waitForFunction(() => window.exitLocks.length > 0);
+      assert.ok((await page.evaluate(() => exitLocks)).every(depth => depth === 0), 'transport entered under the session lock');
+      assert.equal(await page.evaluate(() => app.auth.state), 'signed-in');
+    } finally {
+      await page.evaluate(() => { releaseFollowing?.(); });
+      await page.evaluate(() => app.close());
+    }
   });
 
   for (const mode of ['held-sync', 'offline']) await check(`navigation recovers its original outbox id before ${mode} startup completes`, async () => {
