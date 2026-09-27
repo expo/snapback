@@ -67,3 +67,22 @@ test("a closed remembered answer ignores a local wakeup but still checks its ser
   assert.equal(f.handle.getSnapshot().data, "private");
   f.wall(1500); assert.deepEqual(f.handle.getSnapshot(), { loading: true });
 });
+
+for (const keep of [undefined, true]) for (const domain of ["device", "server"]) for (const access of ["snapshot", "peek"]) {
+  test(`raw ${access} latches its ${domain} row deadline before timers, keep=${keep}`, t => {
+    const f = fixture(t, keep), get = access === "peek" ? f.peek : () => f.handle.getSnapshot();
+    f.arm({ [domain]: 1100 });
+    const original = get();
+    assert.equal(original.revalidating, undefined, "this test has no episode deadline or facade hold");
+    f.wall(1099); assert.equal(get(), original);
+    f.wall(1100);
+    assert.equal(f.owner.snapshot, original, "the expiry timer has not delivered");
+    const loading = get();
+    assert.deepEqual(loading, { loading: true });
+    assert.equal(f.notifications(), 1);
+    assert.equal(f.handle.getSnapshot(), loading); assert.equal(f.peek(), loading);
+    f.wall(1000);
+    assert.equal(get(), loading, "rollback cannot restore the expired row");
+    assert.equal(f.notifications(), 1, "expiry only notifies once");
+  });
+}
