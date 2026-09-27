@@ -67047,3 +67047,73 @@ node --test packages/snapback4/test/web-admission-review.test.mjs
 No second full-suite run or unrelated client fix. The remaining browser failure
 and the explicitly documented filesystem-mutation boundary are the open limits;
 all four requested OW findings have regression coverage and pass on this host.
+
+### 2026-09-27 — Lane OW round 2: document the sidecar exclusion boundary (option b)
+
+Read the lane prompt, both preceding OW entries and the complete Grok round-1
+NOT READY review. Chose the user's option **(b)**. Store::conn() exposes an
+infallible raw SQLite connection: auth autocommit writes, auth and worker
+transactions, and effect/action/job/timeline reads bypass the transaction
+helpers. Checking those helpers is not one chokepoint; a fallible accessor
+would change the connection API and its callers, and cannot revoke a connection
+already borrowed. This patch makes no transaction-cost measurement or
+single-digit-microsecond claim.
+
+Removed the running-process sidecar-name checks in core store/ownership.rs
+and CLI store_owner.rs. Retained the independent stat-only database validation,
+including hard-link refusal, and every acquisition-time sidecar check. The
+existing check_ownership method now only validates the database file; it does
+not claim to intercept raw connection use or revoke an unlinked sidecar.
+Backend stores, detached readers and native devices still hold their lock Arc.
+The three fixes Grok confirmed remain: no database inode opened/locked/closed
+as an auxiliary file, no database created by a busy probe, and hard-linked
+databases refused before owner admission and by existing path/file checks.
+
+LLP 3000.019 section 3.4 replaces the partial fail-closed claim with the exact
+boundary: exclusion holds while <database>-owner is left in place; deleting
+or replacing it while a process runs ends exclusion and can admit another
+owner without stopping the first. The residency card in guide.rs, the refusal
+card in guide/refusals.rs, CLI busy text in store_owner.rs, native busy text
+in core/error.rs and acquisition-time refusal in store/ownership.rs state
+that boundary. Stop all owners before moving a database and its sidecars.
+
+Updated three existing regressions to match that deliberate contract change:
+store_owner_tests.rs covers unlink and replacement, continued old reads/writes,
+a new exclusive owner, and a third owner refused on the replacement sidecar;
+run_admission/identity.rs keeps the real second-process startup and proves both
+processes commit sequentially, with the old query reading all three fixture
+rows; device/tests/residency.rs proves an old native device remains usable
+through a second open. Their names and @ref comments explicitly label the
+documented boundary. The busy-missing-database test also requires the boundary
+in both CLI and native refusal text. No new test files or language forms.
+
+Affected checks all pass: private_fs 1/1, store_owner 9/9, run_admission 27/27,
+native residency 6/6, whole guide 86/86, native-opening JS 6/6. Frozen Bun
+install and package build pass. Reference audit: 515 LLP documents, 9,560 refs,
+zero errors or unchecked. All changed source files remain below 1,500 lines.
+Evidence is ignored under target/lane-ow-r2/. Node 24.13.1, Bun 1.3.14,
+Rust 1.97.0; eight Cargo jobs, dev/test debug information off, fd limit 65,536.
+
+The final suite rebuilt wasm at 1,980,253 B raw / 571,841 B gzip, SHA-256
+61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c:
+byte-identical to the saved round-1 artifact, 0 B delta; unchanged cap 572,841 B.
+No authorization, disclosure, runtime meter, version or budget changes. Normal
+init/dev, run and shared-device spellings remain unchanged. No scope deviation,
+new connection API, unrelated fix, push or publication. This host is Linux;
+macOS/iOS proof remains for the supervisor, with commands in the round-2 report.
+The intentional open boundary reproduces by starting dev, removing
+.snapback4/store.sqlite-owner and starting a second dev on another port: both
+processes can still work. The one required full-suite result follows below.
+
+Ran scripts/test.sh **exactly once** after the affected checks. Exact summary:
+**`== 0 failure(s) in 1075 s`**, exit **0**. There are no introduced, baseline
+or environmental failures to attribute in this run. Rust tests/doctests:
+**3,794 passed / 0 failed / 24 intentional ignores**, 586 s. Client main:
+**2,466 passed / 0 failed / 10 skipped**, with **56/56** tests in the seven
+additional shards; client phase 194 s. Seeded models: **78/78**, 257 s.
+Fixture wrappers: **9/9**. Native and wasm builds, wasm/docs budgets, release
+guard, package build/typecheck and both app typechecks all pass. Previously
+recorded intermittent client failures did not occur in this run. No second
+full run, no implementation or test changes after qualification began, and no
+unrelated changes. Committed with the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.

@@ -245,9 +245,10 @@ fixture, `token`, `deploy`, `rollback`) lock its `-owner` sidecar for their life
 Native devices, including embedded C-ABI hosts, share ownership with each other
 and exclude backend writers until their stores close.
 Exclusion holds while `<database>-owner` is left in place. Removing or replacing
-it ends the old owner's authority: further store work refuses E_STORE; a new
-owner may create a replacement and proceed. An already-admitted transaction is
-not cancelled. Stop owners before moving the database and its sidecars.
+it while a process runs ends exclusion: a second owner can start while the first
+can continue reading and writing. Removal does not revoke a running process or
+cancel its transactions. Stop all owners before moving the database and its
+sidecars; leave `-owner` in place for the whole ownership lifetime.
 Hard-linked databases refuse E_STORE: copy the store, do not hard-link it.
 A busy probe at a moved store's old path creates no empty database.
 A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the

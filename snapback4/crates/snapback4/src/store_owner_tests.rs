@@ -98,6 +98,7 @@ fn busy_missing_database_creates_nothing() {
     let before = fs::read(&record).unwrap();
     for error in [command(&path).err().unwrap(), device(&path).err().unwrap(), Store::open_shared(&path).err().unwrap().to_string()] {
         assert!(error.contains("E_STORE_BUSY"), "{error}");
+        assert!(error.contains("ends exclusion") && error.contains("does not stop that process"), "{error}");
         assert!(!path.exists(), "busy probe manufactured a database");
         assert_eq!(fs::read(&record).unwrap(), before);
     }
@@ -160,7 +161,7 @@ fn database_renamed_to_auxiliary_name_is_never_opened_or_truncated() {
 }
 
 #[test]
-fn removed_or_replaced_sidecar_revokes_existing_connections() {
+fn removed_or_replaced_sidecar_ends_exclusion_documented_boundary() {
     for replace in [false, true] {
         let dir = std::env::temp_dir().join(format!("snapback4-owner-unlink-{}-{replace}", std::process::id()));
         let path = dir.join("store.sqlite");
@@ -169,15 +170,20 @@ fn removed_or_replaced_sidecar_revokes_existing_connections() {
         let sidecar = snapback4_core::private_fs::owner_path(&path);
         if replace { fs::rename(&sidecar, dir.join("old-owner")).unwrap(); }
         else { fs::remove_file(&sidecar).unwrap(); }
-        let error = first.path().unwrap_err().to_string();
-        assert!(error.contains("E_STORE") && error.contains("sidecar"), "{error}");
-        assert!(store.transaction().is_err());
-        assert!(store.read_transaction().is_err());
-        assert!(store.reader().is_err());
+        // @ref LLP 3000.019#3.4 — removing the name ends exclusion, not the old connection's work.
+        first.path().unwrap();
+        store.transaction().unwrap().commit().unwrap();
+        store.read_transaction().unwrap().commit().unwrap();
+        store.reader().unwrap();
         let second = command(&path).unwrap();
-        second.open_store(Duration::ZERO).unwrap().set_meta("sole_owner", "second").unwrap();
-        assert!(first.open_store(Duration::ZERO).is_err());
-        assert!(store.set_meta("sole_owner", "first").is_err());
+        let other = second.open_store(Duration::ZERO).unwrap();
+        other.set_meta("boundary", "second").unwrap();
+        assert_eq!(store.meta("boundary").unwrap().as_deref(), Some("second"));
+        store.set_meta("boundary", "first").unwrap();
+        assert_eq!(other.meta("boundary").unwrap().as_deref(), Some("first"));
+        first.open_store(Duration::ZERO).unwrap();
+        assert!(command(&path).err().unwrap().contains("E_STORE_BUSY"));
+        drop(other);
         drop(second); drop(store); drop(first);
         fs::remove_dir_all(dir).unwrap();
     }

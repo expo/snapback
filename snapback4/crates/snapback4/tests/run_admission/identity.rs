@@ -311,22 +311,21 @@ fn multiple_device_processes_share_ownership_and_exclude_backend_writers() {
 }
 
 #[test]
-fn unlinking_sidecar_revokes_old_process_and_second_owner_proceeds_alone() {
+fn unlinking_sidecar_admits_second_owner_documented_boundary() {
     let p = Project::new(); p.initialize();
     let mut first = server(&p, "unlinked-first");
     fs::remove_file(snapback4_core::private_fs::owner_path(&p.store())).unwrap();
-    for path in ["/m/put", "/q/rows"] {
-        let (_, refused) = http_response(&first, path, Some(r#"{"args":{}}"#));
-        assert_eq!(refused["denied"]["code"], "E_STORE", "{refused}");
-        assert!(refused["denied"]["message"].as_str().unwrap().contains("sidecar"), "{refused}");
-    }
+    // @ref LLP 3000.019#3.4 — unlinking ends exclusion; it does not revoke the first process.
     let second = server(&p, "unlinked-second");
     let written = http(&second, "/m/put", Some(r#"{"args":{}}"#));
     assert!(written.get("denied").is_none(), "{written}");
-    let (_, refused) = http_response(&first, "/m/put", Some(r#"{"args":{}}"#));
-    assert_eq!(refused["denied"]["code"], "E_STORE", "{refused}");
+    let written = http(&first, "/m/put", Some(r#"{"args":{}}"#));
+    assert!(written.get("denied").is_none(), "{written}");
+    let read = http(&first, "/q/rows", Some(r#"{"args":{}}"#));
+    assert!(read.get("denied").is_none(), "{read}");
+    assert_eq!(read["data"].as_array().unwrap().len(), 3, "{read}");
     assert!(first.child.try_wait().unwrap().is_none(), "the old process is still alive");
-    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 2);
+    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 3);
 }
 
 #[test]

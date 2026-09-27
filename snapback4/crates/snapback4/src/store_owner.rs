@@ -97,7 +97,7 @@ fn acquire(store: &Path, _: bool) -> Result<Owner, String> { Err(failure(store, 
 
 fn busy(path: &Path) -> String {
     let owner = address(path).unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
-    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server", path.display())
+    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display())
 }
 
 #[cfg(unix)]
@@ -120,9 +120,6 @@ impl Owner {
     pub(crate) fn path(&self) -> Result<&Path, RuntimeError> {
         #[cfg(unix)]
         {
-            if !snapback4_core::private_fs::owner_is_named(&self.path, &self._sidecar) {
-                return Err(RuntimeError::Store(failure(&self.path, "ownership sidecar was removed or replaced; stop this owner and reopen the store")));
-            }
             let meta = snapback4_core::private_fs::database_metadata(&self.path)
                 .map_err(|e| RuntimeError::Store(failure(&self.path, e)))?;
             if meta.is_some_and(|m| (m.dev(), m.ino()) == self.identity) { return Ok(&self.path); }

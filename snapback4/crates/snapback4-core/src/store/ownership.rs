@@ -37,7 +37,7 @@ impl Store {
                     return Err(RuntimeError::Store(format!("owned database at {} moved or was replaced; stop and reopen its current path", real.display())));
                 }
                 if !crate::private_fs::owner_is_named(&real, &owner) {
-                    return Err(RuntimeError::Store(format!("ownership sidecar at {} was removed or replaced; stop this owner and reopen the store", real.display())));
+                    return Err(RuntimeError::Store(format!("ownership sidecar at {} changed during open; stop all owners and reopen the store; leave <database>-owner in place because deleting it while a process runs ends exclusion", real.display())));
                 }
                 crate::private_fs::database_metadata(&real).map_err(&failure)?;
                 store.retain_ownership(Arc::new(owner))?;
@@ -51,7 +51,7 @@ impl Store {
 }
 
 impl Store {
-    // @ref LLP 3000.019#3.4 — existing connections lose authority when their sidecar is removed or replaced.
+    // @ref LLP 3000.019#3.4 — retain the lock for the connection's lifetime; exclusion requires leaving its sidecar in place.
     #[cfg(unix)]
     pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> {
         self.ownership = Some(owner);
@@ -60,11 +60,11 @@ impl Store {
 
     pub fn check_ownership(&self) -> Result<(), RuntimeError> {
         #[cfg(unix)]
-        if let Some(owner) = &self.ownership {
+        if self.ownership.is_some() {
             let path = Path::new(self.conn.path().unwrap_or_default());
-            if !crate::private_fs::owner_is_named(path, owner) {
-                return Err(RuntimeError::Store(format!("ownership sidecar at {} was removed or replaced; stop this owner and reopen the store", path.display())));
-            }
+            // Preserve the stat-only database/hard-link check. This is not
+            // revocation: raw conn() users do not pass through this method.
+            // Deleting the sidecar ends exclusion without stopping old work.
             crate::private_fs::database_metadata(path)
                 .map_err(|e| RuntimeError::Store(format!("database at {}: {e}", path.display())))?;
         }
