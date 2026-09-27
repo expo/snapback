@@ -1,5 +1,6 @@
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
+import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
 
 
@@ -31,6 +32,28 @@ export interface LocalWatch extends ReadObservation<unknown> {
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
+}
+
+export function armLocalPresence(watch: LocalWatch, unavailable: boolean, acquiring: boolean, refresh: () => void): void {
+  // A closed client or a dead session keeps no interval, whichever read settles last.
+  if (unavailable) watch.presenceEvery = undefined;
+  // @ref LLP 3000.019#3.3 — a live fallback must not wait behind cold snapshot publication.
+  // Reuse the bounded background read while sync owns the change-follow loop.
+  const interval = !unavailable && acquiring && watch.serverRead
+    ? Math.min(watch.presenceEvery ?? 250, 250) : watch.presenceEvery;
+  watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, interval, () => {
+    watch.presenceRefresh = null;
+    refresh();
+  });
+}
+
+export function notifyLocalWatch(watch: LocalWatch): void {
+  for (const subscriber of watch.subscribers) subscriber();
+}
+
+export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => Promise<void>): void {
+  if (!tables.size) return;
+  for (const watch of watches) if (watch.tables.size === 0 || [...watch.tables].some(table => tables.has(table))) void rerun(watch);
 }
 
 export type ServerAnswer = {
@@ -114,12 +137,17 @@ export class RememberedAnswers {
   }
 }
 
-/** Every local commit fences reads; only explicit keep survives an ordinary reload. */
+/** Every local commit fences reads; retaining watches bound an ordinary reload. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
 
-  // @ref LLP 3000.019#3.3 — ordinary commits can revoke rows; retaining them is explicitly opt-in.
+  // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
+  expire(watch: LocalWatch, serverDue: boolean, serverNow: number): void {
+    if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
+  }
+
+  // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
   committed(watches: Iterable<LocalWatch>, operation: string): void {
     this.clear(watches, !["apply", "admit", "settle"].includes(operation));
   }
@@ -129,7 +157,7 @@ export class LocalReads {
     this.serverAnswers.clear();
     for (const watch of watches) {
       if (reset) watch.reset({ loading: true }); else watch.reload();
-      if (reset || !watch.keep) {
+      if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;
         watch.deadlines = undefined;

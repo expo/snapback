@@ -334,7 +334,9 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
         track(client.query({ kind: 'query', name: 'page' }, args), 'query', owner, 'read'); break;
       }
       case 'observe': {
-        const watch = client.observe({ kind: 'query', name: 'page' }, { ticket: ++ticket, holdReturn: step.holdReturn });
+        // R1 models immediate revocation. Default bounded retention is exercised
+        // separately by retention-episode and the createApp action models.
+        const watch = client.observe({ kind: 'query', name: 'page' }, { ticket: ++ticket, holdReturn: step.holdReturn }, { keep: false });
         watches.push(watch); watch.subscribe(() => read(owner, watch.getSnapshot(), 'observed')); break;
       }
       case 'write': case 'revoke': {

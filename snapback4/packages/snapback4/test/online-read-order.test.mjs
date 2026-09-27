@@ -9,7 +9,7 @@ const ready = (data, seq = 1) => ({ data, seq, complete: true, tables: ['secrets
 const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
-test('online reruns publish loading instead of keeping a previous answer', async t => {
+test('online keep:false reruns publish loading instead of keeping a previous answer', async t => {
   let reads = 0; const next = deferred();
   const client = createClient({ url: 'http://order.test', persona: 'alice', fetch: async (url, init) => {
     if (url.includes('/changes')) return blocked(init.signal);
@@ -17,7 +17,7 @@ test('online reruns publish loading instead of keeping a previous answer', async
     return Response.json(++reads === 1 ? ready(['private']) : await next.promise);
   } });
   t.after(async () => { next.resolve(ready([])); await client.close(); });
-  const watch = client.observe(q, {});
+  const watch = client.observe(q, {}, { keep: false });
   await until(() => watch.getSnapshot().data);
   await client.mutate(m, {});
   await until(() => reads === 2);

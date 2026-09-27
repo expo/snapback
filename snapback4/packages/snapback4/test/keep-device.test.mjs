@@ -68,8 +68,8 @@ async function fixture(t) {
   return { directory, url, post, kick: () => post("/m/kick", { id: "kick-bob", args: {} }) };
 }
 
-for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", "settle", "revoke", "leave", "refusal"]) {
-  test(`${tier}: keep across ${change} publishes no loading and replaces the old answer`, { timeout: 30_000 }, async t => {
+for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", "settle", "revoke", "leave", "refusal"]) {
+  test(`${tier}: keep=${keep} across ${change} publishes no loading and replaces the old answer`, { timeout: 30_000 }, async t => {
     const { directory, url, post, kick } = await fixture(t);
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const readOp = change === "refusal" ? { ...query, name: "required" } : query;
@@ -95,8 +95,8 @@ for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", 
     const client = await createLocalClient({ url, persona: "bob", device, waitSeconds: 1 });
     t.after(async () => { held.resolve(); watch?.close(); plain?.close(); await client.close(); });
     await client.sync();
-    watch = client.observe(readOp, {}, { keep: true });
-    plain = client.observe(readOp, {});
+    watch = client.observe(readOp, {}, { keep });
+    plain = client.observe(readOp, {}, { keep: false });
     await until(() => watch.getSnapshot().data?.body === "private answer" && plain.getSnapshot().data?.body === "private answer", "initial answers");
     const lingering = client.observe({ ...query, name: "second" }, {}, { keep: true });
     await until(() => lingering.getSnapshot().data?.body === "private answer", "lingering query ready");
@@ -109,8 +109,8 @@ for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", 
       : client.mutate({ kind: "mutation", name: change === "leave" ? "leave" : "edit" }, change === "leave" ? {} : { body: "next answer" });
     await atCommit.promise;
     assert.ok("data" in snapshot, JSON.stringify(snapshot));
-    assert.equal(snapshot.fresh, false);
-    assert.ok(snapshot.since <= commitTime, "retention carries the prior answer's wall time");
+    assert.equal(snapshot.revalidating, true);
+    assert.equal(snapshot.fresh, true, "revalidation preserves server freshness");
     assert.equal(plain.getSnapshot().loading, true, "a keep subscriber cannot change the default watch");
     if (change === "revoke" || change === "leave") {
       assert.equal(snapshot.data.body, "private answer", "explicit keep accepts the withdrawn row until the re-read");
@@ -190,7 +190,7 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   await ending;
 });
 
-for (const tier of ["wasm", "process"]) test(`${tier}: keep never publishes an evaluation captured before a newer commit`, async t => {
+for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) test(`${tier}: keep=${keep} never publishes an evaluation captured before a newer commit`, async t => {
   const { directory, url, post } = await fixture(t);
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
   const held = deferred(); let hold = false, captured = false;
@@ -203,7 +203,7 @@ for (const tier of ["wasm", "process"]) test(`${tier}: keep never publishes an e
     } };
   } } });
   t.after(async () => { held.resolve(); await client.close(); });
-  const watch = client.observe(query, {}, { keep: true }), values = [];
+  const watch = client.observe(query, {}, { keep }), values = [];
   await until(() => watch.getSnapshot().data?.body === "private answer", "first answer");
   watch.subscribe(() => values.push(watch.getSnapshot()));
   hold = true;

@@ -9,8 +9,8 @@ for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`one repl
   watch.publish(ready(['private']));
   const work = watch.fetch(() => gate.promise, () => {}, { retain: true });
   assert.deepEqual(watch.snapshot.data, ['private']);
-  assert.equal(watch.snapshot.fresh, false);
-  assert.ok(Number.isFinite(watch.snapshot.since));
+  assert.equal(watch.snapshot.fresh, true);
+  assert.equal(watch.snapshot.revalidating, true);
   if (outcome === 'failure') {
     gate.reject(Error('transport failed'));
     await assert.rejects(work, /transport failed/);
@@ -39,7 +39,7 @@ test('reset during a fetch clears its answer immediately and fences the returned
   assert.deepEqual(watch.snapshot, { loading: true });
 });
 
-test('composition retires the previous answer at HTTP settlement before device composition finishes', async () => {
+test('composition retains the previous answer through successful HTTP settlement', async () => {
   const watch = new ReadObservation(), gate = deferred(), publications = [];
   watch.publish(ready(['private']));
   const work = watch.fetch(() => gate.promise, () => publications.push(watch.snapshot), { retain: true, publishResult: false });
@@ -47,8 +47,9 @@ test('composition retires the previous answer at HTTP settlement before device c
   gate.resolve({ read: ready(['remote']) });
   const result = await work;
   assert.deepEqual(result.read.data, ['remote'], 'caller can compose the new HTTP answer');
-  assert.deepEqual(watch.snapshot, { loading: true }, 'old answer is gone before further device work');
-  assert.deepEqual(publications.at(-1), { loading: true });
+  assert.deepEqual(watch.snapshot, { ...ready(['private']), revalidating: true }, 'composition remains in flight');
+  assert.equal(publications.at(-1), watch.snapshot);
+  watch.retire();
   assert.ok(publications.every(read => !read.data?.includes('remote')), 'raw uncomposed HTTP answer is never published');
 });
 

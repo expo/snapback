@@ -67784,6 +67784,58 @@ disclosure, durability, IR-format or meter-ceiling change; no push or package
 publication. Report: reports/20260927-qe-quarry-ergonomics/REPORT.md. Logs:
 target/lane-qe/.
 
+### 2026-09-27 — Lane KG: keep the approved answer through replacement authority
+
+Implemented the 0.4.5 lane brief on `sb4-intent/kg-kept-through-authority`
+from `9473e0a34`. A kept createApp observation retains the last facade-approved
+answer, stale with its original since, while a replacement awaits authority.
+The raw live watch owns the held answer's deadline and reset lifetime, so a
+remount can peek it without extending the 30-second window. Device/server
+expiry sweeps withdraw all due held answers before callbacks can roll the clock
+back. Local reobservation wakeups preserve remembered server data; a raw
+replacement's earlier expiry does not expire the older approved answer.
+Scope resets, source refusals, facade fences and opening/replacement authority
+failures still withdraw immediately. Held server expiry also invokes the
+existing fallback-memory barrier, preserving newer unexpired memory while
+preventing old HTTP bodies from restoring expired data after rollback.
+
+Added internal `read-approval.ts`; changed app-client, read-observation,
+read-expiry and the online/local expiry callbacks. Updated the client manual
+and LLP 3000.019 §3.3 together with the code. No edit to authorized() or the
+existing raw observation linger mechanism was required. No public spelling,
+engine authorization, disclosure, durability, meter, version or budget changed.
+
+Affected evidence: 32 observation tests, 13 focused authority/expiry/reset
+cases, one real wasm/createApp fallback-memory regression, six generated
+createApp runs (108 actions across online and wasm clients, seeds 23/44/445,
+50 ms delayed session reads), and the Chromium React test preserving both
+useQuery/usePage inputs across 20 replacements. The original facade fails that
+React test on replacement 1 with an empty draft. A process-local module-loader
+negative control omitting only the held-memory callback fails by restoring A
+over newer B. Both controls were isolated/restored before final qualification.
+Existing keep/clock/device/expiry/reset/adoption/incarnation/ephemeral checks:
+100/100; whole guide: 86/86; frozen Bun install, package build/typecheck and
+reference audit pass. Changed source files stay below 1,500 lines (local.ts:
+1,477). Resolved development failures were lane-authored test-harness/type
+errors; none remains.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1382 s`, exit 0.
+Rust tests/doctests: 3,809 passed, zero failed, 24 ignored (906 s). Client main:
+2,503 passed, zero failed, 10 skipped; seven shards: 56/56 (197 s). Final
+seeded models: 78/78 (260 s). Fixture wrappers: 9/9. All builds, typechecks,
+budgets and release guard pass. No introduced, baseline or environmental
+suite failure. Opening-refusal and fallback-memory hardening were completed
+while the suite ran Rust; the final package was independently typechecked and
+rebuilt before its client phase, which exercised all final runtime/test bytes.
+
+Wasm remains 1,980,253 B raw / 571,810 B gzip: zero delta from the initial
+lane build and 1,031 B below the unchanged 572,841 B cap. SHA-256:
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. No open problem, design deviation or stopped design part.
+No push, publication, version bump, budget increase, full comparative or
+Apple UI run. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
+logs and negative controls: target/lane-kg/.
 ### 2026-09-27 — Lane LX round 1: clean Linux consumers through pinned proot
 
 Removed the missing-container blocker without sudo, namespaces or system
@@ -68173,6 +68225,73 @@ comparative update, version bump, budget increase, push or publication.
 The private Postgres test instance was stopped. File-by-file changes, forms,
 test claims, exact full-run log and both open-problem reproductions are in
 [the DS report](reports/20260927-delivery-server/REPORT.md).
+### 2026-09-27 — KG round 1: answers stay through one bounded revalidation episode
+
+Merged origin/main at 9642d406c into the KG lane, retaining both journal and
+LLP Revised histories. Addressed both blind round-0 reviews: held snapshots
+and peeks enforce their own deadlines before timers and apply the memory
+fence; recursive timer rearming keeps that callback; reset/refusal/retirement
+notify opening remounts. Independently gated B/C tests pin older authority
+completion ordering. Reverting each fix or the version guard makes its new
+test fail (4 accessor, 1 rearm, 3 notification and 2 ordering failures).
+
+Implemented Accepted LLP 3000.023. Omitted options retain for one absolute,
+non-renewable host-time second after invalidation processing, marked
+revalidating while fresh/since and answer identity stay unchanged. False
+withdraws immediately; true retains without that cap and lingers 30 seconds.
+Retain/linger, three keys, universal viewer/credential reset fences, per-call
+false, exact loading publication and episode withdrawal without retiring
+in-flight work now follow the RFC. The facade inherits the episode by value
+and clears every source withdrawal, including an earlier B expiry. Snapshots,
+peeks and usePage caches check deadlines without timers; pages carry the mark
+and drop expired suffixes. Grouped reset notifications withdraw all shared
+approvals before callbacks. Read card, ObserveOptions, manual and LLP
+3000.019 §3.3 describe the new contract. The report audits every former keep
+branch and maps all fourteen §6 evidence items to tests.
+
+Guide: 86/86. Focused groups (overlapping): 107 episode/authority, 141 device/
+expiry, 110 default reset/clock, 72 compatibility, and 273 extended revocation/
+memory/composition tests pass. Eighteen generated createApp sequences span
+online, wasm and process clients with 50 ms authority reads; long bursts must
+withdraw at their original cap. Both Chromium witnesses preserve query/page
+inputs through 20 updates, loaded cursor changes and authoritative removal.
+An isolated transform using only main's facade fails on the first replacement.
+Local finite-retry cases use the same revoked row plus an ephemeral sample,
+reject four stale epochs and withdraw on both devices.
+
+Ran scripts/test.sh exactly once. Exact summary: **== 2 failure(s) in 1406 s**,
+exit **1**; phases: client tests and client models. Rust: 3,835 passed,
+0 failed, 24 ignored (696 s). Main client: 2,746 passed, 16 failed, 10 skipped;
+additional shards: 56/56 (428 s). Final seeded models: 77 passed, 1 failed
+(244 s). Fixture wrappers: 9/9. Builds, package/app typechecks, guide, docs/wasm
+budgets and release guard pass.
+
+All 17 failures are lane-owned old semantic assertions: two remembered-wakeup
+cases, one maintained-column served-answer filter, seven page-authority cases,
+one presence invalidation, five clock/freshness cases, and the R1 immediate-
+revocation model at seed 2345. Preserved immediate-withdrawal assertions with
+keep:false; mark assertions preserve fresh/since/identity, and newly served
+schema evidence excludes revalidating copies. All five affected client files
+then pass 59/59; the model passes 27/27 and all 3,000 seeds with a named 2345
+replay. Every failure and correction is listed in the report. No baseline or
+environmental failure. Runtime bytes were unchanged after the full run began;
+the complete suite was not rerun or relabeled green. Its inherited 60-second
+runtime budget remains exceeded; no timeout or budget was raised.
+
+Wasm: 1,981,512 B raw / 572,053 B gzip, unchanged from merged main, 788 B
+below the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+No Rust, meter, authorization/disclosure rule, durable format, diagnostic,
+version or dependency change. Changed source/test files remain below 1,500
+lines (local.ts: 1,497; extracted React harness: 1,430). Reference audit:
+zero errors/unchecked; whitespace check passes. No unresolved lane defect or
+design deviation. No push, publication, comparative or Apple UI run.
+
+Commits: 9c131c4eb (merge), 47befc1a8 (review fixes), 53e2ea798 (RFC),
+4dd0aa619 (models/browser), db86ef80c and 80ed62092 (client assertions),
+6c0dec7f0 (R1 model); all include the required GPT-6 Astra co-author trailer.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md. Ignored logs and
+negative controls: target/lane-kg-r1/. This is round 1's single journal append.
 ## 2026-09-27 — 0.4.5 lane QE round 1: sound items, bounded growth and pure-call narrowing
 
 Read the original lane prompt, round-0 report/journal and both complete blind
@@ -68414,6 +68533,118 @@ No client queue/device collection, version bump, budget increase, push or
 publication. File map, forms, regression evidence, measurements and the
 remaining budget reproduction: reports/20260927-delivery-server/ROUND2.md.
 
+### 2026-09-27 — KG round 2: exact withdrawal and remount notifications
+
+Merged origin/main in 7d2ff6d8f, preserving both journal conflict sides;
+parent diffs remove zero existing journal lines. Read both prior prompts,
+reports and KG entries, the Accepted retention RFC, and both round-1 reviews.
+All six assigned findings have discriminating tests and named commits:
+cb32f7971 (Astra schema discovery: hard loading reset with row deadlines
+cleared), 260eceafb (Astra store withdrawal: defer all shared callbacks,
+including endLingering), 185c542c0 (both reviewers: notify an opening remount
+when its held snapshot becomes revalidating), 0e10969e2 (Grok closed local
+handles: stop timers, retain deadlines, and latch row expiry outside the live
+sweep), 0d1fc50a2 (Astra raw snapshot/peek deadline coverage), d1c1aabcd
+(Grok live offline withdrawal coverage). Self-review found the stopped episode
+timer also needs to restart when a local handle resubscribes; 85dc6ddc1 rearms
+its original deadline, with a failing-before/passing-after regression.
+
+Forty-one added tests. Final affected set: 402/402; whole guide: 86/86;
+package build/typecheck and reference audit pass. Original-code controls fail
+2 schema, 10 store, 4 remount-mark and 6 closed-handle regressions. Restoring
+the old close behavior in memory fails all four actual wasm/process tests.
+Deleting checkReadExpiry(this) fails all eight new raw accessor tests; changing
+offline publication to reload fails four cases, or two with Grok's narrower
+already-revalidating condition. Resubscription's regression fails without its
+follow-up. No existing assertion was relaxed.
+
+Ran scripts/test.sh exactly once. Exact summary: **== 2 failure(s) in 1315 s**, exit
+**1**. Rust: 3,836 passed / 0 failed / 24 ignored (607 s). Main client:
+2,886 passed / 2 failed / 10 skipped (427 s); seven extra shards: 56/56.
+Final seeded models: **79 passed / 0 failed** (270 s). Fixture wrappers: 9/9. All 41 new tests, 18 delayed-authority
+sequences and both Chromium input-preservation witnesses pass in that run.
+The resubscription correction was rebuilt/typechecked during Rust execution,
+before client test discovery, so the client phase uses every final change.
+
+Every failure: environmental wasm build (Binaryen wasm-opt 108, installed on
+this shared host during the task, rejects sign-extension instructions); baseline
+expired-server-watch recover/keep omitted (paced retries timeout, line 62);
+baseline close client/keep false (retry-1 gap 5.158 ms, line 64). Both retry
+signatures recur with all six changed modules restored from the merged input:
+3/7 baseline cases pass, four fail across different policy variants. The
+unchanged file's final-code rerun is 5/7. Diagnosis beyond this baseline
+reproduction remains open; the red full run is not relabeled green or repeated.
+No full-run failure is attributed to this round's implementation changes.
+
+The supported wasm build without the incompatible optional optimizer passes:
+1,981,512 B raw / 572,053 B gzip, delta 0, 788 B below the unchanged 572,841 B
+budget; SHA-256 5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+No global tool, Rust, authorization/disclosure rule, meter, durable format,
+contract, version, dependency, budget or timeout change. All changed sources
+stay below 1,500 lines. The inherited 60 s full-suite budget remains exceeded.
+No design deviation, push or publication. Every commit has the requested Astra
+co-author trailer. Report and reproductions:
+reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r2/. This is round 2's single journal append.
+
+### 2026-09-27 — KG round 3: finish withdrawal and expiry lifecycles
+
+Merged origin/main in a9624aab4 without conflicts. Read all three lane prompts,
+prior reports and KG entries, both round-2 reviews and the governing retention
+RFC. cccacaa47 answers findings 1–4: both clients cancel row deadlines before
+terminal denial; schema discovery, link publication, sign-out and close finish
+peer raw/shared withdrawals before callbacks, including lingering retirement;
+local resubscription rearms saved absolute row deadlines before rerun; inactive
+server expiry applies the remembered-answer fence before withdrawal. A detached
+raw local handle, absent from the close map, now gives its owner's denial
+precedence. f32bb700e answers finding 5 with the exact early episode-delivery
+regression: first timer at host 1500, remaining timer at 2000, no accessor,
+loading and one notification. All commits carry the requested Astra trailer.
+
+Added 52 tests. Final focused set: 125/125; whole guide: 86/86. The merged-input
+module control fails 34 of the 51 lifecycle tests. Isolated mutations fail both
+resubscription cases, the closed memory case (live control stays green), all
+five first-watch-only online offline cases, and the early episode test. The two
+detached non-lingering wasm cases also fail before their follow-up. Thirty-five
+peer cases inspect raw snapshots, exposed reads and peeks from shared/raw/link
+callbacks across discovery, offline, close and sign-out. Actual online and
+Rust/wasm clients cover close, resumed expiry and public recovery after rollback.
+
+Broader affected set: 455 passed / 1 failed (428.258 s). Its online typing
+assertion at ephemeral-keep.test.mjs:91 failed at 4.051 s in the four-second
+lifetime test; isolated final code, four baseline probes, and the complete
+suite pass. Classified environmental/transient as an inference; the original
+failure did not reproduce and its exact cause remains unresolved. No assertion
+or timeout changed. All 18 delayed-authority sequences and both Chromium
+witnesses pass. Final focused and full-suite runs include the detached-handle
+follow-up, which was added while the initial affected run was executing.
+
+Ran scripts/test.sh exactly once: **== 1 failure(s) in 1243 s**, exit **1**.
+Rust: 3,835 passed / 0 failed / 24 ignored (542 s). Main client: 2,937 passed /
+3 failed / 10 skipped (429 s); seven extra shards: 56/56. Final seeded models:
+79 passed / 0 failed (261 s). Fixtures: 9/9. Builds, budgets, release guard, package and
+app typechecks pass. All 52 new tests pass in the full run.
+
+Every full-run failure is baseline, in expired-server-watch.test.mjs: recover /
+keep:true and close client / keep:true time out at paced retries (line 62);
+close client / keep:false fails retry-1 backoff with a 3.956 ms gap (line 64).
+The control restoring all five changed runtime modules from a9624aab4 is 4/7:
+recover/true reproduces the timeout, close watch/false and close client/false
+reproduce first-retry pacing. Variants vary, as in round 2. The test fails before
+its close call. This baseline issue remains open; the full run stays red and
+was not rerun. No full-run failure is attributed to this round's changes.
+
+Wasm is byte-identical: 1,981,512 B raw / 572,053 B gzip, delta 0, 788 B below
+the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Reference audit: 517 LLP docs, 9,635 refs, zero errors/unchecked. Largest changed
+source is exactly 1,500 lines. No Rust, authorization/disclosure rule, meter,
+public API, diagnostic, durable format, dependency, version or budget change.
+No global tool installation/change, push or publication. Existing Node/Bun are
+selected through worktree-local symlinks for the full run. The inherited 60 s
+suite budget remains exceeded. Report and reproductions:
+reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r3/. This is round 3's single append.
 ### 2026-09-27 — Lane GS: global-search baseline and continuation design stop
 
 Reproduced calibration #23's original unscoped search on a copied final store:
@@ -69326,6 +69557,60 @@ wrappers. Frozen install and reference audit pass; changed source is under
 version, device/queue, budget, push or publication change. Full file map,
 forms, audit, mutation proof, exact failures and wasm reproduction:
 reports/20260927-delivery-server/ROUND3.md; evidence under round3/ there.
+### 2026-09-27 — KG round 4: every facade honors source withdrawal synchronously
+
+Read all four prior lane prompts, reports and KG journal entries and Astra's
+round-3 review. Merged origin/main f39598de7 in 5fd4cacd2 before changes.
+Kept both journal histories, FX's scheduled expiry/recovery/close checks and
+journal listener tests, and KG's retention assertions. Preserved the warm
+expired-candidate coverage in three separate cases without the replaced
+request-arrival-gap assertion. Both journal-parent diffs remove zero lines.
+FX round 2 reached main during Rust qualification: 4d02beeca merges 8dfbf7daa
+before client discovery. Its ServerClock-controlled useNow test and Vite alias
+carry through unchanged; product code did not change. All 48 merged React
+tests pass separately and in the full run. FX's closed ticket records its
+midpoint-bias cause; KG's three retention assertion changes remain intact.
+
+2c7200715 answers both assigned findings. The facade getter synchronously
+honors source loading/denied before returning its private snapshot, including
+keep:false, while replacement data still needs authority. Added 108 peer-policy
+cases: false/false and false beside omitted/true in both orders, plus opening
+remounts beside all policies, across online/wasm discovery, offline, close,
+sign-out, store replacement and restore through guardClient/createApp. The
+109th new case closes A at expiry 5000, remembers B at expiry 8000, observes
+A's expiry at 5000, rolls back to 1000 and fails transport: B recovers. No
+read-expiry runtime edit was needed. The manual states both invariants.
+
+Affected suite 358/358; whole guide 86/86; initial merge checks 58/58; FX
+merged React file 48/48. Restoring only the old facade getter fails 56/170
+lifecycle/store cases; substituting Infinity for the closed-handle server time
+fails the newer-B test; bypassing data authority in the getter fails all three
+existing delayed-authority controls. All mutation loaders are process-local.
+Frozen Bun install, build/typecheck and ref-check pass (517 LLP docs, 9,646
+refs, zero errors/unchecked). Largest imported source: guide.rs, 1,487 lines;
+largest KG merge-conflict resolution: React harness, 1,427 lines.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1383 s**, exit **0**.
+Rust: 3,882 passed / 0 failed / 24 ignored (625 s). Main client: 3,054 passed /
+0 failed / 10 skipped (426 s); seven extra shards: 56/56. Final seeded models:
+79/79 (313 s). Fixtures: 9/9. All builds, typechecks, guide, budgets and release
+guard pass. Every full-run failure: none — no lane-owned, baseline or
+environmental failure. All 170 lifecycle/store cases, three warm-answer cases,
+18 delayed-authority sequences and both Chromium witnesses pass. The full run
+was neither restarted nor rerun; its client phase includes the final FX merge.
+
+Wasm is byte-identical: 1,981,512 B raw / 572,053 B gzip, delta 0 B, 788 B
+below the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+No Rust, engine authorization/disclosure, meter, durable format, API, diagnostic,
+dependency, version or budget change in this round's implementation. Existing
+tools selected via worktree-local symlinks; no shared-path tool install or
+change. No design deviation, push or publication. No independent round-4
+review is claimed; the supervisor owns both-family review. Every lane commit
+has the required Astra co-author trailer. The inherited 60-second suite budget
+remains exceeded; no timeout or budget was raised. Full file map, examples,
+qualification and reproduction: reports/20260927-kg-kept-through-authority/REPORT.md.
+Ignored evidence: target/lane-kg-r4/. This is round 4's single journal append.
 
 
 ## 2026-09-27 — 0.4.6 lane CQ: a top-N answer is complete
@@ -69651,6 +69936,65 @@ claim. Conditional-commit-less hosts retain the accepted under-reporting
 fallback. Report with file map, examples, deviations, reproductions and exact
 qualification: reports/20260927-dc-delivery-client/ROUND4.md. Raw evidence:
 target/lane-dc-round4/.
+### 2026-09-27 — KG round 5: detached facade deadlines and exact withdrawal delivery
+
+Read rounds 0–4's prompts, reports and KG entries and both complete round-4
+reviews. Merged origin/main 941a3698c in 5bf924483 before implementation,
+retaining both journal histories (zero removed lines against either parent)
+and both LLP 3000.019 Revised histories. FX's deterministic useNow test is
+unchanged; the incoming cold-acquisition fallback refresh remains intact.
+
+107f9484c answers the four findings. Detach retains the closed raw handle so
+keep:false facades still enforce source withdrawal and row deadlines. The
+facade remembers the snapshot actually announced and suppresses a raw refresh
+that repeats the same shared withdrawal. Episode onWithdrawal uses the read
+notification queue, so a grouped commit reloads every watch before a due
+watch's callback inspects a settled peer. Sign-out tests record the real
+internal close transition and require E_AUTH before it, E_CLOSED after it,
+including raw snapshots captured before getters can repair them.
+
+Thirteen added regressions: eight real online/wasm guardClient/createApp closed
+facade cases, with/without a live peer; three exact facade-delivery cases;
+closeWatchAnswers with six subscribers across all policies; and the two-watch
+grouped-commit episode. Seven wasm guard sign-out cases were strengthened.
+Isolated negative controls fail 8 closed-facade cases, 2 shared-notification
+cases (false stays green), 1 double-close-callback case, 1 grouped-episode case,
+and all 7 sign-out-loading cases. No existing product assertion was relaxed.
+All mutations are process-local loaders, never changes to live built output.
+
+2472b30ca moves the merged local presence scheduling into local-reads.ts,
+preserving its interval and lifetime while reducing local.ts from 1,506 to
+1,496 lines. This source-budget extraction is the only work beyond the four
+findings. Updated the client manual's detached-access and callback contract.
+
+Affected suite: 380/380; changed test files: 201/201; whole guide: 86/86.
+Frozen Bun install, package build/typecheck and reference audit pass:
+517 LLP docs, 9,658 refs, zero errors/unchecked. Changed source files are
+below 1,500 lines; whitespace validation passes.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1510 s**, exit **0**.
+Rust: 3,907 passed / 0 failed / 24 ignored (773 s). Main client: 3,074 passed /
+0 failed / 10 skipped (427 s); seven extra shards: 56/56. Final seeded models:
+79/79 (269 s). Fixtures: 9/9. All builds, typechecks, guide, budgets and release
+guard pass. Every full-run failure: none — no lane-owned, baseline or
+environmental failure. All thirteen added tests, seven strengthened sign-out
+cases, eighteen delayed-authority sequences, both Chromium witnesses, FX's
+useNow cases and main's blocked-snapshot live fallback pass. The complete run
+was neither restarted nor rerun. No unresolved round-5 implementation problem.
+
+Wasm: 1,981,512 B raw / 572,049 B gzip, SHA-256
+1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928;
+792 B below the unchanged 572,841 B budget. Against round 4, the merged
+artifact is 0 raw / -4 gzip bytes; round 5 has no Rust or wasm-input change
+and adds no device bytes. No engine authorization/disclosure rule, meter,
+durable format, API, diagnostic, dependency, version or budget change.
+Existing Node 24.13.1 / Bun 1.3.14 tools are selected by worktree-local
+symlinks; Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd limit 65,536.
+No tool installed or modified on a shared path. No design deviation, push,
+publication or independent-review claim. Every commit has the requested
+Astra co-author trailer. The inherited 60-second suite budget remains exceeded.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r5/. This is round 5's single dated journal append.
 
 ## 2026-09-27 — Lane GS round 3: actual-size admission and executable repairs
 
@@ -70013,6 +70357,116 @@ Report with file map, examples, mutations, commands and reproductions:
 reports/20260927-dc-delivery-client/ROUND5.md. Raw evidence:
 target/lane-dc-round5/. Commits carry the requested co-author. No push or
 publication.
+### 2026-09-27 — KG round 6: a closed facade cannot borrow replacement deadlines
+
+Read rounds 0–5's prompts, reports and KG journal entries and Astra's complete
+round-5 READY WITH CHANGES review; Grok produced no round-5 review. First merged
+origin/main 09e55ad98 in 36f970290. Kept both journal histories (zero removed
+lines against either parent), both LLP 3000.019 Revised histories, incoming
+sync-scale behavior and KG's expiry/presence handling. FX's deterministic
+useNow tests remain intact. Merged local.ts stays within budget at 1,498 lines.
+
+6cc971eee answers both findings. A closed keep:false facade compares its
+cached answer identity with its detached raw handle's current answer. If a live
+peer has replaced A with B, it withdraws A to stable loading; B's deadlines
+cannot validate A, and no replacement data is adopted without authority.
+The still-identical approved A remains valid after detach until withdrawal.
+Updated the manual with this boundary and standalone keep:false cleanup.
+
+Six added tests: all four online/wasm guardClient/createApp reproductions
+(A expires 5000, close first facade, peer replaces with B expiring 8000,
+advance to 5000), plus two standalone online/wasm cleanup cases. Repeated
+reads and clock rollback preserve loading identity. Cleanup checks raw map
+removal, zero subscribers, cancelled timers, a different owner on reopen and
+zero facade callbacks from old/new-owner publications. Restoring the merged
+getter through a process-local loader fails all four identity cases; skipping
+source.close for false fails both cleanup cases. Production cleanup needed no
+change. No existing assertion was relaxed; no live source/build mutation.
+
+Affected tests 386/386, changed lifecycle file 150/150, whole guide 86/86.
+Frozen Bun install, package build/typecheck, final docs budget and whitespace
+checks pass. Reference audit: 517 LLP docs, 9,661 refs, zero errors/unchecked.
+Changed source/test files are below 1,500 lines.
+
+Ran scripts/test.sh exactly once: **== 1 failure(s) in 4034 s**, exit **1**.
+Failed phase: cargo test. Rust: 3,908 passed / 2 failed / 24 ignored (1068 s).
+Client tests: 3,137 passed / 0 failed / 10 skipped (2658 s); the script selected
+serial files at host load 110.36 across 96 CPUs. Final models: 79/79 (258 s).
+Fixtures: 9/9. Builds, app typechecks, guide, budgets and release guard pass.
+All six new regressions, eighteen delayed-authority sequences and both Chromium
+input-preservation witnesses pass. Every failure is baseline as detailed below;
+zero round-6-owned or environmental failures. The inherited 60-second full-suite
+budget remains exceeded; no timeout or budget was raised.
+
+The two Rust baseline failures are timeline lifecycle activation's planned-view
+substring at lifecycle.rs:32 and timeline redefinition's old event-identities/
+planned-view substrings at timeline_adoption.rs:203. Main bbece7c3e revised
+those diagnostics. All Rust/Cargo/native-fixture inputs match origin/main
+09e55ad98 exactly; each failing test reproduces alone. No unrelated assertion
+was changed. The full run was neither restarted nor rerun.
+
+Wasm: 1,981,590 B raw / 572,608 B gzip, 233 B below the unchanged 572,841 B
+budget. SHA-256 f31efbe90951a07e45d98bb115f907030da51fc36d2bf6afce6941d0ce04e93c.
+Merged artifact versus round 5: +78 raw / +559 gzip bytes. Round 6 has no Rust
+or wasm-input change; no engine authorization/disclosure, meter, durable format,
+API, diagnostic, dependency, version or budget change. Node 24.13.1, Bun 1.3.14,
+Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd limit 65,536. Existing
+Node/Bun selected through worktree-local symlinks; no tool installed or changed
+on a shared path. No design deviation, push, publication or new independent
+review claim. All commits carry the requested Astra co-author trailer.
+Report and reproductions: reports/20260927-kg-kept-through-authority/REPORT.md;
+ignored evidence: target/lane-kg-r6/. This is round 6's single dated append.
+
+### 2026-09-27 — KG round 7: each facade keeps its approved identity and deadlines
+
+Read rounds 0–6's prompts, reports and KG journal entries, both full round-6
+READY WITH CHANGES reviews, and the governing retention/facade context.
+Merged origin/main d17f8b3cc in d0f9c7942 before implementation, without
+conflicts; both histories remain. 30ccd0d9f answers all three findings.
+
+ReadApprovals allocates a new approval for a new identity, preserving the old
+snapshot, follower, episode and held expiry. An old release removes the map
+entries only when they still point to it. A closed retaining facade and a peer
+still awaiting authority keep their own marked A while another peer approves
+B. Facade emission deduplicates the already-announced snapshot, preserving
+shared refusal delivery and the visible denial after a facade fence. The
+manual records these boundaries. No new API, design deviation or stopped part.
+
+Thirty added tests: twenty additional online/wasm guardClient/createApp
+replacement cases (all three policies, different and identical bodies), five
+exact refusal callback counts, two independently gated peer approvals and
+three fence notification controls. A expires at server time 5000 while its
+replacement remains valid until 8000; closed snapshots withdraw stably and
+cannot recover on rollback. The same-body controls discriminate identity from
+payload. Negative controls fail 18 reused-approval cases, four payload-identity
+cases, five unconditional/doubled refusal-delivery cases and three cached-fence
+cases. All transformations are process-local, never edits to live dist/source.
+No existing assertion was relaxed.
+
+Affected tests: 416/416; whole guide: 86/86. Frozen Bun install, package
+build/typecheck, reference audit and whitespace checks pass. Changed source
+and test files remain below 1,500 lines. Ran scripts/test.sh exactly once:
+**== 0 failure(s) in 1378 s**, exit **0**. Rust: 3,924 passed / 0 failed /
+24 ignored (644 s). Main client: 3,111 passed / 0 failed / 10 skipped; seven
+extra shards: 56/56 (427 s). Final seeded models: 79/79 (258 s). Fixtures:
+9/9. Builds, app typechecks, budgets and release guard pass. Every failure:
+none — no round-7-owned, baseline or environmental failure. All 34 expanded
+round-7 cases, all eighteen delayed-authority sequences and both Chromium
+input-preservation witnesses pass. Both round-6 baseline timeline targets now
+pass after the initial main merge. No full-suite restart or rerun.
+
+Wasm is byte-identical to round 6: 1,981,590 B raw / 572,608 B gzip, zero delta,
+233 B below the unchanged 572,841 B cap. SHA-256:
+f31efbe90951a07e45d98bb115f907030da51fc36d2bf6afce6941d0ce04e93c.
+No Rust, engine authorization/disclosure, meter, durable format, diagnostic,
+dependency, version or budget change. Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+eight Cargo jobs, dev/test debug off, fd limit 65,536. Existing tools selected
+through worktree-local symlinks; no shared-path tool installation or change.
+No push, publication or new independent-review claim. All commits carry the
+requested Astra co-author trailer. No unresolved assigned finding; the
+inherited 60-second suite budget remains exceeded, with no timeout raised.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r7/. This is round 7's single dated journal append.
 ## 2026-09-27 — Lane ER round 3: preserve source statement ownership
 
 Read LLP 3000.025 (still Accepted), all three binding lane prompts, prior ER
@@ -70327,6 +70781,152 @@ matrix or crash-witness claim. Hosts without conditional supplementary
 commits retain the previous fallback-manifest omission. No shared-path
 install, push or publication. Report: reports/20260927-dc-delivery-client/ROUND7.md;
 raw evidence: target/lane-dc-round7/. The commit carries the requested co-author.
+### 2026-09-27 — KG round 8: restore the shared approval and freeze closed identities
+
+Read every round-0–7 prompt, report and KG journal entry, Astra's complete
+round-7 NOT READY review, and Grok's READY WITH CHANGES review as it arrived
+during qualification. First merged origin/main 8112f4ef6 in c212b8e65.
+Kept both complete journal histories; both parent diffs remove zero lines.
+Main's CQ top-N implementation, guide/client tests and journal entries remain.
+
+Followed the supervisor's ruling in 2a3e34980: one shared approval per raw
+watch, replacing round 7's per-identity generations. A peer's successful check
+moves every live retaining facade to B; while B is unapproved, A retains its
+own row/episode deadlines and revalidating mark. Replacements release the old
+follower, expiry registration and episode. Close captures the last visible
+answer and detaches from the shared approval. Every closed policy returns
+that answer only while its identity remains the source's and its own deadlines
+hold; otherwise it returns stable loading or denial, with no notifications.
+Round-7 notification deduplication and the same-body replacement regression stay.
+Removed the manual's per-facade identity boundary.
+
+Self-review found that a remount spanning hard withdrawal then reapproval
+could still change its getter without notification. adcfe61e9 retains one
+empty shared slot across that boundary; withdrawal still clears data, peeks,
+timers and followers. Four before/after-joining tests fail without the fix.
+The final package build/typecheck and affected tests finished during the full
+run's Rust phase, before client discovery; the client phase uses final bytes.
+
+Thirty added tests and two explicitly revised round-7 expectations. Coverage:
+24 different/same-body closed replacements on online/wasm through guardClient/
+createApp; 24 unchanged-identity closed deadline cases; two live waiting-peer
+cases; two 100-replacement bounds; two exact shared rejections; two opening
+A-to-B-to-C notification cases; four close-time captures; four reapprovals.
+All policies get closed-handle coverage. The selected pre-fix run is 9 pass /
+24 fail. Isolated mutations fail 14 per-identity approval cases, 16 old-closed
+cases, 12 payload-identity cases, four capture cases, five refusal-dedup cases,
+four discarded-empty-slot cases and two answerIdentity-dedup cases. The last
+uses Grok's late test-strength Low and fails the existing round-8 tests.
+No production source/dist mutation for negative controls.
+
+Final affected set 446/446; whole guide 86/86. Frozen Bun install, package
+build/typecheck, docs budget, whitespace and reference checks pass. Reference
+audit: 518 LLP documents, 9,672 references, zero errors/unchecked. Largest
+changed source/test: keep-authority.test.mjs, 454 lines.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1268 s**, exit **0**.
+Rust: 3,931 passed / 0 failed / 24 ignored, 543 s. Main client: 3,141 passed /
+0 failed / 10 skipped, plus 56/56 acquisition/server shard tests, 427 s.
+Final seeded models 79/79, 260 s; fixture wrappers 9/9. Builds, both app
+checks, docs/wasm budgets and release guard pass. All 64 expanded round-8
+regression/control cases, all eighteen delayed-authority sequences and both
+Chromium input-preservation witnesses pass. Earlier rounds remain green.
+Every failure: none — zero lane-owned, baseline or environmental failures.
+The full run was neither restarted nor rerun. The inherited 60-second runtime
+budget remains exceeded; no timeout or budget was raised.
+
+Wasm: 1,981,453 B raw / 572,553 B gzip, 288 B below the unchanged 572,841 B
+budget. SHA-256 3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa.
+Relative to round 7: -137 raw / -55 gzip bytes from merged main; round 8
+changes no Rust or wasm input. No engine authorization/disclosure rule, meter,
+durable format, diagnostic, dependency, API, version or budget change. Node
+24.13.1, Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd
+limit 65,536. Existing tools selected through worktree-local symlinks; no
+shared-path tool installation/change. No counterexample to the ruling, no
+unresolved assigned finding, no push or publication. All commits carry the
+requested Astra co-author trailer. The supervisor owns independent review.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r8/. This is round 8's single dated journal append.
+
+### 2026-09-27 — KG round 9b: shared refusal ordering and notification ownership
+
+Read rounds 0–9's prompts, the full prior report, KG journal entries and both
+complete round-8 NOT READY reviews. First fetched and merged origin/main:
+Already up to date at 8112f4ef6. Retained 5e9672fde from the interrupted first
+round-9 run and built on it in 56ff11025. Both commits carry the requested
+GPT-6 Astra co-author trailer. No push or publication.
+
+Every observe now registers for its watch key before a raw owner exists.
+Shared approval, refusal and release notify that list; a rejecting facade
+keeps listening until close/fence. Every reject and registration release bumps
+one generation on the shared slot; refresh captures it before authority and
+cannot apply an older success. Refusals completing after opening/replacement
+close still clear their raw watch's shared approval. Opening failures adopt
+a shared denial already delivered during that wait, without another denial
+object; a newly started check can deliver a later distinct error. A new
+post-refusal check can recover B without another source publication. This
+strict generation rule explicitly supersedes the first round-9 test's
+pending-success recovery expectation.
+
+Closed getters never adopt another identity. While the source still owns the
+captured identity they return its current copy, including revalidating, under
+row checks and the earliest captured episode cap. Stable loading latches when
+that identity disappears or a deadline passes. Shared-close delivery uses the
+existing deferral queue so app view publication still precedes notifications.
+Updated the client manual alongside the code; no new API or proposal.
+
+Retained round-9 coverage for first approvals, successive denials and bounded
+release custody. Added 28 deterministic lifecycle cases and strengthened the
+old shared-rejection test to resolve its older success before the assertions.
+The model runs 180 seeds, 240 operations each (43,200 steps), across all three
+policies, with independently advanced host/server clocks, delayed timers,
+random completion orders, publication, remount, close, reload and reset. After
+every step it checks callback/getter agreement, refusal ordering, identity-owned
+row/episode bounds and closed identity/no-notification behavior. An initial
+oracle draft incorrectly let a retired owner's refusal revoke a new owner;
+corrected the model scope, preserving the one-slot-per-raw-owner contract.
+
+All assigned fixes have discriminating evidence. Isolated mutations fail
+shared-generation ordering (62 cases), rejection generation (48), release
+generation (2), rejection detachment (3), pre-owner registration (3), successive
+denial delivery (6), release custody (3), opening getter (3), opening duplicate
+denial (3), late replacement refusal (3), late opening refusal (3), closed
+revalidation copies (2), captured-only deadline enforcement (1), and deferred
+fence delivery (3). A redundant close-time deadline assignment deletion survives
+because the first getter captures it too; deleting the actual condition fails.
+No mutation edits live source or built files used by the full suite.
+
+Final affected checks 675/675, whole guide 86/86. Frozen Bun install, package
+build/typecheck, docs budget, release guard, whitespace and references pass:
+518 LLP documents, 9,673 refs, zero errors/unchecked. Largest changed runtime
+file 283 lines; new test files at most 160. All requested checks from the
+interrupted first run were rerun here.
+
+Ran scripts/test.sh exactly once in this restart: **== 0 failure(s) in 1218 s**,
+exit **0**. Rust: 3,930 passed / 0 failed / 24 ignored (518 s). Main client:
+3,370 passed / 0 failed / 10 skipped, plus 56/56 acquisition/server shards
+(428 s). Final models 79/79 (261 s), including both 5,000-sequence session
+models and 3,000 online interleavings; fixture wrappers 9/9. Both app checks,
+builds and budgets pass. All new cases, all eighteen delayed-authority createApp
+sequences and both Chromium input-preservation witnesses pass. Every failure:
+none — zero lane-owned, baseline or environmental failures. The final same-B
+recovery assertion was strengthened before client discovery, during Rust;
+the full client phase includes every final test. Runtime bytes were fixed before
+the full run began. No restart/rerun. The inherited 60-second suite runtime
+budget remains exceeded; no timeout was raised. No assigned finding remains
+open.
+
+Wasm unchanged from round 8: 1,981,453 B raw / 572,553 B gzip, 288 B below
+the unchanged 572,841 B budget; SHA-256
+3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa.
+No Rust/wasm input, authorization/disclosure rule, meter, durable format,
+dependency, diagnostic, API, version or budget change. Node 24.13.1,
+Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd limit 65,536.
+Existing tools selected through worktree-local symlinks; no shared-path install
+or modification. No new independent review is claimed; the supervisor owns
+review and integration. Detailed file map, examples, failures and reproductions:
+reports/20260927-kg-kept-through-authority/REPORT.md. Ignored evidence:
+target/lane-kg-r9b/. This is the single dated round-9b journal append.
 ## 2026-09-27 — Lane ER round 4: finish receipt-gap reconciliation
 
 Read the four binding ER prompts, Accepted LLP 3000.025, prior journal
@@ -70505,6 +71105,88 @@ Commits carry the requested co-author trailer. Full file map, examples,
 review dispositions, validation and reproductions:
 reports/20260927-dc-delivery-client/ROUND8.md. Raw evidence:
 target/lane-dc-round8/.
+### 2026-09-27 — KG round 10: retired opening refusals and an independent approval oracle
+
+Read all round-0–9b prompts, prior report and KG journal entries, and Astra's
+round-9b NOT READY review. Grok's file initially held progress text only; it
+completed during qualification, and all four findings and its keep:false
+mutation were incorporated. First fetched and merged origin/main 687e2a05f in
+d1ec21af5, preserving both journal histories (256 additions against the lane
+parent, 602 against main, zero deletions against either) and both LLP 3000.019
+Revised histories. The round-8 ruling, refined in round 9b, remains unchanged.
+
+3b99d10aa fixes Astra's retirement regression. An opening remembers its last
+associated raw snapshot, both initially and through peer notifications. After
+raw retirement, that association still identifies the slot to reject; no saved
+data is approved. Six policy/attachment regressions fail on merged input and
+pass after the fix, including true's expired linger, one E_CLIENT snapshot
+and exactly one callback. The manual records the boundary with the code.
+
+4a321adeb and cbbfbd895 replace the permissive epoch oracle with independent
+expected approval identity, denial, row/episode bounds and retirement per raw
+owner; each injected check records facade lifetime, owner, phase and eligibility.
+Every intermediate callback must match expected identity/denial/deadlines,
+its getter at delivery, and nonduplicate notification ownership. Test-only
+fixture hooks identify facade/check lifetimes without reading production
+approval state. All policies run 60 seeds of 240 actions (43,200 random actions),
+with device deadlines, host/server rollback, batched completions, owner
+recreation, and fencing with approval pending then completing it. Grok's
+follow-up adds same-answer rechecks, raw denials and 18 named replays; the
+final model has 180 seeds, three parents and 39 named replays, all 222 passing.
+
+The completed Grok review reproduced as 18 failures and six controls among
+24 cases. db0c03544 ignores superseded refresh refusals while still delivering
+current refusals after close; makes adopting the same denial a no-op for
+generation; prevents a closed opening from revoking an owner it never joined;
+and preserves a closed loading latch through later raw denials. Last association
+is tracked while live, including peer notification, rather than freezing an
+absent owner at opening start. All 24 pass, and all earlier late-close cases
+remain green. The final deterministic approval set is 127/127.
+
+Final-source mutation evidence: deleting attach(kept.approve(snapshot)) fails
+all 222 model cases, including every seed; removing the generation check fails
+all three exact closed-opening/older-success replays. Recovery-only suppression,
+missing shared denial, duplicate denial delivery, and missing closed loading
+latch each fail their three-policy cases. Missing retirement association and
+closed-owner isolation each fail six cases. Superseded-refusal mutation fails
+six order cases; repeated-denial generation fails three recovery cases. Grok's
+keep:false retention mutant fails its model control while omitted/true pass.
+Brief unapproved publication before the correct final denial fails all three
+batch cases at an intermediate callback; checking only settled state lets all
+three mutants pass. Loaders mutate only their own process, not live source/dist.
+
+Final affected set: 754/754 (24.369 s). Final model: 222/222 (24.320 s).
+Whole guide rerun after Grok's findings: 86/86. Frozen Bun install, final package
+build/typecheck, whitespace and references pass: 519 LLP docs, 9,681 references,
+zero errors/unchecked. Largest changed source/test is 289 lines.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1612 s**, exit **0**.
+Every failure: none — zero ours, baseline or environmental failures. Rust:
+3,949 passed / 0 failed / 28 ignored (879 s). Main client: 3,397 passed /
+0 failed / 10 skipped, plus 56/56 acquisition/server shards (427 s). Final
+session/online models: 79/79 (260 s). Fixtures 9/9. Both app typechecks,
+builds, budgets, package checks and release guard pass.
+
+Qualification limit: Grok's review completed after full-suite client discovery.
+The main client phase covers the Astra fixes and 204-case oracle, not the later
+Grok regressions. Grok's fixes were rebuilt at 17:39 UTC and separately verified
+by the final affected/guide/mutation checks above; the full run's final seeded
+model phase started after that rebuild. The single run was not restarted or
+repeated, and is not represented as complete qualification of the final tree.
+No unresolved assigned finding or failing final focused check remains.
+
+Wasm is byte-identical to round 9b: 1,981,453 B raw / 572,553 B gzip,
+zero delta and 288 B below the unchanged 572,841 B cap. SHA-256:
+3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa.
+No Rust/wasm input, authorization/disclosure rule, meter, durable format,
+version, dependency or budget change. Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+eight Cargo jobs, dev/test debug off, fd limit 65,536. Existing tools selected
+through worktree-local symlinks; no shared-path tool installation or change.
+No implementation deviation, new final-review claim, push or publication.
+All round-10 commits carry the requested GPT-6 Astra co-author trailer.
+The inherited 60-second full-suite budget remains exceeded; no timeout raised.
+Report and reproductions: reports/20260927-kg-kept-through-authority/REPORT.md.
+Ignored evidence: target/lane-kg-r10/. This is the single round-10 journal append.
 ## 2026-09-27 — GS round 5: final-copy refusal and actual public-witness admission
 
 Read rounds 0–4's prompts, reports and journal entries, LLP 3000.024 and its
@@ -70614,6 +71296,68 @@ target/lane-er-round5/. No ER design question remains; DC owns queue recovery
 and the supervisor owns integration. Local commits carry the co-author trailer.
 No push or publication.
 
+### 2026-09-27 — KG round 11: normalize openings and retain closed episode caps
+
+Read the round-0–10 prompts (including 9b), prior report and KG journal
+entries, and Astra's complete round-10 NOT READY review. Grok's file held only
+progress notes at start, then completed during the suite. Read its full READY
+WITH CHANGES review; its captured-episode gap is addressed by this round. First merged
+origin/main c48593818 in 37a61b3b8. The journal was the sole conflict;
+635 additions against the lane parent, 685 against main, zero deletions
+against either. The shared-approval ruling remains unchanged.
+
+27e449490 normalizes current raw withdrawals before opening notifications,
+preserving saved associations after retirement; recognizes every loading
+snapshot captured at close; randomizes initial/recreated opening and replacement
+completion order and batches; and independently remembers a closed facade's
+earliest observed episode. Randomized setup also found an opening getter
+retaining denial before its sourced peer accessed raw expiry. A minimized
+three-policy replay fails before the associated-opening getter correction.
+The manual describes all three boundaries; no public API or design change.
+
+Seven added deterministic lifecycle cases and eleven named oracle replays.
+Default model count doubles to 120 seeds per policy: 360 seeds, 86,400 random
+actions, plus setup and original-copy probes. Every default seed exercises
+before/after-close episode capture, then an original source copy without a
+cap; time 2000 still withdraws it. Every callback remains checked. Final
+approval set 496/496; model 413/413; affected set 942/942; whole guide 89/89.
+Package build/typecheck, frozen install, whitespace and references pass:
+521 LLP docs, 9,711 refs, zero errors/unchecked. Largest changed source: 296 lines.
+
+Process-local mutations fail 49 opening model cases (40 seeds), 63 getter-cap
+model cases (61 seeds), six source-loading close cases, four before/after-close
+cases with both deadline assignments removed, and three opening-access cases.
+Deleting shared approval fails 410/413 model cases, including all 360 seeds;
+three no-data opening controls pass. Grok's exact deadline-comparison deletion
+fails 123 model cases, including all 120 default-policy seeds. No mutation edits live source/dist.
+The close-time assignment alone is redundant with getter capture; no claim
+that deleting it alone must fail. Initial overbroad getter polling before
+association failed notification ownership and was corrected before qualification.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1641 s**, exit **0**.
+Every failure: none — zero ours, baseline or environmental failures. Rust:
+4,076 passed / 0 failed / 29 ignored (905 s). Main client: 3,637 passed /
+0 failed / 10 skipped, plus 56/56 acquisition/server shards (427 s). Final
+session/online models 79/79 (260 s), including both 5,000-sequence session
+models and 3,000 online interleavings; fixture wrappers 9/9. Both app
+checks, builds and budgets pass. All final runtime/tests, 360 model seeds,
+50 named oracle replays, eighteen delayed-authority createApp sequences and
+both Chromium witnesses participate. Grok's late review required only the
+additional mutation probe, no code/test change. No restart or repeat.
+No unresolved assigned finding or final-check failure. The inherited
+60-second full-suite budget remains exceeded; no timeout or budget raised.
+
+Wasm: 1,979,732 B raw / 572,616 B gzip, 225 B below the unchanged 572,841 B cap;
+SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+Compared with round 10: -1,721 raw / +63 gzip bytes from merged inputs;
+round 11 changes no Rust/wasm input, meter, durable format or authorization rule.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug off,
+fd limit 65,536. Worktree-local tool symlinks only; no shared-path installation
+or modification. No push, publication or new independent-review claim.
+All commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+The report preserves all earlier rounds:
+reports/20260927-kg-kept-through-authority/REPORT.md. Ignored evidence:
+target/lane-kg-r11/. This is the single dated round-11 journal append.
 
 ### 2026-09-27 — Lane FA round 5: preserve sparse defaults and pin the ceiling race
 
@@ -70778,3 +71522,67 @@ resolution, no binding/wire or meter-ceiling change, no device/queue work,
 version bump, budget increase, push or publication. File-by-file resolutions,
 forms, tests, mutation evidence, exact full-run result and remaining reproduction:
 reports/20260927-delivery-server/ROUND4.md and round4/ beside it.
+### 2026-09-27 — KG round 12: opening refusals require distinct delivery evidence
+
+Read the round-0–11 prompts, including 9b, prior report and KG journal entries,
+and Astra's complete round-11 NOT READY review. Grok had no verdict at start;
+proceeded without waiting. First merged origin/main 51b318c63 in 195464141.
+The journal was the sole conflict; both appends remain, with 53 additions
+against the lane parent, 747 against main and zero deletions against either.
+The shared-approval ruling remains unchanged.
+
+Capture the opening snapshot beside its generation. An opening can adopt a
+shared denial only when both changed while it waited: a closed peer's refusal
+normalized back to the initial raw D is not evidence that the opening refusal
+was delivered. Its distinct refusal fences C's older pending success under all
+three policies, for false and thrown outcomes. Removed the redundant listener
+normalization; emit obtains the normalized getter before delivering callbacks.
+Production diff: four added lines, seven removed. The report audits every
+counter/episode comparison in the approval/read lifecycle and oracle, plus
+adjacent raw publication/session fences. No additional runtime defect found.
+
+Six direct reproductions fail before and pass after; six new independent
+oracle replays cover both outcomes and all policies. Generated actions now
+include close→source denial without polling, closed-peer refusal during an
+opening, and close→denial→open→closed-peer refusal, with subsequent publication
+and completion order still randomized. Oracle denial events are independent
+of its cancellation epoch; false and thrown checks are both modeled.
+
+Final approval set: 868/868, including 779 model cases (720 seeds, 56 named
+replays, three parents), 172,800 random actions plus setup and episode probes.
+Reverting only the new snapshot comparison fails 21 seeds: omitted
+26/35/59/119/213/216/235; false 35/110/119/172/228; true
+15/35/59/80/100/119/172/217/235. With six named cases and three parents,
+30 failures are reported. The old closed-loading guard now fails 681 seeds;
+removing getter normalization fails six reversed-opening cases. Mutations
+never edit live source/dist. The first generator extension caught only named
+cases; strengthened it before final qualification.
+
+Main client tests: 4,009 passed / 0 failed / 10 existing skips, 426.630 s;
+acquisition/server shards 56/56; session/online models 79/79, 269.342 s.
+React file 48/48 and both Chromium input-preservation witnesses pass; all
+eighteen delayed-authority createApp cases pass. Whole guide 89/89; frozen
+Bun install, package build/typecheck, docs budget, references and whitespace
+pass. Largest changed source/test: 293 lines. The final grouped generator
+was qualified separately after main client discovery; production JS was fixed
+throughout. Existing round-11 native/wasm artifacts were used; no new native
+or wasm rebuild qualification is claimed. Guide compiled against merged source.
+
+Every final qualification failure: none, zero ours/baseline/environmental.
+Resolved lane-owned development errors: the first test draft compared a cloned
+publication to its input object; one optional docs-budget command used the
+wrong filename (MODULE_NOT_FOUND), then the correct command passed. Expected
+pre-fix/mutation failures and complete classifications are in the report.
+Did not run scripts/test.sh, as instructed. Round 11's historical exact result
+stands: == 0 failure(s) in 1641 s, exit 0. The supervisor owns the full landing
+suite. Its inherited 60-second budget remains exceeded; no timeout was raised.
+
+Wasm artifact SHA-256 still dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94:
+1,979,732 B raw / 572,616 B gzip, 225 B below the unchanged 572,841 B cap.
+Zero wasm input delta from this TypeScript/test/doc correction. No design,
+API, diagnostic, authorization rule, meter, durable format, dependency, release
+version or budget change. Existing tools only; nothing installed or modified
+on a shared path. No unresolved assigned finding or independent new review
+claim. Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
+ignored evidence: target/lane-kg-r12/. This is the single round-12 append.

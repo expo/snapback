@@ -769,9 +769,9 @@ const cases = {
       equal(latest.page.items, ["a", "b"], "ready pages stay while a new page loads");
       check(host.querySelector("input") === editor && editor.value === "unsent draft", "load-more preserves the editor");
       await act(async () => { await raw.mutate(mutation, {}); });
-      await settle(() => !latest.query.fresh && !latest.page.read.fresh);
+      await settle(() => latest.query.revalidating && latest.page.read.revalidating);
       equal(latest.page.items, ["a", "b"], "a mutation re-read keeps both pages");
-      check(!latest.query.loading && !latest.page.read.loading && Number.isFinite(latest.query.since), "kept metadata reaches both hooks");
+      check(!latest.query.loading && !latest.page.read.loading && latest.query.fresh && latest.page.read.fresh, "kept metadata reaches both hooks");
       check(host.querySelector("input") === editor && editor.value === "unsent draft", "re-read preserves the editor and draft");
       phase = "ready"; await act(async () => held.splice(0).forEach(resolve => resolve()));
       await settle(() => latest.page.items.length === 3 && latest.query.fresh);
@@ -810,7 +810,7 @@ const cases = {
       }
       throw Error(path);
     } });
-    function Probe() { latest = { query: useQuery(query, {}), page: usePage(query, {}) }; return null; }
+    function Probe() { latest = { query: useQuery(query, {}, { keep: false }), page: usePage(query, {}, { keep: false }) }; return null; }
     const settle = async condition => {
       for (let n = 0; n < 100; n++) {
         await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
@@ -1049,7 +1049,7 @@ for (const hook of ["useQuery", "usePage"]) {
       commits = [];
       await mount(h(Probe), app.client);
       equal(commits[0]?.read.data, ["secret"], "first commit keeps the previously authorized answer");
-      check(commits[0].read.fresh === false && Number.isFinite(commits[0].read.since), "first commit carries the new stale metadata");
+      check(commits[0].read.fresh === true && commits[0].read.revalidating === true, "first commit preserves freshness and carries revalidation");
       check(commits[0].html.includes('value="secret"') && !commits[0].html.includes("Loading"), "the editor is in the first committed DOM");
       check(commits.every(commit => !commit.read.loading), "StrictMode subscription replay never flashes loading");
       equal(queries, before, "joining the running watch adds no duplicate read");
