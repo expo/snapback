@@ -68795,3 +68795,24 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+### 2026-09-27 — Lane FA round 1: expose the populated-store query; revise adoption
+
+Merged origin/main first (86c50df51), preserving every line of both journal
+parents. Read the round-0 prompt, LLP 3000.026, research entry and both complete
+NOT READY reviews. Part A exposes the existing planned home query in the first
+feeds-card example, with its moderate-corpus server scope, no inbox/offline floor,
+and sparse-page failure (complete false, no continuation). Activation and why
+name the same program and distinguish post ids from missing repost slots and
+edge-admission history. The empty-source guard remains. Trimmed repeated boundary
+and compatibility prose: feeds.md 18,011 → 17,708 bytes, 2,701 → 2,639 words,
+364 → 362 lines.
+
+The whole guide passes: cargo test -p snapback4-lang --test guide, 86 passed,
+0 failed, 0 ignored, 2.81 s test execution. Its exact planned card block must emit
+one N_SPARSE_FILTER note; no other note exemption was added. The existing Global
+witness also seeds a follow and executes home over retained rows, asserting no
+materialized declaration. Earlier runs exposed that deliberate note and obsolete
+editorial pins (4 failures, then 1); updated those pins to the revised recovery
+text. No compiler behavior was changed. Whitespace check passes. Rust checks
+only; no JavaScript tests or full suite were needed for this documentation delta.
