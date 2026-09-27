@@ -68341,3 +68341,55 @@ driver: target/lane-fx-evidence/round1-*.
 Final reference audit: 517 LLP documents, 9,618 references, zero errors and
 zero unchecked. Diff whitespace check passes. Final one-minute host loads
 were 29.88 (expiry) and 51.26 (React).
+
+
+### 2026-09-27 — Lane FX round 2: useNow flake is a clock-fixture error
+
+Fetched and merged origin/main first; already up to date at f39598de7.
+Read rounds 0–1's prompts, reports and journal entries. The remaining useNow
+failure is a test assumption: an exact two-minute mock server-offset jump
+need not advance client.now() by two minutes, because a new clock revision
+can discard an earlier positive request-midpoint bias. A forced 40 ms
+request-before-stamp delay creates a 20 ms bias. With the controlled wall
+at 1540, Bob's deadline is 90121560 and the old advance yields 90121540.
+The old immediate empty-row assertion fails 5/5 with the historical "bob"
+signature, although Bob is still live. No load-dependent reproduction is
+needed; wall inputs and timer callbacks are explicit.
+
+Changed only the useNow case in test/helpers/react-harness.mjs and a clock
+module alias in test/react.test.mjs. The real client, clock, hook and published
+expiry recipe remain under test. Replacing Alice's deadline cancels its
+actual timer; she stays visible at the old deadline and one millisecond
+before the new deadline, then disappears at exact equality without a new
+row answer. Bob survives a sample 20 ms short, then disappears on a sample
+at equality, without a timer delivery, new answer or parent render. Rollback
+keeps issued time monotonic and schedules exactly 240000 ms; unmount removes
+the timer. Removing the deadline repaint tick fails 5/5 on Alice; removing
+only the clock-notification tick fails 5/5 on Bob. All temporary mutations
+were restored byte-for-byte; no product diff remains.
+
+The full React file passed 20/20 under the unchanged round-1 load driver:
+48/48 tests each, five Node/Chromium processes at a time on cores 0–7 with
+eight CPU workers. No skipped/cancelled case and no replacement of a red run.
+The whole guide then passed 86/86, zero ignored, 2.60 s execution. Frozen
+install, package build and the initial 48/48 smoke passed. No final assigned,
+baseline or environmental test failure. A first control-driver launch from
+the repository root failed its log redirection before any test or mutation;
+launching from snapback4 fixed that setup error.
+
+Closed issues/20260927-snapback4-react-usenow-deadline-flaky.md with the cause
+and proof, moving it under issues/closed/. Read KG's report and compared its
+branch at a5a6d534f: useNow is byte-identical, and read-expiry.ts,
+read-episode.ts, observe-watch.ts, app-client.ts and every React product file
+have zero changed lines in this round. The report names all test lines KG's
+merge needs, preserving its other hook changes and FX's earlier journal tests.
+
+No full suite, as explicitly instructed for test-only changes. There is no
+round-2 scripts/test.sh summary; historical round 0 remains
+`== 0 failure(s) in 1436 s`, exit 0. Wasm is byte-identical to that artifact:
+1,981,512 B raw / 572,053 B gzip, SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969,
+0 B device-code delta, unchanged 572,841 B budget. No timeout increase,
+weakened assertion, new API/design, unrelated fix, shared tool installation,
+push or publication. Report and durable run evidence:
+reports/20260927-fx-flakes/ROUND2.md and round2-qualification.json there.
