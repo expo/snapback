@@ -1,5 +1,5 @@
 import type { Refusal } from "./contract.ts";
-import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
+import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, retireGroup, subtractRuns, type DeliveryGroup, type Run, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 
 export interface DeliveryStorage {
@@ -114,7 +114,9 @@ export class DeliveryQueue {
           const idle = Object.entries(state.groups).filter(([key, g]) => !g.saturated && ![...this.flights].some(f => f.key === key));
           const ready = idle.filter(([, g]) => {
             if (!g.owed.length && !g.attempt && !g.parked.some(p => p.kind === "retry" && p.ready)) return false;
-            const at = g.attempt?.readyAt ?? 0;
+            const next = g.owed[0];
+            const waitingBound = !g.attempt && next && this.spendsBound(g, next) && g.bound!.retries >= 8 && g.bound!.wakes < 8;
+            const at = g.attempt?.readyAt ?? (waitingBound ? g.bound!.at + 30_000 : 0);
             if (at > now) { nextAt = Math.min(nextAt, at); return false; }
             return true;
           }).sort(([, a], [, b]) => a.ready - b.ready);
@@ -132,12 +134,6 @@ export class DeliveryQueue {
               // One group wake buys one parked call. Later manifests/successes
               // may wake full runs, but cannot spend this bound wake again.
               for (const p of parked.group.parked) if (p.kind === "bound") p.ready = false;
-              if (parked.run.kind === "bound" && parked.run.attempt?.bound) {
-                const prior = parked.run.attempt;
-                parked.group.attempt = { ...prior, id: this.options.mint(), retries: 0, readyAt: 0, recent: [],
-                  bound: { ...prior.bound!, wakes: prior.bound!.wakes + 1, replay: false } };
-                parked.group.recent = [];
-              }
               entry = [parked.key, parked.group];
             }
           }
@@ -156,13 +152,22 @@ export class DeliveryQueue {
           if (!group.parked.some(p => p.kind === "full" || (p.kind === "bound" && p.ready))) group.wake = false;
           // This commit precedes transport, including the local host persistence batch.
           if (!group.attempt) {
-            group.attempt = { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0, recent: [] };
+            const run: Run = [...group.owed[0]!];
+            if (this.spendsBound(group, run)) {
+              const budget = group.bound!;
+              if (budget.retries >= 8 && budget.wakes < 8 && budget.at + 30_000 > now) {
+                nextAt = Math.min(nextAt, budget.at + 30_000); return;
+              }
+              if (!this.debitBound(group, run, now)) return { refused: this.refuseBound(group, run, now) };
+            }
+            group.attempt = { id: this.options.mint(), run, retries: 0, readyAt: 0, recent: [] };
             group.recent = [];
           }
           return { key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
         }));
         if (!selected) { if (Number.isFinite(nextAt)) this.schedule(Math.max(1, nextAt - this.now())); break; }
         if (epoch !== this.epoch || this.stopped) break;
+        if ("refused" in selected) { this.options.onRefused?.(selected.refused); continue; }
         const flight: Flight = { ...selected, epoch, controller: new AbortController(), done: Promise.resolve() };
         this.flights.add(flight);
         const [groupArg, fromArg, throughArg] = selected.binding.args;
@@ -171,6 +176,24 @@ export class DeliveryQueue {
         void flight.done.catch(() => {});
       }
     } finally { this.pumping = false; }
+  }
+  private spendsBound(group: DeliveryGroup, run: Run): boolean {
+    return !!group.bound?.runs.some(([a, b]) => a <= run[1] && run[0] <= b);
+  }
+  // @ref LLP 3000.022#4 — all new ids for spending intervals debit one group ledger.
+  private debitBound(group: DeliveryGroup, run: Run, now: number): boolean {
+    const budget = group.bound!;
+    if (budget.retries < 8) budget.retries++;
+    else if (budget.wakes < 8) budget.wakes++;
+    else return false;
+    budget.runs = mergeRuns([...budget.runs, run]); budget.at = now;
+    return true;
+  }
+  private refuseBound(group: DeliveryGroup, run: Run, now: number): DeliveryRefused {
+    group.owed = subtractRuns(group.owed, [run]); delete group.attempt;
+    group.parked.push({ run, kind: "stopped", at: now });
+    group.refused = mergeRuns([...group.refused, run]); boundDebt(group);
+    return { ...group.binding, group: group.group, from: run[0], through: run[1], why: { code: "E_BOUND", family: "bound", message: "Delivery exhausted its group bound retry budget." } };
   }
   private current(f: Flight): boolean { return !this.stopped && f.epoch === this.epoch; }
   private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown>; delivery: { fingerprint: string } }): Promise<void> {
@@ -195,9 +218,23 @@ export class DeliveryQueue {
         const effects: { refused?: DeliveryRefused; paused?: boolean; offline?: boolean } = {};
         const attempt = group.attempt, run = attempt.run, now = this.now();
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
-        const park = (kind: Parked["kind"], keepId = false) => { remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) }); };
+        const park = (kind: Parked["kind"], keepId = false) => {
+          if (this.spendsBound(group, run)) group.bound!.at = now;
+          remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) });
+        };
+        const boundRetry = () => {
+          const budget = group.bound!;
+          if (budget.retries < 8) {
+            const delay = Math.min(60_000, 1000 * 2 ** budget.retries);
+            this.debitBound(group, run, now);
+            attempt.id = this.options.mint(); attempt.recent = []; group.recent = [];
+            attempt.retries = 0; attempt.boundReplay = false; attempt.readyAt = now + delay;
+          } else if (budget.wakes < 8) park("bound");
+          else effects.refused = this.refuseBound(group, run, now);
+        };
         const retry = (recorded: boolean) => {
-          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; if (attempt.bound) attempt.bound.replay = false; }
+          if (recorded && this.spendsBound(group, run)) { boundRetry(); return; }
+          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; attempt.boundReplay = false; }
           if (attempt.retries >= 8) { park("retry", true); return; }
           attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** attempt.retries++);
         };
@@ -210,22 +247,21 @@ export class DeliveryQueue {
         else if (why?.code === "E_DELIVERY_BINDING") { dropBinding(state, group.binding); }
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
+          // Only success of the spending coverage clears its budget. A sibling
+          // success cannot reset it, nor can a partial success after a split.
+          if (group.bound) {
+            group.bound.runs = subtractRuns(group.bound.runs, [run]);
+            if (!group.bound.runs.length) { delete group.bound; delete state.retired[f.key]; }
+          }
         } else if (why?.code === "E_BOUND") {
           // @ref LLP 3000.022#4 — a bare HTTP bound may follow a committed report.
           // First replay the same id; only its failed receipt permits a new one.
-          const bound = attempt.bound ??= { retries: 0, wakes: 0, replay: false };
-          if (!bound.replay || json?.state !== "failed" || (json.why as Refusal | undefined)?.code !== "E_BOUND") {
-            bound.replay = true; retry(false);
-          } else if (bound.retries < 8) {
-            attempt.id = this.options.mint(); attempt.recent = []; group.recent = [];
-            attempt.retries = 0; bound.replay = false;
-            attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** bound.retries++);
+          if (!attempt.boundReplay || json?.state !== "failed" || (json.why as Refusal | undefined)?.code !== "E_BOUND") {
+            attempt.boundReplay = true; retry(false);
           } else {
-            park(bound.wakes < 8 ? "bound" : "stopped", true);
-            if (bound.wakes >= 8) {
-              group.refused = mergeRuns([...group.refused, run]);
-              effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
-            }
+            group.bound ??= { retries: 0, wakes: 0, runs: [], at: now };
+            group.bound.runs = mergeRuns([...group.bound.runs, run]);
+            boundRetry();
           }
         } else if (why?.code === "RUNS_FULL") park("full");
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {
@@ -233,13 +269,18 @@ export class DeliveryQueue {
           if (!this.options.local && recent.length) {
             group.owed = recent; group.parked = []; delete group.attempt;
             group.incarnation = ++state.serial;
-          } else { delete state.groups[f.key]; delete state.retired[f.key]; }
+          } else { retireGroup(state, f.key, group); delete state.groups[f.key]; }
         } else if (why?.code === "NOT_A_RUN" || why?.code === "PAST_LAST_MESSAGE") {
           remove(); group.refused = mergeRuns([...group.refused, run]);
           if (group.refused.length >= 64) { group.saturated = true; group.owed = []; group.parked = []; }
           effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
         } else if (why?.retryable) retry(json?.state === "failed" || why.code === "E_CONFLICT");
-        else if (why) { park("start"); effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why }; }
+        else if (why) {
+          // A budget-bearing interval has one terminal notification, even if
+          // another refusal temporarily parks it until start.
+          if (!this.spendsBound(group, run)) effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+          park("start");
+        }
         else retry(false);
         boundDebt(group);
         return effects;

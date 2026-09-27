@@ -2295,11 +2295,14 @@ committed success. Only a replayed `failed` receipt with `why.code: "E_BOUND"`
 permits a new id, with 1–60 s backoff, at most eight times. Then the interval
 parks without notifying the application. The 10-minute timer, reconnect and
 start permit one new id per wake, at least 30 s apart, for at most eight more
-wake retries. Counts survive local restart; reconnect does not reset the burst.
+wake retries. The budget belongs to the group and survives every park, interval merge/split,
+eviction and local restart; reconnect does not reset the burst.
 If all eight wakes fail, `onDeliveryRefused` fires once and that interval stops
-retrying. Its refused entry survives interval and group eviction. A group with a
-partially spent bound budget saturates on interval overflow or whole-group
-eviction and stops collection and reporting. Online queues live in memory; a
+retrying. Its refused entry survives interval and group eviction. The same
+accounting follows spending intervals through other refusal types; a start
+park defers notification until that budget terminates. Only successful coverage
+of those intervals clears it; unrelated success cannot replenish it. Eviction
+retains the counters in the group’s fingerprint-scoped tombstone. Online queues live in memory; a
 new process starts a fresh budget. A bare denial keeps the uncertain same-id
 behavior.
 

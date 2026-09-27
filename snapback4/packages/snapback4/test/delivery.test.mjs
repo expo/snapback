@@ -201,7 +201,7 @@ for(const kind of ['retry','bound'])test(`startup waits for a ready persisted ${
  t.mock.timers.enable({apis:['setTimeout']});
  const responses=[],h=harness(t,{send:()=>{const d=deferred();responses.push(d);return d.promise;}});
  h.ready(false);await h.q.accept(manifest([['c',41]]));
- await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind,run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0,...(kind==='bound'?{bound:{retries:8,wakes:2,replay:true}}:{})}}];});
+ await h.storage.update(s=>{const g=groups(s)[0];if(kind==='bound')g.bound={retries:8,wakes:2,runs:[[41,41]],at:0};g.owed=[];g.parked=[{kind,run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0,...(kind==='bound'?{boundReplay:true}:{})}}];});
  h.advance(30000);await h.q.start();await h.q.accept(manifest([['c',1]]));h.ready(true);await h.flush();
  assert.equal(h.calls[0].args.from,1);assert.equal(await h.q.flushed(),false,'41 is ready but has not dispatched');
  responses[0].resolve(ok);await settle();await h.flush();
@@ -232,14 +232,15 @@ test('answers without delivery manifests leave the dormant queue without timers'
 
 test('retired refusal state is removed and restored only for its fingerprint',()=>{
  const s=emptyDelivery(),key=deliveryKey(binding,'c'),newer={...binding,fingerprint:'new'};
- s.retired[key]={fingerprint:newer.fingerprint,refused:[[41,41]],saturated:true};
+ const budget={retries:3,wakes:2,runs:[[43,43]],at:0};
+ s.retired[key]={fingerprint:newer.fingerprint,refused:[[41,41]],saturated:true,bound:budget};
  s.bindings=[binding,newer];dropBinding(s,binding);
  assert.equal(s.retired[key].fingerprint,newer.fingerprint,'removing the old binding preserves the new tombstone');
  acceptManifest(s,[{...newer,rows:[['c',41]]}],1);
- assert.equal(s.groups[key].saturated,true);assert.deepEqual(s.groups[key].refused,[[41,41]]);
+ assert.equal(s.groups[key].saturated,true);assert.deepEqual(s.groups[key].refused,[[41,41]]);assert.deepEqual(s.groups[key].bound,budget);
  delete s.groups[key];s.retired[key].fingerprint='different';
  acceptManifest(s,[{...newer,rows:[['c',43]]}],1);
- assert.equal(s.groups[key].saturated,false);assert.deepEqual(s.groups[key].refused,[]);assert.deepEqual(s.groups[key].owed,[[43,43]]);
+ assert.equal(s.groups[key].saturated,false);assert.deepEqual(s.groups[key].refused,[]);assert.deepEqual(s.groups[key].owed,[[43,43]]);assert.equal(s.groups[key].bound,undefined);
  dropBinding(s,newer);assert.equal(s.retired[key].fingerprint,'different');
  dropBinding(s,{...binding,fingerprint:'different'});assert.equal(s.retired[key],undefined);
 });

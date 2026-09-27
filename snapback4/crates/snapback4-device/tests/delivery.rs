@@ -265,12 +265,13 @@ fn edit_state<S:DeviceStore>(d:&mut Device<S>, edit:impl FnOnce(&mut Json)) {
 }
 fn bound_eviction<H:Host>(h:&mut H) {
     let key="[\"messages\",\"delivered_messages\",\"r\"]";
-    for location in ["attempt","bound","retry","stopped"] { for whole_group in [false,true] {
+    for location in ["attempt","bound","retry","full","start","stopped"] { for whole_group in [false,true] {
         let name=format!("bound-{location}-{whole_group}");
         let mut d=h.open(&name,Some(backend())).unwrap();request(&mut d,"read");d.apply(&page(true,vec![event(41)],1),true).unwrap();
         edit_state(&mut d,|s|{
             let g=&mut s["groups"][key];
-            let attempt=json!({"id":"held","run":[41,41],"retries":2,"readyAt":1000000,"bound":{"retries":2,"wakes":1,"replay":true}});
+            g["bound"]=json!({"retries":2,"wakes":1,"runs":[[41,41]],"at":0});
+            let attempt=json!({"id":"held","run":[41,41],"retries":2,"readyAt":1000000,"boundReplay":true});
             if location=="attempt" {g["attempt"]=attempt;} else {
                 g["owed"]=json!([]);g["parked"]=json!([{"run":[41,41],"kind":location,"at":0,"attempt":attempt}]);
                 if location=="stopped" {g["refused"]=json!([[41,41]]);}
@@ -286,19 +287,23 @@ fn bound_eviction<H:Host>(h:&mut H) {
             d.apply(&page(false,vec![row],2),false).unwrap();
             let retired=state(&mut d)["retired"][key].clone();
             assert_eq!(retired["fingerprint"],"fixture:messages");
-            assert_eq!(retired["saturated"],location!="stopped");
+            assert_eq!(retired["saturated"],false);
+            assert_eq!(retired["bound"]["retries"],2);
         } else {
             d.apply(&page(false,(0..256).map(|n|event(100+n*2)).collect(),2),false).unwrap();
             let s=state(&mut d);let g=&s["groups"][key];
-            assert_eq!(g["saturated"],location!="stopped","{location}: pressure cannot reset bound counters");
+            assert_eq!(g["saturated"],false);
+            assert_eq!(g["bound"]["retries"],2,"{location}: pressure cannot reset bound counters");
             assert!(g.get("attempt").is_none());
             assert_eq!(g["parked"],json!([]));
-            if location=="stopped" { assert_eq!(g["owed"].as_array().unwrap().len(),256);reset_debt(&mut d); }
+            assert_eq!(g["owed"].as_array().unwrap().len(),256);reset_debt(&mut d);
         }
         h.close(&name,d);let mut d=h.open(&name,None).unwrap();
         d.apply(&page(false,vec![event(41)],3),false).unwrap();
-        let s=state(&mut d);let g=&s["groups"][key];assert_eq!(g["owed"],json!([]),"recollection must not replenish {location}");
-        if location=="stopped" {assert_eq!(g["refused"],json!([[41,41]]));} else {assert_eq!(g["saturated"],true);}
+        let s=state(&mut d);let g=&s["groups"][key];
+        assert_eq!(g["bound"],json!({"retries":2,"wakes":1,"runs":[[41,41]],"at":0}),"recollection must not replenish {location}");
+        assert_eq!(g["saturated"],false);
+        if location=="stopped" {assert_eq!(g["refused"],json!([[41,41]]));assert_eq!(g["owed"],json!([]));} else {assert_eq!(g["owed"],json!([[41,41]]));}
     }}
 }
 #[test]fn bound_eviction_memory(){bound_eviction(&mut Memory::new())}

@@ -88,15 +88,7 @@ fn add(value: &mut Json, n: i64) {
     // instantiates serde's owned-tree writer for the entire interval container.
     *value = Json::Array(merged.into_iter().map(|(a,b)| Json::Array(vec![Json::from(a), Json::from(b)])).collect());
 }
-// @ref LLP 3000.022#4 — eviction may omit delivery, never replenish bound retries.
-fn has_bound(debt: &Json) -> bool {
-    !debt["attempt"]["bound"].is_null() || debt["parked"].as_array().is_some_and(|parks| parks.iter().any(|p| p["kind"] != "stopped" && !p["attempt"]["bound"].is_null()))
-}
-fn saturate(debt: &mut Json) {
-    debt["saturated"] = json!(true); debt["owed"] = json!([]); debt["parked"] = json!([]);
-    debt.as_object_mut().unwrap().remove("attempt");
-}
-
+// @ref LLP 3000.022#4 — group bound accounting survives debt and group eviction.
 #[cold]
 fn retire_oldest(state: &mut Json, evict: bool) -> bool {
     let mut oldest: Option<(&String, u64)> = None;
@@ -108,10 +100,10 @@ fn retire_oldest(state: &mut Json, evict: bool) -> bool {
     let Some((oldest, _)) = oldest else { return false; };
     let oldest = oldest.clone();
     let old = state["groups"].as_object_mut().unwrap().remove(&oldest).unwrap();
-    let saturated = old["saturated"] == true || has_bound(&old);
-    if saturated || old["refused"].as_array().is_some_and(|runs| !runs.is_empty()) {
-        state["retired"].as_object_mut().unwrap().insert(oldest, json!({"fingerprint":old["binding"]["fingerprint"],"refused":old["refused"],"saturated":saturated,"scope":old["scope"]}));
-    }
+    let saturated = old["saturated"] == true;
+    if !old["bound"].is_null() || saturated || old["refused"].as_array().is_some_and(|runs| !runs.is_empty()) {
+        state["retired"].as_object_mut().unwrap().insert(oldest, json!({"fingerprint":old["binding"]["fingerprint"],"refused":old["refused"],"saturated":saturated,"scope":old["scope"],"bound":old["bound"]}));
+    } else { state["retired"].as_object_mut().unwrap().remove(&oldest); }
     true
 }
 fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: String, evict: bool) -> Result<bool, RuntimeError> {
@@ -128,9 +120,10 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
         let kept = if kept["fingerprint"] == binding.fingerprint { kept } else { &Json::Null };
         let refused = kept.get("refused").cloned().unwrap_or(json!([]));
         let saturated = kept["saturated"] == true;
+        let bound = kept["bound"].clone();
         state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":binding.args,"fingerprint":binding.fingerprint},
             "group":group,"incarnation":incarnation,"collected":incarnation,"ready":incarnation,"owed":[],"reported":[],"refused":refused,
-            "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
+            "parked":[],"bound":bound,"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
     // An older compiled generation must not collect into a newer manifest binding.
     let debt = &state["groups"][&key];
@@ -143,7 +136,6 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
         && !runs(&debt["owed"]).iter().any(|&(a,b)| a.saturating_sub(1) <= position && position <= b.saturating_add(1))
         && !known {
         if !evict { return Ok(false); }
-        if has_bound(debt) { saturate(&mut state["groups"][&key]); return Ok(true); }
     }
     let version = serial(state);
     let debt = &mut state["groups"][&key];
