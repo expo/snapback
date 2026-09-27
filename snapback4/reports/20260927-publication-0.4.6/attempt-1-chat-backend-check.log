@@ -1,0 +1,8 @@
+check: ok — 6 tables (5 synced), 11 operations, no problems, 1 note, 24.3 ms
+note: schema.q:78:1 — N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue
+  rewrite: if the screen pages, declare `c: cursor ?` in inbox and append `after c` to this memberships page, keeping its current predicate, direction and column order
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+scale: 10 of 11 operations are constant; 1 grow with data (invite) — `check --cost` gives the certificate
+1 mutations never predict: markRead (writes online-only table readMarkers); 1 mutation has insert arms that never predict: markRead (readMarkers is online only); 2 mutations eligible, but these reads queue without a row past a horizon: edit (messages by byId (schema.q:104:3), messages[messageId] (schema.q:102:9)), unsend (messages[messageId] (schema.q:108:9)) — snapback4 why <op>
