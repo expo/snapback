@@ -309,3 +309,15 @@ test('a second interval shares the exhausted burst and wake allowance',async t=>
  assert.equal(new Set(h.calls.map(c=>c.id)).size,18,'two initial ids and sixteen shared replacements');
  assert.deepEqual((await h.group()).refused,[[41,41],[43,43]]);assert.equal(h.refused.length,2,'one terminal callback per spending interval');
 });
+
+for(const kind of ['full','start'])test(`the last wake ending in ${kind} refuses immediately without waiting for another wake`,async t=>{
+ let mode='bound';const h=fixture(t,()=>mode==='bound'?bound:{accepted:true,json:{state:'failed',why:{code:kind==='full'?'RUNS_FULL':'E_INPUT'},head:10}},serializedStorage());
+ await exhaust(h);
+ for(let n=1;n<8;n++){h.advance(30000);await h.q.reconnect();await h.flush();h.advance(1000);await h.flush();}
+ mode=kind;h.advance(30000);await h.q.reconnect();await h.flush();
+ assert.equal(new Set(h.calls.map(c=>c.id)).size,17);assert.equal(h.refused.length,1);
+ assert.equal(h.refused[0].why.code,'E_BOUND');assert.deepEqual((await h.group()).refused,[[41,41]]);
+ assert.equal((await h.group()).parked[0].kind,'stopped');
+ await h.restart();await h.collect();h.advance(600000);await h.q.wake('timer');await h.flush();
+ assert.equal(new Set(h.calls.map(c=>c.id)).size,17);assert.equal(h.refused.length,1);
+});

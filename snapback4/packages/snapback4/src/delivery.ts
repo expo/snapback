@@ -222,7 +222,12 @@ export class DeliveryQueue {
         const attempt = group.attempt, run = attempt.run, now = this.now();
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => {
-          if (this.spendsBound(group, run)) group.bound!.at = now;
+          if (this.spendsBound(group, run)) {
+            group.bound!.at = now;
+            if ((kind === "full" || kind === "start") && group.bound!.retries >= 8 && group.bound!.wakes >= 8) {
+              effects.refused = this.refuseBound(group, run, now); return;
+            }
+          }
           remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) });
         };
         const boundRetry = () => {
