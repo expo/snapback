@@ -207,13 +207,13 @@ fn leased_continuation<S: DeviceStore>(store: S, terminal: bool, publish_peer: i
     let capture = a.sync_state().unwrap();
     assert_eq!(capture.watermark, 20);
     assert!(capture.restore_refusal.is_none());
-    let continuation: StreamPage = serde_json::from_value(serde_json::json!({
+    let continuation: StreamPage = decoded(&serde_json::json!({
         "snapshot":true, "store_id":"shared-store", "after":"a-next", "watermark":8,
         "more":!terminal, "next":if terminal { None } else { Some("a-later") }, "events":[],
         "requested_watermark":0, "captured_watermark":capture.watermark,
         "captured_restore_watermark":capture.restore_watermark,
         "captured_restore_images_at":capture.restore_images_at, "send_revision":capture.send_revision
-    })).unwrap();
+    }).to_string()).unwrap();
     assert!(continuation.images_at.is_none());
     let observation = a.observe_store(&continuation).unwrap();
     assert!(!observation.reset);
