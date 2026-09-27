@@ -9,9 +9,9 @@ the step meter; there is no `while` form.
 
 A mutation classified `predicts: "never"`, from a server site or an author's
 `: server` marker, may iterate a bounded plain prefix page when its read rule
-is uniform over the prefix. `matching`, merges and tables with expiry are
-refused for every mutation page (`E_STRUCTURAL_FANOUT`), predicting or not,
-looped or only bound. Prediction still needs a complete
+is uniform over the prefix. `matching` and merges are refused for every
+mutation page (`E_STRUCTURAL_FANOUT`). Expiring scans follow the server
+read-only-phase rule in guide programs. Prediction still needs a complete
 schema-capped group: `for m in members where .roomId = roomId:` takes its bound from the
 schema cap, so changing the cap changes every whole-group read. An explicit
 `first <cap>` stays legal; a smaller explicit bound still fails the prediction
@@ -21,12 +21,13 @@ binds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it 
 a query, or pin the deciding columns.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting; an aborting mutation page also costs one examined unit before the verdict.
 The pass is atomic and remains subject to 1,024 rows written per mutation.
-`check --cost` prints "a pass over the first N rows of <prefix>; examined
-ceiling <n>". It never commits a partial pass after a budget abort.
+`check --cost` names the examined ceiling and, for expiring scans, the
+unswept-row backlog and atomic `E_BOUND` outcome. It never commits a partial pass after a budget abort.
 
 A bounded list loop that only reads, computes and emits may iterate a list
 column, an alias, a helper result or a filtered/shaped list from a page.
 It need not preserve the whole group. If its body writes rows, including
 inside helpers or nested loops, the original `E_STRUCTURAL_FANOUT` check
 still applies. Every mutation page still needs a uniform plain prefix over
-a table without expiry; the meter and its ceilings are unchanged.
+a table admitted by the expiry rule (guide programs); the meter and its
+ceilings are unchanged.

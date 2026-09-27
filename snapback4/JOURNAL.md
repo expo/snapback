@@ -68387,3 +68387,55 @@ limits availability; an expiry-aware index would be a separate larger change.
 Supervisor owns the design and two blind reviews. No push or publication.
 
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>
+
+## 2026-09-27 — Lane ER round 1: review corrections, no landing
+
+Read the original lane prompt, LLP 3000.025 and its round-0 journal entry,
+plus both full design reviews (er-r0.astra.md, er-r0.grok.md). Both said READY
+WITH CHANGES and found no new disclosure or missing executable IR form in
+the read-only checker. Revised the Draft with their review record and the
+supervisor's ruling: E_BOUND remains non-retryable, without a backlog count;
+the delivery queue keeps its interval and retries on a fresh id under its
+recorded-refusal backoff/budget. The exact LLP 3000.022 outcome row and
+amendment sentence are in §3 for lane DC. Production sweeps at most 2,000
+rows per one-second tick, unlike the 1,024-row fixture without waits. Named
+the required DC test delivery_backlog_bound_sweeps_fresh_id_recovers; this
+lane has not implemented or claimed that queue test.
+
+The soundness argument now allows metered read-time maintained-view recounts
+while requiring no writes. There is one expiry-admission policy on original
+scan identity, with the population-flow true bypass removed. The prototype
+names a preceding effect or the enclosing effectful statement, counts untaken
+arms and preceding emits, removes the expiry selected-id advice, and shows
+the two-statement loop form. It does not infer application semantics from
+operation names. Both local and device query entries now reject Mutation
+and Job before body execution, including native dispatch. The programs card
+teaches the phase once with a compiled binding-before-loop example; the
+related cards point there. Shortened existing module/setup prose to stay
+inside the unchanged documentation budget. The real CLI's expiring-scan
+cost output retains backlog, ceiling and attempt charge, removes first-N-row
+pricing, and states atomic E_BOUND. Engine retry flags, receipts, runtime
+meters, rules, clocks, versions and budgets are unchanged.
+
+Checks: research 8/8 (including zero body reads through local query and
+lost-success replay with no historical scalar); guide 86/86; prefix reads
+10/10 after replacing the old expiry query-rewrite assertion with the server
+rewrite and verifying matching still refuses; query-entry witnesses 2/2 on
+memory and native SQLite, interpreted/native flags; real CLI cost 1/1 across
+page/exists/count. Simulator page_admission remains 13/15: the two historical
+blanket-expiry/refusal-wording expectations await implementation-policy
+updates. Failed intermediate runs remain recorded: internal loop names in
+refusals, a horizon note in the example, guide size and stale wording pins.
+These were corrected; the documentation budget was not raised.
+
+LLP §6 includes exact E_STRUCTURAL_FANOUT and §21.9 replacement sentences;
+§7 names the implementation acceptance bar. Pending: lane-DC queue recovery,
+full memory/native outbox reopen/generation qualification, adoption of the
+§21.9 amendment with prior attacks preserved, remaining legacy test updates,
+and web-byte/serialized-IR qualification. Reference audit: 518 LLP documents, 9,622 references, zero errors/unchecked;
+diff whitespace check passes. No full suite, browser or publication
+qualification is claimed. Round-0 latency data is unchanged; additional
+instrument observations and reproducible commands are under
+experiments/er-expiring-pages/README.md and round1-*.log. No push or publish.
+
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>

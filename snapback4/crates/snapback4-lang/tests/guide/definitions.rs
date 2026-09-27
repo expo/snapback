@@ -267,7 +267,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STORE", "E_STORE means the database operation failed, such as a SQLite writer lock held by another process."),
     ("E_STORE_REPLACED", "The online client permanently denies reads and fails queued and in-flight writes on an identity change (`E_STORE_REPLACED`)"),
     ("E_STORE_RESTORE", "The client adopts `/schema` only when that watermark is a finite, nonnegative integer at or above its retained image-head evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing or invalid head is a retryable failure that neither adopts nor clears the evidence."),
-    ("E_STRUCTURAL_FANOUT", "`matching`, merges and tables with expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`)."),
+    ("E_STRUCTURAL_FANOUT", "`matching` and merges stay refused, and predicting mutations still cannot scan expiring tables."),
     ("E_SYNC", "E_SYNC means the sync declaration cannot deliver exactly its authorized audience."),
     ("E_SYNC_GENERATION", "The client sends its device generation. A mismatch returns HTTP 200 `E_SYNC_GENERATION`"),
     ("E_TIMELINE_ACTIVATE", "Source events or follows already exist, or an owned name holds application data"),

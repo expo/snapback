@@ -1437,3 +1437,21 @@ fn row_view_check_matches_engine_chunk_size_and_commit_count() {
     assert_eq!(e.seq().unwrap()-start,commits as u64);
     assert_eq!(e.changes(start,100).unwrap().len(),commits);
 }
+
+#[test]
+fn er_expiry_cost_names_backlog_attempt_and_atomic_refusal() {
+    let p = Project::new();
+    let schema = "table messages:\n  owner: principal\n  expiresAt: time ?\n  read <- .owner = viewer\n  expire at .expiresAt\n  sync to .owner\n";
+    for read in ["messages where .owner = viewer first 1 by .id", "exists messages where .owner = viewer", "count(messages where .owner = viewer)"] {
+        p.source(&format!("{schema}mutation inspect(): server\n  return {read}\n"));
+        let output=p.run(&["check","--cost"]);
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let text=String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("expired messages rows not yet swept"),"{text}");
+        assert!(text.contains("examined ceiling 8192"),"{text}");
+        assert!(text.contains("scan attempt also costs one examined unit"),"{text}");
+        assert!(text.contains("E_BOUND, with no write"),"{text}");
+        assert!(!text.contains("a pass over the first"),"{text}");
+        println!("ER_ROUND1_COST {text}");
+    }
+}

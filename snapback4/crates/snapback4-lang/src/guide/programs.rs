@@ -31,6 +31,29 @@ Helpers inherit loop placement (guide jobs); repeated pure calls narrow (guide t
 Queries read data; mutations change it in one transaction.
 Jobs run background work, and helpers share logic between programs.
 
+Expiring scans require `: server` and an initial read-only phase; a write or
+emit anywhere in an enclosing statement ends it. Bind before writing loops:
+
+```quarry
+table expiringNotes:
+  owner: principal
+  body: text <=200
+  expiresAt: time ?
+  read <- .owner = viewer
+  update <- .owner = viewer
+  expire at .expiresAt
+  sync to .owner last 100 by .id
+
+mutation annotateNotes(): server
+  page = expiringNotes where .owner = viewer first 10 by .id
+  for row in page:
+    update expiringNotes[row] { body: 'read' }
+  return null
+```
+
+Pages still need uniform plain prefixes; unswept expiry costs examined work
+(guide bounds; why E_BOUND).
+
 ### App files and modules
 
 ```
@@ -42,28 +65,20 @@ my-app/
   src/                       your client: React on the web, React Native on Expo
 ```
 
-The backend is one file (more `.q` files beside it hold modules; their
-operations are named `<module>.<op>`, and every file shares one namespace
-of tables, shapes and helpers); generated operations group under `api.<module>`
-(`api.social.follow`, not `api.follow`). The client imports `api` from the generated
-file and talks to the server through one client object. There are no
-resolvers, no migrations to write, no subscriptions to manage: a table's
-`sync` line says which devices hold its rows, and the client's reads run
-over what the device holds.
+A backend shares one namespace of tables, shapes and helpers across `.q`
+files. `snapback/schema.q` supplies root operations; `snapback/social.q`
+supplies `api.social.<op>`. Import the generated `api` and use one client.
+`sync` declares which devices hold rows and answer local reads; there are
+no resolvers, migrations or subscriptions to manage.
 
-**Two ways to run.** `snapback4 init` starts local-first: declare `sync`
-and pass a device to `createApp` so the client holds its partition and works
-offline. `snapback4 init --online` writes a schema with no `sync` lines
-and a `src/client.ts` on `createApp` without a device. Its queries run on the server and
-stay live through `/changes`, with no replica. Both tiers use the same
-rules, meter, identity, assets and jobs. Add `sync` and open a local-first
-client when the app needs offline data. `init --expo` adds the phone
-starter, selecting the native tier when available and online in Expo Go.
-Every starter writes `snapback/generated/package.json` with `{"type":"module"}`,
-so Node ESM seed scripts can import `api` from `snapback/generated/api.ts`
-even when the app's package.json says `"type":"commonjs"`. Existing scripts
-under `snapback/` keep their module interpretation. The Expo starter uses
-`worker.mts` so its generated worker is explicitly ESM in a CommonJS app.
-`check` and `dev` rebuild the generated package boundary alongside `api.ts`.
+**Two ways to run.** `snapback4 init` starts local-first: declare `sync` and
+pass a device to `createApp` for offline data. `init --online` creates
+`src/client.ts` without a device or `sync`; server queries stay live through
+`/changes`. Both share rules, meters, identity, assets and jobs. Add a device
+and `sync` later. `init --expo` selects native when available, online in Expo Go.
+Starters, `check` and `dev` write `snapback/generated/package.json` with
+`{"type":"module"}`: Node ESM seeds can import `api.ts` even in a CommonJS
+app. Other scripts retain their module interpretation; Expo's `worker.mts`
+explicitly uses ESM.
 
 "##;

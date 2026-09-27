@@ -42,6 +42,12 @@ fn prototype_admits_natural_program_and_preserves_receipts() {
     assert_eq!(receipt,replay.receipt(Some("failed-id")));
     let sent=e.mutate("natural",Some("fresh-id"),natural_context()).unwrap();
     assert!(matches!(sent.state,WriteState::Sent{result:Value::Int(10000),..}),"{:?}",sent);
+    let lost_response=e.mutate("natural",Some("fresh-id"),natural_context().at(10000)).unwrap();
+    assert!(lost_response.replayed);
+    assert_eq!(lost_response.metered.examined,0);
+    assert_eq!(lost_response.metered.rows_written,0);
+    assert!(matches!(lost_response.state,WriteState::Sent{result:Value::Null,..}));
+    assert_eq!(sent.receipt(Some("fresh-id")),lost_response.receipt(Some("fresh-id")));
     let held=e.store_mut().transaction().unwrap().get("acknowledgements","ack").unwrap().unwrap();
     assert_eq!(held.field("ordinal").unwrap(),&Value::Int(10000));
     println!("ER_PROTOTYPE {}",serde_json::json!({"failure":failed.reply(Some("failed-id")),"failed_meter":failed.metered,"replay":replay.reply(Some("failed-id")),"fresh":sent.reply(Some("fresh-id")),"fresh_meter":sent.metered}));
@@ -55,6 +61,12 @@ fn prototype_admits_natural_program_and_preserves_receipts() {
         let result=snapback4_core::engine::local::predict(&counted,&b.schema,p,natural_context(),Ceilings::default());
         assert!(matches!(result,Err(RuntimeError::Prediction(_))));
         assert_eq!(counted.calls.get(),0,"server-only body was executed");
+        for kind in [snapback4_core::ir::ProgramKind::Mutation, snapback4_core::ir::ProgramKind::Job] {
+            let mut wrong_entry=p.clone(); wrong_entry.kind=kind;
+            let result=snapback4_core::engine::local::query(&counted,&b.schema,&wrong_entry,natural_context(),Ceilings::default());
+            assert_eq!(result.unwrap_err().code,"E_OP");
+            assert_eq!(counted.calls.get(),0,"query entry executed a non-query body");
+        }
     }
 }
 
@@ -263,4 +275,29 @@ fn calibration_delivered_rewrite_compiles_and_advances_over_expired_messages() {
     let member=e.store_mut().transaction().unwrap().get("members","me").unwrap().unwrap();
     assert_eq!(member.field("deliveredOrdinal").unwrap(),&Value::Int(1002));
     println!("ER_CALIBRATION {}",serde_json::json!({"state":result.reply(Some("delivered-1")),"meter":result.metered,"deliveredOrdinal":1002}));
+}
+
+#[test]
+#[ignore = "lane ER round-1 prototype, explicit only"]
+fn expiry_refusals_name_the_statement_boundary_and_never_selected_ids() {
+    for (body, expected) in [
+        ("  emit notify {}\n  p = first(messages where .conversation = viewer first 1 by .ordinal)\n", "after `emit notify`"),
+        ("  if true:\n    p = first(messages where .conversation = viewer first 1 by .ordinal)\n    if false:\n      update messages['target'] { body: 'unused' }\n", "inside `if`"),
+        ("  for row in messages where .conversation = viewer first 1 by .ordinal:\n    update messages[row] { body: 'read' }\n", "for row in page: update"),
+        ("  update messages['target'] { body: 'read' }\n  p = first(messages where .conversation = viewer first 1 by .ordinal)\n", "after `update messages`"),
+    ] {
+        let source=format!("{MODEL}\neffect notify\nmutation inspect(): server\n{body}  return null\n");
+        let bound=snapback4_lang::compile(&[("schema.q".into(),source)]);
+        let refusal=bound.diagnostics.iter().find(|d|d.code=="E_STRUCTURAL_FANOUT").expect("boundary refused");
+        let text=format!("{} {}",refusal.message,refusal.rewrite);
+        assert!(text.contains(expected),"{text}");
+        assert!(!text.contains("selected ids"),"{text}");
+        assert!(text.split_whitespace().count()<=60,"{text}");
+        println!("ER_ROUND1_DIAGNOSTIC {text}");
+    }
+    let source=format!("{MODEL}\nmutation inspect():\n  p = first(messages where .conversation = viewer first 1 by .ordinal)\n  return p\n");
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source)]);
+    let refusal=bound.diagnostics.iter().find(|d|d.code=="E_STRUCTURAL_FANOUT").unwrap();
+    assert!(refusal.message.contains("may predict"));
+    assert_eq!(refusal.rewrite,"Make `inspect` `: server`.");
 }

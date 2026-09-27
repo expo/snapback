@@ -96,12 +96,12 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         let never = schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never"));
         for scan in &scans {
             // Identity, not a forgeable diagnostic site or structural equality.
-            let prelude_expiry = never && prelude.iter().any(|before| std::ptr::eq(*before, *scan));
-            if let Some(reason) = plain_prefix_problem(schema, scan, prelude_expiry) {
-                let rewrite = if reason.starts_with("a mutation page cannot scan a table with expiry") {
-                    "read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry"
-                } else { "read this page in a query, then pass the selected ids to the mutation" };
-                return Err(fanout(Some(scan), &scan.site, &reason, rewrite));
+            let in_prefix = prelude.iter().any(|before| std::ptr::eq(*before, *scan));
+            if let Some(reason) = plain_prefix_problem(schema, scan) {
+                return Err(fanout(Some(scan), &scan.site, &reason, "read this page in a query, then pass the selected ids to the mutation"));
+            }
+            if schema.table(&scan.table).is_some_and(|table| table.is_expiring()) && !(never && in_prefix) {
+                return Err(expiry_problem(program, scan, prefix_len, never, in_prefix));
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
@@ -312,8 +312,9 @@ impl Flow<'_> {
         if self.nonuniform.is_some() { return Some("another non-uniform scan can truncate this mutation's population".into()); }
         // @ref LLP 3000.007#5.9 — a never-predicting pass drops completeness, never uniformity.
         if self.schema.operations.get(&self.program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
-            // Every original scan already passed the statement-prefix check.
-            return plain_prefix_problem(self.schema, scan, true);
+            // Expiry was checked once on original scan identities above;
+            // these flow copies only check the remaining page shape.
+            return plain_prefix_problem(self.schema, scan);
         }
         let pinned: Vec<_> = index.columns().into_iter().take(scan.prefix.len()).collect();
         let cap = self.schema.group_bound(&scan.table, &pinned);
@@ -402,13 +403,51 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
     }
 }
 
+// @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — name the enclosing statement, not an inferred product invariant.
+fn expiry_problem(program: &Program, scan: &Scan, prefix_len: usize, never: bool, in_prefix: bool) -> Problem {
+    let mut message = format!("{} scans expiring {}", program.name, scan.table);
+    let mut rewrite = if never { String::new() } else { format!("Make `{}` `: server`. ", program.name) };
+    if in_prefix {
+        message.push_str(" but may predict");
+    } else if let Some(statement) = program.body.get(prefix_len) {
+        let (inside, _) = crate::ir::body_read_structure(std::slice::from_ref(statement));
+        let enclosing = inside.iter().any(|candidate| std::ptr::eq(*candidate, scan));
+        let site = match statement {
+            Stmt::If { .. } => "if".into(),
+            Stmt::For { .. } => "for".into(),
+            Stmt::Emit { effect, .. } => format!("emit {effect}"),
+            Stmt::Const { name, .. } | Stmt::Let { name, .. } | Stmt::Assign { name, .. } if !name.starts_with('$') => format!("binding {name}"),
+            Stmt::Update { table, .. } => format!("update {table}"),
+            Stmt::Upsert { table, .. } => format!("upsert {table}"),
+            Stmt::WriteTarget { target, upsert, .. } => format!("{} {}", if *upsert { "upsert" } else { "update" }, target.table),
+            Stmt::Delete { table, .. } => format!("delete {table}"),
+            Stmt::DeleteTarget { target } => format!("delete {}", target.table),
+            Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => format!("insert {table}"),
+            _ => format!("statement {}", prefix_len + 1),
+        };
+        let effect = if super::read_only::statements::<true>(std::slice::from_ref(statement)) { "an emit" } else { "a write" };
+        message.push_str(&if enclosing {
+            format!(" inside `{site}` containing {effect} (an untaken arm counts)")
+        } else {
+            format!(" after `{site}` containing {effect}, ending the read-only phase")
+        });
+        if enclosing && let Stmt::For { .. } = statement {
+            let single = Program { body: vec![statement.clone()], ..program.clone() };
+            let writes = crate::ir::write_tables(&single);
+            let action = writes.first().map_or("…", |(_, kind)| *kind);
+            rewrite.push_str(&format!("Bind before this entire loop: `page = {} …`; `for row in page: {action} …`.", scan.table));
+        } else {
+            rewrite.push_str(&format!("Move this scan into its own statement above the entire `{site}`. Then write."));
+        }
+    }
+    Problem { code: "E_STRUCTURAL_FANOUT", site: scan.site.clone(), page_site: Some(scan.site.clone()), message, rewrite: rewrite.trim().into() }
+}
+
 // @ref LLP 3000.025#3-proposed-rule — expiry alone may pass the server read-only prefix; matching and merges keep their refusal.
-fn plain_prefix_problem(schema: &Schema, scan: &Scan, prelude_expiry: bool) -> Option<String> {
+fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
     let table = schema.table(&scan.table)?;
     if !table.index(&scan.index)?.is_plain() || scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
         Some("matching word scans expand hidden words before deciding visibility; read it in a query, or use a plain prefix scan".into())
-    } else if table.is_expiring() && !prelude_expiry {
-        Some("a mutation page cannot scan a table with expiry; read it in a query, or use a job chunk".into())
     } else if scan.merge_site.is_some() {
         Some("a merge is not a plain prefix scan; read it in a query, or use a job chunk".into())
     } else { None }

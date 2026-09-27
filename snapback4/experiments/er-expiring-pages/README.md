@@ -14,7 +14,7 @@ CARGO_BUILD_JOBS=8 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 \
   -- --ignored --nocapture --test-threads=1
 ```
 
-The seven explicit research tests are ignored in ordinary suites. The
+The round-0 seven explicit research tests are ignored in ordinary suites. The
 instrument is `crates/snapback4-lang/tests/er_expiry_research.rs`. No JS tests
 or Bun dependency install are needed. Build output is local `target/` (337 MiB
 after the initial experiment); disk was checked before building. No full
@@ -80,8 +80,59 @@ and calibration cases. No failed run was overwritten.
 Committed tool logs trim trailing whitespace; their results and diagnostic
 text are unchanged. The supplied published diagnostic is copied verbatim.
 
-The existing guide still describes the shipped blanket refusal. This branch
-does not update it or its normative blanket-refusal tests: the supervisor
-owns acceptance, implementation scope and independent review. No wasm build,
+At round 0 the guide still described the shipped blanket refusal and its
+normative tests were unchanged. Round 1 below revises that guide prototype;
+the supervisor still owns acceptance and implementation. No wasm build,
 browser/outbox/reopen qualification, Postgres measurement, new index or
 same-transaction sweep prototype is claimed.
+
+## Round 1 — 2026-09-27
+
+Both supplied reviews were READY WITH CHANGES. LLP 3000.025 now records
+those reviews, the supervisor's unchanged-engine E_BOUND ruling, the exact
+LLP 3000.022 queue amendment for lane DC, the §21.9 replacement sentence,
+whole-statement diagnostic boundaries, metered but non-writing view recounts,
+and explicit implementation acceptance. Production sweeps at most 2,000
+rows per one-second maintenance tick; the 1,024-row fixture timing above
+omits those waits. `delivery_backlog_bound_sweeps_fresh_id_recovers` is the
+required lane-DC queue test, not a test this lane has run.
+
+Prototype changes: one expiry admission check on original scan identities;
+no true bypass in population flow; preceding/enclosing-effect refusals;
+Mutation/Job rejection before local/device query execution and native dispatch;
+programs/refusal/expiry/prediction/bounds card text; and cost output naming
+backlog, the examined ceiling and scan attempt, and atomic E_BOUND. The
+programs card's binding-before-loop example compiles without notes. Its
+module/setup prose was shortened to keep the existing documentation budget.
+Related guide expectations were updated without raising that budget.
+The compiler-level prefix-exists test now verifies the server rewrite and
+keeps matching refused, including on the server.
+
+All commands below run from `snapback4/` with `CARGO_BUILD_JOBS=8`,
+`CARGO_PROFILE_TEST_DEBUG=0`, `CARGO_INCREMENTAL=0` and the prompt's PATH:
+
+| Command | Evidence / outcome |
+| --- | --- |
+| `cargo test -p snapback4-lang --test er_expiry_research -- --ignored --nocapture --test-threads=1` | `round1-research-final.log`: 8/8, including lost-success replay at a later expiry clock returning no historical scalar, zero execution meter, zero local query body reads for Mutation/Job, and short effect-boundary refusals. |
+| `cargo test -p snapback4-lang --test guide --test prefix_reads` | `round1-lang-qualified.log`: guide 86/86; prefix initially 9/10 due to the old query rewrite assertion, updated and rerun separately below. |
+| `cargo test -p snapback4-lang --test prefix_reads` | `round1-prefix-final.log`: 10/10. |
+| `cargo test -p snapback4-device --test er_expiry_research -- --ignored --nocapture` | `round1-device.log`: 2/2 on memory and native SQLite, Mutation/Job and interpreted/native flags, refusal before acquisition or dispatch. This is not outbox/reopen qualification. |
+| `cargo test -p snapback4 --test check er_expiry_cost -- --nocapture` | `round1-cost.log`: 1/1, checking page, prefix exists and domain count output through the real CLI. |
+| `cargo test -p snapback4-sim --test page_admission` | `round1-page-admission.log`: 13/15; the same two historical blanket-expiry/refusal-wording expectations remain incompatible. |
+
+The final admission change preserves matching's own diagnostic before the
+expiry check; prefix tests exercise the combined matching/expiry case.
+`round1-research.log` is the earlier seven-test run; `round1-research-expanded.log`
+preserves the exposed compiler loop-name failure, fixed by using an illustrative
+`row` binding. `round1-lang.log` and `round1-lang-final.log` preserve the guide
+notes, size and old-wording failures; the final guide result passes all 86.
+No failed output was overwritten. A preliminary edit command used the wrong
+working directory and changed no files; it did not affect a test verdict.
+The measured round-0 latency table remains the original 31-sample result;
+round-1 instrument reruns are additional observations, not replacement data.
+No full suite, custody lifecycle, queue recovery or web-byte qualification.
+No push, publication, engine retry flag, receipt, meter, version or budget change.
+
+Final reference audit: 518 LLP documents, 9,622 references, zero errors and
+zero unchecked. `git diff --check` passes. The working-set link remains;
+LLP 3000.025 is still Draft.

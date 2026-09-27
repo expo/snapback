@@ -340,6 +340,11 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             }
         }
         if site.kind == "scan" && program.kind == ProgramKind::Mutation && bound.schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
+            // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — expiry prices backlog, never just the requested output rows.
+            if bound.schema.table(&site.table).is_some_and(|table| table.is_expiring()) {
+                lines.push(format!("    A mutation refuses E_BOUND, with no write, when the unswept prefix exceeds the examined ceiling {}; the scan attempt also costs one examined unit.", snapback4_core::Ceilings::default().examined));
+                continue;
+            }
             // @ref LLP 3000.007#5.9 — a never-predicting mutation's pass over a uniformly authorized page, priced as one.
             let prefix = scan.map(|scan| scan.prefix.iter().map(|key| match key {
                 ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value) => crate::scale::expression(value),

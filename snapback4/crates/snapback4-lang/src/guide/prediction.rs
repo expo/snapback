@@ -85,6 +85,9 @@ past a horizon, even on an unchanged program. `why` qualifies the heading:
 A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
 causes with deduplicated sites and rewrites.
+Expiring scans admitted by the rule in guide programs run only on the server;
+the device queues these mutations without executing their bodies. Query
+entries refuse mutations and jobs; they cannot be used to run that body locally.
 Every mutation can queue on the local client; eligibility is not a promise
 that every call produces a predicted row. Native reads also need their module.
 Persisted writes without a valid integer prediction clock queue without rows;

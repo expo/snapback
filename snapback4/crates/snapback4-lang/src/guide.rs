@@ -309,6 +309,8 @@ leaves local stores on the next sync. In development, `snapback4 clock advance 1
 runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
+Mutation scans of expiring tables follow guide programs; unswept rows still
+cost examined work, and a backlog can refuse the whole write (why E_BOUND).
 Disappearing messages are one field on
 insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
 reads its physical total minus unswept expired contributions under the read

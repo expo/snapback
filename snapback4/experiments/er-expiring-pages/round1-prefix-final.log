@@ -1,0 +1,19 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 30.98s
+     Running tests/prefix_reads.rs (target/debug/deps/prefix_reads-0e03f05f0d8c7aec)
+
+running 10 tests
+test prefix_exists_plain_and_matching_are_scans_but_full_keys_stay_probes ... ok
+test matching_exists_modifier_rewrite_compiles_verbatim ... ok
+test oversize_caps_fall_back_to_the_meter_only_in_query_domains ... ok
+test nonuniform_meter_domains_refuse_but_an_explicit_page_compiles ... ok
+test whole_table_domains_filters_and_bound_pages_share_prefix_recognition ... ok
+test exists_modifiers_and_rule_probes_keep_their_boundaries ... ok
+test mutation_exists_requires_uniform_plain_prefixes_and_server_expiry_phase ... ok
+test explicit_caps_stay_silent_and_predicting_short_pages_stay_refused ... ok
+test prefix_reads_compile_without_notes_and_caps_follow_one_schema_number ... ok
+test prefix_positions_refuse_with_working_page_rewrites ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
