@@ -21,6 +21,13 @@ pre-existing:
    clock `check` uses, and that runtime re-checks at its own clock) in the
    feeds card and LLP 3000.016 §2.1a, or give `check` a `--now` that the
    agreement tests exercise.
+   Grok's round-2 review measured the split both ways: with a deadline of
+   1,000,000,000,000 and `adopt_at(.., 5000)`, CLI `check` and the preview
+   pass while the adoption refuses `E_TIMELINE_ACTIVATE` and the row stays;
+   with a deadline one hour past wall time and an adoption one day ahead,
+   `check` and the preview refuse while the adoption succeeds and deletes
+   the row. Dev adoption pins the dev clock (`--clock-offset`, `clock
+   advance`); `check` pins `now_ms()`.
 
 Reproductions: `~/sb5/reviews/dm2-astra-probes/{inherited-parity.log,review-probes.log}`
 on EPYC.
