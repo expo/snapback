@@ -68124,3 +68124,68 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+## 2026-09-27 — 0.4.5 lane QE round 2: compatible joins and review regressions
+
+Read the original lane prompt, both earlier reports/journal entries and both
+complete round-1 reviews. First fetched and merged origin/main 54099bc88 as
+ccb09c02a, preserving both sides of both journal conflicts; verified every
+parent-journal line remains in order. Four local commits answer all findings:
+89320fcb9 restores common enum/text, generic-id/reference/principal,
+int/decimal/money and json item types (Astra 1/Grok 4); 0fca2518f teaches the
+explicit generic-id repair for flat/projected/nested [].id conflicts (Astra 2);
+2d233ce8d pins connection, exists and minted-id impurity, including transitive
+helpers (Astra 3/Grok 5); 55e8c29af confines recursive-growth rewrites to
+assignment type failures so an ill-typed + has one operand error (Grok 6).
+
+Thirteen new tests cover both operand orders through literals, concatenation
+and loop self-append with exact engine values; Unicode character bounds and
+control-character refusal; Unknown and mixed-reference exclusions; executable
+ID repairs; purity refusals; and four ill-typed concatenations with one error.
+Before-fix tests fail as expected. Each of three exact purity mutations makes
+its new regression fail; production source is restored byte-for-byte. Genuine
+recursive growth retains the self-append rewrite. Updated LLP 3000.007 §5.1
+and the types card; no new diagnostic code, fact inventory, source-size or word budget.
+Affected qualification: compiler/guide 165/165 (whole guide 86), device
+authorization 81/81 and multi-chunk helper/inline engine comparison 1/1.
+
+A compiler rebuilt from merged pre-fix source and then from the final source
+produces identical operation names, diagnostics and notes for all 25 Quarry
+files under apps/ and benchmarks/runs/*/astra/source/. Chat's 11 operations
+and Astra 0.4.0–0.4.3 remain clean. Astra 0.3.0 retains exactly 11 inherited
+refusals: ten positional-scan errors and one Row/WriteRow shape join. The
+report lists every site. No app, calibration source or generated API committed.
+
+At unchanged implementation head 55e8c29af, ran scripts/test.sh exactly once,
+exit 1, exact summary `== 1 failure(s) in 1393 s`, group `client tests`.
+Rust: 243 binaries, 956 executions plus doctests; 3,876 passed, zero failed,
+24 ignored, 891 s. Client main: 2,631 passed, two failed, 10 skipped; seven
+additional shards pass 56/56; phase 213 s. Both failed tests are baseline:
+`closing the last journal owner during admission still invalidates another tab`
+times out at react.test.mjs:146 after 30 s, and its enclosing `React hooks and
+reference-app lifetimes` test fails as a consequence. This browser-only
+controlled-transport fixture does not invoke Quarry, and all its relevant
+inputs are unchanged from the merged baseline. No lane-owned or confirmed
+environmental failure. All 78 models pass (259 s), all 9 wrappers and both
+app typechecks pass, and every other phase passes. All 16 round-1 provenance
+failures pass in this full run. The inherited 60 s suite budget is unchanged.
+
+One isolated post-suite React-file run passes 46/46 in 3,496.960007 ms,
+including the failed case in 250.18955 ms. Did not change the test or its
+timeout, repeat the full suite, or claim the underlying race is fixed.
+Opened issues/20260927-snapback4-react-journal-admission-invalidation-timeout.md
+with the evidence and reproduction. The report also retains the prior
+optional-filter E_QUARRY_BOUND reproduction and inner-if workaround.
+
+Wasm is byte-identical before/after the full-run rebuild: 1,981,512 B raw /
+572,053 B gzip, delta 0/0, 788 B under the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Rust 1.97.0, Node 24.13.1, Bun 1.3.14; eight Cargo jobs, dev/test debug and
+incremental off, fd limit 65,536. Frozen install passes. No engine, meter,
+authorization, disclosure, durability, IR format, version or budget change.
+All changed source files stay below 1,500 lines (maximum 705). The scoped
+final reference audit passes: 517 LLP documents,
+9,617 references, zero errors/unchecked. All round-2 commits carry the
+requested Astra co-author. No push or publication. File map, tests, exact
+failure list and limits: reports/20260927-qe-quarry-ergonomics/ROUND2.md;
+ignored logs and reproducible controls: target/lane-qe-r2/.
