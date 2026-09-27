@@ -56,9 +56,24 @@ fn element<'a>(kind: &ColumnType, value: Option<&'a Value>, id: &str) -> Option<
 // @ref LLP 3000.019#3.5 — only a successful download supplies media's ledger home.
 pub(super) fn remember(tx: &dyn crate::store::StreamTx, table_name: &str, table: &Table, row: &Value, generation: u64) -> Result<(), RuntimeError> {
     if table.sync.is_some() && table.columns.values().any(|kind| media_type(kind).is_some()) {
-        tx.set_meta(&row_key(table_name, row.field("id")?.as_str()?), &generation.to_string())?;
+        let key = row_key(table_name, row.field("id")?.as_str()?);
+        // @ref LLP 3000.019#3.5 — a row with no media cannot establish a home.
+        // Retire an old marker on clear; a later confirmed image recreates it.
+        if table.columns.iter().any(|(column, kind)| media_type(kind).is_some() && has_media(row.field(column).ok())) {
+            tx.set_meta(&key, &generation.to_string())?;
+        } else if tx.meta(&key)?.is_some() {
+            tx.delete_meta(&[&key])?;
+        }
     }
     Ok(())
+}
+
+fn has_media(value: Option<&Value>) -> bool {
+    match value {
+        None | Some(Value::Null) => false,
+        Some(Value::Array(values)) => values.iter().any(|value| has_media(Some(value))),
+        Some(_) => true,
+    }
 }
 
 pub(super) fn forget(tx: &dyn crate::store::StreamTx, name: &str, table: &Table, row: &Value) -> Result<(), RuntimeError> {

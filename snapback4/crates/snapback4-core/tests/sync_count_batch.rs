@@ -42,7 +42,7 @@ fn cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch() {
     for n in 0..50 {
         let id = format!("member-{n:03}");
         let member = object([("id", Value::Id(id.clone())), ("conversationId", Value::Id("busy".into())),
-            ("principal", Value::Id(id.clone())), ("readUpTo", Value::Int(n)), ("joinedAt", Value::Int(0))]);
+            ("principal", Value::Id(format!("principal-{n:03}"))), ("readUpTo", Value::Int(n)), ("joinedAt", Value::Int(0))]);
         tx.put("members", &b.schema.tables["members"], &member, None).unwrap();
         let view = object([("id", Value::Id(id.clone())), ("member", Value::Id(id.clone())),
             ("value", Value::Int(0)), ("recountPending", Value::Bool(n % 2 == 0))]);
@@ -55,7 +55,7 @@ fn cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch() {
     for n in 1..=1002 {
         tx.put("messages", &b.schema.tables["messages"], &object([
             ("id", Value::Id(format!("m{n:04}"))), ("conversationId", Value::Id("busy".into())),
-            ("ordinal", Value::Int(n)), ("senderId", Value::Id(if n == 1002 { "member-000" } else { "sender" }.into())),
+            ("ordinal", Value::Int(n)), ("senderId", Value::Id(if n == 1002 { "principal-000" } else { "sender" }.into())),
             ("until", Value::Null), ("tombstone", Value::Bool(n == 1001)),
         ]), None).unwrap();
     }
