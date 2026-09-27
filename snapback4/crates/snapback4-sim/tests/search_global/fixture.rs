@@ -4,8 +4,14 @@ use snapback4_core::{Value, engine::QueryOutcome, value::object};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub fn source() -> &'static str {
-    snapback4_lang::guide::card("search").unwrap().split_once("## Search every chat I'm in").unwrap().1
-        .split_once("```quarry\n").unwrap().1.split_once("```").unwrap().0
+    // @ref LLP 3000.021#3.1 — the guide now bounds acquisition; these controls intentionally compare full holdings with a separate ten-row horizon.
+    static FULL_HISTORY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    FULL_HISTORY.get_or_init(|| {
+        let example = snapback4_lang::guide::card("search").unwrap().split_once("## Search every chat I'm in").unwrap().1
+            .split_once("```quarry\n").unwrap().1.split_once("```").unwrap().0;
+        assert!(example.contains("sync to members[.roomId] last 200 by .at"));
+        example.replace("sync to members[.roomId] last 200 by .at", "sync to members[.roomId]")
+    }).as_str()
 }
 
 /// Explicit-index controls pin legacy lane widths and crafted cursor descriptors.

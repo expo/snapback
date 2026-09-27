@@ -1,7 +1,7 @@
 //! @ref LLP 3000.021#3.1 — a conservative note, not a dispatch or authorization change.
 use snapback4_lang::{Bound, compile, guide};
 
-const COMPARATIVE: &str = include_str!("fixtures/comparative-history.q");
+const COMPARATIVE: &str = include_str!("history/comparative.q");
 const TABLES: &str = "table rows:\n  owner: principal\n  text: text <=100\n  search text\n  public 'held rows'\n  sync last 10 by .id\ntable remote:\n  owner: principal\n  target: rows ?\n  unique owner\n  text: text <=100\n  public 'remote rows'\n";
 fn bound(source: &str) -> Bound {
     let bound = compile(&[("schema.q".into(), source.into())]);
