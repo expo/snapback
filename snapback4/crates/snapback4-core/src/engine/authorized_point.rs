@@ -63,13 +63,15 @@ impl<'r> Runner<'r> {
     }
 
     pub(super) fn scan_disclosed(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
-        self.scan_authorized(name,index,prefix,bounds,dir,limit,true,true,None)
+        self.scan_authorized(name,index,prefix,bounds,dir,limit,true,true,#[cfg(feature = "server-search")] None)
     }
 
-    pub(super) fn scan_authorized(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool, fields: Option<&[String]>) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
+    pub(super) fn scan_authorized(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool, #[cfg(feature = "server-search")] fields: Option<&[String]>) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
         let table = &self.schema.tables[name];
         // A public, non-expiring image is authorized before accessing storage.
         // No hidden candidate can influence its actual-size decoder admission.
+        #[cfg(not(feature = "server-search"))]
+        let fields: Option<&[String]> = None;
         if fields.is_none() && (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
             let rows = if metered {
                 self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
@@ -83,6 +85,9 @@ impl<'r> Runner<'r> {
         let mut out = Vec::with_capacity(limit);
         for _ in 0..limit {
             let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| {
+                #[cfg(not(feature = "server-search"))]
+                let selected = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?;
+                #[cfg(feature = "server-search")]
                 let selected = if let Some(fields) = fields { runner.tx.scan_selected(scope,name,index,prefix,&cursor,dir,fields)? } else { runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)? };
                 let Some((mut row,key)) = selected.into_iter().next() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.

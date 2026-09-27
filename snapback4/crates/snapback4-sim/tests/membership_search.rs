@@ -83,7 +83,7 @@ fn opening_refusal_names_visible_count_site_envelope_and_grouped_rewrite() {
         let why = e.query("newest",cx("cof",None)).unwrap_err();
         assert_eq!(why.code,"E_SEARCH_OPEN","{why}");
         assert!(why.site.is_some()); assert!(why.message.contains("membership"));
-        assert!(why.message.contains("envelope")); assert!(why.rewrite.unwrap().contains("grouped"));
+        assert!(why.message.contains("envelope")); assert!(why.rewrite.unwrap().starts_with("return members["));
     }
 }
 #[test]
@@ -118,5 +118,105 @@ fn every_examined_cut_either_explains_opening_or_advances() {
             Err(why) => assert_eq!(why.code,"E_SEARCH_OPEN","limit={limit}: {why}"),
             Ok(page) => assert!(!page.data.as_array().unwrap().is_empty() && page.next.is_some(),"limit={limit}: {page:?}"),
         }
+    }
+}
+
+#[test]
+fn oversized_declaration_with_tiny_payload_keeps_existing_complete_answer() {
+    let source = SOURCE.replace("text <=4000", "text <=2000000").replace("  expire at .until\n", "");
+    let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed_at(vec![
+        ("members".into(),object([("id",id("m")),("room",id("r")),("principal",id("alice"))])),
+        ("messages".into(),object([("id",id("hit")),("room",id("r")),("body",Value::String("coffee".into())),
+            ("payload",Value::String("tiny".into())),("at",Value::Int(1)),("tombstone",Value::Bool(false)),("until",Value::Null)])),
+    ],100).unwrap();
+    let old = e.query("control",cx("cof",None)).unwrap();
+    let new = e.query("newest",cx("cof",None)).unwrap();
+    assert!(old.complete && new.complete);
+    assert_eq!(ids(&new.data), ["hit"]);
+    assert_eq!(old.data,new.data);
+    assert!(new.metered.heap_bytes < 100_000, "{:?}", new.metered);
+}
+
+#[test]
+fn refusal_counts_authorized_keys_exactly_without_hidden_memberships() {
+    for (ceilings, count, unfinished) in [
+        (Ceilings { examined: 2,..Ceilings::default() }, 2, " (lower bound; total is unknown because discovery did not finish)"),
+        (Ceilings { index_entries: 2,..Ceilings::default() }, 4, ""),
+    ] {
+        let mut e = setup(4,1);
+        e.set_ceilings(ceilings);
+        let before = e.query("newest",cx("cof",None)).unwrap_err();
+        assert!(before.message.starts_with(&format!("E_SEARCH_OPEN: {count} authorized membership keys discovered{unfinished};")), "{before:?}");
+        e.set_ceilings(Ceilings::default());
+        e.seed_at((0..100).map(|n| ("members".into(),object([
+            ("id",id(&format!("hidden{n}"))),("room",id(&format!("hidden{n}"))),("principal",id("bob"))
+        ]))).collect::<Vec<_>>(),100).unwrap();
+        e.set_ceilings(ceilings);
+        let after = e.query("newest",cx("cof",None)).unwrap_err();
+        assert_eq!(serde_json::to_value(before).unwrap(),serde_json::to_value(after).unwrap());
+    }
+}
+
+#[test]
+fn later_word_head_can_win_in_either_output_direction() {
+    // Index word discovery is ascending: chat then coffee. Exercise both
+    // requested example and its converse so ignoring later words cannot pass.
+    for (chat, coffee) in [(100,1),(1,100)] {
+        let source = SOURCE.replace("last 2 by", "last 1 by") + &SOURCE[SOURCE.find("query newest").unwrap()..SOURCE.find("query control").unwrap()]
+            .replace("newest", "oldest").replace("last 2", "first 1");
+        let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut e = Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        let mut rows = vec![("members".into(),object([("id",id("m")),("room",id("r")),("principal",id("alice"))]))];
+        for (word,at) in [("chat",chat),("coffee",coffee)] {
+            rows.push(("messages".into(),object([("id",id(word)),("room",id("r")),("body",Value::String(word.into())),
+                ("payload",Value::String("tiny".into())),("at",Value::Int(at)),("tombstone",Value::Bool(false)),("until",Value::Null)])));
+        }
+        e.seed_at(rows,100).unwrap();
+        for (op,winner) in [("newest",if chat>coffee {"chat"}else{"coffee"}), ("oldest",if chat<coffee {"chat"}else{"coffee"})] {
+            let p = e.query(op,cx("c",None)).unwrap();
+            assert!(p.complete);
+            assert_eq!(ids(&p.data),[winner]);
+            let p2 = e.query(op,cx("c",p.next)).unwrap();
+            assert!(p2.complete);
+            assert_eq!(ids(&p2.data),[if winner=="chat" {"coffee"}else{"chat"}]);
+        }
+    }
+}
+
+#[test]
+fn refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches() {
+    for (membership, messages, room) in [("members","messages","room"),("roster","posts","roomId")] {
+        let source = SOURCE.replace("members",membership).replace("messages",messages).replace("room",room)
+            .replace("not .tombstone and exists", "not .tombstone and .at > 0 and exists");
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        let mut rows=Vec::new();
+        for (group,deleted,at) in [("live",false,5),("deleted",true,100),("too-old",false,0)] {
+            rows.push((membership.into(),object([("id",id(group)),(room,id(group)),("principal",id("alice"))])));
+            rows.push((messages.into(),object([("id",id(group)),(room,id(group)),("body",Value::String("coffee".into())),
+                ("payload",Value::String("tiny".into())),("at",Value::Int(at)),("tombstone",Value::Bool(deleted)),("until",Value::Null)])));
+        }
+        // A deleted candidate in the live chat must also be absent from preview.
+        rows.push((messages.into(),object([("id",id("deleted-preview")),(room,id("live")),("body",Value::String("coffee".into())),
+            ("payload",Value::String("tiny".into())),("at",Value::Int(1000)),("tombstone",Value::Bool(true)),("until",Value::Null)])));
+        e.seed_at(rows.clone(),100).unwrap();e.set_ceilings(Ceilings {index_entries:1,..Ceilings::default()});
+        let why=e.query("newest",cx("cof",None)).unwrap_err();
+        let rewrite=why.rewrite.unwrap();
+        let source=source.split("query newest").next().unwrap();
+        let repaired=format!("{source}\nquery repaired(q: text <=100, c: cursor ?):\n  {rewrite}\n");
+        let b=snapback4_lang::compile(&[("schema.q".into(),repaired)]);
+        assert!(b.diagnostics.is_empty() && b.notes.is_empty(),"{rewrite}\n{:?}\n{:?}",b.diagnostics,b.notes);
+        let mut repaired=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        repaired.seed_at(rows,100).unwrap();
+        let page=repaired.query("repaired",cx("cof",None)).unwrap();
+        assert!(page.complete,"{page:?}");
+        let groups=page.data.as_array().unwrap();assert_eq!(groups.len(),1,"{rewrite}\n{page:?}");
+        assert_eq!(groups[0].field(room).unwrap(),&id("live"));
+        assert_eq!(ids(groups[0].field("hits").unwrap()),["live"]);
     }
 }

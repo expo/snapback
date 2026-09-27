@@ -5,6 +5,7 @@
 //! bookkeeping: the catalog of table and index numbers, commits, the
 //! partition log, applied operation ids, principals, sessions, generations.
 
+#[cfg(feature = "server-search")]
 #[path = "store/selected.rs"]
 mod selected;
 
@@ -904,6 +905,7 @@ impl crate::rows::Rows for Tx<'_> {
         let key: Option<Vec<u8>> = self.tx.prepare_cached(if dir == Dir::Asc { "SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k LIMIT 1" } else { "SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k DESC LIMIT 1" })?.query_row(params![ti,lo,hi], |row|row.get(0)).optional()?;
         Ok(key.and_then(|key|crate::key::decode(&key)))
     }
+    #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let Some((lo,hi)) = crate::rows::scan_range(prefix,bounds,dir) else { return Ok(Vec::new()) };
         let mut statement = self.tx.prepare_cached(scan_sql(dir))?;

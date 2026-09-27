@@ -1,5 +1,5 @@
 // The two published forms: one cursor per read on every host.
-use super::{fixture, with_fixture};
+use super::{fixture, with_fixture, COMPACT_MEMBERSHIPS};
 use snapback4_core::{Value, engine::{QueryOutcome, ReadCut}, value::object};
 use std::collections::BTreeSet;
 
@@ -48,7 +48,7 @@ fn dense(memberships: usize) {
         }
         all.assert_matches(memberships, 24, memberships);
         all.print("W13e-newest", memberships);
-        assert_eq!(all.first_examined, (2 * memberships + 40) as u64);
+        assert_eq!(all.first_examined, ((if COMPACT_MEMBERSHIPS {2}else{3}) * memberships + 40) as u64);
     });
 }
 
@@ -123,6 +123,12 @@ fn w13e_newest_measures_complete_page_and_opening_envelope() {
     for memberships in [1000, 2717, 2718, 2730, 2731, 3000] {
         with_fixture(fixture::source(), fixture::seed(memberships), |q| {
             let page = q("searchNewest", None, "cof");
+            if !COMPACT_MEMBERSHIPS && memberships >= 2717 {
+                assert_eq!(page.data, Value::Null);
+                assert_eq!((page.complete, page.cut, page.next), (false, Some(ReadCut::Meter), None));
+                assert_eq!(page.capped_at.as_ref().unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
+                return;
+            }
             // @ref LLP 3000.024#3 — compact membership heads remove the old
             // per-word heap ceiling at these previously terminal widths.
             let ids: Vec<_> = page.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()).collect();

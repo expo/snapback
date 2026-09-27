@@ -20,6 +20,7 @@ use crate::rows::word_heap;
 use super::authorized_scan::AUTHORIZATION_WALK_LIMIT;
 #[path = "word_merge.rs"]
 mod word_merge;
+#[cfg(feature = "server-search")]
 #[path = "membership_search.rs"]
 mod membership_search;
 #[path = "view_merge.rs"]
@@ -91,6 +92,7 @@ struct WordRead {
     metered: bool,
     retained: bool,
     expiry: super::expiry::Pending,
+    #[cfg(feature = "server-search")]
     selected: Option<Vec<String>>,
     fields: Vec<String>,
     terms: Vec<String>,
@@ -443,7 +445,7 @@ impl<'r> Runner<'r> {
             }
         }
         let first = terms.remove(0);
-        Ok(Some((scope, first, WordRead { selected: None, admitted, metered: admitted && visibility.uniform, retained, expiry: prefix_expiry, fields, terms })))
+        Ok(Some((scope, first, WordRead { #[cfg(feature = "server-search")] selected: None, admitted, metered: admitted && visibility.uniform, retained, expiry: prefix_expiry, fields, terms })))
     }
 
     fn discover_words(&mut self, scan: &Scan) -> Result<Option<(Vec<String>, Vec<Value>, WordRead)>, RuntimeError> {
@@ -896,7 +898,8 @@ impl<'r> Runner<'r> {
         let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
-        let prepaid_head = matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
+        #[cfg(feature = "server-search")]
+        let prepaid_head = !self.device && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
         if metered_payload || transient { self.meter.heap(DisclosedBounds(&bounds).heap())?; }
         let mut cursor = bounds.clone();
         // One retained cursor/key allowance, outside the transient row scope.
@@ -918,6 +921,7 @@ impl<'r> Runner<'r> {
             // @ref LLP 3000.024#3 — the compact membership consumer reserves capacity for
             // the next examined candidate before accessing it; exhaustion probes
             // inside that reservation charge only a row that was actually found.
+            #[cfg(feature = "server-search")]
             if prepaid_head && !private_page && !self.meter.room(MeterKind::Examined, 1) {
                 self.read_charge(MeterKind::Examined, 1)?;
                 capped = true;
@@ -928,7 +932,7 @@ impl<'r> Runner<'r> {
             // establishes exhaustion; every new candidate must first fit.
             let fetched = if private_page {
                 self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
-            } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict == Some(true), word.and_then(|word|word.selected.as_deref()))? };
+            } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict == Some(true), #[cfg(feature = "server-search")] word.and_then(|word|word.selected.as_deref()))? };
             if private_page && (metered_payload || transient || job_page || private_payload) {
                 self.meter.heap(word_heap::slots::<(Option<super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(fetched.len()))?;
                 for (row, key) in &fetched {
@@ -1247,7 +1251,8 @@ impl<'r> Runner<'r> {
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
         if merge.view.is_some() { return self.merge_view(merge); }
-        if word.is_none() && membership_search::eligible(self.schema, merge) { return self.merge_memberships(merge); }
+        #[cfg(feature = "server-search")]
+        if !self.device && word.is_none() && crate::search_plan::eligible(self.schema, merge) { return self.merge_memberships(merge); }
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
         if rules::lazy_merge(self.schema, merge) {

@@ -252,6 +252,7 @@ pub trait Rows {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError>;
     /// Compact search candidates: adapters decode only requested fields where
     /// possible. The caller reserves the declared decoder bound before access.
+    #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         self.scan(table, index, prefix, bounds, dir, 1).map(|rows| rows.into_iter().map(|(row,key)| {
             let selected = fields.iter().filter_map(|name| row.field(name).ok().map(|v|(name.clone(),v.clone()))).collect();

@@ -2,28 +2,9 @@
 use super::*;
 use super::super::runner::extrema::Aggregate;
 
-pub(super) fn eligible(schema: &crate::schema::Schema, merge: &Merge) -> bool {
-    let [lane] = merge.lanes.as_slice() else { return false };
-    let Some(source) = lane.source.as_ref().and_then(LaneSource::scan) else { return false };
-    let Some(Expr::Field { base, name }) = &lane.distinct else { return false };
-    // The intent membership form has one scalar scope. Keep arbitrary authored
-    // expressions/lanes on their existing evaluator.
-    matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding)
-        && lane.setup.is_empty() && lane.guard.is_none() && lane.project.is_none()
-        && source.take == Bound::Meter && source.filter.is_none()
-        // Retained read-through rows can have a denied live parent. Their word
-        // enumeration keeps the existing private/retained evaluator.
-        && schema.tables[&lane.scan.table].through.is_none()
-        && rules::scan_visibility(schema, source).uniform
-        && rules::scan_visibility(schema, &lane.scan).uniform
-        && matches!(lane.scan.prefix.first(), Some(IndexKeyExpr::Scalar(Expr::Field { base, name: field }))
-            if field == name && matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding))
-        && matches!(lane.scan.prefix.last(), Some(IndexKeyExpr::WordPrefix(_)))
-        && lane.scan.prefix[1..lane.scan.prefix.len()-1].iter().all(|key| matches!(key, IndexKeyExpr::Scalar(Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_))))
-}
 
 impl Runner<'_> {
-    fn opening_error(&self, site: &str, count: usize, discovered: bool) -> RuntimeError {
+    fn opening_error(&self, merge: &Merge, count: usize, discovered: bool) -> RuntimeError {
         let ceilings = self.meter.ceilings;
         let kind = self.meter.capped_at.as_ref().map(|cap|cap.0)
             .or_else(||(self.meter.used.steps > ceilings.steps).then_some(MeterKind::Steps));
@@ -36,8 +17,8 @@ impl Runner<'_> {
             Some(MeterKind::OutputBytes) => ("output bytes", ceilings.output_bytes),
             _ => ("physical authorization entries", AUTHORIZATION_WALK_LIMIT as u64),
         };
-        RuntimeError::SearchOpening { site: site.into(), memberships: count,
-            unfinished: if discovered { "" } else { " (lower bound; total is unknown because discovery did not finish)" }, resource, ceiling }
+        RuntimeError::SearchOpening { site: merge.site.clone(), memberships: count,
+            unfinished: if discovered { "" } else { " (lower bound; total is unknown because discovery did not finish)" }, resource, ceiling, rewrite: crate::search_plan::grouped(self.schema, merge, &crate::search_plan::runtime_bindings(self.schema, &self.env)) }
     }
 
     // @ref LLP 3000.024#3 — one compact key per membership, one head per scope;
@@ -48,7 +29,7 @@ impl Runner<'_> {
         let result = self.membership_page(merge, &mut progress);
         self.page_depth = depth;
         match result {
-            Err(RuntimeError::Bound { .. } | RuntimeError::AuthorizationBudget { .. }) if progress.2 => Err(self.opening_error(&merge.site, progress.0, progress.1)),
+            Err(RuntimeError::Bound { .. } | RuntimeError::AuthorizationBudget { .. }) if progress.2 => Err(self.opening_error(merge, progress.0, progress.1)),
             other => other,
         }
     }
@@ -76,7 +57,7 @@ impl Runner<'_> {
             Some(&mut Aggregate::Keys { values: &mut scopes, field }), false, false);
         progress.0 = scopes.len();
         if matches!(result, Err(RuntimeError::Bound { .. })) || self.read_capped() {
-            return Err(self.opening_error(&merge.site, scopes.len(), false));
+            return Err(self.opening_error(merge, scopes.len(), false));
         }
         result?;
         // Sorting uses no extra buffer. Duplicates cannot open or emit twice.
@@ -89,7 +70,7 @@ impl Runner<'_> {
         for scope in scopes {
             let key = self.membership_head(lane, field, &scope, None);
             if matches!(key, Err(RuntimeError::Bound { .. })) || self.read_capped() {
-                return Err(self.opening_error(&merge.site, count, true));
+                return Err(self.opening_error(merge, count, true));
             }
             if let Some(key) = key? {
                 let grow = word_heap::grow::<MergeHead>(&mut self.meter, heap.len(), heap.capacity())?;
@@ -110,7 +91,7 @@ impl Runner<'_> {
             let id = head.key.last().unwrap().as_str()?;
             let Some(row) = self.authorized_member(&scan.table, id)? else {
                 drain_cut = self.read_capped();
-                if drain_cut && page.is_empty() { return Err(self.opening_error(&merge.site, count, true)); }
+                if drain_cut && page.is_empty() { return Err(self.opening_error(merge, count, true)); }
                 break;
             };
             let mut row = super::super::recorded::public_image(table, self.sequence_read_result(&scan.table, row)?);

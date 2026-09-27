@@ -3,7 +3,9 @@ use super::{Runner, ExpressionAccess};
 use crate::{error::{MeterKind, RuntimeError}, ir::{Expr, Order}, meter::Cut, value::Value};
 
 pub(in crate::engine) enum Aggregate<'a> {
+    #[cfg(feature = "server-search")]
     Keys { values: &'a mut Vec<Value>, field: &'a str },
+    #[cfg(feature = "server-search")]
     Head { value: &'a mut Option<Vec<Value>>, index: &'a crate::schema::Index, prefix: usize },
     Total { value: i128, projection: Option<&'a Expr> },
     Extremum { value: Value, retained: u64, field: &'a str, projection: Option<&'a Expr>, max: bool, seek: bool },
@@ -12,12 +14,13 @@ impl<'a> Aggregate<'a> {
     pub(in crate::engine) fn total(projection: Option<&'a Expr>) -> Self { Self::Total { value: 0, projection } }
     pub(in crate::engine) fn is_zero(&self) -> bool { matches!(self, Self::Total { value: 0, .. }) }
     pub(in crate::engine) fn finish(self) -> Result<Value, RuntimeError> {
-        match self { Self::Keys { .. } | Self::Head { .. } => Ok(Value::Null), Self::Total { value, .. } => Value::int(value).map_err(Into::into), Self::Extremum { value, .. } => Ok(value) }
+        match self { #[cfg(feature = "server-search")] Self::Keys { .. } | Self::Head { .. } => Ok(Value::Null), Self::Total { value, .. } => Value::int(value).map_err(Into::into), Self::Extremum { value, .. } => Ok(value) }
     }
     pub(in crate::engine) fn push(&mut self, runner: &mut Runner<'_>, row: &Value) -> Result<bool, RuntimeError> {
         match self {
             // @ref LLP 3000.024#3 — consume authorized rows incrementally;
             // only scalar membership/ordering keys escape the row scratch scope.
+            #[cfg(feature = "server-search")]
             Self::Keys { values, field } => {
                 let value = row.field(field)?;
                 if value == &Value::Null { return Ok(false); }
@@ -25,6 +28,7 @@ impl<'a> Aggregate<'a> {
                 crate::rows::word_heap::push(&mut runner.meter, values, value.clone())?;
                 Ok(false)
             }
+            #[cfg(feature = "server-search")]
             Self::Head { value, index, prefix } => {
                 let n = index.components.len() - *prefix;
                 runner.meter.heap(crate::rows::word_heap::slots::<Value>(n + 1))?;

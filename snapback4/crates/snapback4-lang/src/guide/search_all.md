@@ -34,14 +34,14 @@ query searchNewest(q: text <=100, c: cursor ?):
   return messages matching q where exists members[.roomId, viewer] last 20 by .at after c
 ```
 
-**Newest.** Each request discovers compact membership keys, opens one authorized
+**Newest.** The compact server plan discovers compact membership keys, opens one authorized
 order key per chat and materializes only emitted hits. Inner word expansion
 keeps one best head, rescanning and paying again on refill. Pass `c: read.next`.
 Every page must rediscover every chat; this is a live cursor, not a snapshot
 or saved search-work session. Reset it when changing the text or memberships;
 refresh for new or edited messages.
 
-A discovery/opening cut refuses **E_SEARCH_OPEN**, with the authorized membership
+For that plan, a discovery/opening cut refuses **E_SEARCH_OPEN**, with the authorized membership
 count (a lower bound if discovery was unfinished), meter envelope and grouped
 rewrite. It never returns an unexplained empty dead end. Once all heads are
 established, an examined/index/probe drain cut can return `complete: false`
@@ -49,9 +49,15 @@ with `next` after the last fully shaped hit. Heap exhaustion makes the result
 unavailable; steps/output can refuse. Following a cut does not clear
 `usePage`'s accumulated incompleteness.
 
-**Measured envelope.** On the Linux calibration host, default meters complete
+The device keeps the existing metered evaluator. So do server schemas whose
+declared row decode reservation exceeds the default heap ceiling; tiny stored
+payloads still use actual-size admission there. Other explicit merges keep
+their existing opening cuts, which can lack `next` and E_SEARCH_OPEN.
+
+**Measured server envelope.** On the Linux calibration host, default meters complete
 20-hit first pages and continuations through 4,076 memberships in the dense
 one-word fixture (8,192 examined rows). At 4,077 a drain cut has `next`;
+The device still reaches its earlier heap boundary near 2,700 memberships.
 10,000 cannot finish discovery and refuses E_SEARCH_OPEN. The calibration
 copy has 100 memberships and completes. Extending it with empty chats reaches
 heap first on continuations: bare pages fit 5,493 memberships; the builder's
