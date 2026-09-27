@@ -24,16 +24,13 @@ export class ReadApprovals {
   approve(read: Read<unknown>): ApprovedAnswer | undefined {
     const owner = answerObservation(read);
     if (!owner || !("data" in read)) return undefined;
-    let answer = this.answers.get(owner);
+    const answer = this.answers.get(owner);
     if (answer && answerIdentity(answer.snapshot) === answerIdentity(read)) {
       // A source revalidation copy already updated the shared episode by value.
       return answer;
     }
-    // Swap registrations without an intermediate loading notification.
-    this.drops.get(owner)?.({ loading: true });
-    answer ??= { snapshot: read, read: () => read, listeners: new Set() };
-    answer.snapshot = read;
-    const held = answer;
+    // A peer's approval cannot replace another facade's identity or deadlines.
+    const held: ApprovedAnswer = { snapshot: read, read: () => read, listeners: new Set() };
     const notify = () => { for (const listener of held.listeners) listener(); };
     const withdraw = () => {
       held.snapshot = { loading: true };
@@ -62,8 +59,10 @@ export class ReadApprovals {
       expiry.release(); episode.clear();
       owner.followers.delete(follow);
       this.releases.delete(release);
-      this.answers.delete(owner);
-      this.drops.delete(owner);
+      if (this.answers.get(owner) === held) {
+        this.answers.delete(owner);
+        this.drops.delete(owner);
+      }
     };
     const drop = (read: Read<unknown>) => { held.snapshot = read; release(); return notify; };
     this.answers.set(owner, held);

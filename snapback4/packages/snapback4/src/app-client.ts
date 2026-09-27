@@ -79,7 +79,12 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       let announced: Read<unknown> | undefined;
       const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
-      const emit = () => { announced = held?.snapshot ?? snapshot; for (const listener of listeners) notify(listener); };
+      const emit = () => {
+        const next = valid() ? held?.snapshot ?? snapshot : denied();
+        if (announced === next) return;
+        announced = next;
+        for (const listener of listeners) notify(listener);
+      };
       const attach = (answer: ApprovedAnswer | undefined) => {
         held?.listeners.delete(emit); held = answer; held?.listeners.add(emit);
       };

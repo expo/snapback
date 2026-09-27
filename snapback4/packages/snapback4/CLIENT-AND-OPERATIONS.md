@@ -1223,9 +1223,15 @@ the facade's authority check. A closed facade keeps consulting its detached raw
 handle. If a live peer replaces the source answer, a closed `keep: false`
 facade withdraws its cached answer to stable `loading`; the replacement's
 deadlines cannot validate the old answer, and close grants no authority to
-adopt new data. Closing a standalone `keep: false` facade removes its raw owner
+adopt new data. A closed retaining facade keeps its own approved answer,
+marked `revalidating`, until that answer's row or episode deadline or a source
+withdrawal. A peer's approval of a replacement changes neither its identity nor
+its deadlines, even when the replacement has identical data. The same holds
+for a facade still awaiting its own replacement-authority check.
+Closing a standalone `keep: false` facade removes its raw owner
 and cancels its subscriptions and timers. Shared approval and raw subscription delivery
-announce the same withdrawal only once.
+announce the same withdrawal only once, including an authority refusal during
+replacement or opening.
 An episode expiring during a grouped commit notifies after every affected watch
 has reloaded, so callbacks also see peers' revalidation marks.
 

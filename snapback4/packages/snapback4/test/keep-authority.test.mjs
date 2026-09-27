@@ -19,6 +19,79 @@ async function until(check) {
 
 import { fixture } from "./helpers/authority-fixture.mjs";
 
+for (const keep of [undefined, false, true]) {
+  test(`facade fence announces its denial after an unchanged approved answer, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+    const seen = [];
+    watch.subscribe(() => seen.push(watch.getSnapshot()));
+    f.facade.fence()();
+    assert.equal(seen.length, 1, "a fence changes the visible snapshot even if the cached approval is unchanged");
+    assert.equal(seen[0].denied.code, "E_AUTH");
+    watch.close();
+  });
+
+  test(`replacement authority refusal announces one denial, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+    f.hold(); f.publish("B");
+    const seen = [];
+    watch.subscribe(() => seen.push(watch.getSnapshot()));
+    f.release(false);
+    await until(() => watch.getSnapshot().denied);
+    await delay(0);
+    assert.equal(seen.length, 1, "shared rejection and refresh announce the same denial only once");
+    assert.equal(seen[0], watch.getSnapshot());
+    assert.equal(seen[0].denied.code, "E_AUTH");
+    watch.close();
+  });
+}
+
+for (const keep of [undefined, true]) {
+  test(`a facade awaiting authority keeps A when its peer approves B, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A", { server: 5000 }); await until(() => watch.getSnapshot().data === "A");
+    const peer = f.client.observe(q, {}, opts);
+    await until(() => f.owner().subscribers.size === 2);
+    await delay(0);
+    const a = watch.getSnapshot(), first = Promise.withResolvers(), second = Promise.withResolvers();
+    t.after(() => { first.resolve(true); second.resolve(true); });
+    f.gateChecks([first, second]);
+    f.publish("B", { server: 8000 });
+    second.resolve(true); await until(() => peer.getSnapshot().data === "B");
+    assert.deepEqual(watch.getSnapshot(), { ...a, revalidating: true }, "the peer's authority cannot approve B for this facade");
+    first.resolve(true); await until(() => watch.getSnapshot().data === "B");
+    assert.equal(watch.getSnapshot(), peer.getSnapshot());
+    watch.close(); peer.close();
+  });
+
+  test(`opening authority refusal announces one denial to the remount and its peer, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+    f.hold();
+    const remount = f.client.observe(q, {}, opts), seen = [], peerSeen = [];
+    assert.equal(remount.getSnapshot().data, "A");
+    remount.subscribe(() => seen.push(remount.getSnapshot()));
+    watch.subscribe(() => peerSeen.push(watch.getSnapshot()));
+    f.release(false);
+    await until(() => remount.getSnapshot().denied);
+    await delay(0);
+    assert.equal(seen.length, 1, "the refused opening remount announces once");
+    assert.equal(peerSeen.length, 1, "shared rejection still reaches the live peer once");
+    assert.equal(seen[0].denied.code, "E_AUTH");
+    assert.equal(peerSeen[0], seen[0]);
+    watch.close(); remount.close();
+  });
+}
+
 for (const keep of [undefined, true]) for (const transition of ["reload", "replacement"]) {
   test(`opening remount receives the revalidating mark during ${transition}, keep=${keep}`, async t => {
     const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
