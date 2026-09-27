@@ -1,0 +1,13 @@
+witness: backend-ready
+witness: waiting-primed
+E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes
+see snapback4 guide witness
+file:///Users/ccheever/projects/snapback-pub-044/snapback4/witness/expo.mjs:31
+    if (exit.code !== 0) throw new Error(`published witness ${segment} failed: ${JSON.stringify(exit)}; artifacts: ${artifacts}`);
+                               ^
+
+Error: published witness offline failed: {"code":1,"signal":null}; artifacts: /Users/ccheever/projects/snapback-pub-044/snapback4/reports/20260926-expo-0.4.4
+    at file:///Users/ccheever/projects/snapback-pub-044/snapback4/witness/expo.mjs:31:32
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.18.0
