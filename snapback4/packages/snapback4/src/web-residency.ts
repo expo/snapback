@@ -1,8 +1,7 @@
 import type { Residency } from "./contract.ts";
 import type { Change } from "./web.ts";
+import { utf8Size as bytes } from "./utf8-size.ts";
 
-const encoder = new TextEncoder();
-const bytes = (value: string) => encoder.encode(value).byteLength;
 
 // @ref LLP 3000.019#3.4 — count committed persistence deltas without exporting or rescanning the wasm partition.
 export class WebResidency {
