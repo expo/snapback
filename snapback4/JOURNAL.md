@@ -69354,3 +69354,57 @@ commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
 package-version or budget change, no new tool installation, no push or publish.
 Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
 round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.
+
+## 2026-09-27 — Lane DC round 6: group-owned bound accounting
+
+Read all six prior lane prompts/reports and DC journal entries, plus Astra's
+complete round-5 review (Grok supplied none). Fetched and merged origin/main
+first in 4cef35d70; both complete parent journals remain in order. Local
+implementation commit 57d8f1044 answers both round-6 findings. Commit 454fccead
+fixes the full-run consumer-TypeScript refusal narrowing failure; all nine
+routes tests and all 88 queue tests pass afterward, before the full client phase.
+
+Bound retry/wake accounting now belongs to the group, independently of its
+attempts and parks. It survives full/start/retry transitions, merge/split,
+interval eviction and fingerprint-scoped whole-group retirement/restoration.
+Every replacement for spending coverage debits the same allowance. Only that
+coverage's success clears it; unrelated success cannot replenish counters.
+Attempts keep only their same-id replay flag. The TS and native/wasm collectors
+retain counters instead of saturating partially spent groups under pressure.
+Terminal bound failures still persist refused coverage and notify once.
+
+Rewritten round-4/5 tests and thirteen additional queue cases cover full/start
+cycles with serialized restarts (17 ids, one callback), transitions through
+recorded retryable refusals, successful versus unrelated/partial coverage,
+tombstone clearing, group-dropping/range refusals and two intervals sharing
+sixteen replacement ids. Memory/SQLite pressure fixtures now include all six
+states: attempt, bound, retry, full, start and stopped. All nine module-loader
+mutations fail assertions, including the group-owned equivalent of Astra's
+surviving delete-bound mutation. The affected checks pass 163/163;
+queue subset 88/88, device delivery 30/30, complete device 1,361 passed, zero failed, three ignored,
+whole guide 86 passed, zero failed. Source and artifact censuses pass; ref-check reports
+518 LLPs, 9,656 refs, zero errors or unchecked refs.
+
+Wasm is 2,022,584 B raw / 585,153 B gzip: 209 B below the accepted 585,362 B
+remainder, 35 B gzip above round 5 including merged main. No budget/profile/
+codec/meter change. SHA-256:
+9f5baab9254c95c2a173141e28a59f776a6e95a9f65e17ae8c9ec4745d7d3f4f.
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1548 s`, exit 1.
+Failures: wasm build is baseline (unchanged 572,841 B gate); cargo test is
+ours, the TS2345 route-consumer typing regression fixed in 454fccead. There is
+no environmental failure. Full Rust: 3,961 passed, one failed, 24 ignored;
+main client 2,778 passed, ten skipped; extra shards 56/56; wrappers 9/9.
+All 78 seeded client model tests pass. Final code also includes d9d6e681c's immediate refusal when the
+last wake returns full/start, and 633c02d67's activation notification after a
+terminal disposition without transport (91/91 queue/activation recheck).
+
+The group records merged spending coverage to handle multiple intervals and
+partial success. A start park for that coverage defers intermediate callback
+notification to satisfy the requested one-terminal-callback cycle; ordinary
+start parks keep their existing notification. LLP 3000.022's outcome table
+and client operations state the rule. Online state remains memory-only, and
+hosts without conditional supplementary commits retain the existing fallback
+omission. No new syntax/API, server qualification, comparative choreography,
+full wasm path matrix or crash-witness claim. No shared-path tool install,
+push or publication. Report: reports/20260927-dc-delivery-client/ROUND6.md;
+raw evidence: target/lane-dc-round6/. Commits carry the requested co-author.
