@@ -263,6 +263,11 @@ query wordBoth():
     // createLocalClient forks the transport clock. Calibrate that instance
     // too, or its measured network offset can cross this one-ms boundary.
     clientClock.sample(clockNow, clockNow, clockNow);
+    // This fixture now owns both clock estimates. Header samples and a
+    // /changes body whose headers arrived before freezeSync must not move
+    // the pinned deadline or sweep a watch while its query reply is held.
+    t.mock.method(clock, "sample", () => {});
+    t.mock.method(clientClock, "sample", () => {});
     assert.equal(client.now(), deadline - 1);
   };
   const clientOptions = { url, persona: "bob", waitSeconds: 1,
@@ -352,7 +357,14 @@ query wordBoth():
     await waiting;
     // Advance the real server too, without delivering the expiry to the device.
     assert.equal((await post("/dev/clock/advance", { duration: "2h" })).advancedMs, 7_200_000);
-    clockNow = permitDeadline; releaseReply();
+    clockNow = permitDeadline;
+    // Deliver a real clock sample after the advance, before the held device
+    // answer. A background probe can arrive in precisely this order under load.
+    const probe = await clientClock.wrap(clientOptions.fetch)(`${url}/probe`, {});
+    // A previously delivered /changes response can consume its end-of-hold
+    // stamp later too. Exercise both sampling paths before releasing the query.
+    clientClock.sampleStream(Number(probe.headers.get("x-snapback-time")), probe.headers.get("x-snapback-clock"), Number.MAX_SAFE_INTEGER);
+    releaseReply();
     const result = await pending;
     assert.equal(calls, 2, "one expiry retry, with no unrelated watch invalidation");
     if (branchCase) {
