@@ -293,7 +293,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         },
         [deliveryCommit](request, current) {
           if (!persist.saveIfCurrent) return Promise.resolve({ ok: true }); // Supplementary collection unavailable.
-          return this.call({ ...request, [deliveryCommit]: current });
+          return core.call({ ...request, [deliveryCommit]: current });
         },
         call(request, committedReply) {
           if (closing) return Promise.reject(new Error("the device is closed"));
@@ -714,6 +714,15 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
   const stores = new Map<string, Map<string, Change>>();
   const held = new Set<string>();
   let alternate = 0;
+  const save = (name: string, changes: Change[]) => {
+      let held = stores.get(name);
+      if (!held) stores.set(name, (held = new Map()));
+      for (const change of changes) {
+        const key = `${change.s} ${change.k}`;
+        if (change.v === null) held.delete(key);
+        else held.set(key, change);
+      }
+  };
   const provider: Persistence & { readonly stores: Map<string, Map<string, Change>> } = {
     stores,
     async has(name) { return stores.has(name); },
@@ -729,18 +738,10 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
     async load(name) {
       return [...(stores.get(name)?.values() ?? [])];
     },
-    async save(name, changes) {
-      let held = stores.get(name);
-      if (!held) stores.set(name, (held = new Map()));
-      for (const change of changes) {
-        const key = `${change.s} ${change.k}`;
-        if (change.v === null) held.delete(key);
-        else held.set(key, change);
-      }
-    },
+    async save(name, changes) { save(name, changes); },
     async saveIfCurrent(name, changes, current) {
       if (!current()) return false;
-      await provider.save(name, changes);
+      save(name, changes);
       return true;
     },
     async others(prefix) {

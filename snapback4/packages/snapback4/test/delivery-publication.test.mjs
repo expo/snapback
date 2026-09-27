@@ -1,3 +1,4 @@
+import {deliveryCommit} from '../dist/local-device.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -31,9 +32,11 @@ async function fixture(t){
   return memory.saveIfCurrent(name,changes,current);
  }};
  const underlying=webDevice({wasm,persist});
- client=await createLocalClient({url,persona:'alice',waitSeconds:1,device:{async open(...args){core=await underlying.open(...args);return {...core,async call(request,...rest){
+ client=await createLocalClient({url,persona:'alice',waitSeconds:1,device:{async open(...args){core=await underlying.open(...args);return {...core,async [deliveryCommit](request,current){
+  if(writeGate){writesHeld++;await writeGate.promise;}
+  return core[deliveryCommit](request,current);
+ },async call(request,...rest){
   if(request.op==='delivery'&&request.action==='read'&&readGate)await readGate.promise;
-  if(request.op==='delivery'&&request.action==='write'&&writeGate){writesHeld++;await writeGate.promise;}
   return core.call(request,...rest);
  }}}},fetch:async(input,init)=>{
   const path=new URL(input).pathname;

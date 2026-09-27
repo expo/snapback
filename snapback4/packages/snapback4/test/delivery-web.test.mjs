@@ -1,3 +1,4 @@
+import {deliveryCommit} from '../dist/local-device.js';
 // Real wasm: debt shares the publication's host persistence batch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -61,4 +62,23 @@ test('a failed wasm activation save retries the device cursor without skipping i
  ok(await core.call(enumerate));assert.deepEqual(owed(await debt(core)),[[[1,500]]]);
  ok(await core.call(enumerate));assert.deepEqual(owed(await debt(core)),[[[1,501]]]);
  assert.equal(ok(await core.call(enumerate)).more,false);
+});
+
+test('a JSON-normalizing adapter cannot strip the conditional host commit guard',async t=>{
+ const memory=memoryPersistence();let release,started;
+ const held=new Promise(r=>release=r),writing=new Promise(r=>started=r);
+ const isDebt=changes=>changes.some(c=>c.s==='m'&&c.k.startsWith('device:delivery:')&&c.v&&Object.keys(JSON.parse(c.v).groups).length);
+ const persist={...memory,
+  async save(name,changes){if(isDebt(changes)){started();await held;}return memory.save(name,changes);},
+  async saveIfCurrent(name,changes,current){started();await held;return memory.saveIfCurrent(name,changes,current);},
+ };
+ const core=await webDevice({wasm,persist}).open('normalized-guard',backend);
+ t.after(async()=>{release();await core.close();});
+ const adapter={...core,call:request=>core.call(JSON.parse(JSON.stringify(request)))};
+ const read=ok(await adapter.call({op:'delivery',viewer:'dev:alice',action:'read'}));
+ const state=emptyDelivery();acceptManifest(state,[{...backend.schema.delivery[0],rows:[['c1',41]]}],4096);
+ let current=true;
+ const write=adapter[deliveryCommit]({op:'delivery',viewer:'dev:alice',action:'write',expected:read.value,value:JSON.stringify(state)},()=>current);
+ await writing;current=false;release();await write;
+ assert.deepEqual(owed(await debt(core)),[]);
 });
