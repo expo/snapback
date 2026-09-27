@@ -169,6 +169,7 @@ impl PostgresEngine {
             Some(&self.schema),
             &schema.maintains.iter().collect::<Vec<_>>(),
             &parents,
+            None,
         )?;
         drop(runner);
         super::super::through_activation::validate_indexes(&tx, &schema)?;

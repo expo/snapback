@@ -15,8 +15,13 @@ use snapback4_core::rows::caps;
 use snapback4_core::rows::{Bounds, Dir, Rows, stored_index_keys, scan_range};
 use snapback4_core::schema::{Index, Schema, Table};
 use snapback4_core::value::Value;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
+type IndexKey = (String, Vec<u8>);
+type Entries = BTreeMap<String, BTreeMap<Vec<u8>, String>>;
+#[cfg(test)]
+#[path = "memory_tests.rs"]
+mod tests;
 
 /// One change to what the store keeps, for the host to persist: the store
 /// (`r` rows, `m` metadata, `o` outbox, `b` confirmed images, `s` staged
@@ -31,7 +36,7 @@ pub struct Change {
 #[derive(Clone, Default)]
 struct State {
     rows: BTreeMap<(String, String), Value>,
-    entries: BTreeMap<(String, Vec<u8>), String>,
+    entries: Entries,
     meta: BTreeMap<String, String>,
     outbox: BTreeMap<String, (u64, String)>,
     base: BTreeMap<(String, String), Option<String>>,
@@ -49,7 +54,8 @@ enum Dirty {
 
 enum Undo {
     Row((String, String), Option<Value>),
-    Entry((String, Vec<u8>), Option<String>),
+    Entry(IndexKey, Option<String>),
+    Entries(Entries),
     Meta(String, Option<String>),
     Outbox(String, Option<(u64, String)>),
     Base((String, String), Option<Option<String>>),
@@ -218,12 +224,12 @@ impl MemoryStore {
             let Some(table) = schema.table(table_name) else { continue };
             for (key, delta) in caps::deltas(table, None, Some(row)) {
                 let key = (caps::slot(table_name), key);
-                let count = caps::next(state.entries.get(&key).map(String::as_str), delta).expect("increased count");
-                state.entries.insert(key, count);
+                let count = caps::next(state.entries.get(&key.0).and_then(|index| index.get(&key.1)).map(String::as_str), delta).expect("increased count");
+                state.entries.entry(key.0).or_default().insert(key.1, count);
             }
             for (index_name, index) in &table.indexes {
                 for key in stored_index_keys(table, index, row, id) {
-                    state.entries.insert((format!("{table_name}.{index_name}"), key), id.clone());
+                    state.entries.entry(format!("{table_name}.{index_name}")).or_default().insert(key, id.clone());
                 }
             }
         }
@@ -329,7 +335,7 @@ impl DeviceStore for MemoryStore {
     }
 
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
-        Ok(MemoryTx { store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()) })
+        Ok(MemoryTx { store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()), replacing: Cell::new(false) })
     }
 }
 
@@ -338,6 +344,7 @@ pub struct MemoryTx<'a> {
     undo: RefCell<Vec<Undo>>,
     savepoints: RefCell<Vec<(String, usize)>>,
     dirty: RefCell<BTreeSet<Dirty>>,
+    replacing: Cell<bool>,
 }
 
 impl MemoryTx<'_> {
@@ -345,7 +352,7 @@ impl MemoryTx<'_> {
         let changes = caps::deltas(table, old, new);
         for (key, delta) in &changes {
             let key = (caps::slot(table_name), key.clone());
-            let value = caps::next(self.store.state.borrow().entries.get(&key).map(String::as_str), *delta);
+            let value = caps::next(self.store.state.borrow().entries.get(&key.0).and_then(|index| index.get(&key.1)).map(String::as_str), *delta);
             self.set_entry(key, value);
         }
         changes.len() as u64
@@ -353,25 +360,26 @@ impl MemoryTx<'_> {
 
     fn set_row(&self, key: (String, String), value: Option<Value>) {
         let mut state = self.store.state.borrow_mut();
-        let old = match &value {
-            Some(row) => state.rows.insert(key.clone(), row.clone()),
+        let old = match value {
+            Some(row) => state.rows.insert(key.clone(), row),
             None => state.rows.remove(&key),
         };
         self.undo.borrow_mut().push(Undo::Row(key.clone(), old));
         self.dirty.borrow_mut().insert(Dirty::Row(key.0, key.1));
     }
-    fn set_entry(&self, key: (String, Vec<u8>), id: Option<String>) {
+    fn set_entry(&self, key: IndexKey, id: Option<String>) {
         let mut state = self.store.state.borrow_mut();
-        let old = match &id {
-            Some(id) => state.entries.insert(key.clone(), id.clone()),
-            None => state.entries.remove(&key),
+        let undo_key = (!self.replacing.get()).then(|| key.clone());
+        let old = match id {
+            Some(id) => state.entries.entry(key.0).or_default().insert(key.1, id),
+            None => state.entries.get_mut(&key.0).and_then(|index| index.remove(&key.1)),
         };
-        self.undo.borrow_mut().push(Undo::Entry(key, old));
+        if let Some(key) = undo_key { self.undo.borrow_mut().push(Undo::Entry(key, old)); }
     }
     fn set_meta_value(&self, key: &str, value: Option<String>) {
         let mut state = self.store.state.borrow_mut();
-        let old = match &value {
-            Some(value) => state.meta.insert(key.to_owned(), value.clone()),
+        let old = match value {
+            Some(value) => state.meta.insert(key.to_owned(), value),
             None => state.meta.remove(key),
         };
         self.undo.borrow_mut().push(Undo::Meta(key.to_owned(), old));
@@ -379,8 +387,8 @@ impl MemoryTx<'_> {
     }
     fn set_outbox(&self, id: &str, value: Option<(u64, String)>) {
         let mut state = self.store.state.borrow_mut();
-        let old = match &value {
-            Some(value) => state.outbox.insert(id.to_owned(), value.clone()),
+        let old = match value {
+            Some(value) => state.outbox.insert(id.to_owned(), value),
             None => state.outbox.remove(id),
         };
         self.undo.borrow_mut().push(Undo::Outbox(id.to_owned(), old));
@@ -388,8 +396,8 @@ impl MemoryTx<'_> {
     }
     fn set_base(&self, key: (String, String), value: Option<Option<String>>) {
         let mut state = self.store.state.borrow_mut();
-        let old = match &value {
-            Some(image) => state.base.insert(key.clone(), image.clone()),
+        let old = match value {
+            Some(image) => state.base.insert(key.clone(), image),
             None => state.base.remove(&key),
         };
         self.undo.borrow_mut().push(Undo::Base(key.clone(), old));
@@ -397,8 +405,8 @@ impl MemoryTx<'_> {
     }
     fn set_staged(&self, key: &str, value: Option<(String, String)>) {
         let mut state = self.store.state.borrow_mut();
-        let old = match &value {
-            Some(value) => state.staged.insert(key.to_owned(), value.clone()),
+        let old = match value {
+            Some(value) => state.staged.insert(key.to_owned(), value),
             None => state.staged.remove(key),
         };
         self.undo.borrow_mut().push(Undo::Staged(key.to_owned(), old));
@@ -419,10 +427,11 @@ impl MemoryTx<'_> {
                 }
                 Undo::Entry(key, old) => {
                     match old {
-                        Some(id) => state.entries.insert(key, id),
-                        None => state.entries.remove(&key),
+                        Some(id) => state.entries.entry(key.0).or_default().insert(key.1, id),
+                        None => state.entries.get_mut(&key.0).and_then(|index| index.remove(&key.1)),
                     };
                 }
+                Undo::Entries(entries) => state.entries = entries,
                 Undo::Meta(key, old) => {
                     match old {
                         Some(value) => state.meta.insert(key, value),
@@ -454,8 +463,9 @@ impl MemoryTx<'_> {
     fn range(&self, table: &str, index_name: &str, lo: &[u8], hi: &[u8], dir: Dir, limit: usize) -> Vec<(Value, Vec<u8>)> {
         let state = self.store.state.borrow();
         let ti = format!("{table}.{index_name}");
-        let within = state.entries.range((ti.clone(), lo.to_vec())..(ti, hi.to_vec()));
-        let pick = |((_, k), id): (&(String, Vec<u8>), &String)| state.rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()));
+        let Some(index) = state.entries.get(&ti) else { return Vec::new() };
+        let within = index.range(lo.to_vec()..hi.to_vec());
+        let pick = |(k, id): (&Vec<u8>, &String)| state.rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()));
         match dir {
             Dir::Asc => within.take(limit).filter_map(pick).collect(),
             Dir::Desc => within.rev().take(limit).filter_map(pick).collect(),
@@ -484,8 +494,9 @@ impl Rows for MemoryTx<'_> {
         let Some((lo,hi)) = scan_range(prefix,bounds,dir) else { return Ok(None); };
         let ti = format!("{table}.{index}");
         let state = self.store.state.borrow();
-        let mut range = state.entries.range((ti.clone(),lo)..(ti,hi));
-        Ok((if dir == Dir::Asc { range.next() } else { range.next_back() }).and_then(|((_,key),_)|key::decode(key)))
+        let Some(index) = state.entries.get(&ti) else { return Ok(None) };
+        let mut range = index.range(lo..hi);
+        Ok((if dir == Dir::Asc { range.next() } else { range.next_back() }).and_then(|(key,_)|key::decode(key)))
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use snapback4_core::rows::word_heap;
@@ -495,9 +506,10 @@ impl Rows for MemoryTx<'_> {
         meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
         let state = self.store.state.borrow();
-        let within = state.entries.range((ti.clone(), lo)..(ti, hi));
+        let Some(index) = state.entries.get(&ti) else { return Ok(Vec::new()) };
+        let within = index.range(lo..hi);
         let mut out = Vec::new();
-        let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
+        let mut pick = |(key, id): (&Vec<u8>, &String)| -> Result<(), RuntimeError> {
             meter.heap(word_heap::text(table) + word_heap::text(id))?;
             if let Some(row) = state.rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key, scope)?; }
             Ok(())
@@ -506,7 +518,7 @@ impl Rows for MemoryTx<'_> {
         Ok(out)
     }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
-        Ok(self.store.state.borrow().entries.get(&(caps::slot(table), caps::key(by, group))).map_or(0, |n| n.parse().expect("cap count")))
+        Ok(self.store.state.borrow().entries.get(&caps::slot(table)).and_then(|index| index.get(&caps::key(by, group))).map_or(0, |n| n.parse().expect("cap count")))
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         let base = key::encode(prefix);
@@ -613,12 +625,20 @@ impl DeviceTx for MemoryTx<'_> {
         for key in keys {
             self.set_row(key, None);
         }
-        let entries: Vec<(String, Vec<u8>)> = self.store.state.borrow().entries.keys().cloned().collect();
-        for key in entries {
-            self.set_entry(key, None);
-        }
+        let entries = std::mem::take(&mut self.store.state.borrow_mut().entries);
+        self.undo.borrow_mut().push(Undo::Entries(entries));
         Ok(())
     }
+    fn replace_rows(&self, load: impl FnOnce() -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+        // @ref LLP 3000.019#3.3 — publication still has one undo boundary;
+        // indexes are complete before prediction replay or any query can read.
+        self.clear_rows()?;
+        self.replacing.set(true);
+        let result = load();
+        self.replacing.set(false);
+        result
+    }
+
     fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> {
         {
             let state = self.store.state.borrow();

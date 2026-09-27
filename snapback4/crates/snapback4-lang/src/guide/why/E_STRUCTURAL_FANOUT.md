@@ -1,5 +1,22 @@
 # Programs — E_STRUCTURAL_FANOUT
 
+For a receipt gap over expiring messages, use `ordinal: sequence by conversationId`
+with `unique conversationId, ordinal`, then bounded unique ordinal probes.
+`snapback4 guide "receipt gap expiring messages"` contains the compiled, tested
+recipe, including the older manual allocator and a row-keyed missed-message
+count. The compiler supplies a pasteable helper for an expiring table with a
+unique parent/ordinal key. Use it only with authority over the whole conversation
+and a validated received run; a hidden row is not proof of an expired hole.
+Resume after the bound and keep disjoint receipt runs. A row-keyed count answers
+the badge question, not which individual messages were received.
+
+For general processing, read the page in a query and pass selected ids to the
+mutation, or use a job sweep, which may read a table with expiry.
+
+Example: declare `cap 50 by room` on members, then iterate
+`for m in members where .room = room:`; put the condition and row write inside
+that loop.
+
 A mutation with `predicts: "never"` (a server site or `: server`) may pass
 over a bounded plain prefix page whose read rule is uniform over its prefix,
 without a complete schema-capped group. A `: server` mutation may scan an

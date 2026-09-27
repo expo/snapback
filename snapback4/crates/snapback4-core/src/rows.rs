@@ -34,9 +34,11 @@ pub struct IndexWrite<'a> {
 }
 
 pub fn index_write<'a>(name: &str, table: &'a Table, row: &Value, old: Option<&Value>, id: &str) -> Result<Vec<IndexWrite<'a>>, RuntimeError> {
+    let row = crate::schema::row_image(row, table);
+    let old = old.map(|row| crate::schema::row_image(row, table));
     table.indexes.iter().map(|(index_name, index)| {
-        let before = old.map(|row| stored_index_keys(table, index, row, id)).unwrap_or_default();
-        let after = stored_index_keys(table, index, row, id);
+        let before = old.as_ref().map(|row| index_keys(index, row, id)).unwrap_or_default();
+        let after = index_keys(index, &row, id);
         if name.len().saturating_add(index_name.len()) > MAX_INDEX_LABEL_BYTES && before.is_empty() && !after.is_empty() {
             return Err(RuntimeError::Structural { code: "E_INDEX_KEY_BYTES", message: format!("table and index names for {name}.{index_name} exceed {MAX_INDEX_LABEL_BYTES} combined UTF-8 bytes; shorten the names (guide indexes)") });
         }
