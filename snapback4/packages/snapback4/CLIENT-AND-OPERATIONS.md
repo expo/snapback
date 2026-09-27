@@ -855,7 +855,10 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-Without `keep`, online observations withdraw stale answers. All observations discard responses older than observed commits in the same store.
+By default, observations retain an answer during a re-read for at most one second
+after processing the invalidation, marked `revalidating: true`. Use `keep: false`
+for immediate withdrawal. All observations discard responses older than observed
+commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
 (`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
 queued and in-flight writes without retry; whether those writes executed is unknown.
@@ -893,11 +896,12 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion leaves `loading` (or the opted-in kept answer) until the next invalidation, and closing the last
-observation owner cancels its retries.
-Without `keep`, a local observation may keep its previous answer with `fresh: false` and `since`
-only during an unavailable device read's server fallback, ending at fetch
-settlement or any local commit, reset, adoption, generation, account change or close.
+exhaustion withdraws to `loading` for every retention policy until the next
+invalidation, and closing the last observation owner cancels its retries.
+A local server fallback joins the displayed answer's existing revalidation
+episode. Successful transport does not withdraw it while device composition
+continues; only the whole evaluation's outcome, the episode cap, or a hard
+withdrawal ends retention.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
 `complete` says this is everything the query can answer: false when the
@@ -1155,50 +1159,72 @@ client refetches at that deadline and needs a connection to evaluate it.
 supplies the query's cursor argument itself, which must be named `c`
 (`c: cursor ?`).
 
-For screens that must not unmount on a transient reload, explicitly opt in:
+Live reads keep the displayed answer during a re-read by default:
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-function useKeptThread(conversationId: string) {
-  const inbox = useQuery(api.inbox, {}, { keep: true });
-  const thread = usePage(api.thread, { conversationId }, { keep: true });
+function useThread(conversationId: string) {
+  const inbox = useQuery(api.inbox, {});
+  const thread = usePage(api.thread, { conversationId });
   return { inbox, thread };
 }
 ```
 
-On the local client (wasm or process device) and the online client, `keep`
-keeps the last published answer while a re-read is loading, marked
-`fresh: false` with its `since`. A new answer or refusal replaces it.
-**A kept answer may still show rows a revocation withdrew until the re-read
-lands.** Use this option only when that display trade-off fits the screen.
-It does not confer read or write authority. Without `keep`, behavior is unchanged;
-`usePage` still keeps loaded pages while an additional page loads.
+<!-- @ref LLP 3000.023#3.1 — one revalidation episode follows the displayed answer through the facade. -->
+On the local client (wasm or process device) and the online client, an
+invalidation marks the displayed answer `revalidating: true`, preserving its
+`fresh` and `since`. It remains until the replacement, an unsuccessful re-read,
+or **one second of host time after the client processes the invalidation**.
+The time a change takes to reach the client precedes that bound. Further
+invalidations and the facade's authority check never renew the same answer's
+episode. The deadline withdraws to `loading` but lets the in-flight read still
+publish. Snapshots and render peeks check it even before a delayed timer runs;
+a suspended page runs no code. A successful replacement clears `revalidating`.
+A failed presence sample is the separate exception described above.
 
-The same option is available on `client.observe(op, args, { keep: true })`.
-With `keep: true`, a watch lingers for 30 seconds after its last subscriber
-leaves. It stays the live observation it was, with its subscription, expiry
-timers, and place in every reset, invalidation, ephemeral adoption and schema
-installation. A new opted-in subscriber with the same operation, arguments,
-viewer and store incarnation joins that watch and sees its current snapshot,
-with the `fresh` and `since` that snapshot has. After 30 seconds without a
-subscriber, the watch closes. React remounts see that answer in their first
-committed render, including when the lingering answer became stale during a re-read.
-The app facade reuses a live answer it already authorized across freshness changes.
-With `keep: true`, it also keeps that approved answer, marked `fresh: false` with
-its original `since`, while the replacement waits for its authority check. The
-held answer's own device or server deadline still withdraws it, including across
-a clock correction; a local reobservation wakeup does not expire remembered
-server data. A remount sees the held answer in its first commit. Without `keep`,
-the facade withdraws the superseded answer immediately. Sign-out, credential or viewer changes, store
-replacement or adoption, and client `close` end a lingering watch at once.
-`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
-schema installation reset lingering observations just as they reset active
-ones, before notifying subscribers. The facade's held answer and expiry belong
-to the live raw watch and end with it; there is no separate retention window.
-A lingering local watch re-runs on commits; both clients keep the
-watch's normal reads, timers and change-feed interest running for those 30
-seconds. This costs observation memory and background work while unmounted.
+| `keep` | During a re-read | After the last subscriber leaves |
+| --- | --- | --- |
+| omitted | Retains for at most one second | Closes |
+| `false` | Withdraws immediately | Closes |
+| `true` | Retains without the one-second cap | Lingers 30 seconds |
+
+The three options own separate watches, even for identical operations and
+arguments. Pass them to `client.observe`, `useQuery` or `usePage`.
+**Retention can show a revoked row during the re-read.** For actions, check
+`isReady(read) && !read.revalidating`. Use `keep: false` for an export, copy or
+playback that must withdraw as soon as the client processes the change.
+`fresh` still describes server confirmation: a completed offline answer may
+have `fresh: false` without being `revalidating`. Retention grants no authority.
+
+`keep: true` keeps the same live observation for 30 seconds after its last
+subscriber leaves, with normal reads, timers and change-feed interest. A new
+subscriber with that option, operation, arguments, viewer and store joins it
+and sees its current snapshot in the first committed render. This costs
+observation memory and background work while unmounted. A subscriber joining
+an already-active default watch also sees its current answer immediately.
+
+The app facade reuses a live answer it already authorized. Every retaining
+watch keeps that approved answer, marked `revalidating`, while the replacement
+waits for its authority check. It inherits the same episode deadline by value
+and tracks the held answer's own device and server deadlines through clock
+corrections. A local reobservation wakeup does not expire remembered server
+data. Every source withdrawal clears the shared approval and remount peeks
+immediately, including failure, link loss, and a replacement's earlier expiry.
+An older authority completion cannot publish a newer unchecked answer.
+
+For all three options, a failed whole re-read, expired candidate, refusal,
+expiry, sign-out, credential or viewer change, store replacement or adoption,
+`clear_rows`, `settle_exit`, ephemeral incarnation change, first schema
+installation, or client close withdraws the answer immediately. A successful
+server fallback keeps retaining while device composition finishes within the
+episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
+
+`usePage` preserves valid earlier pages while a later page loads or withdraws.
+Its combined read carries `revalidating` while any displayed page has that mark,
+and checks page deadlines before returning a cached result. A first-page
+withdrawal clears the displayed items; a later-page withdrawal removes that
+suffix. A changed cursor replaces its old suffix.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.

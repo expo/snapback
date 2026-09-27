@@ -99,9 +99,9 @@ async function fixture(t, tier) {
 }
 
 for (const tier of ["wasm", "process", "online"]) {
-  for (const operation of tier === "online" ? ["notification"] : ["apply", "admit", "settle"]) {
-    test(`${tier} keep: expiry withdraws across ${operation} with the replacement held`, async t => {
-      const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep: true });
+  for (const keep of [undefined, true]) for (const operation of tier === "online" ? ["notification"] : ["apply", "admit", "settle"]) {
+    test(`${tier} keep=${keep}: expiry withdraws across ${operation} with the replacement held`, async t => {
+      const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep });
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change(operation);
       await until(() => f.held.length);
@@ -117,12 +117,12 @@ for (const tier of ["wasm", "process", "online"]) {
     });
   }
   for (const mode of tier === "online" ? ["loading", "failure"] : ["failure"]) {
-    test(`${tier} keep: a ${mode} re-read cannot disarm the displayed answer's deadline`, async t => {
+    test(`${tier} keep: a ${mode} re-read withdraws before the displayed deadline`, async t => {
       const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep: true });
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change("apply", mode);
       await until(() => f.failed() > 0);
-      assert.equal(watch.getSnapshot().data?.body, "private answer");
+      await until(() => watch.getSnapshot().loading, "failed whole re-read withdraws immediately");
       f.hold(true); f.expire();
       await until(() => watch.getSnapshot().loading, "failed/loading re-read left the old deadline armed");
     });

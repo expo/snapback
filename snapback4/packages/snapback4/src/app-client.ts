@@ -82,7 +82,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const attach = (answer: ApprovedAnswer | undefined) => {
         held?.listeners.delete(emit); held = answer; held?.listeners.add(emit);
       };
-      const initial = options?.keep ? peekObservation(raw, op, args, options) : undefined;
+      const initial = options?.keep !== false ? peekObservation(raw, op, args, options) : undefined;
       if (initial) attach(kept.get(initial));
       const reject = (read: Read<R>) => {
         snapshot = read;
@@ -92,7 +92,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
           if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
           attach(undefined);
-          for (const listener of prior.listeners) listener();
+
         }
       };
       const detach = () => { held?.listeners.delete(emit); stop?.(); source?.close(); source = undefined; stop = undefined; };
@@ -101,16 +101,17 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         const version = ++refreshVersion;
         // @ref LLP 3000.019#3.3 — withdrawal cannot wait for storage; only data publication needs authority.
         const read = source?.getSnapshot();
-        if (read && options?.keep && kept.get(read)) attach(kept.get(read));
+        if (read && options?.keep !== false && kept.get(read)) attach(kept.get(read));
         if (!closed && read && ("loading" in read || "denied" in read)) {
           snapshot = valid() ? read : denied();
+          if (held) reject(snapshot);
           emit();
           return;
         }
         if (!closed && read && "data" in snapshot) {
-          // @ref LLP 3000.019#3.3 — keep spans replacement authority under the approved answer's own expiry.
+          // @ref LLP 3000.023#3.6 — every retaining watch spans authority under the same episode and row deadlines.
           snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read
-            : options?.keep ? (kept.peek(read) as Read<R> | undefined) ?? loading : loading) : denied();
+            : options?.keep !== false ? (kept.peek(read) as Read<R> | undefined) ?? loading : loading) : denied();
           emit();
         }
         const refused = await refusal();
@@ -119,7 +120,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         if ("denied" in snapshot) reject(snapshot);
         if ("data" in snapshot) {
           approved.add(answerIdentity(snapshot));
-          if (options?.keep) {
+          if (options?.keep !== false) {
             attach(kept.approve(snapshot));
           }
         }
@@ -211,7 +212,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   registerObservationPeek(client, (op, args, options) => {
     if (!valid()) return undefined;
     const read = peekObservation(raw, op, args, options);
-    if (read && options?.keep) {
+    if (read && options?.keep !== false) {
       const held = kept.peek(read);
       if (held) return held;
     }

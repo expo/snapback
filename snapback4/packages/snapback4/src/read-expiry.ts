@@ -41,6 +41,14 @@ export function holdReadExpiry(owner: ExpiringRead, withdraw: () => () => void):
   } };
 }
 
+/** Accessors enforce row expiry even when the host has not delivered timers. */
+export function checkReadExpiry(watch: ExpiringRead): void {
+  const context = expiryOwners.get(watch), d = watch.deadlines;
+  if (!context || !d || !context.current()) return;
+  const serverDue = d.server !== null && context.clock.serverDelay(d.server) === 0;
+  if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)) context.expired(serverDue);
+}
+
 // @ref LLP 3000.019#3.3 — timers and clock corrections withdraw every due answer before any subscriber can roll time back.
 export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>, clock: ServerClock,
   withdraw: (watch: W, deadlines: ReadDeadlines, serverDue: boolean, serverNow: number) => () => void,

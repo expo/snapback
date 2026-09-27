@@ -16,42 +16,7 @@ async function until(check) {
   assert.fail("authority did not settle");
 }
 
-function fixture(t) {
-  let wall = 1000, hold = false, allow = true, checks;
-  const memory = new RememberedAnswers();
-  const gate = Promise.withResolvers(), clock = new ServerClock(() => wall), watches = new Map();
-  const notify = watch => { for (const listener of watch.subscribers) listener(); };
-  const arm = (watch, d) => armReadExpiry(watch, d, clock, () => watches.get(watch.key) === watch, sweep, (due, now) => { if (due) memory.expire("read", now); });
-  function sweep() {
-    correctReadExpiries(watches.values(), clock, watch => {
-      watch.expire(); return () => notify(watch);
-    }, arm, () => {});
-  }
-  const stopClock = clock.subscribe(sweep);
-  const raw = { observe(op, args, opts) {
-    const key = `${opts?.keep ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`;
-    return observeWatch(watches, key, () => Object.assign(new ReadObservation(opts?.keep), {
-      key, subscribers: new Set(), presenceRefresh: null,
-    }), () => {}, () => {}, () => null);
-  } };
-  bindWatchPeek(raw, watches, () => null);
-  const facade = guardClient(raw, async () => {
-    if (checks?.length) return await checks.shift().promise;
-    if (hold) await gate.promise;
-    if (allow === "error") throw Error("session storage failed");
-    return allow;
-  }, () => true, () => why);
-  const client = facade.client;
-  t.after(() => { gate.resolve(); facade.fence()(); for (const watch of watches.values()) watch.linger?.close(); stopClock(); });
-  const owner = (args = {}) => watches.get(`keep:read:${JSON.stringify(args)}`);
-  const publish = (data, deadlines = {}, args = {}) => {
-    const watch = owner(args);
-    arm(watch, { device: null, server: null, localWakeup: false, ...deadlines });
-    watch.publish(ready(data)); notify(watch);
-  };
-  return { client, owner, publish, clock, facade, memory, gateChecks: gates => { checks = gates; }, setWall: n => { wall = n; },
-    hold: () => { hold = true; }, release: (ok = true) => { allow = ok; hold = false; gate.resolve(); } };
-}
+import { fixture } from "./helpers/authority-fixture.mjs";
 
 for (const domain of ["device", "server"]) for (const trigger of ["timer", "correction"]) {
   test(`facade holds A until its ${domain} deadline (${trigger}), including a lingering remount`, async t => {
@@ -63,8 +28,8 @@ for (const domain of ["device", "server"]) for (const trigger of ["timer", "corr
     f.hold();
     f.publish("B", { [domain]: 2000 });
     const kept = watch.getSnapshot();
-    assert.equal(kept.data, "A"); assert.equal(kept.fresh, false);
-    assert.equal(kept.since, since);
+    assert.equal(kept.revalidating, true); assert.equal(kept.data, "A"); assert.equal(kept.fresh, true);
+    assert.equal(kept.since, undefined);
     watch.close();
     assert.equal(peekObservation(f.client, q, {}, options), kept);
     const joined = f.client.observe(q, {}, options);
@@ -97,16 +62,16 @@ test("held server data ignores a device reobservation wakeup, even when device t
   f.release(); await until(() => watch.getSnapshot().data === "B"); watch.close();
 });
 
-test("a replacement's earlier deadline cannot expire the approved answer", async t => {
+test("a replacement's earlier deadline withdraws the shared approved answer", async t => {
   const f = fixture(t), watch = f.client.observe(q, {}, options);
   await until(() => f.owner());
   f.publish("A", { server: 1500 }); await until(() => watch.getSnapshot().data === "A");
   f.hold(); f.publish("B", { server: 1100 });
   f.clock.sample(1100, 1000, 1000, "clock:1");
   assert.equal(f.owner().snapshot.loading, true);
-  assert.equal(watch.getSnapshot().data, "A");
+  assert.equal(watch.getSnapshot().loading, true);
   f.owner().reload();
-  assert.equal(watch.getSnapshot().data, "A", "B's retry still waits behind A");
+  assert.equal(watch.getSnapshot().loading, true, "B's retry cannot restore the withdrawn approval");
   f.clock.sample(1500, 1000, 1000, "clock:2");
   assert.deepEqual(watch.getSnapshot(), { loading: true }); watch.close();
 });
@@ -139,7 +104,7 @@ for (const reset of ["scope", "denied", "authority", "fence", "linger"]) test(`h
   if (reset === "denied") owner.publish({ denied: why });
   if (reset === "authority") { f.release(false); await until(() => watch.getSnapshot().denied); }
   if (reset === "fence") f.facade.fence()();
-  if (reset === "linger") { watch.close(); owner.linger.close(); }
+  if (reset === "linger") { watch.close(); owner.lingering.close(); }
   assert.ok(!("data" in watch.getSnapshot()));
   assert.ok(!peekObservation(f.client, q, {}, options)?.data);
   assert.equal(owner.followers.size, 0, "reset releases the held timer and follower"); watch.close();
@@ -193,7 +158,7 @@ for (const withdrawal of ["reset", "denied", "retire"]) test(`opening remount is
   assert.equal(remount.getSnapshot().data, "A");
   if (withdrawal === "reset") f.owner().reset({ loading: true });
   if (withdrawal === "denied") f.owner().publish({ denied: why });
-  if (withdrawal === "retire") f.owner().linger.close();
+  if (withdrawal === "retire") f.owner().lingering.close();
   assert.equal(seen.length, 1);
   assert.ok(!("data" in seen[0]));
   remount.close();

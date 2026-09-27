@@ -112,12 +112,12 @@ export class RememberedAnswers {
   }
 }
 
-/** Every local commit fences reads; only explicit keep survives an ordinary reload. */
+/** Every local commit fences reads; retaining watches bound an ordinary reload. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
 
-  // @ref LLP 3000.019#3.3 — ordinary commits can revoke rows; retaining them is explicitly opt-in.
+  // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
   committed(watches: Iterable<LocalWatch>, operation: string): void {
     this.clear(watches, !["apply", "admit", "settle"].includes(operation));
   }
@@ -127,7 +127,7 @@ export class LocalReads {
     this.serverAnswers.clear();
     for (const watch of watches) {
       if (reset) watch.reset({ loading: true }); else watch.reload();
-      if (reset || !watch.keep) {
+      if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;
         watch.deadlines = undefined;

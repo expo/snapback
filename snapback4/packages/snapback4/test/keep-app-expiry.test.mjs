@@ -7,7 +7,7 @@ import { RememberedAnswers } from "../dist/local-reads.js";
 import { modelBackend, modelDevice, modelPage } from "./helpers/app-model-device.mjs";
 import { until } from "./helpers/app-server.mjs";
 
-test("createApp wasm: held expiry fences late HTTP memory before rollback, preserving newer B", async t => {
+for (const keep of [undefined, true]) test(`createApp wasm keep=${keep}: held expiry fences late HTTP memory before rollback, preserving newer B`, async t => {
   const url = "http://app-kept-memory.test", wall = Date.now(), deadline = wall + 3_600_000;
   const memory = memorySessionStore(), gate = Promise.withResolvers(), replacement = Promise.withResolvers();
   let clock = new ServerClock(() => wall), holding = false, queries = 0, failedReads = false, cache;
@@ -37,7 +37,7 @@ test("createApp wasm: held expiry fences late HTTP memory before rollback, prese
   }) });
   t.after(async () => { holding = false; gate.resolve(); replacement.resolve(); await app.close(); });
   assert.equal((await app.ready).ok, true);
-  const op = { kind: "query", name: "viewer" }, watch = app.client.observe(op, {}, { keep: true });
+  const op = { kind: "query", name: "viewer" }, watch = app.client.observe(op, {}, { keep });
   watch.subscribe(() => {});
   await until(() => watch.getSnapshot().data === "A");
   const key = "viewer:{}", old = cache.get(key), oldTicket = cache.begin();

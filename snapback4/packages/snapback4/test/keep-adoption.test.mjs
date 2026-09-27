@@ -16,8 +16,8 @@ const parked = signal => new Promise((_, reject) => {
   else signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
 });
 
-for (const tier of ["online", "wasm", "process"]) for (const callback of ["inspect", "close", "remount"]) {
-  test(`${tier} keep: adopting watch's loading response resets everyone before a peer can ${callback}`, async t => {
+for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "process"]) for (const callback of ["inspect", "close", "remount"]) {
+  test(`${tier} keep=${keep}: adopting watch's loading response resets everyone before a peer can ${callback}`, async t => {
     const { url, dir } = await ephemeralServer(t), gate = Promise.withResolvers();
     const clock = new ServerClock(() => 1000); let liveClock = clock;
     const fork = clock.fork.bind(clock); clock.fork = () => liveClock = fork();
@@ -39,13 +39,13 @@ for (const tier of ["online", "wasm", "process"]) for (const callback of ["inspe
     const client = tier === "online" ? createClient(options) : await createLocalClient(options);
     t.after(async () => { holding = false; gate.resolve(); await client.close(); });
     if (client.sync) await client.sync();
-    const open = room => client.observe(api.typingIn, { room }, { keep: true });
+    const open = room => client.observe(api.typingIn, { room }, { keep });
     // The peer must be first in the interest map, to expose a one-phase loop.
     const peer = open("peer");
     await until(() => peer.getSnapshot().data?.[0]?.principal === "A");
     const owner = open("owner"), idle = open("idle");
     await until(() => owner.getSnapshot().data?.[0]?.principal === "A" && idle.getSnapshot().data?.[0]?.principal === "A");
-    idle.close();
+    if (keep === true) idle.close();
     peer.subscribe(() => {
       if (!adopted || !peer.getSnapshot().loading || callbacks++) return;
       captured = [owner.getSnapshot(), idle.getSnapshot()];
@@ -64,7 +64,7 @@ for (const tier of ["online", "wasm", "process"]) for (const callback of ["inspe
   });
 }
 
-test("online keep: first schema installation resets the lingering pre-discovery watch before callbacks", async t => {
+for (const keep of [undefined, true]) test(`online keep=${keep}: first schema installation resets pre-discovery watches before callbacks`, async t => {
   const schema = Promise.withResolvers(), gate = Promise.withResolvers(), polls = [];
   let generation = 1, holding = false, schemaStarted = false, installed = false, captured;
   const client = createClient({ url: "http://keep-install.test", persona: "alice", fetch: async (input, init) => {
@@ -84,15 +84,15 @@ test("online keep: first schema installation resets the lingering pre-discovery 
     throw Error(path);
   } });
   t.after(async () => { schema.resolve(); gate.resolve(); await client.close(); });
-  const q = { kind: "query", name: "read" }, active = client.observe(q, {}, { keep: true }), idle = client.observe(q, { idle: true }, { keep: true });
+  const q = { kind: "query", name: "read" }, active = client.observe(q, {}, { keep }), idle = client.observe(q, { idle: true }, { keep });
   await until(() => active.getSnapshot().data === 1 && idle.getSnapshot().data === 1 && polls.length);
   polls.shift().resolve(Response.json({ seq: 10, generation: 1, tables: [] }, { headers: { "x-snapback-ephemeral": "1" } }));
   await until(() => schemaStarted && active.getSnapshot().data === 1 && idle.getSnapshot().data === 1);
-  idle.close(); holding = true; generation = 2;
+  if (keep === true) idle.close(); holding = true; generation = 2;
   active.subscribe(() => {
     if (!installed || !active.getSnapshot().loading || captured) return;
     captured = idle.getSnapshot();
-    const remount = client.observe(q, { idle: true }, { keep: true });
+    const remount = client.observe(q, { idle: true }, { keep });
     assert.deepEqual(remount.getSnapshot(), { loading: true });
   });
   schema.resolve();
