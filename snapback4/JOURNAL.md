@@ -68011,3 +68011,66 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+## 2026-09-27 — 0.4.5 lane TK: mint service tokens through the live owner
+
+On `sb4-intent/tk-token-live`, implemented the live-token brief in
+7e85a25a0, corrected refusal wording in 8e8cf4814, and updated the existing
+consumer proof in 9a2533030. Persistent dev and serve accept a private
+`POST /dev/token` only from a loopback socket peer, with a loopback Host,
+no Origin and exactly one per-run store proof. Startup writes 32 OS-random
+bytes as hex to the 0600 `<canonical database>-token` sidecar through the
+existing alias/symlink/hard-link protections; it rotates on every start.
+Discovery uses the existing `serve.lock` address hint, mapping wildcard
+addresses to loopback. `<database>-owner` remains the lifetime lock. The
+request uses the existing bounded writer admission and the owner's engine
+guard, then calls the same identity mint routine as offline token. Service
+validation, session records, wall-clock expiry and stdout are unchanged.
+The CLI never retries or opens another writer after a live request fails;
+an uncertain reply names that uncertainty and gives the offline recovery.
+
+Eight new process tests pass: both hosts' live/offline validation and expiry,
+durability and proof rotation, actual non-loopback refusal with the correct
+proof, missing/wrong/duplicate/browser proofs, bounded invalid requests,
+wildcard/IPv6 discovery, unreachable/wrong-store/older owners, unsafe proof
+files, and the unchanged missing-store/temporary-dev boundary. Existing
+ownership tests pass 27/27, including canonical release aliases. The two
+consumer tests now redeem all 16 offline/live/flags/mode combinations, and
+the whole periphery file passes 19/19. Final whole guide passes 86/86;
+its recovery pin now distinguishes a lost mint reply from unadmitted offline
+work. No new diagnostic code; services, residency, refusals, why and SERVER.md
+describe the new path. Changed source files remain below 1,500 lines.
+
+Ran `scripts/test.sh` exactly once, exit 1. Exact summary:
+`== 1 failure(s) in 1416 s`, `client tests`. Rust passes 3,843, with 24
+intentional ignores, across 238 binaries / 951 executions (903 s). Ordinary
+clients: 2,631 passed, two failed, 10 skipped; seven other shards pass 56/56.
+Both failures are lane-owned old periphery assertions expecting live token
+to return status 2 instead of success; corrected and retested above. Models
+pass 78/78 (279 s), and every other full-suite phase passes. No baseline or
+environmental full-suite failure. The full suite was not repeated after
+the test-only corrections: the evidence is that red run plus affected greens.
+The inherited 60-second suite budget remains exceeded and unchanged.
+
+Additional lane-owned failures found and fixed: the first new tests caught
+invalid service names returning live exit 2 instead of offline exit 1; the
+post-suite guide rerun caught the old unconditional “No work was admitted”
+recovery pin (85/86 before correction, 86/86 afterward). A preliminary wasm
+build hit an environmental Binaryen feature-validation error; the explicit
+PATH recheck and full-suite build pass without the optional optimizer.
+
+Wasm is unchanged before/within the full run: 1,981,512 B raw / 572,053 B
+gzip, delta 0 B, 788 B below the unchanged 572,841 B cap. SHA-256:
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo
+jobs, debug information and incremental compilation off, fd limit 65,536.
+Frozen Bun install, reference audit and diff whitespace checks pass.
+
+No engine, authorization, disclosure, durability, meter, device, SDK, version,
+dependency or budget change; no push or publication. Specific non-loopback
+binds without a loopback listener and temporary dev keep their documented
+refusal/offline paths. No known implementation problem remains; integration
+and blind review belong to the supervisor. File map, engineering choices,
+all failure reproductions and qualification limits:
+`reports/20260927-tk-token-live.md`. Raw evidence stays in ignored
+`target/lane-tk-evidence/`.
