@@ -19,7 +19,7 @@ export class ReadEpisode {
   constructor(private withdraw: () => void) {}
   arm(read: Read<unknown>): void {
     const deadline = episodeDeadline(read);
-    if (deadline === this.deadline) return;
+    if (deadline === this.deadline && (deadline === undefined || this.timer !== undefined)) return;
     this.clear();
     this.deadline = deadline;
     if (deadline !== undefined) this.schedule();

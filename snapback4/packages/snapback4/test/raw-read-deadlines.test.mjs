@@ -45,6 +45,19 @@ test("closing a raw local handle stops its episode timer but keeps the deadline"
   f.wall(1000); assert.equal(f.handle.getSnapshot(), loading, "expiry remains latched across rollback");
 });
 
+test("resubscribing a raw local handle rearms its original episode deadline", t => {
+  const f = fixture(t);
+  f.owner.reload(); f.handle.close();
+  f.wall(1500);
+  let notifications = 0;
+  f.handle.subscribe(() => notifications++);
+  // Local rerun reloads when the subscription starts again.
+  f.owner.reload();
+  t.mock.timers.tick(499); f.wall(2000); t.mock.timers.tick(1);
+  assert.deepEqual(f.owner.snapshot, { loading: true }, "the restarted timer withdraws without an accessor");
+  assert.equal(notifications, 1, "resubscription does not renew the original deadline");
+});
+
 for (const domain of ["device", "server"]) for (const when of ["before", "after"]) {
   test(`closed raw local handle checks its ${domain} deadline when closed ${when} it is due`, t => {
     const f = fixture(t);
