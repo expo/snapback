@@ -70656,3 +70656,56 @@ All commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 The report preserves all earlier rounds:
 reports/20260927-kg-kept-through-authority/REPORT.md. Ignored evidence:
 target/lane-kg-r11/. This is the single dated round-11 journal append.
+
+### 2026-09-27 — Lane FA round 5: preserve sparse defaults and pin the ceiling race
+
+Fast-forwarded to landed main 687e2a05f before editing. Read the round-0–4
+prompts, reports, lane journal, LLP 3000.026 and both round-4 reviews. Archived
+Grok's NOT READY and Astra's READY reviews verbatim beside the earlier records.
+
+Slot filling now materializes a lookup clone and writes only the original
+source image plus its slot. The sparse card, edge, post-slot and repost-slot
+cases verify that mapped fields remain absent after launch and that a later
+literal-default edit changes ordinary query interpretation without rewriting
+source images. Excluded replies retain missing fields and get false slots.
+The unfixed code fails with "card: launch stored authorId"; the fix passes all
+four cases through CLI check, shared preflight, construction and later adoption.
+
+The deterministic ceiling test pauses the second BEGIN through SQLite's test
+authorizer, after the unlocked 5,000,000-copy estimate and before the writer
+lock. A second engine commits a follow of the full actor. The 5,001,000-copy
+in-lock recheck refuses E_TIMELINE_ACTIVATE before any candidate write. It
+preserves durable/cached generation, the valid follow's sequence, source rows
+and slots, and the complete catalog; all owned tables remain empty. Update
+hooks, total_changes (including WITHOUT ROWID tables) and a candidate-catalog
+attempt guard prevent rollback from hiding writes. Removing the recheck fails
+the test immediately; activation.rs was restored byte-for-byte before checks.
+No production test hook was added. The interleaving ticket is closed.
+
+Affected tests pass: atomic launch 9; research 4; language Following/background/
+epoch/timeline guide 8/17/1/4; CLI Following/timeline/adoption/delivery/
+counterexample/design 2/23/15/1/1/2; HTTP adoption 20; core activation 6; whole
+guide 86; device package 1,332 (three existing ignored); census 26. The final
+interleaving assertion rerun also passes. Two expected development reds are ours:
+the unfixed sparse-row reproduction and deliberate in-lock-preflight deletion.
+No unresolved affected-test failures, baseline failures or environmental failures.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1368 s`. Every full-suite failure: none (ours 0, baseline 0,
+environmental 0). Rust: 3,933 passed, 28 ignored; 250 binaries / 963 scheduled
+executions plus doctests. Client tests/shards: 2,701 passed, 10 skipped; models
+78/78; fixture wrappers 9/9. All other phases pass. Code/test source hashes match
+before and after the run; no code or test was changed afterward. The inherited
+60-second total budget remains exceeded and unchanged.
+
+Wasm: 1,981,453 B raw / 572,553 B gzip, 288 B below the unchanged 572,841 B cap.
+Rust 1.97.0, wasm-bindgen 0.2.127 without wasm-opt, Node 24.13.1, Bun 1.3.14,
+eight Cargo build jobs, debug information/incremental off, packaged SQLite
+flags and fd limit 65,536. Frozen Bun install made no dependency changes; no
+tool was installed. Round-2 launch timings were not repeated and remain
+historical fixture measurements, not a new performance claim. The online
+publisher remains unbuilt. The supervisor owns review of this follow-up.
+
+Report and durable verification: experiments/following-adoption/atomic/ROUND5.md
+and ROUND5.verification.json. Raw logs: target/fa-round5/. Local commit carries
+the requested co-author trailer. No push or publication.

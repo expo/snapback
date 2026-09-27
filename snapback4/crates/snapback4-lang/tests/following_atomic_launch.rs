@@ -177,6 +177,79 @@ fn aggregate_copy_ceiling_refuses_two_individually_admissible_launches_before_wr
 }
 
 #[test]
+fn copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock() {
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
+    use std::sync::{Arc, atomic::{AtomicUsize, Ordering}, mpsc};
+    use std::time::Duration;
+    let p = path("ceiling-interleaving");
+    let mut e = engine(Some(&p), &bare()); seed(&mut e, 1000, 4999);
+    let b = bound(Q);
+    assert_eq!(e.store_mut().check_timeline_activation(&b.schema).unwrap()[0].copies, 5_000_000);
+    let mut writer = Engine::open(Store::open(&p).unwrap()).unwrap();
+    let generation = e.generation(); let initial_seq = e.seq().unwrap();
+    let changes = e.store().conn().total_changes();
+    let (paused_tx, paused_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let writes = Arc::new(AtomicUsize::new(0)); let w = writes.clone();
+    e.store().conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, Ordering::SeqCst); })).unwrap();
+    let begins = Arc::new(AtomicUsize::new(0)); let begin_count = begins.clone();
+    let candidate_attempts = Arc::new(AtomicUsize::new(0)); let attempts = candidate_attempts.clone();
+    e.store().conn().authorizer(Some(move |ctx: AuthContext<'_>| {
+        match ctx.action {
+            // First BEGIN is the unlocked read-only estimate; its rollback
+            // precedes this second BEGIN IMMEDIATE. Pause before SQLite executes
+            // it, while another connection can still acquire the writer lock.
+            AuthAction::Transaction { operation: TransactionOperation::Begin }
+                if begin_count.fetch_add(1, Ordering::SeqCst) == 1 => {
+                    paused_tx.send(()).unwrap();
+                    resume_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+                }
+            AuthAction::Insert { table_name: "_catalog" } => {
+                // Fail fast if the in-lock check is removed: do not spend time
+                // constructing five million copies merely to kill that mutant.
+                attempts.fetch_add(1, Ordering::SeqCst);
+                return Authorization::Deny;
+            }
+            _ => {}
+        }
+        Authorization::Allow
+    })).unwrap();
+    let launch = std::thread::spawn(move || {
+        let result = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program));
+        (e, result)
+    });
+    paused_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+    assert_eq!(begins.load(Ordering::SeqCst), 2);
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    write(&mut writer, "follow", "last-reader", &[("actor", id("a"))], 10000);
+    let seq = writer.seq().unwrap(); assert_eq!(seq, initial_seq + 1);
+    let b = bound(Q);
+    assert_eq!(writer.store_mut().timeline_launch_estimate(&b.schema).unwrap()[0].copies, 5_001_000);
+    let sources = ["posts", "reposts", "follows"].map(|table| (table, writer.store().rows(table).unwrap()));
+    let catalog = |e: &Engine| -> Vec<(String, i64)> {
+        e.store().conn().prepare("SELECT name, num FROM _catalog ORDER BY name").unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap()
+    };
+    let before_catalog = catalog(&writer);
+    resume_tx.send(()).unwrap();
+    let (e, result) = launch.join().unwrap();
+    assert_eq!(candidate_attempts.load(Ordering::SeqCst), 0, "candidate catalog write attempted before refusal");
+    let error = result.unwrap_err();
+    assert_eq!(error.code(), "E_TIMELINE_ACTIVATE");
+    assert!(error.to_string().contains("total 5001000 exceeds"), "{error}");
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
+    assert_eq!(e.store().conn().total_changes(), changes, "candidate wrote rows, including WITHOUT ROWID tables");
+    assert_eq!(e.store().meta("generation").unwrap(), Some(generation.to_string()));
+    assert_eq!(catalog(&e), before_catalog);
+    for (table, rows) in sources { assert_eq!(e.store().rows(table).unwrap(), rows, "{table}: source/slots changed"); }
+    for suffix in ["Posts", "Edges", "Feed", "Work"] {
+        assert!(e.store().rows(&format!("following{suffix}")).unwrap().is_empty());
+    }
+    drop(e); drop(writer); std::fs::remove_dir_all(p.parent().unwrap()).unwrap();
+}
+
+#[test]
 fn predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit() {
     let p=path("isolation"); let mut e=engine(Some(&p),&bare()); seed(&mut e,3,1);
     let mut reader=e.reader().unwrap(); let old=e.generation();
