@@ -28,3 +28,16 @@ Lane OW (`sb4-intent/ow-sidecar`) takes ownership on a sidecar lock file,
 `<database>-owner`, and never locks the SQLite file. It keeps the inode
 identity checks, made with `stat` alone. The fix is verified on macOS before
 0.4.4 publishes.
+
+## Resolution (2026-09-27)
+
+Fixed by lane OW (`fe6b733c2`, merged to `main`): ownership takes its
+`flock` on the sidecar `<database>-owner` (exclusive for backend commands,
+shared for devices and the native C ABI), never on the SQLite file; the
+database's inode identity is checked by `stat` alone, and a missing database
+is created and closed before any SQLite connection exists. Verified on macOS
+(the M5): a fresh `init` then `dev` becomes ready; ownership 5/5, admission
+25/25 (one test compared an unresolved `/var` path; it now compares the
+resolved store path), residency 5/5 and native-opening 6/6 pass. Linux: the
+lane's full suite passed except two intermittent client tests, one of which
+reproduces on the base commit.
