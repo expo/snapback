@@ -144,7 +144,15 @@ export class MediaCache {
         if (value && typeof value.store_id === "string" && value.store_id && [value.table, value.row, value.column].every(v => typeof v === "string")) receipt = value;
       } catch { /* Older servers and upload previews have no retainable home. */ }
       const home = receipt ? await this.home(id, receipt) : null;
-      if (!home) { await this.drop(id); await this.save(); return; }
+      if (!home) {
+        // @ref LLP 3000.019#3.5 — an old delivery cannot erase a newer store/cell's bytes or live URLs.
+        const entry = this.entries.get(id);
+        if (!entry?.confirmed || (receipt && entry.home.store_id === receipt.store_id && entry.home.table === receipt.table
+          && entry.home.row === receipt.row && entry.home.column === receipt.column)) {
+          await this.drop(id); await this.save();
+        }
+        return;
+      }
       const bytes = new Uint8Array(await blobArrayBuffer(blob));
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
       const entry: Entry = { confirmed: true, id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };

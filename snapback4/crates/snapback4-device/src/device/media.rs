@@ -8,6 +8,10 @@ use serde_json::{Value as Json, json};
 fn upload_key(viewer: &str, id: &str) -> String { format!("device:upload:{}", json!([viewer, id])) }
 fn row_key(table: &str, row: &str) -> String { format!("device:media-row:{}", json!([table, row])) }
 
+// @ref LLP 3000.019#3.5 — old indexes need confirmed reacquisition, never a scan of retained history.
+pub(super) const FORMAT: &str = "device:media-index-format";
+pub(super) const ROW_FORMAT: &str = "1";
+
 // @ref LLP 3000.007#8 — prediction uses the uploader's server facts, never argument facts
 pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args: &Json) -> Result<BTreeMap<String, Value>, RuntimeError> {
     fn resolve<T: DeviceTx>(tx: &T, viewer: &str, kind: &ArgType, value: &mut Value) -> Result<(), RuntimeError> {
@@ -99,6 +103,7 @@ impl<S: DeviceStore> Device<S> {
     // @ref LLP 3000.007#8 — retained media follows its current home, including offline expiry
     pub fn asset_home(&mut self, id: &str, viewer: &str, now: i64, home: &Json) -> Result<Json, RuntimeError> {
         let tx = self.store.read_transaction()?;
+        if tx.meta(FORMAT)?.as_deref() != Some(ROW_FORMAT) { return Ok(Json::Null); }
         // The host passes the authenticated download receipt, never a row-inferred home.
         // @ref LLP 3000.019#3.5 — identical coordinates in another store grant no custody.
         let Some(store_id) = home["store_id"].as_str().filter(|id| !id.is_empty()) else { return Ok(Json::Null) };

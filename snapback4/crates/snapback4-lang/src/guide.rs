@@ -382,7 +382,8 @@ With `createLocalClient({ assets: { keep: "viewed", maxBytes: 67108864 }, ... })
 ordinary viewed images and videos in scalar or list columns survive offline
 reopen in device storage. Retention follows the download-confirmed column home
 and store identity; removing an element revokes its bytes, while reorder keeps
-them. Older cached bytes without that receipt must be downloaded again.
+them. Upgraded devices reacquire confirmed rows once on sync, then older cached
+bytes without that receipt must be downloaded again; queued writes are kept.
 `keep: "none"` (the default) retains no media. The byte bound evicts least
 recently used assets. Home-row deletion, clearing, expiry and partition leave
 purge the bytes; `once` is never stored. Online reads always revalidate.

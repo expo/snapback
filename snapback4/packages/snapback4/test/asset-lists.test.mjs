@@ -56,9 +56,9 @@ mutation revokeAndTouch(id: posts):
 query posts():
   return posts[] first 10 by byId
 `;
-async function fixture(t) {
+async function fixture(t, schema = source, shape = assets => assets.map(a => ({ id: a.id }))) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-asset-lists-"));
-  mkdirSync(join(dir, "snapback")); writeFileSync(join(dir, "snapback/schema.q"), source);
+  mkdirSync(join(dir, "snapback")); writeFileSync(join(dir, "snapback/schema.q"), schema);
   let server, exited, url;
   const clients = [];
   const stop = async () => { if (server) { server.kill(); await exited; server = undefined; } };
@@ -79,7 +79,7 @@ async function fixture(t) {
   assert.equal(seeded.seeded, 2, JSON.stringify(seeded));
   const upload = async () => { const r = await alice.upload(png); assert.equal(r.ok, true); return r.asset; };
   const a = await upload(), b = await upload();
-  const placed = await alice.mutate(mutation("createPost"), { images: [{ id: a.id }, { id: b.id }] });
+  const placed = await alice.mutate(mutation("createPost"), { images: shape([a, b]) });
   assert.equal(placed.state, "sent", JSON.stringify(placed));
   return { dir, url, clients, alice, bob, a, b, id: placed.result.id, upload, start, stop };
 }
@@ -234,18 +234,19 @@ for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (
   });
 }
 
-for (const tier of ["native", "wasm"]) test(`${tier}: a download delayed across store replacement cannot retain legacy bytes, even after reopen`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) for (const placed of [false, true]) test(`${tier}: a download delayed across store replacement ${placed ? "preserves the newer download" : "cannot retain legacy bytes"}, even after reopen`, { timeout: 40000 }, async t => {
   const held = Promise.withResolvers(), release = Promise.withResolvers();
   t.after(() => release.resolve());
   const f = await fixture(t);
-  let url = f.url, offline = false;
+  let url = f.url, offline = false, hold = true;
   let core;
   const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
     : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
   const options = { url: f.url, persona: "bob", device: { async open(...args) { core = await device.open(...args); return core; } }, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: async (input, init) => {
     if (offline) throw Error("offline");
     const response = await fetch(String(input).replace(f.url, url), init);
-    if (String(input).endsWith(`/assets/${f.a.id}`) && response.status === 200) {
+    if (hold && String(input).endsWith(`/assets/${f.a.id}`) && response.status === 200) {
+      hold = false;
       // Finish the authorized network transfer, but withhold it from the client.
       const bytes = await response.arrayBuffer();
       held.resolve(JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home"))));
@@ -265,10 +266,12 @@ for (const tier of ["native", "wasm"]) test(`${tier}: a download delayed across 
   const db = new DatabaseSync(join(f.dir, ".snapback4/store.sqlite"));
   const replacementId = `${original.store_id}-replacement`;
   db.prepare("UPDATE _meta SET value = ? WHERE key = 'store_id'").run(replacementId);
-  db.prepare("UPDATE _assets SET home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?").run(f.a.id);
-  const row = JSON.parse(db.prepare("SELECT data FROM r WHERE id = ?").get(f.id).data);
-  row.Row.images = { Array: [{ Map: { id: { Id: f.a.id } } }] };
-  db.prepare("UPDATE r SET data = ? WHERE id = ?").run(JSON.stringify(row), f.id);
+  if (!placed) {
+    db.prepare("UPDATE _assets SET home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?").run(f.a.id);
+    const row = JSON.parse(db.prepare("SELECT data FROM r WHERE id = ?").get(f.id).data);
+    row.Row.images = { Array: [{ Map: { id: { Id: f.a.id } } }] };
+    db.prepare("UPDATE r SET data = ? WHERE id = ?").run(JSON.stringify(row), f.id);
+  }
   db.close();
   url = await f.start();
   await local.sync();
@@ -278,18 +281,36 @@ for (const tier of ["native", "wasm"]) test(`${tier}: a download delayed across 
   assert.equal(replacement.acquired, true);
   assert.equal(replacement.backend_required, false);
   assert.deepEqual(await manifest(), []);
-  assert.deepEqual((await local.query(query, {})).data[0].images, [{ id: f.a.id }], "the replacement's legacy row was acquired");
-  await served(url, f.a.id, "bob", 404);
+  let newer;
+  if (placed) {
+    newer = await local.asset(f.a.id);
+    assert.ok("url" in newer, JSON.stringify(newer));
+    assert.equal((await manifest())[0].home.store_id, replacementId);
+  } else {
+    assert.deepEqual((await local.query(query, {})).data[0].images, [{ id: f.a.id }], "the replacement's legacy row was acquired");
+    await served(url, f.a.id, "bob", 404);
+  }
   release.resolve();
   const delivered = await downloading;
   assert.ok("url" in delivered, JSON.stringify(delivered));
   assert.deepEqual(Buffer.from(await (await fetch(delivered.url)).arrayBuffer()), png); delivered.revoke();
-  assert.deepEqual(await manifest(), [], "the old authorized delivery establishes no custody in the replacement");
+  if (placed) {
+    assert.deepEqual(Buffer.from(await (await fetch(newer.url)).arrayBuffer()), png, "old delivery must not revoke the new live URL");
+    newer.revoke();
+    assert.equal((await manifest())[0].home.store_id, replacementId);
+  } else assert.deepEqual(await manifest(), [], "the old authorized delivery establishes no custody in the replacement");
   offline = true;
-  assert.equal((await local.asset(f.a.id)).denied?.code, "E_OFFLINE");
+  const check = async () => {
+    const result = await local.asset(f.a.id);
+    if (placed) {
+      assert.ok("url" in result, JSON.stringify(result));
+      assert.deepEqual(Buffer.from(await (await fetch(result.url)).arrayBuffer()), png); result.revoke();
+    } else assert.equal(result.denied?.code, "E_OFFLINE");
+  };
+  await check();
   await local.close();
   local = await createLocalClient(options); f.clients.push(local);
-  assert.equal((await local.asset(f.a.id)).denied?.code, "E_OFFLINE", "reopen cannot resurrect the old store's bytes");
+  await check();
 });
 
 for (const tier of ["native", "wasm"]) for (const ending of ["expiry", "generation"]) {
@@ -332,3 +353,121 @@ for (const tier of ["native", "wasm"]) for (const ending of ["expiry", "generati
     for (const asset of [f.a, f.b]) assert.equal((await local.asset(asset.id)).denied?.code, "E_OFFLINE");
   });
 }
+
+for (const tier of ["native", "wasm"]) for (const scalar of [false, true]) {
+  test(`${tier}: persisted old ${scalar ? "scalar" : "list"} media index reacquires unchanged rows once`, { timeout: 40000 }, async t => {
+    const schema = scalar ? source.replaceAll("images: [image <=10000] <=4 ?", "images: image <=10000 ?") : source;
+    const f = await fixture(t, schema, assets => scalar ? { id: assets[0].id } : assets.map(a => ({ id: a.id })));
+    let offline = false, core, storeName;
+    const persist = memoryPersistence();
+    const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
+      : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist });
+    const pages = [];
+    const options = { url: f.url, persona: "bob", device: { async open(name, backend) { storeName = name; core = await device.open(name, backend); return core; } }, waitSeconds: 1,
+      assets: { keep: "viewed", maxBytes: 10000 }, fetch: async (input, init) => {
+        if (offline) throw Error("offline");
+        const response = await fetch(input, init);
+        if (String(input).endsWith("/sync")) pages.push(await response.clone().json());
+        return response;
+      } };
+    let local = await createLocalClient(options); f.clients.push(local); await local.sync();
+    const before = (await core.call({ op: "sync_state", capture: false })).ok;
+    assert.equal(before.acquired, true); assert.ok(before.watermark > 0);
+    const rows = (await f.bob.query(query, {})).data;
+    await local.close();
+    // Project only media metadata to the shipped old format. All acquired rows,
+    // store identity, generation, watermark and other durable state stay intact.
+    const old = scalar ? JSON.stringify({ table: "posts", row: f.id, column: "images", generation: before.generation }) : null;
+    if (tier === "native") {
+      const db = new DatabaseSync(join(f.dir, "device", `${storeName}.sqlite`));
+      db.prepare("DELETE FROM _meta WHERE key = 'device:media-index-format' OR key LIKE 'device:media-row:%'").run();
+      if (old) db.prepare("INSERT OR REPLACE INTO _meta (key,value) VALUES (?,?)").run(`device:media:${f.a.id}`, old);
+      db.close();
+    } else {
+      const saved = await persist.load(storeName);
+      await persist.save(storeName, [...saved.filter(c => c.s === "m" && (c.k === "device:media-index-format" || c.k.startsWith("device:media-row:"))).map(c => ({ ...c, v: null })),
+        ...(old ? [{ s: "m", k: `device:media:${f.a.id}`, v: old }] : [])]);
+    }
+    offline = true;
+    local = await createLocalClient(options); f.clients.push(local);
+    const upgrading = (await core.call({ op: "sync_state", capture: false })).ok;
+    assert.equal(upgrading.acquired, false);
+    assert.equal(upgrading.watermark, before.watermark);
+    assert.equal(upgrading.transfer_watermark, 0);
+    pages.length = 0; offline = false;
+    await local.sync(); await local.sync();
+    assert.equal(pages.filter(p => p.snapshot).length, 1, "normal confirmed reacquisition, only once");
+    const after = (await core.call({ op: "sync_state", capture: false })).ok;
+    assert.equal(after.acquired, true);
+    for (const key of ["store_id", "generation", "watermark"]) assert.equal(after[key], before[key], `unchanged ${key}`);
+    assert.deepEqual((await f.bob.query(query, {})).data, rows, "no server-side touch");
+    const downloaded = await local.asset(f.a.id); assert.ok("url" in downloaded, JSON.stringify(downloaded)); downloaded.revoke();
+    assert.equal(JSON.parse((await core.call({ op: "meta", key: "media:manifest" })).ok).length, 1);
+    await local.close(); offline = true;
+    local = await createLocalClient(options); f.clients.push(local);
+    const retained = await local.asset(f.a.id); assert.ok("url" in retained, JSON.stringify(retained));
+    assert.deepEqual(Buffer.from(await (await fetch(retained.url)).arrayBuffer()), png); retained.revoke();
+  });
+}
+
+for (const tier of ["native", "wasm"]) test(`${tier}: nested placed elements cross inner lists and survive an empty first list offline`, { timeout: 40000 }, async t => {
+  const f = await fixture(t, source.replaceAll("images: [image <=10000] <=4 ?", "images: [[image <=10000] <=2] <=2 ?"), assets => assets.map(a => [{ id: a.id }]));
+  let offline = false;
+  const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
+    : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
+  const options = { url: f.url, persona: "bob", device, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: (...args) => offline ? Promise.reject(Error("offline")) : fetch(...args) };
+  let local = await createLocalClient(options); f.clients.push(local); await local.sync();
+  assert.deepEqual((await local.query(query, {})).data[0].images, [[f.a], [f.b]], "server-placed nested facts");
+  for (const a of [f.a, f.b]) { const r = await local.asset(a.id); assert.ok("url" in r, JSON.stringify(r)); r.revoke(); }
+  for (const images of [[[f.b], [f.a]], [[], [f.b, f.a]]]) {
+    assert.equal((await f.alice.mutate(mutation("edit"), { id: f.id, images: images.map(inner => inner.map(a => ({ id: a.id }))) })).state, "sent");
+    await local.sync(); await local.close(); offline = true;
+    local = await createLocalClient(options); f.clients.push(local);
+    assert.deepEqual((await local.query(query, {})).data[0].images, images);
+    for (const a of [f.a, f.b]) {
+      const r = await local.asset(a.id); assert.ok("url" in r, JSON.stringify(r));
+      assert.deepEqual(Buffer.from(await (await fetch(r.url)).arrayBuffer()), png); r.revoke();
+    }
+    offline = false;
+  }
+});
+
+for (const tier of ["native", "wasm"]) test(`${tier}: a legacy copy in refs cannot replace the same row's released photo home`, { timeout: 40000 }, async t => {
+  const schema = source.replace("  images: [image <=10000] <=4 ?", "  photo: image <=10000 ?\n  refs: [image <=10000] <=4 ?\n  images: [image <=10000] <=4 ?") + `
+mutation placePhoto(photo: image <=10000):
+  return insert posts { owner: viewer, photo, refs: [] }
+mutation clearPhoto(id: posts):
+  update posts[id] { photo: null }
+`;
+  const f = await fixture(t, schema);
+  const asset = await f.upload();
+  const placed = await f.alice.mutate(mutation("placePhoto"), { photo: { id: asset.id } });
+  assert.equal(placed.state, "sent");
+  await f.stop();
+  const db = new DatabaseSync(join(f.dir, ".snapback4/store.sqlite"));
+  const row = JSON.parse(db.prepare("SELECT data FROM r WHERE id = ?").get(placed.result.id).data);
+  row.Row.refs = { Array: [row.Row.photo] };
+  db.prepare("UPDATE r SET data = ? WHERE id = ?").run(JSON.stringify(row), placed.result.id);
+  db.close();
+  const url = await f.start(), alice = createClient({ url, persona: "alice" }); f.clients.push(alice);
+  let offline = false, core;
+  const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
+    : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
+  const options = { url, persona: "bob", device: { async open(...args) { core = await device.open(...args); return core; } }, waitSeconds: 1,
+    assets: { keep: "viewed", maxBytes: 10000 }, fetch: (...args) => offline ? Promise.reject(Error("offline")) : fetch(...args) };
+  let local = await createLocalClient(options); f.clients.push(local); await local.sync();
+  const r = await local.asset(asset.id); assert.ok("url" in r, JSON.stringify(r)); r.revoke();
+  assert.equal(JSON.parse((await core.call({ op: "meta", key: "media:manifest" })).ok)[0].home.column, "photo");
+  await local.close(); offline = true;
+  local = await createLocalClient(options); f.clients.push(local);
+  const kept = await local.asset(asset.id); assert.ok("url" in kept, JSON.stringify(kept)); kept.revoke();
+  offline = false;
+  assert.equal((await alice.mutate(mutation("clearPhoto"), { id: placed.result.id })).state, "sent");
+  await local.sync(); await served(url, asset.id, "bob", 404);
+  offline = true;
+  const remaining = (await local.query(query, {})).data.find(r => r.id === placed.result.id);
+  assert.equal(remaining.photo, null); assert.deepEqual(remaining.refs, [asset]);
+  assert.equal((await local.asset(asset.id)).denied?.code, "E_OFFLINE");
+  await local.close(); local = await createLocalClient(options); f.clients.push(local);
+  assert.equal((await local.asset(asset.id)).denied?.code, "E_OFFLINE");
+});

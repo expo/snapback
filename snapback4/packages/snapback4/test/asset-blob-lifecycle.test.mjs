@@ -68,7 +68,7 @@ async function deviceFiles(t) {
   function openCore() {
     return {
       async call({ op, key, value, id, home: receipt }) {
-        if (op === "asset_home") return { ok: receipt?.store_id === homes.get(id)?.store_id ? homes.get(id) : null };
+        if (op === "asset_home") return { ok: ["store_id", "table", "row", "column"].every(key => receipt?.[key] === homes.get(id)?.[key]) ? homes.get(id) : null };
         assert.equal(key, "media:manifest");
         if (op === "meta") return { ok: (await read(join(directory, "manifest")))?.toString() ?? null };
         assert.equal(op, "set_meta");
@@ -93,6 +93,35 @@ async function deviceFiles(t) {
   return { homes, writes, open, bytesPath, manifest: async () => JSON.parse(await readFile(join(directory, "manifest"), "utf8")) };
 }
 const home = type => ({ store_id: "media-store", table: "messages", row: "message", column: "photo", generation: 1, expiresAt: null, type });
+
+for (const coordinate of ["store_id", "table", "row", "column", "missing"]) test(`an invalid ${coordinate} receipt cannot erase another confirmed entry`, async t => {
+  const files = await deviceFiles(t), current = home("image/png");
+  files.homes.set("photo", current);
+  const { cache } = await files.open();
+  const kept = await cache.viewed("photo", new Blob([Uint8Array.of(1, 2, 3)], { type: "image/png" }), response({ type: "image/png" }));
+  assert.ok(kept?.url);
+  const before = await readFile(files.bytesPath("photo"));
+  const reply = response({ type: "image/png" });
+  if (coordinate === "missing") reply.headers.delete("x-snapback-asset-home");
+  else reply.headers.set("x-snapback-asset-home", encodeURIComponent(JSON.stringify({ ...current, [coordinate]: "old" })));
+  await cache.viewed("photo", new Blob(["old"], { type: "image/png" }), reply);
+  assert.deepEqual(await readFile(files.bytesPath("photo")), before);
+  kept.revoke(); await cache.close();
+  const reopened = await files.open();
+  const retained = await reopened.cache.read("photo"); assert.ok("url" in retained); retained.revoke();
+});
+
+test("an invalid receipt for the confirmed entry's own cell retires it", async t => {
+  const files = await deviceFiles(t);
+  files.homes.set("photo", home("image/png"));
+  const { cache } = await files.open();
+  const kept = await cache.viewed("photo", new Blob(["bytes"], { type: "image/png" }), response({ type: "image/png" }));
+  assert.ok(kept?.url);
+  files.homes.delete("photo");
+  await cache.viewed("photo", new Blob(["old"], { type: "image/png" }), response({ type: "image/png" }));
+  assert.deepEqual(await files.manifest(), []);
+  await assert.rejects(readFile(files.bytesPath("photo")), { code: "ENOENT" });
+});
 
 for (const type of ["image/png", "video/mp4"]) test(`native ${type} bytes survive a fresh cache opener; response ownership ends after copying`, async t => {
   const readers = installReader(t), urls = installUrls(t), files = await deviceFiles(t);

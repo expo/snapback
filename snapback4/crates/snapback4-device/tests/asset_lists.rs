@@ -41,7 +41,10 @@ fn lifecycle<H: Host>(h: &mut H) {
                 }
                 value
             }).collect());
-            if nested { json!([flat]) } else { flat }
+            if nested {
+                let items = flat.as_array().unwrap();
+                if items.len() == 2 { json!([[items[0]], [items[1]]]) } else { json!([[], items]) }
+            } else { flat }
         };
         apply(&mut d,"put",row(cell(&["a","b"])),true);
         for id in ["a","b"] { assert_eq!(home(&mut d,id,1)["row"],"post"); }
@@ -53,7 +56,12 @@ fn lifecycle<H: Host>(h: &mut H) {
         let read = d.query("post","alice",&json!({"id":"post"}),1).unwrap();
         assert_eq!(snapback4_core::wire::to_json(&read.data)["photos"],cell(&["b","a"]));
         for id in ["a","b"] { assert_eq!(home(&mut d,id,1)["row"],"post","reorder {kind}"); }
+        h.close(kind,d);
+        let mut d=h.open(kind,None).unwrap();
+        for id in ["a","b"] { assert_eq!(home(&mut d,id,1)["row"],"post","moved between inner lists across reopen {kind}"); }
         apply(&mut d,"put",row(cell(&["b"])),false);
+        h.close(kind,d);
+        let mut d=h.open(kind,None).unwrap();
         assert_eq!(home(&mut d,"a",1),Json::Null);
         assert_eq!(home(&mut d,"b",1)["row"],"post");
         assert_eq!(home(&mut d,"b",100),Json::Null,"offline expiry");
@@ -94,3 +102,77 @@ fn generation<H: Host>(h: &mut H) {
 }
 #[test] fn list_generation_memory() { generation(&mut Memory::new()); }
 #[test] fn list_generation_sqlite() { generation(&mut Sqlite::new("list-generation")); }
+
+fn upgrade<H: Host>(h: &mut H) {
+    for (kind, cell) in [("image <=100 ?", facts("a")), ("[image <=100] <=4 ?", json!([facts("a")]))] {
+        for left in [false, true] {
+            let name = format!("upgrade-{kind}-{left}");
+            let (_, backend) = compile(&(source(kind) + "table notes:\n  owner: principal\n  body: text\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\nmutation note(body: text):\n  return insert notes { owner: viewer, body }\n"));
+            let mut d = h.open(&name, Some(backend)).unwrap();
+            apply(&mut d, "put", row(cell.clone()), true);
+            if left { apply(&mut d, "scope", json!(["alice"]), false); }
+            let queued = d.admit(serde_json::from_value(json!({"id":"queued", "seq":0, "op":"note", "args":{"body":"offline"}, "viewer":"alice", "now":1, "predictable":true, "new_ids":["note"]})).unwrap()).unwrap();
+            let before = d.sync_state_read().unwrap();
+            assert!(before.acquired);
+            // Exact legacy media metadata shape; keep rows, acquisition, watermark
+            // and a live predicted outbox entry intact in the persisted device.
+            h.close(&name, d);
+            let old_home = (!left && !kind.starts_with('[')).then(|| json!({"table":"posts","row":"post","column":"photos","generation":before.generation}).to_string());
+            h.patch_meta(&name, &[("device:media-index-format", None), ("device:media-row:[\"posts\",\"post\"]", None), ("device:media:a", old_home)]);
+            let mut d = h.open(&name, None).unwrap();
+            let upgraded = d.sync_state_read().unwrap();
+            assert!(!upgraded.acquired);
+            assert_eq!(upgraded.watermark, before.watermark, "retain the restore floor");
+            assert_eq!(upgraded.restore_watermark, before.watermark);
+            assert_eq!(upgraded.transfer_watermark, 0, "request a normal snapshot");
+            assert_eq!(d.queued().unwrap(), vec![queued.clone()]);
+            assert_eq!(home(&mut d, "a", 1), Json::Null, "retained rows cannot fabricate acquisition");
+            let events = if left { json!([]) } else { json!([{"table":"posts","id":"post","kind":"put","data":row(cell.clone())}]) };
+            let first: StreamPage = serde_json::from_value(json!({"snapshot":true,"store_id":"media-store","generation":before.generation,"watermark":before.watermark,"more":true,"next":"next","events":events})).unwrap();
+            d.apply(&first, true).unwrap();
+            assert_eq!(home(&mut d, "a", 1), Json::Null, "a private page grants no home");
+            h.close(&name, d);
+            let mut d = h.open(&name, None).unwrap();
+            assert_eq!(d.sync_state_read().unwrap().transfer_watermark, 0, "restart interrupted upgrade");
+            d.apply(&first, true).unwrap();
+            let terminal: StreamPage = serde_json::from_value(json!({"snapshot":true,"store_id":"media-store","generation":before.generation,"watermark":before.watermark,"after":"next","more":false,"stage_snapshot":true,"events":[]})).unwrap();
+            d.apply(&terminal, false).unwrap();
+            assert_eq!(home(&mut d, "a", 1), Json::Null, "wait for normal catch-up publication");
+            let catchup: StreamPage = serde_json::from_value(json!({"snapshot":false,"snapshot_catchup":true,"store_id":"media-store","generation":before.generation,"watermark":before.watermark,"requested_watermark":before.watermark,"more":false,"events":[]})).unwrap();
+            d.apply(&catchup, false).unwrap();
+            assert_eq!(d.queued().unwrap(), vec![queued]);
+            assert_eq!(home(&mut d, "a", 1).is_null(), left, "only reacquired rows get markers");
+            if left { assert_eq!(d.query("post", "alice", &json!({"id":"post"}), 1).unwrap().data.field("id").unwrap().as_str().unwrap(), "post"); }
+            h.close(&name, d);
+            let mut d = h.open(&name, None).unwrap();
+            let state = d.sync_state_read().unwrap();
+            assert!(state.acquired);
+            assert_eq!(state.watermark, before.watermark);
+            assert_eq!(state.transfer_watermark, before.watermark, "upgrade runs once");
+            assert_eq!(home(&mut d, "a", 1).is_null(), left);
+            h.close(&name, d);
+        }
+    }
+}
+#[test] fn media_upgrade_memory() { upgrade(&mut Memory::new()); }
+#[test] fn media_upgrade_sqlite() { upgrade(&mut Sqlite::new("media-upgrade")); }
+
+fn column_home<H: Host>(h: &mut H) {
+    let (_, backend) = compile(&source("image <=100 ?").replace("  secrets:", "  refs: [image <=100] <=4 ?\n  secrets:"));
+    let mut d = h.open("column-home", Some(backend)).unwrap();
+    let mut data = row(facts("a"));
+    data["refs"] = json!([facts("a")]);
+    apply(&mut d, "put", data.clone(), true);
+    assert_eq!(home(&mut d, "a", 1)["column"], "photos");
+    // The HTTP test proves this update releases the server ledger, although
+    // the same row still carries a legacy copy in another ordinary column.
+    data["photos"] = Json::Null;
+    apply(&mut d, "put", data, false);
+    assert_eq!(home(&mut d, "a", 1), Json::Null);
+    h.close("column-home", d);
+    let mut d = h.open("column-home", None).unwrap();
+    assert_eq!(home(&mut d, "a", 1), Json::Null);
+    h.close("column-home", d);
+}
+#[test] fn exact_media_column_memory() { column_home(&mut Memory::new()); }
+#[test] fn exact_media_column_sqlite() { column_home(&mut Sqlite::new("column-home")); }
