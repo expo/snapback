@@ -49,8 +49,11 @@ revokes the previous child's family at startup, including after SIGKILL.
 Mint with `snapback4 token --service operator --release <dir>` on the server
 host, as the store owner, while `serve <dir>` is running or stopped. For dev,
 omit `--release`. A live server mints through its writer after checking the
-loopback peer and its per-run 0600 `<database>-token` proof; a public bind
-never grants remote minting. Keep the proof private. If the server is older
+loopback peer and exchanging mutual nonce proofs of its per-run secret in the
+0600 `<database>-token` file. The secret never crosses the wire; proofs bind
+the service, days and store, expire quickly, and cannot be reused. The token
+reply is encrypted for that exchange. A public bind never grants remote
+minting. Keep the file private. If the server is older
 or unreachable, `E_STORE_BUSY` names it: restore local access, or stop it,
 mint offline, and restart. The token plus one newline is all of stdout,
 including with `--json`; capture it with

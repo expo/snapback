@@ -47,9 +47,10 @@ store; mint one for each isolated audit or proof store after starting its dev
 server. While dev or serve owns the store, the CLI asks that server to mint
 through its loopback listener. Run it on the server host as the store owner;
 `serve` uses `snapback4 token --service ranker --release <dir>`.
-The server requires a loopback peer and its per-run private proof from the
-0600 `<database>-token` file; public listeners still refuse remote minting.
-Keep that proof private. With the server stopped, the same command mints offline.
+The server requires a loopback peer and mutual proof of the per-run secret in
+the 0600 `<database>-token` file. The secret never crosses the wire; nonce
+proofs bind the service, days and store, and the returned token is encrypted
+for this exchange. Public listeners still refuse remote minting. Keep that file private. With the server stopped, the same command mints offline.
 `--fresh` (also `--memory`) has no disk store for this CLI to mint into.
 Readiness for dev and serve is the first stdout line: the listening URL,
 emitted after store and native-module setup. Wait for that line before sending
