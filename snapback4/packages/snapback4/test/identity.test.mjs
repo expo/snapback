@@ -333,6 +333,7 @@ function suite(provider, core = new FakeCore()) {
           claimed = true;
         }
         if (path === `/actions/${claim.id}/status` && options.cancelOnStatus) {
+          await options.cancelOnStatus();
           return Response.json({ invocation: { id: claim.id, attempt: claim.attempt, cancelled: true, state: "failed" } });
         }
         if (options.coreFetch) {
@@ -847,9 +848,20 @@ test("unknown callback state is public refusal while malformed recipe data retai
 test("invocation lifetime releases provider and private-core fetch and body stalls without late identity effects", async t => {
   const provider = await localProvider(t), s = suite(provider);
   const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
+  const stall = () => {
+    const status = deferred(), reached = deferred();
+    return {
+      value: false,
+      enter() { this.value = true; reached.resolve(); },
+      // Force the status poll ahead of the intended stall, as under load.
+      async before() { await status.promise; await delay(0); },
+      // Cancellation tests a pending fetch/body only after it actually starts.
+      async cancelOnStatus() { status.resolve(); await reached.promise; },
+    };
+  };
   const stalledBody = (response, entered, pending) => {
     const clone = response.clone.bind(response);
-    for (const method of ["json", "text", "arrayBuffer"]) response[method] = () => { entered.value = true; return pending.promise; };
+    for (const method of ["json", "text", "arrayBuffer"]) response[method] = () => { entered.enter(); return pending.promise; };
     response.clone = () => stalledBody(clone(), entered, pending);
     return response;
   };
@@ -867,16 +879,17 @@ test("invocation lifetime releases provider and private-core fetch and body stal
       const label = `provider-${phase}-${kind}`, code = `${label}-code`;
       const flow = await s.begin(label); provider.register(code, flow.authorizationUrl);
       let providerSignal;
-      const entered = { value: false }, pending = deferred();
+      const entered = stall(), pending = deferred();
       const result = await s.invoke("completeOidc", s.callback(flow, code), {
-        id: `complete-${label}`, cancelOnStatus: true,
+        id: `complete-${label}`, cancelOnStatus: entered.cancelOnStatus,
         providerFetch: async (url, init) => {
           const path = new URL(url).pathname;
           const actual = path.endsWith("/.well-known/openid-configuration") ? "discovery"
             : path === "/token" ? "token" : path === "/jwks" ? "jwks" : "other";
           if (actual !== phase) return nativeFetch(url, init);
-          providerSignal = init.signal; entered.value = true;
-          if (kind === "fetch") return pending.promise;
+          providerSignal = init.signal;
+          await entered.before();
+          if (kind === "fetch") { entered.enter(); return pending.promise; }
           return stalledBody(await nativeFetch(url, init), entered, pending);
         },
       });
@@ -889,14 +902,15 @@ test("invocation lifetime releases provider and private-core fetch and body stal
 
   for (const kind of ["fetch", "body"]) {
     let coreSignal;
-    const entered = { value: false }, pending = deferred();
+    const entered = stall(), pending = deferred();
     const binding = `core-${kind}-${"x".repeat(32)}`;
     const result = await s.invoke("beginOidc", { bindingHash: bindingHash(binding) }, {
-      id: `begin-core-${kind}`, cancelOnStatus: true,
-      coreFetch(path, _body, init) {
+      id: `begin-core-${kind}`, cancelOnStatus: entered.cancelOnStatus,
+      async coreFetch(path, _body, init) {
         if (path !== "/q/identity.byInvocation") return undefined;
-        coreSignal = init.signal; entered.value = true;
-        if (kind === "fetch") return pending.promise;
+        coreSignal = init.signal;
+        await entered.before();
+        if (kind === "fetch") { entered.enter(); return pending.promise; }
         return stalledBody(Response.json({ data: null }), entered, pending);
       },
     });
@@ -909,13 +923,14 @@ test("invocation lifetime releases provider and private-core fetch and body stal
     const label = `mint-${kind}`, code = `${label}-code`;
     const flow = await s.begin(label); provider.register(code, flow.authorizationUrl);
     let mintSignal;
-    const entered = { value: false }, pending = deferred();
+    const entered = stall(), pending = deferred();
     const result = await s.invoke("completeOidc", s.callback(flow, code), {
-      id: `complete-${label}`, cancelOnStatus: true,
-      coreFetch(path, body, init) {
+      id: `complete-${label}`, cancelOnStatus: entered.cancelOnStatus,
+      async coreFetch(path, body, init) {
         if (path !== "/auth/session") return undefined;
-        mintSignal = init.signal; entered.value = true;
-        if (kind === "fetch") return pending.promise;
+        mintSignal = init.signal;
+        await entered.before();
+        if (kind === "fetch") { entered.enter(); return pending.promise; }
         return stalledBody(Response.json({ session: {
           principal: body.principal, kind: body.kind, token: SESSION_TOKEN, expiresAt: s.core.now + 86_400_000,
         } }), entered, pending);

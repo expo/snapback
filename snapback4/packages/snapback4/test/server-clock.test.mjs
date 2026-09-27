@@ -185,13 +185,13 @@ test('retained asset homes and expiry use the same estimated time as device read
   core.call = async request => {
     if (request.op === 'asset_home') {
       seen.push(request.now);
-      return { ok: request.now < expiresAt ? { table: 'messages', row: 'message', column: 'photo', generation: 1, expiresAt, type: 'image/png' } : null };
+      return { ok: request.now < expiresAt ? { store_id: 'media-store', table: 'messages', row: 'message', column: 'photo', generation: 1, expiresAt, type: 'image/png' } : null };
     }
     return ordinary(request);
   };
   const cache = new MediaCache(core, 'alice', { keep: 'viewed', maxBytes: 100 }, clock.issuedDeviceNow);
   await cache.open();
-  const read = await cache.viewed('asset', new Blob(['image'], { type: 'image/png' }), new Response('', { headers: { 'accept-ranges': 'bytes' } }));
+  const read = await cache.viewed('asset', new Blob(['image'], { type: 'image/png' }), new Response('', { headers: { 'accept-ranges': 'bytes', 'x-snapback-asset-home': encodeURIComponent(JSON.stringify({ store_id: 'media-store', table: 'messages', row: 'message', column: 'photo' })) } }));
   assert.equal(typeof read.url, 'string');
   assert.ok(seen.every(now => now === 90001000));
   wall += 1;

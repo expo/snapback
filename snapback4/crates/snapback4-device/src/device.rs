@@ -463,6 +463,7 @@ impl<S: DeviceStore> Device<S> {
         // reuse a declaration from before a teardown send whose host-persisted
         // revision was lost. Published replay evidence and private pages stay.
         let tx = store.transaction()?;
+        if kept.is_none() { tx.set_meta(media::FORMAT, media::ROW_FORMAT)?; }
         predictions::abandon_capture(&tx)?;
         tx.commit()?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
@@ -653,9 +654,14 @@ impl<S: DeviceStore> Device<S> {
         let snapshot_transfer = if self.snapshot_owner.is_some() && tx.meta(SNAPSHOT_OWNER)? == self.snapshot_owner
             && tx.meta(SNAPSHOT_NEXT)?.as_deref() == Some("") { Some(meta_u64(&tx, SNAPSHOT_THROUGH)?) } else { None };
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
+        // @ref LLP 3000.019#3.5 — reacquire old media indexes through the normal snapshot protocol.
+        // Preserve published/private restore evidence and the outbox. An interrupted
+        // upgrade restarts its snapshot on reopen; only confirmed publication stamps it.
+        let media_upgrade = tx.meta(media::FORMAT)?.as_deref() != Some(media::ROW_FORMAT);
+        let transfer = if media_upgrade { snapshot_transfer.or(Some(0)) } else { deferred::cursor(&tx)?.or(snapshot_transfer) };
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
-        let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { receipt_outcomes: true, outbox_status: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let acquired = !media_upgrade && restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
+        let mut state = SyncState { receipt_outcomes: true, outbox_status: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: transfer.unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
         Ok(state)
@@ -701,7 +707,7 @@ impl<S: DeviceStore> Device<S> {
 
     fn apply_publication_inner(&mut self, page: &StreamPage, first: bool) -> Result<(Vec<String>, bool), RuntimeError> {
         let tx = self.store.transaction()?;
-        let observed = store_identity::observe(&tx, page, false)?;
+        let observed = store_identity::observe(&tx, page, false, self.snapshot_owner.as_deref())?;
         if observed.restore_refused {
             tx.commit()?;
             return Err(store_identity::restore_error());
@@ -810,7 +816,7 @@ impl<S: DeviceStore> Device<S> {
         }
         // Only publication promotes the first authenticated identity/revision.
         // Resolve it before consuming the slot, including an omitted page id.
-        store_identity::observe(&tx, page, true)?;
+        store_identity::observe(&tx, page, true, self.snapshot_owner.as_deref())?;
         let owner_store = tx.meta(STORE_ID)?;
         let mut acknowledgements = page.acknowledged.clone();
         if replacing {
@@ -838,7 +844,7 @@ impl<S: DeviceStore> Device<S> {
                     if staged.acquired {
                         media::remember(&tx, table_name, table, &staged.row, self.generation)?;
                     } else {
-                        media::forget(&tx, table, &staged.row)?;
+                        media::forget(&tx, table_name, table, &staged.row)?;
                     }
                 }
                 if rows.len() < 500 {
@@ -852,6 +858,7 @@ impl<S: DeviceStore> Device<S> {
             // Consume private identity after promotion; ordinary effects and
             // receipts were discarded when this replacement started.
             deferred::clear(&tx)?;
+            tx.set_meta(media::FORMAT, media::ROW_FORMAT)?;
         } else {
             let mut installed = deferred::install(&tx, &self.schema, &mut touched)?;
             installed.extend(acknowledgements);
@@ -1164,7 +1171,7 @@ fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, gro
         let rows = tx.scan(table_name, &index, group, &Bounds::default(), Dir::Asc, 500)?;
         let count = rows.len();
         for (row, _) in rows {
-            media::forget(tx, table, &row)?;
+            media::forget(tx, table_name, table, &row)?;
             tx.delete(table_name, table, &row)?;
         }
         if count < 500 {

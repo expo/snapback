@@ -269,7 +269,10 @@ for (const mode of ["snapshot", "stream"]) for (const failure of ["healthy", "me
         const abort = () => resolve(Response.json({ seq: updating ? 11 : 10, store_id: "A" }));
         if (init.signal.aborted) abort(); else init.signal.addEventListener("abort", abort, { once: true });
       });
-      if (path === "/assets/photo") return new Response(new Uint8Array([1]), { headers: { "content-type": "image/png", "accept-ranges": "bytes" } });
+      if (path === "/assets/photo") return new Response(new Uint8Array([1]), { headers: {
+        "content-type": "image/png", "accept-ranges": "bytes",
+        "x-snapback-asset-home": encodeURIComponent(JSON.stringify({ store_id: "A", table: "messages", row: "A-0", column: "photo" })),
+      } });
       assert.fail(`unexpected transport request: ${path}`);
     };
     async function open() {

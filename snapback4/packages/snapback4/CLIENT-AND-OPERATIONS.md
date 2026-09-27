@@ -1043,8 +1043,23 @@ Both ordinary and page-hide replay post the retained receipt's original store
 binding before any journal or current-device identity, including after replacement.
 
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
-the intent or fixture; arbitrary fixture strings still need an application ledger.
-Pass it as `{ id }`; a retry returns the original outcome and never applies twice:
+the intent, or name a fixture's write with `idFrom(label)`: the same label gives
+the same valid id on every client and host, so a replay needs no ledger.
+
+```ts
+import { createClient, idFrom } from "snapback4/client";
+import { api } from "../snapback/generated/api";
+
+async function replaySeed() {
+  const client = createClient({ url: "http://127.0.0.1:4400", persona: "alice" });
+  // Replaying the seed returns the recorded outcome; it never sends twice.
+  await client.mutate(api.send, { conversationId: "c1", body: "hello" }, { id: idFrom("seed:c1:hello") });
+}
+```
+
+A derived id sorts before every minted id, as if minted at the epoch, so a
+fixture row named with `idFrom` never crowds a `by .id` window of real rows.
+Pass an id as `{ id }`; a retry returns the original outcome and never applies twice:
 `client.mutate(op, args, { id })`. Online, web and native clients accept the
 `mintId()` form: 26 uppercase Crockford base32 digits
 (0123456789ABCDEFGHJKMNPQRSTVWXYZ), starting with 0–7. A malformed id returns

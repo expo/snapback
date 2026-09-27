@@ -640,7 +640,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
           adoptionCapture = observation.adoption_capture;
-          backendRequired = !!observation.backend_required;
+          // Observation reports shared metadata; keep this interpreter's adoption requirement.
+          backendRequired ||= !!observation.backend_required;
           if (observation.reset) {
             // call() already invalidated the retired incarnation synchronously.
             // Discard this round's old cursors before inspecting the new store.
@@ -995,11 +996,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     const resetVersion = watch.resetVersion;
+    let retryExpired = false;
     try {
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const result = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (revision !== incarnation || authority !== answers.revision || (watch.keep && resetVersion !== watch.resetVersion)) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
+      retryExpired = result.retryExpired === true;
+      if (!retryExpired) watch.expiredRetries = 0;
       ephemeralReads.incomplete(watch, "data" in read && !read.complete);
       watch.incarnation = revision;
       watch.tables = tables;
@@ -1018,10 +1023,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         armPresence(watch);
       }
     } finally {
+      // @ref LLP 3000.019#3.3 — keep the expired value withdrawn while its live observation recovers.
+      // One request per watch, with 25/50/100/.../1000 ms pacing if the
+      // estimate stays ahead. Keep running set so invalidations only dirty it.
+      if (retryExpired && !closed && watches.get(watch.key) === watch) {
+        watch.expiredRetries = Math.min((watch.expiredRetries ?? 0) + 1, 7);
+        const pause = Math.min(25 * 2 ** (watch.expiredRetries - 1), 1000);
+        await new Promise(resolve => setTimeout(resolve, pause));
+      }
       watch.running = false;
       const dirty = watch.dirty;
       watch.dirty = false;
-      if (dirty && watches.get(watch.key) === watch) {
+      if ((dirty || retryExpired) && !closed && !sessionDead && watches.get(watch.key) === watch) {
         void rerun(watch);
       }
     }
