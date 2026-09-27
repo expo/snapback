@@ -50,7 +50,7 @@ export interface ClientOptions {
 }
 
 interface QueryResult<R> {
-  delivery?: unknown; credential?: number | undefined; deliveryAccepted?: boolean;
+  delivery?: unknown; credential?: number | undefined;
   read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null;
   transportOffline?: boolean; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown;
   /** The server's presence refresh interval (LLP 3000.018). */
@@ -577,12 +577,9 @@ export function createClient(options: ClientOptions): Client {
 
   const currentRead = (result: QueryResult<unknown>, watch?: Watch) => {
     const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
+      && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
       && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
-    if (current && !closed && credentials && !storeRefusal && "data" in result.read && !result.deliveryAccepted) {
-      result.deliveryAccepted = true;
-      void delivery?.accept(result.delivery);
-    }
     return current;
   };
 
@@ -645,6 +642,7 @@ export function createClient(options: ClientOptions): Client {
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
     // An accepted reply is published whatever it says, loading and refusals included.
     watch.publish(result.read);
+    if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
     watch.tables = new Set(result.tables);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
     if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
@@ -664,7 +662,7 @@ export function createClient(options: ClientOptions): Client {
     const resetVersion = watch.resetVersion;
     let exhausted = false;
     try {
-      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: result => {
+      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => {
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
         if (!(watch.keep && "data" in watch.snapshot && (result.transportOffline || "loading" in result.read))) scheduleExpiry(watch, result.nextExpiry);
@@ -681,6 +679,9 @@ export function createClient(options: ClientOptions): Client {
         notify(watch);
         return;
       }
+      watch.publish(result.read);
+      if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
+      notify(watch);
       watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
@@ -758,7 +759,6 @@ export function createClient(options: ClientOptions): Client {
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
-          await delivery?.reset(true);
           resetKept(false);
           queryEpoch++;
           for (const watch of watches.values()) {
@@ -865,7 +865,7 @@ export function createClient(options: ClientOptions): Client {
     sweepExpiries();
     scheduleRefresh();
   });
-  delivery = onlineDelivery({ url: base, fetch: doFetch, mint: mintId,
+  delivery = onlineDelivery({ offline: () => setLink("offline"), url: base, fetch: doFetch, mint: mintId,
     ready: () => !closed && credentials && !storeRefusal && !refreshing && link === "online" && !!storeIdentity,
     current: () => !closed && credentials && !storeRefusal, headers: () => ({ ...headers }), revision: () => credentialRevision,
     floor: () => minimumReadSeq, store: () => storeIdentity, observe: (json, floor) => observeStore(json, floor, true),
@@ -885,7 +885,9 @@ export function createClient(options: ClientOptions): Client {
       // this continuation runs. Do not start an additional retry round here.
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
-      return currentRead(result) ? result.read : { loading: true };
+      if (!currentRead(result)) return { loading: true };
+      if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
+      return result.read;
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep === true;

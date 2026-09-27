@@ -206,7 +206,16 @@ conversation mounted. The local client collects confirmed, held, unexpired
 published rows and persists debt with them; both clients collect the server's
 query manifest, including nested message images. Scalars, counts, copied
 ordinals and predicted rows report nothing. A position that never reached
-the client stays `sent`.
+the client stays `sent`. Positions outside JavaScript's safe-integer range
+also stay `sent`. Composed answers omit their manifest when retained local
+rows replace server rows.
+
+Every report sends its binding's fingerprint; unrelated generation changes
+preserve unchanged bindings.
+
+`E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
+drops that binding's debt and collects under the current fingerprint; it
+does not retry the old report.
 
 Reports call `delivered` directly, outside the ordered outbox. Success means
 the whole run is covered. `RUNS_FULL` parks a disjoint run while other runs

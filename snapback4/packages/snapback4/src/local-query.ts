@@ -31,7 +31,6 @@ type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: un
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
-  acceptDelivery?(manifest: unknown): Promise<void>;
   backend: BackendJson;
   ephemeralReads: EphemeralReads;
   partitionDenied: Refusal | null;
@@ -222,7 +221,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // with the current server page; routing and publication use Rules 1–5.
       return { origin: "composed", result: {
         read: { ...remote.result.read, data: keepRetainedRows(remote.result.read.data, second.outcome.data, second.outcome.retainedRows, remote.result.rowProvenance) as R, fresh: false, complete: false },
-        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, delivery: remote.result.delivery, credential: remote.result.credential,
+        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential,
       } };
     }
     const coverage = Object.entries(second.outcome.components ?? {});
@@ -231,7 +230,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const kept = coverage.filter(([, c]) => !wantsServer(c));
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, delivery: remote.result.delivery, credential: remote.result.credential } };
+    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential } };
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
@@ -297,11 +296,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry, localWakeup: true }
           : { ...loading, retryExpired: !!watch && (origin === "server" || origin === "composed") };
       }
-      if ((origin === "server" || origin === "composed") && "data" in result.read && result.delivery !== undefined) {
-        if (result.credential !== env.credentialRevision) return loading;
-        await env.acceptDelivery?.(result.delivery); checkpoint();
-        if (result.credential !== env.credentialRevision) return loading;
-      }
+      if (result.credential !== undefined && result.credential !== env.credentialRevision) return loading;
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server" || origin === "composed") {

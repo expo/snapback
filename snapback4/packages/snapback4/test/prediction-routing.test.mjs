@@ -834,3 +834,16 @@ for (const retry of [false, true]) for (const localDue of [false, true]) for (co
     if (watch) assert.equal(watch.dirty, localDue || retry);
   });
 }
+
+for (const retainedRows of [false, true]) test(`composed delivery omits coordinates from replaced server rows (rows=${retainedRows})`, async () => {
+  const f = routing(); f.entries = [];
+  f.outcome = retainedRows
+    ? { data: [{id:'local'}], unknown: true, complete: false, tables:['posts'], retainedRows:[{source:['posts','local'],retained:true,fields:{}}] }
+    : { data: {history:['local'],online:[]}, unknown:true, complete:false, tables:['posts'], components:{history:{retained:true},online:{unknown:true}} };
+  f.env.post = async () => ({ok:true,obsoleteAuth:false,json:{data:retainedRows?[{id:'server'}]:{history:['server'],online:['current']}, complete:true,
+    delivery:[{table:'posts',mutation:'delivered',fingerprint:'f',args:['g','a','b'],rows:[['c',41]]}],rowProvenance:[{source:['posts','server'],fields:{}}]}});
+  let accepted=0;f.env.acceptDelivery=async()=>{accepted++;};
+  const result=await evaluateLocal(f.env,op,input,0,0);
+  assert.ok('data' in result.read);assert.equal(result.delivery,undefined);assert.equal(accepted,0);
+  if(!retainedRows)assert.deepEqual(result.read.data.history,['local']);
+});

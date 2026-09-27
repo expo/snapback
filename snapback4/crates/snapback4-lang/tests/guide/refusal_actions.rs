@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_DELIVERY_BINDING", &["drops that binding's debt", "does not retry the old report"]),
     ("E_FIELD_AUTHORITY", &["Name a required principal column on this table, declare a default, and omit the field when writing another principal's row."]),
     ("E_SEQUENCE_PARENT", &["Do not supply a value or default."]),
     ("E_SEQUENCE_SUPPLIED", &["Declare an engine sequence."]),

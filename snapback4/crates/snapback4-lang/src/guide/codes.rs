@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_DELIVERY_BINDING", "the report names a changed or removed delivery binding. Drop that binding’s debt and collect under the current fingerprint; do not retry the old report. guide receipts."),
     ("E_QUARRY_EPHEMERAL", "ephemeral life is 1–60 seconds. Keep durable custody, rules that probe memory, held reads and durable writes out of ephemeral tables. Split mixed mutations and read ephemeral state in its own server query; guide ephemeral."),
     ("E_EPHEMERAL_FULL", "ephemeral memory is full for this principal or the server. No write applied. Wait for rows to expire or remove your rows, then retry; guide ephemeral."),
     ("N_EPHEMERAL_SERVER", "this query runs on the server because it reads ephemeral state. Split the ephemeral read into its own query and render it next to the device-held one; guide ephemeral."),
