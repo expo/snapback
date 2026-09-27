@@ -65,14 +65,12 @@ column the scan does not pin) is never `complete`: the server cannot tell
 partition holds exactly what the viewer may read. `check` says so
 (`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
 (`N_NO_CURSOR`), a synced table whose groups can grow with no horizon
-(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`). A single-group
-page omits the cursor note when its bound covers the group cap and that cap
-fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
-other metered work can also cut a read.
-For a page of 50 pinned by `conversationId`, either declare `c: cursor ?`
-and page with `after c`, or add `cap 50 by conversationId` to the table if
-that is the intended group limit. An unscoped plain page can use `cap 50`.
-The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
+(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).
+`complete` means the query answered its declared request within known coverage and execution limits.
+Filling `first N` or `last N` is complete, including a composed preview.
+A cursorless page cannot continue; declare `c: cursor ?` and use `after c`
+if the screen pages. Composed fields and pages covering a fitting group cap
+omit `N_NO_CURSOR`.
 
 ## Operations
 
