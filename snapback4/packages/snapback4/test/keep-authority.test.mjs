@@ -7,6 +7,7 @@ import { armReadExpiry, correctReadExpiries, holdReadExpiry } from "../dist/read
 import { bindWatchPeek, observeWatch, peekObservation } from "../dist/observe-watch.js";
 import { RememberedAnswers } from "../dist/local-reads.js";
 import { ServerClock } from "../dist/clock.js";
+import { deferReadNotifications } from "../dist/read-notifications.js";
 
 const q = { kind: "query", name: "read" }, options = { keep: true };
 const ready = data => ({ data, complete: true, fresh: true, next: null, cut: null });
@@ -17,6 +18,32 @@ async function until(check) {
 }
 
 import { fixture } from "./helpers/authority-fixture.mjs";
+
+for (const keep of [undefined, true]) for (const transition of ["reload", "replacement"]) {
+  test(`opening remount receives the revalidating mark during ${transition}, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+    f.hold();
+    const remount = f.client.observe(q, {}, opts), seen = [];
+    remount.subscribe(() => seen.push(remount.getSnapshot()));
+    const original = remount.getSnapshot(), subscribers = f.owner().subscribers.size;
+    assert.equal(original.revalidating, undefined);
+    const deliver = deferReadNotifications(() => {
+      if (transition === "reload") f.owner().reload();
+      else f.owner().publish(ready("B"));
+    });
+    assert.equal(seen.length, 0, "shared delivery waits for the whole transition");
+    deliver();
+    assert.equal(seen.length, 1, "the opening remount is notified before its authority check completes");
+    assert.deepEqual(seen[0], { ...original, revalidating: true });
+    assert.equal(f.owner().subscribers.size, subscribers, "the remount has not attached to the raw source");
+    f.owner().reload();
+    assert.equal(seen.length, 1, "an unchanged held snapshot needs no notification");
+    remount.close(); watch.close();
+  });
+}
 
 for (const domain of ["device", "server"]) for (const trigger of ["timer", "correction"]) {
   test(`facade holds A until its ${domain} deadline (${trigger}), including a lingering remount`, async t => {

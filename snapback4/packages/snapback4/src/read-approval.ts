@@ -42,7 +42,11 @@ export class ReadApprovals {
     };
     const episode = new ReadEpisode(() => { withdraw()(); });
     const expiry = holdReadExpiry(owner, withdraw);
-    const update = (next: Read<unknown>) => { held.snapshot = next; episode.arm(next); };
+    const update = (next: Read<unknown>) => {
+      const changed = held.snapshot !== next;
+      held.snapshot = next; episode.arm(next);
+      return changed ? notify : undefined;
+    };
     update(read);
     held.read = () => { expiry.check(); episode.check(); return held.snapshot; };
     const follow: Parameters<typeof owner.followers.add>[0] = change => {
@@ -50,8 +54,9 @@ export class ReadApprovals {
       if (change === "reset" || !("data" in next)) {
         return drop("data" in next ? { loading: true } : next);
       }
-      if (answerIdentity(next) === answerIdentity(held.snapshot)) update(next);
-      else update(revalidatingAnswer(held.snapshot, !owner.linger));
+      // Opening remounts listen here before they subscribe to the raw source.
+      return update(answerIdentity(next) === answerIdentity(held.snapshot) ? next
+        : revalidatingAnswer(held.snapshot, !owner.linger));
     };
     const release = () => {
       expiry.release(); episode.clear();
