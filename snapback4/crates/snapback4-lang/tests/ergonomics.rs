@@ -119,17 +119,13 @@ fn s12_text_handle_is_not_a_conversation_id() {
 }
 
 #[test]
-fn s09_s10_l12_two_enum_errors_do_not_hide_optional_call_narrowing() {
-    let source = include_str!("fixtures/ergonomics-m5.q");
-    let bound = bind("chat.q", source);
-    println!("L12 m5:\n{}", texts(&bound).join("\n\n"));
-    assert_eq!(bound.diagnostics.len(), 2);
-    for d in &bound.diagnostics {
-        assert_eq!(d.message, "+ needs present numbers; got time and int ?");
-        assert_eq!(d.rewrite, "bind the optional call once: `ttl = disappearance(c.disappearing)`; use `now + ttl if ttl != null else null`");
-    }
+fn s09_s10_l12_pure_optional_calls_now_narrow_without_a_temporary() {
+    let source = include_str!("fixtures/qe/ergonomics-m5.q");
+    let bound = clean("chat.q", source);
     let fixed = source.replace("  msg = insert", "  ttl = disappearance(c.disappearing)\n  msg = insert").replace("now + disappearance(c.disappearing) if disappearance(c.disappearing) != null else null", "now + ttl if ttl != null else null");
-    let bound = clean("chat.q", &fixed);
+    let fixed = clean("chat.q", &fixed);
+    assert_eq!(bound.schema.tables, fixed.schema.tables);
+    assert_eq!(bound.programs[0].result, fixed.programs[0].result);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([("conversations".into(), snapback4_core::value::object([("id", Value::Id("c1".into())), ("disappearing", Value::String("24h".into())), ("lastOrdinal", Value::Int(0)), ("lastMessageId", Value::Null)]))]).unwrap();
     let result = engine.mutate("chat.send", Some("write"), Context::new("alice", BTreeMap::from([("messageId".into(), Value::Id("m1".into())), ("conversationId".into(), Value::Id("c1".into())), ("body".into(), Value::String("hello".into()))])).at(1000)).unwrap();

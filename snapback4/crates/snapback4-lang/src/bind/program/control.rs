@@ -422,6 +422,8 @@ impl Binder<'_> {
                     if present { binding.ty = binding.ty.required(); }
                     binding.fields.insert(path, if present { ty.required() } else { Ty::Null });
                     self.scopes.last_mut().expect("a scope").insert(name.to_owned(), binding);
+                } else {
+                    self.narrow_call(candidate, (op == "!=") == then_branch);
                 }
             }
             _ => {}
@@ -537,7 +539,9 @@ impl Binder<'_> {
 
     pub(super) fn fn_call(&mut self, function: &ast::FunctionDecl, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let bindings = self.helper_arguments(&function.name, &function.args, args, site, out)?;
+        let start = out.len();
         let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
+        self.declare(pure_calls::CONSTANTS, Ty::Null);
         let focal = self.focal.take();
         let loops = std::mem::take(&mut self.loops);
         // @ref LLP 3000.019#6 — remove the measured helper/inline placement discrepancy.
@@ -563,6 +567,9 @@ impl Binder<'_> {
                 })
             }
         };
+        if let Ok((value, _)) = &result {
+            self.pure_functions.insert(function.name.clone(), pure_calls::statements(&out[start..]) && pure_calls::expression(value));
+        }
         self.depth -= 1;
         self.returns = returns;
         self.loops = loops;
@@ -638,7 +645,7 @@ pub(super) fn exits(statements: &[Stmt]) -> bool {
 /// Only lexical snapshots have stable fields; repeated database reads do not.
 // @ref LLP 3000.019#3.2 — the aggregate's declared row is a lexical snapshot;
 // null guards inside its value expression refine `.field` for that row only.
-fn field_path(expr: &A, focal: Option<&str>) -> Option<(String, Vec<String>)> {
+pub(super) fn field_path(expr: &A, focal: Option<&str>) -> Option<(String, Vec<String>)> {
     match expr {
         A::Name { name, .. } => Some((name.clone(), Vec::new())),
         A::Focal { .. } => Some((focal?.to_owned(), Vec::new())),

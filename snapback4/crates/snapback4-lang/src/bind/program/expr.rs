@@ -137,7 +137,11 @@ impl Binder<'_> {
                 let (value, ty) = self.member(e, t, name, site)?;
                 Ok((value, self.field_refinement(expr).unwrap_or(ty)))
             }
-            A::Call { name, args, .. } => self.call(name, args, site, out),
+            A::Call { name, args, .. } => {
+                let (value, ty) = self.call(name, args, site, out)?;
+                self.record_call(expr, &ty);
+                Ok((value, self.call_refinement(expr).unwrap_or(ty)))
+            },
             A::Read(read) if read.table == "connected" && !self.catalog.tables.contains_key("connected") => self.connected(read, out),
             A::Read(read) => self.read(read, out),
             A::Merge(merge) => self.merge(merge, out),
