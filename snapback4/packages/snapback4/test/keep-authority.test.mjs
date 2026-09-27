@@ -52,6 +52,29 @@ for (const keep of [undefined, false, true]) {
 }
 
 for (const keep of [undefined, true]) {
+  for (const join of ["before", "after"]) test(`opening remount joins ${join} withdrawal and is notified on shared reapproval, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+    const opening = Promise.withResolvers(); t.after(() => opening.resolve(true));
+    let remount;
+    const open = () => { f.gateChecks([opening]); remount = f.client.observe(q, {}, opts); };
+    if (join === "before") open();
+    f.owner().publish({ loading: true });
+    for (const notify of f.owner().subscribers) notify();
+    if (join === "after") open();
+    assert.deepEqual(remount.getSnapshot(), { loading: true });
+    const seen = [];
+    remount.subscribe(() => seen.push(remount.getSnapshot()));
+    f.publish("B"); await until(() => watch.getSnapshot().data === "B");
+    assert.equal(f.owner().subscribers.size, 1, "the opening check is still blocked");
+    assert.equal(remount.getSnapshot(), watch.getSnapshot());
+    assert.deepEqual(seen, [remount.getSnapshot()], "reapproval uses the same notification owner after clearing the old data");
+    assert.equal(f.owner().followers.size, 1);
+    remount.close(); watch.close();
+  });
+
   for (const stage of ["opening", "waiting"]) test(`closing an ${stage} facade captures its last shared answer, keep=${keep}`, async t => {
     const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
     const peer = f.client.observe(q, {}, opts);

@@ -15,7 +15,10 @@ export class ReadApprovals {
   private readonly releases = new Set<() => void>();
   private readonly drops = new WeakMap<ReadObservation<unknown>, (read: Read<unknown>) => () => void>();
 
-  peek(read: Read<unknown>): Read<unknown> | undefined { return this.get(read)?.read(); }
+  peek(read: Read<unknown>): Read<unknown> | undefined {
+    const owner = answerObservation(read);
+    return owner && this.drops.has(owner) ? this.answers.get(owner)?.read() : undefined;
+  }
   get(read: Read<unknown>): ApprovedAnswer | undefined {
     const owner = answerObservation(read);
     return owner ? this.answers.get(owner) : undefined;
@@ -62,10 +65,12 @@ export class ReadApprovals {
       expiry.release(); episode.clear();
       owner.followers.delete(follow);
       this.releases.delete(release);
-      this.answers.delete(owner);
       this.drops.delete(owner);
+      // Keep one empty slot so opening remounts follow the next approval too.
+      held.snapshot = { loading: true };
+      held.read = () => held.snapshot;
     };
-    const drop = (read: Read<unknown>) => { held.snapshot = read; release(); return notify; };
+    const drop = (read: Read<unknown>) => { release(); held.snapshot = read; return notify; };
     this.answers.set(owner, held);
     this.drops.set(owner, drop);
     this.releases.add(release);

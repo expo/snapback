@@ -1214,6 +1214,7 @@ and tracks the held answer's own device and server deadlines through clock
 corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
 immediately, including failure, link loss, and a replacement's earlier expiry.
+Opening remounts also receive notification when a peer approves an answer after withdrawal.
 An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
 delivering read or link callbacks, including callbacks from lingering remounts.
