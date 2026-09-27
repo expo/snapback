@@ -96,6 +96,36 @@ fn sqlite_residency_tracks_unicode_rollback_clear_and_other_owners() {
     check_rows(&mut Device::open(&path, None).unwrap());
 }
 
+#[cfg(unix)]
+#[test]
+fn shared_sidecar_lock_allows_device_commits_and_reopen() {
+    use std::{fs::{self, OpenOptions}, os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt}};
+    let (mut server, backend) = server();
+    let host = Sqlite::new("residency-sidecar");
+    let path = host.path("store");
+    let sidecar = std::path::PathBuf::from(format!("{}-owner", path.display()));
+    let lock = OpenOptions::new().read(true).write(true).create_new(true).mode(0o600).open(&sidecar).unwrap();
+    lock.try_lock_shared().unwrap();
+    // Darwin makes flock conflict with SQLite's fcntl locks on the same inode.
+    // Keep this independent shared owner alive through initialization, durable
+    // sync writes and reopening, so the regression also runs on macOS/iOS.
+    let mut device = Device::open(&path, Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut server, "dev:alice", 100).iter().enumerate() {
+        device.apply(page, n == 0).unwrap();
+    }
+    let expected = check_rows(&mut device);
+    assert_eq!(expected["tables"]["messages"]["rows"], 120);
+    let database = fs::metadata(&path).unwrap();
+    let owner = fs::metadata(&sidecar).unwrap();
+    assert_ne!((database.dev(), database.ino()), (owner.dev(), owner.ino()));
+    assert_eq!(owner.permissions().mode() & 0o777, 0o600);
+    drop(device);
+    let mut reopened = Device::open(&path, None).unwrap();
+    assert_eq!(check_rows(&mut reopened)["tables"], expected["tables"]);
+    drop(reopened);
+    drop(lock);
+}
+
 #[test]
 fn old_large_store_upgrades_once_and_reports_without_a_partition_scan() {
     let (_, backend) = server();
