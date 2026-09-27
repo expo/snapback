@@ -67097,3 +67097,55 @@ assertion or runtime ceiling relaxation. No known open problem in this scope.
 Final reference audit: 515 LLP docs, 9,569 refs, zero errors or unchecked;
 whitespace check passes. Full-suite log SHA-256:
 `9186528832fa4f6be8f9a8f82f808fddf700ed4539c5665a48e3346e5f72d4bb`.
+
+
+## 2026-09-27 — A5 round 3: overtaken snapshot continuations never persist a restore halt
+
+Read the lane prompt, the reports and journal through round 2, and both full
+round-2 reviews (Grok READY; Astra READY WITH CHANGES). Committed the bounded
+runtime/tests/LLP correction as `36247cf00`; no merge, push or publication.
+An overtaken snapshot continuation now returns `E_GENERATION` before either
+restore check can persist a halt. Only a fresh first snapshot page supplies
+snapshot-as-head evidence below published progress. LLP 3000.019 §3.5 now
+states the distinction; genuine upgrade restores still persist their refusal.
+
+The device regressions run the 1-to-2 owner ordering on memory and SQLite,
+including terminal and nonterminal continuations, current capture, application,
+observation and reopen. A real HTTP `createLocalClient` regression keeps A open
+while B publishes to the shared native store, then checks A's older continuation
+and healthy offline reopen. Restore fixtures cover empty 5000/100 and populated
+12/7 pages. Valid, absent and malformed `once` receipts revoke live ordinary
+handles, remove files/manifests and never copy or retain the `once` body. The
+`once` implementation was already correct and did not change.
+
+Affected checks: 175/175 clients; device media 12/12, retained history 20/20,
+deferred boundaries 6/6, store-reset 10/10, whole guide 86/86. Builds, typecheck
+and frozen install pass. All eight named mutations fail: round-2 continuation
+behavior, empty-event-only restore, hardcoded restore watermarks, the pre-round-2
+restore predicate, equal-head restore and premature terminal format stamping
+produce two Rust failures each; unguarded foreign `once` produces one Blob
+failure; receipt-less preservation produces two. Every mutation was restored
+before the final affected checks and the complete run.
+
+Production wasm: round 2 1,980,820 raw / 571,988 gzip bytes; round 3 1,980,999
+raw / 572,131 gzip bytes, **+179 raw / +143 gzip**, **710 B below** the unchanged
+572,841-byte budget. The full run reproduces it. No server placement,
+authorization, meter, version, public API or other runtime change.
+
+Observed remaining boundary, left outside this narrow fix: after B publishes
+the first store identity, A's still-open interpreter can keep
+`backend_required: true`, `acquired: false` across five explicit sync attempts.
+There is no persisted restore refusal; closing/reopening A reads B's rows
+wholly offline. The report gives the committed HTTP ordering and diagnostic
+probe needed to reproduce it. No claim of automatic same-owner convergence.
+
+Ran `scripts/test.sh` **once**, exit **0**: `== 0 failure(s) in 1488 s`.
+All phases passed. Rust: 236 binaries, 949 executions plus doctests, 3,797
+passes, zero failures, 24 intentional ignores (1,008 s). Ordinary clients:
+2,583 tests, 2,573 passes, zero failures, 10 skips (195 s). Models: 78/78,
+zero failures/skips (262 s). No lane-owned, baseline or environmental failure;
+no full rerun. Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo jobs
+and eight Rust processes, normal parallel clients, no assertion/count/timeout
+relaxation. Report: `reports/20260927-lane-a5-list-offline.md`, round 3;
+evidence: ignored `target/a5-evidence/round3-*`. Full-suite log SHA-256:
+`0fb4b438e83ec8238a9ebbefe00f7d9884e72615b8b7ef1a2bcdb9758e459ce9`.

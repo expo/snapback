@@ -566,3 +566,161 @@ and LLP), followed by the report/journal evidence commit. Every commit carries
 Final post-documentation reference audit: **515 LLP docs, 9,569 refs in 27,050
 files, 0 errors, 0 unchecked**; `git diff --check` passes. Full-suite log SHA-256:
 `9186528832fa4f6be8f9a8f82f808fddf700ed4539c5665a48e3346e5f72d4bb`.
+
+## Round 3 — 2026-09-27 (final round)
+
+Read the lane prompt, rounds 0–2 reports and journal entries, and both round-2
+reviews in full: Grok READY and Astra READY WITH CHANGES. No merge, push or
+publication. This round changes only the requested restore classification,
+its regressions, receipt-less `once` coverage and the associated records.
+
+### Built, file by file
+
+Paths are relative to `snapback4/`, except the LLP.
+
+- `crates/snapback4-device/src/device/store_identity.rs`: reject a snapshot
+  continuation (`after` present) below published progress with `E_GENERATION`
+  before either restore check can persist a halt. Infer snapshot-as-head only
+  from a fresh first page. Preserve actual same-store restore refusal.
+- `crates/snapback4-device/tests/asset_lists.rs`: memory/SQLite regressions
+  stage A at watermark 1, advance the real engine, publish B at 2, capture 2
+  for A, then request its old continuation. Both nonterminal and terminal
+  responses retain 1; observation and application must return `E_GENERATION`,
+  retain B's five rows and watermark, and remain healthy after reopen. The
+  host-mediated scenario persists and reopens owners between turns; the HTTP
+  test below supplies simultaneous native owners. Restore tests retain the
+  original empty 5000/100 page and add a populated 12/7 page, both nonterminal,
+  requested from zero without `images_at`, with durable refusal after reopen.
+- `packages/snapback4/test/asset-lists.test.mjs`: one real HTTP regression
+  keeps native owner A open while B publishes into their shared SQLite store.
+  `createLocalClient` captures B's progress before requesting A's old,
+  nonterminal continuation; it receives `E_GENERATION`, never a durable
+  `E_STORE_RESTORE`, and reopened offline queries retain B's touched row.
+- `packages/snapback4/test/asset-blob-lifecycle.test.mjs`: parameterize current
+  `once` invalidation with valid, absent and malformed receipts. Keep an ordinary
+  Blob URL live until invalidation; assert URL revocation, manifest and file
+  removal, exactly one ordinary-byte copy/write, no `once` body retention,
+  transient-Blob ownership and offline refusal after cache reopen. No change
+  to `local-assets.ts` was needed.
+- `../llp/3000.019-what-the-builder-still-wrote.rfc.md`: narrow §3.5 to fresh
+  first pages, state the pinned-continuation exception and receipt-less `once`
+  invalidation, and record the regression evidence and revision.
+- `JOURNAL.md`: one appended dated round-3 entry.
+- `reports/20260927-lane-a5-list-offline.md`: this round-3 section.
+
+### Forms and affected verification
+
+No new Quarry or public client API. The existing forms remain:
+
+- `images: image <=10000 ?` — scalar upgrade and offline reopen.
+- `images: [image <=10000] <=4 ?` — list retention under
+  `createLocalClient({ ..., assets: { keep: "viewed", maxBytes: 10000 } })`,
+  then `await client.sync(); await client.asset(id)`.
+- `secrets: [image <=10000 once] <=4 ?` — a transient `await client.asset(id)`;
+  `Accept-Ranges: none` invalidates current cached ordinary bytes even without
+  a valid home receipt, and retains none of the response body.
+- Snapshot `after: <A's token>, from: 0`, with published/captured watermark 2
+  and pinned page watermark 1 — `E_GENERATION`; a fresh snapshot below 2 still
+  supplies restore evidence. Same-head snapshots keep their existing path.
+
+Final affected Rust checks: device media **12/12**, retained history **20/20**,
+deferred boundaries **6/6**, device store-reset **10/10**, whole guide **86/86**.
+Frozen Bun install, native build, wasm build, package build and typecheck pass.
+Affected list/Blob, all server-clock and all store-reset clients: **175/175**,
+zero failures or skips (55.991 s). List/Blob alone account for 63 cases.
+Reference audit: **515 LLP docs, 9,571 refs, 0 errors, 0 unchecked**; whitespace
+check passes. Changed source files are at most 656 lines.
+
+### Named mutations: all fail
+
+Temporary Rust edits were compiled and tested one at a time, then restored.
+The JS controls temporarily edited the generated `dist/local-assets.js`, then
+restored it; no mutated source or generated artifact is committed.
+Logs: `target/a5-evidence/round3-mutant-<name>.log`; machine-readable outcomes:
+`round3-rust-mutations.json` and `round3-blob-mutations.json` in that directory.
+
+| Mutation / evidence name | Failing regression | Result |
+| --- | --- | --- |
+| Restore round-2 continuation behavior (`overtaken-round2`) | `overtaken_snapshot_memory/sqlite` | exit 101; 2 failures |
+| Require empty snapshot events (`restore-empty-events`) | `media_upgrade_restore_memory/sqlite`, populated page | exit 101; 2 failures |
+| Hardcode watermark 100 / published 5000 (`restore-hardcoded-watermarks`) | same tests, 12/7 page | exit 101; 2 failures |
+| Remove snapshot restore arm (`restore-old-predicate`) | both original upgrade-restore regressions | exit 101; 2 failures |
+| Change published `<` to `<=` (`restore-equal-head`) | healthy equal-head scalar/list upgrades on both stores | exit 101; 2 failures |
+| Stamp format at terminal staging (`premature-format-stamp`) | terminal-interruption upgrade tests on both stores | exit 101; 2 failures |
+| Remove serialized `once` store guard (`once-unguarded`) | foreign-store serialized Blob test loses ordinary file | exit 1; 1 failure |
+| Guard on `!receipt || foreign store` (`once-receiptless-guard`) | absent and malformed `once` cases retain stale ordinary bytes | exit 1; 2 failures |
+
+All affected checks were rerun with the mutations removed. During fixture
+construction, the HTTP witness was corrected to expect an omitted optional
+refusal field and to respect the existing owner-adoption boundary described
+below; no extra product change was made.
+
+### Wasm, scope and remaining boundary
+
+Production `scripts/build-wasm.sh`, Rust 1.97.0 / wasm-bindgen 0.2.127,
+`CARGO_INCREMENTAL=0`, no wasm-opt:
+
+| Artifact | Raw B | Gzip B |
+| --- | ---: | ---: |
+| Round 2, measured before edits | 1,980,820 | 571,988 |
+| Round 3 | 1,980,999 | 572,131 |
+| Round-3 delta | +179 | +143 |
+
+Final gzip is **710 B below the unchanged 572,841 B budget**. Whole-artifact
+measurement. Before SHA-256:
+`8748eaf2d95b77d1242a887e87105722719231bd38f83cf4ea964a7ff783d79e`;
+after SHA-256:
+`8f84511926747dcc06525d6c2bcf342326243fcb1911011d576119a587ff79f3`.
+Artifacts and logs are under ignored `target/a5-evidence/round3-*`.
+
+No design or scope deviation. Server placement, authorization, meters, budgets,
+package versions and public spellings are unchanged. The extra populated restore
+fixture addresses Grok's named surviving mutations within the requested restore
+regression scope.
+
+**Observed remaining owner-adoption limitation:** in the simultaneous native
+initial-acquisition fixture, A's still-open interpreter can report
+`backend_required: true`, `acquired: false` after B publishes the first store
+identity. Five explicit sync attempts over roughly 1.5 seconds did not adopt it;
+no restore refusal is persisted and closing/reopening A reads B's rows offline.
+Reproduction: the committed final HTTP test's A-stage/B-publish ordering; before
+closing A, repeat `local.sync()` and inspect `core.call({ op: "sync_state",
+capture: false })`. Probe: `target/a5-evidence/round3-owner-recovery-probe.log`.
+This round leaves ownership/adoption behavior unchanged as requested and makes
+no claim that the same open owner automatically converges. Neither requested
+finding remains open.
+
+### Required complete suite
+
+Implementation/tests/LLP commit: `36247cf00`, with the required co-author trailer.
+
+Ran `scripts/test.sh` **exactly once**, on implementation commit `36247cf00`,
+exit **0**. Exact final summary:
+
+```text
+== 0 failure(s) in 1488 s
+```
+
+Every phase passed. Rust: **236 test binaries, 949 executions plus workspace
+doctests; 3,797 passed, 0 failed, 24 intentional ignores** (1,008 s). Ordinary
+clients across the main process and seven shards: **2,583 tests, 2,573 passed,
+0 failed, 10 skips** (195 s). Client models: **78/78 passed**, no failures or
+skips (262 s). The full script reproduced **1,980,999 B raw / 572,131 B gzip**.
+
+**Every full-suite failure:** none — no lane-owned, baseline or environmental
+failure to classify. No full-suite rerun.
+
+Environment: Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127;
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_BUILD_JOBS=8`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, `FORCE_COLOR` unset. The script chose normal
+parallel client scheduling at host load 7.97 across 96 CPUs. No assertion,
+timeout, count or runtime ceiling was relaxed.
+
+Full log: `target/a5-evidence/round3-full-suite.log`; exit:
+`target/a5-evidence/round3-full-suite.exit`; log SHA-256:
+`0fb4b438e83ec8238a9ebbefe00f7d9884e72615b8b7ef1a2bcdb9758e459ce9`.
+
+Commits: `36247cf00` (runtime, tests and LLP), followed by the round-3
+report/journal record. Both carry
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
