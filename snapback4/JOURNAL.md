@@ -68011,3 +68011,107 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+## 2026-09-27 — DQ2: Darwin repairs for the 0.4.5 qualification
+
+Lane `sb4/dq2-darwin-045`, from `10f69a7447`, on the black M5:
+macOS 26.6.2 (25G83), arm64, 18 CPUs; Node 24.18.0, Bun 1.4.2,
+rustc 1.97.0. Read the publication attempt-1 log in `snapback-pub-045`
+and the 0.4.4 DQ entry before reproducing. Oriented against LLP 3000,
+LLP 2000.000, LLP 3000.021 §3.3, LLP 3000.019 §3.6, and LLP
+3000.008.002.000 §3 plus CLIENT-AND-OPERATIONS. No new design or changed
+contract. Raw logs and controlled reproductions are retained, ignored, under
+`target/lane-dq2/`.
+
+- **Linux resolver:** reproduced `/var/folders` versus `/private/var/folders`.
+  The checkout, installed-package and override assertions now compare both
+  sides through `realpathSync`, preserving selection and precedence.
+- **Linux qualifier:** the mock already supplies Linux/x64. The actual fault
+  was the CLI entrypoint comparing an uncanonicalized argv path to Node's
+  canonical module URL: it exited zero without executing `qualify()`. The
+  real entrypoint now canonicalizes argv. Every harness case invokes a
+  symlink, making the regression observable on Linux as well as Darwin.
+  Two new cases assert Darwin/arm64 and Linux/arm64 refuse before any tool
+  call. No environment bypass or relaxed production host check was added.
+  The two files reproduced 16 failures in 23 tests, then passed 25/25,
+  including receipt/digest binding, redirected Cargo output, all six failure
+  scenarios, six container/proot proof guards and proot provenance.
+- **Native W6d eviction:** ran the entire unchanged client-seams file ten
+  times (63 tests each). The named native case passed 10/10, taking
+  2.501–4.620 s. File totals were 628 passed and 2 failed; the unrelated
+  failures are recorded below. A controlled 4,200 ms reply delay reproduced
+  the exact `pending !== sent` assertion: the foreground wait returned at
+  4,002.630 ms, and that same id subsequently became sent with one POST.
+  This is a load-sensitive test assumption about the documented four-second
+  wait, not evidence of a Darwin product defect. The historical log cannot
+  identify which OS scheduling delay expired the wait. The test now follows
+  pending returns through `write(id)` to a terminal outcome, still asserting
+  sent (a terminal failure fails immediately), all 256 evictions, canonical
+  input equality, E_WRITE_RECEIPT_EXPIRED, exact 257/258 POST counts and
+  same-id recovery after reopen. A forced zero-wait admission at n=128 pins
+  the pending path on all three tiers without a timed sleep. All three
+  updated cases pass, including the native 4,200 ms delayed-reply control.
+- **Worker/adoption:** the original and delayed-exit cases passed ten
+  baseline repetitions. Holding the child for 500 ms after creating `ready`
+  but before writing its contents produced a zero-byte token and reproduced
+  `worker/adoption setup did not reach dead worker claim queued`. An empty
+  bearer is refused before the writer queue. The E_STORE/not-authorized
+  adoption message is the deliberate SQLite authorizer denial, printed when
+  panic cleanup releases its gate, not the cause of missing claim admission.
+  The fixture now closes the complete token in `ready.tmp` before renaming
+  it to `ready`. A new gated test pauses with the temporary file open and
+  asserts readiness has not been published. The refusal assertion now also
+  pins E_STORE and `not authorized`. The original two-second read bounds,
+  writer ordering, family revocation, zero effect attempts, 401/E_AUTH,
+  restart and child-reaping assertions remain. The three cases pass 10/10
+  repetitions (30 tests); the broader adoption group passes 18 tests with
+  2 pre-existing ignores.
+
+**Other observed failures:** unmodified client-seams runs 5 and 7 failed
+`W8R1a native server-run observations retain nothing during a replacing
+fetch`, at original line 844: its ten-second wait for all observations to
+become loading after going offline expired. This is a separate baseline
+flake; its underlying cause was not established or changed by this lane.
+It passed all three tiers in the full run (native: 280.436 ms).
+The initial fresh-tree package build also failed TS2307 because generated
+wasm bindings were absent; running build-wasm before the package build
+resolved that setup error. Frozen Bun installation passed. Deliberately
+red control runs and the pre-fix Linux tests remain in the evidence.
+
+**One full suite, exact result:** ran `bash scripts/test.sh` once at
+`1e5cf1cee8`, with no tracked edits during the run. Used Node 24.18.0 on
+PATH, `CARGO_BUILD_JOBS=2`, `SNAPBACK4_RUST_TEST_PROCESSES=2`,
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`, and the publication SQLite build
+input `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Only this full
+suite ran in the lane; no other session's process was killed. Cold compilation
+and the loaded host made it slow; a sampled guide process stalled before main
+in dyld and later progressed without intervention. No timeout or budget was
+relaxed.
+
+```text
+== 1 failure(s) in 5000 s
+   client tests
+```
+
+Exit status 1. Cargo passed all 950 inventory executions plus doctests
+(3,853 passed, 0 failed, 24 existing ignores); client tests reported 2,701
+total, 2,691 passed, 1 failed, 9 existing skips; fixtures passed 9/9;
+client models passed 78/78. Every other named stage passed. The four requested
+repairs all passed in this run. The complete output and exit status are
+`target/lane-dq2/full-suite.log` and `target/lane-dq2/full-suite.exit`.
+
+The **only full-suite failure** was the unchanged
+`publication-roundtrip.test.mjs:29` success case, "unchanged round-trip proof
+executes version/init/check/dev, client write/read and denied cross-persona
+read" (assertion at line 33). The proof exited zero and printed success, but
+its exact event trace compared the canonical `process.cwd()` paths under
+`/private/var` with the fixture's `/var` paths. A separate unchanged-file run
+reproduced 13 passes and 1 failure. After the full suite finished, canonicalized
+the fixture root with `realpathSync`; no trace assertion changed. All 14 tests
+then passed in `target/lane-dq2/roundtrip-fixed.log`. This is a follow-up fix,
+not a green full-suite claim: the full suite was not run again.
+
+Implementation commits: `c207ca6c90` (canonical paths), `bda34d344b`
+(atomic readiness), `1e5cf1cee8` (terminal receipt assertions), and
+`891f76572a` (round-trip fixture root). This entry
+is the single dated journal append. No push or publication.
