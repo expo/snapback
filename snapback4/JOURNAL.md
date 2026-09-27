@@ -71586,3 +71586,68 @@ on a shared path. No unresolved assigned finding or independent new review
 claim. Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
 ignored evidence: target/lane-kg-r12/. This is the single round-12 append.
+
+
+## 2026-09-27 — DC round 11: DS/DC/KG integration
+
+Integrated main `608f9cc4c`, then DS round 4 `d6526a21d`, then KG round 12b
+`d7c6e375f` into `sb4-intent/dc-delivery-client`. KG was not yet an ancestor
+of fetched main. Both requested lane tips are ancestors of the final branch.
+The main, DS and KG merges are `e629ba47a`, `00848f72c` and `fb2b01ae1`.
+All parent journals survive in order and all prior lane report files retain
+their bytes. No push or publication; no wait for round-10 review.
+
+Kept DS's shared binding/streaming decoder, fingerprint function and writer
+check; retained its self-describing emitter with DC's readers and queue.
+The merged receipts card says SDK reports/server consumes, RUNS_FULL parks,
+and E_BOUND is an ordinary non-retryable refusal until the next start. ER's
+sequences referral and the seen-only hook remain. Both guide registries and
+React assertion sets survive. KG's all-policy authority/retention lifecycle
+coexists with DC's accepted-manifest and queue reset/stop boundaries. A small
+helper extraction keeps local.ts at 1,500 lines. Clean-merge duplicate schema
+fields and diagnostic arms were removed. ROUND11.md explains each resolution.
+
+Three new real-server tests cover online, wasm fallback and wasm publication:
+an independent Node hash agrees with the Rust compiler/server fingerprint,
+real reports cover 41 and 43 without inventing 42, persisted device debt is
+acknowledged, same-ID replay and new-ID covered no-ops advance no sequence,
+and the writer refuses a stale fingerprint. No manifest is injected.
+
+LLP 3000.022 DS/DC integration with KG (2026-09-27, lane DC round 11): scripts/build-wasm.sh on Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt measures 2,019,815 B raw / 585,193 B gzip. Against main’s recorded 0.4.4 artifact (1,980,253 B raw / 571,841 B gzip), the whole-artifact delta is +39,562 B raw / +13,352 B gzip; the recorded control was not rebuilt and no per-component attribution is claimed. The device gains the SDK delivery queue’s device side, publication-time collection into persisted debt, and the self-describing manifest and binding codecs. The TypeScript queue and KG’s approval/observation logic are outside this wasm artifact. The supervisor’s integration ruling sets measured gzip plus 1,000 B slack = 586,193 B. Runtime meter ceilings are unchanged. See reports/20260927-dc-delivery-client/ROUND11.md and the round-11 journal entry.
+
+Focused qualification: delivery/clause/integration/replay 26 pass (one
+optional measurement ignored); device delivery 30; internal core delivery 3;
+HTTP delivery 6; PostgreSQL delivery 3, each in Serialized and Serializable
+mode; queue/integration/census/browser/routing 356; approval lifecycle/model/
+oracle 874 with 240 seeds per policy; React 51; additional keep/retention 569;
+whole guide 90; consumer TypeScript routes 9. Package checks, source/artifact
+censuses and ref-check pass. Tools stayed inside the worktree; the private
+socket-only PostgreSQL cluster was stopped after testing.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+```text
+== 0 failure(s) in 1712 s
+```
+
+No full-suite failures (ours, baseline or environmental). Rust 4,126 pass,
+zero fail, 30 existing ignores; included device 1,367 pass, three existing
+ignores. Main clients 4,151 pass, zero fail, ten existing skips; additional
+shards 56/56; fixture wrappers 9/9; final models 79/79. All preceding gates
+pass, including the raised wasm gate. The known dev-adoption timing test
+passes its 500 ms assertion in the concurrent run, so no isolated rerun was
+needed. All 1,440 recorded source inputs and the artifact hash remained
+unchanged during qualification. The inherited 60-second suite target remains
+exceeded and unchanged. Preflight integration/fixture mistakes and the old
+budget overrun are classified and corrected in the report.
+
+Report and durable logs: `reports/20260927-dc-delivery-client/ROUND11.md`
+and its `round11/` evidence directory. Runtime meter ceilings and test
+thresholds are unchanged. Existing custom/process/Expo fallback limitation
+without deliveryCommit remains explicitly documented; this round makes no
+new comparative-performance or crash qualification claim.
+
+Final root reference audit: 521 LLP docs, 9,742 refs, zero errors/unchecked.
+An initial post-suite invocation from snapback4 used the wrong corpus root;
+that command error was ours and is recorded in ROUND11.md. Running from the
+repository root passes without a source change.

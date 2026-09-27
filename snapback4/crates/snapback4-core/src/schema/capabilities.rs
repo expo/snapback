@@ -9,8 +9,6 @@ use std::collections::BTreeSet;
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "Schema")]
 struct Wire {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    delivery: Vec<DeliveryBinding>,
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,

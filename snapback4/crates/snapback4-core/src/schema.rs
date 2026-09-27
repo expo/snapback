@@ -29,8 +29,6 @@ pub use routes::RouteSpec;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
-    /// Delivery reporters, keyed by tracked table and mutation.
-    pub delivery: Vec<DeliveryBinding>,
     pub tables: BTreeMap<String, Table>,
     /// SDK delivery reporters, keyed by (table, mutation).
     pub delivery: Vec<DeliveryBinding>,

@@ -260,8 +260,9 @@ continue; publication, a later success, reconnect, start and a slow timer can
 wake it. A wake retries one parked run, at least 30 seconds after its last
 attempt, behind new debt; the slow timer runs every ten minutes. Uncertain
 requests reuse their persisted id. More than 64 permanent holes can keep a
-run unrecorded. Local debt
-survives restart; online debt lives only in memory. Leaving drops the group's
+run unrecorded. The local client persists debt and uncertain attempt ids across
+restart; the online client keeps its queue in memory. The SDK merges exact
+positions into owed runs and retires them on committed success. Leaving drops the group's
 debt. A new membership's join floor covers positions before its join.
 
 Use `onDeliveryRefused` on `createClient`, `createLocalClient` or `createApp`

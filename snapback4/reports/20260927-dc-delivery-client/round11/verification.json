@@ -1,0 +1,75 @@
+{
+  "source_parents": {
+    "main": "608f9cc4c89ae01c55146a6b8cb907dffb4d0f2c",
+    "dc": "7f17cc41c",
+    "ds": "d6526a21d",
+    "kg": "d7c6e375f"
+  },
+  "wasm": {
+    "raw": 2019815,
+    "gzip": 585193,
+    "budget": 586193,
+    "set": "2026-09-27",
+    "sha256": "fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1",
+    "wasm_opt": false,
+    "main_recorded_raw": 1980253,
+    "main_recorded_gzip": 571841
+  },
+  "focused_exit": {
+    "delivery-lang-final": 0,
+    "delivery-device": 0,
+    "delivery-core": 0,
+    "delivery-http": 0,
+    "delivery-postgres": 0,
+    "guide": 0,
+    "routes": 0,
+    "queue-browser": 0,
+    "approval": 0,
+    "react-final": 0,
+    "retention": 0,
+    "wasm-budget-final": 0,
+    "wasm-census": 0,
+    "ref-check": 0
+  },
+  "approval_seeds_per_policy": 240,
+  "full_rust": {
+    "passed": 4126,
+    "failed": 0,
+    "ignored": 30,
+    "device": {
+      "passed": 1367,
+      "failed": 0,
+      "ignored": 3
+    }
+  },
+  "full_suite": {
+    "runs": 1,
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1712 s",
+    "failures": [],
+    "main_clients": {
+      "passed": 4151,
+      "failed": 0,
+      "skipped": 10
+    },
+    "client_shards": {
+      "passed": 56,
+      "failed": 0
+    },
+    "fixture_wrappers": {
+      "passed": 9,
+      "failed": 0
+    },
+    "final_models": {
+      "passed": 79,
+      "failed": 0
+    },
+    "dev_adoption_timing": "passed in concurrent run; no isolated rerun required"
+  },
+  "qualified_source_count": 1440,
+  "qualified_source_drift": [],
+  "final_ref_check": {
+    "exit": 0,
+    "summary": "ref-check: ok \u2014 521 LLP docs, 9742 refs in 27638 files, 0 errors, 0 unchecked"
+  }
+}

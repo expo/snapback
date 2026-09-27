@@ -944,7 +944,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
       watch => { if (watches.get(watch.key) === watch) void rerun(watch); });
   }
-
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
     // @ref LLP 3000.018#3.2 — fence every displayed expiry, preserving newer memory and its cuts.
     answers.expire(watch, serverDue, serverNow);
