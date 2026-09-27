@@ -69722,3 +69722,66 @@ The supervisor owns acceptance; the online publisher remains unbuilt.
 Report and durable verification: experiments/following-adoption/atomic/ROUND4.md
 and ROUND4.verification.json. Raw logs: target/fa-round4/. Local commits carry
 the required co-author trailer. No push or publication.
+
+
+## 2026-09-27 — Lane DC round 8: observe every bound response
+
+Read rounds 0–7 prompts, reports and DC journal entries and Astra's complete
+round-7 review. First fetched and merged origin/main in 17021fb9d; only two
+journal blocks conflicted. Both complete parent histories remain in order,
+with zero missing lines. Implementation 03b510f4c answers Astra findings 1–3.
+
+Every E_BOUND transport response now records the session's fingerprint/group
+pending-id marker before debt, head or flight validation, including an evicted
+attempt, a headless envelope and a late response after deadline/reset. Stale
+outcomes modify no newer debt; retirement and replacement reservations retain
+all existing guards. The eight-replacement queue-session rule is unchanged.
+Four pressure witnesses reproduce 25 IDs before the fix and one after it;
+restart recovers recollected debt. Two late-response cases preserve newer
+state. The recorded-conflict transition pins id 1, id 1, id 2, id 2; Astra's
+exact replay-reset mutation now fails. All four isolated mutations fail
+assertions. No bound refused entry or callback is introduced.
+
+Grok's review was empty at startup and arrived during qualification. Its
+in-flight eviction and reservation-doc findings are covered. Added E_BOUND
+to the receipts card's no-callback list and clarified retained versus evicted
+attempts in operations. Abandoned persistence reservations consume allowance,
+even without dispatch, in operations and LLP 3000.022. Confirmed Grok's two
+additional policy observations: an evicted hidden commit can execute again
+under a new id in a new queue, and reset(true) on the same queue preserves
+its session delay. Kept the supervisor's standing lost-replay/session ruling;
+persisting evicted ids or replenishing maps on storage clear would change it.
+The report records concrete reproductions and the complete disposition.
+
+Queue checks pass 84/84; affected delivery/source-census/Chromium checks
+161/161; complete device 1,363 passed, zero failed, three ignored (delivery
+30/30); whole guide 86/86. Artifact family/absence census, build/typecheck,
+reference and whitespace checks pass. The late receipts-card prose follow-up
+is checked by another whole-guide run after the sole full suite.
+
+Wasm is unchanged: 2,022,205 B raw / 585,167 B gzip, 195 B below the accepted
+585,362 B remainder. SHA-256:
+8c86042158304b7b2c48acad400762ad5964c62e2311009cb3e6b9bf064176fb.
+The 572,841 B checked-in gate, compiler profile, codecs and meters are unchanged.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+`== 2 failure(s) in 1491 s`. Every failure: wasm build, baseline accepted
+remainder above unchanged gate; client tests, baseline W6d native lost-reply
+POST-count fixture race (one POST, expected two at client-seams.test.mjs:293).
+A 100 ms delayed lost acknowledgement reproduces that assertion on both
+current code and merged baseline, with one inserted row and a sent replayed
+receipt recovered through sync. Twenty original isolated runs pass on each
+version; those passes do not erase the full-run failure. Filed
+issues/20260927-snapback4-lost-reply-post-count-race.md without weakening the
+test or changing production retries. No lane-owned or environmental full-run
+failure. Rust 3,981 passed / 28 ignored; main clients 2,773 passed / one failed /
+ten skipped; extra shards 56/56; wrappers 9/9; models 78/78; consumer routes 9/9.
+The inherited 60-second suite target remains exceeded.
+
+No new syntax, request field, persisted machinery, dependency, runtime API,
+server/comparative qualification or crash-witness claim. Conditional-host
+fallback omission remains. No tool installation, push or publication.
+Commits carry the requested co-author trailer. Full file map, examples,
+review dispositions, validation and reproductions:
+reports/20260927-dc-delivery-client/ROUND8.md. Raw evidence:
+target/lane-dc-round8/.

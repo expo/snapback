@@ -2282,7 +2282,7 @@ when that catch-up is intended.
 
 Reports bypass the ordered outbox and dispatch only when its local network
 chain is idle. Four groups may report concurrently, one call per binding and
-group, with a 15-second deadline. An uncertain attempt keeps its id across
+group, with a 15-second deadline. A retained uncertain attempt keeps its id across
 local restarts. Committed success covers its exact run; `RUNS_FULL` parks it
 and allows other intervals to proceed. New publications, success, reconnect,
 start and a slow timer wake parked runs, at most once per 30 seconds each.
@@ -2302,7 +2302,9 @@ wait in `start` parks for the next session. Reconnect and timer wakes grant no
 extra ids. `E_BOUND` never creates a refused entry or calls `onDeliveryRefused`.
 A bare denial stays uncertain on the same id. If eviction loses an id awaiting
 a bound replay, an in-memory pending-id marker delays that group until the next
-session, without restoring evicted debt or refusing clean coverage. The counter
+session, without restoring evicted debt or refusing clean coverage. If the id
+was evicted, a new session may report recollected coverage with a new id,
+including coverage the server already committed. The counter
 and pending-id set are not persisted; the same-id replay flag stays with its
 persisted attempt.
 

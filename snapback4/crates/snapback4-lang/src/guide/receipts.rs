@@ -229,7 +229,7 @@ Use `onDeliveryRefused` on `createClient`, `createLocalClient` or `createApp`
 to observe range refusals or an unexpected application refusal. The callback
 receives `{ table, mutation, args, group, from, through, why }`. A range
 refusal is remembered so repeated manifests cannot recreate that interval.
-`RUNS_FULL`, membership loss and transport retries do not call the callback.
+`E_BOUND`, `RUNS_FULL`, membership loss and transport retries do not call the callback.
 
 `progress` stays available for explicit catch-up. Its `ahead` rows count as
 deliveries, so mounting it continuously acquires the next page whenever the
