@@ -29,7 +29,11 @@ export function revalidatingAnswer<T>(read: Read<T>, bounded: boolean): Read<T> 
 export class ReadObservation<T> {
   readonly retain: boolean;
   readonly linger: boolean;
-  constructor(keep?: boolean) { this.retain = keep !== false; this.linger = keep === true; }
+  constructor(keep?: boolean) {
+    this.retain = keep !== false; this.linger = keep === true;
+    // Opening facades can share notification ownership before the first answer.
+    owners.set(this.snapshot, this);
+  }
   onWithdrawal: () => void = () => {};
   private readonly episode = new ReadEpisode(() => {
     if (!("data" in this.snapshot)) return;

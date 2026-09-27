@@ -21,20 +21,28 @@ export class ReadApprovals {
   }
   get(read: Read<unknown>): ApprovedAnswer | undefined {
     const owner = answerObservation(read);
-    return owner ? this.answers.get(owner) : undefined;
+    if (!owner) return undefined;
+    let answer = this.answers.get(owner);
+    if (!answer) {
+      // Notification ownership starts before authority, and survives releasing
+      // the approved answer's expiry/follower registrations.
+      const slot: ApprovedAnswer = { snapshot: "data" in read ? { loading: true } : read,
+        read: () => slot.snapshot, listeners: new Set() };
+      this.answers.set(owner, answer = slot);
+    }
+    return answer;
   }
 
   approve(read: Read<unknown>): ApprovedAnswer | undefined {
     const owner = answerObservation(read);
     if (!owner || !("data" in read)) return undefined;
-    let answer = this.answers.get(owner);
-    if (answer && answerIdentity(answer.snapshot) === answerIdentity(read)) {
+    const answer = this.get(read)!;
+    if (answerIdentity(answer.snapshot) === answerIdentity(read)) {
       // A source revalidation copy already updated the shared episode by value.
       return answer;
     }
     // Swap registrations without an intermediate loading notification.
     this.drops.get(owner)?.({ loading: true });
-    answer ??= { snapshot: read, read: () => read, listeners: new Set() };
     answer.snapshot = read;
     const held = answer;
     const notify = () => { for (const listener of held.listeners) listener(); };
@@ -58,6 +66,9 @@ export class ReadApprovals {
         return drop("data" in next ? { loading: true } : next);
       }
       // Opening remounts listen here before they subscribe to the raw source.
+      if (!owner.retain && answerIdentity(next) !== answerIdentity(held.snapshot)) {
+        return drop({ loading: true });
+      }
       return update(answerIdentity(next) === answerIdentity(held.snapshot) ? next
         : revalidatingAnswer(held.snapshot, !owner.linger));
     };
@@ -80,7 +91,13 @@ export class ReadApprovals {
 
   reject(read: Read<unknown>, denied: Read<unknown>): void {
     const owner = answerObservation(read);
-    if (owner) this.drops.get(owner)?.(denied)();
+    if (!owner) return;
+    const drop = this.drops.get(owner);
+    if (drop) { drop(denied)(); return; }
+    const answer = this.get(read)!;
+    if (answer.snapshot === denied) return;
+    answer.snapshot = denied;
+    for (const listener of answer.listeners) listener();
   }
   close(): void {
     for (const release of this.releases) release();

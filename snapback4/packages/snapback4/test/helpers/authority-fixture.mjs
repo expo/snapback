@@ -27,6 +27,7 @@ export function fixture(t, keep = true) {
   } };
   bindWatchPeek(raw, watches, () => null);
   const facade = guardClient(raw, async () => {
+    if (typeof checks === "function") return await checks();
     if (checks?.length) return await checks.shift().promise;
     if (hold) await gate.promise;
     if (allow === "error") throw Error("session storage failed");
@@ -43,4 +44,3 @@ export function fixture(t, keep = true) {
   return { client, owner, publish, clock, facade, memory, gateChecks: gates => { checks = gates; }, setWall: n => { wall = n; },
     hold: () => { hold = true; }, release: (ok = true) => { allow = ok; hold = false; gate.resolve(); } };
 }
-

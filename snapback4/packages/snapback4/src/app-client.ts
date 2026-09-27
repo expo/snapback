@@ -72,7 +72,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       return valid() ? read : { denied: why() };
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
-      let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false, opening = true;
+      let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       const loading: Read<R> = { loading: true };
       let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
       let refused: Read<R> | undefined;
@@ -81,7 +81,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
       const emit = () => {
-        const next = valid() ? held?.snapshot ?? snapshot : denied();
+        const next = getSnapshot();
         if (announced === next) return;
         announced = next;
         for (const listener of listeners) notify(listener);
@@ -89,18 +89,12 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const attach = (answer: ApprovedAnswer | undefined) => {
         held?.listeners.delete(emit); held = answer; held?.listeners.add(emit);
       };
-      const initial = options?.keep !== false ? peekObservation(raw, op, args, options) : undefined;
+      const initial = peekObservation(raw, op, args, options);
       if (initial) attach(kept.get(initial));
       const reject = (read: Read<R>) => {
         snapshot = read;
-        const prior = held;
-        if (prior) {
-          prior.snapshot = read;
-          const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
-          if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
-          attach(undefined);
-
-        }
+        const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
+        if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
       };
       // @ref LLP 3000.023#3.4 — detached facades still consult the raw handle's deadline latch.
       const detach = () => { held?.listeners.delete(emit); stop?.(); source?.close(); stop = undefined; };
@@ -109,7 +103,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         const version = ++refreshVersion;
         // @ref LLP 3000.019#3.3 — withdrawal cannot wait for storage; only data publication needs authority.
         const read = source?.getSnapshot();
-        if (read && options?.keep !== false && kept.get(read)) attach(kept.get(read));
+        if (read) attach(kept.get(read));
         if (!closed && read && ("loading" in read || "denied" in read)) {
           snapshot = valid() ? read : denied();
           if (held) reject(snapshot);
@@ -121,24 +115,21 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           // @ref LLP 3000.023#3.6 — every retaining watch spans authority under the same episode and row deadlines.
           snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read
             : options?.keep !== false ? (kept.peek(read) as Read<R> | undefined) ?? loading : loading) : denied();
-          emit();
         }
+        emit();
         const refused = await refusal();
         if (closed || version !== refreshVersion) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
         if ("denied" in snapshot) reject(snapshot);
         if ("data" in snapshot) {
           approved.add(answerIdentity(snapshot));
-          if (options?.keep !== false) {
-            attach(kept.approve(snapshot));
-          }
+          attach(kept.approve(snapshot));
         }
         if (held) for (const listener of held.listeners) listener();
         else emit();
       };
       void refusal().then(refused => {
         if (closed) return;
-        opening = false;
         if (refused) { reject({ denied: refused }); emit(); return; }
         if (valid()) {
           source = raw.observe(op, args, options);
@@ -160,10 +151,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
             || (deadline !== undefined && Date.now() >= deadline)) snapshot = loading;
           return snapshot;
         }
-        if (read && ("loading" in read || "denied" in read)) return snapshot = read;
-        return opening ? peekObservation(client, op, args, options) ?? loading
-          : held ? held.read() as Read<R> : snapshot;
+        if (read && ("loading" in read || "denied" in read)) {
+          snapshot = read;
+          if (held && held.snapshot !== read) kept.reject(read, read);
+          return read;
+        }
+        return held ? held.read() as Read<R> : snapshot;
       };
+      announced = getSnapshot();
       return {
         getSnapshot,
         subscribe(listener) { if (!closed) listeners.add(listener); return () => { listeners.delete(listener); }; },

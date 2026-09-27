@@ -1206,7 +1206,7 @@ and sees its current snapshot in the first committed render. This costs
 observation memory and background work while unmounted. A subscriber joining
 an already-active default watch also sees its current answer immediately.
 
-Retaining app facades share one approval per raw watch. A peer's successful authority
+App facades share one approval per raw watch. A peer's successful authority
 check moves every live facade of that watch to the approved replacement.
 Every retaining watch keeps the previous approved answer, marked `revalidating`, while the replacement
 waits for its authority check. It inherits the same episode deadline by value
@@ -1214,7 +1214,11 @@ and tracks the held answer's own device and server deadlines through clock
 corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
 immediately, including failure, link loss, and a replacement's earlier expiry.
-Opening remounts also receive notification when a peer approves an answer after withdrawal.
+Opening remounts attach to an empty shared slot before its first approval and
+receive notifications for approval, withdrawal and each distinct denial. A live
+facade stays attached after a transient authority error, so a peer's later
+approval reaches it too. Expiry and follower registrations release on rejection;
+notification ownership ends only on close or a facade fence.
 An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
 delivering read or link callbacks, including callbacks from lingering remounts.
