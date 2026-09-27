@@ -168,6 +168,7 @@ fn effect_snapshot(host: &Host, id: &str) -> (Vec<rusqlite::types::Value>, i64) 
     let steps = engine.store().conn().query_row("SELECT COUNT(*) FROM _effect_steps WHERE effect_id = ?1", [id], |row| row.get(0)).unwrap();
     (row, steps)
 }
+#[track_caller]
 fn wait_until(mut predicate: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(2);
     while !predicate() {
