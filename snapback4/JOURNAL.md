@@ -66957,6 +66957,166 @@ are unchanged after qualification. No second full-suite run, unrelated
 client fix, push or publication. Darwin verification remains the supervisor's
 next platform proof, not a claim from this Linux lane.
 
+### 2026-09-27 — Lane OW round 1: ownership survives refused filesystem mutations
+
+Merged `origin/main` at `dde688548` by fast-forward, then addressed all four
+findings in the full Grok round-0 review. `private_fs` now lstats the database
+and auxiliary name before opening either `-owner` or `serve.lock`, then compares
+the descriptor against both pre-open and current database metadata. A suspect
+post-open descriptor is intentionally forgotten without flock, chmod, read,
+write, unlock or close, preserving SQLite's process-wide POSIX locks. The
+same helper protects address lookup on a busy refusal. Empty owner files and
+at-most-128-byte address records are the only admitted forms: these stat-only
+size checks also reject a populated database renamed to an auxiliary name
+when the database path no longer exists.
+
+Both CLI ownership and native `Store::open_shared` lock the sidecar before
+creating a database. A busy probe at a moved store's old path leaves that path
+absent. Database link counts are checked without opening in acquisition,
+native open and `Owner::path`; `nlink != 1` refuses with `E_STORE` and the
+rewrite “copy the store, do not hard-link it.” Existing owners recheck their
+sidecar's named inode. Native opens recheck before returning. Backend stores
+and detached readers now retain the same sidecar Arc, and ordinary store
+reads, writes, activation and authority transactions validate ownership too:
+checking only `Owner::path` would not stop an already-open server connection.
+This is the necessary extension beyond the brief's named call sites, confined
+to the requested ownership hardening. No new language forms or diagnostic
+codes; normal `init`/`dev`, `run`, shared devices and published busy addresses
+keep their existing spellings and meanings.
+
+Eight new regressions cover: (1) deterministic post-open hard-link/rename
+aliases retaining the descriptor and SQLite's external POSIX exclusion;
+(2) command/device/native busy opens creating no missing database; (3) same-
+and cross-directory hard links refusing both paths and an existing owner;
+(4) database renames to either auxiliary name retaining SQLite exclusion;
+(5) removed/replaced sidecars revoking old guards and live connections;
+(6) two real dev processes after unlink, with old reads/writes refused and
+only the new server's mutation committed; (7) real-process busy probes at a
+moved store's old path; (8) live native-device revocation and replacement-owner
+success. Two existing invalid-file tests now expect the earlier database
+hard-link refusal, keeping their unchanged-bytes assertions. The initial
+post-open test used unsafe fd probes, which the core test policy rejected;
+it now uses stat-only `/dev/fd` inspection and an external Python POSIX-lock
+probe, with no unsafe Rust test code.
+
+Affected checks: ownership 9/9; private_fs 1/1; run_admission 27/27;
+native residency 6/6; whole guide 86/86; native-opening JS 6/6. Frozen Bun
+install and package build pass. Reference audit: 515 LLP docs, 9,557 refs,
+zero errors or unchecked. Evidence is under `target/lane-ow-r1/` (ignored).
+The full suite rebuilt wasm at **1,980,253 B raw / 571,841 B gzip**, SHA-256
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`:
+byte-identical to round 0, **0 B delta**, 1,000 B below the unchanged budget.
+
+LLP 3000.019 §3.4 and the residency guide now say exclusion holds while
+`<database>-owner` is left in place. Unlink/replacement permits a new sidecar
+owner and causes old ordinary store work to fail closed; it does not cancel
+an already-admitted transaction or provide atomic exclusion against arbitrary
+concurrent filesystem mutation. Stop owners before moving their files.
+The two new implementation choices are stat-only auxiliary size bounds (to
+recognize the renamed-database case with its original name absent) and retaining
+ownership in existing store connections (to revoke actual running work).
+No runtime meter, authorization, disclosure, version or budget changes. This
+host is Linux; macOS/iOS execution remains the supervisor's platform proof.
+No push or publication. The one required full-suite result follows below.
+
+Ran `scripts/test.sh` **exactly once**: **`== 1 failure(s) in 1137 s`**, exit 1.
+The sole failed check is **`client tests`**. Rust tests/doctests passed:
+**3,793 passed / 0 failed / 24 intentional ignores**, 624 s. Client main:
+**2,464 passed / 2 failed / 10 skipped**, with all seven additional shards
+passing. All **78 seeded-model tests passed**, 263 s. Build, wasm budget,
+docs budget, release guard, package build/typecheck, both app typechecks and
+fixture wrappers all passed. No ownership regression failed.
+
+Both reported client failures are **baseline, intermittent**, not introduced:
+`web-admission-review.test.mjs`, “hiding during strict admission releases the
+session lock before transport and peer logout,” asserts “transport entered
+under the session lock”; its parent, “web admission review: recovery and
+transport respect the session boundary,” fails consequentially. This is the
+same assertion recorded in round 0. After the complete suite finished, the
+first focused run with the retained independent `0cca900d8` binary reproduced
+the exact assertion and parent failure (exit 1). Its three ownership source
+files were checked against `git show 0cca900d8` and match. Reproduction from
+`snapback4/` (omit `SNAPBACK4_BIN` to select this round's binary):
+
+```sh
+SNAPBACK4_BIN="$PWD/target/lane-ow/base-source/snapback4/target/debug/snapback4" \
+SNAPBACK4_WEB_ADMISSION_FOCUS='^hiding during strict admission' \
+node --test packages/snapback4/test/web-admission-review.test.mjs
+```
+
+No second full-suite run or unrelated client fix. The remaining browser failure
+and the explicitly documented filesystem-mutation boundary are the open limits;
+all four requested OW findings have regression coverage and pass on this host.
+
+### 2026-09-27 — Lane OW round 2: document the sidecar exclusion boundary (option b)
+
+Read the lane prompt, both preceding OW entries and the complete Grok round-1
+NOT READY review. Chose the user's option **(b)**. Store::conn() exposes an
+infallible raw SQLite connection: auth autocommit writes, auth and worker
+transactions, and effect/action/job/timeline reads bypass the transaction
+helpers. Checking those helpers is not one chokepoint; a fallible accessor
+would change the connection API and its callers, and cannot revoke a connection
+already borrowed. This patch makes no transaction-cost measurement or
+single-digit-microsecond claim.
+
+Removed the running-process sidecar-name checks in core store/ownership.rs
+and CLI store_owner.rs. Retained the independent stat-only database validation,
+including hard-link refusal, and every acquisition-time sidecar check. The
+existing check_ownership method now only validates the database file; it does
+not claim to intercept raw connection use or revoke an unlinked sidecar.
+Backend stores, detached readers and native devices still hold their lock Arc.
+The three fixes Grok confirmed remain: no database inode opened/locked/closed
+as an auxiliary file, no database created by a busy probe, and hard-linked
+databases refused before owner admission and by existing path/file checks.
+
+LLP 3000.019 section 3.4 replaces the partial fail-closed claim with the exact
+boundary: exclusion holds while <database>-owner is left in place; deleting
+or replacing it while a process runs ends exclusion and can admit another
+owner without stopping the first. The residency card in guide.rs, the refusal
+card in guide/refusals.rs, CLI busy text in store_owner.rs, native busy text
+in core/error.rs and acquisition-time refusal in store/ownership.rs state
+that boundary. Stop all owners before moving a database and its sidecars.
+
+Updated three existing regressions to match that deliberate contract change:
+store_owner_tests.rs covers unlink and replacement, continued old reads/writes,
+a new exclusive owner, and a third owner refused on the replacement sidecar;
+run_admission/identity.rs keeps the real second-process startup and proves both
+processes commit sequentially, with the old query reading all three fixture
+rows; device/tests/residency.rs proves an old native device remains usable
+through a second open. Their names and @ref comments explicitly label the
+documented boundary. The busy-missing-database test also requires the boundary
+in both CLI and native refusal text. No new test files or language forms.
+
+Affected checks all pass: private_fs 1/1, store_owner 9/9, run_admission 27/27,
+native residency 6/6, whole guide 86/86, native-opening JS 6/6. Frozen Bun
+install and package build pass. Reference audit: 515 LLP documents, 9,560 refs,
+zero errors or unchecked. All changed source files remain below 1,500 lines.
+Evidence is ignored under target/lane-ow-r2/. Node 24.13.1, Bun 1.3.14,
+Rust 1.97.0; eight Cargo jobs, dev/test debug information off, fd limit 65,536.
+
+The final suite rebuilt wasm at 1,980,253 B raw / 571,841 B gzip, SHA-256
+61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c:
+byte-identical to the saved round-1 artifact, 0 B delta; unchanged cap 572,841 B.
+No authorization, disclosure, runtime meter, version or budget changes. Normal
+init/dev, run and shared-device spellings remain unchanged. No scope deviation,
+new connection API, unrelated fix, push or publication. This host is Linux;
+macOS/iOS proof remains for the supervisor, with commands in the round-2 report.
+The intentional open boundary reproduces by starting dev, removing
+.snapback4/store.sqlite-owner and starting a second dev on another port: both
+processes can still work. The one required full-suite result follows below.
+
+Ran scripts/test.sh **exactly once** after the affected checks. Exact summary:
+**`== 0 failure(s) in 1075 s`**, exit **0**. There are no introduced, baseline
+or environmental failures to attribute in this run. Rust tests/doctests:
+**3,794 passed / 0 failed / 24 intentional ignores**, 586 s. Client main:
+**2,466 passed / 0 failed / 10 skipped**, with **56/56** tests in the seven
+additional shards; client phase 194 s. Seeded models: **78/78**, 257 s.
+Fixture wrappers: **9/9**. Native and wasm builds, wasm/docs budgets, release
+guard, package build/typecheck and both app typechecks all pass. Previously
+recorded intermittent client failures did not occur in this run. No second
+full run, no implementation or test changes after qualification began, and no
+unrelated changes. Committed with the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.
 
 ## 2026-09-26 — DQ: Darwin qualification for 0.4.4
 
@@ -67272,3 +67432,49 @@ The broken user-local npm link was restored from the checksum-verified Node
 distribution. Report, exact next-publication commands, digests and reproductions:
 reports/20260927-lx-linux-package/REPORT.md. Raw logs and development tarballs:
 ignored target/lane-lx/ and target/publication/client-0.4.4/.
+
+### 2026-09-27 — Lane OW: merge published 0.4.4 main after round 2
+
+Fetched and merged `origin/main` at `ea853b9dae4295441f5ec04ab23a9468e7e34653`
+into `sb4-intent/ow-sidecar`, preserving the reviewed round-1 hardening and
+round-2 exclusion boundary. This is merge-only work: no new implementation,
+version, budget or publication change beyond the incoming main commits.
+
+Resolved all three conflicts by keeping both sides' meaning. LLP 3000.019's
+Revised header retains OW's two revisions and DQ's temporary-residency revision;
+section 3.4 retains OW's hardening/boundary paragraphs and DQ's qualification
+paragraph. JOURNAL retains both branches' additions verbatim. In device
+`tests/residency.rs`, keep both the removed-sidecar boundary regression and
+DQ's legacy-counter regression; counters remain temporary before successful
+adoption, and refused adoption preserves legacy bytes. The operations manual
+merged without conflict and exactly matches incoming main's corrected paragraph
+(`b36100892`), with its exclusion-boundary sentence appearing once. Every other
+OW file exactly preserves the reviewed branch.
+
+On Linux with Node 24.13.1, Bun 1.3.14 and Rust 1.97.0, eight Cargo build jobs,
+dev/test debug information off and fd limit 65,536: frozen Bun install and
+workspace build pass. Requested focused checks pass: `private_fs` 1/1,
+`store_owner` 9/9, `run_admission` 27/27 (`--test-threads=2`), native residency
+7/7 and the whole guide 86/86. Then `bash scripts/build-wasm.sh` and
+`bun run build` in `packages/snapback4` pass, followed by native-opening JS
+6/6. Wasm is 1,980,253 B raw / 571,810 B gzip against the unchanged 572,841 B
+cap. Reference audit passes: 515 LLP documents, 9,562 refs, zero errors or
+unchecked. Evidence is ignored under `target/lane-ow-merge/`.
+
+Ran `scripts/test.sh` **exactly once**. Exact result:
+**`== 1 failure(s) in 1328 s`**, exit **1**; the failed check is **`client tests`**.
+Rust tests/doctests pass: **3,795 passed / 0 failed / 24 ignored**, 858 s.
+Client main reports **2,466 passed / 1 failed / 10 skipped**, and all seven
+additional shards pass (**56/56**); client phase 195 s. The failure is
+`packages/snapback4/test/local-e2e.test.mjs:172`, "a device restores its session
+on its own": its line-205 assertion expected `dead.denied?.code` to be `E_AUTH`
+and received `undefined` after sign-out. That test is unchanged from incoming
+main; the cause is not established or attributed as baseline. All **78/78**
+seeded-model tests pass, 264 s; fixture wrappers **9/9**. Native/wasm builds,
+wasm/docs budgets, release guard, package build/typecheck and both app
+typechecks pass. No ownership regression fails.
+
+No second full-suite run, focused failure rerun, unrelated fix, push or
+publication. All tested source bytes remained unchanged through qualification.
+This dated entry is included in the merge commit with
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

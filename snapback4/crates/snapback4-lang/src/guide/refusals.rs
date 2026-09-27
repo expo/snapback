@@ -131,6 +131,8 @@ E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database
 Stop the named host (the message includes its address), run the command once,
 then restart it; for another CLI, wait for it to finish. No work was admitted.
 The presence of an old lock file alone does not refuse work.
+Leave `<database>-owner` in place: deleting or replacing it while a process runs
+ends exclusion and can admit a second owner without stopping the first.
 
 E_STORE means the database operation failed, such as a SQLite writer lock
 held by another process. For example, starting a second writer during
