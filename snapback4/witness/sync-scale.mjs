@@ -134,7 +134,7 @@ try {
     console.log(JSON.stringify({ phase, ms, acquired, pages: out.pages.length }));
     return ms !== null;
   };
-  if (mode === 'during') for (let n = 0; n < 5 && !acquired; n++) if (!await send('during')) break;
+  if (mode === 'during') for (let n = 0; n < 100 && !acquired; n++) if (!await send('during')) break;
   await finished;
   assert.ok(acquired, 'acquisition did not complete');
   for (let n = 0; n < Number(process.env.SS_SAMPLES ?? 23); n++) if (!await send(n < 3 ? 'warmup' : 'after')) break;
