@@ -118,7 +118,7 @@ impl Runner<'_> {
         self.note_value_source_page(has_more);
         if depth == 0 {
             let continues = self.word_cut_at.is_none() && ((has_more && !self.read_capped()) || (drain_cut && !page.is_empty()));
-            self.finish_merge_page(scan, &merge.site, merge.variant.or(scan.variant), &page, last, has_more, continues, true)?;
+            self.finish_merge_page(scan, &merge.site, merge.variant.or(scan.variant), &page, last, continues, true)?;
         }
         Ok(page)
     }

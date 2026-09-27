@@ -1,0 +1,184 @@
+{
+  "date": "2026-09-27",
+  "branch": "sb4-intent/cq-topn-complete",
+  "baseline_commit": "8dfbf7daa",
+  "decision_commit": "83f543fec",
+  "implementation_commit": "4d5a9366903ea12b70e9cfa5f37d65792e3ff607",
+  "full_suite": {
+    "command": "scripts/test.sh",
+    "cwd": "snapback4",
+    "runs": 1,
+    "exit_code": 1,
+    "summary": "== 3 failure(s) in 1280 s",
+    "failures": [
+      "docs budget",
+      "cargo test",
+      "client tests"
+    ],
+    "phase_results": [
+      "-- ok: cargo build (30 s)",
+      "-- ok: wasm build (2 s)",
+      "-- FAIL: docs budget (3 s)",
+      "-- ok: release guard (9 s)",
+      "-- ok: package typecheck (2 s)",
+      "-- ok: package build (2 s)",
+      "-- ok: chat app check (0 s)",
+      "-- FAIL: cargo test (716 s)",
+      "-- ok: chat app typecheck (1 s)",
+      "-- ok: expo app typecheck (1 s)",
+      "-- ok: fixture wrapper tests (23 s)",
+      "-- FAIL: client tests (215 s)",
+      "-- ok: client models (300 s)"
+    ],
+    "failed_rust_targets": [
+      "-- FAIL rust target: snapback4-core::corpus (1.6 s)",
+      "-- FAIL rust target: snapback4-device::device::merge_continuation::memory::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read (0.1 s)",
+      "-- FAIL rust target: snapback4-device::device::merge_continuation::sqlite::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read (0.2 s)",
+      "-- FAIL rust target: snapback4-device::device::search_merge::r1a_left_read_cannot_mask_an_unknown_held_read_in_either_order (0.6 s)",
+      "-- FAIL rust target: snapback4-device::device::trending::rolling::w12a_bounded_ranking_coverage_on_both_stores (0.9 s)",
+      "-- FAIL rust target: snapback4-lang::extremum_expressions (0.2 s)",
+      "-- FAIL rust target: snapback4-lang::feed_forms (0.1 s)",
+      "-- FAIL rust target: snapback4-lang::guide (1.9 s)",
+      "-- FAIL rust target: snapback4-lang::repairs (0.5 s)",
+      "-- FAIL rust target: snapback4-sim::clique::merge_continuation::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read (0.5 s)",
+      "-- FAIL rust target: snapback4-sim::clique::trending::w12a_fresh_ranking_seed_ties_boundaries_and_meter (0.2 s)",
+      "-- FAIL rust target: snapback4::delivery_page (0.0 s)",
+      "-- FAIL rust target: snapback4::scale_row_ranges (0.0 s)",
+      "-- FAIL rust target: snapback4::check (10.8 s)"
+    ],
+    "log": "target/cq-suite.log",
+    "sha256": "0a4078dc445652f7817b559a65740cdc1e778742d6d021e1a53dc72f9b4862f5",
+    "client_concurrency_load": "42.49 across 96 CPUs; ordinary concurrent files",
+    "client_models": {
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "failure_ownership": {
+    "docs budget": "lane-owned; README 304/300 fixed to 300 and check passes",
+    "cargo test": "lane-owned; 14 target executions obsolete expectations or guide word budget; all affected checks pass after corrections",
+    "client tests": [
+      {
+        "test": "W6d web: two client POSTs with the caller id apply once after a lost reply",
+        "signature": "client-seams.test.mjs:282: actual 1, expected 2 attempts",
+        "ownership": "environmental/timing provisional; exact-baseline failure not established",
+        "isolated_rerun": "passed"
+      },
+      {
+        "test": "HTTP admission, encoding, slow readers and idle changes polls",
+        "signature": "http-bounds.test.mjs:87: server did not listen within 3 seconds",
+        "ownership": "environmental/timing",
+        "isolated_rerun": "passed, including all nine nested tests"
+      }
+    ]
+  },
+  "affected_check_logs": [
+    {
+      "log": "target/cq-runtime-final.log",
+      "sha256": "5de5ab3b6add0866db2444f7e928ba7dba5313ec7ffa3e52c9e97af95665f245",
+      "results": [
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s",
+        "test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.18s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s",
+        "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.88s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s"
+      ]
+    },
+    {
+      "log": "target/cq-oracles-final.log",
+      "sha256": "9feed3cc97dcc22b0ab0691ead716fee159702070a212b23eba85c7e9e3a3299",
+      "results": [
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s",
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s"
+      ]
+    },
+    {
+      "log": "target/cq-language-complete.log",
+      "sha256": "e58cfde5f4c32b59f6a789cd3f35b2df1608e96006dc2f8ab8915442728291f1",
+      "results": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.67s",
+        "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s"
+      ]
+    },
+    {
+      "log": "target/cq-corrections-final.log",
+      "sha256": "7ad00a5b8cb78b838acc8f18e9abb8db653d47d026c91c2b5c204c9b37b7bde7",
+      "results": [
+        "test result: ok. 72 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.64s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s",
+        "test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s"
+      ]
+    },
+    {
+      "log": "target/cq-shapes-verified.log",
+      "sha256": "6b99c07699b38796ebb66b5dbcdc4907682a48852918594330ae5fc3a4a20831",
+      "results": [
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 429 filtered out; finished in 1.80s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 250 filtered out; finished in 2.24s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "target/cq-ranking-verified.log",
+      "sha256": "c13efd09ab8558db4081f0ea1a3b588513901bb409cd3cbe8312a007759a387a",
+      "results": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 435 filtered out; finished in 2.56s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 252 filtered out; finished in 0.31s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "target/cq-retained-verified.log",
+      "sha256": "d52b08d83e799f0b80a341df2a3e82a2dc3811e20977394262522eb2d8fd1b48",
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 436 filtered out; finished in 0.05s"
+      ]
+    },
+    {
+      "log": "target/cq-docs-budget-final.log",
+      "sha256": "1d783f1bbfae2606b79edad4fc8b496301812585de168c17dd5f040d011e2909",
+      "results": [
+        "docs budget: README 300/300 physical lines",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "target/cq-client-rerun.log",
+      "sha256": "20bf1f8ae3d316bafbd67e8e5f05da3e825b926851fb1b297a093679075d929c",
+      "results": [
+        "\u2139 tests 11",
+        "\u2139 pass 11",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 5054.853267"
+      ]
+    },
+    {
+      "log": "target/cq-ref-check.log",
+      "sha256": "937ab2769f6415dd3c08821ed69ef08bb97c153425612c8641bf40227d4fe4d3",
+      "results": [
+        "ref-check: ok \u2014 518 LLP docs, 9625 refs in 27259 files, 0 errors, 0 unchecked"
+      ]
+    }
+  ],
+  "check_log_caveat": "cq-corrections-final.log contains the passing final CLI checks and a historical core corpus failure; cq-oracles-final.log is the later passing final core corpus check. Other failed development attempts remain in target and are not represented as passes.",
+  "limitations": [
+    "No second clean full-suite run; original red aggregate retained.",
+    "Two client timing signatures remain open despite passing isolated reruns.",
+    "No live Postgres qualification; its corpus cases are feature-disabled."
+  ],
+  "durable_failure_inventory": "first-run-failures.md",
+  "wasm_receipt": "wasm.json",
+  "git_diff_check": "passed"
+}

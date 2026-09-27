@@ -332,7 +332,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
     for bound in programs {
         // Follow the same return/alias/shape provenance as continuations.
         // A consumed loop is not a page the caller needs to continue.
-        let returned = snapback4_core::engine::returned_page_sites(&bound.program);
+        let returned = snapback4_core::engine::uncontinued_page_sites(&bound.program);
         let mut noted = std::collections::BTreeSet::new();
         for page in snapback4_core::ir::scans(&bound.program) {
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
@@ -344,23 +344,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             });
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
-                let cap = if !pinned.is_empty() && schema.group_bound(table, &pinned).is_none() && page.merge_site.is_none() && schema.maintain_for(table).is_none() && schema.tables[table].indexes[&page.index].is_plain() {
-                    let limit = take.min(snapback4_core::Ceilings::default().examined);
-                    let by = format!(" by {}", pinned.join(", "));
-                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read `{table} where {}` without a page clause; other metered work can still cut the read", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and "))
-                } else if !pinned.is_empty() {
-                    "read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
-                } else if let Some((columns, max)) = schema.tables[table].constraints.iter().find_map(|constraint| match constraint {
-                    snapback4_core::schema::Constraint::Cap { by, max } if !by.is_empty() => Some((by, max)),
-                    _ => None,
-                }) {
-                    let predicate = columns.iter().map(|column| format!(".{column} = {column}")).collect::<Vec<_>>().join(" and ");
-                    let by = columns.join(", ");
-                    format!("or use a narrower key: `{table} where {predicate}` uses the declared cap `cap {max} by {by}`; omit the page clause when that cap fits the examined ceiling, otherwise the narrowed page still needs continuation")
-                } else {
-                    format!("or use a narrower key: `{table}[id]` for one row; a group page still needs continuation unless its schema cap fits the page and examined ceiling")
-                };
-                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order; {cap}", bound.program.name)).guide("reads"));
+                // @ref LLP 3000.027#3 — continuation advice does not question a top-N answer's completeness.
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor, so the page cannot continue", bound.program.kind.word(), bound.program.name), format!("if the screen pages, declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order", bound.program.name)).guide("reads"));
             }
         }
         // Wide merges still pay for lane discovery and authorization, even

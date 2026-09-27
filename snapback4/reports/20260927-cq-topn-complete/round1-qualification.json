@@ -1,0 +1,383 @@
+{
+  "date": "2026-09-27",
+  "branch": "sb4-intent/cq-topn-complete",
+  "merge_commit": "60007c0adc8967ec3132e83e5a20eaf1f6703aa4",
+  "full_suite": {
+    "command": "bash scripts/test.sh",
+    "cwd": "snapback4",
+    "runs": 1,
+    "exit_code": 1,
+    "summary": "== 1 failure(s) in 3447 s",
+    "failed_stages": [
+      "cargo test"
+    ],
+    "phase_results": [
+      "-- ok: cargo build (20 s)",
+      "-- ok: wasm build (2 s)",
+      "-- ok: docs budget (16 s)",
+      "-- ok: release guard (4 s)",
+      "-- ok: package typecheck (3 s)",
+      "-- ok: package build (2 s)",
+      "-- ok: chat app check (0 s)",
+      "-- FAIL: cargo test (1004 s)",
+      "-- ok: chat app typecheck (1 s)",
+      "-- ok: expo app typecheck (2 s)",
+      "-- ok: fixture wrapper tests (15 s)",
+      "-- ok: client tests (2126 s)",
+      "-- ok: client models (270 s)"
+    ],
+    "rust": {
+      "passed": 3909,
+      "failed": 5,
+      "ignored": 24,
+      "result_executions_including_doctests": 965
+    },
+    "client_tests": {
+      "passed": 2700,
+      "failed": 0,
+      "skipped": 10
+    },
+    "client_models": {
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0
+    },
+    "log": "target/cq-round1/full-suite.log",
+    "sha256": "a8d8a1e172cdfe39a2b0b99900829b3af197a6d999c20fa2c2c4dcfdd6ed7ab7",
+    "initial_patch_sha256": "55edf8c8ca2f5b3c692033a6fa1740f7cca201066c505572a40dc2759dae06cb",
+    "initial_rust_source_sha256": {
+      "snapback4/crates/snapback4-core/src/engine/local.rs": "9c3920d1d631cf7a49cc0a9e29bb818ef9587e1a284c03e10cc4ed67d9486ce1",
+      "snapback4/crates/snapback4-core/src/engine/mod.rs": "2a3d3d44828fce451a2eaa5c134bd979ebc2713b545d7c1200059cf1658efa8d",
+      "snapback4/crates/snapback4-core/src/engine/postgres/mod.rs": "94af4399a8ab8dbff2b3c55f86cf96815d90ffa1be7cce76dd3a7b616aefdc44",
+      "snapback4/crates/snapback4-core/src/engine/read.rs": "e42d3231188dc495627be73bc97ca126337576744cd6fc270c241557998f44c9",
+      "snapback4/crates/snapback4-device/tests/topn_complete.rs": "44ba777870045f347dbddae13fe39e0f9d4a8e984979e72304e401b3bb84a396",
+      "snapback4/crates/snapback4-lang/src/guide/search.rs": "7e5ce43fa561d878905f48b284e8eebc052522dd1c6aceb2f475beb856e4b611",
+      "snapback4/crates/snapback4-sim/tests/common/topn_boundaries.rs": "8c8adf951df98ef81990a800db0953839e253b7b2a63620371386259754d3446",
+      "snapback4/crates/snapback4-sim/tests/topn_complete.rs": "37fe6478fcd18efbc0c5f0f418fab977b0a386f74b87ad7f4a111ac5531945f0"
+    },
+    "configuration": {
+      "cargo_jobs": 8,
+      "rust_test_processes": 8,
+      "rust_test_threads": 8,
+      "serial_client_files": true,
+      "dev_test_debug": 0,
+      "incremental": false,
+      "fd_limit": 65536
+    },
+    "failure_ownership": [
+      {
+        "test": "trending_card_finds_winners_only_inside_its_declared_candidate_window",
+        "ownership": "ours (lane CQ)",
+        "resolution": "fixed; affected target passes on final source"
+      },
+      {
+        "test": "witnesses::mutation_scan_includes_admission_before_traversal",
+        "ownership": "ours (lane CQ)",
+        "resolution": "fixed; affected target passes on final source"
+      },
+      {
+        "test": "witnesses::repeated_mutation_scans_cover_admission_near_and_across_the_ceiling",
+        "ownership": "ours (lane CQ)",
+        "resolution": "fixed; affected target passes on final source"
+      },
+      {
+        "test": "shaped_page_prices_the_same_five_examinations_as_its_unshaped_twin",
+        "ownership": "ours (lane CQ)",
+        "resolution": "fixed; affected target passes on final source"
+      },
+      {
+        "test": "live_view_page_and_point_certificates_cover_real_receipts",
+        "ownership": "ours (lane CQ)",
+        "resolution": "fixed; affected target passes on final source"
+      }
+    ],
+    "correction": "Exclude aborting mutation scans from the shortcut; retain exact mutation assertions and conservative certificates; update intentionally reduced query receipts.",
+    "baseline_failures": [],
+    "environmental_failures": []
+  },
+  "pre_full_checks": [
+    {
+      "log": "target/cq-round1/regressions-final.log",
+      "sha256": "c13a1d9b95b1e894211495256e8718a0e5e7928a0902c710d6cfa567a83385e4",
+      "results": [
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/device-all.log",
+      "sha256": "a815654c160541e25ca4fa5e1696e8f96dfc1572b3687420bfa81898a94b0a1c",
+      "results": [
+        "test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s",
+        "test result: ok. 436 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 261.42s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+        "test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 301.86s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s",
+        "test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.25s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.24s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.35s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s",
+        "test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.08s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s",
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.64s",
+        "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.41s",
+        "test result: ok. 110 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.47s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s",
+        "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.92s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 516.91s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.57s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+        "test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.78s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+        "test result: ok. 142 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.19s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/server-affected.log",
+      "sha256": "355d584719177f8d90be4102e3cab9227da0eb5a4f8d4844743194e9abd2875f",
+      "results": [
+        "test result: ok. 253 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 154.77s",
+        "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.93s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/guide-and-census.log",
+      "sha256": "e4a3d9308ad471b9fb0c60dc9badf34bf9148a89232b34e4070b3097faeec4b4",
+      "results": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.02s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 137.25s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/corpus.log",
+      "sha256": "a05ab5214565c5719c84df91d6932521203fe641816cabeb2be101cdc1e458ea",
+      "results": [
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/ref-check.log",
+      "sha256": "61a4ea1371bff62f8778774fef6666183e712b1fd8c6fe912fac56754b28616f",
+      "results": [
+        "ref-check: ok — 518 LLP docs, 9638 refs in 27280 files, 0 errors, 0 unchecked"
+      ]
+    }
+  ],
+  "final_checks": [
+    {
+      "log": "target/cq-round1/final-scale.log",
+      "sha256": "ab7d7ca9717bf7f274902c2f4f4045185e33066cbd137b345e7bdc54157bf3ec",
+      "exit_code": 0,
+      "results": [
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s",
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-guide.log",
+      "sha256": "07f7dfa8e1484e462af49d0fa83c50fb0b818dd451ea4257e7ffc9f4c1b8155f",
+      "exit_code": 0,
+      "results": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 156.09s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-device.log",
+      "sha256": "ebf9f308485b28970c3614ba4b545d5a2ca9776c414882aec52f018ebfa2c970",
+      "exit_code": 0,
+      "results": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.31s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-server.log",
+      "sha256": "175b57924b3d3d0a9e44c461ea8eeaf7df6e4e4321d5d268cf17b540325c1b91",
+      "exit_code": 0,
+      "results": [
+        "test result: ok. 253 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 123.52s",
+        "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.78s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-corpus.log",
+      "sha256": "cd0fd159811234c677aa49b3c9fe52eec8bd64ff07cf2163d11d2aa3e05041cc",
+      "exit_code": 0,
+      "results": [
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-build.log",
+      "sha256": "39700a8f7459d53ec1a0dc464f839a59736568b1ea904c89e9d4bc8a21732938",
+      "exit_code": 0,
+      "results": []
+    },
+    {
+      "log": "target/cq-round1/wasm-final.log",
+      "sha256": "3749963290c1b27446502ea26630d89a0f502c9e93fbb6d1c7f7ab502ea5b037",
+      "exit_code": 0,
+      "results": [
+        "wasm 1981375 B raw, 572099 B gzip (budget 572841: ok)"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-package.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "exit_code": 0,
+      "results": []
+    },
+    {
+      "log": "target/cq-round1/final-client-routing.log",
+      "sha256": "bd1e03dd782674f52ae39bccdb045a55e086444aa7628fbdeb07fdbd6ee1228e",
+      "exit_code": 0,
+      "results": [
+        "ℹ tests 8",
+        "ℹ pass 8",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-wasm-tests.log",
+      "sha256": "aa18432a6437592276000f00bbe9080595437b24c756b8e9408594bdcb580cfa",
+      "exit_code": 0,
+      "results": [
+        "ℹ tests 40",
+        "ℹ pass 40",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-ref-check.log",
+      "sha256": "d85b7407631c966f51bc8f88e48678c581b4ce2116574e6df11ebe83d1da6a60",
+      "exit_code": 0,
+      "results": [
+        "ref-check: ok — 518 LLP docs, 9638 refs in 27282 files, 0 errors, 0 unchecked"
+      ]
+    },
+    {
+      "log": "target/cq-round1/final-docs-budget.log",
+      "sha256": "849409edb6547e71c61652e03f69c8a1d9562fd0e1400641a6e89b5fb122bbc2",
+      "exit_code": 0,
+      "results": [
+        "docs budget: README 300/300 physical lines",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s"
+      ]
+    }
+  ],
+  "final_rust_source_sha256": {
+    "snapback4/crates/snapback4-core/src/engine/local.rs": "9c3920d1d631cf7a49cc0a9e29bb818ef9587e1a284c03e10cc4ed67d9486ce1",
+    "snapback4/crates/snapback4-core/src/engine/mod.rs": "2a3d3d44828fce451a2eaa5c134bd979ebc2713b545d7c1200059cf1658efa8d",
+    "snapback4/crates/snapback4-core/src/engine/postgres/mod.rs": "94af4399a8ab8dbff2b3c55f86cf96815d90ffa1be7cce76dd3a7b616aefdc44",
+    "snapback4/crates/snapback4-core/src/engine/read.rs": "a9ea45eb67383e6f9d337d9b12beda2452bfc22787b73d25b23b2f0a2ab9170a",
+    "snapback4/crates/snapback4-device/tests/topn_complete.rs": "44ba777870045f347dbddae13fe39e0f9d4a8e984979e72304e401b3bb84a396",
+    "snapback4/crates/snapback4-lang/src/guide/search.rs": "7e5ce43fa561d878905f48b284e8eebc052522dd1c6aceb2f475beb856e4b611",
+    "snapback4/crates/snapback4-lang/tests/repairs.rs": "3d22cb1cf849187cae6b6367bdc33f4b840ef9ebf53e4d84df47c76f29bab859",
+    "snapback4/crates/snapback4-sim/tests/common/topn_boundaries.rs": "8c8adf951df98ef81990a800db0953839e253b7b2a63620371386259754d3446",
+    "snapback4/crates/snapback4-sim/tests/topn_complete.rs": "37fe6478fcd18efbc0c5f0f418fab977b0a386f74b87ad7f4a111ac5531945f0",
+    "snapback4/crates/snapback4/tests/scale/witnesses.rs": "39c9310ebfb56432e62793fc961aa614a5f89a2dba9f9740b76aeb6a91093a6f",
+    "snapback4/crates/snapback4/tests/scale_extremum_expressions.rs": "c4ebe825a0e88eccc0bf193f35593810013a8e436089eac6092c74ab82c9082d",
+    "snapback4/crates/snapback4/tests/scale_row_ranges.rs": "d2ffef0b353112bf75cbc2f9a3ff3a6c4bbf52f4f131b0dc47a5a4f03a98b677"
+  },
+  "final_affected_totals": {
+    "rust_passed": 554,
+    "rust_ignored": 1,
+    "node_passed": 48,
+    "failed": 0,
+    "additional_docs_budget_guide_case": 1
+  },
+  "wasm_receipt": "round1-wasm.json",
+  "open_limitations": [
+    {
+      "kind": "baseline authoring limitation",
+      "form": "where .room in (rooms first 2 by .id)",
+      "diagnostic": "E_QUARRY_TYPE: in compares a rooms reference with a rooms row",
+      "reproduction": "ROUND1.md contains a complete schema and CLI command",
+      "runtime_coverage": "Explicit compiled merge with IR distinct room-id source; all three hosts check incomplete, cut null and next null."
+    },
+    {
+      "kind": "confirmed baseline optional feature failure",
+      "command": "cargo check -p snapback4-core --features postgres",
+      "signature": "E0061 at engine/postgres/through.rs:168: activate_columns needs fourth Option<&mut AdoptionReport> argument",
+      "baseline_commit": "60007c0ad",
+      "candidate_log": {
+        "log": "target/cq-round1/postgres-check.log",
+        "sha256": "15c3ada2bb91c6ffd514e073e8bdfbe37b185e0b3c6abebd231fcdf42b5a7131",
+        "results": []
+      },
+      "baseline_log": {
+        "log": "target/cq-round1/postgres-baseline.log",
+        "sha256": "bffd422e5d12e4521da25f2138c8f747cfabeb6ddf63898aef57d23bc091ed41",
+        "results": []
+      },
+      "live_postgres_qualified": false
+    },
+    {
+      "kind": "qualification scope",
+      "detail": "The one full suite precedes the mutation guard and receipt corrections. Its red aggregate is retained; final affected checks pass. The inherited 60-second suite budget is exceeded."
+    }
+  ],
+  "new_tool_installs": [],
+  "published": false,
+  "pushed": false,
+  "journal_prefix_preserved": true,
+  "changed_source_line_limit": 1500,
+  "diff_check": "passed",
+  "implementation_commit": "bb7fe7cd8414d26a0302eed7642eb251afccdda2"
+}

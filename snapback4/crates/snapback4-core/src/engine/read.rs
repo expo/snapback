@@ -900,6 +900,11 @@ impl<'r> Runner<'r> {
         let transient = streaming || metered_domain;
         #[cfg(feature = "server-search")]
         let prepaid_head = !self.device && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
+        // @ref LLP 3000.027#2 — a declared cursorless query needs no overflow row;
+        // cursor positions, ordered merges, lane discovery and horizons still do.
+        let stop_at_bound = !aborting && !scan.opaque_cursor && scan.merge_site.is_none() && word.is_none()
+            && !self.discovering_values && !self.view_scan_active && !(self.device && horizon.is_some())
+            && !transient && !job_page && scan.take != Bound::Meter;
         if metered_payload || transient { self.meter.heap(DisclosedBounds(&bounds).heap())?; }
         let mut cursor = bounds.clone();
         // One retained cursor/key allowance, outside the transient row scope.
@@ -912,6 +917,8 @@ impl<'r> Runner<'r> {
         let mut consumed = 0;
 
         'outer: loop {
+            if stop_at_bound && visible.len() == take { break; }
+            let batch = if stop_at_bound { batch.min(take - visible.len()) } else { batch };
             if transient {
                 if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
                 row_bytes = 0;
@@ -1116,7 +1123,7 @@ impl<'r> Runner<'r> {
                     }
                     self.next_expiry.inherit(pending);
                     row_expiry.emit();
-                    if (scan.existence || job_page) && visible.len() == take { break 'outer; }
+                    if (scan.existence || job_page || stop_at_bound) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 }
             }
@@ -1149,9 +1156,7 @@ impl<'r> Runner<'r> {
             }
         }
         self.note_value_source_page(has_more);
-        if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
-            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
-        }
+        // @ref LLP 3000.027#1 — reaching the declared top-N bound completes a cursorless answer.
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
             // @ref LLP 3000.007#5.6 — a full page positions after its last result; a cut may pass filter rejects, never rule-hidden keys.
@@ -1347,9 +1352,6 @@ impl<'r> Runner<'r> {
         let has_more = candidates.len() > take;
         self.note_value_source_page(has_more);
         candidates.truncate(take);
-        if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
-            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
-        }
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
@@ -1390,6 +1392,7 @@ impl<'r> Runner<'r> {
         Ok(Box::new(unique.into_iter()))
     }
 
+    // @ref LLP 3000.027#2 — discovery must still establish every required lane.
     pub(super) fn note_value_source_page(&mut self, has_more: bool) {
         if self.discovering_values && has_more {
             self.value_source_incomplete = true;
