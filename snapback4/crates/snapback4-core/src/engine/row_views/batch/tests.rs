@@ -34,14 +34,14 @@ fn fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications() {
     let mut views = Vec::new();
     for n in 0..50 {
         let id = format!("member-{n}");
-        rows.put("members", &schema.tables["members"], &member(&id, "busy", &id, n * 7), None).unwrap();
+        rows.put("members", &schema.tables["members"], &member(&id, "busy", &format!("principal-{n}"), n * 7), None).unwrap();
         views.push(view(&id, n % 2 == 0));
     }
     for n in 1..=1200 {
         let row = message(&format!("message-{n}"), "busy", n, if n <= 200 { Value::Int(10) } else { Value::Null });
         rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
     }
-    for (id, sender, tombstone) in [("tombstoned", "sender", true), ("self-sent", "member-0", false)] {
+    for (id, sender, tombstone) in [("tombstoned", "sender", true), ("self-sent", "principal-0", false)] {
         let mut row = message(id, "busy", 1201, Value::Null);
         let Value::Row(fields) = &mut row else { unreachable!() };
         fields.insert("senderId".into(), Value::Id(sender.into()));

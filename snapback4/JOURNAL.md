@@ -69096,3 +69096,83 @@ publication or independent-review claim. Every commit has the requested
 Astra co-author trailer. The inherited 60-second suite budget remains exceeded.
 Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
 target/lane-kg-r5/. This is round 5's single dated journal append.
+
+### 2026-09-27 — Lane FA round 1: expose the populated-store query; revise adoption
+
+Merged origin/main first (86c50df51), preserving every line of both journal
+parents. Read the round-0 prompt, LLP 3000.026, research entry and both complete
+NOT READY reviews. Part A exposes the existing planned home query in the first
+feeds-card example, with its moderate-corpus server scope, no inbox/offline floor,
+and sparse-page failure (complete false, no continuation). Activation and why
+name the same program and distinguish post ids from missing repost slots and
+edge-admission history. The empty-source guard remains. Trimmed repeated boundary
+and compatibility prose: feeds.md 18,011 → 17,708 bytes, 2,701 → 2,639 words,
+364 → 362 lines.
+
+The whole guide passes: cargo test -p snapback4-lang --test guide, 86 passed,
+0 failed, 0 ignored, 2.81 s test execution. Its exact planned card block must emit
+one N_SPARSE_FILTER note; no other note exemption was added. The existing Global
+witness also seeds a follow and executes home over retained rows, asserting no
+materialized declaration. Earlier runs exposed that deliberate note and obsolete
+editorial pins (4 failures, then 1); updated those pins to the revised recovery
+text. No compiler behavior was changed. Whitespace check passes. Rust checks
+only; no JavaScript tests or full suite were needed for this documentation delta.
+
+## 2026-09-27 — lane SS round 2: profile and reduce 1,000-conversation device work
+
+Merged `origin/main` to `941a3698c` before editing. Profiled the unchanged
+110,088-row/30-response/42-MB fixture first with Node V8 CPU sampling,
+wasm-symbol stacks, JSON/call timers and physical fake-IDB transaction
+instrumentation. Index construction/insertion dominated apply; repeated
+bucket JSON/byte work and text-only media markers inflated persistence.
+
+Reused row images across indexes, grouped memory indexes by namespace,
+kept one old index tree as replacement undo, moved owned values, and omitted
+empty media home markers. Counts stay immediate; terminal publication and
+strict IDB commit remain atomic. Increased the initial page from 4,000 to
+the existing 10,000-row server ceiling, preserving byte refusal/halving.
+Reuse existing bucket JSON byte sizes and exact ASCII byte accounting.
+Added replacement rollback/index equivalence, memory+SQLite optional/nested
+media, and staged-page reopen/terminal persistence fault tests. Distinguished
+membership ids from principals in both self-send fixtures; substituting id
+for principal fails both tests, and restored scalar comparisons pass.
+
+Final Node 1,000 acquisition is **21.854 → 16.324 s memory**, **41.477 →
+21.036 s fake-IDB**: improvements, but the **8/12 s targets are not met**.
+Apply excluding persistence is **16.709 → 11.483 s** and **18.339 → 12.036 s**;
+fake-IDB saves **18.309 → 4.507 s**. Responses **30 → 13**. Diagnostic
+physical IDB work falls **102 → 50 transactions**, **115,000 → 18,570 puts**,
+**1.302 GB → 627 MB** of serialized put bytes. Reports separate diagnostic
+observer overhead from uninstrumented timing and retain per-page profiles.
+
+Added a real Chromium/IndexedDB companion while preserving both existing
+Node witnesses. At 100 conversations browser acquisition **7.336 → 4.186 s**,
+during/after live p95 **2.449/0.729 s** after. At 1,000, **84.898 → 27.327 s**,
+during/after p95 **13.158/0.754 s**, zero final timeouts. The baseline had one
+>31 s timeout among 40 during samples; final has 19, so its p95 selects the
+maximum. Do not confuse that sample-count effect with disappearance of the
+terminal main-thread pause. Final browser acquisition-only JS peaks are
+92.1/186.3 MiB for 100/1,000; wasm heaps 65.4/749.1 MiB. Total replica memory
+cannot be sublinear in independent retained rows, and fake-IDB retains
+completed transaction history. The report includes Node JS/external/RSS and
+browser JS/wasm separately. Real-browser navigation after 9,922 staged rows
+shows zero published rows and acquired=false, then reacquires successfully.
+
+Whole guide **86/86**, affected checks pass (one initial new durability
+fixture omission corrected), principal mutants fail as required. Ran the
+whole `scripts/test.sh` **once**, exact **`== 1 failure(s) in 1285 s`**, exit 1:
+client tests had two stale 4,000-row policy expectations (plus their enclosing
+parent failure), **all lane-owned**. Updated only those expectations and
+reran both affected files, **67/67 pass**. No baseline/environmental suite
+failure. Full Rust **3,910 passed / 24 ignored**; serial client models **78/78**.
+No full rerun. Final wasm **1,981,590 raw / 572,590 gzip**, 251 bytes below the
+unchanged 572,841-byte budget. No source exceeds 1,500 lines.
+
+The detailed file map, commands, full compressed log and measurements are
+in `reports/20260927-ss-sync-scale/ROUND2.md` and its companions. Remaining
+targets are recorded in
+`issues/20260927-snapback4-1000-conversation-acquisition-budget.md`. No new
+syntax/API, auth/expiry/meter weakening, original GS store writes, shared
+path tool installation, push or publication. Binaryen experimentation stayed
+under this worktree's target directory and was not adopted. Local commits
+carry the required co-author trailer.

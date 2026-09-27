@@ -76,6 +76,7 @@ fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
         ("E_RECIPE_RETIRED", vec!["view following: activity", "the engine chooses delivery bounds"]),
         ("E_TIMELINE_FILTER", vec!["view activity", "posts where .parentId = null and not .removed"]),
         ("E_TIMELINE_READ", vec!["following last 20 by .at after c"]),
+        ("E_TIMELINE_ACTIVATE", vec!["query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", "Original event ids are post ids", "no repost identity slots or edge-admission history"]),
         ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
         ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
     ] {
@@ -511,6 +512,13 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     let bound = compile(source);
     let list = |items: &[snapback4_lang::Diagnostic]| items.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n");
     assert!(bound.diagnostics.is_empty(), "{label} does not compile:\n{}", list(&bound.diagnostics));
+    // The populated-store feed deliberately teaches its sparse-scan limit.
+    // Pin the actual card block and its one note; other examples stay clean.
+    if source == quarry(card("feeds").unwrap())[0] {
+        assert_eq!(bound.notes.len(), 1, "{label}: {:?}", bound.notes);
+        assert_eq!(bound.notes[0].code, "N_SPARSE_FILTER");
+        return bound;
+    }
     // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
     let unexpected: Vec<_> = bound.notes.iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
     assert!(unexpected.is_empty(), "{label} compiles with notes:\n{}", list(&unexpected));
@@ -1055,7 +1063,7 @@ fn the_cards_state_the_engines_numbers_and_families() {
         assert!(refusals.contains(family), "the refusals card does not name the {family} family");
     }
     let sync = card("sync").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(sync.contains("4,000 events") && sync.contains("2,000 by default") && sync.contains("10,000 at"), "the sync card states the snapshot page sizes");
+    assert!(sync.contains("asks for 10,000 events") && sync.contains("2,000 by default") && sync.contains("10,000 at"), "the sync card states the snapshot page sizes");
     let _ = guide::TEMPLATE;
 }
 
