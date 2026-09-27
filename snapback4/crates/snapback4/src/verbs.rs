@@ -223,7 +223,7 @@ pub fn check(options: &Options) -> i32 {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         for line in &sequences { println!("  {line}"); }
         for (name, _) in bound.schema.visible_tables().filter(|(_, t)| t.ephemeral.is_some()) {
@@ -238,7 +238,12 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&bound.notes, options.flags.contains_key("verbose")) { println!("{}", present(&report)); }
         }
     }
-    if !options.json { println!("{scale_summary}"); }
+    if !options.json {
+        println!("{scale_summary}");
+        for search in certificates.iter().flat_map(|certificate| &certificate.search) {
+            println!("  {} at {}: {}; rewrite: {} (guide {})", search.code, search.site, search.message, search.rewrite, search.guide);
+        }
+    }
     if details && !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{}", present(&summary)); }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", present(&residency::facts(&bound))); }
     if !details && options.flags.contains_key("residency") && !options.json {
@@ -514,7 +519,7 @@ pub fn run(options: &Options) -> i32 {
                 0
             }
             Err(refusal) => {
-                println!("{}", if options.json { json!({ "denied": refusal }).to_string() } else { format!("denied {refusal}") });
+                println!("{}", if options.json { json!({ "denied": refusal, "complete": false }).to_string() } else { format!("denied {refusal}") });
                 1
             }
         }

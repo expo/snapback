@@ -309,7 +309,7 @@ impl Runner<'_> {
                 let next = (|| {
                     // Source-group authority was proven before recount selection;
                     // the shared candidate boundary also removes private fields before pricing.
-                    let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true)?;
+                    let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true, None)?;
                     let Some((stored, position)) = rows.into_iter().next() else { return Ok(None); };
                     let source = match stored {
                         Some(stored) => {

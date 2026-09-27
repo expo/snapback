@@ -1864,9 +1864,10 @@ this commission.
 
 ## 2026-09-27 — Global search beyond one read
 
-The 0.4.5 lane GS commission supplies the application need for globally ordered
-search beyond a single membership-discovery read. The baseline reproduction,
-heap attribution, proposed bounded access plan and unresolved continuation
-contract are [LLP 3000.024](./3000.024-global-search-beyond-one-read.rfc.md).
-This records a design handoff, not implementation or a change to the budgets,
-disclosure rules or the no-query-cache exclusion.
+Lane GS reproduced the global-search boundary and stopped at a design handoff.
+The supervisor narrowed 0.4.6 to compact, bounded one-read membership search;
+[LLP 3000.024](./3000.024-global-search-beyond-one-read.rfc.md) records the
+Decision, implementation, measurements and explicit grouped-search refusal
+beyond its envelope. The retained-session and stateless multi-pass contracts
+remain future RFC work. Budgets, disclosure rules and the no-query-cache
+exclusion are unchanged; round 1's report records qualification failures.

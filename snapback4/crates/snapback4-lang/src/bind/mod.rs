@@ -513,7 +513,10 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
                     in_stmts(then_body, out);
                     in_stmts(else_body, out);
                 }
-                Stmt::For { body, .. } => in_stmts(body, out),
+                Stmt::For { domain, body, .. } => {
+                    if let snapback4_core::ir::LoopDomain::DerivedArray { value, .. } = domain { in_expr(value, out); }
+                    in_stmts(body, out);
+                }
                 _ => {}
             }
         }

@@ -196,8 +196,19 @@ impl Runner<'_> {
         self.page_depth = depth;
         self.note_value_source_page(has_more);
         if depth == 0 {
+            let continues = self.word_cut_at.is_none() && ((has_more && !self.read_capped()) || (opened_all && drain_cut && !page.is_empty()));
+            self.finish_merge_page(first, site, merge.and_then(|m| m.variant).or(first.variant), &page, last, has_more, continues, metered_merge)?;
+        }
+        Ok(page)
+    }
+    pub(super) fn finish_merge_page(&mut self, first: &Scan, site: &str, variant: Option<crate::ir::VariantId>, page: &[Value], last: Option<Vec<Value>>, has_more: bool, continues: bool, metered_merge: bool) -> Result<(), RuntimeError> {
+        let table = &self.schema.tables[&first.table];
+        let index = &table.indexes[&first.index];
+        let prefix_len = first.prefix.len();
+        let suffix_len = index.components.len() - prefix_len + usize::from(index.components.last().and_then(|c|c.column()).map(String::as_str) != Some("id"));
+        let order = first.order;
             if first.opaque_cursor {
-                let continues = self.word_cut_at.is_none() && ((has_more && !self.read_capped()) || (opened_all && drain_cut && !page.is_empty()));
+
                 if metered_merge {
                     // Returned shaping may rewind to any emitted key, including
                     // one larger than the final key, or resume a terminal page.
@@ -206,7 +217,7 @@ impl Runner<'_> {
                     let shaped = self.page_plan.shapes.values().any(|shape| shape.page == site);
                     let mut max_key = 0;
                     let mut shape_bytes = if shaped { word_heap::vec_growth::<Vec<Value>>(page.len()) } else { 0 };
-                    for row in &page {
+                    for row in page {
                         let row = self.project_row(&first.table,row.clone())?;
                         let payload = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).map(|name|row.scalar_heap(name)).sum::<u64>()
                             + if index.components.last().and_then(|c| c.column()).map(String::as_str) != Some("id") { row.scalar_heap("id") } else { 0 };
@@ -224,9 +235,9 @@ impl Runner<'_> {
                         + last.as_ref().map_or(0, |key| 2 * DisclosedKeys(key).heap())
                         + word_heap::cursor_build(table, index, prefix_len, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(&first.index)))?;
                 }
-                self.record_page(site.to_owned(), PagePosition { variant: merge.and_then(|m| m.variant).or_else(|| first.variant), view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
+                self.record_page(site.to_owned(), PagePosition { variant, view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
             } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
-        }
-        Ok(page)
+        Ok(())
     }
+
 }

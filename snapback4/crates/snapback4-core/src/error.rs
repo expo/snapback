@@ -90,6 +90,8 @@ impl MeterKind {
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    #[error("E_SEARCH_OPEN: {memberships} authorized membership keys discovered{unfinished}; opening exceeded this read's envelope ({ceiling} {resource} maximum) at {site}; use the grouped form in `snapback4 guide search`")]
+    SearchOpening { site: String, memberships: usize, unfinished: &'static str, resource: &'static str, ceiling: u64 },
     #[error("{code}: {message}")]
     Structural { code: &'static str, message: String },
     #[error("E_INPUT: {0}")]
@@ -164,6 +166,7 @@ impl RuntimeError {
 
     pub fn code(&self) -> String {
         match self {
+            Self::SearchOpening { .. } => "E_SEARCH_OPEN".into(),
             Self::Structural { code, .. } => (*code).into(),
             Self::Input(_) => "E_INPUT".into(),
             Self::Schema(_) => "E_SCHEMA".into(),
@@ -210,7 +213,7 @@ impl RuntimeError {
             Self::Rule { .. } | Self::AuthorizationBudget { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
             Self::Conflict { .. } | Self::Constraint(_) | Self::ExpiringCap { .. } | Self::NamedConstraint { .. } => "constraint",
-            Self::Fanout | Self::Bound { .. } => "bound",
+            Self::SearchOpening { .. } | Self::Fanout | Self::Bound { .. } => "bound",
             Self::UnknownOp(_) => "op",
             Self::Asset { .. } => "asset",
             Self::Prediction(_) => "prediction",
@@ -247,6 +250,11 @@ impl RuntimeError {
     pub fn refusal(&self) -> Refusal {
         let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
         match self {
+            Self::SearchOpening { site, .. } => {
+                refusal.site = Some(site.clone());
+                refusal.rewrite = Some("return members[principal = viewer] after c first 20 by .conversation where exists (messages[conversation = .conversation] matching q by .at) { conversation, hits: messages[conversation = .conversation] matching q last 3 by .at }; see the grouped form in search_all and use bare hits plus separate detail reads".into());
+                refusal.guide = Some("search".into());
+            }
             Self::NamedConstraint { code, message, detail } => {
                 refusal.rule = Some(code.clone());
                 refusal.message = message.clone();

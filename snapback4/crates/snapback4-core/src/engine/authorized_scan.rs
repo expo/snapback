@@ -69,6 +69,12 @@ impl<'a> GuardedRows<'a> {
         if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(rows)
     }
+    pub(crate) fn scan_selected(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.limit(table, 1)?;
+        let rows = self.raw.scan_selected(table, name, prefix, bounds, dir, fields)?;
+        self.charge(rows.len());
+        Ok(rows)
+    }
     pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let permitted = self.limit(table, limit)?;
         let rows = InternalLedger::with_meter(meter, |meter, _| self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter))?;
