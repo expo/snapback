@@ -228,8 +228,8 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
         } });
         try {
           assert.equal(client.acquired, true, `${tier} must publish only the complete snapshot and catch-up`);
-          assert.deepEqual(limits.slice(0, 8), [4000, 2000, 1000, 500, 250, 125, 62, 31]);
-          assert.ok(requests.slice(0, 8).every(request => request.from === 0 && request.after === null && request.stream === false), `${tier} retries one cursor and watermark`);
+          assert.deepEqual(limits.slice(0, 9), [10000, 5000, 2500, 1250, 625, 312, 156, 78, 39]);
+          assert.ok(requests.slice(0, 9).every(request => request.from === 0 && request.after === null && request.stream === false), `${tier} retries one cursor and watermark`);
           assert.ok(requests.some(request => request.after !== null), `${tier} continues the reduced snapshot pages`);
           assert.ok(requests.some(request => request.stream === true), `${tier} completes catch-up before acquisition`);
           assert.equal((await client.query({ kind: "query", name: "count" }, {})).data, 2);
