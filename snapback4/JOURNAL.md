@@ -66956,3 +66956,65 @@ The new regression tests, guide, wasm measurement and sidecar implementation
 are unchanged after qualification. No second full-suite run, unrelated
 client fix, push or publication. Darwin verification remains the supervisor's
 next platform proof, not a claim from this Linux lane.
+
+
+### 2026-09-27 — Lane GN: ordinary retained history and first-account guidance
+
+Implemented LLP 3000.021 P12/P15/P16 on `sb4-intent/gn-guide-note`, base
+`dde688548`; local implementation commits `63c48dddf` and `b72a28dc7`.
+`N_HELD_UNKNOWN` walks lowered reads, including expanded helpers/shapes,
+nested points and `exists`, and names a table/view with no sync plus the
+rewrite to move the read or drop held. It changes no routing, authorization,
+disclosure, durability, meters, IR or client contract. Held word search stays
+device-only; its generated empty-needle branch no longer receives history-order
+advice, while ordinary mismatched pages still do.
+
+The app, sync and receipts cards show bare ordinary history, separate
+receipt/profile/quote/reaction reads, and a pinned retained conversation beside
+retained messages. The guide inboxes drop until-revoked memberships. The README
+adds accepted write IDs and one mintId per kept intent, ordinary history,
+retention, held search, the receipts link, product caps and Following naming.
+Duplicate reference examples made room within the unchanged 300-line budget.
+The search card now has a horizon, removing the guide test's old note exception.
+Its existing search witnesses explicitly keep their original full-history
+control and ten-row horizon cases. The frozen compatibility fixture set remains
+unchanged; the new comparative messaging excerpt lives under tests/history/.
+The authoring census removes only the three deleted README addNote entries.
+
+Seven new compiler tests pass; the whole guide passes 86/86 without an exception.
+Eight real-server JS tests on wasm and process devices pass: cold DM fallback,
+HTTP history with separate decorations, held refusal, nonpredicting offline
+send listed by pendingWrites through reopen and settlement, and the two exact
+guide programs plus the comparative through leave/removal, remount and reopen
+both offline and online. The comparative excerpt preserves its original retained
+members policy, so its local inbox can still keep a membership after removal;
+the guide inbox-drop assertions apply to the guides. The report gives the
+reproduction and every full-suite failure by name.
+
+Ran scripts/test.sh once: `== 1 failure(s) in 1375 s`, exit 1; only failing
+check: cargo test (903 s). Rust reported 3,758 passed / 34 failed / 24 ignored.
+All 34 failures were ours, caused by test inputs: 32 search witnesses inherited
+the new guide horizon while expecting full coverage; the authoring census still
+included a removed README example; the frozen fixture census included our new
+fixture. Corrected those inputs without weakening assertions or altering runtime
+code. Affected reruns pass: compiler/guide 94/94, census 1/1, device search 50/50,
+server search 17/17. The original red full run is preserved; no second full run
+or claim that it was green. No baseline or environmental failure observed.
+Client main passes 2,474 with 10 skips, seven shards pass 56, all 78 seeded
+models pass, fixture wrappers pass 9, and both app typechecks, package build/
+typecheck, docs budget, release guard and wasm budget pass. The eight new JS
+acceptance cases also pass within that full run.
+
+Wasm is 1,980,253 B raw / 571,841 B gzip, +0 B against the integration baseline,
+under the unchanged 572,841 B budget. SHA-256:
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Frozen Bun install and ref-check pass (515 LLP docs, 9,566
+refs, zero errors/unchecked). No changed source exceeds 1,500 lines.
+
+No delivery reporter, package version/budget increase, runtime/client change,
+Apple simulator, Expo UI or whole comparative rerun. The acceptance program is
+the relevant messaging excerpt, not the unrelated feed/media/typing/digest
+features; the comparative packet was untouched. No push or publication.
+Full report: `reports/20260927-gn-guide-note/REPORT.md`; raw and affected-check
+logs: ignored `target/lane-gn/qualification/`.
