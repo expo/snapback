@@ -35,15 +35,15 @@ export function prootEnvironment(temporary) {
     NPM_CONFIG_USERCONFIG: "/tmp/empty-user.npmrc", NPM_CONFIG_GLOBALCONFIG: "/tmp/empty-global.npmrc",
     NPM_CONFIG_CACHE: "/tmp/npm-cache", NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/" };
 }
-export function prootProof(client, platform, version, cache = proofCache()) {
-  const proot = fetchPinned(prootInput, cache); chmodSync(proot, 0o700);
+export function prootProof(client, platform, version, cache = proofCache(), fetchInput = fetchPinned) {
+  const proot = fetchInput(prootInput, cache); chmodSync(proot, 0o700);
   const proofs = [];
   for (const distribution of prootDistributions) {
     const started = Date.now(), work = mkdtempSync(join(cache, "consumer-"));
     try {
       const root = join(work, "root"), scratch = join(work, "scratch"), inputs = join(work, "inputs"), temporary = join(work, "tmp");
       for (const path of [root, scratch, inputs, temporary]) mkdirSync(path);
-      run("tar", ["--extract", "--file", fetchPinned(distribution.rootfs, cache), "--directory", root, "--no-same-owner"]);
+      run("tar", ["--extract", "--file", fetchInput(distribution.rootfs, cache), "--directory", root, "--no-same-owner"]);
       for (const path of ["root", "tmp", "dev", "consumer", "proof", "usr/local"]) mkdirSync(join(root, path), { recursive: true });
       // Copy only DNS configuration; no host NSS libraries, homes or credentials.
       rmSync(join(root, "etc/resolv.conf"), { force: true });
@@ -52,7 +52,7 @@ export function prootProof(client, platform, version, cache = proofCache()) {
       copyFileSync(client, join(inputs, "client.tgz")); copyFileSync(platform, join(inputs, "platform.tgz"));
       copyFileSync(new URL("./publication-roundtrip.mjs", import.meta.url), join(inputs, "roundtrip.mjs"));
       for (const tool of distribution.tools.slice(1)) {
-        const file = fetchPinned(tool, cache);
+        const file = fetchInput(tool, cache);
         if (distribution.base === "alpine") copyFileSync(file, join(inputs, basename(new URL(tool.url).pathname)));
         else run("tar", ["--extract", "--file", file, "--directory", join(root, "usr/local"), "--strip-components=1", "--no-same-owner"]);
       }

@@ -8,19 +8,26 @@ import { digest, json, member, sri, validateLinux } from "../../../scripts/publi
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
+import { proofEntrypoint } from "./helpers/linux-proof-harness.mjs";
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
   for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
-  if (scenario.proot) writeFileSync(join(root, "scripts/qualify-linux-proot.mjs"), `
-    import { prootDistributions } from './linux-proof-inputs.mjs';
-    import { sri } from './publication-artifacts.mjs';
-    export function prootProof(client, platform) {
-      if (${!!scenario.proofFail}) throw Error('proot consumer failed');
-      return prootDistributions.map(d => ({ ...d, route: 'proot', runtime: 'proot', status: 'passed',
-        clientIntegrity: sri(client), platformIntegrity: sri(platform), elapsedMs: 123 }));
-    }
-  `);
+  writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
+  if (scenario.proot) {
+    copyFileSync(join(root, "scripts/qualify-linux-proot.mjs"), join(root, "scripts/qualify-linux-proot-real.mjs"));
+    writeFileSync(join(root, "scripts/qualify-linux-proot.mjs"), `
+      import { prootProof as realProof } from './qualify-linux-proot-real.mjs';
+      import { mkdirSync, writeFileSync } from 'node:fs';
+      import { basename, join } from 'node:path';
+      export function prootProof(client, platform, version) {
+        const cache = ${JSON.stringify(join(root, "cache"))}; mkdirSync(cache);
+        return realProof(client, platform, version, cache, input => {
+          const path = join(cache, basename(new URL(input.url).pathname)); writeFileSync(path, 'fixture download'); return path;
+        });
+      }
+    `);
+  }
   const version = "0.0.0", client = join(root, "client.tgz");
   const manifest = { name: "snapback4", version, optionalDependencies: { "snapback4-darwin-arm64": version, "snapback4-linux-x64": version } };
   writeFileSync(join(root, "packages/snapback4/package.json"), JSON.stringify(manifest));
@@ -58,16 +65,22 @@ if (name === 'node') {
 import cp from "node:child_process";
 import os from "node:os";
 import { syncBuiltinESMExports } from "node:module";
-import { appendFileSync, cpSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { runProofShell } from ${JSON.stringify(new URL("./helpers/linux-proof-harness.mjs", import.meta.url).pathname)};
+import { prootDistributions } from './scripts/linux-proof-inputs.mjs';
 const original = cp.execFileSync, root = ${JSON.stringify(root)}, scenario = ${JSON.stringify(scenario)};
 os.homedir = () => root;
 Object.defineProperty(process, "platform", {value:"linux"}); Object.defineProperty(process,"arch",{value:"x64"});
 const log = (cmd,args) => appendFileSync(join(root,"commands.jsonl"), JSON.stringify({cmd,args})+"\\n");
+let context, proofIndex = 0;
 cp.execFileSync = (cmd,args,opts={}) => {
   log(cmd,args);
   if(cmd === "git") return args[0] === "status" ? "" : "a".repeat(40);
   if(cmd === "tar" && args[1] === ${JSON.stringify(client)}) return JSON.stringify(${JSON.stringify(manifest)});
+  if(cmd === "tar" && args[0] === "--extract") {
+    mkdirSync(join(args[args.indexOf("--directory") + 1], "etc/apk"), {recursive:true}); return "";
+  }
   if(cmd === "tar") return original(cmd,args,opts);
   if(cmd === "bash") return scenario.redirectedTarget ? original(cmd,args,{...opts, env: {...opts.env, HOME: root, CARGO_TARGET_DIR: join(root,"redirected"), SNAPBACK4_MUSL_CC: join(root,".local/bin/musl-gcc")}}) : "";
   if(cmd === "curl") { writeFileSync(args[args.indexOf("--output") + 1], "wrong pinned bytes"); return ""; }
@@ -80,12 +93,22 @@ cp.execFileSync = (cmd,args,opts={}) => {
   }
   if(cmd === "docker" || cmd === "podman") {
     if(args[0] === "build") {
+      context = args.at(-1);
       const dockerfile = readFileSync(join(args.at(-1), "Dockerfile"), "utf8");
       const configs = [...dockerfile.matchAll(/NPM_CONFIG_(?:USER|GLOBAL)CONFIG=(\\S+)/g)].map(m => m[1]);
       if(configs.length !== 2 || configs[0] === configs[1]) throw Error("npm cannot double-load one config path");
     }
-    if(args[0] === "run" && scenario.proofFail) throw Error("container proof failed");
+    if(args[0] === "run") {
+      const cwd = join(root, "consumer-" + proofIndex++); mkdirSync(cwd);
+      runProofShell(original, args.at(-1), {root, cwd, inputs: context, node: "24.13.1", scenario});
+    }
     if(args[0] === "image") return "sha256:test-image";
+    return "";
+  }
+  if(cmd.endsWith("/proot")) {
+    if(args.at(-1).startsWith("apk add")) return "";
+    const bound = target => args.find(a => a.endsWith(':' + target)).split(':')[0];
+    runProofShell(original, args.at(-1), {root, cwd: bound('/consumer'), inputs: bound('/proof'), node: prootDistributions[proofIndex++].node, scenario});
     return "";
   }
   if(args[0] === "--version" && cmd.endsWith("/snapback4")) return "snapback4 0.0.0";
@@ -116,7 +139,18 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   assert.ok(!r.commands.some(c => ["codesign", "security", "xcrun"].includes(c.cmd)));
   const containers = r.commands.filter(c => c.cmd === "docker" && c.args[0] === "run"); assert.equal(containers.length, 2);
   assert.ok(containers.every(c => !c.args.includes("--volume") && !c.args.includes("-v") && !c.args.includes("--env-file")));
+  assertProofsExecuted(r);
 });
+
+function assertProofsExecuted(r) {
+  const executions = readFileSync(join(r.root, "executed-proofs.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(executions.length, 2);
+  for (const events of executions) {
+    assert.deepEqual(events.map(e => e.event), ["node-version", "install", "roundtrip"]);
+    assert.equal(events[1].clientIntegrity, r.receipt.clientIntegrity);
+    assert.equal(events[1].platformIntegrity, r.receipt.platform.integrity);
+  }
+}
 
 test("redirected CARGO_TARGET_DIR inspects, proves and packs the binary just built", t => {
   const r = qualify(t, { redirectedTarget: true }); assert.equal(r.status, 0, r.stderr);
@@ -125,12 +159,20 @@ test("redirected CARGO_TARGET_DIR inspects, proves and packs the binary just bui
   assert.deepEqual(member(join(r.root, "out", r.receipt.platform.filename), "snapback4"), fresh, "qualification packed this build");
   assert.equal(r.receipt.binarySha256, digest(join(r.root, "fresh-binary")));
   assert.ok(r.receipt.proofs.every(p => p.platformIntegrity === r.receipt.platform.integrity));
+  assertProofsExecuted(r);
   assert.equal(existsSync(join(r.root, "redirected/x86_64-unknown-linux-musl/production/snapback4")), false);
 });
 for (const scenario of [{ suiteFail: true }, { proofFail: true }, { interpreter: true }, { noRuntime: true }, { proot: true, proofFail: true }, { proot: true, suiteFail: true }])
   test(`qualification never writes a success receipt on ${JSON.stringify(scenario)}`, t => {
     const r = qualify(t, scenario); assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
     assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
+  });
+
+for (const proot of [false, true]) for (const refusal of ["proofFail", "overridePresent", "wrongNode"])
+  test(`${proot ? "proot" : "container"} executes the proof guard and propagates ${refusal} without a receipt`, t => {
+    const r = qualify(t, { proot, [refusal]: true });
+    assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+    if (refusal === "proofFail") assert.match(r.stderr, /deliberately failing consumer entrypoint/);
   });
 
 test("runtime selection prefers working Docker then Podman and falls back to proot", () => {
@@ -175,6 +217,7 @@ test("proot receipt binds its route, both root filesystems and every pinned tool
   assert.equal(r.receipt.route, "proot");
   assert.deepEqual(r.receipt.proofs.map(p => p.rootfs), prootDistributions.map(p => p.rootfs));
   assert.deepEqual(r.receipt.proofs.map(p => p.tools), prootDistributions.map(p => p.tools));
+  assertProofsExecuted(r);
   const validate = receipt => validateLinux(receipt, join(r.root, "out", receipt.platform.filename), { version: "0.0.0", integrity: sri(r.client) }, "a".repeat(40));
   validate(r.receipt);
   for (const alter of [r => delete r.route, r => r.route = "docker", r => r.proofs.pop(), r => r.proofs[0].route = "docker",

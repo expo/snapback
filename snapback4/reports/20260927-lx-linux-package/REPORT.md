@@ -503,3 +503,19 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   now the shell's inspected bytes, packed bytes, receipt binary digest and
   both proofs' platform digest all identify the fresh build. Qualifier
   tests: 12 passed, 0 failed.
+
+- `Execute the consumer proof in both qualifier test routes`: Astra finding 4
+  (Medium), Grok finding 3 (Medium), round-2 request 4. The qualifier harness
+  now executes each production shell body with offline guest-tool stand-ins
+  and a real Node proof entrypoint. The proot fixture runs the actual
+  `prootProof`, mocking only downloads/tool execution through a narrow
+  `fetchInput` argument (default: checksum-verifying `fetchPinned`).
+  `helpers/linux-proof-harness.mjs` requires the absence guard and Node pin,
+  records node-version/install/roundtrip execution and both installed SRIs,
+  and checks the entrypoint saw no override. Six explicit refusal cases
+  cover a failing entrypoint, injected override and wrong Node on both
+  routes; every case exits without a receipt. Removed the old proot stub
+  that manufactured successful proof records. Qualifier tests: 18 passed.
+  Mutation checks independently replaced the entrypoint, override guard
+  and Node-version check with `true` in each production route: all six
+  mutations made the success test fail, unlike round 0's permissive mock.
