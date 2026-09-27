@@ -23,6 +23,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
    * `presenceEvery` ms from then on. */
   presenceRefresh: ReturnType<typeof setTimeout> | null;
   presenceEvery?: number | undefined;
+  /** The last accepted observation used the server while acquiring. */
+  serverRead?: boolean;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;

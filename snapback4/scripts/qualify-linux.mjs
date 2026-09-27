@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ref LLP 3000.021#3.3 — Linux qualifies bytes; it never packs the client or publishes
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, openSync, closeSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, openSync, closeSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -90,4 +90,4 @@ export function qualify(args = process.argv.slice(2)) {
     return receipt;
   } finally { rmSync(work, { recursive: true, force: true }); }
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) qualify();
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) qualify();

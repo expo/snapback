@@ -30,7 +30,7 @@ function fixture(t) {
   return { dir, invoke, run };
 }
 
-for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token`, { timeout: 20000 }, async (t) => {
+for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token`, { timeout: 20000 }, async (t) => {
   const { dir, run, invoke } = fixture(t);
   run("init", "--online");
   const schema = join(dir, "snapback/schema.q");
@@ -44,8 +44,9 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
   }
   if (mode === "dev") run("test", "--residency");
   const releaseFlags = mode === "serve" ? ["--release", release] : [];
-  const tokens = [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]
-    .map(flags => ({ flags, minted: run("token", "--service", "worker", ...releaseFlags, ...flags) }));
+  const mint = phase => [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]
+    .map(flags => ({ phase, flags, minted: run("token", "--service", "worker", ...releaseFlags, ...flags) }));
+  const tokens = mint("offline");
   const invalid = invoke("token", "--service", "bad name", ...releaseFlags);
   assert.equal(invalid.status, 1);
   assert.equal(invalid.stdout, "");
@@ -78,7 +79,8 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
       assert.equal(response.status, 200, await response.clone().text());
       return response.json();
     };
-    for (const { flags, minted } of tokens) {
+    tokens.push(...mint("live"));
+    for (const { phase, flags, minted } of tokens) {
       const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
       assert.ok(match, "stdout must contain only the base64url token and one newline");
       const token = match[1];
@@ -93,13 +95,12 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
       const { session } = await post("/auth/session", token, { principal: "member:captured", kind: "member", days: 1 });
       assert.equal(session.principal, "member:captured");
       assert.equal((await post("/q/who", session.token, { args: {} })).data, "member:captured");
-      t.diagnostic(`token ${mode} ${flags.join(" ") || "default"}: stdout ${Buffer.byteLength(minted.stdout)} B; redeemed session queried as ${session.principal}`);
+      t.diagnostic(`token ${mode} ${phase} ${flags.join(" ") || "default"}: stdout ${Buffer.byteLength(minted.stdout)} B; redeemed session queried as ${session.principal}`);
     }
-    const refused = invoke("token", "--service", "worker", ...releaseFlags);
-    assert.equal(refused.status, 2);
+    const refused = invoke("token", "--service", "bad name", ...releaseFlags);
+    assert.equal(refused.status, 1);
     assert.equal(refused.stdout, "");
-    assert.match(refused.stderr, /E_STORE_BUSY/);
-    assert.ok(refused.stderr.includes(url));
+    assert.match(refused.stderr, /E_AUTH/);
     assert.ok(withoutToken() === `${url}\n`, (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
