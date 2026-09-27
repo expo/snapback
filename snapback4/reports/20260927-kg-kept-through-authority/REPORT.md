@@ -1,3 +1,177 @@
+# Lane KG round 2 — withdrawal boundaries and discriminating regressions
+
+Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.
+Merged `origin/main` in `7d2ff6d8f` before implementation, retaining both sides
+of the journal's two append conflicts. A diff against each merge parent
+confirms zero removed journal lines. The previous reports follow below as
+historical evidence. The Accepted LLP 3000.023 contract is unchanged.
+
+## Findings and commits
+
+| Finding | Commit | Resolution and discrimination |
+| --- | --- | --- |
+| 1 — Astra High: schema discovery loses the episode | `cb32f7971` | Discovery resets to loading and clears row deadlines. Two online regressions hold a revocation reread, advertise ephemeral support, and stall schema discovery; both fail on the old spread-copy reset. No new episode starts. |
+| 2 — Astra High: a store callback sees a peer's old approval | `260eceafb` | Defer shared notifications around all store withdrawal, including endLingering. Ten tests fail before the fix and pass after: replacement/restore, createApp/guarded clients, omitted/true, and opening remounts of lingering watches. Each callback inspects a peer synchronously. |
+| 3 — both Medium: opening remount misses revalidation | `185c542c0` | Return the shared notification when the follower changes the displayed snapshot, through deferred delivery. Four tests hold opening authority during reload/replacement for omitted/true. All fail without the fix; no notification is emitted for an unchanged snapshot. |
+| 4 — Grok Low: closed raw local handle loses deadlines | `0e10969e2`, `85dc6ddc1` | Stop episode and row timers while retaining deadlines on non-resetting close. A removed watch enforces row expiry directly because it is no longer in the live sweep. Six deterministic tests fail before the fix; four actual wasm/process local-client tests pass, and all four fail with the old close behavior restored by an in-memory loader. A follow-up regression also proves resubscription rearms the original deadline without renewing it. |
+| 5 — Astra test strength: raw access-time row check | `0d1fc50a2` | Eight live raw snapshot/peek tests cross device/server row deadlines with timers suppressed and no facade or episode. Removing only checkReadExpiry(this) fails all eight. Stable loading, one notification and rollback latching are asserted. |
+| 6 — Grok test strength: live online link loss | `d1c1aabcd` | Six live online tests cover all three policies with settled/already-invalidated data and a held reread. Replacing the offline publication with reload fails four retaining cases; Grok's narrower mutation only for already-revalidating snapshots fails two. The withdrawing controls still pass. |
+
+All commits, including the merge and final evidence commit, carry
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push or publication.
+
+## Implementation, file by file
+
+Paths are relative to `snapback4/packages/snapback4/`.
+
+| File | Change |
+| --- | --- |
+| `src/client.ts` | Hard schema-discovery withdrawal and grouped store-withdrawal notification delivery. |
+| `src/read-approval.ts` | Shared snapshot changes return their notification to the existing deferred-delivery path. |
+| `src/read-episode.ts` | Separate stopping the timer from clearing its deadline, and rearm the same deadline when a handle resumes. |
+| `src/read-observation.ts` | Retirement stops the episode timer while keeping access-time expiry. |
+| `src/observe-watch.ts` | Clear row deadlines only when close also resets the snapshot; always stop timers. |
+| `src/read-expiry.ts` | An inactive handle latches due row expiry itself. A remembered server answer still ignores a local reobservation wakeup. |
+| `test/retention-online-boundaries.test.mjs` | Two discovery and six live offline regressions. |
+| `test/retention-store-withdrawal.test.mjs` | Ten synchronous peer-observation tests across store boundaries. |
+| `test/keep-authority.test.mjs` | Four opening-remount revalidation/deferral tests. |
+| `test/raw-read-deadlines.test.mjs` | Seven closed/resubscribed-handle and eight live raw-accessor tests, with explicit clock and timer control. |
+| `test/keep-expiry.test.mjs` | Four real local-client closed-handle regressions on wasm/process devices, checking both row and episode deadlines. |
+
+This report and the single appended `snapback4/JOURNAL.md` entry record the
+work and qualification. No Rust, local.ts, contract, guide card, diagnostic,
+public API, authorization rule, meter, durable format, version, dependency or
+budget change. Existing assertions were not relaxed in this round.
+
+## Forms that compile and run
+
+No new spelling. All three existing observation policies are covered:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const immediate = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+Omission retains for its original one-second episode; false withdraws on an
+invalidation; true retains without that episode cap and lingers. Every policy
+withdraws on discovery, store change and link loss. An opening remount receives
+the revalidating mark before its own authority check finishes. After a raw local
+observation closes without resetting, getSnapshot still latches its existing
+row and episode deadlines; its timers and live-map membership are stopped.
+
+## Qualification
+
+Forty-one new tests. Initial affected set: **401 passed / 0 failed**, 20.326 s.
+After the resubscription correction, its focused set passes **121/121**.
+Final affected set on the complete change: **402 passed / 0 failed**, 21.017 s.
+Whole guide: **86 passed / 0 failed**, 2.53 s execution. Package typecheck and
+build pass. Reference audit: **517 LLP docs, 9,632 refs, 0 errors, 0 unchecked**.
+Changed source/test files remain below 1,500 lines; whitespace validation passes.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; frozen Bun install, eight Cargo jobs,
+dev/test debug information disabled, file limit 65,536.
+
+Ran `scripts/test.sh` **exactly once** on the merged lane. Exact summary:
+**`== 2 failure(s) in 1315 s`**, exit **1**. Failed phases: **wasm build** and
+**client tests**. The script reports failed phases, not individual assertions.
+
+Rust tests/doctests: **3,836 passed / 0 failed / 24 ignored** (607 s).
+Main client: **2,886 passed / 2 failed / 10 skipped** (427 s); seven additional
+shards: **56/56**. Final seeded models: **79 passed / 0 failed** (270 s). Fixture wrappers: **9/9**.
+Native build, docs budget, release guard, package build/typecheck, chat schema
+check and both app typechecks pass. All 41 added regressions and both Chromium
+authority witnesses pass in the full run.
+
+Every full-run failure:
+
+| Failure | Classification | Evidence |
+| --- | --- | --- |
+| wasm build: wasm-opt validation rejects generated sign-extension instructions | Environmental | Binaryen 108 appeared on PATH during this task; script and input are unchanged from the merge. The supported build with the optional optimizer absent succeeds with identical bytes. |
+| expired-server-watch.test.mjs: `expired server replies: recover, keep=undefined` | Baseline | Timeout at `paced expired-response retries`, line 62. The same timeout signature reproduces when all changed runtime modules are restored from the merged input. |
+| expired-server-watch.test.mjs: `expired server replies: close client, keep=false` | Baseline | `retry 1 must back off`, line 64: first gap 5.158 ms. This assertion also fails on the merged-input module control. |
+
+No full-run failure is attributed to the round-2 runtime delta. The red full
+run remains red; no timeout, assertion or budget was loosened. The baseline
+control and optimizer recovery are described with reproduction commands below.
+
+Wasm is byte-identical to the round-1 input: **1,981,512 B raw / 572,053 B
+gzip**, delta **0 B**, **788 B below** the unchanged 572,841 B budget. Gzip
+uses the build script's gzip -9 invocation, including its filename header.
+SHA-256: `5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969`.
+
+Evidence is under ignored `snapback4/target/lane-kg-r2/`: affected.log/affected-final.log,
+guide.log, full-suite.log/full-suite.exit, the per-finding before/after logs,
+closed-devices-mutated.log, raw-access-mutated.log, offline-mutated.log and
+offline-marked-mutated.log, resubscribe-before.log/resubscribe-after.log, wasm-without-optimizer.log,
+plus the in-memory mutation loaders. Mutation
+runs change only loaded source in their own Node process, never repository or
+built package files used by the suite.
+
+## Decisions, deviations and remaining issues
+
+No design deviation or stopped design part. The closed-handle fix needs one
+additional detail beyond retaining deadline fields: its owner has left the map,
+so the normal current-watch check and live sweep cannot withdraw it. The
+accessor now withdraws that inactive snapshot directly, preserving the local
+wakeup exception. No timer, background reread or renewed episode is introduced.
+
+The resubscription correction was found during self-review after the full suite
+started. Its new test fails before the correction. The package was rebuilt and
+typechecked during the suite's Rust phase, before client test discovery; all final
+runtime and test bytes participate in that full run.
+
+Both original prompts, both round-1 reviews, prior reports and KG journal
+entries were read. llp-orient context: Snapback 4's fence (LLP 3000), Accepted
+LLP 3000.023 §§3.1–3.6 and §6, LLP 3000.019 §3.3, and the current client
+manual. The changed behavior restores those constraints; no LLP hand-off is
+needed. The generic root inventories and Snapback 1–3 gates do not apply.
+
+Open baseline issue: expired-response retry tests fail intermittently. Reproduce
+with `cd snapback4 && node --test packages/snapback4/test/expired-server-watch.test.mjs`.
+The isolated final-code rerun is **5 passed / 2 failed**: close client with
+omitted options times out at `paced expired-response retries` (line 62), and
+close client with false fails `retry 1 must back off` (line 64; observed gap
+7.626 ms). This rerun is additional evidence, not a substitute for the full run.
+
+An isolated loader restores all six changed runtime modules from merged-input
+commit `7d2ff6d8f`, preserving the unchanged test and remaining package. That
+baseline control is **3 passed / 4 failed**: recover/false and close watch/false
+fail retry-1 pacing (8.812 ms and 7.798 ms); recover/true and close client/omitted
+time out waiting for paced retries. Thus both failure signatures predate this
+round; the affected policy variant varies. Reproduce that control with
+`node --import ./target/lane-kg-r2/merged-baseline-loader.mjs --test
+packages/snapback4/test/expired-server-watch.test.mjs`. It is an isolated module
+baseline, not a claimed full baseline checkout. Root cause beyond reproduction
+is unresolved; no assertion or product code was changed to hide it.
+
+Environmental issue: `wasm-opt version 108`, installed into this shared host's
+`~/.local/bin` during the task, rejects the generated sign-extension instructions
+with the existing build script's flags (`Fatal: error validating input`).
+Reproduce with the ordinary `bash scripts/build-wasm.sh` while that optimizer
+is on PATH. The script and wasm input match the merged baseline exactly.
+The supported path with the optional optimizer absent passes: run the script
+with PATH containing the task's node symlink, `~/.cargo/bin` and system bins,
+excluding `~/.local/bin`. It produces byte-identical wasm at 572,053 B gzip.
+No global tool or build script was modified, and the full suite was not rerun.
+
+The inherited 60-second full-suite budget remains exceeded. No timeout or
+budget was raised. No unresolved implementation defect in the six assigned
+findings remains; the baseline retries and host optimizer above remain explicit
+qualification limits.
+
+Resolved lane-authored development issues: the initial close fix stopped an
+episode timer without restarting it on resubscription; the follow-up above
+corrects this with a discriminating test. A test drafting error also occurred: when splitting the new boundary
+file, the schema cases temporarily moved into the store test without their
+imports. They were returned to the correct file and the schema commit was
+amended before qualification. The preserved per-finding failure evidence was
+rerun on the corrected files. Expected negative-control failures are deliberate
+evidence, not failures of the final implementation.
+
+---
+
+# Historical round-1 report
+
 # Lane KG round 1 — bounded default retention and authority holds
 
 Branch: `sb4-intent/kg-kept-through-authority`. Release target: 0.4.5.

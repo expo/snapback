@@ -68131,3 +68131,57 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+### 2026-09-27 — KG round 2: exact withdrawal and remount notifications
+
+Merged origin/main in 7d2ff6d8f, preserving both journal conflict sides;
+parent diffs remove zero existing journal lines. Read both prior prompts,
+reports and KG entries, the Accepted retention RFC, and both round-1 reviews.
+All six assigned findings have discriminating tests and named commits:
+cb32f7971 (Astra schema discovery: hard loading reset with row deadlines
+cleared), 260eceafb (Astra store withdrawal: defer all shared callbacks,
+including endLingering), 185c542c0 (both reviewers: notify an opening remount
+when its held snapshot becomes revalidating), 0e10969e2 (Grok closed local
+handles: stop timers, retain deadlines, and latch row expiry outside the live
+sweep), 0d1fc50a2 (Astra raw snapshot/peek deadline coverage), d1c1aabcd
+(Grok live offline withdrawal coverage). Self-review found the stopped episode
+timer also needs to restart when a local handle resubscribes; 85dc6ddc1 rearms
+its original deadline, with a failing-before/passing-after regression.
+
+Forty-one added tests. Final affected set: 402/402; whole guide: 86/86;
+package build/typecheck and reference audit pass. Original-code controls fail
+2 schema, 10 store, 4 remount-mark and 6 closed-handle regressions. Restoring
+the old close behavior in memory fails all four actual wasm/process tests.
+Deleting checkReadExpiry(this) fails all eight new raw accessor tests; changing
+offline publication to reload fails four cases, or two with Grok's narrower
+already-revalidating condition. Resubscription's regression fails without its
+follow-up. No existing assertion was relaxed.
+
+Ran scripts/test.sh exactly once. Exact summary: **== 2 failure(s) in 1315 s**, exit
+**1**. Rust: 3,836 passed / 0 failed / 24 ignored (607 s). Main client:
+2,886 passed / 2 failed / 10 skipped (427 s); seven extra shards: 56/56.
+Final seeded models: **79 passed / 0 failed** (270 s). Fixture wrappers: 9/9. All 41 new tests, 18 delayed-authority
+sequences and both Chromium input-preservation witnesses pass in that run.
+The resubscription correction was rebuilt/typechecked during Rust execution,
+before client test discovery, so the client phase uses every final change.
+
+Every failure: environmental wasm build (Binaryen wasm-opt 108, installed on
+this shared host during the task, rejects sign-extension instructions); baseline
+expired-server-watch recover/keep omitted (paced retries timeout, line 62);
+baseline close client/keep false (retry-1 gap 5.158 ms, line 64). Both retry
+signatures recur with all six changed modules restored from the merged input:
+3/7 baseline cases pass, four fail across different policy variants. The
+unchanged file's final-code rerun is 5/7. Diagnosis beyond this baseline
+reproduction remains open; the red full run is not relabeled green or repeated.
+No full-run failure is attributed to this round's implementation changes.
+
+The supported wasm build without the incompatible optional optimizer passes:
+1,981,512 B raw / 572,053 B gzip, delta 0, 788 B below the unchanged 572,841 B
+budget; SHA-256 5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+No global tool, Rust, authorization/disclosure rule, meter, durable format,
+contract, version, dependency, budget or timeout change. All changed sources
+stay below 1,500 lines. The inherited 60 s full-suite budget remains exceeded.
+No design deviation, push or publication. Every commit has the requested Astra
+co-author trailer. Report and reproductions:
+reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r2/. This is round 2's single journal append.
