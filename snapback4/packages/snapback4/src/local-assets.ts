@@ -132,17 +132,23 @@ export class MediaCache {
     });
   }
   viewed(id: string, blob: Blob, response: Response): Promise<AssetRead | void> {
-    // The server's once flag is authoritative even when our schema is stale.
-    if (response.headers.get("accept-ranges") === "none") return this.invalidate(id);
+    // @ref LLP 3000.019#3.5 — copied facts and synced references prove no placement.
+    let receipt: Pick<Home, "store_id" | "table" | "row" | "column"> | undefined;
+    try {
+      const value = JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home") ?? ""));
+      if (value && typeof value.store_id === "string" && value.store_id && [value.table, value.row, value.column].every(v => typeof v === "string")) receipt = value;
+    } catch { /* Older servers and upload previews have no retainable home. */ }
+    // The current store's once flag is authoritative even when our schema is stale.
+    if (response.headers.get("accept-ranges") === "none") return this.serial(async () => {
+      if (this.stopped) return;
+      // Check after earlier cache operations: an old store cannot revoke a new store's entry.
+      const entry = this.entries.get(id);
+      if (entry?.confirmed && receipt && entry.home.store_id !== receipt.store_id) return;
+      await this.drop(id); await this.save(); this.schedule();
+    });
     if (response.status !== 200 || response.headers.get("accept-ranges") !== "bytes" || this.options.keep !== "viewed" || blob.size > this.options.maxBytes) return Promise.resolve();
     return this.serial(async () => {
       if (this.stopped) return;
-      // @ref LLP 3000.019#3.5 — copied facts and synced references prove no placement.
-      let receipt: Pick<Home, "store_id" | "table" | "row" | "column"> | undefined;
-      try {
-        const value = JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home") ?? ""));
-        if (value && typeof value.store_id === "string" && value.store_id && [value.table, value.row, value.column].every(v => typeof v === "string")) receipt = value;
-      } catch { /* Older servers and upload previews have no retainable home. */ }
       const home = receipt ? await this.home(id, receipt) : null;
       if (!home) {
         // @ref LLP 3000.019#3.5 — an old delivery cannot erase a newer store/cell's bytes or live URLs.

@@ -412,3 +412,34 @@ for (const trigger of ["read", "reconcile", "reopen", "unbound reopen"]) test(`r
   assert.deepEqual(await files.manifest(), []);
   await assert.rejects(readFile(files.bytesPath("photo")), { code: "ENOENT" });
 });
+
+test("a foreign once receipt checks the entry after serialized writes and never copies its body", async t => {
+  const readers = installReader(t), files = await deviceFiles(t);
+  const current = home("image/png");
+  files.homes.set("photo", current);
+  const { core, cache } = await files.open();
+  const entered = Promise.withResolvers(), release = Promise.withResolvers();
+  const call = core.call;
+  core.call = async request => {
+    if (request.op === "asset_home") { entered.resolve(); await release.promise; }
+    return call(request);
+  };
+  const pending = cache.viewed("photo", nativeBlob([1, 2]), response({ type: "image/png" }));
+  await entered.promise;
+  const foreign = response({ type: "image/png" }, "none");
+  foreign.headers.set("x-snapback-asset-home", encodeURIComponent(JSON.stringify({ ...current, store_id: "old-store" })));
+  const onceBody = nativeBlob([9, 9]);
+  const delayed = cache.viewed("photo", onceBody, foreign);
+  release.resolve();
+  const kept = await pending;
+  await delayed;
+  assert.ok(kept?.url);
+  assert.deepEqual([...await readFile(new URL(kept.url))], [1, 2]);
+  assert.deepEqual(files.writes, ["photo"]);
+  assert.equal(readers.length, 1, "the once body was never copied");
+  kept.revoke(); onceBody.close();
+  await cache.close();
+  const reopened = await files.open();
+  const retained = await reopened.cache.read("photo");
+  assert.ok("url" in retained); retained.revoke();
+});

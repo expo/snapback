@@ -83,6 +83,14 @@ async function fixture(t, schema = source, shape = assets => assets.map(a => ({ 
   assert.equal(placed.state, "sent", JSON.stringify(placed));
   return { dir, url, clients, alice, bob, a, b, id: placed.result.id, upload, start, stop };
 }
+async function storedMeta(tier, dir, persist, name, key) {
+  if (tier === "native") {
+    const db = new DatabaseSync(join(dir, "device", `${name}.sqlite`));
+    try { return db.prepare("SELECT value FROM _meta WHERE key = ?").get(key)?.value ?? null; }
+    finally { db.close(); }
+  }
+  return (await persist.load(name)).find(c => c.s === "m" && c.k === key)?.v ?? null;
+}
 async function served(url, id, persona, status) {
   const response = await fetch(`${url}/assets/${id}`, { headers: { "x-snapback-persona": persona } });
   assert.equal(response.status, status);
@@ -234,10 +242,10 @@ for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (
   });
 }
 
-for (const tier of ["native", "wasm"]) for (const placed of [false, true]) test(`${tier}: a download delayed across store replacement ${placed ? "preserves the newer download" : "cannot retain legacy bytes"}, even after reopen`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) for (const [placed, fromOnce] of [[false, false], [true, false], [true, true]]) test(`${tier}: a ${fromOnce ? "once " : ""}download delayed across store replacement ${placed ? "preserves the newer download" : "cannot retain legacy bytes"}, even after reopen`, { timeout: 40000 }, async t => {
   const held = Promise.withResolvers(), release = Promise.withResolvers();
   t.after(() => release.resolve());
-  const f = await fixture(t);
+  const f = await fixture(t, fromOnce ? source.replace("return insert posts { owner: viewer, images, secrets }", "return insert posts { owner: viewer, images: null, secrets: images }") : source);
   let url = f.url, offline = false, hold = true;
   let core;
   const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
@@ -247,6 +255,7 @@ for (const tier of ["native", "wasm"]) for (const placed of [false, true]) test(
     const response = await fetch(String(input).replace(f.url, url), init);
     if (hold && String(input).endsWith(`/assets/${f.a.id}`) && response.status === 200) {
       hold = false;
+      assert.equal(response.headers.get("accept-ranges"), fromOnce ? "none" : "bytes");
       // Finish the authorized network transfer, but withhold it from the client.
       const bytes = await response.arrayBuffer();
       held.resolve(JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home"))));
@@ -261,11 +270,19 @@ for (const tier of ["native", "wasm"]) for (const placed of [false, true]) test(
   const original = await state();
   const downloading = local.asset(f.a.id);
   const receipt = await held.promise;
-  assert.deepEqual(receipt, { store_id: original.store_id, table: "posts", row: f.id, column: "images" });
+  assert.deepEqual(receipt, { store_id: original.store_id, table: "posts", row: f.id, column: fromOnce ? "secrets" : "images" });
   await f.stop();
   const db = new DatabaseSync(join(f.dir, ".snapback4/store.sqlite"));
   const replacementId = `${original.store_id}-replacement`;
   db.prepare("UPDATE _meta SET value = ? WHERE key = 'store_id'").run(replacementId);
+  if (fromOnce) {
+    // B has the same id and schema generation, with X placed as ordinary media.
+    const row = JSON.parse(db.prepare("SELECT data FROM r WHERE id = ?").get(f.id).data);
+    row.Row.images = row.Row.secrets;
+    row.Row.secrets = "Null";
+    db.prepare("UPDATE r SET data = ? WHERE id = ?").run(JSON.stringify(row), f.id);
+    db.prepare("UPDATE _assets SET home_column = 'images' WHERE home_id = ?").run(f.id);
+  }
   if (!placed) {
     db.prepare("UPDATE _assets SET home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?").run(f.a.id);
     const row = JSON.parse(db.prepare("SELECT data FROM r WHERE id = ?").get(f.id).data);
@@ -358,22 +375,40 @@ for (const tier of ["native", "wasm"]) for (const scalar of [false, true]) {
   test(`${tier}: persisted old ${scalar ? "scalar" : "list"} media index reacquires unchanged rows once`, { timeout: 40000 }, async t => {
     const schema = scalar ? source.replaceAll("images: [image <=10000] <=4 ?", "images: image <=10000 ?") : source;
     const f = await fixture(t, schema, assets => scalar ? { id: assets[0].id } : assets.map(a => ({ id: a.id })));
-    let offline = false, core, storeName;
+    let offline = false, core, storeName, interrupt = false, terminal = false;
     const persist = memoryPersistence();
     const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
       : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist });
     const pages = [];
-    const options = { url: f.url, persona: "bob", device: { async open(name, backend) { storeName = name; core = await device.open(name, backend); return core; } }, waitSeconds: 1,
+    const options = { url: f.url, persona: "bob", device: { async open(name, backend) {
+      storeName = name; core = await device.open(name, backend);
+      const call = core.call.bind(core);
+      // Keep the intent unsent while testing only snapshot publication/reopen.
+      core.call = request => request.op === "begin_send" ? Promise.resolve({ denied: { code: "E_STORE_BUSY", family: "store", message: "test holds dispatch", retryable: true } }) : call(request);
+      return core;
+    } }, waitSeconds: 1,
       assets: { keep: "viewed", maxBytes: 10000 }, fetch: async (input, init) => {
         if (offline) throw Error("offline");
+        if (terminal && String(input).endsWith("/sync")) {
+          offline = true;
+          return new Response("catch-up unavailable", { status: 503 });
+        }
         const response = await fetch(input, init);
-        if (String(input).endsWith("/sync")) pages.push(await response.clone().json());
+        if (String(input).endsWith("/sync")) {
+          const page = await response.clone().json(); pages.push(page);
+          if (interrupt && page.snapshot && !page.more) terminal = true;
+        }
         return response;
       } };
     let local = await createLocalClient(options); f.clients.push(local); await local.sync();
     const before = (await core.call({ op: "sync_state", capture: false })).ok;
     assert.equal(before.acquired, true); assert.ok(before.watermark > 0);
     const rows = (await f.bob.query(query, {})).data;
+    offline = true;
+    const pending = await local.mutate(mutation("createPost"), { images: scalar ? null : [] }, { waitSeconds: 0 });
+    assert.equal(pending.state, "pending");
+    const queued = (await core.call({ op: "queued" })).ok;
+    assert.equal(queued.length, 1);
     await local.close();
     // Project only media metadata to the shipped old format. All acquired rows,
     // store identity, generation, watermark and other durable state stay intact.
@@ -394,11 +429,24 @@ for (const tier of ["native", "wasm"]) for (const scalar of [false, true]) {
     assert.equal(upgrading.acquired, false);
     assert.equal(upgrading.watermark, before.watermark);
     assert.equal(upgrading.transfer_watermark, 0);
-    pages.length = 0; offline = false;
+    pages.length = 0; offline = false; interrupt = true;
+    await local.sync();
+    assert.equal(terminal, true, "terminal snapshot was staged before catch-up failed");
+    assert.equal((await core.call({ op: "sync_state", capture: false })).ok.acquired, false);
+    assert.equal(await storedMeta(tier, f.dir, persist, storeName, "device:media-index-format"), null);
+    await local.close();
+    local = await createLocalClient(options); f.clients.push(local);
+    const resumed = (await core.call({ op: "sync_state", capture: false })).ok;
+    assert.equal(resumed.acquired, false);
+    assert.equal(resumed.transfer_watermark, 0, "reopen restarts the interrupted upgrade");
+    assert.equal(await storedMeta(tier, f.dir, persist, storeName, "device:media-index-format"), null);
+    assert.deepEqual((await core.call({ op: "queued" })).ok, queued, "same durable intent after terminal-page interruption");
+    offline = false; interrupt = false; terminal = false;
     await local.sync(); await local.sync();
-    assert.equal(pages.filter(p => p.snapshot).length, 1, "normal confirmed reacquisition, only once");
+    assert.equal(pages.filter(p => p.snapshot).length, 2, "one interrupted snapshot, one completed upgrade, no repetition");
     const after = (await core.call({ op: "sync_state", capture: false })).ok;
     assert.equal(after.acquired, true);
+    assert.equal(await storedMeta(tier, f.dir, persist, storeName, "device:media-index-format"), "1");
     for (const key of ["store_id", "generation", "watermark"]) assert.equal(after[key], before[key], `unchanged ${key}`);
     assert.deepEqual((await f.bob.query(query, {})).data, rows, "no server-side touch");
     const downloaded = await local.asset(f.a.id); assert.ok("url" in downloaded, JSON.stringify(downloaded)); downloaded.revoke();
@@ -470,4 +518,73 @@ mutation clearPhoto(id: posts):
   assert.equal((await local.asset(asset.id)).denied?.code, "E_OFFLINE");
   await local.close(); local = await createLocalClient(options); f.clients.push(local);
   assert.equal((await local.asset(asset.id)).denied?.code, "E_OFFLINE");
+});
+
+for (const tier of ["native", "wasm"]) test(`${tier}: a paged upgrade restore halts follow and flush`, { timeout: 40000 }, async t => {
+  const f = await fixture(t);
+  let offline = false, restoring = false, allowSend = false, core, storeName, syncs = 0, sends = 0, store;
+  const persist = memoryPersistence();
+  const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
+    : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist });
+  const options = { url: f.url, persona: "bob", device: { async open(name, backend) {
+    storeName = name; core = await device.open(name, backend);
+    const call = core.call.bind(core);
+    // Prevent a send racing ahead of the restore evidence; release after refusal.
+    core.call = request => request.op === "begin_send" && !allowSend ? Promise.resolve({ denied: { code: "E_STORE_BUSY", family: "store", message: "test holds dispatch", retryable: true } }) : call(request);
+    return core;
+  } }, waitSeconds: 1,
+    fetch: async (input, init) => {
+      if (offline) throw Error("offline");
+      if (restoring) {
+        if (String(input).endsWith("/sync")) {
+          syncs++;
+          assert.equal(JSON.parse(init.body).from, 0, "upgrade requests a snapshot from zero");
+          return Response.json({ snapshot: true, store_id: store.store_id, generation: store.generation, watermark: 100, more: true, next: "next", events: [] });
+        }
+        if (String(input).includes("/m/")) sends++;
+        // Only the paged snapshot may provide the restore evidence in this test.
+        throw Error("no other transport during restore");
+      }
+      return fetch(input, init);
+    } };
+  let local = await createLocalClient(options); f.clients.push(local); await local.sync();
+  store = (await core.call({ op: "sync_state", capture: false })).ok;
+  assert.equal(store.acquired, true, "initial acquisition does not halt");
+  offline = true;
+  const pending = await local.mutate(mutation("createPost"), { images: [] }, { waitSeconds: 0 });
+  assert.equal(pending.state, "pending");
+  await local.close();
+  if (tier === "native") {
+    const db = new DatabaseSync(join(f.dir, "device", `${storeName}.sqlite`));
+    db.prepare("UPDATE _meta SET value = '5000' WHERE key = 'device:watermark'").run();
+    db.prepare("DELETE FROM _meta WHERE key = 'device:media-index-format'").run();
+    db.close();
+  } else {
+    await persist.save(storeName, [{ s: "m", k: "device:watermark", v: "5000" }, { s: "m", k: "device:media-index-format", v: null }]);
+  }
+  local = await createLocalClient(options); f.clients.push(local);
+  const upgrading = (await core.call({ op: "sync_state", capture: false })).ok;
+  assert.equal(upgrading.watermark, 5000);
+  assert.equal(upgrading.restore_watermark, 5000);
+  assert.equal(upgrading.transfer_watermark, 0);
+  const queued = (await core.call({ op: "queued" })).ok;
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].id, pending.id);
+  restoring = true; offline = false;
+  await local.sync();
+  assert.equal((await local.query(query, {})).denied?.code, "E_STORE_RESTORE");
+  assert.equal((await core.call({ op: "sync_state", capture: false })).ok.restore_refusal?.code, "E_STORE_RESTORE");
+  assert.equal(syncs, 1);
+  allowSend = true;
+  await local.sync();
+  await new Promise(r => setTimeout(r, 1400));
+  assert.equal(syncs, 1, "follow and explicit sync stop after the restore refusal");
+  assert.equal(sends, 0, "flush sends no queued intent to the restored server");
+  assert.deepEqual((await core.call({ op: "queued" })).ok, queued);
+  await local.close();
+  local = await createLocalClient(options); f.clients.push(local); await local.sync();
+  assert.equal((await local.query(query, {})).denied?.code, "E_STORE_RESTORE");
+  assert.equal(syncs, 1, "reopen preserves the halt");
+  assert.equal(sends, 0);
+  assert.deepEqual((await core.call({ op: "queued" })).ok, queued);
 });

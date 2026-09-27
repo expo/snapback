@@ -100,8 +100,9 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         page.images_at.or((!page.more).then_some(page.watermark)).is_some_and(|head| head < floor)
             || (page.requested_watermark == Some(cut) && page.watermark < cut)
     } else { false };
+    // @ref LLP 3000.019#3.5 — an upgrade requests from zero without lowering its published restore floor.
     let published_restore = page.watermark < watermark
-        && page.requested_watermark.is_none_or(|requested| page.watermark < requested);
+        && (page.snapshot || page.requested_watermark.is_none_or(|requested| page.watermark < requested));
     if same_identity && (published_restore || private_restore) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }

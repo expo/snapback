@@ -138,6 +138,17 @@ fn upgrade<H: Host>(h: &mut H) {
             let terminal: StreamPage = serde_json::from_value(json!({"snapshot":true,"store_id":"media-store","generation":before.generation,"watermark":before.watermark,"after":"next","more":false,"stage_snapshot":true,"events":[]})).unwrap();
             d.apply(&terminal, false).unwrap();
             assert_eq!(home(&mut d, "a", 1), Json::Null, "wait for normal catch-up publication");
+            assert!(!d.sync_state_read().unwrap().acquired, "terminal snapshot is not publication");
+            assert_eq!(d.store().meta("device:media-index-format").unwrap(), None);
+            h.close(&name, d);
+            let mut d = h.open(&name, None).unwrap();
+            let interrupted = d.sync_state_read().unwrap();
+            assert!(!interrupted.acquired);
+            assert_eq!(interrupted.transfer_watermark, 0, "restart after terminal snapshot");
+            assert_eq!(d.store().meta("device:media-index-format").unwrap(), None);
+            assert_eq!(d.queued().unwrap(), vec![queued.clone()]);
+            d.apply(&first, true).unwrap();
+            d.apply(&terminal, false).unwrap();
             let catchup: StreamPage = serde_json::from_value(json!({"snapshot":false,"snapshot_catchup":true,"store_id":"media-store","generation":before.generation,"watermark":before.watermark,"requested_watermark":before.watermark,"more":false,"events":[]})).unwrap();
             d.apply(&catchup, false).unwrap();
             assert_eq!(d.queued().unwrap(), vec![queued]);
@@ -147,6 +158,7 @@ fn upgrade<H: Host>(h: &mut H) {
             let mut d = h.open(&name, None).unwrap();
             let state = d.sync_state_read().unwrap();
             assert!(state.acquired);
+            assert_eq!(d.store().meta("device:media-index-format").unwrap().as_deref(), Some("1"));
             assert_eq!(state.watermark, before.watermark);
             assert_eq!(state.transfer_watermark, before.watermark, "upgrade runs once");
             assert_eq!(home(&mut d, "a", 1).is_null(), left);
@@ -176,3 +188,29 @@ fn column_home<H: Host>(h: &mut H) {
 }
 #[test] fn exact_media_column_memory() { column_home(&mut Memory::new()); }
 #[test] fn exact_media_column_sqlite() { column_home(&mut Sqlite::new("column-home")); }
+
+fn upgrade_restore<H: Host>(h: &mut H) {
+    let (_, backend) = compile(&source("[image <=100] <=4 ?"));
+    let mut d = h.open("upgrade-restore", Some(backend)).unwrap();
+    let initial: StreamPage = serde_json::from_value(json!({"snapshot":true,"store_id":"media-store","generation":d.backend().generation,"watermark":5000,"more":false,"events":[]})).unwrap();
+    d.observe_store(&initial).unwrap();
+    d.apply(&initial, true).unwrap();
+    h.close("upgrade-restore", d);
+    h.patch_meta("upgrade-restore", &[("device:media-index-format", None)]);
+    let mut d = h.open("upgrade-restore", None).unwrap();
+    let state = d.sync_state_read().unwrap();
+    assert_eq!(state.transfer_watermark, 0);
+    assert!(!state.acquired);
+    // Grok's first page has neither terminality nor images_at as a head proof.
+    let restored: StreamPage = serde_json::from_value(json!({"snapshot":true,"store_id":"media-store","generation":state.generation,"watermark":100,"more":true,"next":"next","events":[],"requested_watermark":0,"captured_restore_watermark":5000,"captured_watermark":5000})).unwrap();
+    assert_eq!(d.observe_store(&restored).unwrap_err().refusal().code, "E_STORE_RESTORE");
+    assert_eq!(d.sync_state_read().unwrap().restore_refusal.unwrap().code, "E_STORE_RESTORE");
+    h.close("upgrade-restore", d);
+    let mut d = h.open("upgrade-restore", None).unwrap();
+    let state = d.sync_state_read().unwrap();
+    assert_eq!(state.watermark, 5000);
+    assert_eq!(state.restore_refusal.unwrap().code, "E_STORE_RESTORE", "halt survives reopen");
+    h.close("upgrade-restore", d);
+}
+#[test] fn media_upgrade_restore_memory() { upgrade_restore(&mut Memory::new()); }
+#[test] fn media_upgrade_restore_sqlite() { upgrade_restore(&mut Sqlite::new("media-upgrade-restore")); }
