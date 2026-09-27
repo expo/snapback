@@ -1,3 +1,171 @@
+# Lane KG round 4 — synchronous facade withdrawal for every policy
+
+Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.
+Read the four lane prompts, prior reports and KG journal entries, and Astra's
+round-3 review. The previous reports remain below as historical evidence.
+No push or publication. Every round-4 commit has the requested Astra trailer.
+
+## Findings and commits
+
+Merged `origin/main` at `f39598de7` in `5fd4cacd2` before implementation.
+Commit `2c7200715` answers both round-4 findings:
+
+1. **Astra High: withdrawing facade peers.** Before returning a cached read,
+   `getSnapshot()` now reads its source and immediately honors `loading` or
+   `denied`, updating the private snapshot too. Data still passes through the
+   existing authority check. The boundary matrices now cover false/false and
+   false beside omitted/true in both orders, as well as opening lingering
+   remounts beside each peer policy. They exercise online discovery, offline,
+   close and sign-out; wasm offline, close and sign-out; and replacement and
+   restore through guardClient and createApp. Restoring only the old getter
+   causes 56 of the 170 lifecycle/store cases to fail. All 170 pass with the
+   fix. A separate mutation that lets the getter return unchecked source data
+   fails all three existing createApp delayed-authority cases.
+2. **Astra Low: preserve newer remembered answers.** A real wasm regression
+   closes A (expiry 5000), remembers B for the same query (expiry 8000),
+   observes A's expiry at 5000, rolls back to 1000, and fails transport.
+   Recovery returns B with fresh:false. Replacing the inactive expiry callback's
+   estimated server time with Infinity fails this exact assertion. The existing
+   expired-A rejection controls remain. No read-expiry runtime change was needed.
+
+## File map and merge resolutions
+
+Paths below are relative to `snapback4/`.
+
+| File | Round-4 change |
+| --- | --- |
+| `packages/snapback4/src/app-client.ts` | Synchronous source-withdrawal check in the facade getter, with LLP 3000.023 §3.6 reference. |
+| `packages/snapback4/test/retention-lifecycle.test.mjs` | Add 84 peer-policy cases and the newer-memory regression; parameterize fixture data and expiry. |
+| `packages/snapback4/test/retention-store-withdrawal.test.mjs` | Add 24 peer-policy cases across replacement/restore and opening remounts. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | State synchronous facade access and preservation of newer unexpired memory. |
+| `packages/snapback4/test/expired-server-watch.test.mjs` | Merge FX's scheduled retry, forced invalidation, recovery and close assertions unchanged; preserve KG's warm-answer withdrawal coverage as three separate cases without the replaced wall-clock gap assertion. |
+| `packages/snapback4/test/helpers/react-harness.mjs` | Merge FX's extracted pending-peer harness while retaining KG's revalidating/freshness and explicit keep:false assertions. |
+| `packages/snapback4/test/react.test.mjs` | Keep FX's shared-storage ordering, clear-event and listener-lifetime coverage, using its positional harness call consistently. |
+| `JOURNAL.md` | Preserve both sides of all merge append conflicts; append one round-4 entry. |
+| `reports/20260927-kg-kept-through-authority/REPORT.md` | This qualification and reproduction record; retain earlier reports. |
+
+The journal merge removes zero existing lines against either parent. The
+React runner equals fetched main; the harness differs from it only in KG's
+three retention-contract assertions. Every changed source stays below 1,500
+lines: the largest imported source is guide.rs (1,487), and the largest KG
+merge-conflict resolution is the React harness (1,427).
+
+FX round 2 reached main during Rust qualification. Merged `8dfbf7daa` in
+`4d02beeca` before client-test discovery. The change is test-only: the
+ServerClock import, controlled useNow clock/timer case and Vite alias carry
+through unchanged. KG's three retention assertions remain in the harness.
+The merged complete React file passes **48/48**, 3.404 s. FX's ticket moved
+to `issues/closed/20260927-snapback4-react-usenow-deadline-flaky.md`; its
+round-2 report records the midpoint-bias cause. No runtime useNow change was
+needed. The full suite exercised this final merged test file.
+
+## Forms that compile and run
+
+No new spelling:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const immediate = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+All three honor hard withdrawals before peer callbacks inspect them, even
+when peers use different policies. Replacement data still waits for authority.
+Omission keeps its original bounded episode; true keeps its linger semantics.
+
+## Qualification
+
+- Affected suite: **358 passed / 0 failed**, 18.874 s. Includes every retention
+  test and raw-read-deadlines, read-observation, keep-authority,
+  keep-observation, keep-clock and keep-app-expiry.
+- Merge-conflict checks: **58 passed / 0 failed**, 12.619 s, covering the full
+  React and expired-server-watch files, including all three warm cases.
+- Whole guide: **86 passed / 0 failed**, 3.78 s test execution.
+- Frozen Bun install, package build and typecheck pass.
+- Reference audit: **517 LLP docs, 9,646 refs, zero errors/unchecked**.
+- Mutation controls are process-local module loaders: old getter **114 pass /
+  56 fail**; Infinity **0 pass / 1 fail**; unchecked source data **0 pass /
+  3 fail**. No production or built source was mutated for these controls.
+
+There are 109 added lifecycle/store cases plus three separately retained warm
+cases from merge reconciliation. No existing product assertion was relaxed.
+FX's timer-driven retry checks replace the unreliable request-arrival-gap
+assertion; they still enforce all exponential delays and the one-second cap.
+
+Ran `scripts/test.sh` **exactly once**. Final summary and client/model totals:
+**`== 0 failure(s) in 1383 s`**, exit **0**. The script counts failed phases.
+Final seeded models: **79 passed / 0 failed**, 313 s.
+
+Every failure: **none** — no lane-owned, baseline or environmental test failure.
+The expected pre-fix and mutation failures above are discrimination evidence,
+not failures of the final code. The complete suite was not restarted or rerun.
+
+Main client: **3,054 passed / 0 failed / 10 skipped**, 426 s; the seven
+additional client shards pass **56/56**. All 170 lifecycle/store cases,
+three warm-answer cases, all 18 delayed-authority sequences, both Chromium
+input-preservation witnesses and FX's useNow deadline case pass in this run.
+
+Rust tests/doctests: **3,882 passed / 0 failed / 24 ignored**, 625 s.
+Both app typechecks and all nine fixture-wrapper tests pass. Native/wasm
+builds, docs budget, release guard, package typecheck/build and chat schema
+check pass. The FX test-only merge was included before client discovery;
+runtime bytes were unchanged throughout the run.
+
+Wasm: **1,981,512 B raw / 572,053 B gzip**, **0 B delta**, 788 B below the
+unchanged 572,841 B budget. SHA-256:
+`5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969`.
+No Rust, engine authorization/disclosure, meter, durable format, API, diagnostic,
+dependency, version or budget change in this round's implementation.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug
+information disabled and file limit 65,536. Tools are selected through
+worktree-local symlinks to existing executables. No tool was installed or
+modified on a shared path.
+
+Evidence lives under ignored `snapback4/target/lane-kg-r4/`: build/typecheck,
+merge-tests, affected, guide, full-suite, ref-check, measurements, old-getter,
+infinity and unchecked-data logs and exit-status files.
+
+Reproduce the assigned regressions from snapback4:
+
+```sh
+node --test packages/snapback4/test/retention-lifecycle.test.mjs \
+  packages/snapback4/test/retention-store-withdrawal.test.mjs
+node --import ./target/lane-kg-r4/infinity-loader.mjs --test \
+  --test-name-pattern='closed A expiry preserves' \
+  packages/snapback4/test/retention-lifecycle.test.mjs
+node --import ./target/lane-kg-r4/old-getter-loader.mjs --test \
+  packages/snapback4/test/retention-lifecycle.test.mjs \
+  packages/snapback4/test/retention-store-withdrawal.test.mjs
+```
+
+## Decisions, deviations and remaining issues
+
+No design deviation or stopped design part. The finite-time expiry fence was
+already correct; finding 2 changes coverage only. The getter changes only
+withdrawal propagation, preserving the existing data-authority mechanism.
+The merge reconciles both lanes' test intentions instead of restoring the old
+wall-clock pacing checks that FX replaced. No independent review is claimed;
+the supervisor's two-family round-4 review remains external to this lane.
+
+No unresolved round-4 implementation or merge problem remains. FX's earlier
+expiry-retry and useNow flakes pass in this complete run. The inherited
+60-second suite budget is still exceeded (1383 seconds); reproduce with
+`cd snapback4 && bash scripts/test.sh`. No timeout or budget was raised.
+
+llp-orient context: Snapback 4 fence (LLP 3000); LLP 3000.023 §§3.4–3.6 and
+§5 (all policies withdraw synchronously); LLP 3000.019 §3.3 (held deadlines,
+authority and newer-memory preservation); the current client manual. These
+LLPs are in current, not foundation. The source getter and read-expiry callback
+are the queried scope. The risk is exposing cached private data from peer
+callbacks or over-deleting remembered answers; both have discriminating
+regressions. The manual, report and journal are the only needed doc updates;
+no new design decision or LLP hand-off.
+
+---
+
+# Historical round-3 report
+
 # Lane KG round 3 — complete withdrawal and expiry lifecycles
 
 Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.

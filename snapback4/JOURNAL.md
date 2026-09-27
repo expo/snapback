@@ -68624,3 +68624,58 @@ round-2 scripts/test.sh summary; historical round 0 remains
 weakened assertion, new API/design, unrelated fix, shared tool installation,
 push or publication. Report and durable run evidence:
 reports/20260927-fx-flakes/ROUND2.md and round2-qualification.json there.
+
+### 2026-09-27 — KG round 4: every facade honors source withdrawal synchronously
+
+Read all four prior lane prompts, reports and KG journal entries and Astra's
+round-3 review. Merged origin/main f39598de7 in 5fd4cacd2 before changes.
+Kept both journal histories, FX's scheduled expiry/recovery/close checks and
+journal listener tests, and KG's retention assertions. Preserved the warm
+expired-candidate coverage in three separate cases without the replaced
+request-arrival-gap assertion. Both journal-parent diffs remove zero lines.
+FX round 2 reached main during Rust qualification: 4d02beeca merges 8dfbf7daa
+before client discovery. Its ServerClock-controlled useNow test and Vite alias
+carry through unchanged; product code did not change. All 48 merged React
+tests pass separately and in the full run. FX's closed ticket records its
+midpoint-bias cause; KG's three retention assertion changes remain intact.
+
+2c7200715 answers both assigned findings. The facade getter synchronously
+honors source loading/denied before returning its private snapshot, including
+keep:false, while replacement data still needs authority. Added 108 peer-policy
+cases: false/false and false beside omitted/true in both orders, plus opening
+remounts beside all policies, across online/wasm discovery, offline, close,
+sign-out, store replacement and restore through guardClient/createApp. The
+109th new case closes A at expiry 5000, remembers B at expiry 8000, observes
+A's expiry at 5000, rolls back to 1000 and fails transport: B recovers. No
+read-expiry runtime edit was needed. The manual states both invariants.
+
+Affected suite 358/358; whole guide 86/86; initial merge checks 58/58; FX
+merged React file 48/48. Restoring only the old facade getter fails 56/170
+lifecycle/store cases; substituting Infinity for the closed-handle server time
+fails the newer-B test; bypassing data authority in the getter fails all three
+existing delayed-authority controls. All mutation loaders are process-local.
+Frozen Bun install, build/typecheck and ref-check pass (517 LLP docs, 9,646
+refs, zero errors/unchecked). Largest imported source: guide.rs, 1,487 lines;
+largest KG merge-conflict resolution: React harness, 1,427 lines.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1383 s**, exit **0**.
+Rust: 3,882 passed / 0 failed / 24 ignored (625 s). Main client: 3,054 passed /
+0 failed / 10 skipped (426 s); seven extra shards: 56/56. Final seeded models:
+79/79 (313 s). Fixtures: 9/9. All builds, typechecks, guide, budgets and release
+guard pass. Every full-run failure: none — no lane-owned, baseline or
+environmental failure. All 170 lifecycle/store cases, three warm-answer cases,
+18 delayed-authority sequences and both Chromium witnesses pass. The full run
+was neither restarted nor rerun; its client phase includes the final FX merge.
+
+Wasm is byte-identical: 1,981,512 B raw / 572,053 B gzip, delta 0 B, 788 B
+below the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+No Rust, engine authorization/disclosure, meter, durable format, API, diagnostic,
+dependency, version or budget change in this round's implementation. Existing
+tools selected via worktree-local symlinks; no shared-path tool install or
+change. No design deviation, push or publication. No independent round-4
+review is claimed; the supervisor owns both-family review. Every lane commit
+has the required Astra co-author trailer. The inherited 60-second suite budget
+remains exceeded; no timeout or budget was raised. Full file map, examples,
+qualification and reproduction: reports/20260927-kg-kept-through-authority/REPORT.md.
+Ignored evidence: target/lane-kg-r4/. This is round 4's single journal append.
