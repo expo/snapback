@@ -19,6 +19,7 @@ pub(super) fn lines(snapshot: &Snapshot, all: bool) -> Vec<String> {
         let last = lines.last_mut().unwrap();
         last.push_str(&format!("; engine p50={:.3} p95={:.3} p99={:.3} max={:.3}", op.engine.p50, op.engine.p95, op.engine.p99, op.engine.max));
         match &op.cpu {
+            _ if op.n == 0 => last.push_str("; cpu n=0"),
             Some(cpu) => last.push_str(&format!("; cpu n={} p50={:.3} p95={:.3} p99={:.3} max={:.3}", op.cpu_n, cpu.p50, cpu.p95, cpu.p99, cpu.max)),
             None => last.push_str("; cpu unavailable"),
         }

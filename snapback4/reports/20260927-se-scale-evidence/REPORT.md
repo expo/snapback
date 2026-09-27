@@ -1,7 +1,7 @@
 # Lane SE — scale evidence a builder can cite
 
 Date: 2026-09-27. Branch: `sb4-intent/se-scale-evidence`.
-Round 1 review corrections and qualification are recorded at the end; the
+Round 1–2 review corrections and qualification are recorded at the end; the
 14,400-sample experiment below remains round 0 evidence.
 
 The repeated final-store probes show CPU contention creating an off-CPU tail,
@@ -206,8 +206,10 @@ in the existing refused histogram.
   are excluded. CPU overlaps wall components and must not be added to them.
 
 Doctor has bounded total/wait/engine/CPU histograms, `cpu_n` and optional
-`cpu` percentiles in JSON, and all four distributions in text. A missing CPU
-clock is `null`/unavailable, never a fabricated zero. Four fixed 480-counter
+`cpu` percentiles in JSON, and all four distributions in text. With no
+requests, CPU is an empty distribution (zero percentiles, `cpu_n: 0`) and
+text says `cpu n=0`. With requests but no CPU samples, JSON has `cpu: null`
+and text says `cpu unavailable`; the header omits CPU, never fabricates zero. Four fixed 480-counter
 histograms use 15,432 bytes per named operation (plus map/name/lock/Arc), with
 no retained sample list. Snapshot/adoption/reset locking and service-only
 production inspection keep their existing boundaries. Histogram error remains
@@ -472,3 +474,93 @@ incremental off, packaged SQLite flags, fd limit 65,536. Existing worktree-local
 tool selection only; **no tool installed**, and nothing installed or modified
 on a shared path. Local commits carry the requested co-author trailer.
 **No push or publication.**
+
+## Round 2 — idle CPU and missing-clock regression
+
+First ran `git fetch origin && git merge origin/main`: **Already up to date**.
+Starting lane commit `da0c90ba7`, main `d9c89a971`; no conflict resolution.
+Read both prior prompts, both report/journal entries, and Grok’s complete
+round-0 review (exact bytes retained in `round2/grok-r0.md.gz`). Its attribution,
+recipe, aliases and SS citations stand. Round 1 already fixed the CORS finding.
+
+Applied `llp-orient` read-only using the populated `lane-fa/vendor/llp` skill
+because this worktree’s skill symlink is uninitialized. Scope: the latency
+recorder, doctor rendering, existing timing tests and bounds card. Governing
+LLPs: 3000 §4 (fence), 2000.000 §6 (authorization/meters), 3000.019 §§3.6–3.7
+(independent readers and bounded timing), all in `llp/current`. Active
+constraints remain those citations; no additional authority or new LLP is
+needed. The existing §3.7 and bounds card now distinguish empty and unavailable
+CPU distributions. Hand-off: none; supervisor review remains external.
+
+1. **Idle operations:** `n = 0` prints exactly `cpu n=0`. JSON has an empty
+   CPU distribution (zero percentiles and `cpu_n: 0`), consistent with the other
+   empty histograms. `n > 0` with no CPU samples retains `cpu: null` and
+   `cpu unavailable`. The new real-process test checks every idle operation
+   before any traffic and again after one query and reset, in text and JSON.
+2. **Missing clock:** a test-only thread-local injection makes `thread_cpu()`
+   return `None`, both from request start and after a valid starting stamp.
+   The real `Sample`/header/completion/registry path must omit the CPU metric
+   and retain `n: 1`, `cpu_n: 0`, `cpu: null`. The same snapshot goes through
+   doctor’s ordinary and all-operations text renderer, both requiring
+   `cpu unavailable`. Injection restores on drop, including assertion unwind,
+   and cannot alter concurrently running threads or production builds.
+3. **Poll sleep:** round 1’s
+   `changes_refresh_is_engine_work_but_poll_sleep_is_not` already requires a
+   150 ms refresh inside engine time and at least 600 ms of a one-second poll
+   outside engine/wait, in both header and doctor. Kept that assertion and
+   re-ran it with the affected tests. A fresh negative control enclosing the
+   poll sleep in `EngineSpan` fails it. No duplicate duration test is needed.
+
+### Every failure and negative control
+
+The initial new idle test failed against unchanged round-1 behavior:
+**ours, expected reproduction of the round-0 bug**, now fixed. Five deliberate
+mutations each compiled and failed exactly one targeted test; all are
+**ours, expected negative-control failures**, and every mutation was restored:
+
+| Mutation | Test that fails |
+| --- | --- |
+| Remove idle text branch | idle CPU before traffic/after reset |
+| Restore idle `cpu: null` | idle CPU before traffic/after reset |
+| Emit `cpu;dur=0.000` for a missing clock | injected missing clock |
+| Render missing CPU as `cpu n=0` | injected missing clock, doctor renderer |
+| Count poll sleep as engine time | existing refresh/poll attribution |
+
+`round2/mutations.json` records the exact edits, commands and exit summaries;
+compressed logs retain each assertion. Unexpected test failures: **ours 0,
+baseline 0, environmental 0**. No compile or mutation-harness failures. The
+uninitialized local skill link was resolved by reading the sibling skill;
+it did not skip a check or install a tool. The existing tiny_http unused-trait
+compiler warning is unchanged and is not a test failure.
+
+### Round 2 qualification
+
+From `snapback4/`, with the same round-1 tool selection, eight build/test
+threads, fd limit 65,536, debug/incremental off and packaged SQLite flags:
+
+```sh
+cargo test -p snapback4 --bin snapback4 --test latency --test read_latency
+cargo test -p snapback4-lang --test guide
+node scripts/docs-budget.mjs
+```
+
+Affected tests: **183 unit tests passed, 4 existing tests ignored;
+11 real-process latency/doctor/recipe tests passed; 2 existing read measurements
+ignored**. The full growth recipe runs verbatim. Whole guide: **89 passed**;
+docs budget and its named first-screen check pass. Final reference and whitespace
+checks are retained alongside the logs. The affected-scope corpus audit confirms
+§3.7, the bounds card and implementation agree, with existing references valid.
+
+**Did not run `scripts/test.sh` in round 2**, as instructed. Round 1’s full
+run stands with exact summary `== 0 failure(s) in 1697 s`; no new full-suite
+qualification is claimed.
+
+The existing generated wasm remains **byte-identical**, verified against the
+round-1 digest and the beginning of round 2: **1,979,732 B raw / 572,616 B gzip**
+using `build-wasm.sh`’s `gzip -9 -c` method, **225 B below** the unchanged
+**572,841 B** cap. SHA-256:
+`dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94`.
+No device input changed and no wasm rebuild was needed. No original evidence
+store opened or modified; no new scale measurement or performance claim.
+No tool installed, no shared path modified. Commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. **No push or publication.**

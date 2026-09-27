@@ -98,7 +98,7 @@ impl Registry {
         // fixed histograms under its own lock. No registry-sized recording stall.
         Snapshot { since: window.since, operations: window.operations.iter().map(|(name, op)| {
             let op = lock(op).clone();
-            (name.clone(), Summary { n: op.total.n, refused: op.refused, total: op.total.summary(), wait: op.wait.summary(), engine: op.engine.summary(), cpu: (op.cpu.n > 0).then(|| op.cpu.summary()), cpu_n: op.cpu.n })
+            (name.clone(), Summary { n: op.total.n, refused: op.refused, total: op.total.summary(), wait: op.wait.summary(), engine: op.engine.summary(), cpu: (op.total.n == 0 || op.cpu.n > 0).then(|| op.cpu.summary()), cpu_n: op.cpu.n })
         }).collect() }
     }
     fn record(&self, path: &str, accepted: Instant, total: Duration, wait: Duration, engine: Duration, cpu: Option<Duration>, refused: bool) {
@@ -137,6 +137,8 @@ thread_local! { static CURRENT: Cell<Option<Timing>> = const { Cell::new(None) }
 // Linux and Darwin expose a monotonic CPU clock for the calling thread.
 // An unavailable clock is absent, never a made-up zero or process-wide CPU.
 pub(super) fn thread_cpu() -> Option<Duration> {
+    #[cfg(test)]
+    if tests::MISSING_CLOCK.get() { return None; }
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
         let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };

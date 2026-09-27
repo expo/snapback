@@ -70897,3 +70897,42 @@ modified. Report, review, mutation and qualification evidence:
 reports/20260927-se-scale-evidence/REPORT.md and round1/.
 Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication; the supervisor owns independent review of round 1.
+
+### 2026-09-27 — Lane SE round 2: idle CPU and missing-clock regression
+
+Fetched and merged origin/main first; already up to date (lane da0c90ba7,
+main d9c89a971). Read both binding prompts, prior report/journal entries and
+Grok’s complete round-0 review. Its attribution, recipe, aliases and SS numbers
+stand; round 1 already resolved CORS. Used the populated sibling llp-orient
+skill read-only; LLP 3000.019 §3.7 and bounds now describe idle CPU separately.
+
+Doctor prints cpu n=0 for an operation with no requests; its JSON has an empty
+CPU distribution with zero percentiles and cpu_n=0. Sampled operations with
+no available CPU clock retain cpu:null / cpu unavailable. A new real-process
+regression covers all idle operations before traffic and after reset. A
+test-only thread-local missing-clock injection exercises the real sample,
+header and recorder, then doctor’s ordinary/all-operation text renderers.
+It requires omitted CPU in the header and cpu:null / unavailable in doctor,
+covering missing clocks at start and after a successful starting stamp.
+
+The existing round-1 refresh test already bounds at least 600 ms of the held
+poll outside engine/wait while counting a 150 ms refresh. It passes unchanged;
+a fresh mutation enclosing poll sleep in engine time fails. Four more mutations
+fail for idle text, idle JSON, fabricated zero header CPU and wrong doctor
+missing-clock text. All restored. The initial new idle test also failed before
+the fix: six expected lane-owned red runs total. Unexpected failures: ours 0,
+baseline 0, environmental 0; no compile or mutation-harness failure.
+
+Affected checks pass: 183 server/doctor units, 4 existing ignores; 11 real-process
+latency/doctor/recipe tests; 2 existing read measurements ignored. Whole guide
+89/89; docs budget and first-screen test pass. Reference/whitespace evidence is
+retained with the report. Did not run scripts/test.sh per the round-2 prompt;
+round 1’s exact full-suite summary stands: == 0 failure(s) in 1697 s.
+
+Wasm remains byte-identical at 1,979,732 B raw / 572,616 B gzip, 225 B below the
+unchanged cap; SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+No device code, dependencies, meters, authorization or timing fence changed.
+No original store opened, new performance claim, tool install or shared-path
+change. Report and compressed test/mutation/review evidence are under
+reports/20260927-se-scale-evidence/REPORT.md and round2/. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

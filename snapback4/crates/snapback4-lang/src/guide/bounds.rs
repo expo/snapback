@@ -185,7 +185,10 @@ Zero engine time can mean a request was refused before acquiring an engine.
 
 `doctor --latency` shows p50/p95/p99/max for total, wait, engine and CPU;
 `--json` gives these distributions and `n`, `refused`, `cpu_n` (available CPU
-samples), with `cpu: null` when unavailable. Doctor's total ends after final
+samples). With no requests, text says `cpu n=0` and JSON has an empty CPU
+distribution (zero percentiles, `cpu_n: 0`). With requests but no CPU samples,
+text says `cpu unavailable` and JSON has `cpu: null`; the header omits `cpu`.
+Doctor's total ends after final
 response write/flush, unlike the header, which cannot measure future delivery.
 For streamed assets and heartbeat polls the header is only the work before
 streaming; doctor includes the stream/hold through its final flush. These are

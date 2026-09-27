@@ -1,0 +1,112 @@
+[
+  {
+    "mutation": "mutation-idle-text",
+    "file": "crates/snapback4/src/verbs/latency.rs",
+    "removed": "            _ if op.n == 0 => last.push_str(\"; cpu n=0\"),\n",
+    "replacement": "",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "latency",
+      "doctor_idle_cpu",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s"
+    ],
+    "expected_failure": true
+  },
+  {
+    "mutation": "mutation-idle-json",
+    "file": "crates/snapback4/src/latency.rs",
+    "removed": "op.total.n == 0 || op.cpu.n > 0",
+    "replacement": "op.cpu.n > 0",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "latency",
+      "doctor_idle_cpu",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s"
+    ],
+    "expected_failure": true
+  },
+  {
+    "mutation": "mutation-missing-header",
+    "file": "crates/snapback4/src/latency.rs",
+    "removed": "if let Some(cpu) = timing.cpu_elapsed() { value.push_str(&format!(\", cpu;dur={:.3}\", ms(cpu))); }",
+    "replacement": "if let Some(cpu) = timing.cpu_elapsed() { value.push_str(&format!(\", cpu;dur={:.3}\", ms(cpu))); } else { value.push_str(\", cpu;dur=0.000\"); }",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "missing_cpu_clock",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.00s"
+    ],
+    "expected_failure": true
+  },
+  {
+    "mutation": "mutation-missing-doctor",
+    "file": "crates/snapback4/src/verbs/latency.rs",
+    "removed": "None => last.push_str(\"; cpu unavailable\"),",
+    "replacement": "None => last.push_str(\"; cpu n=0\"),",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "missing_cpu_clock",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.00s"
+    ],
+    "expected_failure": true
+  },
+  {
+    "mutation": "mutation-poll-sleep",
+    "file": "crates/snapback4/src/serve_changes.rs",
+    "removed": "    let result = (|| -> Result<_, snapback4_core::RuntimeError> {",
+    "replacement": "    let _incorrect_poll_span = super::latency::EngineSpan::new();\n    let result = (|| -> Result<_, snapback4_core::RuntimeError> {",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "changes_refresh_is_engine_work",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 1.02s"
+    ],
+    "expected_failure": true
+  }
+]

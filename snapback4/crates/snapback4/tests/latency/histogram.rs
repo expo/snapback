@@ -1,5 +1,38 @@
 use super::*;
 
+thread_local! { pub(super) static MISSING_CLOCK: Cell<bool> = const { Cell::new(false) }; }
+
+#[test]
+fn missing_cpu_clock_omits_header_metric_and_doctor_reports_unavailable() {
+    // Thread-local injection also covers failure after a successful starting
+    // stamp; other concurrently running request tests keep their real clock.
+    struct RestoreClock;
+    impl Drop for RestoreClock { fn drop(&mut self) { MISSING_CLOCK.set(false); } }
+    for missing_at_start in [true, false] {
+        let _restore = RestoreClock;
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "query one():\n  return 1\n".into())]);
+        let registry = Arc::new(Registry::new(&bound));
+        let request = tiny_http::TestRequest::new().with_method(Method::Post).with_path("/q/one").into();
+        let sample = Sample::with_headers(&request, &registry, true).unwrap();
+        MISSING_CLOCK.set(missing_at_start);
+        sample.run(|| {
+            MISSING_CLOCK.set(true);
+            assert!(thread_cpu().is_none());
+            let header = header().unwrap();
+            let keys: Vec<_> = header.value.as_str().split(',')
+                .map(|metric| metric.trim().split_once(";dur=").unwrap().0).collect();
+            assert_eq!(keys, ["total", "wait", "engine"], "{header}");
+            finished(false);
+        });
+        let snapshot = registry.snapshot(false);
+        let operation = &serde_json::to_value(&snapshot).unwrap()["operations"]["/q/one"];
+        assert_eq!(operation["n"], 1);
+        assert_eq!(operation["cpu_n"], 0);
+        assert_eq!(operation["cpu"], Value::Null, "{operation}");
+        crate::verbs::doctor_tests::assert_cpu_unavailable(&snapshot);
+    }
+}
+
 #[test]
 fn random_exact_nearest_rank_percentiles_are_within_five_percent() {
     let mut seed = 71u64;

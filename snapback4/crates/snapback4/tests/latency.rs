@@ -38,6 +38,31 @@ fn success(output: Output) -> String {
 }
 
 #[test]
+fn doctor_idle_cpu_is_empty_before_traffic_and_after_reset() {
+    let fixture = Fixture::new("idle-cpu");
+    let host = fixture.start();
+    for reset in [false, true] {
+        if reset {
+            host.request("POST", "/q/fast", json!({"args":{}}));
+            success(fixture.command(&["doctor", "--latency", "--reset"]));
+        }
+        let text = success(fixture.command(&["doctor", "--latency"]));
+        let operations: Vec<_> = text.lines().filter(|line| line.contains(": n=")).collect();
+        assert_eq!(operations.len(), 9, "{text}");
+        for line in operations {
+            assert!(line.contains(": n=0 refused=0 ") && line.ends_with("; cpu n=0"), "{line}");
+        }
+        assert!(!text.contains("cpu unavailable"), "{text}");
+        let snapshot: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--json"]))).unwrap();
+        for operation in snapshot["operations"].as_object().unwrap().values() {
+            assert_eq!(operation["n"], 0);
+            assert_eq!(operation["cpu_n"], 0);
+            assert_eq!(operation["cpu"], json!({"p50":0.0,"p95":0.0,"p99":0.0,"max":0.0}));
+        }
+    }
+}
+
+#[test]
 fn doctor_latency_json_default_summary_all_operations_and_reset() {
     let fixture = Fixture::new("small");
     let host = fixture.start();
