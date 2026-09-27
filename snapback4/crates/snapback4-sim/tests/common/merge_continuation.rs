@@ -326,9 +326,8 @@ fn control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidat
         with_fixture(&source, rows, |q| {
             let page = q("feed", ctx(None)).unwrap();
             if uniform {
-                // The cursorless auxiliary last 1 still loses rows: uniform
-                // expansion repairs the owner's word cut, not that answer loss.
-                assert!(!page.complete && page.word_cut_at.is_none() && page.cut.is_none() && page.next.is_some(), "{page:?}");
+                // LLP 3000.027: the auxiliary last 1 is its whole answer.
+                assert!(page.complete && page.word_cut_at.is_none() && page.cut.is_none() && page.next.is_some(), "{page:?}");
                 assert_eq!(ids(&page), [if owner_overflows { "r0-32" } else { "r0-1" }]);
                 let second = q("feed", ctx(page.next)).unwrap();
                 assert_eq!(ids(&second), [if owner_overflows { "r0-31" } else { "r0-0" }]);

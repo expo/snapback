@@ -954,7 +954,7 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
 });
 
 for (const tier of ["native", "web"]) {
-  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} incomplete read stays local online`, { timeout: 60000 }, async t => {
+  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} read stays local online`, { timeout: 60000 }, async t => {
     const f = await fixture(t, false, cutSource + "\nquery top():\n  return entries['normal'] last 1 by byRoomTime\n");
     const count = kind === "meter" ? 8200 : 2;
     for (let start = 0; start < count; start += 1000) {
@@ -966,9 +966,9 @@ for (const tier of ["native", "web"]) {
       fetch: (url, init) => { if (String(url).includes("/q/")) requests.push(String(url)); return fetch(url, init); } });
     f.clients.push(client); await client.sync();
     const read = await client.query({ kind: "query", name: kind === "meter" ? "filtered" : "top" }, {});
-    assert.equal(read.complete, false); assert.equal(read.cut, kind === "meter" ? "meter" : null);
+    assert.equal(read.complete, kind === "cursorless"); assert.equal(read.cut, kind === "meter" ? "meter" : null);
     assert.equal(read.data.length, kind === "meter" ? 0 : 1);
-    assert.deepEqual(requests, [], "an incomplete answer with known coverage needs zero /q/ requests");
+    assert.deepEqual(requests, [], "an answer with known coverage needs zero /q/ requests");
     t.diagnostic(`${tier} ${kind}: rows=${read.data.length} complete=${read.complete} /q/=${requests.length}`);
   });
 

@@ -33,7 +33,7 @@ pub use pages::expression_page_site;
 mod shaping;
 #[cfg(feature = "sqlite")]
 pub(crate) struct ImportInput(());
-pub use pages::returned_page_sites;
+pub use pages::{returned_page_sites, uncontinued_page_sites};
 pub mod read;
 pub(crate) use runner::extrema;
 mod read_auth;
@@ -925,7 +925,7 @@ impl Engine {
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let outcome = QueryOutcome { ephemeral: version,
             unavailable: runner.query_unavailable,
-            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending,
+            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),

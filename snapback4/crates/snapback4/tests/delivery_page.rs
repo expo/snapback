@@ -6,14 +6,14 @@ use std::{fs, process::Command};
 const SOURCE: &str = "table messages:\n  public 'fixture messages'\n  online only\ntable chatDeliveries:\n  messageId: messages\n  principal: principal\n  cap 50 by messageId\n  public 'fixture acknowledgements'\n  online only\nquery all():\n  return chatDeliveries first 50 by .id\nquery page(c: cursor ?):\n  return chatDeliveries first 50 by .id after c\nquery forMessage(messageId: messages):\n  return chatDeliveries where .messageId = messageId\n";
 
 #[test]
-fn first_fifty_deliveries_warn_and_both_rewrites_reach_the_new_acknowledgement() {
+fn first_fifty_deliveries_are_complete_and_continuation_reaches_later_acknowledgements() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_NO_CURSOR").collect();
     assert_eq!(notes.len(), 1, "{:?}", bound.notes);
     let note = notes[0];
     assert_eq!(note.site.line, 10);
-    for rewrite in ["c: cursor ?", "after c", "narrower key", "chatDeliveries where .messageId = messageId", "declared cap"] {
+    for rewrite in ["if the screen pages", "c: cursor ?", "after c"] {
         assert!(note.rewrite.contains(rewrite), "{note}");
     }
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
@@ -29,7 +29,7 @@ fn first_fifty_deliveries_warn_and_both_rewrites_reach_the_new_acknowledgement()
     engine.seed(rows).unwrap();
     let all = engine.query("all", Context::new("alice", Default::default())).unwrap();
     assert_eq!(all.data.as_array().unwrap().len(), 50);
-    assert!(!all.complete); assert!(all.next.is_none());
+    assert!(all.complete); assert!(all.next.is_none());
     assert!(all.data.as_array().unwrap().iter().all(|row| row.field("id") != Ok(&Value::Id("d050".into()))));
     let page = engine.query("page", Context::new("alice", [("c".into(), Value::Null)].into())).unwrap();
     let next = engine.query("page", Context::new("alice", [("c".into(), Value::String(page.next.unwrap()))].into())).unwrap();
@@ -47,5 +47,5 @@ fn first_fifty_deliveries_warn_and_both_rewrites_reach_the_new_acknowledgement()
     assert!(output.status.success(), "{output:?}");
     let checked: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let note = checked["notes"].as_array().unwrap().iter().find(|n| n["code"] == "N_NO_CURSOR").unwrap();
-    assert!(note["rewrite"].as_str().unwrap().contains("narrower key"), "{note}");
+    assert!(note["rewrite"].as_str().unwrap().contains("if the screen pages"), "{note}");
 }

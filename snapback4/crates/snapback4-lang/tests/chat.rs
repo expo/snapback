@@ -133,7 +133,6 @@ fn cursor_notes_follow_returned_query_pages_through_aliases_and_shapes() {
         ("shape", "query q():\n  return items[] first 3 by byId { n }\n"),
         ("aliased shape", "query q():\n  rows = items[] first 3 by byId\n  shaped = rows { n }\n  return shaped\n"),
         ("helper", "fn page(): items[] first 3 by byId { n }\nquery q():\n  return page()\n"),
-        ("record", "query q():\n  rows = items[] first 3 by byId\n  return { rows }\n"),
         ("record field", "query q():\n  holder = { rows: items[] first 3 by byId }\n  return holder.rows\n"),
         ("same page on both branches", "query q(choice: bool):\n  rows = items[] first 3 by byId\n  if choice:\n    return rows\n  return rows\n"),
         ("merge", "query q():\n  return merge items first 3 by byGroup:\n    [0]\n    [1]\n"),
@@ -147,6 +146,7 @@ fn cursor_notes_follow_returned_query_pages_through_aliases_and_shapes() {
         assert!(notes[0].rewrite.contains("c: cursor ?"), "{case}");
         assert_eq!(notes[0].guide, "reads", "{case}");
     }
+    assert!(page_notes("query q():\n  rows = items[] first 3 by byId\n  return { rows }\n").is_empty(), "a composed bound is its whole intent");
     let notes = page_notes("query q(choice: bool):\n  if choice:\n    return items[] first 3 by byId\n  return items[] first 4 by byId\n");
     assert_eq!(notes.len(), 2, "both distinct returned pages are diagnosed: {notes:?}");
     assert!(notes.iter().any(|note| note.message.contains("page of 3 items")));

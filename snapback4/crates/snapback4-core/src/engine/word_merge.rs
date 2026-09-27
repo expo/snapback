@@ -225,7 +225,8 @@ impl Runner<'_> {
                         + word_heap::cursor_build(table, index, prefix_len, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(&first.index)))?;
                 }
                 self.record_page(site.to_owned(), PagePosition { variant: merge.and_then(|m| m.variant).or_else(|| first.variant), view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
-            } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
+            }
+            // @ref LLP 3000.027#1 — a full cursorless page needs no continuation to be complete.
         }
         Ok(page)
     }
