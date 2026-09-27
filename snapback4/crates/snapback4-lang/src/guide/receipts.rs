@@ -2,10 +2,9 @@
 // @ref LLP 3000.021#3.4 — retaining the parent keeps the pinned screen after leave.
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member's client records what it fetched and how far it has shown it, as
-ordinals, on its own membership row and in runs beside it. One helper turns them
-into every message's receipt, `sent`, `delivered` or `read`, rendered beside
-the history page.
+The SDK reports the messages each member received, as ordinals on their
+membership row and in runs beside it, while the screen reports what it has shown.
+One helper turns them into each message's receipt: `sent`, `delivered` or `read`.
 
 ```quarry
 table conversations:
@@ -118,7 +117,8 @@ mutation leave(conversation: conversations):
   delete members[me]
   return null
 
-mutation delivered(conversation: conversations, from: int, through: int):
+mutation delivered(conversation: conversations, from: int, through: int)
+  reports delivery of messages by .conversation, .ordinal:
   me = members[conversation, viewer] ! else NOT_MEMBER
   chat = conversations[conversation] ! else NOT_FOUND
   require 0 < from and from <= through else NOT_A_RUN
@@ -135,7 +135,8 @@ mutation delivered(conversation: conversations, from: int, through: int):
     delete runs[run]
   if low <= prefix + 1:
     update members[me] { deliveredOrdinal: high }
-  else if count(runs where .conversation = conversation and .principal = viewer) < 64:
+  else:
+    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   return null
 
@@ -198,6 +199,20 @@ sent. A message records how many recipients it had. Once all of them leave, the
 requirement is met; a message sent to nobody stays `sent`. So a receipt only
 ever moves forward.
 
+`reports delivery of messages by .conversation, .ordinal` binds this mutation
+to the SDK's delivery reporter. **Success is coverage:** every position in the
+inclusive run is recorded for the caller. Refuse with a code when it cannot be
+recorded. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
+before the count. A covered run keeps a replayable receipt but advances no
+sequence and wakes no reader. Replaying its write id returns that success.
+
+`E_DELIVERY_CLAUSE` requires exactly a reference to the group table and two
+`int` arguments, immutable group and position columns, their unique key, and
+one reporter per tracked table. The compiler checks those facts, not the body.
+Never reuse a deleted position. A membership without a join floor must refuse
+positions before the join. Membership and allocation remain server decisions. An ephemeral mutation
+cannot keep a durable replay receipt; use durable tables.
+
 A member's row claims every message through `deliveredOrdinal`, and each of
 their `runs` one unbroken run above a gap. The client reports every unbroken
 run of settled messages it holds with `delivered(from, through)`: the pages it
@@ -224,7 +239,7 @@ Three things keep every fetched message moving:
   goes again with the next answer. When the lowest run it holds lies above
   the prefix, it walks older pages it holds, offline too.
 - **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
-  its report still succeeds; the hook owes it until a merge or catching up
+  its report refuses `RUNS_FULL`; the SDK owes it until a merge or catching up
   frees room. A reload forgets what is owed: what the pages and the page ahead
   still hold is reported again, and the rest waits for catching up, which
   needs the server.

@@ -1,0 +1,124 @@
+//! Delivery clause admission and its portable backend binding.
+use serde_json::json;
+const SOURCE: &str = include_str!("delivery/schema.q");
+fn compile(source: &str) -> snapback4_lang::Bound {
+    snapback4_lang::compile(&[("schema.q".into(), source.into())])
+}
+
+#[test]
+fn clause_binds_argument_names_and_survives_schema_serialization() {
+    let bound = compile(SOURCE);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let wire = serde_json::to_value(&bound.schema).unwrap();
+    assert_eq!(
+        wire["delivery"],
+        json!([{"table":"messages","group":"chat","position":"ordinal","mutation":"delivered","args":["group","low","high"]}])
+    );
+    let restored: snapback4_core::Schema =
+        serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+    assert_eq!(restored, bound.schema);
+    let inline = compile(&SOURCE.replace(")\n  reports", ") reports"));
+    assert!(inline.diagnostics.is_empty(), "{:?}", inline.diagnostics);
+    assert_eq!(inline.schema.delivery, bound.schema.delivery);
+    let mut legacy = bound.schema.clone();
+    legacy.delivery.clear();
+    assert!(
+        serde_json::to_value(legacy)
+            .unwrap()
+            .get("delivery")
+            .is_none()
+    );
+}
+
+#[test]
+fn every_clause_check_has_a_located_diagnostic_and_concrete_rewrite() {
+    for (from, to) in [
+        ("mutation delivered", "query delivered"),
+        ("of messages", "of missing"),
+        ("by .chat, .ordinal", "by .missing, .ordinal"),
+        ("by .chat, .ordinal", "by .chat, .missing"),
+        ("chat: chats", "chat: chats ?"),
+        ("ordinal: int", "ordinal: text <=80"),
+        (
+            "group: chats, low: int, high: int",
+            "group: chats, low: int",
+        ),
+        (
+            "group: chats, low: int, high: int",
+            "group: chats, low: int, high: int, extra: int",
+        ),
+        (
+            "by .chat, .ordinal:",
+            "by .chat, .ordinal reports delivery of messages by .chat, .ordinal:",
+        ),
+        (
+            "group: chats, low: int, high: int",
+            "group: messages, low: int, high: int",
+        ),
+        (
+            "group: chats, low: int, high: int",
+            "group: chats, low: int ?, high: int",
+        ),
+        (
+            "group: chats, low: int, high: int",
+            "group: chats, low: time, high: int",
+        ),
+        ("immutable chat, ordinal", "immutable chat"),
+        ("immutable chat, ordinal", "immutable ordinal"),
+        ("unique chat, ordinal", "by positions: chat, ordinal"),
+        ("by .chat, .ordinal", "by chat, .ordinal"),
+    ] {
+        let changed = SOURCE.replacen(from, to, 1);
+        let bound = compile(&changed);
+        let d = bound
+            .diagnostics
+            .iter()
+            .find(|d| d.code == "E_DELIVERY_CLAUSE")
+            .unwrap_or_else(|| panic!("{from} => {to}: {:?}", bound.diagnostics));
+        assert!(!d.rewrite.is_empty(), "{d:?}");
+        assert!(d.site.line > 0, "{d:?}");
+        assert!(d.explanation().is_some());
+    }
+    let duplicate = compile(&format!(
+        "{SOURCE}\nmutation second(g: chats, a: int, b: int) reports delivery of messages by .chat, .ordinal:\n  return null\n"
+    ));
+    assert!(
+        duplicate
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "E_DELIVERY_CLAUSE" && d.message.contains("already"))
+    );
+}
+
+#[test]
+fn ephemeral_mutations_cannot_promise_durable_replay() {
+    let source = format!(
+        "table signals:\n  n: int\n  principal: principal\n  insert <- .principal = viewer\n  read <- allow\n  ephemeral 4s\n{}",
+        SOURCE.replacen(
+            "  return null\nmutation ordinary",
+            "  insert signals {n: low, principal: viewer}\n  return null\nmutation ordinary",
+            1
+        )
+    );
+    let bound = compile(&source);
+    assert!(
+        bound
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "E_DELIVERY_CLAUSE" && d.message.contains("ephemeral")),
+        "{:?}",
+        bound.diagnostics
+    );
+}
+
+#[test]
+fn binding_decoder_rejects_incomplete_or_duplicate_fields() {
+    use snapback4_core::schema::DeliveryBinding;
+    for wire in [
+        r#"{"table":"messages"}"#,
+        r#"{"table":"messages","table":"other","group":"chat","position":"ordinal","mutation":"delivered","args":["group","low","high"]}"#,
+        r#"{"table":"messages","group":"chat","position":"ordinal","mutation":"delivered","args":["group"]}"#,
+    ] {
+        assert!(serde_json::from_str::<DeliveryBinding>(wire).is_err());
+    }
+}

@@ -112,6 +112,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),
+    ("RUNS_FULL", "`RUNS_FULL` refuses a disjoint 65th run"),
     ("E_FIELD_AUTHORITY", "E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours."),
     ("E_SEQUENCE_PARENT", "E_SEQUENCE_PARENT names a missing, optional or non-reference parent column"),
     ("E_SEQUENCE_SUPPLIED", "`sequence by` refuses such values with E_SEQUENCE_SUPPLIED, including on updates and upserts."),

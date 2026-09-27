@@ -28,6 +28,8 @@ pub use routes::RouteSpec;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
     pub tables: BTreeMap<String, Table>,
+    /// SDK delivery reporters, keyed by (table, mutation).
+    pub delivery: Vec<DeliveryBinding>,
     pub timelines: Vec<timeline::Timeline>,
     pub maintains: Vec<Maintain>,
     pub auth: Auth,
@@ -44,6 +46,9 @@ pub struct Schema {
     /// Only these paths publish application HTTP handlers.
     pub routes: BTreeMap<String, RouteSpec>,
 }
+
+mod delivery;
+pub use delivery::DeliveryBinding;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UniqueRefusal {

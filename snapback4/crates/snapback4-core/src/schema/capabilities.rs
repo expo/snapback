@@ -11,6 +11,8 @@ use std::collections::BTreeSet;
 struct Wire {
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    delivery: Vec<DeliveryBinding>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     timelines: Vec<timeline::Timeline>,
     #[serde(default)]
     maintains: Vec<Maintain>,

@@ -813,6 +813,10 @@ pub fn why(options: &Options) -> i32 {
         eprintln!("usage: snapback4 why <E_CODE | operation | table | id> [--release dir] [--values]");
         return 2;
     };
+    if subject == "reports" {
+        println!("{}", snapback4_lang::guide::card("receipts").expect("receipts card"));
+        return 0;
+    }
     if let Some(explanation) = snapback4_lang::guide::explain_code(subject) {
         // @ref LLP 3000.007#20.1 — follow the current diagnostic's card when one code spans several recipes.
         let contextual = std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)).and_then(|project| project.compile().ok()).and_then(|bound| {

@@ -32,6 +32,7 @@ mod intent_lanes;
 mod intent_windows;
 mod intent_sync;
 mod held;
+mod delivery;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -74,6 +75,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
+    delivery::bind(&catalog, &mut schema, &mut diagnostics);
     // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
     for issue in snapback4_core::schema::field_authority::validate(&schema) {
         if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
@@ -145,6 +147,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         }
     }
     ephemeral::programs(&catalog, &mut schema, &programs, &mut diagnostics);
+    delivery::durability(&catalog, &schema, &mut diagnostics);
     // @ref LLP 3000.007#20 — predicts asserts the existing eligibility decision; it never changes residency.
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();

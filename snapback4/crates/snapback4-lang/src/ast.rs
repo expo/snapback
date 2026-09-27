@@ -426,7 +426,16 @@ pub enum ProgramKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeliveryDecl {
+    pub table: String,
+    pub group: String,
+    pub position: String,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProgramDecl {
+    pub delivery: Option<DeliveryDecl>,
     pub held: bool,
     pub predicts: bool,
     pub server: bool,

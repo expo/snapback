@@ -23,6 +23,10 @@ mutation addNote(body: text):
 `query` returns the newest page; pass its `next` back as `c`.
 `mutation` inserts atomically, using the default time.
 
+`reports delivery of messages by .conversation, .ordinal` before a mutation's
+colon opts into SDK reporting. Its three arguments identify the group and
+inclusive run. See `guide receipts`.
+
 ## Limits
 
 - Use Quarry spellings such as `count(x)` and `first 20`: E_QUARRY_UNSUPPORTED.
