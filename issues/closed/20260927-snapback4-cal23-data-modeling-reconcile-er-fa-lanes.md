@@ -3,7 +3,7 @@
 **Opened:** 2026-09-27, the calibration #23 data_modeling lane (this landing)
 **Severity:** Low: coordination, no defect
 **Area:** `snapback4/crates/snapback4-lang/src/guide/sequences.md`, the `E_STRUCTURAL_FANOUT` rewrite, the `check` Following activation preflight (`E_TIMELINE_ACTIVATE`), the feeds card ordering rule, LLP 3000.015 §2, LLP 3000.016 §2.1a
-**Status:** Open; owner is whoever lands lane ER or lane FA
+**Status:** Closed 2026-09-27 — reconciled on both lane branches; supervisor integration pending
 
 Calibration #23 (`snapback4@0.4.4`, `data_modeling` 84) charged two things: a
 constrained plan needed bounded ordinal probes instead of an expiring-row scan
@@ -30,12 +30,29 @@ Neither lane's branch point carries this landing. When either lane lands:
    "paved form" paragraph and the diagnostic's rewrite (the helper may become
    the fallback rather than the answer), and re-run the guide routing tests
    for the receipt-gap aliases.
+   **ER resolved, round 4.** The compiled sequences card leads with a never-
+   predicting receipt mutation: merge intervals read-only, read the live blocker,
+   then delete runs and write. The diagnostic preserves prediction/source-
+   boundary repairs before the pasteable probe fallback. Parent-reference
+   fixtures compile those repairs; helper authority, coordinate, hidden/absent,
+   resumption and routing checks remain. LLP 3000.015 §2 is amended in place.
 2. If FA admits Following activation over populated sources, the `check`
    preflight must produce the new runtime verdict (it shares the runtime's
    preflight, so a divergence is a test failure, not a silent drift), and the
    feeds card's ordering rule and LLP 3000.016 §2.1a need the new statement.
+   **FA resolved on its branch.** Checked `sb4-intent/fa-following-adoption`
+   at `48895b810` (reconciliation `3ae71563f`): CLI and runtime share the
+   retirement-aware atomic launch preflight; the feeds card and existing LLP
+   3000.016 §2.1a describe populated-source launch. The branch's item-2 record
+   names runtime/preview equality, copy-count and database/WAL regressions.
+   `origin/main` at `8112f4ef6` still has the old activation rule. This closure
+   records completed branch reconciliation, not an FA landing or ER validation
+   of FA's tests.
 3. Merge `snapback4/JOURNAL.md` keeping both entries; the LLP 3000.015 §2 and
    3000.016 §2.1a paragraphs added here are the ones to amend, not duplicate.
+   **Resolved.** ER merge `f0c5df844` preserves both journal histories; the
+   existing paragraph is amended. FA records the same preservation.
 
-Close this ticket when both lanes have landed or been shelved with the card,
-diagnostic, and preflight reconciled.
+Closed under the round-4 instruction to close when both reconciliation items
+are done, including checking FA's branch. Both lane changes still require the
+supervisor's integration; no push or publication is claimed.

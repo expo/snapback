@@ -363,21 +363,37 @@ fn helper_expansion_cannot_hide_the_first_effect() {
 
 #[test]
 fn hoisted_insert_payload_keeps_its_source_statement_boundary() {
-    assert_source_boundary("", "  insert messages { conversation: viewer, ordinal: count(messages where .conversation = viewer), expiresAt: null, body: '' }\n", "inside `insert messages`");
+    assert_source_boundary("", "  insert messages { conversation: viewer, ordinal: count(messages where .conversation = viewer), expiresAt: null, body: '' }\n  return null\n", "inside `insert messages`");
+}
+
+#[test]
+fn hoisted_insert_if_absent_keeps_its_source_statement_boundary() {
+    assert_source_boundary("", "  insert messages { conversation: viewer, ordinal: count(messages where .conversation = viewer), expiresAt: null, body: '' } if absent\n  return null\n", "inside `insert messages`");
+    compiled(&format!("{MODEL}\nmutation inspect(): server\n  ordinal = count(messages where .conversation = viewer)\n  insert messages {{ conversation: viewer, ordinal, expiresAt: null, body: '' }} if absent\n  return null\n"));
 }
 
 #[test]
 fn hoisted_helper_condition_keeps_its_enclosing_emit_boundary() {
-    assert_source_boundary("fn hasMessage():\n  return exists messages where .conversation = viewer\n", "  if hasMessage():\n    emit notify {}\n", "inside `if`");
+    assert_source_boundary("fn hasMessage():\n  return exists messages where .conversation = viewer\n", "  if hasMessage():\n    emit notify {}\n  return null\n", "inside `if`");
 }
 
 #[test]
 fn hoisted_helper_read_keeps_its_untaken_write_boundary() {
-    assert_source_boundary("fn readThenWrite():\n  found = exists messages where .conversation = viewer\n  if false:\n    update messages['target'] { body: 'unused' }\n  return found\n", "  found = readThenWrite()\n", "inside");
+    assert_source_boundary("fn readThenWrite():\n  found = exists messages where .conversation = viewer\n  if false:\n    update messages['target'] { body: 'unused' }\n  return found\n", "  found = readThenWrite()\n  return null\n", "inside");
+}
+
+#[test]
+fn final_return_insert_keeps_its_source_statement_boundary() {
+    assert_source_boundary("", "  return insert messages { conversation: viewer, ordinal: count(messages where .conversation = viewer), expiresAt: null, body: '' }\n", "inside");
+}
+
+#[test]
+fn final_return_helper_keeps_its_untaken_write_boundary() {
+    assert_source_boundary("fn readThenWrite():\n  found = exists messages where .conversation = viewer\n  if false:\n    update messages['target'] { body: 'unused' }\n  return found\n", "  return readThenWrite()\n", "inside");
 }
 
 fn assert_source_boundary(helper: &str, body: &str, expected: &str) {
-    let b = snapback4_lang::compile(&[("schema.q".into(), format!("{MODEL}\neffect notify\n{helper}\nmutation inspect(): server\n{body}  return null\n"))]);
+    let b = snapback4_lang::compile(&[("schema.q".into(), format!("{MODEL}\neffect notify\n{helper}\nmutation inspect(): server\n{body}"))]);
     assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
     let refusal = &b.diagnostics[0];
     assert_eq!(refusal.code, "E_STRUCTURAL_FANOUT", "{refusal:?}");

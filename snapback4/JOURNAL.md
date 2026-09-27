@@ -69241,3 +69241,67 @@ commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
 package-version or budget change, no new tool installation, no push or publish.
 Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
 round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.
+
+## 2026-09-27 — Lane ER round 4: finish receipt-gap reconciliation
+
+Read the four binding ER prompts, Accepted LLP 3000.025, prior journal
+entries and Astra's round-3 READY WITH CHANGES review. Grok's file contained
+progress only at the start; its completed READY WITH CHANGES review arrived
+during qualification and was read in full. Merged origin/main at 8112f4ef6
+as f0c5df844 first. Both complete parent journals remain ordered subsequences;
+the CLI conflict keeps both the expiry-cost and cursorless-top-N tests.
+
+The sequences card now leads with a compiled delivered(...): server mutation:
+merge intervals without effects, read the first live blocker, then delete runs
+and write. The existing LLP 3000.015 §2 paragraph and fanout explanation agree.
+Unique probes remain the fallback, retaining authority, hidden/absent cases,
+coordinate selection, full-slot refusal, disjoint runs and bounded resumption.
+The diagnostic keeps the prediction/source-boundary repair before its helper;
+Quarry comments make the whole rewrite pasteable. Both new parent-reference
+fixtures failed before the repair and now compile its smaller admitted form.
+
+Final return-insert and return-helper regressions contain no appended return.
+Splitting only the last source statement made both fail; the production code
+was restored. Grok added an insert-if-absent hoisting case and an explicit
+obsolete-card-prose check. Applied these tests after the complete script so
+its source stayed fixed. Treating InsertIfAbsent as read-only made the new
+negative case fail with no diagnostic; restoring the blanket-refusal sentence
+failed the card assertion. Both mutants are restored byte-for-byte. No new
+admission policy, runtime/device execution, disclosure, meter or receipt change.
+
+Closed reconciliation item 1 and moved the ticket to issues/closed after
+checking FA's branch at 48895b810 (reconciliation 3ae71563f): its shared atomic
+launch preflight, feeds card and LLP 3000.016 §2.1a resolve item 2 on that
+branch. The fetched main at 8112f4ef6 still carries the old activation rule.
+Closure follows the round-4 direction to check both main and FA's branch; it
+records branch reconciliation, not landing or ER validation of FA's tests.
+The supervisor still owns integration; no FA code was merged into this lane.
+
+Final affected language checks: expiry 19 passed / 1 optional benchmark
+ignored, receipt gaps 14/14, whole guide 89/89, prefix reads 10/10 and
+intent_review 7/7. Simulator page_admission 15/15 and work_intent 12/12.
+Full device 1,334 passed / 0 failed / 3 ignored, including readauth 81/81.
+Wasm census/families/absence/budget tooling 40/40; CLI expiry-cost 1/1 across
+page/exists/count. The final authoring census passes again after the late
+test additions. The literal CLI receipt-gap alias serves the new opening.
+
+Ran scripts/test.sh exactly once, exit 0, exact summary:
+
+```text
+== 0 failure(s) in 1488 s
+```
+
+Every full-run failure: none. Ours 0, baseline 0, environmental 0.
+Rust 3,959 passed / 25 ignored; clients 2,701 passed / 10 skipped; models
+78/78; fixture wrappers 9/9. Every phase passed. Eight Cargo jobs/eight Rust
+test processes; the script selected parallel clients at host load 5.99/96.
+The two later Grok tests pass in focused runs; production source remains
+identical to the full run. No second complete script invocation. The inherited
+60-second suite budget remains exceeded and unchanged.
+
+Rebuilt wasm: 1,981,627 B raw / 572,559 B gzip, 282 B below the unchanged
+572,841 B budget. No new latency claim. Frozen Bun install made no changes;
+no tools installed, no shared-path installation, no push or publication.
+Report, all expected and unintended intermediate reds, unchanged alternatives
+and counterexamples: reports/20260927-er-round4.md. Raw evidence is under
+target/lane-er-round4/. No ER design question remains; DC owns queue recovery.

@@ -1,8 +1,8 @@
 # Programs — E_STRUCTURAL_FANOUT
 
-For receipt gaps, `guide sequences` has the `sequence by conversationId` and bounded unique
-ordinal-probe recipe, manual allocator, and row-keyed count. The compiler
-supplies a helper for a unique parent/ordinal key. Require authority over the
+For receipt gaps, `guide sequences` pairs `sequence by conversationId` with
+a server mutation reading its blocker before effects. The compiler gives that
+repair first, then a unique parent/ordinal probe helper as fallback. Require authority over the
 whole conversation and a validated received run; hidden rows do not prove
 holes. Resume after the bound, preserving disjoint runs. Counts answer badges,
 not individual receipt coverage. General processing can use query-selected ids
