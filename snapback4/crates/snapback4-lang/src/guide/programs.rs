@@ -18,6 +18,7 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
 `programWrites` requires a visible room and its owner, then changes its name.
 Helpers share one namespace; a helper from `m.q` accepts both `helper(x)` and `m.helper(x)`.
 A different module name is refused with the declaring file and the correct call.
+Helpers inherit loop placement (guide jobs); repeated pure calls narrow (guide types).
 
 ## Limits
 

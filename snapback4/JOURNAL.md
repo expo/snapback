@@ -67733,6 +67733,56 @@ publication. All tested source bytes remained unchanged through qualification.
 This dated entry is included in the merge commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 
+### 2026-09-27 — Lane QE: helper loop placement and list expressions
+
+Implemented the 0.4.5 Quarry ergonomics brief on
+`sb4-intent/qe-quarry-ergonomics` from `9473e0a34`. Commit `3f15449c4`
+separates caller loop placement from helper-local break/continue scopes;
+helpers inside a recipient sweep now accumulate like inline loops, while a
+top-level helper still refuses cross-chunk local state. List `+` now works
+in expressions through the existing metered Concat builtin, joins item types
+and adds bounds. Self-append keeps Push; stable loop-carried item types keep
+heap-bound widening; recursive list item growth gets a self-append rewrite.
+No new diagnostic code. Updated the language, jobs and programs cards and
+LLP 3000.007 sections 5.1–5.2 in the same implementation commit.
+
+Added seven compiler helper tests, nine list tests and an engine regression.
+The latter runs helper and inline digests over 130 recipients, across multiple
+committed chunks, and compares all 104 expected effects and their exact totals.
+The IR comparison removes only helper temporaries and alpha-renames slots.
+Temporarily disabling the two fixes makes the positive compiler regressions
+and engine regression fail; restored source passes. The comparative's three
+accumulations, reconstructed from its final schema and actual modules, now
+compile without E_QUARRY_BOUND or E_QUARRY_PLACEMENT. The original failed
+first-pass source is unavailable. A separate unbounded optional-filter domain
+still produces E_QUARRY_BOUND identically in helper and inline forms; the
+report gives the reproduction and an inner-if rewrite preserving full totals.
+
+Whole guide 86/86, helper placement 7/7, list expressions 9/9, joined shapes
+17/17, optional-variant review 9/9 and helper engine 1/1 pass. Every guide
+block compiles without a diagnostic or note, and the existing fact/word budgets
+remain unchanged. The frozen Bun install and package build pass. On Rust
+1.97.0 / Node 24.13.1 / Bun 1.3.14, with eight Cargo jobs, dev/test debug info
+and incremental compilation disabled, and fd limit 65,536, ran scripts/test.sh
+once. Exact summary: **`== 1 failure(s) in 1436 s`**, exit **1**; failed check
+**`cargo test`**. Rust: **3,825 passed / 1 failed / 24 ignored**, 928 s.
+The sole failure was **ours**: ephemeral_compat's frozen top-level fixture
+inventory included the newly added helper-sweep.q. Commit `5b81caff1` moves
+that fixture under fixtures/qe without changing its contents or any baseline.
+Targeted compatibility 1/1, helper compiler 7/7 and helper engine 1/1 pass
+following the move. No baseline/environmental failure or unresolved failure.
+Did not rerun the full suite after this fixture-only correction.
+
+Client main **2,481 passed / 0 failed / 10 skipped**, plus **56/56** across
+seven shards, in 197 s. All **78/78** seeded models pass, 258 s. Fixture wrappers
+9/9, native/wasm builds, docs budget, release guard, package build/typecheck,
+chat check and both app typechecks pass. Same-worktree build-wasm.sh before and
+after: **1,980,253 B raw / 571,810 B gzip**, **0 B delta**, byte-identical
+SHA-256 `324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc`.
+The unchanged 572,841 B budget leaves 1,031 B. No runtime, authorization,
+disclosure, durability, IR-format or meter-ceiling change; no push or package
+publication. Report: reports/20260927-qe-quarry-ergonomics/REPORT.md. Logs:
+target/lane-qe/.
 
 ### 2026-09-27 — Lane LX round 1: clean Linux consumers through pinned proot
 
@@ -68074,6 +68124,69 @@ surface change, no round-0 review response, push or publication. The lane is
 still not ready to land. Attribution, hashes, reproductions and limitations:
 reports/20260927-dc-delivery-client/ROUND1.md; logs and artifacts remain under
 ignored target/lane-dc-round1/.
+
+## 2026-09-27 — 0.4.5 lane QE round 1: sound items, bounded growth and pure-call narrowing
+
+Read the original lane prompt, round-0 report/journal and both complete blind
+reviews. Fetched and merged origin/main 3369ae543 as a05192ae7, retaining both
+journal histories. Answered Astra's Medium in 2c5d06ec7: nonempty literal and
+concat items reject incompatible scalars and different reference tables;
+empty-list joins remain exempt. 951390b66 preserves heterogeneous positional
+once-key tuples, and 74e4bb434 explicitly widens projected IDs in the mixed-row
+provenance fixture without changing its values or assertions. a3ef8e9a5 adds
+the exact two-sweep restoration regression; deleting caller_loops restoration
+makes it fail. bcb3e2b0e answers both recursive-growth Lows with whole-assignment
+concat detection and the self-append rewrite, including early reassignment
+failures. 4317ca16e answers Grok's scale Low: count bounded append/prepend
+increments and initial contents; keep doubling and open/cyclic growth on the
+fallback. Five prepends certify 40,965 examinations, matching Push, instead of
+8,193,000,000; measured nested/prepend engine cases agree with their bounds.
+
+174a155f3 implements the supervisor's calibration #22 rule. Repeated pure fn
+calls over stable lexical arguments narrow under null guards, including the
+exact windows.ttl(c.disappearing) expression and nested calls. Expanded IR
+classifies transitive effects; table/clock/connection reads, writes and unstable
+arguments retain the bind-once rewrite. Both calls execute under existing meters.
+Facts use every argument root's field-refinement state, including reassignment,
+branch and loop invalidation. 794ac556a extends this to implicit shape snapshots
+and corrects guide expectations. All five assigned findings have failing-before
+regressions or the requested deletion control. LLP 3000.007 and the language,
+types, programs and why cards record the final rule. The historic pure-call
+refusal now compiles/runs; its unchanged fixture moved below fixtures/qe to
+avoid entering an unrelated frozen corpus. No budget or census baseline raised.
+
+Ran scripts/test.sh exactly once at 174a155f3, exit 1, exact summary:
+`== 2 failure(s) in 1425 s`, groups `cargo test` and `client tests`.
+Rust: 241 binaries / 954 executions plus doctests; 3,860 passed, 2 failed,
+24 ignored, 919 s. Both failures were ours: authoring_census duplicated the
+language corpus via the added tableless types-card block; language_operation_classes
+omitted the new expiration query. Client main: 2,532 passed, 16 failed,
+10 skipped, plus 56/56 in seven shards, 198 s. All 16 failures were ours:
+one shared provenance fixture joined children/reactions reference IDs, which
+now correctly refuses. The report names every individual failure. No baseline
+or environmental failure. All 78 models pass, 272 s; all other script phases
+and 9 fixture wrappers pass. The inherited 60 s budget remains exceeded.
+
+The final source at 74e4bb434 passes 290 affected checks after those corrections:
+compiler/guide 152 (whole guide 86), device authorization 81, scale 41 and
+wasm/process provenance 16. The existing engine helper/chunk comparison also
+passed 1/1 before the full run. Reference audit: 516 LLP docs, 9,602 refs,
+zero errors/unchecked. The final CLI builds, and source files stay below 1,500
+lines (maximum changed source: guide tests, 1,487). Did not repeat the full
+script: qualification is its recorded red result plus the passing affected
+checks, including the additional implicit-snapshot regression/fix.
+
+Wasm before/full-run artifacts are byte-identical: 1,981,512 B raw / 572,053 B
+gzip, SHA-256 5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969,
+788 B below the unchanged 572,841 B budget. Round-1 wasm inputs are unchanged
+from the merged base: zero lane delta; the increase over round 0 came from main.
+No engine, authorization, disclosure, durability, IR-format, meter, version or
+budget change. No push or publication. All round-1 commits carry the requested
+Astra co-author. No assigned finding remains open; the round-0 optional-filter
+E_QUARRY_BOUND limitation and inner-if workaround remain documented. Full file
+map, examples, commits, individual failures and reproduction:
+reports/20260927-qe-quarry-ergonomics/ROUND1.md. Ignored evidence:
+target/lane-qe-r1/.
 ### 2026-09-27 — Lane LX round 3: mutation-proven publication tests
 
 Closed the four Low round-2 review gaps with test/record changes only.
@@ -68161,3 +68274,112 @@ full wasm path matrix, native process-kill and IndexedDB browser crash witnesses
 remain unclaimed. File-by-file changes, examples, test map, failures and
 reproductions: reports/20260927-dc-delivery-client/ROUND2.md. Evidence remains
 under ignored target/lane-dc-round2/.
+## 2026-09-27 — 0.4.5 lane QE round 2: compatible joins and review regressions
+
+Read the original lane prompt, both earlier reports/journal entries and both
+complete round-1 reviews. First fetched and merged origin/main 54099bc88 as
+ccb09c02a, preserving both sides of both journal conflicts; verified every
+parent-journal line remains in order. Four local commits answer all findings:
+89320fcb9 restores common enum/text, generic-id/reference/principal,
+int/decimal/money and json item types (Astra 1/Grok 4); 0fca2518f teaches the
+explicit generic-id repair for flat/projected/nested [].id conflicts (Astra 2);
+2d233ce8d pins connection, exists and minted-id impurity, including transitive
+helpers (Astra 3/Grok 5); 55e8c29af confines recursive-growth rewrites to
+assignment type failures so an ill-typed + has one operand error (Grok 6).
+
+Thirteen new tests cover both operand orders through literals, concatenation
+and loop self-append with exact engine values; Unicode character bounds and
+control-character refusal; Unknown and mixed-reference exclusions; executable
+ID repairs; purity refusals; and four ill-typed concatenations with one error.
+Before-fix tests fail as expected. Each of three exact purity mutations makes
+its new regression fail; production source is restored byte-for-byte. Genuine
+recursive growth retains the self-append rewrite. Updated LLP 3000.007 §5.1
+and the types card; no new diagnostic code, fact inventory, source-size or word budget.
+Affected qualification: compiler/guide 165/165 (whole guide 86), device
+authorization 81/81 and multi-chunk helper/inline engine comparison 1/1.
+
+A compiler rebuilt from merged pre-fix source and then from the final source
+produces identical operation names, diagnostics and notes for all 25 Quarry
+files under apps/ and benchmarks/runs/*/astra/source/. Chat's 11 operations
+and Astra 0.4.0–0.4.3 remain clean. Astra 0.3.0 retains exactly 11 inherited
+refusals: ten positional-scan errors and one Row/WriteRow shape join. The
+report lists every site. No app, calibration source or generated API committed.
+
+At unchanged implementation head 55e8c29af, ran scripts/test.sh exactly once,
+exit 1, exact summary `== 1 failure(s) in 1393 s`, group `client tests`.
+Rust: 243 binaries, 956 executions plus doctests; 3,876 passed, zero failed,
+24 ignored, 891 s. Client main: 2,631 passed, two failed, 10 skipped; seven
+additional shards pass 56/56; phase 213 s. Both failed tests are baseline:
+`closing the last journal owner during admission still invalidates another tab`
+times out at react.test.mjs:146 after 30 s, and its enclosing `React hooks and
+reference-app lifetimes` test fails as a consequence. This browser-only
+controlled-transport fixture does not invoke Quarry, and all its relevant
+inputs are unchanged from the merged baseline. No lane-owned or confirmed
+environmental failure. All 78 models pass (259 s), all 9 wrappers and both
+app typechecks pass, and every other phase passes. All 16 round-1 provenance
+failures pass in this full run. The inherited 60 s suite budget is unchanged.
+
+One isolated post-suite React-file run passes 46/46 in 3,496.960007 ms,
+including the failed case in 250.18955 ms. Did not change the test or its
+timeout, repeat the full suite, or claim the underlying race is fixed.
+Opened issues/20260927-snapback4-react-journal-admission-invalidation-timeout.md
+with the evidence and reproduction. The report also retains the prior
+optional-filter E_QUARRY_BOUND reproduction and inner-if workaround.
+
+Wasm is byte-identical before/after the full-run rebuild: 1,981,512 B raw /
+572,053 B gzip, delta 0/0, 788 B under the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Rust 1.97.0, Node 24.13.1, Bun 1.3.14; eight Cargo jobs, dev/test debug and
+incremental off, fd limit 65,536. Frozen install passes. No engine, meter,
+authorization, disclosure, durability, IR format, version or budget change.
+All changed source files stay below 1,500 lines (maximum 705). The scoped
+final reference audit passes: 517 LLP documents,
+9,617 references, zero errors/unchecked. All round-2 commits carry the
+requested Astra co-author. No push or publication. File map, tests, exact
+failure list and limits: reports/20260927-qe-quarry-ergonomics/ROUND2.md;
+ignored logs and reproducible controls: target/lane-qe-r2/.
+
+## 2026-09-27 — Lane QE round 3: enum unions and mutation-proven narrowing guards
+
+Read the binding lane prompt, rounds 0–2 reports/journal entries and both
+round-2 reviews. Fetched and merged origin/main 10f69a744 as d3d891a9c before
+editing; no conflicts. All four final-round assignments are addressed.
+Enum pairs now join to their variant union in literals, concatenation and
+self-append, covering subsets, reordered equal sets and disjoint/overlapping
+sets. Both append types must fit the joined type. Enum refusals teach the
+value-preserving `fn state(v: enum('on', 'off')): v` repair with all variants.
+The recursive-list diagnostic follows returned containers, so consuming xs
+in count(xs), count(xs) + 1 or count([xs]) retains the ordinary item conflict.
+Direct, conditional and mutual recursive-growth regressions still pass.
+
+Six new tests include the review's reversed-argument expression, transitive
+count(notes) across delete, and a helper whose only read is for row in notes
+first 1. Three implementation tests fail before their fixes. Each narrowing
+regression kills its exact single mutation: sorting Stable::Call keys,
+classifying Expr::Scan as pure, or classifying LoopDomain::Page as pure.
+Every mutation is restored byte-for-byte; production purity is unchanged.
+Updated LLP 3000.007 §5.1 in the same change. No new diagnostic code.
+
+Final affected compiler/guide run passes 171/171, including the entire guide
+86/86. Frozen install, docs budget and both demo TypeScript checks pass.
+Compiled all 31 Quarry files across Chat and Astra calibrations 0.3.0–0.4.4
+with merged-baseline and fixed compilers: operation names, diagnostics and
+notes match exactly. Only 0.3.0 retains refusals, its same 11 baseline errors.
+No app, calibration source, generated API or test outside the language crate
+changed. Did not rerun scripts/test.sh, as the round-3 instruction permits.
+The latest full run remains round 2's historical `== 1 failure(s) in 1393 s`,
+client tests: one baseline journal-admission timeout and its enclosing test.
+No round-3 affected failure. Prior optional-filter and unassigned
+principal/reference limitations retain their reproductions in ROUND3.md.
+
+Production wasm rebuild remains byte-identical: 1,981,512 B raw / 572,053 B
+gzip, delta 0/0; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Unchanged cap 572,841 B, headroom 788 B. No engine, authorization, disclosure,
+durability, IR-format, meter, version, dependency or budget change. Changed
+source files stay under 1,500 lines (maximum 709). Reference audit passes:
+517 LLP documents, 9,617 references, zero errors/unchecked. Every commit carries
+the requested Astra co-author. No push or publication. Full file map, examples,
+failing-before and mutation evidence, exact historical suite failure list and
+scope: reports/20260927-qe-quarry-ergonomics/ROUND3.md. Ignored logs and
+repeatable probes: target/lane-qe-r3/.
