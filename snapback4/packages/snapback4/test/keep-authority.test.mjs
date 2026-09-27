@@ -33,7 +33,11 @@ function fixture(t) {
     }), () => {}, () => {}, () => null);
   } };
   bindWatchPeek(raw, watches, () => null);
-  const facade = guardClient(raw, async () => { if (hold) await gate.promise; return allow; }, () => true, () => why);
+  const facade = guardClient(raw, async () => {
+    if (hold) await gate.promise;
+    if (allow === "error") throw Error("session storage failed");
+    return allow;
+  }, () => true, () => why);
   const client = facade.client;
   t.after(() => { gate.resolve(); facade.fence()(); for (const watch of watches.values()) watch.linger?.close(); stopClock(); });
   const owner = (args = {}) => watches.get(`keep:read:${JSON.stringify(args)}`);
@@ -136,4 +140,21 @@ for (const reset of ["scope", "denied", "authority", "fence", "linger"]) test(`h
   assert.ok(!("data" in watch.getSnapshot()));
   assert.ok(!peekObservation(f.client, q, {}, options)?.data);
   assert.equal(owner.followers.size, 0, "reset releases the held timer and follower"); watch.close();
+});
+
+test("a remount's initial authority error withdraws the held answer for every subscriber", async t => {
+  const f = fixture(t), watch = f.client.observe(q, {}, options);
+  await until(() => f.owner());
+  f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+  const seen = [];
+  watch.subscribe(() => seen.push(watch.getSnapshot()));
+  f.hold();
+  const remount = f.client.observe(q, {}, options);
+  assert.equal(remount.getSnapshot().data, "A");
+  f.release("error");
+  await until(() => remount.getSnapshot().denied?.code === "E_CLIENT");
+  assert.equal(watch.getSnapshot().denied?.code, "E_CLIENT");
+  assert.ok(seen.some(read => read.denied?.code === "E_CLIENT"));
+  assert.equal(peekObservation(f.client, q, {}, options), undefined);
+  watch.close(); remount.close();
 });

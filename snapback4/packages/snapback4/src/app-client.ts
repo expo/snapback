@@ -84,6 +84,17 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       };
       const initial = options?.keep ? peekObservation(raw, op, args, options) : undefined;
       if (initial) attach(kept.get(initial));
+      const reject = (read: Read<R>) => {
+        snapshot = read;
+        const prior = held;
+        if (prior) {
+          prior.snapshot = read;
+          const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
+          if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
+          attach(undefined);
+          for (const listener of prior.listeners) listener();
+        }
+      };
       const detach = () => { held?.listeners.delete(emit); stop?.(); source?.close(); source = undefined; stop = undefined; };
       cleanups.add(detach); invalidations.add(emit);
       const refresh = async () => {
@@ -105,13 +116,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         const refused = await refusal();
         if (closed || version !== refreshVersion) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
-        if ("denied" in snapshot && held) {
-          held.snapshot = snapshot;
-          const read = source?.getSnapshot();
-          if (read) { approved.delete(answerIdentity(read)); kept.reject(read, snapshot); }
-          held.listeners.delete(emit);
-          held = undefined;
-        }
+        if ("denied" in snapshot) reject(snapshot);
         if ("data" in snapshot) {
           approved.add(answerIdentity(snapshot));
           if (options?.keep) {
@@ -124,13 +129,13 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       void refusal().then(refused => {
         if (closed) return;
         opening = false;
-        if (refused) { snapshot = { denied: refused }; emit(); return; }
+        if (refused) { reject({ denied: refused }); emit(); return; }
         if (valid()) {
           source = raw.observe(op, args, options);
           stop = source.subscribe(() => { void refresh().catch(() => {}); });
         }
         return refresh();
-      }).catch(() => { snapshot = denied(); emit(); });
+      }).catch(() => { reject(denied()); emit(); });
       return {
         getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading
           : held ? held.snapshot as Read<R> : snapshot) : denied(),
