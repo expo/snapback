@@ -86,7 +86,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         response.add_header(Header::from_bytes("Content-Range", format!("bytes */{total}")).unwrap());
         response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
         response.add_header(Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap());
-        for header in cors(&request) { response.add_header(header); }
+        for header in cors(&request).into_iter().chain(crate::serve::latency::header()) { response.add_header(header); }
         let _ = request.respond_checked_with_completion(response, |_| crate::serve::latency::finished(true));
         return;
     }
@@ -105,6 +105,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         headers.push(Header::from_bytes("X-Snapback-Asset-Home", encoded).unwrap());
     }
     headers.extend(cors(&request));
+    headers.extend(crate::serve::latency::header());
     let (status, start, length) = match range {
         ByteRange::Satisfiable(start, end) => {
             headers.push(Header::from_bytes("Content-Range", format!("bytes {start}-{end}/{total}")).unwrap());

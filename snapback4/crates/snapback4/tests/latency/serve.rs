@@ -1,6 +1,8 @@
 use super::*;
 #[path = "duration.rs"]
 mod duration;
+#[path = "headers.rs"]
+mod headers;
 
 const SOURCE: &str = "use server\nuse personas alice\ntable notes:\n  n: int\n  public\n  insert <- allow\n  sync public\nquery read():\n  return {denied: 'user data', state: 'failed'}\nmutation put(n: int):\n  require n >= 0 else NONNEGATIVE\n  return insert notes {n: n}\naction echo()\n";
 const PERSONA: &str = "x-snapback-persona: alice\r\n";
@@ -16,7 +18,7 @@ fn counted(host: &Host, name: &str, n: u64) -> Json {
     }
 }
 fn ordered(operation: &Json) {
-    for kind in ["total", "wait"] {
+    for kind in ["total", "wait", "engine", "cpu"] {
         let h = &operation[kind];
         let values: Vec<_> = ["p50", "p95", "p99", "max"].iter().map(|key| h[key].as_f64().unwrap()).collect();
         assert!(values.windows(2).all(|w| w[0] <= w[1]), "{operation}");
@@ -184,7 +186,7 @@ fn latency_writer_admission_refuses_once_and_keeps_dev_inspection_available() {
 }
 
 #[test]
-fn latency_detached_checkout_stamps_wait_before_query_work() {
+fn latency_detached_checkout_separates_prework_acquisition_and_engine() {
     for bearer in [false, true] {
         let fresh = query_readers::FreshDirectory::new().unwrap();
         let host = Host::with_store(true, fresh.store().unwrap(), SOURCE);
@@ -193,8 +195,8 @@ fn latency_detached_checkout_stamps_wait_before_query_work() {
                 snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
             format!("Authorization: Bearer {}\r\n", session.token)
         } else { PERSONA.to_owned() };
-        // The first checkout follows 100 ms of accepted request work. Query
-        // execution then waits another 250 ms; that belongs only to total.
+        // Accepted request work is not acquisition wait. Query ownership
+        // includes a controlled 250 ms off-CPU pause.
         *lock(&host.shared.request_work) = Some(Arc::new(|| thread::sleep(Duration::from_millis(100))));
         *lock(&host.shared.query_wait) = Some(Arc::new(|| thread::sleep(Duration::from_millis(250))));
         assert_eq!(status(&host.request("POST", "/q/read", &headers, "{}")), 200);
@@ -203,8 +205,9 @@ fn latency_detached_checkout_stamps_wait_before_query_work() {
         let sample = &result["operations"]["/q/read"];
         let wait = sample["wait"]["max"].as_f64().unwrap();
         let total = sample["total"]["max"].as_f64().unwrap();
-        assert!(wait >= 100.0, "detached checkout missing from wait: {sample}");
-        assert!(total - wait >= 250.0, "query work must follow first acquisition: {sample}");
+        let engine = sample["engine"]["max"].as_f64().unwrap();
+        assert!(engine >= 250.0, "query work missing: {sample}");
+        assert!(total - wait - engine >= 90.0, "prework was misclassified: {sample}");
         assert_eq!(sample["refused"], 0);
     }
 }

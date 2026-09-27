@@ -150,5 +150,6 @@ fn completed(request: Request, run: &ActionRequest) {
     }
     // No JSON re-encoding, credential reflection or implicit CORS: headers
     // and bytes belong to the declared handler, framing to the HTTP server.
-    let _ = request.respond(output);
+    if let Some(header) = super::latency::header() { output.add_header(header); }
+    let _ = request.respond_checked_with_completion(output, |result| super::latency::finished(result.is_err()));
 }

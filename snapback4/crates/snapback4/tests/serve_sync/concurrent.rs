@@ -30,7 +30,7 @@ fn detached_sync_never_skips_a_commit_after_its_snapshot() {
                 }
                 rusqlite::hooks::Authorization::Allow
             })).unwrap();
-            lock(&host.shared.readers).put(&epoch, reader);
+            lock(&host.shared.readers).put(&epoch, reader.into_inner());
             let address = host.address;
             let page = thread::spawn(move || {
                 let input = json!({"stream":stream,"limit":1,"pending":[concurrent]}).to_string();

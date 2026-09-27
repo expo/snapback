@@ -182,11 +182,12 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
             return failed(request, why);
         }
-        lock(&shared.readers).take(&engine)
+        shared.take_reader(&engine)
     };
     let context = Context::new(principal.clone(), args).at(shared.now());
     let result = match reader {
         Ok((epoch, mut reader)) => {
+            let _timing = latency::EngineSpan::new();
             let result = intent_store(&reader, &payload).and_then(|()| {
                 reader
                     .mutate_ephemeral(op, context)

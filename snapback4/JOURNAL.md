@@ -70710,6 +70710,67 @@ Report and durable verification: experiments/following-adoption/atomic/ROUND5.md
 and ROUND5.verification.json. Raw logs: target/fa-round5/. Local commit carries
 the requested co-author trailer. No push or publication.
 
+
+### 2026-09-27 — Lane SE: paired scale timings and evidence a builder can cite
+
+Fetched and merged origin/main first; already at 51b318c63. Read the Snapback 4
+fence, LLP 3000/2000.000, LLP 3000.019 §§3.6–3.7, current cards and SS's reports;
+used llp-orient from a populated sibling vendor checkout. The lane adds
+loopback-dev Server-Timing total/wait/engine/thread-CPU durations, cumulative
+reader/writer acquisition wait and engine/CPU doctor distributions. Production
+adds no header; its live-service-token inspection, all dev fences, authorization,
+meters and response data are unchanged. Header total ends at header construction;
+doctor still includes the final response flush. Timing attribution adds timing
+information, not row access; the report explicitly declines a literal claim of
+zero additional timing information. No device code or dependency change.
+
+Ran the unmodified builder's eight probes 30 times per condition on separate
+private copies of the final store with WAL, dev --replay: spare-capacity control,
+ten external CPU burners on ten assigned CPUs, and 64 settled sends immediately
+before each run. 14,400 measured queries / 20,970 paired samples include the
+three-warm-up/k=20 policy and cursor preparation; 90 reset/doctor windows.
+No refusal, cut, incomplete result or timeout; no jobs. All 12 original input
+files retain their hashes. The shared Linux EPYC host is expose-builder-pixel,
+96 logical CPUs, not the original M1 Max; global quietness and retrospective
+attribution of the original 10%/50% checkpoints are not claimed.
+
+Global-search client p95 is 5.086/10.497/5.266 ms for control/contention/writes;
+server total 4.000/9.187/4.093, CPU 3.839/3.914/3.871, reader wait 0.001 ms in
+all three. Trending client p95 is 2.142/4.728/2.250 ms. The added contention
+tail is predominantly off-CPU; no foreground read queue behind the writer was
+found, so no scheduling repair is claimed. Equal-size quiet run triples still
+fail the midpoint rule 5/10 (search) and 4/10 (trending); these are negative
+controls, not reconstructed growth curves. No frozen rule changed.
+
+The bounds card's complete shell/Node growth recipe runs in a real-process guide
+test. Added latency/performance/p95/benchmark/load test aliases. The sync card
+quotes SS round 2's methods/host and measured 100/1,000 acquisition: Node memory
+1.671/16.324 s, fake-IDB 2.022/21.036 s, Chromium real-IDB 4.186/27.327 s. Browser
+live-query p95 during 1,000-conversation acquisition remains unmet at 13.158 s
+(19 samples, no timeout); these are SS observations, not promises or new SE runs.
+
+Affected server/doctor units: 175 passed / 4 existing ignored; real-process
+latency/guide 10/10; existing read measurement fixtures 2 ignored; whole guide
+89/89, rechecked after two sync-card evidence-wording corrections. Earlier
+lane-owned compile/fixture/old-wait assertions and four environment failures
+from the first server run's low fd limit are listed and resolved in the report.
+Final reference and whitespace checks pass.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1524 s`. Every full-run failure: none — ours 0, baseline 0,
+environmental 0. Rust 4,063 passed / 29 ignored (253 binaries, 966 executions),
+clients 2,701 passed / 10 skipped, serial models 78/78, fixture wrappers 9/9;
+all other phases and doctests pass. The inherited 60-second total budget remains
+exceeded. Eight build jobs/test processes, fd limit 65,536, dev/test debug and
+incremental off; Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127.
+No shared-path tool install.
+
+Wasm is byte-identical before/after: 1,979,732 B raw / 572,616 B gzip, 225 B below
+the unchanged 572,841 B budget. Report, paired samples, per-run doctor snapshots,
+host traces, original hashes and compressed verification logs are under
+reports/20260927-se-scale-evidence/. LLP 3000.019 §3.7 records the timing meanings.
+The local commit carries the requested co-author trailer. No push or publication.
+
 ### 2026-09-27 — KG round 12: opening refusals require distinct delivery evidence
 
 Read the round-0–11 prompts, including 9b, prior report and KG journal entries,
@@ -70774,3 +70835,147 @@ on a shared path. No unresolved assigned finding or independent new review
 claim. Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
 ignored evidence: target/lane-kg-r12/. This is the single round-12 append.
+
+
+### 2026-09-27 — Lane SE round 1: listener fence and consistent timing attribution
+
+First fetched and merged origin/main d9c89a971 in local merge 59b217892,
+keeping both journal appends and both LLP 3000.019 revision histories. Read
+the original prompt, round-0 report/journal and Astra’s complete READY WITH
+CHANGES review. Grok had no verdict at the initial check; did not wait.
+Used llp-orient with the same populated sibling skill; LLP 3000.019 §3.7
+and the bounds card carry the corrected meanings and disclosure rationale.
+
+Server-Timing now requires the listener itself to be loopback, as well as
+dev and the existing peer/Host/Origin fence. A wildcard listener omits the
+header for both loopback and external peers. Timing attachment is independent
+of CORS: service-route persona refusals, route pending and /dev/token refusals
+retain timing without granting CORS. Streams and other response paths retain
+separate attachment. Queries, direct /changes opens/reopens and ephemeral
+pool take use one acquisition helper. It suspends enclosing engine spans so
+opening a reader counts as wait rather than engine work.
+
+Seven new regressions plus stronger stream checks cover these paths. Controlled
+150 ms reader delays count as wait; a 150 ms changes refresh counts as engine,
+while at least 600 ms of a one-second poll remains outside engine/wait. Six
+negative controls fail as intended: remove the listener check, acquisition
+timing, enclosing-engine suspension, independent attachment, refresh span,
+or poll-sleep exclusion. All mutation edits restored before qualification.
+One initial mutation-harness E0308 (closure not invoked) was ours and fixed;
+it is retained and not counted as a successful negative control. The first
+staged whitespace check flagged three Markdown hard-break spaces in the copied
+review (ours, artifact formatting); trimmed them in the readable copy. No
+unintentional product-test failure, baseline failure or environmental failure.
+
+The report and one bounds sentence plainly acknowledge that phase/CPU timings
+reveal more than total time: hidden payload work, contention attribution, and
+doctor’s other-principal aggregation. Per-response timing belongs only on
+loopback-bound dev, where the developer already holds the store, never serve;
+production aggregates retain their live-service check. Round-0 measurements,
+14,400 samples and SS’s acquisition figures remain historical evidence;
+no original store opened/modified and no new workload-performance claim.
+
+Affected checks: server/doctor units 182 passed / 4 existing ignored;
+real-process latency/doctor/recipe 10/10; read measurements 2 existing ignored;
+whole guide 89/89. Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1697 s`. Every full-suite failure: none — ours 0, baseline 0,
+environmental 0. Rust 4,070 passed / 29 ignored, 253 binaries / 966 executions,
+plus 17 doctests; client main 3,655 passed / 10 skipped, shards 56/56, models
+79/79, wrappers 9/9. All other phases pass. The inherited 60-second total budget
+remains exceeded; no timeout/budget raised. Runtime/test semantic inputs are
+unchanged; 1,412 of 1,413 tracked inputs are byte-identical, with only four
+spaces of assertion indentation corrected afterward. Both hashes and the
+final reference/whitespace audit are retained with the report.
+
+Wasm byte-identical: 1,979,732 B raw / 572,616 B gzip, 225 B below unchanged
+572,841 B cap; SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+No device/meter code, authorization rule, dependency or version change.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127 without wasm-opt;
+eight build jobs/test processes/test threads, dev/test debug and incremental
+off, packaged SQLite flags, fd limit 65,536. No tool installed or shared path
+modified. Report, review, mutation and qualification evidence:
+reports/20260927-se-scale-evidence/REPORT.md and round1/.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication; the supervisor owns independent review of round 1.
+
+### 2026-09-27 — Lane SE round 2: idle CPU and missing-clock regression
+
+Fetched and merged origin/main first; already up to date (lane da0c90ba7,
+main d9c89a971). Read both binding prompts, prior report/journal entries and
+Grok’s complete round-0 review. Its attribution, recipe, aliases and SS numbers
+stand; round 1 already resolved CORS. Used the populated sibling llp-orient
+skill read-only; LLP 3000.019 §3.7 and bounds now describe idle CPU separately.
+
+Doctor prints cpu n=0 for an operation with no requests; its JSON has an empty
+CPU distribution with zero percentiles and cpu_n=0. Sampled operations with
+no available CPU clock retain cpu:null / cpu unavailable. A new real-process
+regression covers all idle operations before traffic and after reset. A
+test-only thread-local missing-clock injection exercises the real sample,
+header and recorder, then doctor’s ordinary/all-operation text renderers.
+It requires omitted CPU in the header and cpu:null / unavailable in doctor,
+covering missing clocks at start and after a successful starting stamp.
+
+The existing round-1 refresh test already bounds at least 600 ms of the held
+poll outside engine/wait while counting a 150 ms refresh. It passes unchanged;
+a fresh mutation enclosing poll sleep in engine time fails. Four more mutations
+fail for idle text, idle JSON, fabricated zero header CPU and wrong doctor
+missing-clock text. All restored. The initial new idle test also failed before
+the fix: six expected lane-owned red runs total. Unexpected failures: ours 0,
+baseline 0, environmental 0; no compile or mutation-harness failure.
+
+Affected checks pass: 183 server/doctor units, 4 existing ignores; 11 real-process
+latency/doctor/recipe tests; 2 existing read measurements ignored. Whole guide
+89/89; docs budget and first-screen test pass. Reference/whitespace evidence is
+retained with the report. Did not run scripts/test.sh per the round-2 prompt;
+round 1’s exact full-suite summary stands: == 0 failure(s) in 1697 s.
+
+Wasm remains byte-identical at 1,979,732 B raw / 572,616 B gzip, 225 B below the
+unchanged cap; SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+No device code, dependencies, meters, authorization or timing fence changed.
+No original store opened, new performance claim, tool install or shared-path
+change. Report and compressed test/mutation/review evidence are under
+reports/20260927-se-scale-evidence/REPORT.md and round2/. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+
+### 2026-09-27 — Lane SE round 3: synchronous maintenance attribution and real listener coverage
+
+Fetched and merged origin/main first: already up to date (lane 784f090b0,
+main d9c89a971), no conflicts. Read all binding prompts, earlier report/journal
+entries and Astra's full rounds-1–2 READY WITH CHANGES review. No High/Medium or
+landing blocker; Grok had no verdict at the initial check, so did not wait.
+Used the populated sibling llp-orient skill read-only; LLP 3000.019 §3.7,
+bounds and the report now explicitly include synchronous clock maintenance.
+
+Background writer admission now records waited() under an active sample,
+and retry_missing opens through latency::acquire while suspending engine time.
+Periodic maintenance has no request sample; /dev/clock/advance runs that same
+work inside its request sample, including its request-thread CPU. Corrected
+the report's earlier blanket outside-sampling claim. Test-only delays pin
+150 ms in wait: writer 155.156 ms wait / 0.004 ms engine, HTTP clock retry
+151.226 ms wait / 0.607 ms engine. Both tests failed before the fixes.
+
+The new real-process test starts dev --bind 0.0.0.0 --i-understand-cleartext
+and connects from loopback (200 with the correct query answer) and an external
+interface (403). Neither response carries Server-Timing. Unlike the existing
+unit harness, it traverses the production listener-to-dispatch call.
+
+Three independently reverted behaviors each fail the intended test: background
+wait, retry acquisition, and the production listener predicate replaced by true.
+Together with the two initial failures, five expected lane-owned assertion
+failures; all restored. Unexpected test failures: ours 0, baseline 0,
+environmental 0. No build or mutation-harness failure. Inspection-only path
+misses are recorded in the report; none skipped qualification.
+
+Affected checks pass: 185 server/doctor units, 4 existing ignores; 12 real-process
+latency/doctor/recipe tests; 2 existing read measurements ignored. Whole guide
+89/89. Did not run scripts/test.sh, as instructed; round 1's exact summary
+stands: == 0 failure(s) in 1697 s. Source, test and audit evidence is retained
+with reports/20260927-se-scale-evidence/REPORT.md and round3/.
+
+Wasm byte-identical: 1,979,732 B raw / 572,616 B gzip, 225 B below the unchanged
+572,841 B cap; SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+No device, meter, authorization, dependency, version or budget change; no original
+store opened or workload measurement rerun. No tool installed or shared path
+modified. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
