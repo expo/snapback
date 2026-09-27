@@ -1,117 +1,134 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerIdentity } from "../dist/read-observation.js";
-import { fixture } from "./helpers/authority-fixture.mjs";
+import { approvalOracle } from "./helpers/approval-oracle.mjs";
 
-const q = { kind: "query", name: "read" };
-async function settle() { for (let i = 0; i < 30; i++) await Promise.resolve(); }
+async function start(m) {
+  const first = m.open(), peer = m.open();
+  m.complete(m.pending.find(gate => gate.record === first)); await m.settle();
+  m.complete(m.pending.find(gate => gate.record === peer)); await m.settle();
+  m.publish();
+  m.complete(m.pending.find(gate => gate.record === first)); await m.settle();
+  m.complete(m.pending.find(gate => gate.record === peer)); await m.settle();
+  return [first, peer];
+}
 
-for (const keep of [undefined, false, true]) test(`seeded shared approval invariants, keep=${keep}`, async t => {
-  const coverage = new Map(), opts = keep === undefined ? undefined : { keep };
-  for (let seed = 1; seed <= 60; seed++) await t.test(`seed ${seed}`, async t => {
-    let host = 1000, server = 1000, random = seed, serial = 0, refusalEpoch = 0, mayShowData = true;
-    const pick = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random % n; };
-    t.mock.method(Date, "now", () => host);
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    const f = fixture(t, keep ?? "default"), pending = [], records = [], trace = [];
-    const rows = new WeakMap(), episodes = new WeakMap();
-    let openingCheck = false;
-    f.gateChecks(() => {
-      const gate = { ...Promise.withResolvers(), epoch: refusalEpoch, owner: f.owner(), opening: openingCheck };
-      pending.push(gate); return gate.promise;
-    });
-    const open = () => {
-      openingCheck = true;
-      const watch = f.client.observe(q, {}, opts);
-      openingCheck = false;
-      const record = { watch, closed: false, closedCalls: 0, last: watch.getSnapshot(), events: [] };
-      watch.subscribe(() => { record.last = watch.getSnapshot(); record.events.push(record.last); });
-      records.push(record);
-    };
-    const begin = read => {
-      if (keep !== undefined || !read || !("data" in read)) return;
-      const id = answerIdentity(read);
-      if (!episodes.has(id)) episodes.set(id, host + 1000);
-    };
-    t.after(() => {
-      for (const record of records) record.watch.close();
-      for (const gate of pending) gate.resolve(true);
-    });
-    open(); open(); // Both openings precede creation of the raw owner.
-    for (let step = 0; step < 240; step++) {
-      const live = records.filter(record => !record.closed), owner = f.owner();
-      const choices = ["open", "host", "server"];
-      if (owner) choices.push("publish", "publish", "reset", "reload");
-      if (pending.length) choices.push("approve", "approve", "reject");
-      if (live.length) choices.push("close");
-      const action = choices[pick(choices.length)];
-      coverage.set(action, (coverage.get(action) ?? 0) + 1); trace.push(action);
-      if (action === "open") open();
-      if (action === "publish") {
-        for (const record of live) begin(record.watch.getSnapshot());
-        const deadline = server + 1 + pick(2200);
-        f.publish(`answer ${++serial}`, { server: deadline });
-        rows.set(answerIdentity(owner.snapshot), deadline);
-      }
-      if (action === "reload") {
-        begin(owner.snapshot);
-        for (const record of live) begin(record.watch.getSnapshot());
-        owner.reload(); for (const notify of owner.subscribers) notify();
-      }
-      if (action === "approve" || action === "reject") {
-        const index = pick(pending.length), [gate] = pending.splice(index, 1);
-        trace[trace.length - 1] += ` ${index}@${gate.epoch}`;
-        if (action === "approve") {
-          if (gate.epoch === refusalEpoch) mayShowData = true;
-          gate.resolve(true);
-        } else {
-          // A detached handle of a retired raw owner cannot revoke a later
-          // owner's approvals. Opening checks address the current watch at completion.
-          if (gate.opening || gate.owner === f.owner()) { refusalEpoch++; mayShowData = false; }
-          gate.reject(Error(`rejection ${step}`));
-        }
-      }
-      if (action === "close") {
-        const record = live[pick(live.length)], read = record.watch.getSnapshot();
-        record.identity = "data" in read ? answerIdentity(read) : undefined;
-        record.closed = true; record.watch.close(); record.closedCalls = record.events.length;
-      }
-      if (action === "reset") {
-        refusalEpoch++; mayShowData = false;
-        owner.reset({ loading: true }); for (const notify of owner.subscribers) notify();
-      }
-      if (action === "host") {
-        const elapsed = 1 + pick(1200); host += elapsed;
-        // Alternate timer delivery and synchronous access with timers suspended.
-        if (pick(2)) t.mock.timers.tick(elapsed);
-      }
-      if (action === "server") {
-        server += 1 + pick(1200); f.setWall(server);
-        if (pick(2)) f.clock.sample(server, server, server, `sample:${step}`);
-      }
-      await settle();
-      for (const [index, record] of records.entries()) {
-        const context = `seed=${seed}, step=${step}, facade=${index}: ${trace.join(", ")}`;
-        const current = record.watch.getSnapshot();
-        if (record.closed) {
-          assert.equal(record.events.length, record.closedCalls, `closed facade is silent: ${context}`);
-          if ("data" in current) assert.equal(answerIdentity(current), record.identity, `closed facade adopts identity: ${context}`);
-        } else {
-          assert.equal(current, record.last, `getter changed without callback: ${context}`);
-          if (!mayShowData) assert.ok(!("data" in current), `older success undoes refusal/reset: ${context}`);
-        }
-        if ("data" in current) {
-          const id = answerIdentity(current), row = rows.get(id), episode = episodes.get(id);
-          assert.ok(row !== undefined && server < row, `identity outlives its own row: ${context}`);
-          if (episode !== undefined) {
-            assert.ok(host < episode, `identity outlives its own episode: ${context}`);
-            assert.equal(current.revalidating, true, `retained identity lost mark: ${context}`);
-          }
-        }
-        assert.equal(record.watch.getSnapshot(), current, `snapshot is stable: ${context}`);
-      }
+for (const keep of [undefined, false, true]) {
+  test(`oracle requires same-answer recovery for every live facade, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [first, peer] = await start(m);
+    m.publish();
+    m.complete(m.pending.find(gate => gate.record === first), "refused B"); await m.settle();
+    m.complete(m.pending.find(gate => gate.record === peer)); await m.settle();
+    const recovering = m.open();
+    m.complete(m.pending.find(gate => gate.record === recovering)); await m.settle();
+    m.complete(m.pending.find(gate => gate.record === recovering)); await m.settle();
+  });
+
+  test(`oracle rejects an older success after a closed opening succeeds, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [first, peer] = await start(m);
+    m.publish();
+    const old = m.pending.find(gate => gate.record === peer);
+    m.complete(m.pending.find(gate => gate.record === first), "refused B"); await m.settle();
+    const closed = m.open(), opening = m.pending.find(gate => gate.record === closed);
+    m.close(closed); m.complete(opening); await m.settle();
+    m.complete(old); await m.settle();
+  });
+
+  for (const beforeOwner of [false, true]) test(`oracle requires retired opening denial (peer attachment=${beforeOwner}), keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), first = m.open();
+    let opening;
+    if (beforeOwner) opening = m.open();
+    m.complete(m.pending.find(gate => gate.record === first)); await m.settle();
+    m.publish(); m.complete(m.pending.find(gate => gate.record === first)); await m.settle();
+    if (!beforeOwner) opening = m.open();
+    m.close(first); if (keep) m.expireLinger(); await m.settle();
+    m.complete(m.pending.find(gate => gate.record === opening), "retired opening failed"); await m.settle();
+  });
+
+  test(`oracle fences pending approval before completion, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep); await start(m);
+    m.publish(); const gates = [...m.pending];
+    m.fence(); await m.settle();
+    for (const gate of gates) m.complete(gate);
+    await m.settle();
+  });
+
+  test(`oracle separates retired and recreated raw owners, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), first = await start(m);
+    m.publish(); const old = [...m.pending];
+    first.forEach(record => m.close(record));
+    if (keep) m.expireLinger();
+    await m.settle();
+    await start(m);
+    m.complete(old[0], "retired owner refuses");
+    m.complete(old[1]); await m.settle();
+  });
+
+  test(`oracle validates every callback in batched completions, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [first, peer] = await start(m);
+    for (const order of ["success-first", "refusal-first", "two-refusals"]) {
+      m.publish();
+      const a = m.pending.find(gate => gate.record === first), b = m.pending.find(gate => gate.record === peer);
+      m.complete(a, order === "success-first" ? undefined : `${order} A`);
+      m.complete(b, order === "refusal-first" ? undefined : `${order} B`);
+      await m.settle();
     }
   });
-  for (const action of ["publish", "approve", "reject", "open", "close", "host", "server", "reload", "reset"])
-    assert.ok(coverage.get(action) > 0, `${action} is exercised`);
-});
+
+  test(`seeded independent shared approval oracle, keep=${keep}`, async t => {
+    const coverage = new Map();
+    for (let seed = 1; seed <= 60; seed++) await t.test(`seed ${seed}`, async t => {
+      const m = approvalOracle(t, keep);
+      let random = seed;
+      const pick = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random % n; };
+      let [anchor] = await start(m);
+      for (let step = 0; step < 240; step++) {
+        if (step === 120) {
+          for (const record of m.records) if (!record.closed) m.close(record);
+          if (keep) m.expireLinger();
+          await m.settle();
+          [anchor] = await start(m);
+          coverage.set("recreate-owner", (coverage.get("recreate-owner") ?? 0) + 1);
+        }
+        const live = m.records.filter(record => !record.closed && record !== anchor);
+        const choices = ["publish", "publish-device", "reload", "reset", "open", "host", "server", "device", "rollback"];
+        if (m.pending.length) choices.push("approve", "approve", "reject", "batch");
+        if (live.length) choices.push("close");
+        const action = choices[pick(choices.length)];
+        coverage.set(action, (coverage.get(action) ?? 0) + 1);
+        m.trace.push(`step ${step} ${action}`);
+        if (action === "open") m.open();
+        if (action.startsWith("publish")) {
+          const clock = action === "publish-device" ? "device" : "server";
+          m.publish({ [clock]: m.clocks()[clock] + 1 + pick(2200) });
+        }
+        if (action === "approve" || action === "reject")
+          m.complete(m.pending[pick(m.pending.length)], action === "reject" ? `refusal ${step}` : undefined);
+        if (action === "batch") {
+          const count = Math.min(m.pending.length, 2 + pick(3));
+          for (let i = 0; i < count; i++) m.complete(m.pending[pick(m.pending.length)], pick(3) === 0 ? `batch ${step}.${i}` : undefined);
+          if (count > 1) coverage.set("several-completions", (coverage.get("several-completions") ?? 0) + 1);
+        }
+        if (action === "close") m.close(live[pick(live.length)]);
+        if (action === "reload") m.reload();
+        if (action === "reset") m.reset();
+        if (["host", "server", "device"].includes(action)) m.time(action, 1 + pick(1200), !!pick(2));
+        if (action === "rollback") {
+          m.time("host", -(1 + pick(1200))); m.time("server", -(1 + pick(1200)));
+        }
+        await m.settle();
+      }
+      // Every seed ends with this ordering, rather than hoping random selection
+      // happens to leave an eligible check pending at the irreversible fence.
+      m.publish(); const pending = [...m.pending];
+      assert.ok(pending.length > 0);
+      m.fence(); await m.settle();
+      coverage.set("fence", (coverage.get("fence") ?? 0) + 1);
+      for (const gate of pending) m.complete(gate);
+      await m.settle();
+      coverage.set("complete-after-fence", (coverage.get("complete-after-fence") ?? 0) + 1);
+    });
+    for (const action of ["publish", "publish-device", "approve", "reject", "batch", "several-completions", "open", "close",
+      "host", "server", "device", "rollback", "reload", "reset", "recreate-owner", "fence", "complete-after-fence"])
+      assert.ok(coverage.get(action) > 0, `${action} is exercised`);
+  });
+}
