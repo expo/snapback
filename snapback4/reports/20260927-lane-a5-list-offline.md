@@ -940,3 +940,151 @@ the report/journal evidence commit. Every commit carries
 Final reference audit: **515 LLP docs, 9,586 refs, zero errors and zero unchecked**;
 whitespace check passes. The journal diff appends one round-4 entry and removes
 no existing line.
+
+## Round 5 — 2026-09-27
+
+Read the lane prompt, reports and A5 journal entries through round 4, both
+round-4 reviews, and supervisor commit `48df34a2c`. That commit already covers
+each independently missing `once` receipt coordinate. This round answers Grok's
+remaining Low with tests. The governing rule remains LLP 3000.019 §3.5: a leased
+continuation's watermark is a pinned cut, even when terminal. No design change
+or LLP hand-off is needed.
+
+### Built, file by file
+
+- `crates/snapback4-device/src/device/publication_tests.rs`: four new tests
+  keep A's interpreter open while another owner B publishes an ordinary stream
+  at 20 over A's snapshot staged at 8. They cover terminal and nonterminal
+  continuations on memory and SQLite, and verify the lease, cursor and cut
+  survive B's publication. Observation succeeds; application returns
+  `E_GENERATION` specifically because the published watermark would move
+  backwards. No restore refusal exists after either call or a durable reopen.
+  Memory transfers the same `MemoryStore` between serialized owner calls and
+  returns it to the still-live A interpreter; SQLite opens a second connection
+  to the same file. Reopen reconstructs memory from exported persisted changes
+  or opens a fresh SQLite connection. Tests never forge the lease metadata.
+- `JOURNAL.md`: one appended dated round-5 evidence entry.
+- `reports/20260927-lane-a5-list-offline.md`: this round-5 record.
+
+Test commit: `18947b0b2`. Then fetched and merged `origin/main` `9473e0a34`
+as `cdf52c77e`, including OW's sidecar hardening and the inherited
+`local-e2e.test.mjs` session-restore flake repair. Resolved only journal and LLP
+revision-header conflicts, preserving both sides. A sequence check verifies
+every journal line from each parent remains in order. Guide changes merge
+without conflict; A5's media card and full LLP §3.5 remain intact. Every local
+round-5 commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### Forms, regressions and mutation
+
+No new syntax or public API. Existing forms remain:
+
+- `images: [image <=10000] <=4 ?`, with
+  `createLocalClient({ ..., assets: { keep: "viewed", maxBytes: 10000 } })`
+  and `await client.asset(id)`: ordinary viewed list elements remain offline.
+- `secrets: [image <=10000 once] <=4 ?`: transient views remain uncached.
+- Continuation `{ snapshot: true, after: "a-next", watermark: 8,
+  captured_watermark: 20, more: false }`, without `images_at`, on its still-held
+  lease: observation succeeds, apply rejects backwards publication, and no
+  `E_STORE_RESTORE` survives reopening. `more: true` has the same outcome.
+
+The four tests are `leased_terminal_continuation_memory`,
+`leased_terminal_continuation_sqlite`, `leased_nonterminal_continuation_memory`
+and `leased_nonterminal_continuation_sqlite`. All **4/4** pass against the
+correct runtime. The assertion that observation succeeds proves the lease
+check did not short-circuit the head rule.
+
+Installed exactly Grok's temporary mutation in `store_identity.rs`:
+
+```rust
+page.images_at.or((if page.snapshot { page.after.is_none() || !page.more } else { !page.more }).then_some(page.watermark))
+```
+
+Ran `cargo test -p snapback4-device --lib --test asset_lists --test repair_b
+--test retained_history --test repair_b_boundaries --test background_durability
+--no-fail-fast`. Exit **101**: exactly the two new terminal tests fail at
+observation with `E_STORE_RESTORE`; **all 203 other tests pass**, including
+both nonterminal controls. Counts: library 45 passed / 2 failed, asset lists
+20/20, Repair B 110/110, retained history 20/20, deferred boundaries 6/6,
+background durability 2/2. Restored the original runtime byte-for-byte before
+committing, merging or starting the full suite. Evidence is under ignored
+`target/a5-evidence/round5-*`, including the exact mutant log and exit status.
+
+No implementation-scope deviation or new A5 runtime/public spelling change.
+No budget increase, push or publication. Tests live in the existing private publication-test module
+so the memory-store handoff needs no production accessor or shared-store adapter.
+The complete suite below qualifies the restored code after integration.
+
+### Wasm and other checks
+
+Saved and measured the existing round-4 artifact before the mutation. The final
+merged source's production build in `scripts/test.sh` is byte-for-byte identical:
+**1,981,512 B raw / 572,053 B gzip**, delta **0 / 0 B**, **788 B below** the
+unchanged **572,841 B** budget. Both raw SHA-256 values are
+`5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969`.
+Before/after JSON and the saved before artifact are in `target/a5-evidence/`.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt. No size claim is inferred from
+the tests being excluded from production: the rebuilt bytes were compared.
+
+Frozen Bun install passes (507 installs / 501 packages, no changes). Reference
+audit passes: **515 LLP docs, 9,592 refs, 0 errors, 0 unchecked**. The changed
+source file has 274 lines. Whitespace validation passes. Node 24.13.1 and Bun
+1.3.14; eight Cargo build jobs, eight Rust test processes,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `FORCE_COLOR` unset. No test count, timeout or
+assertion was relaxed.
+
+### Required complete suite and final correction
+
+Ran `scripts/test.sh` **exactly once**, starting from merged code commit
+`cdf52c77e`, exit **1**. Exact ending:
+
+```text
+== 1 failure(s) in 1515 s
+   client tests
+```
+
+Rust: **237 binaries, 950 executions plus doctests; 3,835 passed, 0 failed,
+24 intentional ignores** (985 s). Ordinary clients: **2,605 tests, 2,593
+passed, 2 failed, 10 skipped** (195 s). Models: **78/78 passed**, zero
+failures/skips (256 s). Every build, budget, release-guard, typecheck, fixture
+and app phase passed. Normal parallel client scheduling, host load 12.73
+across 96 CPUs.
+
+Every failure is **lane-owned**, both in `wasm-codec-census.test.mjs`:
+
+1. `web-reachable typed JSON calls all use the codec funnel`: the new
+   `publication_tests.rs` fixture called `serde_json::from_value` directly
+   under `src/`, so the census correctly reported one forbidden call.
+2. `census kills parse, encoded, MQ components and container regressions`:
+   that same fixture call made the census mutation count 2 instead of 1.
+
+Reproduce at `cdf52c77e` with
+`node --test packages/snapback4/test/wasm-codec-census.test.mjs` from
+`snapback4/`. Neither failure is flaky, baseline or environmental. No known
+flaky test failed, so no flaky-file rerun was needed. The imported session
+restore repair passed unchanged.
+
+Corrected the fixture in `2fdb9858a` to call the existing `decoded` helper
+on JSON text, without changing the page, assertions or production runtime.
+Final affected checks: **47/47 device library tests** and **26/26 codec census
+tests**, zero failures. Repeated Grok's mutation against the corrected fixture:
+**45 passed, 2 failed**, exactly the new terminal cases; restored runtime:
+**47 passed, 0 failed**. All temporary source edits are removed.
+
+**Verification deviation:** the test-only correction follows the single full
+run; the corrected final code has passing affected checks, not a second full
+suite. The original complete result remains red and is not relabeled green.
+No known implementation defect remains; this is the remaining qualification
+boundary. No assertion or census exception was weakened to get the passes.
+
+Evidence: `target/a5-evidence/round5-full-suite.log`, `.exit`, `.head`;
+`round5-corrected-leased.log`, `round5-corrected-codec-census.log`,
+`round5-corrected-mutant-terminal-head.log` and `.exit`, and
+`round5-corrected-device-lib.log` and `.exit`.
+
+Full-suite log SHA-256:
+`ea321c506e159ab005804ccff16387399c0b82071e0825935f467fb654a0dacc`.
+A final production wasm build after the fixture correction also passes and
+reproduces the identical artifact above (`round5-final-wasm.log`). Final
+reference audit repeats the same zero-error result. The remaining report/journal
+commit contains documentation only; `2fdb9858a` is the final code commit.

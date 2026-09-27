@@ -67665,3 +67665,44 @@ No second full-suite run, focused failure rerun, unrelated fix, push or
 publication. All tested source bytes remained unchanged through qualification.
 This dated entry is included in the merge commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-09-27 — A5 round 5: an owned continuation's cut is never its head
+
+Read the lane prompt, report/journal rounds 0–4 and both round-4 reviews.
+Supervisor commit 48df34a2c already covers each missing once-receipt coordinate.
+Added four private publication tests in 18947b0b2 for Grok's remaining Low:
+A stays open at snapshot cut 8 while B publishes an ordinary stream at 20,
+without clearing A's owner, cursor or cut. On memory and SQLite, terminal and
+nonterminal continuations without images_at pass observation, reject backwards
+application with E_GENERATION and retain no restore refusal after observation,
+application or reopen. Memory hands the same store between serialized calls
+while A's interpreter stays alive; SQLite uses two connections to one file.
+No lease metadata is fabricated and no runtime change is needed.
+
+The exact terminal-as-head mutation fails only the two new terminal tests;
+203 other affected tests pass. Restored it before committing. Fetched and merged
+origin/main 9473e0a34 as cdf52c77e, keeping both journal histories and both LLP
+revision histories. Main contributes OW's sidecar hardening and the session
+restore flake repair. Every local round-5 commit has the requested Astra trailer.
+
+Ran scripts/test.sh exactly once on cdf52c77e, exit 1:
+`== 1 failure(s) in 1515 s`, `client tests`. Rust: 237 binaries, 950 executions
+plus doctests; 3,835 passes, zero failures, 24 intentional ignores (985 s).
+Ordinary clients: 2,605 tests, 2,593 passes, two failures, 10 skips (195 s).
+All 78 models pass (256 s); all other phases pass. Both failures are lane-owned
+codec-census assertions: the test fixture's direct serde_json::from_value call
+was forbidden and also inflated the mutation count. No baseline, environmental
+or flaky failure. Corrected only that fixture to the existing decoded helper
+in 2fdb9858a; all 26 census tests and all 47 device library tests now pass.
+Repeating the mutation against the corrected fixture yields the same two
+terminal failures and 45 passes; restored code passes 47/47. The full suite was
+not repeated: final qualification is the original red run plus affected checks.
+
+Wasm is byte-identical before/after: 1,981,512 B raw / 572,053 B gzip, delta
+0/0, 788 B below the unchanged 572,841 B budget. Rust 1.97.0, wasm-bindgen
+0.2.127, no wasm-opt. Reference audit: 515 LLP docs, 9,592 refs, zero errors
+or unchecked. No design, public API, server placement, authorization, meter,
+version or budget change. No push or publication. No known implementation
+problem remains; the test-only post-suite correction is the explicit verification
+limitation. File map, repros and evidence: reports/20260927-lane-a5-list-offline.md,
+round 5; ignored target/a5-evidence/round5-*.
