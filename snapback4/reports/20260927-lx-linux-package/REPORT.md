@@ -519,3 +519,17 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   Mutation checks independently replaced the entrypoint, override guard
   and Node-version check with `true` in each production route: all six
   mutations made the success test fail, unlike round 0's permissive mock.
+
+- `Recheck packed Linux ELF bytes during publication import`: Grok finding 4
+  (Low) and SQLite flag observation, round-2 request 5. `validateLinux` hashes
+  and parses the extracted binary with `checkElf` on initial import and
+  resume, requiring no interpreter or NEEDED entries without executing it.
+  The publication fixture now uses minimal real ELF headers; a shared
+  `helpers/elf-fixture.mjs` also supplies the parser controls. Three forged
+  receipt regressions (text binary, interpreter, NEEDED) update every digest
+  while retaining a claimed static ELF result: all passed import before the
+  fix and are now refused before signing/upload. The shell/receipt SQLite
+  flag equality test fails when the shell flag is mutated. `AGENTS.md`
+  describes exact platform sets and private upload snapshots.
+  All affected tests: **95 passed, 0 failed** (48 publication, 24 signing,
+  18 qualifier, 5 Linux package/parser/resolver/flag cases).

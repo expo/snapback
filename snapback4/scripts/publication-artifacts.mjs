@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import { matchesPinnedProof } from "./linux-proof-inputs.mjs";
+import { checkElf } from "./check-elf.mjs";
 export const sqliteBuildFlags = "-USQLITE_ENABLE_MEMORY_MANAGEMENT";
 export const platforms = ["snapback4-darwin-arm64", "snapback4-linux-x64"];
 export const linuxTarget = "x86_64-unknown-linux-musl";
@@ -75,7 +76,11 @@ export function validateLinux(receipt, tarball, client, source) {
     throw new Error("Linux receipt must record ELF with no interpreter and no NEEDED entries");
   const m = manifest(tarball, platforms[1], client.version);
   if (JSON.stringify(m.os) !== '["linux"]' || JSON.stringify(m.cpu) !== '["x64"]') throw new Error("Linux packed manifest must select linux/x64");
-  if (!/^[a-f0-9]{64}$/.test(receipt.binarySha256 ?? "") || hash(member(tarball, "snapback4")) !== receipt.binarySha256)
+  const binary = member(tarball, "snapback4");
+  if (!/^[a-f0-9]{64}$/.test(receipt.binarySha256 ?? "") || hash(binary) !== receipt.binarySha256)
     throw new Error("Linux packed binary does not match receipt sha256");
+  // Pure byte inspection also runs on the Mac; the receipt is not ELF evidence.
+  const elf = checkElf(binary);
+  if (elf.interpreter !== null || elf.needed.length) throw new Error("Linux packed ELF must have no interpreter or NEEDED entries");
   return receipt;
 }

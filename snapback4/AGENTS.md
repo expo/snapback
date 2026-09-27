@@ -97,7 +97,10 @@ Gotchas you cannot derive from the code:
   with clean Ubuntu 24.04/Alpine root filesystems in a user cache, and refuses
   `NPM_TOKEN` or `NODE_AUTH_TOKEN`, even when empty. It never signs or packs
   the client. The Mac never rebuilds or executes Linux; `--resume` rechecks
-  its copied receipt. No receipt keeps the Darwin-only publication flow.
+  its copied receipt. No receipt packs a Darwin-only client; an existing
+  two-platform preparation is refused on that path. Packed dependencies must
+  match the staged set. Uploads use verified private snapshots, with each
+  digest checked again immediately before publish.
   Commands and current qualification limits:
   [`reports/20260927-lx-linux-package/REPORT.md`](./reports/20260927-lx-linux-package/REPORT.md).
 - The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.

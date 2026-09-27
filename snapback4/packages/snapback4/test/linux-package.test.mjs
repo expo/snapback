@@ -5,15 +5,13 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkElf } from "../../../scripts/check-elf.mjs";
-import { refuseCredentials } from "../../../scripts/publication-artifacts.mjs";
+import { refuseCredentials, sqliteBuildFlags } from "../../../scripts/publication-artifacts.mjs";
+import { elf } from "./helpers/elf-fixture.mjs";
 
-function elf(types = [1]) {
-  const b = Buffer.alloc(64 + 56 * types.length + 32);
-  Buffer.from([127, 69, 76, 70, 2, 1, 1]).copy(b); b.writeUInt16LE(2, 16); b.writeUInt16LE(62, 18);
-  b.writeBigUInt64LE(64n, 32); b.writeUInt16LE(56, 54); b.writeUInt16LE(types.length, 56);
-  types.forEach((type, i) => { const p = 64 + i * 56; b.writeUInt32LE(type, p); if (type === 2) { b.writeBigUInt64LE(BigInt(b.length - 32), p + 8); b.writeBigUInt64LE(32n, p + 32); } });
-  return b;
-}
+test("the musl shell and publication receipts pin the same SQLite flags", () => {
+  const script = readFileSync(new URL("../../../scripts/build-linux-musl.sh", import.meta.url), "utf8");
+  assert.equal(script.match(/^export LIBSQLITE3_FLAGS=(.+)$/m)?.[1], sqliteBuildFlags);
+});
 test("ELF requires executable x64 and rejects interpreter, NEEDED and malformed headers", () => {
   assert.deepEqual(checkElf(elf()), { status: "passed", machine: "x86_64", interpreter: null, needed: [] });
   assert.equal(checkElf(elf([1, 2])).status, "passed", "static PIE dynamic section is allowed");

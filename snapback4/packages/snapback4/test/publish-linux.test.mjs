@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { publish } from "./helpers/publish-fixture.mjs";
+import { elf } from "./helpers/elf-fixture.mjs";
 import { artifact, digest, json, linuxRustFlags, nodeVersion, sqliteBuildFlags, sri } from "../../../scripts/publication-artifacts.mjs";
 const darwin = "snapback4-darwin-arm64", linux = "snapback4-linux-x64";
 function prepared(t) {
   const prepared = publish(t, { args: ["--prepare-client"] });
   assert.equal(prepared.status, 0, prepared.stderr);
   const { root } = prepared, client = json(join(root, "target/publication/client-0.0.0/prepare.json")).client;
-  const tarball = join(root, `${linux}-0.0.0.tgz`); writeFileSync(tarball, "linux static binary");
+  const tarball = join(root, `${linux}-0.0.0.tgz`); writeFileSync(tarball, elf());
   const receipt = {
     format: 1, source: "a".repeat(40), target: "x86_64-unknown-linux-musl", toolchain: { rustc: "rustc test", cc: "musl-gcc test", linker: "musl-gcc" },
     flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: 0, summary: "== 0 failure(s) in 1 s" },
@@ -95,6 +96,19 @@ test("registry-time stage replacement cannot change the private uploaded snapsho
 test("snapshot bytes are checked again after registry checks and before upload", t => {
   const f = prepared(t), r = publish(t, { args: f.args, real: true, swapSnapshotOnView: true }, f.root);
   assert.notEqual(r.status, 0); assert.match(r.stderr, /integrity/); assert.equal(publications(r).length, 0);
+});
+
+for (const kind of ["not ELF", "interpreter", "NEEDED"]) test(`import re-derives ${kind} from packed bytes despite a matching receipt claiming static ELF`, t => {
+  const f = prepared(t);
+  const bytes = kind === "not ELF" ? Buffer.from("linux static binary") : elf([1, kind === "interpreter" ? 3 : 2]);
+  if (kind === "NEEDED") bytes.writeBigUInt64LE(1n, bytes.length - 32);
+  writeFileSync(f.tarball, bytes);
+  f.receipt.platform = artifact(f.tarball, linux, "0.0.0"); f.receipt.binarySha256 = digest(f.tarball);
+  for (const proof of f.receipt.proofs) proof.platformIntegrity = f.receipt.platform.integrity;
+  writeFileSync(f.path, JSON.stringify(f.receipt));
+  const r = publish(t, { args: f.args, real: true }, f.root);
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /ELF qualification/); assert.equal(publications(r).length, 0);
+  assert.ok(!r.commands.some(c => c.cmd === "codesign" || c.cmd.includes("linux-x64")));
 });
 
 for (const [name, change, message] of [
