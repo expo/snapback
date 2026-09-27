@@ -1,3 +1,194 @@
+# Lane KG round 8 — one shared approval, closed facades keep one identity
+
+Branch: `sb4-intent/kg-kept-through-authority`. Read all round-0–7 prompts,
+reports and KG journal entries, Astra's complete round-7 NOT READY review,
+and Grok's review as it arrived during qualification (READY WITH CHANGES).
+Grok raises the same waiting-facade, rejection, remount and approval-lifetime
+issues. Its deduplication test-strength Low is also covered by the new
+round-8 remount tests, verified with its exact mutation. The supervisor's
+shared-approval ruling governs the findings' resolution,
+superseding the reviews' proposed per-identity repairs.
+The supervisor's round-8 ruling supersedes round 7's per-identity design and
+its two corresponding test expectations. Earlier reports remain below as
+historical records. No push or publication.
+
+## Integration and implementation
+
+First fetched and merged `origin/main` at `8112f4ef6` in `c212b8e65`.
+The journal was the only conflicted file; both histories are preserved:
+71 additions/zero deletions against the lane parent and 456 additions/zero
+deletions against main. Incoming CQ top-N code, guide changes, client tests
+and both CQ journal entries remain intact.
+
+`2a3e34980` restores the shared approval and implements the closed-facade
+rule, answering all four Astra Mediums. `adcfe61e9` preserves opening-remount
+notification ownership through a withdrawal followed by reapproval. Every
+commit, including the final evidence commit, carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+Paths below are relative to `snapback4/`:
+
+| File | Round-8 change |
+| --- | --- |
+| `packages/snapback4/src/read-approval.ts` | One shared approval object per raw watch. Replacement releases the previous follower, expiry registration and episode before reusing it. Withdrawal clears the approval, peeks and registrations; one empty slot preserves opening listeners for later reapproval. No old approval generations accumulate. |
+| `packages/snapback4/src/app-client.ts` | Close captures the currently visible answer and detaches from shared approval updates. Every closed policy checks its saved identity against the source and enforces deadlines; mismatch/withdrawal latches its stable loading object, or denial. Closing twice and late authority cannot revive it or add listeners. Round-7 emission deduplication stays. |
+| `packages/snapback4/test/keep-authority.test.mjs` | Shared peer success, bounded approval ownership after 100 replacements, shared rejection, matching remount getter/notifications, close-time capture, and reapproval after withdrawal. Existing refusal-count and deadline tests stay. |
+| `packages/snapback4/test/retention-lifecycle.test.mjs` | Apply the closed rule to all 24 different/same-body replacements on online/wasm through guardClient/createApp. Expand unchanged-identity row-expiry coverage from eight to 24 cases across all policies. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | Remove round 7's per-facade authority boundary. State shared authorization for live facades and the closed rule for every policy, including identical replacement data and silent closed handles. |
+| `JOURNAL.md` | Preserve both merge histories; append one dated round-8 entry. |
+| `reports/20260927-kg-kept-through-authority/REPORT.md` | This report, preserving rounds 0–7 below. |
+
+The extra remount case was found during self-review: approve A, block a
+remount's opening authority, withdraw A, then let a live peer approve B. Simply
+restoring round 6 would let the getter follow B with no callback. The empty
+shared slot keeps the notification owner consistent across this boundary;
+withdrawn data is never retained as approved, and followers/timers still release.
+The final build/typecheck and affected tests completed during the full suite's
+Rust phase, before client discovery. Its client phase therefore uses the final
+runtime and tests; the whole suite was not restarted.
+
+## Forms that compile and run
+
+No new API or syntax:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+```
+
+The retaining forms hold marked A, with A's original freshness, since,
+episode and row deadlines, while B is unapproved. A peer's successful check
+then moves every live facade of the watch to B, including a waiting facade.
+For each form, `watch.close()` captures the last answer. It stays readable
+only while its identity remains the source's and its own deadlines hold.
+A peer's different identity, even another identical body, makes the closed
+handle return stable loading immediately and still at A's deadline 5000;
+it never adopts B or notifies.
+
+## Tests and discrimination
+
+Thirty new tests, plus the two explicitly superseded round-7 expectations:
+
+- **24 replacement cases**, all three policies, online/wasm, guardClient/
+  createApp, different and identical bodies. A expires at 5000, B at 8000.
+  After the peer approves B the closed facade is already loading; repeated
+  reads, 4999, 5000 and rollback retain the same loading object. No callbacks.
+- **24 unchanged-identity deadline cases** (16 added) check a closed answer's
+  own row expiry with and without a live peer, including callback-time access
+  and rollback. A still-valid detached local answer remains readable.
+- **Two shared-peer cases**, revised from round 7: both hold marked A until
+  a peer approves B; the still-waiting facade changes to B with one callback.
+  Another invalidation while its own check remains blocked keeps shared B.
+- **Two 100-replacement cases** require one follower and one subscriber,
+  with no abandoned followers after old episode/row deadlines.
+- **Two shared-rejection cases** reject an opening remount after a peer
+  approved B while another facade waited. Every live facade receives the
+  same E_CLIENT denial exactly once; the follower and peek are cleared;
+  old A deadlines cannot turn the denial into loading.
+- **Two opening-remount cases** require its getter and callback snapshots
+  to agree through A→B→C while its first check stays blocked.
+- **Four close-time capture cases** close an opening or waiting facade
+  after shared B arrives. It keeps that visible B until raw C, then stays
+  loading through late authority; double close and resubscription are silent.
+- **Four reapproval cases** open a remount before/after a hard withdrawal,
+  block its opening check, and require one callback for the peer's later B.
+
+The initial selected run against merged round-7 code is **9 passed / 24
+failed**. All eight assigned shared-approval cases and all 16 retaining closed
+replacement cases fail. The additional reapproval regressions fail **4/4**
+without their follow-up fix.
+
+Process-local module mutations do not edit live source or dist:
+
+| Mutation | Discriminating result |
+| --- | --- |
+| Restore round-7 per-identity approvals | 14 failures / 3 controls pass, including all eight assigned shared cases and four reapproval cases. |
+| Restore the old closed getter/close lifecycle, keeping final shared approvals | 16 retaining replacement failures; eight false controls pass. |
+| Compare payloads instead of identities | All 12 same-body replacement cases fail; 12 different-body controls pass. |
+| Omit close-time snapshot capture | All four opening/waiting close cases fail. |
+| Remove deduplication and insert `{ reject(snapshot); emit(); }` | All five exact authority-refusal notification cases fail. |
+| Delete the empty shared slot on withdrawal | All four withdrawal/reapproval remount cases fail. |
+| Deduplicate by `answerIdentity` rather than snapshot object identity (Grok test-strength Low) | Both existing round-8 remount replacement cases fail on the missing second revalidation callback. |
+
+Final affected set: **446 passed / 0 failed**, 19.035 s. Whole guide:
+**86 passed / 0 failed**, 2.55 s test execution. Frozen Bun install,
+package build/typecheck, docs budget and whitespace validation pass.
+Reference audit: **518 LLP documents, 9,672 references, zero errors / zero
+unchecked**. Changed sources/tests remain below 1,500 lines (largest: 454).
+No earlier regression expectation is weakened: only round 7's
+closed-retention and per-facade authority assertions change under the explicit
+supervisor ruling.
+
+## Full qualification
+
+Ran `scripts/test.sh` **exactly once**. Exact summary:
+**`== 0 failure(s) in 1268 s`**, exit **0**. Every failure: **none** —
+zero round-8-owned, baseline or environmental failures. Intentional pre-fix
+and mutation failures above are discrimination evidence, not suite failures.
+
+- Rust tests/doctests: **3,931 passed / 0 failed / 24 ignored**, 543 s.
+- Main client: **3,141 passed / 0 failed / 10 skipped**, plus **56/56**
+  acquisition/server shard tests; client phase 427 s.
+- Final seeded models: **79 passed / 0 failed**, 260 s. Both 5,000-sequence
+  session models and the 3,000-sequence online model pass.
+- Fixture wrappers: **9/9**. Native/wasm builds, both app typechecks, package
+  build/typecheck, docs budget, release guard and chat schema check pass.
+
+All 64 expanded round-8 regression/control cases, all eighteen delayed-authority
+createApp sequences and both Chromium input-preservation witnesses pass in
+the complete run. Earlier rounds' regressions remain green. No full-suite
+restart or rerun. The runtime-budget limitation remains explicit below.
+
+Wasm from that run: **1,981,453 B raw / 572,553 B gzip**, **288 B below**
+the unchanged 572,841 B budget. SHA-256:
+`3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa`.
+Relative to round 7: -137 raw / -55 gzip bytes, from the merged main inputs.
+Round 8 changes no Rust or wasm input; no separate component-size attribution.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Existing tools selected through worktree-local symlinks;
+no tool installed or changed on a shared path. Optional wasm-opt is absent
+from the selected PATH. No meter, package version or budget change.
+
+Evidence: ignored `target/lane-kg-r8/` holds build/install/typecheck,
+affected/guide/full-suite/reference logs and exit files, measurements, and
+all seven mutation loaders with their source snapshots and results. Reproduce
+from `snapback4/` after the package build:
+
+```sh
+node --test packages/snapback4/test/retention-lifecycle.test.mjs \
+  packages/snapback4/test/keep-authority.test.mjs
+node --import ./target/lane-kg-r8/per-identity-loader.mjs --test \
+  --test-name-pattern='shared|opening remount getter' \
+  packages/snapback4/test/keep-authority.test.mjs
+```
+
+## Decisions, deviations and remaining issues
+
+No counterexample to the supervisor ruling was found. The only extension to
+the assigned reproductions is keeping opening notifications consistent after
+a hard withdrawal followed by reapproval; it preserves the same single-slot
+design. No new public API, engine authorization/disclosure rule, durable
+format, diagnostic, dependency, version or Rust change. No independent round-8
+review is claimed; the supervisor owns that review and integration.
+
+No unresolved assigned finding, merge issue or test failure remains. The
+inherited 60-second complete-suite budget is exceeded (1268 s); reproduce
+with `cd snapback4 && bash scripts/test.sh`. No timeout or budget was raised.
+
+llp-orient context: scope is shared approval ownership, closed facade access
+and notification delivery. Governing current LLPs: 3000 §4 (Snapback 4 fence),
+3000.023 §§3.1/3.4/3.6 (episode, own deadlines, shared source withdrawals),
+3000.019 §3.3 (held answer expiry), and 3000.013 §6 (facade revocation).
+None is in foundation. Current client manual read before editing. No new LLP
+proposal or design decision is needed; the supervisor's ruling and existing
+RFC govern this work. Manual, report and journal updates suffice. Hand-off: none.
+
+---
+
+# Historical round-7 report
+
 # Lane KG round 7 — approvals preserve each facade's answer
 
 Branch: `sb4-intent/kg-kept-through-authority`. Read the round-0 through

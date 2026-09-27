@@ -69472,3 +69472,70 @@ commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
 package-version or budget change, no new tool installation, no push or publish.
 Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
 round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.
+
+### 2026-09-27 — KG round 8: restore the shared approval and freeze closed identities
+
+Read every round-0–7 prompt, report and KG journal entry, Astra's complete
+round-7 NOT READY review, and Grok's READY WITH CHANGES review as it arrived
+during qualification. First merged origin/main 8112f4ef6 in c212b8e65.
+Kept both complete journal histories; both parent diffs remove zero lines.
+Main's CQ top-N implementation, guide/client tests and journal entries remain.
+
+Followed the supervisor's ruling in 2a3e34980: one shared approval per raw
+watch, replacing round 7's per-identity generations. A peer's successful check
+moves every live retaining facade to B; while B is unapproved, A retains its
+own row/episode deadlines and revalidating mark. Replacements release the old
+follower, expiry registration and episode. Close captures the last visible
+answer and detaches from the shared approval. Every closed policy returns
+that answer only while its identity remains the source's and its own deadlines
+hold; otherwise it returns stable loading or denial, with no notifications.
+Round-7 notification deduplication and the same-body replacement regression stay.
+Removed the manual's per-facade identity boundary.
+
+Self-review found that a remount spanning hard withdrawal then reapproval
+could still change its getter without notification. adcfe61e9 retains one
+empty shared slot across that boundary; withdrawal still clears data, peeks,
+timers and followers. Four before/after-joining tests fail without the fix.
+The final package build/typecheck and affected tests finished during the full
+run's Rust phase, before client discovery; the client phase uses final bytes.
+
+Thirty added tests and two explicitly revised round-7 expectations. Coverage:
+24 different/same-body closed replacements on online/wasm through guardClient/
+createApp; 24 unchanged-identity closed deadline cases; two live waiting-peer
+cases; two 100-replacement bounds; two exact shared rejections; two opening
+A-to-B-to-C notification cases; four close-time captures; four reapprovals.
+All policies get closed-handle coverage. The selected pre-fix run is 9 pass /
+24 fail. Isolated mutations fail 14 per-identity approval cases, 16 old-closed
+cases, 12 payload-identity cases, four capture cases, five refusal-dedup cases,
+four discarded-empty-slot cases and two answerIdentity-dedup cases. The last
+uses Grok's late test-strength Low and fails the existing round-8 tests.
+No production source/dist mutation for negative controls.
+
+Final affected set 446/446; whole guide 86/86. Frozen Bun install, package
+build/typecheck, docs budget, whitespace and reference checks pass. Reference
+audit: 518 LLP documents, 9,672 references, zero errors/unchecked. Largest
+changed source/test: keep-authority.test.mjs, 454 lines.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1268 s**, exit **0**.
+Rust: 3,931 passed / 0 failed / 24 ignored, 543 s. Main client: 3,141 passed /
+0 failed / 10 skipped, plus 56/56 acquisition/server shard tests, 427 s.
+Final seeded models 79/79, 260 s; fixture wrappers 9/9. Builds, both app
+checks, docs/wasm budgets and release guard pass. All 64 expanded round-8
+regression/control cases, all eighteen delayed-authority sequences and both
+Chromium input-preservation witnesses pass. Earlier rounds remain green.
+Every failure: none — zero lane-owned, baseline or environmental failures.
+The full run was neither restarted nor rerun. The inherited 60-second runtime
+budget remains exceeded; no timeout or budget was raised.
+
+Wasm: 1,981,453 B raw / 572,553 B gzip, 288 B below the unchanged 572,841 B
+budget. SHA-256 3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa.
+Relative to round 7: -137 raw / -55 gzip bytes from merged main; round 8
+changes no Rust or wasm input. No engine authorization/disclosure rule, meter,
+durable format, diagnostic, dependency, API, version or budget change. Node
+24.13.1, Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd
+limit 65,536. Existing tools selected through worktree-local symlinks; no
+shared-path tool installation/change. No counterexample to the ruling, no
+unresolved assigned finding, no push or publication. All commits carry the
+requested Astra co-author trailer. The supervisor owns independent review.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r8/. This is round 8's single dated journal append.

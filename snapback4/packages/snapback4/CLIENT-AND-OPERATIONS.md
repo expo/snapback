@@ -1206,7 +1206,7 @@ and sees its current snapshot in the first committed render. This costs
 observation memory and background work while unmounted. A subscriber joining
 an already-active default watch also sees its current answer immediately.
 
-The app facade shares one approval per raw watch. A peer's successful authority
+Retaining app facades share one approval per raw watch. A peer's successful authority
 check moves every live facade of that watch to the approved replacement.
 Every retaining watch keeps the previous approved answer, marked `revalidating`, while the replacement
 waits for its authority check. It inherits the same episode deadline by value
