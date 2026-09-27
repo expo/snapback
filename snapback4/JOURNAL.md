@@ -68296,3 +68296,65 @@ the requested Astra co-author. No push or publication. Full file map, examples,
 failing-before and mutation evidence, exact historical suite failure list and
 scope: reports/20260927-qe-quarry-ergonomics/ROUND3.md. Ignored logs and
 repeatable probes: target/lane-qe-r3/.
+
+## 2026-09-27 — Lane TK round 1: mutual live-token proof without a wire secret
+
+Read the round-0 handoff and full Grok READY WITH CHANGES review, then fetched
+and merged origin/main at 880788cc5. Merge 143d4804f preserves both journal
+sides; a line-count comparison confirms neither parent's lines were lost.
+On `sb4-intent/tk-token-live`, 2316fe561 replaces the bearer-secret request
+with fresh client/server nonces and the specified direction-separated
+HMAC-SHA256 proofs. The request binds service, unclamped days and canonical
+store path/device/inode. Both MAC checks use RustCrypto's constant-time
+`verify_slice`. Server nonces expire after 10 monotonic seconds; a capped
+128-entry map consumes each before verification/minting. Existing loopback
+peer, private-file, writer, single-header, no-Origin, no-CORS, no-store and
+uniform refusal guards remain. This private door now requires a literal
+loopback Host and rejects the old secret header. Offline semantics and CLI
+stdout remain unchanged.
+
+Mutual proof alone permits an active forwarding listener to intercept a
+plaintext final bearer. The final reply therefore uses ChaCha20-Poly1305
+under a separately HMAC-derived transcript key, including authenticated
+validation errors. A relay can forward the one intended mint or deny delivery,
+but cannot read its bearer or replay another mint. This adds HMAC 0.12.1 and
+ChaCha20-Poly1305 0.10.1 to the CLI/server only. LLP 3000.019 §3.4 records the
+protocol and this additional protection; services and SERVER.md match it.
+
+Test commit 1e28f5e63 adds real impostor capture and forwarding listeners,
+request-field/direction/replay checks, both-round Host/Origin/CORS checks,
+and actual IPv4-mapped loopback and remote peers on `[::]` dev and serve.
+The impostor test redirects the address hint, reproducing BSD interception
+without requiring Linux's wildcard port to permit a second bind. Temporary
+roots are canonicalized in token and ownership tests for Darwin's `/var`
+aliases. Five deterministic unit tests pin independent MAC vectors, nonce
+expiry/capacity, concurrent one-use consumption and reply integrity. Timing
+was not measured; there is no flaky timing assertion. macOS execution remains
+the supervisor's qualification, not a claim from this Linux host.
+
+Affected checks pass: 5 protocol tests, 13 token process tests, 27 ownership
+tests, 19 consumer periphery tests and all 86 guide tests. Frozen Bun install,
+package build, reference audit and diff whitespace checks pass. One preliminary
+lane-owned E0282 compile error (type inference through a serde match guard)
+was fixed with an explicit Mint type before those tests. No test failure
+needed correction. Changed source files stay below 1,500 lines.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1400 s`. Rust: 3,883 passed / 24 existing ignored across
+244 binaries and 957 executions, 913 s. Ordinary client tests: 2,633 passed /
+10 existing skips, plus all seven extra shards 56/56, 194 s. Client models:
+78/78, 263 s. Fixture wrappers: 9/9. Every other phase passes. No lane-owned,
+baseline or environmental full-suite failure. The inherited 60-second budget
+is still exceeded and unchanged. No product/test source changed during or
+after that run; only the report and this final journal append followed it.
+
+Wasm is byte-identical before/after: 1,981,512 B raw / 572,053 B gzip, delta
+0/0 B, 788 B under the unchanged 572,841 B cap. SHA-256:
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo
+jobs, dev/test debug information and incremental off, fd limit 65,536.
+No tool installation outside the worktree. No engine, device, meter, session
+storage, version or budget change. No push or publication; every commit has
+the requested co-author trailer. Report, file map, deviations, failure
+reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
+Raw evidence remains in ignored target/lane-tk-round1/.
