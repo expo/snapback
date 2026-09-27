@@ -87,7 +87,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         && (snapshot_owner.is_none() || page.after.as_deref() == Some("")
             || tx.meta(SNAPSHOT_OWNER)?.as_deref() != snapshot_owner
             || tx.meta(SNAPSHOT_NEXT)? != page.after || meta_u64(tx, SNAPSHOT_WATERMARK)? != page.watermark) {
-        return Err(RuntimeError::Generation("snapshot continuation was superseded; restart at its first page".into()));
+        return Err(RuntimeError::Generation("snapshot continuation does not match the expected page; restart at its first page".into()));
     }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
     let transfer_identity = tx.meta(deferred::IDENTITY)?;
@@ -95,17 +95,17 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
     let same_identity = page.store_id.is_some() && (!identity_changed || private_identity);
     // @ref LLP 3000.019#3.5 — compare a fresh head only with evidence captured before its request.
-    // A snapshot continuation has no head: even its terminal watermark is
-    // pinned to the first page. Other owners cannot change these request facts.
+    // A snapshot continuation's watermark stays pinned even when terminal.
+    // Explicit image heads and stream rewinds are independent head evidence.
     // Legacy callers without capture echoes attest only their request cursor;
     // never borrow a published cut, private cursor or image head from metadata.
     let floor = page.captured_watermark.unwrap_or(0)
         .max(page.captured_restore_watermark.or(page.requested_watermark).unwrap_or(0))
         .max(page.captured_restore_images_at.unwrap_or(0));
-    let head = if page.snapshot {
-        page.after.is_none().then_some(page.watermark)
+    let head = if !page.snapshot && page.requested_watermark.is_some_and(|from| page.watermark < from) {
+        Some(page.watermark)
     } else {
-        page.images_at.or((!page.more || page.requested_watermark.is_some_and(|from| page.watermark < from)).then_some(page.watermark))
+        page.images_at.or((if page.snapshot { page.after.is_none() } else { !page.more }).then_some(page.watermark))
     };
     if same_identity && head.is_some_and(|head| head < floor) {
         tx.set_meta(RESTORE_REFUSED, "1")?;

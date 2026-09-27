@@ -319,3 +319,54 @@ fn uncaptured_snapshot<H: Host>(h: &mut H) {
 }
 #[test] fn uncaptured_snapshot_memory() { uncaptured_snapshot(&mut Memory::new()); }
 #[test] fn uncaptured_snapshot_sqlite() { uncaptured_snapshot(&mut Sqlite::new("uncaptured-snapshot")); }
+
+// @ref LLP 3000.019#3.5 — a stream rewind is proof even if its image head is higher.
+fn stream_rewind_restore<H: Host>(h: &mut H) {
+    for more in [false, true] {
+        for op in ["observe_store", "apply"] {
+            let name = format!("rewind-{more}-{op}");
+            let (_, backend) = compile(&source("[image <=100] <=4 ?"));
+            let mut d = h.open(&name, Some(backend)).unwrap();
+            apply(&mut d, "put", row(json!([facts("a")])), true);
+            apply(&mut d, "put", row(json!([facts("a")])), false);
+            let page: StreamPage = serde_json::from_value(json!({
+                "snapshot":false,"store_id":"media-store","watermark":1,"images_at":2,
+                "requested_watermark":2,"captured_watermark":2,
+                "captured_restore_watermark":2,"more":more,"events":[]
+            })).unwrap();
+            let error = if op == "observe_store" { d.observe_store(&page).unwrap_err() }
+                else { d.apply(&page, false).unwrap_err() };
+            assert_eq!(error.refusal().code, "E_STORE_RESTORE");
+            h.close(&name, d);
+            let mut d = h.open(&name, None).unwrap();
+            assert_eq!(d.sync_state_read().unwrap().restore_refusal.unwrap().code, "E_STORE_RESTORE");
+            h.close(&name, d);
+        }
+    }
+}
+#[test] fn stream_rewind_restore_memory() { stream_rewind_restore(&mut Memory::new()); }
+#[test] fn stream_rewind_restore_sqlite() { stream_rewind_restore(&mut Sqlite::new("stream-rewind")); }
+
+// An explicit image head supplies current evidence; a lower selection cut
+// still cannot publish backwards, but does not prove the server's head shrank.
+fn explicit_snapshot_head<H: Host>(h: &mut H) {
+    let (_, backend) = compile(&source("[image <=100] <=4 ?"));
+    let mut d = h.open("explicit-head", Some(backend)).unwrap();
+    apply(&mut d, "put", row(json!([facts("a")])), true);
+    apply(&mut d, "put", row(json!([facts("a")])), false);
+    let page: StreamPage = serde_json::from_value(json!({
+        "snapshot":true,"store_id":"media-store","watermark":1,"images_at":2,
+        "requested_watermark":0,"captured_watermark":2,
+        "captured_restore_watermark":2,"more":true,"next":"next","events":[]
+    })).unwrap();
+    d.observe_store(&page).unwrap();
+    assert_eq!(d.apply(&page, true).unwrap_err().refusal().code, "E_GENERATION");
+    assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
+    h.close("explicit-head", d);
+    let mut d = h.open("explicit-head", None).unwrap();
+    assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
+    assert_eq!(home(&mut d, "a", 1)["row"], "post");
+    h.close("explicit-head", d);
+}
+#[test] fn explicit_snapshot_head_memory() { explicit_snapshot_head(&mut Memory::new()); }
+#[test] fn explicit_snapshot_head_sqlite() { explicit_snapshot_head(&mut Sqlite::new("explicit-head")); }
