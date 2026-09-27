@@ -148,11 +148,13 @@ impl Binder<'_> {
                 let (mut expr, _) = self.expr(payload, out)?;
                 if self.record_ownership { out.own(start, setup::Owner::Payload); }
                 let once = once.as_ref().map(|key| {
-                    if !matches!(key, A::Array { .. }) {
+                    let A::Array { items, .. } = key else {
                         return Err(type_error(key.site(), "once requires an array of key values", "emit notify { ... } once [recipient, periodEnd]"));
-                    }
+                    };
                     let mut setup = setup::Body::default();
-                    let (key, _) = self.expr(key, &mut setup)?;
+                    // A once key is a positional tuple, not an iterable list:
+                    // recipient and period may deliberately have different types.
+                    let key = Expr::Array(self.strict_args(items, &mut setup)?.into_iter().map(|(value, _)| value).collect());
                     self.sequence_setup([&mut expr].into_iter(), setup, out);
                     Ok(key)
                 }).transpose()?;

@@ -46,7 +46,7 @@ impl Binder<'_> {
         }
     }
 
-    fn strict_args(&mut self, args: &[A], out: &mut setup::Body) -> Fallible<Vec<(Expr, Ty)>> {
+    pub(super) fn strict_args(&mut self, args: &[A], out: &mut setup::Body) -> Fallible<Vec<(Expr, Ty)>> {
         let mut values = Vec::<(Expr, Ty)>::new();
         let mut failed = None;
         for arg in args {
