@@ -1214,20 +1214,24 @@ and tracks the held answer's own device and server deadlines through clock
 corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
 immediately, including failure, link loss, and a replacement's earlier expiry.
-Opening remounts attach to an empty shared slot before its first approval and
+Opening remounts register for the watch before its raw owner or first approval exists and
 receive notifications for approval, withdrawal and each distinct denial. A live
 facade stays attached after a transient authority error, so a peer's later
 approval reaches it too. Expiry and follower registrations release on rejection;
 notification ownership ends only on close or a facade fence.
-An older authority completion cannot publish a newer unchecked answer.
+A refusal invalidates authority checks already in flight across all facades of
+that watch; only a check started afterward can recover it. A refusal completing
+after its facade closes still clears the shared approval for live peers. Opening
+facades adopt a denial already delivered while they waited, without notifying
+again. An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
 delivering read or link callbacks, including callbacks from lingering remounts.
 Facade snapshots honor their source's loading or denial even before their own
 subscription callback runs, including with `keep: false`; new data still needs
 authority. For all three policies, a closed facade keeps consulting its detached
-raw handle but never adopts a new identity. It returns its last answer only
-while that identity is still the source's and its own row and episode deadlines
-hold. After that it returns one stable `loading` snapshot, or its denial, even
+raw handle but never adopts a new identity. While its last identity is still the source's and its own row and episode
+deadlines hold, it returns the source's current copy of that identity, including
+its revalidating mark. Closing preserves any earlier captured episode deadline. After that it returns one stable `loading` snapshot, or its denial, even
 when the replacement has identical data. A closed facade has no listeners and
 never notifies.
 Closing a standalone `keep: false` facade removes its raw owner

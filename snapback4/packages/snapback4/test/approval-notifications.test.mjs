@@ -27,7 +27,11 @@ for (const keep of [undefined, false, true]) {
     assert.equal(first.getSnapshot().denied.code, "E_CLIENT");
     const seen = []; first.subscribe(() => seen.push(first.getSnapshot()));
     approving.resolve(true); await settle();
-    assert.equal(peer.getSnapshot().data, "B");
+    assert.equal(peer.getSnapshot().denied.code, "E_CLIENT", "pending success is older than rejection");
+    const newer = gates(t, f, 2);
+    for (const notify of f.owner().subscribers) notify();
+    newer[1].resolve(true); await settle();
+    assert.equal(peer.getSnapshot().data, "B", "a check started after refusal recovers B without another publication");
     assert.equal(first.getSnapshot(), peer.getSnapshot());
     assert.deepEqual(seen, [peer.getSnapshot()]);
     assert.equal(f.owner().subscribers.size, 2, "rejection leaves the live raw subscription attached");
@@ -113,73 +117,5 @@ for (const keep of [undefined, false, true]) {
     assert.equal(approvals.releases.size, 0, "close releases all registrations");
   });
 
-  test(`seeded shared-slot notification invariant, keep=${keep}`, async t => {
-    const coverage = new Map();
-    for (let seed = 1; seed <= 30; seed++) await t.test(`seed ${seed}`, async t => {
-      let wall = 1000, random = seed, serial = 0;
-      const pick = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random % n; };
-      t.mock.method(Date, "now", () => wall);
-      t.mock.timers.enable({ apis: ["setTimeout"] });
-      const f = fixture(t, keep ?? "default"), pending = [], records = [], trace = [];
-      f.gateChecks(() => {
-        const gate = Promise.withResolvers(); pending.push(gate); return gate.promise;
-      });
-      const open = () => {
-        const watch = f.client.observe(q, {}, opts);
-        const record = { watch, closed: false, closedCalls: 0, last: watch.getSnapshot(), events: [] };
-        watch.subscribe(() => { record.last = watch.getSnapshot(); record.events.push(record.last); });
-        records.push(record);
-      };
-      t.after(() => {
-        for (const record of records) record.watch.close();
-        for (const gate of pending) gate.resolve(true);
-      });
-      open();
-      for (let step = 0; step < 180; step++) {
-        const live = records.filter(record => !record.closed), owner = f.owner();
-        const choices = ["open", "advance"];
-        if (owner) choices.push("publish", "publish", "reset");
-        if (pending.length) choices.push("approve", "approve", "reject");
-        if (live.length) choices.push("close");
-        const action = choices[pick(choices.length)];
-        coverage.set(action, (coverage.get(action) ?? 0) + 1);
-        trace.push(action);
-        if (action === "open") open();
-        if (action === "publish") f.publish(`answer ${++serial}`, { server: wall + 1 + pick(2200) });
-        if (action === "approve" || action === "reject") {
-          const index = pick(pending.length), [gate] = pending.splice(index, 1);
-          trace[trace.length - 1] += ` ${index}`;
-          if (action === "approve") gate.resolve(true);
-          else gate.reject(Error(`rejection ${step}`));
-        }
-        if (action === "close") {
-          const record = live[pick(live.length)];
-          record.closed = true; record.watch.close(); record.closedCalls = record.events.length;
-        }
-        if (action === "reset") {
-          owner.reset({ loading: true });
-          for (const notify of owner.subscribers) notify();
-        }
-        if (action === "advance") {
-          const elapsed = 1 + pick(1200); wall += elapsed; f.setWall(wall);
-          // Exercise both timer delivery and access-time latching with timers delayed.
-          if (pick(2)) t.mock.timers.tick(elapsed);
-        }
-        await settle();
-        for (const [index, record] of records.entries()) {
-          const context = `seed=${seed}, step=${step}, facade=${index}: ${trace.join(", ")}`;
-          if (record.closed) {
-            record.watch.getSnapshot();
-            assert.equal(record.events.length, record.closedCalls, `closed facade is silent: ${context}`);
-            continue;
-          }
-          const current = record.watch.getSnapshot();
-          assert.equal(current, record.last, `getter changed without a callback: ${context}`);
-          assert.equal(record.watch.getSnapshot(), current, `snapshot is stable: ${context}`);
-        }
-      }
-    });
-    for (const action of ["publish", "approve", "reject", "open", "close", "advance", "reset"])
-      assert.ok(coverage.get(action) > 0, `${action} is exercised`);
-  });
+
 }

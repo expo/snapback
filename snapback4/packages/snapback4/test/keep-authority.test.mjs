@@ -171,6 +171,7 @@ for (const keep of [undefined, true]) {
     opening.reject(Error("session storage failed"));
     await until(() => remount.getSnapshot().denied); await delay(0);
     const denial = remount.getSnapshot();
+    waiting.resolve(true); await delay(0);
     assert.equal(denial.denied.code, "E_CLIENT");
     for (let n = 0; n < facades.length; n++) {
       assert.equal(facades[n].getSnapshot(), denial, "no older facade retains an answer after shared rejection");
