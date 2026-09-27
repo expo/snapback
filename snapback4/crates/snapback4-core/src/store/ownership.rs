@@ -18,29 +18,56 @@ impl Store {
                     }
                     Err(e) => return Err(failure(e)),
                 };
-                // Only a missing database gets a descriptor, closed before
-                // SQLite opens. Existing database identity is stat-only.
-                crate::private_fs::database_file(&real).map_err(&failure)?;
-                let meta = fs::metadata(&real).map_err(&failure)?;
-                let identity = (meta.dev(), meta.ino());
+                let before = crate::private_fs::database_metadata(&real).map_err(&failure)?;
                 let owner = crate::private_fs::owner_file(&real).map_err(&failure)?;
-                let locked = owner.try_lock_shared();
-                if !crate::private_fs::owner_is_named(&real, &owner)
-                    || !fs::metadata(&real).is_ok_and(|m| (m.dev(), m.ino()) == identity) { continue; }
-                locked.map_err(|e| match e {
+                owner.try_lock_shared().map_err(|e| match e {
                     fs::TryLockError::WouldBlock => RuntimeError::StoreBusy { path: real.display().to_string() },
                     fs::TryLockError::Error(e) => failure(e),
                 })?;
+                if !crate::private_fs::owner_is_named(&real, &owner) { continue; }
+                // Create only after ownership; WouldBlock leaves a moved
+                // store's old path absent instead of manufacturing a database.
+                crate::private_fs::database_file(&real).map_err(&failure)?;
+                let meta = crate::private_fs::database_metadata(&real).map_err(&failure)?
+                    .ok_or_else(|| failure(std::io::Error::other("database disappeared during ownership acquisition")))?;
+                let identity = (meta.dev(), meta.ino());
+                if before.is_some_and(|m| (m.dev(), m.ino()) != identity) { continue; }
                 let mut store = Store::open(&real)?;
                 if store.file_identity != Some(identity) {
                     return Err(RuntimeError::Store(format!("owned database at {} moved or was replaced; stop and reopen its current path", real.display())));
                 }
-                store.ownership = Some(Arc::new(owner));
+                if !crate::private_fs::owner_is_named(&real, &owner) {
+                    return Err(RuntimeError::Store(format!("ownership sidecar at {} changed during open; stop all owners and reopen the store; leave <database>-owner in place because deleting it while a process runs ends exclusion", real.display())));
+                }
+                crate::private_fs::database_metadata(&real).map_err(&failure)?;
+                store.retain_ownership(Arc::new(owner))?;
                 return Ok(store);
             }
             Err(failure(std::io::Error::other("database path kept changing during ownership acquisition")))
         }
         #[cfg(not(unix))]
         Err(RuntimeError::Store(format!("device ownership at {} requires Unix", path.display())))
+    }
+}
+
+impl Store {
+    // @ref LLP 3000.019#3.4 — retain the lock for the connection's lifetime; exclusion requires leaving its sidecar in place.
+    #[cfg(unix)]
+    pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> {
+        self.ownership = Some(owner);
+        self.check_ownership()
+    }
+
+    pub fn check_ownership(&self) -> Result<(), RuntimeError> {
+        #[cfg(unix)]
+        if self.ownership.is_some() {
+            let path = Path::new(self.conn.path().unwrap_or_default());
+            // Preserve the stat-only database/hard-link check. This is not
+            // revocation: raw conn() users do not pass through this method.
+            // Deleting the sidecar ends exclusion without stopping old work.
+            crate::private_fs::database_metadata(path)
+                .map_err(|e| RuntimeError::Store(format!("database at {}: {e}", path.display())))?;
+        }
+        Ok(())
     }
 }

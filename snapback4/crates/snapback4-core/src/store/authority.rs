@@ -110,6 +110,7 @@ impl Store {
     /// the authority walk: ordinary row reads/writes still fence generation.
     // @ref LLP 3000.017#3.3 — poll authentication is independent of application catalog generation.
     pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+        self.check_ownership()?;
         let sql = self.conn.unchecked_transaction()?;
         let identity: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
         if expected_store_id.is_none() || identity.as_deref() != expected_store_id {
