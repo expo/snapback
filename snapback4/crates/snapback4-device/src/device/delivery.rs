@@ -34,12 +34,17 @@ fn empty() -> Json { json!({"serial":0,"groups":{},"retired":{},"cursors":{},"bi
 fn serial(state: &mut Json) -> u64 {
     let n = state["serial"].as_u64().unwrap_or(0) + 1; state["serial"] = json!(n); n
 }
-fn binding_key(binding: &DeliveryBinding) -> String { encoded(&(&binding.table, &binding.mutation)).expect("binding key") }
-fn group_key(binding: &DeliveryBinding, group: &str) -> String { encoded(&(&binding.table, &binding.mutation, group)).expect("group key") }
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — propagate codec errors without retaining RuntimeError's full IR Debug graph in wasm.
+fn binding_key(binding: &DeliveryBinding) -> Result<String, RuntimeError> { encoded(&(&binding.table, &binding.mutation)) }
+fn group_key(binding: &DeliveryBinding, group: &str) -> Result<String, RuntimeError> { encoded(&(&binding.table, &binding.mutation, group)) }
 fn load(tx: &dyn crate::store::StreamTx, viewer: &str) -> Result<Json, RuntimeError> {
     tx.meta(&key(viewer))?.map(|v| decoded(&v)).transpose().map(|v| v.unwrap_or_else(empty))
 }
 fn save(tx: &dyn crate::store::StreamTx, viewer: &str, state: &Json) -> Result<(), RuntimeError> { tx.set_meta(&key(viewer), &encoded(state)?) }
+// One B-tree traversal/removal instantiation for the three debt predicates.
+fn retain(value: &mut Json, keep: &mut dyn FnMut(&str, &Json) -> bool) {
+    value.as_object_mut().unwrap().retain(|key, value| keep(key, value));
+}
 fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
     let bindings: Json = decoded(&encoded(&schema.delivery)?)?;
     if state["bindings"] == bindings { return Ok(()); }
@@ -48,9 +53,9 @@ fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
         if bindings.as_array().is_some_and(|b| b.contains(&binding)) { continue; }
         let table = binding["table"].as_str().unwrap_or("");
         let mutation = binding["mutation"].as_str().unwrap_or("");
-        state["groups"].as_object_mut().unwrap().retain(|_, group| group["binding"]["table"] != table || group["binding"]["mutation"] != mutation);
+        retain(&mut state["groups"], &mut |_, group| group["binding"]["table"] != table || group["binding"]["mutation"] != mutation);
         if let Some(cursors) = state["cursors"].as_object_mut() { cursors.remove(&encoded(&(table, mutation))?); }
-        state["retired"].as_object_mut().unwrap().retain(|key, _| {
+        retain(&mut state["retired"], &mut |key, _| {
             let parts: Vec<String> = decoded(key).unwrap_or_default();
             parts.first().is_none_or(|v| v != table) || parts.get(1).is_none_or(|v| v != mutation)
         });
@@ -64,22 +69,28 @@ fn runs(value: &Json) -> Vec<(i64, i64)> {
 }
 fn covers(value: &Json, n: i64) -> bool { runs(value).iter().any(|&(a,b)| a <= n && n <= b) }
 fn add(value: &mut Json, n: i64) {
-    let mut all = runs(value); all.push((n,n)); all.sort_unstable();
+    let mut all = runs(value); all.push((n,n));
+    // The same ascending tuple order and O(n log n) worst-case work, without
+    // a separate introsort/smallsort family for these at-most-257 intervals.
+    let all = std::collections::BinaryHeap::from(all).into_sorted_vec();
     let mut merged: Vec<(i64,i64)> = Vec::new();
     for (a,b) in all {
         if let Some(last) = merged.last_mut() && a <= last.1.saturating_add(1) { last.1 = last.1.max(b); }
         else { merged.push((a,b)); }
     }
     if merged.len() > 256 { merged.drain(..merged.len()-256); }
-    *value = json!(merged);
+    // These are dynamic envelope scalars, not a typed Vec serializer. json!(merged)
+    // instantiates serde's owned-tree writer for the entire interval container.
+    *value = Json::Array(merged.into_iter().map(|(a,b)| Json::Array(vec![Json::from(a), Json::from(b)])).collect());
 }
+
 fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: String) -> Result<(), RuntimeError> {
     let group = row.field(&binding.group)?.as_str()?;
     let position = row.field(&binding.position)?.as_int()?;
     // Queue arguments are JavaScript numbers: never round a fetched coordinate
     // into a different, unfetched position at the host boundary.
     if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&position) { return Ok(()); }
-    let key = group_key(binding, group);
+    let key = group_key(binding, group)?;
     if state["groups"].get(&key).is_none() {
         if state["groups"].as_object().unwrap().len() >= 4096 {
             let oldest = state["groups"].as_object().unwrap().iter().min_by_key(|(_,v)| v["collected"].as_u64().unwrap_or(0)).map(|(k,_)| k.clone()).unwrap();
@@ -117,7 +128,7 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
     }
     Ok(())
 }
-fn eligible<T: DeviceTx>(_tx: &T, schema: &Schema, groups: &history::Groups, table: &str, row: &Value, now: i64) -> Result<bool, RuntimeError> {
+fn eligible(schema: &Schema, groups: &history::Groups, table: &str, row: &Value, now: i64) -> Result<bool, RuntimeError> {
     Ok(row.field("pending") != Ok(&Value::Bool(true)) && !schema.tables[table].expired(row, now)
         && history::coverage_state(schema, groups, table, history::Coverage::Row(row))? == history::CoverageState::Held)
 }
@@ -139,7 +150,7 @@ pub(super) fn publish<T: DeviceTx>(tx: &T, schema: &Schema, candidates: &Candida
         let removed: Vec<_> = state["groups"].as_object().unwrap().iter().filter(|(_,g)| g["binding"]["table"] == *table
             && (scope == "[]" || g["scope"] == *scope || encoded(&vec![g["group"].clone()]).ok().as_ref() == Some(scope))).map(|(k,_)| k.clone()).collect();
         for key in removed { state["groups"].as_object_mut().unwrap().remove(&key); state["retired"].as_object_mut().unwrap().remove(&key); }
-        state["retired"].as_object_mut().unwrap().retain(|key,kept| {
+        retain(&mut state["retired"], &mut |key,kept| {
             let parts: Vec<String> = decoded(key).unwrap_or_default();
             !(parts.first() == Some(table) && (scope == "[]" || kept["scope"] == *scope || parts.get(2).is_some_and(|g| encoded(&vec![g]).ok().as_ref() == Some(scope))))
         });
@@ -147,7 +158,7 @@ pub(super) fn publish<T: DeviceTx>(tx: &T, schema: &Schema, candidates: &Candida
     let now = expiry_clock::now(tx, local_now.max(tx.meta(ISSUED_FLOOR)?.and_then(|n| n.parse().ok()).unwrap_or(0)))?;
     for (table,id) in &candidates.rows {
         let Some(row) = tx.get(table,id)? else { continue; };
-        if !eligible(tx, schema, &groups, table, &row, now)? { continue; }
+        if !eligible(schema, &groups, table, &row, now)? { continue; }
         for binding in schema.delivery.iter().filter(|b| b.table == *table) {
             collect(&mut state, binding, &row, history::row_key(&schema.tables[table], &row)?)?;
         }
@@ -193,16 +204,16 @@ impl<S: DeviceStore> Device<S> {
             let groups = history::load(&tx, history::GROUPS)?;
             let now = expiry_clock::now(&tx, request["now"].as_i64().unwrap_or(0))?;
             for binding in &self.schema.delivery {
-                let key = binding_key(binding);
+                let key = binding_key(binding)?;
                 if state["cursors"][&key]["done"] == true { continue; }
                 let table = &self.schema.tables[&binding.table];
                 let index = table.indexes.iter().find(|(_,index)| index.components.len() == 2 && index.components[0].column() == Some(&binding.group) && index.components[1].column() == Some(&binding.position))
                     .ok_or_else(|| RuntimeError::Schema("delivery needs its unique group, position index".into()))?;
                 let after: Option<Vec<Value>> = state["cursors"][&key].get("after").map(|v| decoded(&v.to_string())).transpose()?;
-                let reading = history::Reading { tx: &tx, schema: &self.schema, groups: groups.clone(), boundaries: boundary::Boundaries::load(&tx,false)?, retained: std::cell::Cell::new(false) };
+                let reading = history::Reading { tx: &tx, schema: &self.schema, groups, boundaries: boundary::Boundaries::load(&tx,false)?, retained: std::cell::Cell::new(false) };
                 let rows = reading.scan(&binding.table, index.0, &[], &Bounds { after, ..Bounds::default() }, Dir::Asc, 500)?;
                 for (row,_) in &rows {
-                    if eligible(&tx, &self.schema, &groups, &binding.table, row, now)? { collect(&mut state,binding,row,history::row_key(table,row)?)?; }
+                    if eligible(&self.schema, &reading.groups, &binding.table, row, now)? { collect(&mut state,binding,row,history::row_key(table,row)?)?; }
                 }
                 if let Some((_,key_bytes)) = rows.last() {
                     let values = snapback4_core::key::decode(key_bytes).ok_or_else(|| RuntimeError::Store("invalid delivery index cursor".into()))?;
@@ -216,5 +227,39 @@ impl<S: DeviceStore> Device<S> {
         tx.set_meta(&meta,&value)?;
         tx.commit()?;
         Ok(json!({"value":value,"more":more}))
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn interval_union_matches_round_zero_for_order_gaps_bounds_and_extremes() {
+    fn before(value: &Json, n: i64) -> Json {
+        let mut all = runs(value); all.push((n,n)); all.sort_unstable();
+        let mut merged: Vec<(i64,i64)> = Vec::new();
+        for (a,b) in all {
+            if let Some(last) = merged.last_mut() && a <= last.1.saturating_add(1) { last.1 = last.1.max(b); }
+            else { merged.push((a,b)); }
+        }
+        if merged.len() > 256 { merged.drain(..merged.len()-256); }
+        json!(merged)
+    }
+    let mut inputs = vec![json!([]), json!([[1,2],[4,5]]), json!([[i64::MIN,i64::MIN],[i64::MAX,i64::MAX]]),
+        json!([[8,9],[1,3],[2,4],[8,9],null,[0],"ignored"]),
+        json!((0..300).rev().map(|n| (n*3,n*3)).collect::<Vec<_>>())];
+    let mut seed = 0x4d59_5df4_d0f3_3173u64;
+    for _ in 0..64 {
+        let mut intervals = Vec::new();
+        for _ in 0..300 {
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
+            let a = (seed % 4000) as i64 - 2000;
+            intervals.push((a, a + (seed % 5) as i64));
+        }
+        inputs.push(json!(intervals));
+    }
+    for input in inputs {
+        for n in [i64::MIN,-2001,-1,0,3,8,899,2001,i64::MAX] {
+            let mut actual = input.clone(); add(&mut actual,n);
+            assert_eq!(actual, before(&input,n));
+        }
     }
 }

@@ -67848,3 +67848,48 @@ gzip: +62,847 raw / +19,982 gzip against the same clean base, and 19,194 B over
 the unchanged budget. These numbers supersede the pre-split measurement above.
 The 16 device tests pass after the guard; supporting every i64 coordinate needs
 an agreed exact-number representation and is not claimed by this lane.
+
+
+## 2026-09-27 — Lane DC round 1: attribute and reduce the delivery wasm growth
+
+Rebuilt clean base 3369ae543 and round-0 head 2059ffdd0 at the same source
+path with build-wasm.sh: 1,981,512 B raw / 572,053 B gzip and 2,044,359 B raw /
+592,035 B gzip. Installed twiggy 0.8.0 and compared unstripped wasm symbols.
+Two key-encoding expect calls retained RuntimeError's Debug graph, including
+the IR: 11,738 new formatter bytes. Propagating the codec results alone saves
+4,450 B gzip. A typed interval Vec inside json! also selected an owned-tree
+serde writer: the source census passed, but the artifact family check caught
+it. Constructing JSON scalars directly removes it. Shared JSON-map retention
+and moving membership state into its reader avoid extra generic bodies.
+BinaryHeap's in-place ascending sort replaces 4,871 B of interval-specific
+sorting code with 586 B, retaining O(n log n) worst-case work.
+
+Final production wasm: **2,024,468 B raw / 585,362 B gzip**, saving **19,891 B
+raw / 6,673 B gzip** from round 0. It remains **12,521 B over** the unchanged
+572,841 B budget, or +13,309 B gzip over the rebuilt base. Remaining symbols
+pay for collection/activation/CAS, binding decoding and JSON/container support.
+Stopped after the local reductions and reported the remainder to the supervisor;
+this is not a claim of a globally minimal implementation. The final build at
+code checkpoint 92b5c83db is byte-identical to the suite artifact. This final
+local commit includes the code, report and this entry together.
+
+Added one differential test with 621 cases against round 0's interval union:
+order, duplicates, gaps, cap/eviction, malformed entries and i64 extremes.
+A separate paired wasm witness produced byte-identical replies and persistence
+batches for 1,203 commands, 601 published rows and the 256-run cap. Source census
+and all delivery client/wasm/crash/outbox tests pass 74/74. Artifact family and
+forbidden-code checks pass; RuntimeError's Debug graph is absent.
+
+Ran scripts/test.sh exactly once, exit 1:
+`== 1 failure(s) in 1443 s` — **wasm build**, the remaining lane-owned overrun.
+Rust passes 3,853 tests with 24 existing ignores, including all 1,336 device
+tests (3 existing ignores), all 16 delivery integration tests and 48 device
+library tests. Main clients pass 2,595 with 10 existing skips; all seven extra
+shards pass 56/56; seeded models pass 78/78. Guide 86/86, fixtures 9/9, native
+build, release guard, docs budget, package and app checks pass. No baseline or
+environmental failure, no weakened test, no second full-suite run. Reference
+and whitespace checks pass. No budget, meter, schema, durable format or public
+surface change, no round-0 review response, push or publication. The lane is
+still not ready to land. Attribution, hashes, reproductions and limitations:
+reports/20260927-dc-delivery-client/ROUND1.md; logs and artifacts remain under
+ignored target/lane-dc-round1/.
