@@ -117,6 +117,7 @@ export function approvalOracle(t, keep) {
         assert.equal(record.closed, false, "closed facades never notify");
         assert.notEqual(snapshot, record.last, "duplicate intermediate callback");
         assert.equal(record.watch.getSnapshot(), snapshot, "callback snapshot equals the getter at delivery");
+        assertRead(record, snapshot, "intermediate callback");
         record.events.push(snapshot); record.last = snapshot;
       } catch (error) { errors.push(error); }
     });
@@ -136,23 +137,26 @@ export function approvalOracle(t, keep) {
       return record.frozen = loading();
     return source.raw;
   };
+  const assertRead = (record, read, phase) => {
+    const want = expected(record), label = `${phase}, facade ${record.number}: ${trace.join(" / ")}`;
+    assert.equal("data" in read ? "data" : "denied" in read ? "denied" : "loading", want.kind, label);
+    if (want.kind === "data") {
+      assert.equal(read.data, want.id, `approved answer: ${label}`);
+      assert.equal(answerIdentity(read), want.identity, `approved identity: ${label}`);
+      assert.equal(!!read.revalidating, !!want.revalidating, `revalidation: ${label}`);
+      assert.ok(!rowDue(want) && !episodeDue(want), `own deadlines: ${label}`);
+    }
+    if (want.kind === "denied") {
+      assert.equal(read.denied.code, want.code, `denial code: ${label}`);
+      assert.equal(read.denied.message, want.message, `denial delivery: ${label}`);
+    }
+  };
   const assertAll = () => {
     latch();
     if (errors.length) throw errors[0];
     for (const record of records) {
-      const want = expected(record), read = record.watch.getSnapshot();
-      const label = `facade ${record.number}: ${trace.join(" / ")}`;
-      assert.equal("data" in read ? "data" : "denied" in read ? "denied" : "loading", want.kind, label);
-      if (want.kind === "data") {
-        assert.equal(read.data, want.id, `approved answer: ${label}`);
-        assert.equal(answerIdentity(read), want.identity, `approved identity: ${label}`);
-        assert.equal(!!read.revalidating, !!want.revalidating, `revalidation: ${label}`);
-        assert.ok(!rowDue(want) && !episodeDue(want), `own deadlines: ${label}`);
-      }
-      if (want.kind === "denied") {
-        assert.equal(read.denied.code, want.code, `denial code: ${label}`);
-        assert.equal(read.denied.message, want.message, `denial delivery: ${label}`);
-      }
+      const read = record.watch.getSnapshot(), label = `facade ${record.number}: ${trace.join(" / ")}`;
+      assertRead(record, read, "settled");
       if (!record.closed) assert.equal(read, record.last, `getter changed without callback: ${label}`);
       else assert.equal(record.events.length, record.closedCalls, `closed callbacks: ${label}`);
       assert.equal(record.watch.getSnapshot(), read, `stable getter: ${label}`);
@@ -195,6 +199,7 @@ export function approvalOracle(t, keep) {
   const close = record => {
     latch(); trace.push(`close f${record.number}`);
     record.frozen = { ...expected(record) }; record.closed = true;
+    if (!keep && record.source && !records.some(peer => !peer.closed && peer.source === record.source)) retire(record.source);
     record.watch.close(); record.closedCalls = record.events.length;
     if (record.source && !f.owner()) retire(record.source);
   };
