@@ -70709,3 +70709,68 @@ publisher remains unbuilt. The supervisor owns review of this follow-up.
 Report and durable verification: experiments/following-adoption/atomic/ROUND5.md
 and ROUND5.verification.json. Raw logs: target/fa-round5/. Local commit carries
 the requested co-author trailer. No push or publication.
+
+### 2026-09-27 — KG round 12: opening refusals require distinct delivery evidence
+
+Read the round-0–11 prompts, including 9b, prior report and KG journal entries,
+and Astra's complete round-11 NOT READY review. Grok had no verdict at start;
+proceeded without waiting. First merged origin/main 51b318c63 in 195464141.
+The journal was the sole conflict; both appends remain, with 53 additions
+against the lane parent, 747 against main and zero deletions against either.
+The shared-approval ruling remains unchanged.
+
+Capture the opening snapshot beside its generation. An opening can adopt a
+shared denial only when both changed while it waited: a closed peer's refusal
+normalized back to the initial raw D is not evidence that the opening refusal
+was delivered. Its distinct refusal fences C's older pending success under all
+three policies, for false and thrown outcomes. Removed the redundant listener
+normalization; emit obtains the normalized getter before delivering callbacks.
+Production diff: four added lines, seven removed. The report audits every
+counter/episode comparison in the approval/read lifecycle and oracle, plus
+adjacent raw publication/session fences. No additional runtime defect found.
+
+Six direct reproductions fail before and pass after; six new independent
+oracle replays cover both outcomes and all policies. Generated actions now
+include close→source denial without polling, closed-peer refusal during an
+opening, and close→denial→open→closed-peer refusal, with subsequent publication
+and completion order still randomized. Oracle denial events are independent
+of its cancellation epoch; false and thrown checks are both modeled.
+
+Final approval set: 868/868, including 779 model cases (720 seeds, 56 named
+replays, three parents), 172,800 random actions plus setup and episode probes.
+Reverting only the new snapshot comparison fails 21 seeds: omitted
+26/35/59/119/213/216/235; false 35/110/119/172/228; true
+15/35/59/80/100/119/172/217/235. With six named cases and three parents,
+30 failures are reported. The old closed-loading guard now fails 681 seeds;
+removing getter normalization fails six reversed-opening cases. Mutations
+never edit live source/dist. The first generator extension caught only named
+cases; strengthened it before final qualification.
+
+Main client tests: 4,009 passed / 0 failed / 10 existing skips, 426.630 s;
+acquisition/server shards 56/56; session/online models 79/79, 269.342 s.
+React file 48/48 and both Chromium input-preservation witnesses pass; all
+eighteen delayed-authority createApp cases pass. Whole guide 89/89; frozen
+Bun install, package build/typecheck, docs budget, references and whitespace
+pass. Largest changed source/test: 293 lines. The final grouped generator
+was qualified separately after main client discovery; production JS was fixed
+throughout. Existing round-11 native/wasm artifacts were used; no new native
+or wasm rebuild qualification is claimed. Guide compiled against merged source.
+
+Every final qualification failure: none, zero ours/baseline/environmental.
+Resolved lane-owned development errors: the first test draft compared a cloned
+publication to its input object; one optional docs-budget command used the
+wrong filename (MODULE_NOT_FOUND), then the correct command passed. Expected
+pre-fix/mutation failures and complete classifications are in the report.
+Did not run scripts/test.sh, as instructed. Round 11's historical exact result
+stands: == 0 failure(s) in 1641 s, exit 0. The supervisor owns the full landing
+suite. Its inherited 60-second budget remains exceeded; no timeout was raised.
+
+Wasm artifact SHA-256 still dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94:
+1,979,732 B raw / 572,616 B gzip, 225 B below the unchanged 572,841 B cap.
+Zero wasm input delta from this TypeScript/test/doc correction. No design,
+API, diagnostic, authorization rule, meter, durable format, dependency, release
+version or budget change. Existing tools only; nothing installed or modified
+on a shared path. No unresolved assigned finding or independent new review
+claim. Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
+ignored evidence: target/lane-kg-r12/. This is the single round-12 append.

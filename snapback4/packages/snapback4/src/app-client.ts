@@ -100,12 +100,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
         if (current) {
           associated = current; attach(kept.get(current, key));
-          // @ref LLP 3000.023#3.6 — normalize opening callbacks to the same raw withdrawal as sourced getters.
-          if ("loading" in current || "denied" in current) {
-            snapshot = current;
-            if (held && held.snapshot !== current) kept.reject(current, current);
-          }
         }
+        // emit's getter normalizes source withdrawals before any delivery.
         emit();
       });
       const reject = (read: Read<R>) => {
@@ -152,13 +148,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         }
         emit();
       };
-      const openingGeneration = held?.generation;
+      const openingGeneration = held?.generation, openingSnapshot = held?.snapshot;
       void refusal().then(refused => {
         if (refused) {
           const shared = held?.read();
           // A shared refusal already delivered during opening is this failure's
           // visible result; a newly started check can still report a new denial.
-          reject(held?.generation !== openingGeneration && shared && "denied" in shared
+          // Normalization can restore the opening snapshot after generation moves.
+          reject(held?.generation !== openingGeneration && shared !== openingSnapshot && shared && "denied" in shared
             ? shared as Read<R> : { denied: refused });
           if (!closed) emit();
           return;

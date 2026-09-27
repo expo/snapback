@@ -17,6 +17,35 @@ function events(watch) {
 
 for (const keep of [undefined, false, true]) {
   const opts = keep === undefined ? undefined : { keep };
+  for (const throws of [false, true]) test(`opening refusal fences success after normalization restores its initial denial (throws=${throws}), keep=${keep}`, async t => {
+    const f = fixture(t, keep ?? "default");
+    const first = f.client.observe(q, {}, opts), peer = f.client.observe(q, {}, opts);
+    await settle(); f.publish("A"); await settle();
+    const [, latePeer] = gates(t, f, 2);
+    f.publish("B"); peer.close();
+    f.owner().publish({ denied: { code: "E_AUTH", message: "raw denied" } });
+    for (const notify of f.owner().subscribers) notify();
+    await settle();
+    const rawDenial = first.getSnapshot();
+    const [openingCheck] = gates(t, f, 1);
+    const opening = f.client.observe(q, {}, opts);
+    latePeer.reject(Error("closed peer refused")); await settle();
+    assert.equal(opening.getSnapshot(), rawDenial, "normalization restored the denial captured at opening");
+    const [olderSuccess] = gates(t, f, 1);
+    f.publish("C");
+    const firstSeen = events(first), openingSeen = events(opening);
+    if (throws) openingCheck.reject(Error("opening refused")); else openingCheck.resolve(false);
+    await settle();
+    const denial = first.getSnapshot();
+    olderSuccess.resolve(true); await settle();
+    assert.equal(first.getSnapshot(), denial, "success begun before the opening refusal stays fenced");
+    assert.equal(opening.getSnapshot(), denial);
+    assert.equal(denial.denied?.code, throws ? "E_CLIENT" : "E_AUTH");
+    assert.notEqual(denial, rawDenial, "a generation change alone cannot deduplicate this refusal");
+    assert.deepEqual(firstSeen, [denial]); assert.deepEqual(openingSeen, [denial]);
+    first.close(); opening.close();
+  });
+
   test(`second opening creates loading before first opening refuses, keep=${keep}`, async t => {
     const f = fixture(t, keep ?? "default"), [firstOpen, secondOpen] = gates(t, f, 2);
     const first = f.client.observe(q, {}, opts), second = f.client.observe(q, {}, opts);

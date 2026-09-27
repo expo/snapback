@@ -1231,7 +1231,9 @@ already-delivered denial does not fence those new checks. A refusal completing
 after its facade closes still clears the shared approval for live peers of its
 associated raw owner. A closed opening cannot revoke a later owner it never joined. Opening
 facades adopt a denial already delivered while they waited, without notifying
-again. An older authority completion cannot publish a newer unchecked answer.
+again. A denial unchanged since opening does not count as that delivery, even if
+another refusal was normalized back to it; the opening refusal still fences
+older checks. An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
 delivering read or link callbacks, including callbacks from lingering remounts.
 Facade snapshots honor their source's loading or denial even before their own

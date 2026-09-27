@@ -48,6 +48,18 @@ for (const closeBeforeReload of [false, true]) test(`oracle preserves captured e
 });
 
 for (const keep of [undefined, false, true]) {
+  for (const throws of [false, true]) test(`oracle fences opening refusal after closed peer restores raw denial (throws=${throws}), keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [first, peer] = await start(m);
+    m.publish();
+    const latePeer = m.pending.find(gate => gate.record === peer);
+    m.close(peer); m.sourceDenial(); await m.settle();
+    const opening = m.open(), openingCheck = m.pending.find(gate => gate.record === opening);
+    m.complete(latePeer, "closed peer refused"); await m.settle();
+    m.publish(); const olderSuccess = m.pending.filter(gate => gate.record === first).at(-1);
+    m.complete(openingCheck, throws ? "opening refused" : false); await m.settle();
+    m.complete(olderSuccess); await m.settle();
+  });
+
   test(`oracle checks second opening success before first opening refusal, keep=${keep}`, async t => {
     const m = approvalOracle(t, keep), first = m.open(), second = m.open();
     m.complete(m.pending.find(gate => gate.record === second)); await m.settle();
@@ -198,9 +210,15 @@ for (const keep of [undefined, false, true]) {
           coverage.set("recreate-owner", (coverage.get("recreate-owner") ?? 0) + 1);
         }
         const live = m.records.filter(record => !record.closed && record !== anchor);
+        const closedChecks = m.pending.filter(gate => gate.record.closed && !gate.opening);
+        const openingChecks = m.pending.filter(gate => !gate.record.closed && gate.opening);
+        const closingChecks = m.pending.filter(gate => live.includes(gate.record) && !gate.opening
+          && gate.record.latest === gate && gate.owner === m.currentOwner());
         const choices = ["publish", "publish-device", "reload", "reset", "recheck", "source-denial", "open", "host", "server", "device", "rollback"];
         if (m.pending.length) choices.push("approve", "approve", "reject", "batch");
         if (live.length) choices.push("close");
+        if (closedChecks.length && openingChecks.length) choices.push("closed-refusal-during-opening");
+        if (closingChecks.length) choices.push("close-denial-open-refuse");
         const action = choices[pick(choices.length)];
         coverage.set(action, (coverage.get(action) ?? 0) + 1);
         m.trace.push(`step ${step} ${action}`);
@@ -216,7 +234,22 @@ for (const keep of [undefined, false, true]) {
           for (let i = 0; i < count; i++) m.complete(m.pending[pick(m.pending.length)], pick(3) === 0 ? `batch ${step}.${i}` : undefined);
           if (count > 1) coverage.set("several-completions", (coverage.get("several-completions") ?? 0) + 1);
         }
-        if (action === "close") m.close(live[pick(live.length)]);
+        if (action === "close") {
+          m.close(live[pick(live.length)]);
+          if (pick(2)) {
+            m.sourceDenial(); // No getter/settle between close and the denial.
+            coverage.set("close-source-denial", true);
+          }
+        }
+        if (action === "closed-refusal-during-opening") {
+          m.complete(closedChecks[pick(closedChecks.length)], `closed peer ${step}`);
+        }
+        if (action === "close-denial-open-refuse") {
+          const gate = closingChecks[pick(closingChecks.length)];
+          m.close(gate.record); m.sourceDenial(); m.open();
+          m.complete(gate, pick(2) ? `closed peer ${step}` : false);
+          // Subsequent raw publications and completion order remain generated.
+        }
         if (action === "reload") m.reload();
         if (action === "reset") m.reset();
         if (action === "recheck") m.recheck();
@@ -240,7 +273,7 @@ for (const keep of [undefined, false, true]) {
     for (const action of ["publish", "publish-device", "approve", "reject", "batch", "several-completions", "open", "close",
       "host", "server", "device", "rollback", "reload", "reset", "recheck", "source-denial", "recreate-owner", "fence", "complete-after-fence",
       "opening-first-first", "opening-second-first", "replacement-first-first", "replacement-second-first",
-      "batched-openings", "batched-replacements", "opening-refusal"])
+      "batched-openings", "batched-replacements", "opening-refusal", "close-source-denial", "closed-refusal-during-opening", "close-denial-open-refuse"])
       assert.ok(coverage.get(action) > 0, `${action} is exercised`);
     if (keep === undefined) for (const timing of ["before", "after"])
       assert.ok(coverage.get(`captured-episode-${timing}-close`), `episode first observed ${timing} close`);

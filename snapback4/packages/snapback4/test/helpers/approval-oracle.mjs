@@ -71,11 +71,13 @@ export function approvalOracle(t, keep) {
   function finish() {
     for (const { gate, error } of completed.splice(0)) {
       const record = gate.record;
-      if (error) {
+      if (error !== undefined) {
         if (!gate.opening && record.latest !== gate) continue;
         const owner = gate.opening ? record.source ?? (record.closed ? undefined : currentOwner()) ?? record.associated : gate.owner;
-        let value = denied(error);
-        if (gate.opening && !record.closed && owner?.approved.kind === "denied" && owner.epoch !== gate.epoch) value = owner.approved;
+        let value = error === false ? { ...auth } : denied(error);
+        // Deduplicate a different denial event received while opening, never an
+        // epoch change whose normalized result is still the starting denial.
+        if (gate.opening && !record.closed && owner?.approved.kind === "denied" && owner.approved !== gate.initialApproval) value = owner.approved;
         if (record.closed) record.frozen = value;
         if (owner) {
           // Live source withdrawals have synchronous precedence over a late
@@ -103,7 +105,8 @@ export function approvalOracle(t, keep) {
     const opening = !record.started;
     record.started = true;
     const owner = record.source ?? record.associated;
-    const gate = { ...Promise.withResolvers(), record, owner, opening, epoch: owner?.epoch, eligible: !record.closed && !fenced };
+    const gate = { ...Promise.withResolvers(), record, owner, opening, initialApproval: owner?.approved,
+      epoch: owner?.epoch, eligible: !record.closed && !fenced };
     record.lastCheck = gate;
     if (!opening) record.latest = gate;
     pending.push(gate);
@@ -178,8 +181,9 @@ export function approvalOracle(t, keep) {
     assert.ok(pending.includes(gate), "complete only a pending check");
     pending.splice(pending.indexOf(gate), 1);
     gate.error = error;
-    trace.push(`${error ? "reject" : "approve"} f${gate.record.number} ${gate.opening ? "opening" : "refresh"}`);
-    if (error) gate.reject(Error(error)); else gate.resolve(true);
+    trace.push(`${error !== undefined ? "reject" : "approve"} f${gate.record.number} ${gate.opening ? "opening" : "refresh"}`);
+    if (error === false) gate.resolve(false);
+    else if (error !== undefined) gate.reject(Error(error)); else gate.resolve(true);
   };
   const publish = (deadlines = {}) => {
     latch();

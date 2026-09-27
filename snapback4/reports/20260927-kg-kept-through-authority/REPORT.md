@@ -1,3 +1,242 @@
+# Lane KG round 12 — an unchanged denial cannot absorb an opening refusal
+
+Branch: `sb4-intent/kg-kept-through-authority`; integration target: 0.4.6.
+Read all round-0–11 prompts, including 9b, the prior report and KG journal
+entries, and Astra's full round-11 NOT READY review. Grok had progress notes
+but no verdict at start; proceeded without waiting, as instructed. The shared
+approval ruling from rounds 8/9b stands. Nothing pushed or published.
+
+First fetched and merged `origin/main` at `51b318c63` in `195464141`.
+The sole conflict was the journal: retained both appends, with 53 additions
+against the lane parent and 747 against main, zero deletions against either.
+All round-12 commits carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## Implementation, file by file
+
+Paths below are relative to `snapback4/`.
+
+| File | Result |
+| --- | --- |
+| `packages/snapback4/src/app-client.ts` | Capture the opening snapshot beside its generation. Reuse a shared denial only if both changed during the opening. Remove listener-side withdrawal normalization; `emit()` already obtains the normalized getter before delivery. Production diff is four added lines and seven removed lines. |
+| `packages/snapback4/test/approval-lifecycle.test.mjs` | Six direct reproductions: all three policies, each with false and thrown opening refusal. Normalize a closed peer's refusal back to D, start C's check, refuse the opening, complete C, then require the same new denial and exactly one callback per live facade. |
+| `packages/snapback4/test/approval-model.test.mjs` | Six named oracle replays. Generate close→source denial without polling; late closed-peer refusal during a pending opening; and close→denial→open→closed-peer refusal. Subsequent publication and completion selection remain random. Coverage assertions require all new actions. |
+| `packages/snapback4/test/helpers/approval-oracle.mjs` | Accept injected false as well as thrown refusals. Compare distinct expected denial events at opening, rather than using an expected epoch change as evidence of delivery. Expected authority still comes only from inputs and eligible checks, never production approval state or facade output. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | State that a denial unchanged since opening cannot absorb that opening's refusal, even when another refusal normalized back to it. |
+| `JOURNAL.md`, this report | Single dated journal append, comparison audit, qualification and mutation evidence; preserve earlier records. |
+
+No new API or Quarry syntax. Existing forms compile and run:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+Each form now delivers the new opening refusal in Astra's ordering and prevents
+C's older success from restoring data. New checks after a real refusal still
+recover; adopting a different denial already received during opening remains
+idempotent.
+
+## Comparison audit
+
+Scope: every counter/episode comparison in the facade approval lifecycle,
+its raw observation and deadline helpers, and the independent oracle; also
+cross-checked the adjacent online/local publication and session fences. No
+counter in `observe-watch.ts`, `read-expiry.ts`, or `react-pages.ts` substitutes
+for refusal delivery. Their close, clock and page-cache checks use actual
+owner/snapshot identity or absolute deadlines. The following are all relevant
+comparisons in that scope. Lines refer to the final round-12 source.
+
+| Site | Meaning and why sufficient, or correction |
+| --- | --- |
+| `app-client.ts:138`, refusal `version !== refreshVersion` | Superseded refresh of this facade. Every new refresh increments the counter synchronously, including source withdrawal; closing does not. Thus obsolete B cannot refuse current C, but the latest check can still refuse after close. Existing both-order superseded-refusal and late-close regressions cover it. No inference of delivered denial. |
+| `app-client.ts:142`, success `version !== refreshVersion` | Same refresh ownership test: older work cannot publish a newer source answer. The B/C ordering tests require A to remain while C awaits authority. |
+| `app-client.ts:142`, success `slot?.generation !== generation` | Shared cancellation boundary. Each actual reject/release changes the captured slot's generation, so an older success is ineligible even if normalization restores an earlier snapshot. This deliberately treats generation movement as cancellation, not delivery. Shared-refusal, release-before-raw-callback and new opening regressions exercise it. |
+| `app-client.ts:158`, opening generation comparison | Previously insufficient evidence of an already-delivered denial. Now also require `shared !== openingSnapshot` and a denied shared read. D restored after a transient closed-peer refusal is not new delivery; the opening creates a distinct denial and invalidates C. Six direct and six oracle regressions, plus the failing seeds below. |
+| `app-client.ts:180,183,201`, captured episode minimum and due comparison | An absolute cap for the closed answer, not a delivery or supersession counter. Capture the earliest observed deadline; compare it with host time only while the source still has the same answer identity. Loading then latches. Before/after-close original-copy regressions and seeded probes exercise omission and rollback. |
+| `read-episode.ts:12`, existing episode metadata | Same-identity copies inherit the existing timestamp; only absence permits a new episode. No reset or invalidation may renew it. Existing episode replacement/burst tests cover it. |
+| `read-episode.ts:22`, equal deadline and live-timer check | Reuses an existing timer only when one is still armed (or no deadline exists). Equal timestamps alone do not claim expiry was delivered. `check()` clears the timestamp before withdrawal; stopped/early timers rearm. Existing early-timer and resubscription tests cover it. |
+| `read-episode.ts:28`, due timestamp | Actual time boundary; clears its latch before invoking withdrawal. Independent getter/timer tests require one stable loading result and no rollback revival. |
+| `read-observation.ts:77,88,94,102`, captured `revision` | Replacement/reset ownership of one raw fetch: checked after read, after retry wait, after acceptance and on failure publication. Every `replace` advances revision; ordinary revalidation and episode expiry do not. No claim that any particular refusal was delivered. Existing raw ordering, reset and late-success-after-episode cases cover both sides. |
+| `approval-oracle.mjs:75,92`, `record.latest === gate` | Explicit check object identifies the latest refresh of that facade. No production version is read; a closed facade keeps its latest check. Existing superseded and late-close replays cover it. |
+| `approval-oracle.mjs:92`, expected owner epoch equality | Input-driven cancellation eligibility, including completed gates removed from the pending list. An actual modeled boundary increments it; held-A-only expiry does not. It never supplies expected data or evidence of denial delivery. |
+| Former oracle opening `owner.epoch !== gate.epoch`, now `:80` | Removed as a delivery proxy. The oracle retains its initial expected approval event and adopts only a different denied event. Its raw-normalization transition never derives this event from production state. The generation-only production mutant fails this oracle. |
+| Oracle episode comparisons `episodeDue` and `expected` | Expected absolute deadlines are computed from generated inputs and the earliest same-identity episode observed after close. No production metadata or result selects the expected cap. |
+
+Related deduplication checks are identities, not counters: `emit()` compares
+the actual announced snapshot; the raw-withdrawal refresh path compares that
+same announcement; the getter compares the exact source withdrawal with the
+held snapshot; `ReadApprovals.reject` returns early only for the same stored
+object with no registrations to drop. `ReadApprovals.approve` returns early
+only for the same answer identity, whose revalidation copy already reached
+its follower. Distinct denials notify and fence; reusing the very same denied
+object is not another boundary. Existing exact-notification, distinct-opening,
+successive-denial and same-answer recovery tests remain green.
+
+Adjacent supersession checks were also inspected:
+
+- Online `client.ts:217,218,516,574,663,748,949`: credential revision, minimum
+  schema generation, query epoch/sequence floor, watch resetVersion, observed
+  generation change and asset credential binding. These reject/retry work
+  from an obsolete input or reset the scope; none treats an increment as
+  evidence of a delivered refusal. `obsoleteRefusal` at 469 ignores E_AUTH
+  only after an actual credential revision change, awaiting rotation and
+  excluding closed/replaced stores.
+- Local `local-query.ts:100` and `local.ts:902,982,1010` compare incarnation,
+  commit authority and watch resetVersion before returning/publishing a read.
+  Local store/credential checks at 237, 416, 530, 538, 687, 792, 824, 1137, 1190, 1327
+  and 1333 similarly bind a completion to the credential/store that began it;
+  obsolete auth cannot revoke a replacement credential. Backend-generation
+  comparisons at 180, 677, 678 and 830 trigger adoption/reload, not delivery.
+- `ephemeral-reads.ts:33,53,82,90,92,97`: request revision/abort, incarnation and
+  per-interest epoch floors establish causal eligibility. Adoption retires old
+  requests before notifications. They do not deduplicate denied snapshots.
+- `local-reads.ts` remembered-answer `admit` compares the attempt ticket with
+  the expiry barrier and prior ticket, plus server cuts. A known newer attempt
+  or expiry makes a late body obsolete; it does not prove a refusal notified.
+- `clock.ts:53,58,62` compares server clock epoch/version and request order.
+  Same-epoch older versions and requests predating an epoch barrier cannot
+  rewind samples. These are clock-input ordering checks, not refusal delivery.
+- `app.ts` auth-operation revision guards compare a captured operation with
+  the current operation, and `authorized()` at 335 checks the durable epoch
+  under the session lock, plus scope validity and principal. Durable logout
+  fences compare principal-scoped epochs. These establish current authority
+  independently of observation notifications; no new delivery inference.
+
+No further runtime correction was indicated by this audit.
+
+## Listener normalization decision
+
+Removed the listener's second normalization block. It still records the
+current raw association and joins its shared slot, then invokes `emit()`.
+`emit()` always calls `getSnapshot()`, which applies raw loading/denial before
+checking the announced snapshot or invoking subscribers. Associated openings
+use the same path; retired owners keep their saved association. This leaves
+one normalization implementation for getter access and shared-listener delivery.
+All approval tests pass without the block. Deleting the remaining getter block
+fails six reversed-opening direct/oracle cases; three opening-expiry controls
+pass. The listener copy has no separately required behavior.
+
+## Regressions and generated discrimination
+
+Six direct reproductions fail against merged round-11 runtime and pass after
+the two-part opening comparison. Six independent oracle replays cover the
+same three-policy × false/throw cross product.
+
+Final approval set: **868/868**, 67.681 s. This includes **779 model cases**:
+720 seeds (1–240 per policy), 56 named replays and three parent tests. Each
+seed drives 240 random actions (**172,800 actions** total), plus randomized
+opening/recreation setup and default-policy captured-episode probes. Default
+CI seed count remains 120 per policy; this round doubles it through
+`SNAPBACK4_APPROVAL_MODEL_SEEDS=240`.
+
+The first generator extension killed only the six named cases, with no random
+seed failures. That was insufficient for the requested evidence. Added the
+randomly selected close→denial→open→closed-peer-refusal action, leaving later
+publications, successes/refusals, completion order and batching generated.
+The final generation-only mutation fails **21 seeds**, all six new named
+replays and the three parent tests (**30 reported failures**, 749 passes):
+
+| Policy | Failing seeds when only `shared !== openingSnapshot` is removed |
+| --- | --- |
+| omitted | 26, 35, 59, 119, 213, 216, 235 |
+| false | 35, 110, 119, 172, 228 |
+| true | 15, 35, 59, 80, 100, 119, 172, 217, 235 |
+
+The old closed-loading mutation, which survived all round-11 random seeds,
+now fails **681/720 seeds** (228 omitted, 231 false, 222 true), plus its three
+parent tests: 684 reported failures and 39 controls pass. The new generated
+close→source-denial step therefore discriminates Astra's Low as well.
+
+Every mutation uses a process-local loader and a snapshot of the final runtime;
+live source/dist are unchanged. This is bounded generated evidence, not an
+exhaustive proof. Every intermediate callback is still checked; assertions and
+timeouts from prior rounds were not relaxed.
+
+## Qualification and limits
+
+- Final approval/lifecycle/model/oracle set: **868 passed / 0 failed**,
+  with 240 seeds per policy. The final model is **779/779**.
+- All main client files except the separately run session/online models and
+  sharded acquisition/server files: **4,009 passed / 0 failed / 10 existing
+  skips**, 426.630 s. Acquisition/server shards: **56/56**.
+- Separate session/online models: **79/79**, 269.342 s; includes the two
+  5,000-sequence session models and 3,000 online interleavings.
+- React file: **48/48**, including hook/reference-app cases and the journal
+  listener test. Both additional real Chromium query/page input-preservation
+  witnesses pass, across 20 replacements, cursor updates and removal.
+- All eighteen delayed-authority createApp property cases pass.
+- Whole guide: **89/89**, 2.56 s execution; package build/typecheck, frozen
+  Bun install, docs budget and whitespace checks pass.
+- Reference audit: **521 LLP documents, 9,710 refs, zero errors/unchecked**
+  on the final report and source. Largest changed source/test: **293 lines**.
+
+The full client run used final production JS and the first generator extension;
+the later grouped generator action and distinct false-refusal oracle events
+are qualified by the separate final 868-case run. No production source changed after the client run began. Tests used the
+existing round-11 native/wasm artifacts and rebuilt TypeScript; guide compiled
+against the merged tree. No new native/wasm rebuild qualification is claimed.
+
+Every failure, classified:
+
+| Failure | Classification / disposition |
+| --- | --- |
+| Six correct direct reproductions on the merged pre-fix facade | Ours, inherited KG defect under repair: older C returned after the opening refusal. All six pass after the fix. |
+| Initial test draft's six raw-denial object comparisons | Ours, test-writing error: raw publication clones its input. Capture the published snapshot, then prove C's incorrect return; no product assertion relaxed. |
+| First generator-only mutation: six named failures, zero failing seeds | Deliberate negative control; exposed insufficient generated coverage. The added grouped action produces the 21 failing seeds listed above. |
+| Final generation-only, private-loading-only and getter-normalization mutations | Deliberate negative controls: 30, 684 and 6 reported failures respectively. Final source passes. |
+| First docs-budget command used nonexistent `scripts/check-docs-budget.mjs` | Ours, command typo (`MODULE_NOT_FOUND`), not a product test failure. Correct `scripts/docs-budget.mjs` passes; both logs retained. |
+| Final qualification failures | **None: zero ours, baseline or environmental.** |
+
+No unresolved failure. Expected mutation failures are discrimination evidence,
+not passing qualification relabeled from a red run.
+
+Did **not** run `scripts/test.sh`, as explicitly instructed. Round 11's exact
+historical result stands: **`== 0 failure(s) in 1641 s`**, exit **0**.
+The supervisor owns the full suite on landing; this round makes no new
+full-suite claim. The inherited 60-second full-suite runtime limit remains
+exceeded in that historical run; no budget or timeout was raised.
+
+The device artifact is unchanged from round 11: **1,979,732 B raw / 572,616 B
+gzip**, 225 B under the unchanged 572,841 B cap. SHA-256 verified this round:
+`dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94`.
+No wasm rebuild or new compression measurement was needed: the round's
+implementation changes only TypeScript/tests/docs, with **zero wasm input delta**.
+
+No design deviation, new public form, dependency, API, diagnostic, meter,
+authorization rule, durable format, release version or budget change. The
+additional named oracle replays and oracle delivery-event audit are within the
+requested model work. No unresolved assigned finding; remaining qualification
+limits are the inherited full-suite timing budget and intentionally delegated
+full run. Reproduce the historical full-run timing with `bash scripts/test.sh`
+only when the supervisor runs the landing suite.
+
+Reproduce from `snapback4/`, using Node 24.13.1 and the built package:
+
+```sh
+SNAPBACK4_APPROVAL_MODEL_SEEDS=240 node --test packages/snapback4/test/approval-*.test.mjs
+SNAPBACK4_APPROVAL_MODEL_SEEDS=240 node --import ./target/lane-kg-r12/generation-only-loader.mjs \
+  --test packages/snapback4/test/approval-model.test.mjs
+cargo test -p snapback4-lang --test guide
+```
+
+Ignored evidence: `target/lane-kg-r12/`. Tools are existing Node/Bun selected
+through worktree-local symlinks; no tool was installed or changed on a shared
+path. No independent new review is claimed.
+
+llp-orient context: scope is shared opening refusal, normalization, generated
+ordering and the counter audit. Governing current LLPs: 3000 §4 (track fence),
+3000.023 §§3.1/3.4/3.6 (one episode, own deadlines and shared withdrawal),
+3000.019 §3.3 (facade holds) and 3000.013 §6 (revocable facade authority).
+None is in foundation. Read the current client manual before editing. The
+rationale is that cancellation and delivery evidence are different facts;
+normalization can cancel old work without changing the delivered snapshot.
+Manual, journal and report suffice; hand-off: none.
+
+---
+
+# Historical round-11 report
+
 # Lane KG round 11 — consistent opening withdrawals and captured closed episodes
 
 Branch: `sb4-intent/kg-kept-through-authority`. Read the round-0–10 prompts,
