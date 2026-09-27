@@ -1026,19 +1026,22 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     }
     let _owner = match crate::store_owner::command(&path) {
-        Ok(owner) => owner,
+        Ok(owner) => Some(owner),
+        Err(error) if error.starts_with("E_STORE_BUSY ") => None,
         Err(error) => { eprintln!("{error}"); return 2; }
     };
     let store_path = &path;
-    let store = _owner.open_store(std::time::Duration::from_secs(5));
-    let store = match store {
-        Ok(store) => store,
-        Err(error) => {
-            eprintln!("cannot open the store: {error}");
-            return 2;
-        }
+    let session = if let Some(owner) = &_owner {
+        let store = match owner.open_store(std::time::Duration::from_secs(5)) {
+            Ok(store) => store,
+            Err(error) => { eprintln!("cannot open the store: {error}"); return 2; }
+        };
+        snapback4_core::identity::service_session(&store, name, snapback4_core::now_ms(), days)
+            .map_err(|error| (1, format!("token: {error}")))
+    } else {
+        crate::serve::token::mint_live(&path, name, days)
     };
-    match snapback4_core::identity::service_session(&store, name, snapback4_core::now_ms(), days) {
+    match session {
         Ok(session) => {
             // Shell capture has one form, including when the shared --json flag is present.
             println!("{}", session.token);
@@ -1046,9 +1049,9 @@ pub fn token(options: &Options) -> i32 {
             eprintln!("store: {} — this token belongs only to this store; each isolated store needs its own", store_path.display());
             0
         }
-        Err(error) => {
-            eprintln!("token: {error}");
-            1
+        Err((status, error)) => {
+            eprintln!("{error}");
+            status
         }
     }
 }

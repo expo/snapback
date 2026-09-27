@@ -24,6 +24,9 @@ mod actions;
 #[path = "effects.rs"]
 mod effects;
 
+#[path = "serve_token.rs"]
+pub(crate) mod token;
+
 #[path = "serve_routes.rs"]
 mod routes;
 
@@ -822,6 +825,7 @@ fn handle(mut request: Request, shared: &Shared) {
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
+    if path == token::ENDPOINT { return token::handle(request, shared); }
     // This exact declared POST path is the only non-loopback development
     // exception. Core doors, mismatched methods and query variants stay fenced.
     if method == Method::Post && let Some((name, route)) = routes::declared(shared, &url) {

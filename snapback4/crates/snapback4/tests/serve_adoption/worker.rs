@@ -25,22 +25,40 @@ fn wait_setup(stage: &str, mut predicate: impl FnMut() -> bool) {
 
 #[test]
 fn production_accept_loop_reads_while_exited_worker_waits_for_adoption() {
-    reads_while_exited_worker_waits(0);
+    reads_while_exited_worker_waits(0, false);
 }
 
 #[test]
 fn production_accept_loop_reads_after_delayed_worker_exit() {
-    reads_while_exited_worker_waits(2200);
+    reads_while_exited_worker_waits(2200, false);
 }
 
-fn reads_while_exited_worker_waits(exit_delay_ms: u64) {
+#[test]
+fn production_accept_loop_waits_for_complete_worker_readiness() {
+    reads_while_exited_worker_waits(0, true);
+}
+
+fn reads_while_exited_worker_waits(exit_delay_ms: u64, hold_ready: bool) {
     let dir = ReaderTestDirectory::new();
     let schema = format!("{}\nuse server\neffect mail\nmutation emitMail():\n  emit mail {{n: 1}}\n", reads::SOURCE);
     let host = Host::with_store(true, snapback4_core::Store::open(&dir.0.join("worker.db")).unwrap(), &schema);
     assert_eq!(body(&host.request("POST", "/m/add", "x-snapback-persona: alice\r\n", r#"{"args":{"id":"before"}}"#))["state"], "sent");
     assert_eq!(body(&host.request("POST", "/m/emitMail", "x-snapback-persona: alice\r\n", "{}"))["state"], "sent");
     let source = dir.0.join("worker.mjs");
-    std::fs::write(&source, format!("const exitDelay = {exit_delay_ms};\n") + "import fs from 'node:fs';\nfs.writeFileSync('ready', process.env.SNAPBACK_SERVICE_TOKEN, {mode: 0o600});\nsetInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, exitDelay); process.exit(17); } }, 10);\n").unwrap();
+    // File creation precedes its contents. Publish readiness only after the
+    // complete token is closed, or a loaded host can read an empty bearer.
+    std::fs::write(&source, format!("const exitDelay = {exit_delay_ms};\nconst holdReady = {hold_ready};\n") + r#"
+import fs from 'node:fs';
+const fd = fs.openSync('ready.tmp', 'w', 0o600);
+if (holdReady) {
+  fs.writeFileSync('ready-started', '');
+  while (!fs.existsSync('finish-ready')) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+}
+fs.writeFileSync(fd, process.env.SNAPBACK_SERVICE_TOKEN);
+fs.closeSync(fd);
+fs.renameSync('ready.tmp', 'ready');
+setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, exitDelay); process.exit(17); } }, 10);
+"#).unwrap();
     let project = crate::project::Project { root: dir.0.clone() };
     let server = Arc::new(Server::http(("127.0.0.1", 0)).unwrap());
     let address = server.server_addr().to_ip().unwrap();
@@ -56,9 +74,15 @@ fn reads_while_exited_worker_waits(exit_delay_ms: u64) {
         let engine = lock(&host.shared.engine);
         serde_json::from_str(&engine.store().meta("worker:status").unwrap().unwrap_or("{}".into())).unwrap()
     };
+    if hold_ready {
+        wait_setup("worker token file opened", || dir.0.join("ready-started").exists());
+        assert!(!dir.0.join("ready").exists(), "an unfinished token must not publish readiness");
+        std::fs::write(dir.0.join("finish-ready"), "").unwrap();
+    }
     wait_setup("worker ready", || dir.0.join("ready").exists() && worker_status()["state"] == "running");
     let family = lock(&host.shared.engine).store().meta("worker:session-family").unwrap().unwrap();
     let token = std::fs::read_to_string(dir.0.join("ready")).unwrap();
+    assert!(!token.is_empty(), "worker readiness must carry its complete bearer");
     let revision = host.shared.worker_revision.load(Ordering::Acquire);
     let gate = Arc::new(WorkGate::default());
     let release_on_panic = ReleaseGate(gate.clone());
@@ -76,7 +100,9 @@ fn reads_while_exited_worker_waits(exit_delay_ms: u64) {
         })).unwrap();
         let candidate = snapback4_lang::compile(&[("schema.q".into(), format!("{schema}{}", reads::VIEWS))]);
         assert!(candidate.diagnostics.is_empty(), "{:?}", candidate.diagnostics);
-        assert!(adoption::adopt_candidate(&shared, &mut engine, &candidate, || panic!("not a generation refusal")).is_err());
+        let error = adoption::adopt_candidate(&shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap_err();
+        assert_eq!(error.refusal().code, "E_STORE");
+        assert!(error.to_string().contains("not authorized"), "the held authorizer must cause the refusal: {error}");
         engine.store().conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
     });
     wait_setup("adoption held at the authorizer", || gate.entered.load(Ordering::Acquire) == 1);
