@@ -29,14 +29,17 @@ test('wasm activation excludes predictions and withdrawal persists only restored
  ok(await core.call({op:'withdraw',predicted:['messages/m']}));assert.deepEqual(owed(await debt(core)),[[[41,41]]]);
 });
 
-test('client manifest-only binding keeps its fallback debt through device adoption',async t=>{
- const initial=structuredClone(backend);initial.schema.delivery=[];
+for(const older of [false,true])test(`client manifest-only binding keeps its fallback debt through device adoption (older binding: ${older})`,async t=>{
+ const initial=structuredClone(backend);if(older)initial.schema.delivery[0].fingerprint='older';else initial.schema.delivery=[];
  const core=await webDevice({wasm,persist:memoryPersistence()}).open('manifest-adoption',initial);t.after(()=>core.close());
  const read=ok(await core.call({op:'delivery',viewer:'dev:alice',action:'read'}));
  const state=emptyDelivery();acceptManifest(state,[{...backend.schema.delivery[0],rows:[['c1',41]]}],4096);
  assert.equal(state.bindings[0].group,undefined,'the manifest representation has no compiled columns');
  ok(await core.call({op:'delivery',viewer:'dev:alice',action:'write',expected:read.value,value:JSON.stringify(state)}));
  assert.deepEqual((await debt(core)).groups,state.groups,'older-schema reads preserve manifest-only debt');
+ const publication=structuredClone(snapshot);for(const e of publication.page.events)if(e.table==='messages')e.data.at=43;
+ ok(await core.call(publication));
+ assert.deepEqual((await debt(core)).groups,state.groups,'old compiled rows cannot enter new manifest debt');
  ok(await core.call({op:'adopt',backend}));
  const adopted=await debt(core);assert.deepEqual(adopted.groups,state.groups);
  assert.equal(adopted.bindings[0].group,'conversationId');

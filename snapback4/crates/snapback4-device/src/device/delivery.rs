@@ -61,7 +61,7 @@ fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
         }
         let table = binding["table"].as_str().unwrap_or("");
         let mutation = binding["mutation"].as_str().unwrap_or("");
-        retain(&mut state["groups"], &mut |_, group| group["binding"]["table"] != table || group["binding"]["mutation"] != mutation);
+        retain(&mut state["groups"], &mut |_, group| group["binding"]["fingerprint"] != binding["fingerprint"]);
         if let Some(cursors) = state["cursors"].as_object_mut() { cursors.remove(&encoded(&(table, mutation))?); }
         retain(&mut state["retired"], &mut |key, _| {
             let parts: Vec<String> = decoded(key).unwrap_or_default();
@@ -116,7 +116,8 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
             "group":group,"incarnation":incarnation,"collected":incarnation,"ready":incarnation,"owed":[],"reported":[],"refused":refused,
             "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
-    if state["groups"][&key]["saturated"] == true { return Ok(true); }
+    // An older compiled generation must not collect into a newer manifest binding.
+    if state["groups"][&key]["binding"]["fingerprint"] != binding.fingerprint || state["groups"][&key]["saturated"] == true { return Ok(true); }
     // Activation pauses before a collection could displace an owed or parked
     // run. A publication retains its ordinary bounded under-reporting policy.
     let debt = &state["groups"][&key];
