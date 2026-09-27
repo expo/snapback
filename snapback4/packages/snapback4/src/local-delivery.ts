@@ -131,9 +131,9 @@ export function localDelivery(env: Environment) {
   return {
     open,
     get enabled() { return enabled; },
-    async accept(manifest: unknown, publish: () => boolean = () => true) {
+    async accept(manifest: unknown, current: () => boolean = () => true) {
       if (!Array.isArray(manifest) || !manifest.length || stopped) return;
-      await open(true); if (!stopped) await queue.accept(manifest, publish);
+      await open(true); if (!stopped) await queue.accept(manifest, current);
     },
     published() { if (enabled) { queue.published(); scheduleEnumeration(0); } else void open().catch(() => {}); },
     available() { if (enabled) { queue.available(); scheduleEnumeration(0); } },

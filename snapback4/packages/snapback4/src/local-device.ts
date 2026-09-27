@@ -11,6 +11,10 @@ export const deliveryCommit = Symbol.for("snapback4.deliveryCommit");
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  /** Conditional collection CAS. Recheck current after host waits and at the
+   * atomic persistence commit. A stale attempt succeeds without writing; a
+   * CAS conflict returns { ok: false } for a freshly fenced retry. A host
+   * without this capability omits supplementary fallback collections. */
   [deliveryCommit]?(request: Record<string, unknown>, current: () => boolean): Promise<Record<string, unknown>>;
   /** Internal web capabilities. Adapters must forward all properties (including
    * symbols) with {...core} before overriding methods. */
