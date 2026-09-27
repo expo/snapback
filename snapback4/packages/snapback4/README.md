@@ -47,7 +47,6 @@ table profiles:
   immutable principal
   cap 1 by principal
   sync to .principal
-
 table handles:
   principal: principal
   handle: text 3..20 format handle
@@ -171,17 +170,88 @@ hooks work under `AppProvider`; online mutations persist their IDs and arguments
 their durable outbox. Pending writes stay with their original account. A terminal `sent` receipt confirms execution;
 `failed` carries the refusal.
 
+Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged
+arguments:
+
+```ts
+import { mintId } from "snapback4/client";
+const intent = { id: mintId(), args: { handle: "alice" } };
+await client.mutate(api.saveProfile, intent.args, { id: intent.id });
+```
+
+A fixture label or a fresh ID on every retry does not identify that same intent. For a local send that queues without
+predicting a message, render its arguments from `await client.pendingWrites()` until it settles.
+
 ### 5. Export an offline shell, then verify
 
 `npm run build:web` in the Expo starter runs `expo export -p web` followed by `snapback4 web-shell dist`. The Vite
 starter's `npm run build` ends with the same command. For an existing export, run `npx snapback4 web-shell dist --base
-/` and serve that directory over HTTPS (localhost also works). Every exported file is public shell content; keep exports
-nonpersonalized. The worker never caches API responses or assets from the backend. A replacement waits for old tabs to
-close.
+/` and serve that directory over HTTPS (localhost also works). Every exported file is public shell content; keep
+exports nonpersonalized. The worker never caches API responses or assets from the backend. A replacement waits for old
+tabs to close.
 
-Sign up, save a profile and view its avatar, reload, then open the acquired profile with the network off for a cold-offline
-start. Reconnect to settle pending writes. Browser eviction can remove offline availability; `client.acquired` states
-whether the replica is ready. Defer feeds, search, schedules and server handlers until those features are needed.
+Sign up, save a profile and view its avatar, reload, then open the acquired profile with the network off for a cold-offline start. Reconnect to settle pending writes. Browser eviction can remove offline availability; `client.acquired`
+states whether the replica is ready. Defer feeds, search, schedules and server handlers until those features are
+needed.
+
+### 6. Add a thread without losing its history
+
+Keep the conversation and its messages with `retain delivered-history`. Pin the screen by conversation ID; the inbox
+depends on membership and drops that row when its member row is deleted. The bare history is an ordinary query with no
+membership `require`: table rules still protect every server read. The local client asks the server before acquisition
+or beyond coverage, and keeps a left group's retained rows local, offline and online, through remount and reopen. An
+online-only client cannot recover those retained rows.
+
+```quarry
+table conversations:
+  title: text <=120
+  creator: principal
+  read <- exists members[.id, viewer]
+  insert <- .creator = viewer
+  after insert <- exists members[conversation = .id, principal = .creator]
+  retain delivered-history
+  sync to members[.id]
+table members:
+  conversation: conversations
+  principal: principal
+  unique conversation, principal
+  cap 50 by conversation
+  immutable conversation, principal
+  read <- exists members[.conversation, viewer]
+  insert <- created conversations[.conversation] or exists members[.conversation, viewer]
+  delete <- .principal = viewer
+  sync to members[.conversation]
+table messages:
+  conversation: conversations
+  sender: principal
+  text: text <=2000
+  at: time
+  search text
+  immutable conversation, sender, at
+  read <- exists members[.conversation, viewer]
+  insert <- .sender = viewer and exists members[.conversation, viewer]
+  retain delivered-history
+  sync to members[.conversation] last 500 by .at
+query conversationScreen(conversation: conversations):
+  return conversations[conversation]
+query inbox(c: cursor ?):
+  return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
+query history(conversation: conversations, c: cursor ?):
+  return messages where .conversation = conversation last 20 by .at after c
+query searchHeld(q: text <=100, c: cursor ?) held:
+  return messages matching q last 20 by .at after c
+```
+
+Render receipts, profiles, quotes and reactions from their own queries beside history so a decoration that loads or
+refuses does not take the page with it. The [receipts
+card](https://github.com/ccheever/snapback/blob/main/snapback4/crates/snapback4-lang/src/guide/receipts.rs) (`npx snapback4 guide receipts`) gives the complete receipt model and queries. Use `held` only for a read the server cannot
+answer, such as the all-chat word search above. It has no server fallback; HTTP clients receive `E_QUERY_HELD`.
+
+`cap 50 by conversation` is this product's maximum group size, enforced on writes. Choose caps only for actual product
+limits: the engine chooses its own execution bounds, and `sync last 500` bounds acquisition, not how many messages may
+exist.
+
+When adding Following, `view following` owns that name. Name its reader `query home`, as `npx snapback4 guide feeds` shows; a query also named `following` collides with the view.
 
 ## The whole model
 
@@ -192,88 +262,18 @@ mutation commits atomically. A job sweeps; an effect records external work. An a
 (bounded work at any data size), **constant once background cleanup catches up**, or **grows with** a named
 site. A constant verdict proves a degradation rule; timing one measures noise. Cite the verdicts in scale reports.
 
-```quarry
-table notes:
-  owner: principal
-  body: text <=500
-  photo: image <=10000000 ?
-  at: time
-  read <- .owner = viewer
-  insert <- .owner = viewer
-  sync last 100 by .at
-view noteCount: count notes by .owner
-  online only
-query recent(c: cursor ?):
-  return notes where .owner = viewer last 20 by .at after c
-mutation addNote(body: text <=500, photo: image <=10000000 ?):
-  return insert notes { owner: viewer, body, photo, at: now }
-effect reminder
-job remind(periodStart: time, periodEnd: time):
-  for n in notes:
-    if n.at >= periodStart and n.at < periodEnd:
-      emit reminder { recipient: n.owner, note: n.id } once [n.id, periodEnd]
-schedule dailyReminder every 1d: remind
-```
+The page and acquisition sizes describe this screen. Indexes and job chunk sizes are chosen by the engine.
+Streaming aggregates count a domain under the meter; maintained views read stored totals. A cut total is unavailable.
+Jobs run as the system: select the recipient's authorized data before emitting. `once` prevents repeated emission;
+the worker still deduplicates provider delivery. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
 
-The page and acquisition sizes describe this screen. Indexes and job chunk sizes are chosen by the engine. Streaming
-`count(notes where .owner = viewer)` counts a domain under the meter; `noteCount[viewer]` reads the maintained total. A
-cut total is unavailable. Each job iteration runs as the system: select the recipient's authorized data before emitting.
-`once` prevents repeated emission; the worker still deduplicates provider delivery.
-
-Under the `AppProvider` above, use the generated handles:
-
-```tsx
-const notes = usePage(api.recent, {});
-const add = useMutation(api.addNote);
-const asset = useAsset(photoId);
-```
-
-Import these hooks from `snapback4/react`. `usePage` keeps loaded pages while the next loads; it supplies accumulated
+Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
 items, `hasMore`, `loadMore` and read completeness. Both read hooks accept `{ keep: true }`: stale rows, including revoked rows, stay during reload until the next answer/refusal; credential, viewer and store resets still clear them; a remount within 30 seconds joins the lingering live watch with its current snapshot. `useMutation` tracks writes; `useAsset` resolves
-a placed asset. Upload bytes with `client.upload` before passing the asset id to `addNote`. Operations in `schema.q` are
+a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
 
 Public feeds share an activity union. Following delivers it to each reader; Trending ranks a finite time window.
-
-```quarry
-table posts:
-  author: principal
-  at: time
-  score: int default 0
-  immutable author, at
-  public
-  insert <- .author = viewer
-  sync public
-table reposts:
-  actor: principal
-  post: posts
-  at: time
-  unique actor, post
-  immutable actor, post, at
-  public
-  insert <- .actor = viewer
-  delete <- .actor = viewer
-  sync public
-table follows:
-  follower: principal
-  followed: principal
-  unique follower, followed
-  immutable follower, followed
-  public
-  insert <- .follower = viewer
-  delete <- .follower = viewer
-  sync public
-view activity:
-  posts { post: .id, actor: .author, at, repost: false }
-  reposts { post, actor, at, repost: true }
-view following: activity where .actor = viewer or exists follows[viewer, .actor]
-query global(c: cursor ?):
-  return activity last 20 by .at after c
-query home(c: cursor ?):
-  return following last 20 by .at after c
-query trending(c: cursor ?):
-  return posts where .at > now - 1d and .at <= now last 10 by .score, .at after c
-```
+See `npx snapback4 guide feeds` for the complete tested program.
 
 ## Reference map: open only what the feature needs
 

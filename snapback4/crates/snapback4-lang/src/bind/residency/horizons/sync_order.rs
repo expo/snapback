@@ -8,7 +8,12 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
     let mut notes = Vec::new();
     for bound in programs.iter().filter(|bound| bound.program.kind == ProgramKind::Query) {
         let Some(fact) = schema.operations.get(&bound.program.name).filter(|fact| fact.runs.as_deref() == Some("device")) else { continue; };
+        // @ref LLP 3000.021#3.1 — the generated empty-needle branch belongs to the held word search, whose order cannot certify horizon coverage.
+        let held_words: BTreeSet<_> = ir::scans(&bound.program).into_iter().filter(|scan| fact.held
+            && schema.tables.get(&scan.table).and_then(|table| table.index(&scan.index)).is_some_and(|index| index.word_component().is_some()))
+            .map(|scan| scan.site.clone()).collect();
         for scan in ir::scans(&bound.program).into_iter().filter(|scan| !scan.existence) {
+            if held_words.contains(&scan.site) { continue; }
             let Some(table) = schema.tables.get(&scan.table) else { continue; };
             // Word search and whole-domain aggregates have separate coverage
             // requirements: changing their page order cannot establish them.

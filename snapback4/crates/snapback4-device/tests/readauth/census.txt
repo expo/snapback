@@ -505,9 +505,6 @@ package/CLIENT-AND-OPERATIONS/1:createProfile | never
 package/README/1:placeAvatar | eligible
 package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 package/README/1:saveProfile | never
-package/README/2:addNote | eligible
-package/README/2:addNote | noteCount/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-package/README/2:addNote | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 package/SERVER/1:checkin | never
 package/SERVER/1:createRoom | eligible
 package/SERVER/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
