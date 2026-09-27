@@ -69135,3 +69135,50 @@ syntax/API, auth/expiry/meter weakening, original GS store writes, shared
 path tool installation, push or publication. Binaryen experimentation stayed
 under this worktree's target directory and was not adopted. Local commits
 carry the required co-author trailer.
+
+
+## 2026-09-27 — lane GS round 4: heap boundaries and default ownership
+
+Read both complete round-3 reviews and the earlier lane prompts/reports;
+merged `origin/main` first as `0dd5eed43`, preserving both sides of the journal
+conflict. Implementation `39f3998dd` converts compact heap failures after
+buffering, result reservation and the compiler's generated assignment to
+E_SEARCH_OPEN. Examined/index/probe drains retain their existing continuations.
+Default materialization is prepaid before copying, then transferred to the
+retained row charge. Public witness defaults are charged before materialization
+and covered by a schema-only reservation around protected authorization scopes.
+Carriage-return literals withhold diagnostic repairs; calendar repairs execute
+on both sides of day/hour/bucket offset boundaries.
+
+Added both tiny-payload reproductions, three stored 1.9–2.2 MB payload cases,
+638 heap ceilings (complete page or explicit refusal), the 3.6 MB default
+case, the 64 KiB public-witness case and an allocation-sensitive witness
+lifetime test. At 64 KiB the public default refuses after allocating 133 bytes;
+at 3.6 MB its full value allocates 1,000,812 bytes under a 1,003,016-byte ledger
+peak. All seven negative controls fail at assertions; source restoration is
+byte-checked. Whole core 149 passed / one existing ignored, membership 20/20,
+certificate 7/7, shared server search 17/17, whole device 436 passed / one
+existing ignored (including 50 shared search fixtures), census 81/81, merge
+11/11, whole guide 86/86; docs budget and reference audit pass.
+
+The merged baseline measures 1,983,525 raw / 573,173 gzip bytes, 332 above
+the unchanged 572,841-byte wasm budget. Equivalent disclosure/pricing loops
+and removing the temporary default vector reduce the final artifact to
+**1,982,267 raw / 572,803 gzip bytes**, 38 below budget. The original image stays
+available for visibility decisions; the existing materialization prepay covers
+its possible map copy. No runtime ceiling or feature is disabled.
+
+Ran `scripts/test.sh` once on `39f3998ddaafad1f0ef114486c93e534f2dbed8c`:
+**`== 0 failure(s) in 1381 s`**, exit **0**. Full Rust **3,991 passed / 24
+existing ignored**, client files plus shards **2,701 passed / 10 existing
+skips**, and serial client models **78/78**. Every full-suite failure: none
+(yours 0; baseline 0; environmental 0). The inherited 60-second target remains
+exceeded; no timeout, seed count or assertion was relaxed. Source stayed fixed
+through the full run. The report, full compressed log, exact summary, source and
+artifact hashes are in `reports/20260927-gs-global-search-round4/`.
+
+Kept LLP 3000.024's one-read Decision, cursor format and meter/wasm budgets.
+No saved search session or multi-request continuation. No original GS store
+opened or modified, tools installed, shared paths changed, push or publication.
+Only this lane's old ignored incremental build cache was removed for disk space.
+Local commits carry the required co-author trailer.
