@@ -31,9 +31,16 @@ impl Binder<'_> {
             A::Name { name, .. } if matches!(name.as_str(), "now" | "commit" | "new") => None,
             A::Name { .. } | A::Member { .. } | A::Focal { .. } => {
                 let (root, path) = control::field_path(value, self.focal.as_ref().map(|(name, _)| name.as_str()))?;
-                let binding = self.binding(&root)?;
-                roots.insert(root);
-                Some(Stable::Snapshot(binding.runtime.clone(), path))
+                let runtime = if let Some(binding) = self.binding(&root) {
+                    roots.insert(root.clone());
+                    binding.runtime.clone()
+                } else {
+                    // A shape's implicit row is an immutable lexical snapshot.
+                    // Its unique runtime identity separates projection scopes;
+                    // with no mutable argument roots, use the constant anchor.
+                    self.focal.as_ref().filter(|(name, _)| name == &root)?.0.clone()
+                };
+                Some(Stable::Snapshot(runtime, path))
             }
             A::Call { name, args, .. } => {
                 let function = self.catalog.functions.get(name)?;

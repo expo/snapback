@@ -73,12 +73,7 @@ names, snapshot field paths, literals, or such calls. Pure helpers read no
 tables or clocks and write nothing. Reassigning any argument root invalidates
 the fact. Other calls keep the bind-once rewrite. Both calls remain metered.
 
-```quarry
-fn optionalOffset(setting: text): 60000 if setting = 'short' else null
-query expirationTime(setting: text):
-  return now + optionalOffset(setting) if optionalOffset(setting) != null else null
-```
-
+See the executable `expiryTtl` example in `guide language`.
 
 `text` defaults to `text <=10000` characters in columns, arguments and helper
 parameters. Write `text <=N` or `text M..N` when the bound is a product rule;

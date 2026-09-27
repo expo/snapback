@@ -84,3 +84,21 @@ fn reassignment_and_loop_carries_invalidate_every_argument_dependency() {
         refused(&format!("fn number(n: int): 1 if n > 0 else null\nfn pair(a: text, b: text): 1 if a = b else null\nquery run():\n  {body}\n"));
     }
 }
+
+#[test]
+fn implicit_shape_and_aggregate_snapshots_narrow_without_leaking_facts() {
+    let helper = "fn optional(n: int): 1 if n > 0 else null\n";
+    for (expression, expected) in [
+        ("rows { result: optional(.n) + 1 if optional(.n) != null else null }",
+            serde_json::json!([{"result":2},{"result":null}])),
+        ("max(rows, optional(.n) + 1 if optional(.n) != null else null)", serde_json::json!(2)),
+    ] {
+        let b = checked(&format!("{helper}query run():\n  rows = [{{ n: 1 }}, {{ n: 0 }}]\n  return {expression}\n"));
+        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let result = engine.query("run", Context::new("alice", BTreeMap::new())).unwrap();
+        assert!(result.complete);
+        assert_eq!(wire::to_json(&result.data), expected);
+    }
+    refused(&format!("{helper}query run():\n  c = {{ a: 1, b: 0 }}\n  return optional(c.b) + 1 if optional(c.a) != null else null\n"));
+    refused(&format!("{helper}query run():\n  rows = [{{ n: 1 }}, {{ n: 0 }}]\n  return rows {{ guarded: optional(.n) + 1 if optional(.n) != null else null, unguarded: optional(.n) + 1 }}\n"));
+}
