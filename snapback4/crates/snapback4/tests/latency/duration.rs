@@ -17,7 +17,7 @@ fn get(host: &Host, path: &str, body_length: usize) -> BufReader<TcpStream> {
     write!(stream, "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{PERSONA}Content-Length: {body_length}\r\n\r\n").unwrap();
     BufReader::new(stream)
 }
-fn head(reader: &mut BufReader<TcpStream>) -> String {
+fn head<R: Read>(reader: &mut BufReader<R>) -> String {
     let mut head = String::new();
     loop {
         let mut line = String::new();
@@ -150,32 +150,29 @@ fn latency_panicking_handler_excludes_withheld_request_body_cleanup() {
     assert!(total < arrived.as_secs_f64() * 1000.0 + 50.0, "panic cleanup entered total: {result}");
 }
 
-// Constrain real TCP buffers before connecting, so final response writes block
-// when the client stops reading. Shared by JSON and held-poll regressions.
-fn constrained_socket() -> (Server, TcpStream) {
-    use std::os::fd::{AsRawFd, FromRawFd};
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let buffer: libc::c_int = 1024;
+// Darwin's loopback TCP handshake raises 1 KiB buffers to 65/326 KiB.
+// Unix sockets exercise the same HTTP writers and honor these bounds, keeping
+// the JSON response below tiny_http's chunking threshold on every host.
+fn constrained_socket() -> (Server, std::os::unix::net::UnixStream) {
+    use std::os::{fd::AsRawFd, unix::net::{UnixListener, UnixStream}};
+    static SERIAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let path = std::env::temp_dir().join(format!("sb4-lt-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+    let listener = UnixListener::bind(&path).unwrap();
     let set_buffer = |fd, option| {
+        let buffer: libc::c_int = 1024;
         assert_eq!(unsafe { libc::setsockopt(fd, libc::SOL_SOCKET, option, (&buffer as *const libc::c_int).cast(), std::mem::size_of_val(&buffer) as _) }, 0);
+        let mut actual: libc::c_int = 0;
+        let mut length = std::mem::size_of_val(&actual) as libc::socklen_t;
+        assert_eq!(unsafe { libc::getsockopt(fd, libc::SOL_SOCKET, option, (&mut actual as *mut libc::c_int).cast(), &mut length) }, 0);
+        assert!(actual > 0 && actual <= 4096, "kernel did not constrain socket buffer: {actual}");
+        actual
     };
-    set_buffer(listener.as_raw_fd(), libc::SO_SNDBUF);
-    let address = listener.local_addr().unwrap();
+    let send = set_buffer(listener.as_raw_fd(), libc::SO_SNDBUF);
+    let reader = UnixStream::connect(&path).unwrap();
+    let receive = set_buffer(reader.as_raw_fd(), libc::SO_RCVBUF);
+    assert!(send + receive < 16 * 1024, "the response must exceed both buffers");
     let server = Server::from_listener(listener, None).unwrap();
-    let fd = unsafe { libc::socket(libc::AF_INET, libc::SOCK_STREAM, 0) };
-    assert!(fd >= 0);
-    assert_eq!(unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) }, 0);
-    let reader = unsafe { TcpStream::from_raw_fd(fd) };
-    set_buffer(reader.as_raw_fd(), libc::SO_RCVBUF);
-    // Set the receive window before the handshake; changing it afterwards can
-    // leave the peer enough previously advertised credit for the entire reply.
-    let mut target: libc::sockaddr_in = unsafe { std::mem::zeroed() };
-    #[cfg(target_os = "macos")]
-    { target.sin_len = std::mem::size_of_val(&target) as _; }
-    target.sin_family = libc::AF_INET as _;
-    target.sin_port = address.port().to_be();
-    target.sin_addr.s_addr = u32::from_ne_bytes([127, 0, 0, 1]);
-    assert_eq!(unsafe { libc::connect(reader.as_raw_fd(), (&target as *const libc::sockaddr_in).cast(), std::mem::size_of_val(&target) as _) }, 0);
+    std::fs::remove_file(path).unwrap();
     reader.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     (server, reader)
 }
@@ -196,7 +193,9 @@ fn latency_small_json_total_includes_blocked_socket_write() {
         respond(request, 200, answer);
     }));
     let mut first = [0]; reader.read_exact(&mut first).unwrap();
+    assert!(!worker.is_finished(), "the response write must still be blocked");
     thread::sleep(Duration::from_millis(200));
+    assert!(!worker.is_finished(), "the socket absorbed the response without reads");
     let mut bytes = first.to_vec(); reader.read_to_end(&mut bytes).unwrap();
     worker.join().unwrap();
     let response = String::from_utf8(bytes).unwrap();
@@ -245,9 +244,14 @@ fn latency_held_poll_total_includes_blocked_final_frame_write() {
     // after these tables are seeded; no substitute responder or clock is used.
     let tables: Vec<_> = (0..160).map(|n| format!("table{n}_{}", "x".repeat(96))).collect();
     let source = format!("{SOURCE}{}", tables.iter().map(|name| format!("table {name}:\n  n: int\n  public\n")).collect::<String>());
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &source);
+    let host = Host::with_store(false, snapback4_core::Store::memory().unwrap(), &source);
+    let session = {
+        let engine = lock(&host.shared.engine);
+        snapback4_core::identity::guest(engine.store(), host.shared.now(), &mut 1).unwrap()
+    };
+    let token = &session.token;
     let (server, mut stream) = constrained_socket();
-    write!(stream, "GET /changes?wait=25&heartbeat=1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{PERSONA}Content-Length: 0\r\n\r\n").unwrap();
+    write!(stream, "GET /changes?wait=25&heartbeat=1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {token}\r\nContent-Length: 0\r\n\r\n").unwrap();
     let request = server.recv().unwrap();
     let sample = latency::Sample::new(&request, &host.shared.latency).unwrap();
     let shared = host.shared.clone();
@@ -263,7 +267,9 @@ fn latency_held_poll_total_includes_blocked_final_frame_write() {
         host.shared.durable_committed(&engine);
     }
     let mut first = [0]; reader.read_exact(&mut first).unwrap();
+    assert!(!worker.is_finished(), "the response write must still be blocked");
     thread::sleep(Duration::from_millis(200));
+    assert!(!worker.is_finished(), "the socket absorbed the response without reads");
     let mut bytes = first.to_vec(); reader.read_to_end(&mut bytes).unwrap();
     worker.join().unwrap();
     let frame = String::from_utf8(bytes).unwrap();
@@ -273,7 +279,8 @@ fn latency_held_poll_total_includes_blocked_final_frame_write() {
     assert_eq!(&payload[length..], "\r\n0\r\n\r\n");
     let reply: Json = serde_json::from_str(&payload[..length]).unwrap();
     assert_eq!(reply["tables"].as_array().unwrap().len(), tables.len());
-    let result = counted(&host, "/changes", 1);
+    let result = serde_json::to_value(host.shared.latency.snapshot(false)).unwrap();
+    assert_eq!(result["operations"]["/changes"]["n"], 1);
     let total = result["operations"]["/changes"]["total"]["max"].as_f64().unwrap();
     println!("held poll final frame {length}B; socket reads held 200ms: total={total:.3}ms");
     assert!(total >= 200.0, "final frame write missing from total: {result}");
