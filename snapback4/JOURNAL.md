@@ -68039,3 +68039,48 @@ Wasm 1,981,512 B raw / 572,053 B gzip under 572,841; runtime delta 0 B.
 timeout; both pass together in isolation (2/2). Cause not established; no test
 or deadline changes. All other phases pass. Full report, raw measurements,
 reproduction commands and failure records: reports/20260927-gs-global-search/.
+
+### 2026-09-27 — Lane GS round 1: compact one-read membership search
+
+Implemented the supervisor's narrowed LLP 3000.024 Decision in b2d8b2957:
+stream authorized compact membership keys, retain one authorized order head
+per scope, bound inner word expansion by rescanning and charging repeated
+work, and materialize emitted hit rows/shapes. Selected-field SQLite decode
+stays inside the ordinary declared reservation and row/field/expiry boundary.
+Inherited-parent reads and specialized view merges keep their existing path;
+a denied live parent cannot authorize enumeration of retained child words.
+Opening refuses E_SEARCH_OPEN with an authorized count (explicit lower bound
+when discovery is unfinished), the exhausted resource/ceiling and grouped
+rewrite. No ordinary cursor for unfinished opening; live drain/shape rules
+remain. Check/--cost separately classify unscoped search, opening, word work
+and per-hit group decoration including inlined searchPeers; all codes have
+sites, rewrites and why entries. The search_all card shrinks 147 → 89 lines.
+
+Dense one-word, 30-hit/chat synthetic first and continuation pages complete
+through 4,076 memberships: 8,192 examined, 11,006,689 / 14,106,138 heap B,
+2,131 output B. 4,077 yields 19 hits with next; 4,096 refuses before a first
+hit; 10,000 refuses discovery with a lower bound of 8,192 keys. 1,000 and
+3,000 now complete; 100 chats × 32 overlapping words also completes. On the
+calibration copy, all eight query variants preserve baseline data and cursor
+tokens; this viewer has 100 memberships. Bare heap falls 554,978 → 432,575 B;
+the final DM-only shape costs 785,647 B, while old full peer decoration still
+costs 10,863,931 B. Artificially adding empty chats reaches heap first on
+continuations: bare fits 5,493 memberships, decorated fits 5,317; adjacent
+counts fail. Discovery is therefore the dense-fixture limit, not a universal
+limit. Original DB/WAL/SHM hashes remain unchanged.
+
+Affected search checks pass (6 new runtime, 1 certificate, 17 server, 50 device,
+11 merge); final guard checks also pass 9 read-through / 3 review fixtures;
+final core library 142 pass / 1 ignored; whole guide 86/86. Full
+suite ran once: `== 1 failure(s) in 1468 s`, exit 1. Only failure:
+wasm build, lane-owned. Every other phase passes; no baseline or environmental
+failure. Full-suite wasm was 2,011,380 raw / 580,955 gzip B. Final scoped audit
+checks and rebuild give 2,011,417 raw / 580,877 gzip B: +29,905 raw / +8,824
+gzip against the same-host baseline, 8,036 B over the unchanged 572,841 limit.
+No meter or size budget rises. The size gate remains an integration blocker.
+
+No retained search-work session, multi-pass protocol, snapshot promise, new
+query-state lifetime, push or publication. LLP 3000.024 §4's counterexamples
+remain requirements for a later RFC after real user need. Full file-by-file
+report, measurements, commands, development corrections and exact failure:
+reports/20260927-gs-global-search-round1/REPORT.md.

@@ -11,6 +11,9 @@ pub(super) fn eligible(schema: &crate::schema::Schema, merge: &Merge) -> bool {
     matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding)
         && lane.setup.is_empty() && lane.guard.is_none() && lane.project.is_none()
         && source.take == Bound::Meter && source.filter.is_none()
+        // Retained read-through rows can have a denied live parent. Their word
+        // enumeration keeps the existing private/retained evaluator.
+        && schema.tables[&lane.scan.table].through.is_none()
         && rules::scan_visibility(schema, source).uniform
         && rules::scan_visibility(schema, &lane.scan).uniform
         && matches!(lane.scan.prefix.first(), Some(IndexKeyExpr::Scalar(Expr::Field { base, name: field }))

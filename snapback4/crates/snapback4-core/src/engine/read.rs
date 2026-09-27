@@ -1246,8 +1246,8 @@ impl<'r> Runner<'r> {
     }
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
-        if word.is_none() && membership_search::eligible(self.schema, merge) { return self.merge_memberships(merge); }
         if merge.view.is_some() { return self.merge_view(merge); }
+        if word.is_none() && membership_search::eligible(self.schema, merge) { return self.merge_memberships(merge); }
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
         if rules::lazy_merge(self.schema, merge) {

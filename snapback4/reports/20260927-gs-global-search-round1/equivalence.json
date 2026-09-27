@@ -1,0 +1,114 @@
+{
+  "gsOriginal": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": false,
+    "metered": {
+      "examined": 1,
+      "heap_bytes": 36,
+      "index_entries": 33,
+      "output_bytes": 12,
+      "rows_written": 0,
+      "rule_probes": 55,
+      "steps": 23
+    }
+  },
+  "gsbare": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 141,
+      "heap_bytes": 432575,
+      "index_entries": 141,
+      "output_bytes": 8251,
+      "rows_written": 0,
+      "rule_probes": 140,
+      "steps": 1619
+    }
+  },
+  "gssender": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 161,
+      "heap_bytes": 612643,
+      "index_entries": 141,
+      "output_bytes": 18271,
+      "rows_written": 0,
+      "rule_probes": 140,
+      "steps": 2303
+    }
+  },
+  "gschat": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 161,
+      "heap_bytes": 571095,
+      "index_entries": 141,
+      "output_bytes": 15271,
+      "rows_written": 0,
+      "rule_probes": 160,
+      "steps": 2303
+    }
+  },
+  "gspeers": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 2121,
+      "heap_bytes": 10612359,
+      "index_entries": 141,
+      "output_bytes": 503551,
+      "rows_written": 0,
+      "rule_probes": 160,
+      "steps": 12243
+    }
+  },
+  "gsoriginalFixed": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 2161,
+      "heap_bytes": 10863931,
+      "index_entries": 141,
+      "output_bytes": 520591,
+      "rows_written": 0,
+      "rule_probes": 180,
+      "steps": 12443
+    }
+  },
+  "searchMessages": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 201,
+      "heap_bytes": 785647,
+      "index_entries": 141,
+      "output_bytes": 25711,
+      "rows_written": 0,
+      "rule_probes": 180,
+      "steps": 2983
+    }
+  },
+  "gssenderChat": {
+    "data_identical": true,
+    "cursor_identical": true,
+    "complete": true,
+    "metered": {
+      "examined": 181,
+      "heap_bytes": 693579,
+      "index_entries": 141,
+      "output_bytes": 25291,
+      "rows_written": 0,
+      "rule_probes": 160,
+      "steps": 2363
+    }
+  }
+}

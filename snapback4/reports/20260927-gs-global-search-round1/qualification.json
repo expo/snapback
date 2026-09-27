@@ -1,0 +1,81 @@
+{
+  "summary": "== 1 failure(s) in 1468 s",
+  "exit_code": 1,
+  "implementation_commit": "b2d8b295749b6fb2bb7cfd4df4d0520eda3a72af",
+  "full_suite_log": "target/lane-gs-round1/suite.log",
+  "full_suite_log_sha256": "63962ef967fe2b232f28a00adf18a502001d5a02bb5f5eed15ff3b1fa8ada83b",
+  "failures": [
+    {
+      "phase": "wasm build",
+      "classification": "lane-owned",
+      "suite_raw": 2011380,
+      "suite_gzip": 580955,
+      "suite_over_budget": 8114,
+      "status": "open; unchanged budget"
+    }
+  ],
+  "baseline_failures": [],
+  "environmental_failures": [],
+  "final_wasm": {
+    "raw_bytes": 2011417,
+    "gzip_bytes": 580877,
+    "sha256": "61b886bd27b1b3d95379491e196b171def771d8ce85d993d5600a63cd1577f31",
+    "budget": 572841,
+    "over_budget": 8036,
+    "delta_raw": 29905,
+    "delta_gzip": 8824,
+    "baseline_raw": 1981512,
+    "baseline_gzip": 572053
+  },
+  "checks": {
+    "new-tests-final": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s",
+    "certificate-unit-final": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.00s",
+    "sim-global-final": "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 69.53s",
+    "device-global-final": "test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 111.18s",
+    "search-merge-final": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s",
+    "core-final": "test result: ok. 142 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.40s",
+    "guide-final": "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.51s",
+    "search-guard-final": [
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s",
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s"
+    ],
+    "through-guard-final": [
+      "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s",
+      "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s"
+    ]
+  },
+  "toolchain": {
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "wasm_bindgen": "0.2.127",
+    "bun": "1.3.14",
+    "node": "v24.13.1"
+  },
+  "scope_note": "The suite ran once during final audit. Final focused checks cover the restricted compact-consumer preflight, parent/view eligibility guards, final CLI diagnostic/refusal wording and guide routing, and additional meter assertions. Final Wasm was rebuilt separately.",
+  "final_source_sha256": {
+    "snapback4/crates/snapback4-core/src/engine/authorized_point.rs": "4c122a36c19cb27d4afd0d9ad0d6de8ccc17bc73406f08fbd400ae2780287032",
+    "snapback4/crates/snapback4-core/src/engine/authorized_scan.rs": "cd4b90f3f3895a025c8aad69bbe89b22a7724d9c49df5411609ad9ea39745fc1",
+    "snapback4/crates/snapback4-core/src/engine/extrema.rs": "bea02803f238d49c900c61dbe478b9c0db22d087a2181911cbd4318a7d539ba2",
+    "snapback4/crates/snapback4-core/src/engine/membership_search.rs": "02e7842a6a2632d4d5681369987b200f7471575bbce6ce1183a73b8de63ad3ea",
+    "snapback4/crates/snapback4-core/src/engine/read.rs": "e0b79dc018b380178a5e6e8858e0d564b07498d49d8f830c4562b1329db5c744",
+    "snapback4/crates/snapback4-core/src/engine/row_views.rs": "18fffddebccde2160ed5b29f937642e2cf3104a52adbd1845a95fce59173475b",
+    "snapback4/crates/snapback4-core/src/engine/word_merge.rs": "90250a3e972ae121e5e7116bd22a54d07d1741019fb2b1a188768a357873a136",
+    "snapback4/crates/snapback4-core/src/error.rs": "af0b3ad73f2a433fda619b2b65f8964c0bd108df7354254cbf6beec0cc34f988",
+    "snapback4/crates/snapback4-core/src/rows.rs": "995e6f0ca7cea42f730cd03a400d2685e3f38bff7c7b0a1f29083d5091b35773",
+    "snapback4/crates/snapback4-core/src/store.rs": "91ac1bc80eaa4e9ba8ebb12bdaf5735f57b8025a947e573f973871c370578027",
+    "snapback4/crates/snapback4-core/src/store/selected.rs": "0d7c92466cbd70c116549be69444d4782a747647e10b0807585c8e1ffe8c15dd",
+    "snapback4/crates/snapback4-lang/src/bind/mod.rs": "02bef4a50f507fc5d7c1c643997a0e84a61338470e6c603486116a0ae9ce2443",
+    "snapback4/crates/snapback4-lang/src/diag.rs": "58d342a833e6cd631c5e6e9ab9957ae13387243614d68abc26f6dd24dcfcc9c0",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "48281154c27dde32f4e1f37e6d3a21815b8fde978f9b8b0e6452348382338342",
+    "snapback4/crates/snapback4-lang/src/guide/why.rs": "eaf75ccf301f206d2fd164dc1e7c23f8fb24fcada457a634f197ab2f704f47d9",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "a44d99ccd020c132871af0841d3dbeaeae1c7ab01adbd0ef1eee30e6f4cbdaeb",
+    "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs": "b4ef0d4afb4e801745fd3acecf5d1def145b36fd72c3e083fdbdd22d72767cdc",
+    "snapback4/crates/snapback4-sim/tests/membership_search.rs": "0583f3a22e68f136d7ced13f97cac447489925f099375ca7403964b6de2fa0b6",
+    "snapback4/crates/snapback4-sim/tests/search_global/forms.rs": "e0b814164eabe9f865eea2cb3109c65d12bc27da13bd4e0e66ebedb44d8dcf97",
+    "snapback4/crates/snapback4/examples/gs_search_probe.rs": "d3ee945df0b854308b36cd8e71e943410582f40e2a156ccc733cd49b4f7184e9",
+    "snapback4/crates/snapback4/src/scale.rs": "f6d9615f5c9f9689b89e736b860a6253c0f26722c21d23f3267a902539e15424",
+    "snapback4/crates/snapback4/src/scale/search.rs": "59e0eb8981e4e9c65c019458ebe1e24b33504d27999d3e38da257b9fc824276b",
+    "snapback4/crates/snapback4/src/serve.rs": "0659ec8a7d6bf517aa9cfaaaacfe680585eaf88d446d0c9f709b7a9d16d3b541",
+    "snapback4/crates/snapback4/src/verbs.rs": "aa16a6f1a9274a137677cc5f970585518ba6d5144b7f3b0a9d1e3346b131866a"
+  },
+  "guard_confirmation": "All reported meters, first/second-page row counts, completeness, next and word-cut state are identical at dense 4076 and across all eight calibration variants after the final eligibility guards."
+}
