@@ -75,6 +75,31 @@ fn read_effect_clock_and_unstable_arguments_keep_the_bind_once_rewrite() {
 }
 
 #[test]
+fn direct_and_transitive_connection_reads_do_not_narrow() {
+    for helpers in [
+        "fn f(): 1 if connected[viewer] > 0 else null\n",
+        "fn connectionCount(): connected[viewer]\nfn f(): 1 if connectionCount() > 0 else null\n",
+    ] {
+        refused(&format!("{helpers}mutation run():\n  return f() + 1 if f() != null else null\n"));
+    }
+}
+
+#[test]
+fn exists_cannot_narrow_across_deleting_the_observed_row() {
+    refused("table notes:\n  n: int\n  public\nfn has(key: notes):\n  return 1 if exists notes[key] else null\nmutation run(key: notes):\n  if has(key) != null:\n    delete notes[key]\n    return has(key) + 1\n  return null\n");
+}
+
+#[test]
+fn direct_and_transitive_minted_ids_do_not_narrow() {
+    for helpers in [
+        "fn f(target: id): 1 if new = target else null\n",
+        "fn mint(): new\nfn f(target: id): 1 if mint() = target else null\n",
+    ] {
+        refused(&format!("{helpers}mutation run(target: id):\n  return f(target) + 1 if f(target) != null else null\n"));
+    }
+}
+
+#[test]
 fn reassignment_and_loop_carries_invalidate_every_argument_dependency() {
     for body in [
         "s = '24h'\n  require windows.ttl(s) != null else ABSENT\n  s = 'never'\n  return windows.ttl(s) + 1",
