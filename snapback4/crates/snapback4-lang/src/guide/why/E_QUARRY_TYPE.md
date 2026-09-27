@@ -36,7 +36,9 @@ and contains no control characters except tab, LF and CR,
 including when both types are optional. This is a static, total widening;
 it adds no runtime conversion. Otherwise give the helper parameter the enum
 type. `(now / 1) * 1000` explicitly scales integer milliseconds; a scaled
-count belongs in an `int` column. Bind an optional helper result once before
-its null guard: repeated calls are separate values.
+count belongs in an `int` column. A repeated pure `fn` call narrows under its null guard when its arguments
+are names, snapshot field paths, literals or such calls. Pure helpers read
+no tables or clocks and write nothing. Other optional calls still need a
+local: bind once, then guard it.
 Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
 lists are heap-bound; a write still validates their actual column lengths.

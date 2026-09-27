@@ -5,6 +5,7 @@ import { pendingChanges } from "./pending-writes.ts";
 const journals = new Map<string, {
   events: ReturnType<typeof pendingChanges>;
   channel: BroadcastChannel | undefined;
+  stopStorage(): void;
   users: number;
 }>();
 
@@ -15,7 +16,15 @@ export function journalChanges(key: string, notify: () => void) {
     const channel = typeof window !== "undefined" && typeof BroadcastChannel !== "undefined"
       ? new BroadcastChannel(key) : undefined;
     if (channel) channel.onmessage = () => events.notify();
-    shared = { events, channel, users: 0 };
+    // @ref LLP 3000.019#3.3 — another tab's broadcast can precede visibility
+    // of its localStorage commit. Re-read again when storage catches up; the
+    // event is only invalidation, never custody or a trusted journal payload.
+    const storageChanged = (event: StorageEvent) => {
+      if (event.key === key || event.key === null) events.notify();
+    };
+    if (typeof window !== "undefined") window.addEventListener?.("storage", storageChanged);
+    const stopStorage = () => { if (typeof window !== "undefined") window.removeEventListener?.("storage", storageChanged); };
+    shared = { events, channel, stopStorage, users: 0 };
     journals.set(key, shared);
   }
   shared.users++;
@@ -39,7 +48,7 @@ export function journalChanges(key: string, notify: () => void) {
     close() {
       if (!active) return;
       active = false; unsubscribe();
-      if (--entry.users === 0) { entry.channel?.close(); journals.delete(key); }
+      if (--entry.users === 0) { entry.channel?.close(); entry.stopStorage(); journals.delete(key); }
     },
   };
 }

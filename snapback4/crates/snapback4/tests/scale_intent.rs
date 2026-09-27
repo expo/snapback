@@ -174,3 +174,26 @@ fn residual_membership_certificate_displays_the_predicate_not_its_initializer() 
     assert_eq!(c.class, Class::Constant);
     assert!(!c.line().contains("skipped by"), "{}", c.line());
 }
+
+#[test]
+fn bounded_concatenation_growth_is_priced_like_push() {
+    fn price(initial: &str, assignment: &str, args: &str) -> u64 {
+        let source = format!("table notes:\n  n: int\n  public\nquery run({args}):\n  xs = {initial}\n  for i in range(0, 5):\n    {assignment}\n  total = 0\n  for i in xs:\n    total = total + count(notes)\n  return total\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let cert = analyze(&bound.schema, &bound.programs[0].program);
+        assert_eq!(cert.class, Class::Grows);
+        cert.bounds.rows_examined
+    }
+    let one_scan = price("[0]", "xs = xs + []", "");
+    let push = price("[]", "xs = xs + [i]", "");
+    assert_eq!(push, 40_965);
+    for assignment in ["xs = [i] + xs", "xs = xs + [i, i]", "xs = [i, i] + xs", "xs = xs + more", "xs = more + xs"] {
+        let width = if assignment.contains("i, i") || assignment.contains("more") { 2 } else { 1 };
+        assert_eq!(price("[]", assignment, "more: [int] <=2"), push * width, "{assignment}");
+        assert_eq!(price("[0]", assignment, "more: [int] <=2"), one_scan + push * width, "{assignment}");
+    }
+    assert_eq!(price("[1]", "xs = xs + xs", ""), 8_193_000_000);
+    // A later arbitrary assignment still invalidates the census.
+    assert_eq!(price("[]", "xs = [i] + xs\n    xs = xs + xs", ""), 8_193_000_000);
+}
