@@ -17,7 +17,8 @@ All paths below are relative to `snapback4/`.
 
 | File | Change |
 |---|---|
-| `crates/snapback4-core/src/schema.rs` | Shared `DeliveryBinding` and optional `Schema.delivery` representation for the agreed producer/consumer interface. No compiler implementation. |
+| `crates/snapback4-core/src/schema.rs` | Optional `Schema.delivery` and the shared binding re-export for the agreed producer/consumer interface. No compiler implementation. |
+| `crates/snapback4-core/src/schema/delivery.rs` | Shared `DeliveryBinding`, split out to keep `schema.rs` at 1,497 lines. |
 | `crates/snapback4-core/src/schema/capabilities.rs` | Defaulted/omitted empty delivery field in the existing schema codec. |
 | `crates/snapback4-device/src/call.rs` | Internal `delivery` operation and effective local time handoff. |
 | `crates/snapback4-device/src/device.rs` | Candidate collection around publication and all committing restore/replay paths; effective delivery time. |
@@ -95,7 +96,7 @@ Targeted device run: **16 passed, 0 failed**. Each scenario runs once on
 memory and once on SQLite:
 
 - `publication_*`: no staged collection; terminal promotion; exact gaps;
-  no collection of put/delete or already-expired rows; CAS conflicts cannot
+  no collection of put/delete, expired or numerically unsafe positions; CAS conflicts cannot
   overwrite publication debt; restart durability; scope drops debt.
 - `activation_*`: a 500-raw-row page yielding no eligible rows still advances;
   restart resumes the cursor; the second binding enumerates independently;
@@ -158,7 +159,7 @@ Every failure is **lane-owned**; none is classified baseline or environmental:
 
 | Gate / failing test | Cause and final disposition |
 |---|---|
-| wasm build | Initial full-run artifact 591,775 B gzip exceeded 572,841. Final artifact is 592,029 B; still blocked. |
+| wasm build | Initial full-run artifact 591,775 B gzip exceeded 572,841. Final artifact is 592,035 B; still blocked. |
 | cargo: `snapback4-lang::routes::generated_route_handlers_typecheck_against_the_real_runtime` | `DeliveryGroup` inference depended on `noUncheckedIndexedAccess`; explicit optional type fixes it. All 9 route tests pass. |
 | client: `wasm: a paged upgrade restore halts follow and flush` | Wrapping the serial network promise in `finally` changed its completion ordering. Preserve the original returned promise and observe its settlement separately. Native and wasm affected rechecks pass; the unmodified base also passed, confirming this was ours. |
 | client: `closing a pending watch prevents its response from scheduling expiry or rerunning dirty work` | Queue armed the ten-minute timer even without delivery state. Arm when state exists/arrives. Affected recheck passes. |
@@ -185,10 +186,10 @@ Same source path, same toolchain and build command, `CARGO_INCREMENTAL=0`:
 | Artifact | Raw bytes | Gzip bytes |
 |---|---:|---:|
 | Clean base `3369ae543` | 1,981,512 | 572,053 |
-| Current implementation | 2,044,323 | 592,029 |
-| Delta | +62,811 | +19,976 |
+| Current implementation | 2,044,359 | 592,035 |
+| Delta | +62,847 | +19,982 |
 
-Budget remains **572,841 B**; the implementation is **19,188 B over**.
+Budget remains **572,841 B**; the implementation is **19,194 B over**.
 `bash scripts/build-wasm.sh` reproduces the failing budget gate.
 The baseline was rebuilt from the base's tracked Rust files temporarily at
 the same path, with all lane source bytes restored in a `finally` block.
@@ -202,6 +203,13 @@ embedded source paths changed its bytes.
   silently replace each other's debt. The schema's optional Rust field is the
   minimum shared representation needed before DS lands; integration should
   keep one definition of `DeliveryBinding`, with the agreed field names.
+- JavaScript queue arguments use numbers. Coordinates outside
+  `[-9007199254740991, 9007199254740991]` are omitted, rather than rounded to an
+  unfetched position. This numeric limit was unspecified by the RFC. Reproduce
+  with `cargo test -p snapback4-device --test delivery publication_`: the
+  publication includes position `9007199254740993`; it produces no debt for
+  that position. Supporting every i64 coordinate needs a separately agreed
+  exact-number wire/host representation; this lane preserves the given wire.
 - `onDeliveryRefused` is a construction option, not a new `Client` method.
   The event carries binding argument **names**, plus group/from/through and
   the server refusal. It does not mint an outbox entry or invoke `onWrite`.

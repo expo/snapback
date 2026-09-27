@@ -72,7 +72,7 @@ fn publication<H:Host>(h:&mut H) {
     d.apply(&last,false).unwrap();assert_eq!(owed(&state(&mut d),"messages"),json!([[1,1],[3,3]]));
     let captured=request(&mut d,"read");
     let mut expired=event(4);expired["data"]["expires"]=json!(1);
-    d.apply(&page(false,vec![event(2),event(5),json!({"table":"messages","kind":"del","id":"m5"}),expired],2),false).unwrap();
+    d.apply(&page(false,vec![event(2),event(5),json!({"table":"messages","kind":"del","id":"m5"}),expired,event(9_007_199_254_740_993)],2),false).unwrap();
     assert_eq!(owed(&state(&mut d),"messages"),json!([[1,3]]));
     assert_eq!(d.delivery(&json!({"viewer":"dev:alice","action":"write","expected":captured["value"],"value":captured["value"]})).unwrap(),json!(false),"a queue callback cannot overwrite published debt");
     h.close("delivery",d);let mut d=h.open("delivery",None).unwrap();assert_eq!(owed(&state(&mut d),"messages"),json!([[1,3]]));

@@ -67838,3 +67838,13 @@ The full wasm path matrix, native process-kill and IndexedDB crash witnesses
 remain unclaimed; the killed-host witness uses real wasm and atomic filesystem
 persistence. See reports/20260927-dc-delivery-client/REPORT.md for every file,
 example, failure, reproduction and remaining integration limit. Not ready to land.
+
+Final lane check correction: the shared DeliveryBinding was split into
+schema/delivery.rs, leaving schema.rs at 1,497 lines. Collection now omits
+coordinates outside JavaScript's exact integer range instead of rounding them
+into an unfetched position (the publication test includes 9007199254740993).
+After that split and guard, the final artifact is 2,044,359 B raw / 592,035 B
+gzip: +62,847 raw / +19,982 gzip against the same clean base, and 19,194 B over
+the unchanged budget. These numbers supersede the pre-split measurement above.
+The 16 device tests pass after the guard; supporting every i64 coordinate needs
+an agreed exact-number representation and is not claimed by this lane.

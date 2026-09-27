@@ -76,6 +76,9 @@ fn add(value: &mut Json, n: i64) {
 fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: String) -> Result<(), RuntimeError> {
     let group = row.field(&binding.group)?.as_str()?;
     let position = row.field(&binding.position)?.as_int()?;
+    // Queue arguments are JavaScript numbers: never round a fetched coordinate
+    // into a different, unfetched position at the host boundary.
+    if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&position) { return Ok(()); }
     let key = group_key(binding, group);
     if state["groups"].get(&key).is_none() {
         if state["groups"].as_object().unwrap().len() >= 4096 {
