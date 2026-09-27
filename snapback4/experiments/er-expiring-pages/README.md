@@ -77,6 +77,8 @@ lowered write; the oracle fixture left two examined units when it needed one.
 All were fixture corrections, not product changes. `prototype-final.log`
 records the first five passing cases; `qualification.log` adds the semantic
 and calibration cases. No failed run was overwritten.
+Committed tool logs trim trailing whitespace; their results and diagnostic
+text are unchanged. The supplied published diagnostic is copied verbatim.
 
 The existing guide still describes the shipped blanket refusal. This branch
 does not update it or its normative blanket-refusal tests: the supervisor

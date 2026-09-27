@@ -71,16 +71,16 @@ ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"count"}
 ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"point"}
 ER_CAP {"live_cap":4,"physical_rows":12,"sweeps":0}
 ok
-test prototype_admits_natural_program_and_preserves_receipts ... 
+test prototype_admits_natural_program_and_preserves_receipts ...
 thread 'prototype_admits_natural_program_and_preserves_receipts' (1272866) panicked at crates/snapback4-lang/tests/er_expiry_research.rs:34:5:
 MutationOutcome { state: Failed { why: Refusal { code: "E_INPUT", family: "input", message: "E_INPUT: natural takes no argument ordinal", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 0, heap_bytes: 0, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 FAILED
-test prototype_refuses_effects_including_serialized_ir_and_site_aliases ... 
+test prototype_refuses_effects_including_serialized_ir_and_site_aliases ...
 thread 'prototype_refuses_effects_including_serialized_ir_and_site_aliases' (1272924) panicked at crates/snapback4-lang/tests/er_expiry_research.rs:78:5:
 assertion failed: check(&alias).is_err()
 FAILED
-test removing_only_the_expiry_guard_discloses_a_retained_ordinal ... 
+test removing_only_the_expiry_guard_discloses_a_retained_ordinal ...
 thread 'removing_only_the_expiry_guard_discloses_a_retained_ordinal' (1272925) panicked at crates/snapback4-lang/tests/er_expiry_research.rs:117:5:
 assertion `left != right` failed: counterexample stopped distinguishing the worlds: [Object {"code": String("STOP"), "meter": Object {"examined": Number(2), "heap_bytes": Number(8869), "index_entries": Number(4), "output_bytes": Number(0), "rows_written": Number(1), "rule_probes": Number(0), "steps": Number(19)}, "retained_ordinal": Number(1)}, Object {"code": String("STOP"), "meter": Object {"examined": Number(1), "heap_bytes": Number(8869), "index_entries": Number(4), "output_bytes": Number(0), "rows_written": Number(1), "rule_probes": Number(0), "steps": Number(19)}, "retained_ordinal": Number(2)}]
   left: String("STOP")

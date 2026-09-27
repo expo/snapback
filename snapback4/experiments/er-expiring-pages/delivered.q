@@ -96,4 +96,3 @@ mutation delivered(conversation: conversations, from: int, through: int): server
       update members[me] { deliveredOrdinal: prefix }
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   return null
-

@@ -107,4 +107,3 @@ test prefix_reads_compile_without_notes_and_caps_follow_one_schema_number ... ok
 test prefix_positions_refuse_with_working_page_rewrites ... ok
 
 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
