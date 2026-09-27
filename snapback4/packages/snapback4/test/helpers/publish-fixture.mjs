@@ -27,7 +27,7 @@ export function publish(t, scenario = {}, previousRoot) {
   writeFileSync(join(root, "mock.mjs"), `
 import cp from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 const root = ${JSON.stringify(root)}, scenario = ${JSON.stringify(scenario)};
@@ -85,6 +85,7 @@ cp.execFileSync = (cmd, args, opts = {}) => {
   }
   if (cmd === "npm" && args[0] === "publish") {
     const tarball = args[1];
+    if (scenario.requireSnapshot && (!tarball.includes("snapback4-publish-snapshot-") || (statSync(tarball).mode & 0o222))) throw Error("publish needs a private read-only snapshot");
     if (scenario.failClientPublish && tarball.endsWith("client.tgz")) throw Error("registry unavailable after platform publish");
     const registry = existsSync(registryPath) ? JSON.parse(readFileSync(registryPath, "utf8")) : {};
     const name = tarball.includes("linux-x64") ? "snapback4-linux-x64" : tarball.endsWith("platform.tgz") ? platform : "snapback4";
@@ -93,11 +94,25 @@ cp.execFileSync = (cmd, args, opts = {}) => {
     return "published";
   }
   if (args[0] === "--version") return "snapback4 0.0.0";
-  if (cmd === "node") return "consumer ok";
+  if (cmd === "node") {
+    if (args[0] === "roundtrip.mjs" && scenario.swapAfterProof) writeFileSync(join(root, "target/publication", platform + "-0.0.0", scenario.swapAfterProof), "swapped after consumer proof");
+    return "consumer ok";
+  }
   return "";
 };
 cp.spawnSync = (cmd, args, opts) => {
   if (cmd === "npm" && args[0] === "view") {
+    if (scenario.swapOnView) {
+      writeFileSync(join(root, "target/publication", platform + "-0.0.0", scenario.swapOnView), "swapped during registry check");
+      delete scenario.swapOnView;
+    }
+    if (scenario.swapSnapshotOnView) {
+      const snapshot = readdirSync(work).find(name => name.startsWith("snapback4-publish-snapshot-"));
+      if (snapshot) {
+        const path = join(work, snapshot, "platform.tgz"); chmodSync(path, 0o600); writeFileSync(path, "swapped snapshot");
+      }
+      delete scenario.swapSnapshotOnView;
+    }
     if (scenario.registryError) return { status: 1, stdout: "", stderr: "E500 registry unavailable" };
     const registry = existsSync(registryPath) ? JSON.parse(readFileSync(registryPath, "utf8")) : {};
     const value = registry[args[1]];

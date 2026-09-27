@@ -76,6 +76,27 @@ test("resume rereads Linux receipt, verifies all bytes, reruns only Darwin, and 
   assert.ok(!r.commands.some(c => c.cmd.includes("linux-x64")));
 });
 
+for (const filename of ["platform.tgz", `${linux}-0.0.0.tgz`, "client.tgz"]) for (const resume of [false, true])
+  test(`a ${resume ? "resumed" : "fresh"} stage swapped after proof refuses before any upload: ${filename}`, t => {
+    const f = prepared(t);
+    if (resume) assert.equal(publish(t, { args: f.args }, f.root).status, 0);
+    const r = publish(t, { args: resume ? [] : f.args, resume, real: true, swapAfterProof: filename }, f.root);
+    assert.notEqual(r.status, 0); assert.match(r.stderr, /integrity/); assert.equal(publications(r).length, 0);
+  });
+
+test("registry-time stage replacement cannot change the private uploaded snapshot", t => {
+  const f = prepared(t), r = publish(t, { args: f.args, real: true, requireSnapshot: true, swapOnView: `${linux}-0.0.0.tgz` }, f.root);
+  assert.equal(r.status, 0, r.stderr);
+  const registry = json(join(f.root, "registry.json"));
+  for (const a of r.record.artifacts) assert.equal(registry[`${a.name}@${a.version}`], a.integrity);
+  assert.ok(publications(r).every(c => c.args[1].includes("snapback4-publish-snapshot-")));
+});
+
+test("snapshot bytes are checked again after registry checks and before upload", t => {
+  const f = prepared(t), r = publish(t, { args: f.args, real: true, swapSnapshotOnView: true }, f.root);
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /integrity/); assert.equal(publications(r).length, 0);
+});
+
 for (const [name, change, message] of [
   ["source", r => r.source = "b".repeat(40), /source\/version\/platform/],
   ["version", r => r.platform.version = "0.0.1", /source\/version\/platform/],

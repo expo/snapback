@@ -480,3 +480,17 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   packed manifest/registry/resume, incompatible prepared client refusal,
   and resume refusal when a dependency is added with updated artifact SRI.
   Publication/signing tests: 61 passed, 0 failed.
+
+- `Publish only receipt-verified private artifact snapshots`: Astra finding 1
+  (High), Grok finding 2 (Medium) and the publish-fixture part of finding 3,
+  round-2 request 2. `publication-registry.mjs` copies all artifacts after
+  proof into a private temporary directory, makes copies read-only and
+  verifies them against loaded receipt digests before any upload. Each
+  `converge` re-verifies immediately after its registry lookup and before
+  `npm publish`; the snapshot is removed on success or refusal. `publish.mjs`
+  retains platform-first ordering and all-artifact registry preflight.
+  Eight new regressions failed before the fix and pass after it: all three
+  stage artifacts swapped after proof in fresh/resumed flows (zero uploads),
+  stage replacement during registry checks (only qualified snapshot bytes
+  uploaded), and snapshot corruption during registry checks (zero uploads).
+  Publication/signing tests: 69 passed, 0 failed.

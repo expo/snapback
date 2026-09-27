@@ -8,7 +8,7 @@ import { signForPublication } from "./signing.mjs";
 import { artifact, cleanSource, clientManifest, digest, json, manifest, platforms, run, save, sqliteBuildFlags, sri, validateLinux, verifyArtifact } from "./publication-artifacts.mjs";
 import { prepareClient, loadPrepared } from "./prepare-client.mjs";
 import { proveDarwin } from "./publication-consumer.mjs";
-import { converge, registryIntegrity } from "./publication-registry.mjs";
+import { converge, registryIntegrity, withPublicationSnapshot } from "./publication-registry.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = join(root, "packages/snapback4"), version = json(join(pkg, "package.json")).version;
 const flags = new Set(["--dry-run", "--resume", "--prepare-client"]), values = new Map();
@@ -105,11 +105,13 @@ finally { rmSync(work, { recursive: true, force: true }); }
 // Verify every registry artifact before the first upload, even if a later one conflicts.
 const artifacts = [...staged.platforms, staged.client];
 if (!dry) {
-  for (const a of artifacts) {
-    const published = registryIntegrity(a.name, a.version);
-    if (published !== undefined && published !== a.integrity) throw new Error(`${a.name}@${a.version} already exists with integrity ${published}; staged artifact is ${a.integrity}`);
-  }
-  for (const a of artifacts) converge(a, root);
+  withPublicationSnapshot(artifacts, snapshot => {
+    for (const a of snapshot) {
+      const published = registryIntegrity(a.name, a.version);
+      if (published !== undefined && published !== a.integrity) throw new Error(`${a.name}@${a.version} already exists with integrity ${published}; staged artifact is ${a.integrity}`);
+    }
+    for (const a of snapshot) converge(a, root);
+  });
 }
 const darwin = staged.platforms[0];
 const compatibility = { tarballBytes: staged.client.bytes, platformTarballBytes: darwin.bytes, tarballIntegrity: staged.client.integrity, platformTarballIntegrity: darwin.integrity, files: staged.client.files, binaryVersion: darwin.binaryVersion, binaryProfile: darwin.binaryProfile, sqliteBuildFlags, cargoProfile: darwin.cargoProfile, platform: "darwin-arm64" };
