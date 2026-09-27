@@ -1,0 +1,6 @@
+== 0 failure(s) in 1434 s
+exit 0
+
+No full-suite failures. Yours: 0. Baseline: 0. Environmental: 0.
+Full run: 140463e43024421d7cac704563970cc98e638b1b.
+The subsequent one-line default-materialization precharge is qualified by the recorded final affected tests and final Wasm gate.

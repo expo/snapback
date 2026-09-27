@@ -134,7 +134,8 @@ mutation delivered(conversation: conversations, from: int, through: int):
     delete runs[run]
   if low <= prefix + 1:
     update members[me] { deliveredOrdinal: high }
-  else if count(runs where .conversation = conversation and .principal = viewer) < 64:
+  else:
+    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   return null
 
@@ -224,8 +225,8 @@ Three things keep every fetched message moving:
   after a page is gone; a report the client could not keep (`E_ADMISSION`)
   goes again with the next answer. When the lowest run it holds lies above
   the prefix, it walks older pages it holds, offline too.
-- **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
-  its report still succeeds; the hook owes it until a merge or catching up
+- **Waiting.** A member keeps at most 64 runs. One more refuses `RUNS_FULL`;
+  the hook owes it until a merge or catching up
   frees room. A reload forgets what is owed: what the pages and the page ahead
   still hold is reported again, and the rest waits for catching up, which
   needs the server.

@@ -1,0 +1,206 @@
+{
+  "search": [
+    {
+      "class": "inner-expansion",
+      "code": "N_SEARCH_WORDS",
+      "guide": "search",
+      "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+      "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+      "site": "programs.searchMessages.2"
+    },
+    {
+      "class": "one-read-opening",
+      "code": "N_SEARCH_OPEN",
+      "guide": "search",
+      "message": "every authorized membership and head must be discovered in each read before a globally newest hit can be emitted; the compact membership form refuses E_SEARCH_OPEN on an opening cut, without a continuation",
+      "rewrite": "use the grouped form in `snapback4 guide search`: page members[principal = viewer] after c with an exists(messages[conversation = .conversation] matching q) filter and a bounded hits preview",
+      "site": "programs.searchMessages.0"
+    },
+    {
+      "class": "per-hit-group-decoration",
+      "code": "N_SEARCH_SHAPE",
+      "guide": "search",
+      "message": "the returned hit shape repeats the group subquery over members per hit, including when an inlined helper performs it; a group roster can dominate heap and output",
+      "rewrite": "return a bare hit page, then read chat/peer details separately once per distinct conversation; remove `peers: searchPeers(.conversation)` from the hit shape",
+      "site": "programs.searchMessages.6"
+    },
+    {
+      "class": "inner-expansion",
+      "code": "N_SEARCH_WORDS",
+      "guide": "search",
+      "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+      "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+      "site": "programs.gsbare.2"
+    },
+    {
+      "class": "one-read-opening",
+      "code": "N_SEARCH_OPEN",
+      "guide": "search",
+      "message": "every authorized membership and head must be discovered in each read before a globally newest hit can be emitted; the compact membership form refuses E_SEARCH_OPEN on an opening cut, without a continuation",
+      "rewrite": "use the grouped form in `snapback4 guide search`: page members[principal = viewer] after c with an exists(messages[conversation = .conversation] matching q) filter and a bounded hits preview",
+      "site": "programs.gsbare.0"
+    },
+    {
+      "class": "inner-expansion",
+      "code": "N_SEARCH_WORDS",
+      "guide": "search",
+      "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+      "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+      "site": "programs.gsoriginalFixed.2"
+    },
+    {
+      "class": "one-read-opening",
+      "code": "N_SEARCH_OPEN",
+      "guide": "search",
+      "message": "every authorized membership and head must be discovered in each read before a globally newest hit can be emitted; the compact membership form refuses E_SEARCH_OPEN on an opening cut, without a continuation",
+      "rewrite": "use the grouped form in `snapback4 guide search`: page members[principal = viewer] after c with an exists(messages[conversation = .conversation] matching q) filter and a bounded hits preview",
+      "site": "programs.gsoriginalFixed.0"
+    },
+    {
+      "class": "per-hit-group-decoration",
+      "code": "N_SEARCH_SHAPE",
+      "guide": "search",
+      "message": "the returned hit shape repeats the group subquery over members per hit, including when an inlined helper performs it; a group roster can dominate heap and output",
+      "rewrite": "return a bare hit page, then read chat/peer details separately once per distinct conversation; remove `peers: searchPeers(.conversation)` from the hit shape",
+      "site": "programs.gsoriginalFixed.5"
+    },
+    {
+      "class": "non-uniform",
+      "code": "N_SEARCH_UNSCOPED",
+      "guide": "search",
+      "message": "unscoped search cannot establish server completeness or a safe continuation through hidden rows",
+      "rewrite": "messages matching q where exists members[.conversation, viewer] last 20 by .at after c; preserve the original filters (for example `not .tombstone`)",
+      "site": "programs.gsOriginal.0"
+    },
+    {
+      "class": "inner-expansion",
+      "code": "N_SEARCH_WORDS",
+      "guide": "search",
+      "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+      "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+      "site": "programs.gsOriginal.0"
+    },
+    {
+      "class": "per-hit-group-decoration",
+      "code": "N_SEARCH_SHAPE",
+      "guide": "search",
+      "message": "the returned hit shape repeats the group subquery over members per hit, including when an inlined helper performs it; a group roster can dominate heap and output",
+      "rewrite": "return a bare hit page, then read chat/peer details separately once per distinct conversation; remove `peers: searchPeers(.conversation)` from the hit shape",
+      "site": "programs.gsOriginal.3"
+    }
+  ],
+  "scale": [
+    {
+      "class": "grows",
+      "operation": "messaging.searchMessages",
+      "search": [
+        {
+          "class": "inner-expansion",
+          "code": "N_SEARCH_WORDS",
+          "guide": "search",
+          "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+          "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+          "site": "programs.searchMessages.2"
+        },
+        {
+          "class": "one-read-opening",
+          "code": "N_SEARCH_OPEN",
+          "guide": "search",
+          "message": "every authorized membership and head must be discovered in each read before a globally newest hit can be emitted; the compact membership form refuses E_SEARCH_OPEN on an opening cut, without a continuation",
+          "rewrite": "use the grouped form in `snapback4 guide search`: page members[principal = viewer] after c with an exists(messages[conversation = .conversation] matching q) filter and a bounded hits preview",
+          "site": "programs.searchMessages.0"
+        },
+        {
+          "class": "per-hit-group-decoration",
+          "code": "N_SEARCH_SHAPE",
+          "guide": "search",
+          "message": "the returned hit shape repeats the group subquery over members per hit, including when an inlined helper performs it; a group roster can dominate heap and output",
+          "rewrite": "return a bare hit page, then read chat/peer details separately once per distinct conversation; remove `peers: searchPeers(.conversation)` from the hit shape",
+          "site": "programs.searchMessages.6"
+        }
+      ]
+    },
+    {
+      "class": "grows",
+      "operation": "messaging.gsbare",
+      "search": [
+        {
+          "class": "inner-expansion",
+          "code": "N_SEARCH_WORDS",
+          "guide": "search",
+          "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+          "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+          "site": "programs.gsbare.2"
+        },
+        {
+          "class": "one-read-opening",
+          "code": "N_SEARCH_OPEN",
+          "guide": "search",
+          "message": "every authorized membership and head must be discovered in each read before a globally newest hit can be emitted; the compact membership form refuses E_SEARCH_OPEN on an opening cut, without a continuation",
+          "rewrite": "use the grouped form in `snapback4 guide search`: page members[principal = viewer] after c with an exists(messages[conversation = .conversation] matching q) filter and a bounded hits preview",
+          "site": "programs.gsbare.0"
+        }
+      ]
+    },
+    {
+      "class": "grows",
+      "operation": "messaging.gsoriginalFixed",
+      "search": [
+        {
+          "class": "inner-expansion",
+          "code": "N_SEARCH_WORDS",
+          "guide": "search",
+          "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+          "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+          "site": "programs.gsoriginalFixed.2"
+        },
+        {
+          "class": "one-read-opening",
+          "code": "N_SEARCH_OPEN",
+          "guide": "search",
+          "message": "every authorized membership and head must be discovered in each read before a globally newest hit can be emitted; the compact membership form refuses E_SEARCH_OPEN on an opening cut, without a continuation",
+          "rewrite": "use the grouped form in `snapback4 guide search`: page members[principal = viewer] after c with an exists(messages[conversation = .conversation] matching q) filter and a bounded hits preview",
+          "site": "programs.gsoriginalFixed.0"
+        },
+        {
+          "class": "per-hit-group-decoration",
+          "code": "N_SEARCH_SHAPE",
+          "guide": "search",
+          "message": "the returned hit shape repeats the group subquery over members per hit, including when an inlined helper performs it; a group roster can dominate heap and output",
+          "rewrite": "return a bare hit page, then read chat/peer details separately once per distinct conversation; remove `peers: searchPeers(.conversation)` from the hit shape",
+          "site": "programs.gsoriginalFixed.5"
+        }
+      ]
+    },
+    {
+      "class": "grows",
+      "operation": "messaging.gsOriginal",
+      "search": [
+        {
+          "class": "non-uniform",
+          "code": "N_SEARCH_UNSCOPED",
+          "guide": "search",
+          "message": "unscoped search cannot establish server completeness or a safe continuation through hidden rows",
+          "rewrite": "messages matching q where exists members[.conversation, viewer] last 20 by .at after c; preserve the original filters (for example `not .tombstone`)",
+          "site": "programs.gsOriginal.0"
+        },
+        {
+          "class": "inner-expansion",
+          "code": "N_SEARCH_WORDS",
+          "guide": "search",
+          "message": "first-term word expansion and further-term misses consume the meter; compact membership search rescans words on each refill and charges repeated work",
+          "rewrite": "use a longer first term (`matching 'coffee'` instead of `matching 'co'`); for membership search, pin one authorized chat before `matching q`; neither proves arbitrary expansion fits",
+          "site": "programs.gsOriginal.0"
+        },
+        {
+          "class": "per-hit-group-decoration",
+          "code": "N_SEARCH_SHAPE",
+          "guide": "search",
+          "message": "the returned hit shape repeats the group subquery over members per hit, including when an inlined helper performs it; a group roster can dominate heap and output",
+          "rewrite": "return a bare hit page, then read chat/peer details separately once per distinct conversation; remove `peers: searchPeers(.conversation)` from the hit shape",
+          "site": "programs.gsOriginal.3"
+        }
+      ]
+    }
+  ]
+}

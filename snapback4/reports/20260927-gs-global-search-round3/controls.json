@@ -1,0 +1,229 @@
+[
+  {
+    "name": "round2",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 33.0,
+    "summaries": [
+      "test result: FAILED. 9 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s"
+    ],
+    "log": "target/lane-gs-round3/control-round2-0.log",
+    "sha256": "56a80c417db278445797bd147da4ccfffe179e2dd0b2557d83484db44dd029d3"
+  },
+  {
+    "name": "round2",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "scale::search"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 39.1,
+    "summaries": [
+      "test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.00s"
+    ],
+    "log": "target/lane-gs-round3/control-round2-1.log",
+    "sha256": "1be8a299902c797647d46a443ec8750555528b55ee3b2b0186e28e6a7c04e27c"
+  },
+  {
+    "name": "round2-24mib",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "oversized_declaration_with_tiny_payload_keeps_existing_complete_answer",
+      "--",
+      "--exact"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 32.56,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.02s"
+    ],
+    "log": "target/lane-gs-round3/control-round2-24mib-0.log",
+    "sha256": "dc53284b6379fbefec8adfd76f929429cfdf99aac7addca974731e9c4a26a42d"
+  },
+  {
+    "name": "head-declaration",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "oversized_declaration_with_tiny_payload_keeps_existing_complete_answer",
+      "--",
+      "--exact"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 32.64,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s"
+    ],
+    "log": "target/lane-gs-round3/control-head-declaration-0.log",
+    "sha256": "471812067ef7c5c824dd2358f75e0771c2e5486fc6f6935e334f901d12b87c0d"
+  },
+  {
+    "name": "emission-declaration",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "message_and_rule_witness_declarations_do_not_share_a_decode_reservation",
+      "--",
+      "--exact"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 32.48,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s"
+    ],
+    "log": "target/lane-gs-round3/control-emission-declaration-0.log",
+    "sha256": "0cbd38032bfcaebdf93a7498658cf581679dbc5377118c2d500987ee91d19a7f"
+  },
+  {
+    "name": "len-spelling",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "scale::search"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 39.25,
+    "summaries": [
+      "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.00s"
+    ],
+    "log": "target/lane-gs-round3/control-len-spelling-0.log",
+    "sha256": "a8ad72101be460ded12ad8c2caee51371d86e69a371f196e462f2096e13a7c30"
+  },
+  {
+    "name": "concat-spelling",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "scale::search"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 40.02,
+    "summaries": [
+      "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.01s"
+    ],
+    "log": "target/lane-gs-round3/control-concat-spelling-0.log",
+    "sha256": "b8d0c8f8ac490e08c7bddf741a021666453ef0aaae1c1dd4ecc0b0e8d3398e02"
+  },
+  {
+    "name": "calendar-units",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "scale::search"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 39.66,
+    "summaries": [
+      "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.01s"
+    ],
+    "log": "target/lane-gs-round3/control-calendar-units-0.log",
+    "sha256": "4bec846d6e04d0c1ee5b9a23f82e07243bb580f7b2c7f0a84c8af14bdf2e9fe7"
+  },
+  {
+    "name": "preview-one",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches",
+      "--",
+      "--exact"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 33.25,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s"
+    ],
+    "log": "target/lane-gs-round3/control-preview-one-0.log",
+    "sha256": "25c43aae1d28ea3ab8eaf8f3615d7f21622bb17b048f746d92b6ee6cc24e559c"
+  },
+  {
+    "name": "preview-one",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "scale::search"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "seconds": 46.83,
+    "summaries": [
+      "test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.01s"
+    ],
+    "log": "target/lane-gs-round3/control-preview-one-1.log",
+    "sha256": "dc0edd1cfd06e41ad170992d08b5edfe970bbc7ea5f3c0438bdbebc8782e0a0b"
+  },
+  {
+    "name": "missing-default-precharge",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "trusted_search_member_prepays_missing_defaults",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "expected_failure": true,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 148 filtered out; finished in 0.00s"
+    ],
+    "log": "target/lane-gs-round3/materialization-before.log",
+    "sha256": "0dcbe38646819d01cd1814ef4d1f2de98dca9eb4c6b45395c9229d00b7786e5a"
+  }
+]

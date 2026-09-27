@@ -1,0 +1,42 @@
+   Compiling snapback4-sim v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-sim)
+    Finished `test` profile [optimized] target(s) in 3.31s
+     Running tests/page_admission.rs (target/debug/deps/page_admission-ad3d799031056330)
+
+running 15 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test w3_serialized_nonlooping_merge_without_merge_site_is_refused ... ok
+test w14b_expiry_rewrite_names_query_and_job_doors ... FAILED
+test w5_query_verdicts_charge_the_allowance_without_the_mutation_attempt ... ok
+test w4_negated_self_probe_empty_and_hidden_pages_match_at_probe_ceiling ... ok
+test w3_predicting_bound_word_page_is_refused_independently_of_hidden_population ... ok
+test w2_a_mutation_binding_a_nonuniform_page_is_refused_with_zero_or_ten_thousand_hidden_rows ... ok
+test w3_upsert_condition_is_one_compiler_refusal_and_update_condition_is_admitted ... ok
+test w2_hidden_word_expansion_and_expired_populations_are_refused_at_check ... FAILED
+test w4_live_maintain_probe_equalities_ignore_expired_contributions ... ok
+test w5_uniform_denied_short_circuit_pages_have_identical_complete_observations ... ok
+test w5_uniform_allowed_short_circuit_pages_have_identical_complete_observations ... ok
+test w2_a_uniform_hidden_page_after_metered_work_has_the_same_complete_observation ... ok
+test w3_uniform_page_with_expiring_rule_probe_has_no_population_oracle ... ok
+test w4_live_maintain_existence_walk_has_one_probe_with_bounded_expired_sources ... ok
+
+failures:
+
+---- w14b_expiry_rewrite_names_query_and_job_doors stdout ----
+
+thread 'w14b_expiry_rewrite_names_query_and_job_doors' (1330938) panicked at crates/snapback4-sim/tests/page_admission.rs:330:89:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- w2_hidden_word_expansion_and_expired_populations_are_refused_at_check stdout ----
+
+thread 'w2_hidden_word_expansion_and_expired_populations_are_refused_at_check' (1330941) panicked at crates/snapback4-sim/tests/page_admission.rs:126:9:
+[]
+
+
+failures:
+    w14b_expiry_rewrite_names_query_and_job_doors
+    w2_hidden_word_expansion_and_expired_populations_are_refused_at_check
+
+test result: FAILED. 13 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.21s
+
+error: test failed, to rerun pass `-p snapback4-sim --test page_admission`

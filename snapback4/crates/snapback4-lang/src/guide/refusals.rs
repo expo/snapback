@@ -26,6 +26,8 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+For expiring server scans, `E_BOUND` includes unswept rows; replay the same
+id first and retry a recorded failure with a new id after cleanup (why E_BOUND).
 
 `unique handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
 constraint's user-facing code and message. Render `message`; `detail` retains

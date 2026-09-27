@@ -31,8 +31,35 @@ impl RowAuthorization {
 
 impl<'r> Runner<'r> {
     // @ref LLP 3000.015#1 — member reads share the row-read and field-disclosure capability.
-    pub(super) fn authorized_member(&mut self, name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+    pub(super) fn authorized_member(&mut self, name: &str, id: &str, #[cfg(feature = "server-search")] trusted: bool) -> Result<Option<Value>, RuntimeError> {
         let table = &self.schema.tables[name];
+        // @ref LLP 3000.024#decision — this id came from an authorized head in
+        // this read-only transaction. Price its public image before decoding,
+        // then recheck the rule with a separate witness reservation. Neither
+        // hidden/expired images nor private fields can select actual-size admission.
+        #[cfg(feature = "server-search")]
+        if trusted && !self.device && !table.is_expiring() && table.recorded.is_empty()
+            && table.through.is_none() && table.written_by.values().all(|a|a.audience) {
+            if !self.read_charge(MeterKind::Examined,1)? { return Ok(None); }
+            self.meter.heap(crate::rows::word_heap::text(id) + crate::rows::word_heap::slots::<Value>(1))?;
+            let key = [Value::Id(id.into())];
+            let Some((Some(row),_)) = self.scan_authorized(name,crate::schema::BY_ID,&key,&Default::default(),crate::rows::Dir::Asc,1,true,true,None)?.pop() else { return Ok(None); };
+            let materialization = row.materialization_heap();
+            let prepay = self.meter.mark();
+            self.meter.heap(materialization)?;
+            let expiry = self.next_expiry.scope();
+            let row = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[(MeterKind::RuleProbes,super::rules::rule_probes(&table.rules.read))], |runner,_| {
+                let row = runner.authorize_image(name,row.into_value())?;
+                if let Some(row) = &row { runner.next_expiry.inherit(row.expiry()); }
+                Ok(row)
+            });
+            // The value now owns the default. Transfer its prepay to charge(),
+            // keeping only one retained reservation after the recheck.
+            self.meter.release_row_heap(prepay, materialization);
+            let row = row?;
+            if row.is_some() { expiry.emit(); }
+            return row.map(|row|row.charge(&mut self.meter)).transpose();
+        }
         let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
         let expiry = self.next_expiry.scope();
         let row = self.authorized_scratch(bytes, &[(MeterKind::Examined, 1), (MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, scope| {
@@ -63,13 +90,16 @@ impl<'r> Runner<'r> {
     }
 
     pub(super) fn scan_disclosed(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
-        self.scan_authorized(name,index,prefix,bounds,dir,limit,true,true)
+        self.scan_authorized(name,index,prefix,bounds,dir,limit,true,true,#[cfg(feature = "server-search")] None)
     }
 
-    pub(super) fn scan_authorized(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
+    pub(super) fn scan_authorized(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool, #[cfg(feature = "server-search")] fields: Option<&[String]>) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
         let table = &self.schema.tables[name];
         // A public, non-expiring image is authorized before accessing storage.
         // No hidden candidate can influence its actual-size decoder admission.
+        // Trusted selected heads may use the same actual-size adapter. It
+        // decodes a full transient image; the streaming consumer retains only
+        // its ordering key. Selection remains useful in the private decoder.
         if (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
             let rows = if metered {
                 self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
@@ -83,7 +113,11 @@ impl<'r> Runner<'r> {
         let mut out = Vec::with_capacity(limit);
         for _ in 0..limit {
             let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| {
-                let Some((mut row,key)) = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?.pop() else { return Ok(None); };
+                #[cfg(not(feature = "server-search"))]
+                let selected = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?;
+                #[cfg(feature = "server-search")]
+                let selected = if let Some(fields) = fields { runner.tx.scan_selected(scope,name,index,prefix,&cursor,dir,fields)? } else { runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)? };
+                let Some((mut row,key)) = selected.into_iter().next() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
                 crate::schema::materialize_optional_fields(&mut row,table);
@@ -204,6 +238,39 @@ impl<'r> Runner<'r> {
             self.withhold_unheld_card(&read.table);
         } else if self.device && self.schema.maintain_for(&read.table).and_then(|m|m.row_key.as_ref()).is_some_and(|k|self.schema.tables[&k.table].sync.as_ref().is_none_or(|s|s.horizon.is_some())) {
             self.unknown_fact(&read.table, &read.index, key, &read.site);
+        }
+    }
+}
+
+#[cfg(all(test, feature = "sqlite", feature = "server-search"))]
+mod tests {
+    use super::*;
+    use crate::{Context, Schema, rows::{MemoryRows, Rows}, schema::{ColumnDefault, ColumnType, Index}, value::object};
+
+    #[test]
+    fn trusted_search_member_prepays_missing_defaults() {
+        let rows = MemoryRows::new();
+        let mut table = crate::schema::public_table([
+            ("id".into(),ColumnType::Id), ("payload".into(),ColumnType::Text {max:1_000_000}),
+        ].into(),[("byId".into(),Index::of(&["id"],true))].into());
+        table.defaults.insert("payload".into(),ColumnDefault::Literal(Value::String("x".repeat(1_000_000))));
+        // Existing storage can omit a subsequently adopted default. Authority
+        // is public here, so this exercises only its materialization admission.
+        rows.put("records",&table,&object([("id",Value::Id("hit".into()))]),None).unwrap();
+        let schema = Schema { tables:[("records".into(),table)].into(),..Default::default() };
+        for heap in [64 << 10,16 << 20] {
+            let mut runner = Runner::new(&rows,&schema,Context::new("alice",Default::default()),
+                Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
+            let (result,allocated) = crate::rows::word_heap::tests::measured(||runner.authorized_member("records","hit",true));
+            eprintln!("heap={heap}: allocated={allocated}, peak={}",runner.meter.heap_peak);
+            if heap == 64 << 10 {
+                assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"{result:?}");
+                assert!(allocated < 64 << 10,"refused before copying the million-byte default: allocated={allocated}");
+            } else {
+                let row = result.unwrap().unwrap();
+                assert_eq!(row.field("payload").unwrap().as_str().unwrap().len(),1_000_000);
+                assert!(allocated <= runner.meter.heap_peak,"allocated={allocated}, peak={}",runner.meter.heap_peak);
+            }
         }
     }
 }

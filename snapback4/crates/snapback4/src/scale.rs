@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[path = "scale/display.rs"]
 mod display;
+#[path = "scale/search.rs"]
+mod search;
 #[path = "scale/writes.rs"]
 mod writes;
 #[path = "scale/dependencies.rs"]
@@ -26,6 +28,7 @@ pub(crate) enum Class { Constant, Backlog, Grows }
 #[derive(Debug, Serialize)]
 pub(crate) struct Certificate {
     pub operation: String,
+    pub search: Vec<search::Search>,
     pub class: Class,
     pub per_chunk: bool,
     pub bounds: Bounds,
@@ -88,7 +91,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
     let mut a = Analysis {
         schema, program, source,
         result: Certificate {
-            operation: program.name.clone(), class: Class::Constant,
+            operation: program.name.clone(), search: search::classify(schema, program), class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),

@@ -1,0 +1,175 @@
+{
+  "implementation_commit": "ad4ad7cf613cb603fefccf4d7d9dba10750fde26",
+  "merge_commit": "c86450e6d",
+  "suite_runs": 1,
+  "suite_exit": 1,
+  "suite_summary": "== 1 failure(s) in 1585 s",
+  "failures": [
+    {
+      "phase": "client tests",
+      "name": "server-class watches run locally first and recover remembered server data offline",
+      "site": "packages/snapback4/test/residency.test.mjs:134",
+      "message": "offline watch downgrades the remembered answer",
+      "classification": "baseline intermittent; cause unresolved",
+      "prior_record": "reports/20260926-lane-o-pending-writes.md, round 3 failure table",
+      "focused_followup": "1 passed, 0 failed; does not replace full-run failure"
+    }
+  ],
+  "wasm": {
+    "raw_bytes": 1983444,
+    "gzip_bytes": 572699,
+    "budget_bytes": 572841,
+    "sha256": "48ff5cd876c24533943ed9811fa85744387552585072863866c7da0995c54d43"
+  },
+  "toolchain": {
+    "host": "Linux x86_64",
+    "rust": "1.97.0",
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "wasm_bindgen": "0.2.127",
+    "cargo_jobs": 8,
+    "dev_test_debug": 0,
+    "incremental": false,
+    "suite_fd_limit": 65536
+  },
+  "checks": {
+    "runtime": {
+      "log": "target/lane-gs-round2/runtime-final.log",
+      "sha256": "49e261a188f5c16dfa13cf4158d15bd01d2caec2a2c28895f7b2da3c1cd2e999",
+      "summaries": [
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s"
+      ]
+    },
+    "certificate": {
+      "log": "target/lane-gs-round2/certificate-restored.log",
+      "sha256": "12513769975277e656e30a6b089e94503a8facc6467d55e4aaa19d1709da1221",
+      "summaries": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.01s"
+      ]
+    },
+    "server_search": {
+      "log": "target/lane-gs-round2/shared-server.log",
+      "sha256": "0fb7809d59dcfc0bbc9a3d1fa41cd95ab80eb501393e79d4e56f5d5c11d9dd1d",
+      "summaries": [
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 63.93s"
+      ]
+    },
+    "device_search": {
+      "log": "target/lane-gs-round2/shared-device.log",
+      "sha256": "2d141eb7f679057d478128b335dbecf79d4a20cc33bbee09e0622cebeacfef26",
+      "summaries": [
+        "test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 163.06s"
+      ]
+    },
+    "device_authorization_and_census": {
+      "log": "target/lane-gs-round2/device-census.log",
+      "sha256": "38011dc027ff45fcb82b796dd7bd357ed72b68f0961d5ec9ed0511579f0e2ccd",
+      "summaries": [
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.59s"
+      ]
+    },
+    "merge": {
+      "log": "target/lane-gs-round2/merge.log",
+      "sha256": "35e71f79edec43152f05b3634edd5628a309ab23a715c2824c02e7ed7e5cdebb",
+      "summaries": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s"
+      ]
+    },
+    "whole_guide": {
+      "log": "target/lane-gs-round2/guide-final.log",
+      "sha256": "4307688e9533ddbd6a45c608f7f948f0f4fcef499c9427e9d9df7668845bd0c6",
+      "summaries": [
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.57s"
+      ]
+    },
+    "isolated_baseline_failure": {
+      "log": "target/lane-gs-round2/residency-isolated.log",
+      "sha256": "5daf1b520f4da3f2ddc177c1cb640c4799d69893db0c5fef5ac666e495c6f346",
+      "summaries": [
+        "\u2139 tests 1",
+        "\u2139 pass 1",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 267.290277"
+      ]
+    },
+    "suite": {
+      "log": "target/lane-gs-round2/suite.log",
+      "sha256": "2dc0680659bd225753afcaa6a880be7caba86cc3c3f1fc9886fc44026460e138",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "\u2139 tests 9",
+        "\u2139 pass 9",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 10572.580685",
+        "\u2139 tests 3",
+        "\u2139 pass 3",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 11593.230975",
+        "\u2139 tests 3",
+        "\u2139 pass 3",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 26221.013676",
+        "\u2139 tests 12",
+        "\u2139 pass 12",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 29479.16574",
+        "\u2139 tests 12",
+        "\u2139 pass 12",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 29802.936485",
+        "\u2139 tests 11",
+        "\u2139 pass 11",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 31660.249528",
+        "\u2139 tests 3",
+        "\u2139 pass 3",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 40782.879137",
+        "\u2139 tests 12",
+        "\u2139 pass 12",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 52936.355289",
+        "\u2139 tests 2647",
+        "\u2139 pass 2636",
+        "\u2139 fail 1",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 10",
+        "\u2139 duration_ms 196140.709345",
+        "\u2139 tests 78",
+        "\u2139 pass 78",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 265010.371856",
+        "== 1 failure(s) in 1585 s"
+      ]
+    }
+  },
+  "reference_audit": {
+    "summary": "ref-check: ok \u2014 518 LLP docs, 9627 refs in 27291 files, 0 errors, 0 unchecked",
+    "sha256": "2dd9c7dd87ad668c49a90f8b34b067fb2c748d10ef271a47c76c01165fb56339"
+  }
+}

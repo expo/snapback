@@ -4,7 +4,7 @@ use super::*;
 use snapback4_core::{engine::{admission, rules}, schema::{Constraint, Schema}};
 
 impl BoundProgram {
-    // @ref LLP 3000.015#2-sequence-by — receipt holes are unique ordinal probes, never expiry scans.
+    // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — retain the admission repair before the qualified receipt-gap fallback.
     pub(crate) fn expiry_gap_diagnostic(&self, schema: &Schema, problem: &admission::Problem) -> Option<Diagnostic> {
         use snapback4_core::schema::ColumnType;
         if problem.code != "E_STRUCTURAL_FANOUT" || self.program.kind != ir::ProgramKind::Mutation { return None; }
@@ -32,9 +32,11 @@ impl BoundProgram {
         // Uniformity proves one verdict for the scope, not that it is readable;
         // proving a dominating caller check needs control-flow/rule implication.
         let name = &scan.table;
-        let rewrite = format!("fn skipExpired_{name}(scope: {parent_table}, initialPrefix: int, low: int):\n  prefix = initialPrefix\n  for i in range(0, 1024):\n    if prefix + 1 >= low:\n      break\n    if exists {name}[{parent} = scope, {ordinal} = prefix + 1]:\n      break\n    prefix = prefix + 1\n  return prefix");
+        // Quarry comments keep the whole rewrite pasteable without hiding the
+        // smaller repair that admits the author's original scan.
+        let rewrite = format!("-- {}\n-- Fallback if the mutation must keep its prediction or effect ordering:\nfn skipExpired_{name}(scope: {parent_table}, initialPrefix: int, low: int):\n  prefix = initialPrefix\n  for i in range(0, 1024):\n    if prefix + 1 >= low:\n      break\n    if exists {name}[{parent} = scope, {ordinal} = prefix + 1]:\n      break\n    prefix = prefix + 1\n  return prefix", problem.rewrite);
         Some(Diagnostic::new(&self.sources.get(site)?.0, problem.code,
-            format!("{}. For receipt gaps in expiring messages, declare `{ordinal}: sequence by {parent}` with `unique {parent}, {ordinal}` in a new schema, then use bounded unique ordinal probes. The helper's prefix justifies advancing a receipt only after the caller's own authority check (the membership check or the card's readable-message anchor). Call it inside the receipt merge, retain disjoint runs, and let an already-recorded run reach the helper again to resume after the 1,024-probe limit. For an unread badge use a row-keyed count; for general processing use a query or job (guide sequences)", problem.message),
+            format!("{}. For receipt gaps, try the admission repair below first. If the shape must stay refused, use bounded unique ordinal probes; a new schema can declare `{ordinal}: sequence by {parent}` with `unique {parent}, {ordinal}`. The helper's prefix justifies advancing a receipt only after the caller's own authority check (the membership check or the card's readable-message anchor). Call it inside the receipt merge, retain disjoint runs, and let an already-recorded run reach the helper again to resume after the 1,024-probe limit. For an unread badge use a row-keyed count; for general processing use a query or job (guide sequences)", problem.message),
             rewrite).guide("sequences"))
     }
 

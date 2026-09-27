@@ -293,6 +293,7 @@ card/programs/1:sendBrief | eligible
 card/programs/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:split | never
+card/programs/2:annotateNotes | never
 card/reads/1:checkin | never
 card/reads/1:createRoom | eligible
 card/reads/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

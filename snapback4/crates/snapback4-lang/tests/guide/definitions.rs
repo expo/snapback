@@ -112,6 +112,11 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_SEARCH_OPEN", "Its membership count includes only authorized discovered keys."),
+    ("N_SEARCH_OPEN", "every membership and its authorized head must fit one read"),
+    ("N_SEARCH_UNSCOPED", "the read rule varies within the searched index"),
+    ("N_SEARCH_WORDS", "first-term expansion and further-term misses consume the meters"),
+    ("N_SEARCH_SHAPE", "repeats a group read per hit"),
     ("E_FIELD_AUTHORITY", "E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours."),
     ("E_SEQUENCE_PARENT", "E_SEQUENCE_PARENT names a missing, optional or non-reference parent column"),
     ("E_SEQUENCE_SUPPLIED", "`sequence by` refuses such values with E_SEQUENCE_SUPPLIED, including on updates and upserts."),
@@ -267,7 +272,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STORE", "E_STORE means the database operation failed, such as a SQLite writer lock held by another process."),
     ("E_STORE_REPLACED", "The online client permanently denies reads and fails queued and in-flight writes on an identity change (`E_STORE_REPLACED`)"),
     ("E_STORE_RESTORE", "The client adopts `/schema` only when that watermark is a finite, nonnegative integer at or above its retained image-head evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing or invalid head is a retryable failure that neither adopts nor clears the evidence."),
-    ("E_STRUCTURAL_FANOUT", "`matching`, merges and tables with expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`)."),
+    ("E_STRUCTURAL_FANOUT", "`matching` and merges stay refused, and predicting mutations still cannot scan expiring tables."),
     ("E_SYNC", "E_SYNC means the sync declaration cannot deliver exactly its authorized audience."),
     ("E_SYNC_GENERATION", "The client sends its device generation. A mismatch returns HTTP 200 `E_SYNC_GENERATION`"),
     ("E_TIMELINE_ACTIVATE", "Dev adopts automatically. Deploy needs `--allow-feed-adoption`"),
@@ -339,3 +344,25 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("SNAPBACK4_SIGNAL", "`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance stopped; an unexpected stop ends the server)."),
     ("SNAPBACK4_THREAD_EXIT", "`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance stopped; an unexpected stop ends the server)."),
 ];
+
+#[test]
+fn expiring_mutation_programs_card_states_prediction_class() {
+    let programs = card("programs").unwrap();
+    assert!(programs.contains("Mutation scans of expiring tables require `predicts: \"never\"`"));
+    assert!(programs.contains("inferred from server-only work, or declared with `: server`"));
+}
+
+#[test]
+fn expiring_cap_why_states_live_occupancy_and_bounded_recount() {
+    let predict = explain_code("E_PREDICT").unwrap();
+    assert!(predict.contains("live occupancy") && predict.contains("bounded recount"), "{predict}");
+    assert!(!predict.contains("cap counts unswept physical rows"));
+}
+
+#[test]
+fn expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal() {
+    let fanout = explain_code("E_STRUCTURAL_FANOUT").unwrap();
+    assert!(fanout.contains("query cut is an incomplete null"), "{fanout}");
+    assert!(fanout.contains("mutation cut is `E_BOUND` with no write"), "{fanout}");
+    assert!(!fanout.contains("returns false on an already capped answer"));
+}

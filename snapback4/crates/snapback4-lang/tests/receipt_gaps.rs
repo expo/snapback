@@ -1,4 +1,4 @@
-//! Calibration 23: the expiry refusal leads to a compiled receipt-gap recipe.
+//! Calibration 23: repair expiry-scan admission first; retain the receipt-gap fallback.
 use snapback4_core::{Context, Engine, Store, Value, WriteState};
 use snapback4_lang::{compile, guide};
 
@@ -36,9 +36,79 @@ fn diary_and_run_log_intents_reach_the_recipe_directly() {
     assert!(guide::explain_code("E_STRUCTURAL_FANOUT").unwrap().contains("sequence by conversationId"));
 }
 
+#[test]
+fn sequences_card_leads_with_admitted_receipt_reads_and_runtime_backlog_bounds() {
+    let card = guide::card("receipt gap expiring messages").unwrap();
+    assert!(card.contains("reads the first live blocker before deleting runs or writing"));
+    assert!(card.contains("mutation delivered(conversationId: conversations, from: int, through: int): server"));
+    assert!(card.find("mutation delivered(").unwrap() < card.find("fn skipExpired_messages").unwrap());
+    assert!(card.contains("the ceiling refuses `E_BOUND` atomically"));
+    assert!(card.contains("For shapes still refused"));
+    assert!(!card.contains("E_STRUCTURAL_FANOUT refuses a mutation page over expiring messages"));
+}
+
 fn refused_gap(keys: &str) -> String {
     let scan_index = if keys.contains("conversation, ordinal") { "" } else { "  by byConversationOrdinal: conversation, ordinal, id\n" };
-    format!("table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  other: conversations\n  ordinal: int\n  externalNumber: int\n  expiresAt: time ?\n{keys}\n{scan_index}  public\n  expire at .expiresAt\n  online only\nmutation gap(conversation: conversations):\n  return first(messages where .conversation = conversation and .ordinal > 0 first 1 by .ordinal)\n")
+    format!("table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  other: conversations\n  ordinal: int\n  externalNumber: int\n  expiresAt: time ?\n{keys}\n{scan_index}  public\n  expire at .expiresAt\n  online only\neffect observeGap\nmutation gap(conversation: conversations):\n  emit observeGap {{}}\n  return first(messages where .conversation = conversation and .ordinal > 0 first 1 by .ordinal)\n")
+}
+
+// @ref LLP 3000.025#3-proposed-rule — these scans now admit before effects; the receipt helper remains an alternative after the phase ends.
+fn assert_initial_read_admitted(source: &str) {
+    let source = source.replace("  emit observeGap {}\n", "");
+    let b = compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.schema.operations["gap"].predicts.as_deref(), Some("never"));
+}
+
+#[test]
+fn receipt_helper_keeps_the_source_boundary_repair_first() {
+    let source = refused_gap("  unique conversation, ordinal");
+    let b = compile(&[("schema.q".into(), source.clone())]);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    let d = &b.diagnostics[0];
+    assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
+    assert!(d.message.contains("after `emit observeGap`"), "{d}");
+    let repair = d.rewrite.find("above the entire `emit observeGap`").expect(&d.rewrite);
+    let helper = d.rewrite.find("fn skipExpired_messages").expect(&d.rewrite);
+    assert!(repair < helper && d.rewrite.contains("Fallback"), "{d}");
+    // Moving the scan ahead of the emit is sufficient; no helper is needed.
+    checked(&source.replace("  emit observeGap {}\n  return first(", "  blocker = first(")
+        .replace("first 1 by .ordinal)\n", "first 1 by .ordinal)\n  emit observeGap {}\n  return blocker\n"));
+}
+
+#[test]
+fn receipt_helper_keeps_the_prediction_repair_first() {
+    let source = refused_gap("  unique conversation, ordinal")
+        .replace("  online only\n", "  sync public last 500 by .id\n")
+        .replace("  emit observeGap {}\n", "")
+        .replace("mutation gap(", "mutation inspect(");
+    let b = compile(&[("schema.q".into(), source.clone())]);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    let d = &b.diagnostics[0];
+    assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
+    let repair = d.rewrite.find("Make `inspect` `: server`").expect(&d.rewrite);
+    let helper = d.rewrite.find("fn skipExpired_messages").expect(&d.rewrite);
+    assert!(repair < helper && d.rewrite.contains("Fallback"), "{d}");
+    assert!(!d.rewrite.contains("Move this scan"), "no effect ends this prefix: {d}");
+    let repaired = checked(&source.replace("mutation inspect(conversation: conversations):", "mutation inspect(conversation: conversations): server"));
+    assert_eq!(repaired.schema.operations["inspect"].predicts.as_deref(), Some("never"));
+}
+
+#[test]
+fn receipt_helper_keeps_both_prediction_and_source_boundary_repairs() {
+    let source = refused_gap("  unique conversation, ordinal")
+        .replace("  online only\n", "  sync public last 500 by .id\n");
+    let b = compile(&[("schema.q".into(), source.clone())]);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    let d = &b.diagnostics[0];
+    assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
+    let prediction = d.rewrite.find("Make `gap` `: server`").expect(&d.rewrite);
+    let boundary = d.rewrite.find("above the entire `emit observeGap`").expect(&d.rewrite);
+    let helper = d.rewrite.find("fn skipExpired_messages").expect(&d.rewrite);
+    assert!(prediction < boundary && boundary < helper, "{d}");
+    checked(&source.replace("mutation gap(conversation: conversations):", "mutation gap(conversation: conversations): server")
+        .replace("  emit observeGap {}\n  return first(", "  blocker = first(")
+        .replace("first 1 by .ordinal)\n", "first 1 by .ordinal)\n  emit observeGap {}\n  return blocker\n"));
 }
 
 #[test]
@@ -50,6 +120,7 @@ fn helper_follows_the_scan_coordinate_regardless_of_key_order_or_other_indexes()
         "  unique aOther: other, externalNumber\n  unique zOrdinal: conversation, ordinal",
     ] {
         let source = refused_gap(keys);
+        assert_initial_read_admitted(&source);
         let b = compile(&[("schema.q".into(), source.clone())]);
         let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
         assert!(d.rewrite.contains("conversation = scope, ordinal = prefix + 1"), "{keys}: {d}");
@@ -74,6 +145,7 @@ fn deny_and_read_through_scopes_require_authority_before_using_the_prefix() {
             .replace("  conversation: conversations\n", "  conversation: conversations\n  immutable conversation\n")
             .replace("  public\n  expire", &format!("  {read}\n  expire"))
             .replace("table conversations:\n  public", "table conversations:\n  read <- deny");
+        assert_initial_read_admitted(&source);
         let b = compile(&[("schema.q".into(), source.clone())]);
         let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
         assert!(d.rewrite.contains("skipExpired"), "{read}: {d}");
@@ -98,7 +170,9 @@ fn deny_and_read_through_scopes_require_authority_before_using_the_prefix() {
 
 #[test]
 fn no_unique_key_covering_the_scan_coordinate_withholds_the_helper() {
-    let b = compile(&[("schema.q".into(), refused_gap("  unique aExternal: conversation, externalNumber"))]);
+    let source = refused_gap("  unique aExternal: conversation, externalNumber");
+    assert_initial_read_admitted(&source);
+    let b = compile(&[("schema.q".into(), source)]);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
     assert!(!d.rewrite.contains("skipExpired"), "{d}");
 }
@@ -108,6 +182,7 @@ fn uniform_membership_rule_still_requires_the_callers_authority_check() {
     let source = refused_gap("  unique conversation, ordinal")
         .replace("table messages:", "table members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\n  online only\ntable messages:")
         .replace("  public\n  expire", "  read <- exists members[.conversation, viewer]\n  expire");
+    assert_initial_read_admitted(&source);
     let b = compile(&[("schema.q".into(), source.clone())]);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
     assert!(d.rewrite.contains("skipExpired"), "uniformity alone is not caller authority");
@@ -146,6 +221,12 @@ fn expiry_page_refusal_supplies_a_pasteable_helper_for_both_allocators() {
             // the supplied artifact copy does not contain the builder's rejected source.
             let refused = source.replace(&format!("prefix = skipExpired_messages(message.{parent}, prefix, message.{ordinal})"),
                 &format!("gap = first(messages where .{parent} = message.{parent} and .{ordinal} > prefix first 1 by .{ordinal})"));
+            let admitted = compile(&[("schema.q".into(), refused.clone())]);
+            assert!(admitted.diagnostics.is_empty(), "{:?}", admitted.diagnostics);
+            assert_eq!(admitted.schema.operations["skipExpiredBefore"].predicts.as_deref(), Some("never"));
+            // LLP 3000.025 admits the original initial scan. An earlier emit
+            // ends that phase; keep all helper-coordinate and authority checks.
+            let refused = format!("effect observeGap\n{}", refused.replace("gap = first(messages", "emit observeGap {}\n  gap = first(messages"));
             let b = compile(&[("schema.q".into(), refused.clone())]);
             assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
             let d = &b.diagnostics[0];
@@ -198,11 +279,14 @@ fn recipe_skips_expired_positions_but_never_live_messages_on_memory_and_sqlite()
 
 #[test]
 fn a_uniform_sender_page_does_not_justify_treating_other_senders_as_holes() {
-    let source = "table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  ordinal: int\n  sender: principal\n  expiresAt: time ?\n  unique conversation, ordinal\n  read <- .sender = viewer\n  expire at .expiresAt\n  online only\nmutation gap(conversation: conversations):\n  return first(messages where .conversation = conversation and .sender = viewer first 1 by .ordinal)\n";
+    let source = "table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  ordinal: int\n  sender: principal\n  expiresAt: time ?\n  unique conversation, ordinal\n  read <- .sender = viewer\n  expire at .expiresAt\n  online only\neffect observeGap\nmutation gap(conversation: conversations):\n  emit observeGap {}\n  return first(messages where .conversation = conversation and .sender = viewer first 1 by .ordinal)\n";
+    assert_initial_read_admitted(source);
     let b = compile(&[("schema.q".into(), source.into())]);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").expect("expiry page refused");
     assert!(!d.rewrite.contains("skipExpired"), "a hidden message is not an expired hole: {d}");
-    assert!(d.rewrite.contains("query"), "{d}");
+    assert!(d.message.contains("after `emit observeGap`"), "{d}");
+    assert!(d.rewrite.contains("entire `emit observeGap`"), "{d}");
+    assert!(!d.rewrite.contains("selected ids"), "{d}");
 }
 
 #[test]
@@ -221,6 +305,12 @@ fn bounded_gap_progress_resumes_without_jumping_to_the_claimed_run() {
 
 #[test]
 fn integrated_delivered_run_merge_resumes_a_repeated_receipt_in_the_builder() {
+    for probes in [false, true] {
+        integrated_delivered_run_merge(probes);
+    }
+}
+
+fn integrated_delivered_run_merge(probes: bool) {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../benchmarks/runs/2026-09-27-snapback4-clique-astra-0.4.4/astra/source/snapback");
     let mut docs: Vec<_> = std::fs::read_dir(root).unwrap().map(|entry| entry.unwrap().path())
@@ -231,6 +321,13 @@ fn integrated_delivered_run_merge_resumes_a_repeated_receipt_in_the_builder() {
     let card = recipe();
     let helper = card.split("fn skipExpired_messages").nth(1).unwrap().split("mutation skipExpiredBefore").next().unwrap();
     let delivered = card.split("mutation delivered").nth(1).unwrap().split("query whatDidIMiss").next().unwrap();
+    let delivered = if probes {
+        let start = delivered.find("  if prefix + 1 < low:").unwrap();
+        let end = delivered[start..].find("  for run in held:").unwrap() + start;
+        let mut delivered = delivered.to_owned();
+        delivered.replace_range(start..end, "  prefix = skipExpired_messages(conversationId, prefix, low)\n");
+        delivered
+    } else { delivered.to_owned() };
     let integrated = format!("fn skipExpired_messages{helper}\nmutation delivered{delivered}\n")
         .replace("conversationId", "conversation").replace("joinedAt", "joinedOrdinal");
     let (_, messaging) = docs.iter_mut().find(|(name, _)| name == "messaging.q").unwrap();
@@ -239,6 +336,7 @@ fn integrated_delivered_run_merge_resumes_a_repeated_receipt_in_the_builder() {
     messaging.replace_range(start..end, &integrated);
     let b = compile(&docs);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.schema.operations["messaging.delivered"].predicts.as_deref(), Some("never"));
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     use snapback4_core::value::object;
     e.seed_at([
@@ -250,11 +348,74 @@ fn integrated_delivered_run_merge_resumes_a_repeated_receipt_in_the_builder() {
         ("runs".into(), object([("id", id("disjoint")), ("conversation", id("chat")), ("principal", id("alice")), ("fromOrdinal", Value::Int(1030)), ("throughOrdinal", Value::Int(1030))])),
     ], 2).unwrap();
     let args = [("conversation", id("chat")), ("from", Value::Int(1027)), ("through", Value::Int(1027))];
-    for (expected, runs) in [(1024, 2), (1027, 1), (1027, 1)] {
+    for (expected, runs) in [if probes { (1024, 2) } else { (1027, 1) }, (1027, 1), (1027, 1)] {
         write(&mut e, "messaging.delivered", &args, &[], 3);
         assert_eq!(e.store().rows("members").unwrap()[0].field("deliveredOrdinal").unwrap(), &Value::Int(expected));
         let held = e.store().rows("runs").unwrap();
         assert_eq!(held.len(), runs);
         assert!(held.iter().any(|row| row.field("id").unwrap() == &id("disjoint")));
     }
+}
+
+#[test]
+fn server_receipt_scan_stops_at_live_blockers_then_resumes_the_saved_run() {
+    let b = checked(&recipe());
+    assert_eq!(b.schema.operations["delivered"].predicts.as_deref(), Some("never"));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    write(&mut e, "createConversation", &[], &["chat", "member"], 1);
+    for (name, expiry) in [("gone", Value::Int(10)), ("blocker", Value::Int(20)), ("received", Value::Null)] {
+        write(&mut e, "send", &[("conversationId", id("chat")), ("expiresAt", expiry)], &[name], 2);
+    }
+    let args = [("conversationId", id("chat")), ("from", Value::Int(4)), ("through", Value::Int(4))];
+    assert_eq!(write(&mut e, "delivered", &args, &["held"], 10), Value::Int(2));
+    let runs = e.store().rows("runs").unwrap();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].field("fromOrdinal").unwrap(), &Value::Int(4));
+    assert_eq!(write(&mut e, "delivered", &args, &[], 20), Value::Int(4));
+    assert!(e.store().rows("runs").unwrap().is_empty());
+    assert_eq!(e.store().rows("messages").unwrap().len(), 3, "no physical sweep needed");
+}
+
+// @ref LLP 3000.025#3-proposed-rule — full slots must refuse without claiming coverage, then recover on a fresh id.
+#[test]
+fn card_full_slots_refuse_runs_full_roll_back_and_recover() {
+    use snapback4_core::value::object;
+    let source = format!("{}\nmutation freeSlot(): server\n  delete runs['r0']\n", recipe());
+    let b = checked(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    write(&mut e, "createConversation", &[], &["c", "member"], 1);
+    for (name, expiry) in [("gone", Value::Int(10)), ("blocker", Value::Null), ("received", Value::Null)] {
+        write(&mut e, "send", &[("conversationId", id("c")), ("expiresAt", expiry)], &[name], 2);
+    }
+    e.seed_at((0..64).map(|n| ("runs".into(), object([
+        ("id", id(&format!("r{n}"))), ("conversationId", id("c")), ("principal", id("alice")),
+        ("fromOrdinal", Value::Int(10 + 2 * n)), ("throughOrdinal", Value::Int(10 + 2 * n)),
+    ]))), 2).unwrap();
+    let tables = ["conversations", "members", "messages", "runs"];
+    let before = tables.map(|table| e.store().rows(table).unwrap());
+    let seq = e.store().seq().unwrap();
+    let ctx = || Context::new("alice", [
+        ("conversationId".into(), id("c")), ("from".into(), Value::Int(4)), ("through".into(), Value::Int(4)),
+    ].into()).with_ids(["received-run".to_owned()]).at(10);
+    let full = e.mutate("delivered", Some("full"), ctx()).unwrap();
+    assert!(matches!(&full.state, WriteState::Failed { why, .. } if why.code == "RUNS_FULL"), "{:?}", full.state);
+    assert_eq!(tables.map(|table| e.store().rows(table).unwrap()), before, "refusal must leave every application row unchanged");
+    assert_eq!(e.store().seq().unwrap(), seq, "refusal must not publish a row change");
+    write(&mut e, "freeSlot", &[], &[], 10);
+    assert_eq!(e.store().rows("runs").unwrap().len(), 63);
+    let replay = e.mutate("delivered", Some("full"), ctx()).unwrap();
+    assert!(replay.replayed);
+    assert_eq!(full.receipt(Some("full")), replay.receipt(Some("full")));
+    let recovered = e.mutate("delivered", Some("recovered"), ctx()).unwrap();
+    assert!(!recovered.replayed);
+    assert!(matches!(&recovered.state, WriteState::Sent { result, .. } if result == &Value::Int(2)), "{:?}", recovered.state);
+    assert_eq!(e.store().rows("members").unwrap()[0].field("deliveredOrdinal"), Ok(&Value::Int(2)));
+    let runs = e.store().rows("runs").unwrap();
+    assert_eq!(runs.len(), 64);
+    assert!(runs.iter().any(|row| row.field("id") == Ok(&id("received-run"))
+        && row.field("fromOrdinal") == Ok(&Value::Int(4)) && row.field("throughOrdinal") == Ok(&Value::Int(4))));
+    for run in before[3].iter().filter(|row| row.field("id") != Ok(&id("r0"))) {
+        assert!(runs.contains(run), "the other saved intervals must survive");
+    }
+    assert_eq!(e.store().rows("messages").unwrap(), before[2], "no physical sweep needed");
 }

@@ -1,0 +1,21 @@
+wasm 2011380 B raw, 580955 B gzip (budget 572841: OVER by 8114 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md).
+-- FAIL: wasm build (24 s)
+wasm moved survivor hidden=false: payload-bytes=631 identical-worlds=2 completions=1 key-at=100
+wasm moved survivor hidden=true: payload-bytes=631 identical-worlds=2 completions=1 key-at=100
+wasm unselected control removed=false: completions=1 key-at=1500 page-complete=true
+wasm unselected control removed=true: completions=1 key-at=1000 page-complete=true
+wasm empty groups: groups=5000 pages=158 max-response-bytes=119331
+wasm written unselected round-trip=true: payload-bytes=812 worlds=2 p1-puts=3 completions=1 key-at=1000
+wasm written unselected round-trip=false: payload-bytes=722 worlds=1 p1-puts=2 completions=1 key-at=1000
+wasm membership collision kind=scope row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+wasm membership collision kind=join row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+== 1 failure(s) in 1468 s
+
+Final isolated build:
+wasm 2011417 B raw, 580877 B gzip (budget 572841: OVER by 8036 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md).

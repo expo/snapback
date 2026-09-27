@@ -74,6 +74,14 @@ pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
 
 // @ref LLP 3000.007#20 — admission reports the author's population and bound; source locations stay beside the IR.
 pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
+    check_detail_with_statements(schema, program, &[])
+}
+
+/// Source statement ends supplied by Quarry alongside its flattened IR. Empty
+/// means each IR statement owns itself (serialized/hand-built programs). Grouping
+/// can only shorten eligibility: every statement in each group is still checked.
+// @ref LLP 3000.025#3-proposed-rule — hoisted setup belongs to its entire source statement.
+pub fn check_detail_with_statements(schema: &Schema, program: &Program, statement_ends: &[usize]) -> Result<(), Problem> {
     let mut fact = schema.operations.get(&program.name).cloned().unwrap_or_default();
     crate::schema::ephemeral::execution(schema, program, &mut fact).map_err(|message| Problem {
         code: "E_QUARRY_EPHEMERAL", site: program.name.clone(), page_site: None,
@@ -90,12 +98,18 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         require_uniform_mutation_pages(schema, &scans)?;
         // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
         if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
+        // @ref LLP 3000.025#3-proposed-rule — an entire read-only statement prefix precedes every effect, including hidden and indirect writes.
+        let (prefix_len, effect_end) = read_only_prefix(&program.body, statement_ends);
+        let (prelude, _) = crate::ir::body_read_structure(&program.body[..prefix_len]);
+        let never = schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never"));
         for scan in &scans {
+            // Identity, not a forgeable diagnostic site or structural equality.
+            let in_prefix = prelude.iter().any(|before| std::ptr::eq(*before, *scan));
             if let Some(reason) = plain_prefix_problem(schema, scan) {
-                let rewrite = if reason.starts_with("a mutation page cannot scan a table with expiry") {
-                    "read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry"
-                } else { "read this page in a query, then pass the selected ids to the mutation" };
-                return Err(fanout(Some(scan), &scan.site, &reason, rewrite));
+                return Err(fanout(Some(scan), &scan.site, &reason, "read this page in a query, then pass the selected ids to the mutation"));
+            }
+            if schema.table(&scan.table).is_some_and(|table| table.is_expiring()) && !(never && in_prefix) {
+                return Err(expiry_problem(program, scan, prefix_len..effect_end, never, in_prefix));
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
@@ -117,6 +131,20 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         }
     }
     Ok(())
+}
+
+// Always cover the complete body; absent or malformed boundaries cannot skip
+// an effect. A source statement may own several lowered top-level statements.
+fn read_only_prefix(body: &[Stmt], statement_ends: &[usize]) -> (usize, usize) {
+    let ends: Vec<_> = if statement_ends.is_empty() { (1..=body.len()).collect() }
+        else { statement_ends.iter().copied().chain(std::iter::once(body.len())).collect() };
+    let mut start = 0;
+    for end in ends {
+        if end <= start || end > body.len() { continue; }
+        if !super::read_only::statements::<false>(&body[start..end]) { return (start, end); }
+        start = end;
+    }
+    (body.len(), body.len())
 }
 
 struct Flow<'a> {
@@ -306,6 +334,8 @@ impl Flow<'_> {
         if self.nonuniform.is_some() { return Some("another non-uniform scan can truncate this mutation's population".into()); }
         // @ref LLP 3000.007#5.9 — a never-predicting pass drops completeness, never uniformity.
         if self.schema.operations.get(&self.program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
+            // Expiry was checked once on original scan identities above;
+            // these flow copies only check the remaining page shape.
             return plain_prefix_problem(self.schema, scan);
         }
         let pinned: Vec<_> = index.columns().into_iter().take(scan.prefix.len()).collect();
@@ -395,13 +425,52 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
     }
 }
 
-// @ref LLP 3000.007#17 — every mutation page stays a plain, non-expiring prefix even after the uniform-verdict repair.
+// @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — name the enclosing statement, not an inferred product invariant.
+fn expiry_problem(program: &Program, scan: &Scan, boundary: std::ops::Range<usize>, never: bool, in_prefix: bool) -> Problem {
+    let mut message = format!("{} scans expiring {}", program.name, scan.table);
+    let mut rewrite = if never { String::new() } else { format!("Make `{}` `: server`. ", program.name) };
+    if in_prefix {
+        message.push_str(" but may predict");
+    } else if let Some(statement) = program.body[boundary.clone()].last() {
+        let group = &program.body[boundary.clone()];
+        let (inside, _) = crate::ir::body_read_structure(group);
+        let enclosing = inside.iter().any(|candidate| std::ptr::eq(*candidate, scan));
+        let site = match statement {
+            Stmt::If { .. } => "if".into(),
+            Stmt::For { .. } => "for".into(),
+            Stmt::Emit { effect, .. } => format!("emit {effect}"),
+            Stmt::Const { name, .. } | Stmt::Let { name, .. } | Stmt::Assign { name, .. } if !name.starts_with('$') => format!("binding {name}"),
+            Stmt::Update { table, .. } => format!("update {table}"),
+            Stmt::Upsert { table, .. } => format!("upsert {table}"),
+            Stmt::WriteTarget { target, upsert, .. } => format!("{} {}", if *upsert { "upsert" } else { "update" }, target.table),
+            Stmt::Delete { table, .. } => format!("delete {table}"),
+            Stmt::DeleteTarget { target } => format!("delete {}", target.table),
+            Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => format!("insert {table}"),
+            _ => format!("statement {}", boundary.start + 1),
+        };
+        let effect = if super::read_only::statements::<true>(group) { "an emit" } else { "a write" };
+        message.push_str(&if enclosing {
+            format!(" inside `{site}` containing {effect} (an untaken arm counts)")
+        } else {
+            format!(" after `{site}` containing {effect}, ending the read-only phase")
+        });
+        if enclosing && let Stmt::For { .. } = statement {
+            let single = Program { body: vec![statement.clone()], ..program.clone() };
+            let writes = crate::ir::write_tables(&single);
+            let action = writes.first().map_or("…", |(_, kind)| *kind);
+            rewrite.push_str(&format!("Bind before this entire loop: `page = {} …`; `for row in page: {action} …`.", scan.table));
+        } else {
+            rewrite.push_str(&format!("Move this scan into its own statement above the entire `{site}`. Then write."));
+        }
+    }
+    Problem { code: "E_STRUCTURAL_FANOUT", site: scan.site.clone(), page_site: Some(scan.site.clone()), message, rewrite: rewrite.trim().into() }
+}
+
+// @ref LLP 3000.025#3-proposed-rule — expiry alone may pass the server read-only prefix; matching and merges keep their refusal.
 fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
     let table = schema.table(&scan.table)?;
     if !table.index(&scan.index)?.is_plain() || scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
         Some("matching word scans expand hidden words before deciding visibility; read it in a query, or use a plain prefix scan".into())
-    } else if table.is_expiring() {
-        Some("a mutation page cannot scan a table with expiry; read it in a query, or use a job chunk".into())
     } else if scan.merge_site.is_some() {
         Some("a merge is not a plain prefix scan; read it in a query, or use a job chunk".into())
     } else { None }

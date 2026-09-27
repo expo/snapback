@@ -1,0 +1,242 @@
+[
+  {
+    "name": "result-charge",
+    "source": "crates/snapback4-core/src/engine/runner.rs",
+    "original_sha256": "9b1eed409b76a340158b9ba1b2280ea101f065bd6db4a0f84cc2b249046a2966",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "adopted_default_prepay",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "|runner, values| runner.meter.heap(values.iter().map(expression_heap).sum::<u64>())",
+      "new": "|_, _| Ok(())"
+    },
+    "exit": 101,
+    "seconds": 34.02,
+    "log": "target/lane-gs-round5/control-result-charge.log",
+    "sha256": "dabf24e69fb9a742a1d60c16264690c5595e25a6b66df5a80f528afb71ab0417",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.05s"
+    ]
+  },
+  {
+    "name": "unused-default-reservation",
+    "source": "crates/snapback4-core/src/engine/authorized_scan.rs",
+    "original_sha256": "0b9c750de7319ad5b3614ec32c226a42b7eff98e39749070c64c2285e220fdca",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "stored_public_witness_field",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "let own = crate::rows::disclosed::admission(definition);",
+      "new": "let own = crate::rows::disclosed::admission(definition) + if definition.defaults.is_empty() { 0 } else { 1_000_000 };"
+    },
+    "exit": 101,
+    "seconds": 33.76,
+    "log": "target/lane-gs-round5/control-unused-default-reservation.log",
+    "sha256": "ec089a66a35a136971ece674de78daae01e60967d26e9e49f8757bc122fcb1f7",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.04s"
+    ]
+  },
+  {
+    "name": "caller-ceiling",
+    "source": "crates/snapback4-core/src/engine/witness.rs",
+    "original_sha256": "9467461ee8d0e98f5236f0946d9d6f367b408d36d3ce44fc8753bf62c1bbdd6f",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "public_witness",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "self.meter.ceilings.heap_bytes = limit;",
+      "new": "let _ = limit;"
+    },
+    "exit": 101,
+    "seconds": 34.11,
+    "log": "target/lane-gs-round5/control-caller-ceiling.log",
+    "sha256": "c017e6a715d9b909fee379bec40fa3c00052067cf09b818e084f857617d587ee",
+    "summaries": [
+      "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.10s"
+    ]
+  },
+  {
+    "name": "fixed-80000",
+    "source": "crates/snapback4-core/src/engine/witness.rs",
+    "original_sha256": "9467461ee8d0e98f5236f0946d9d6f367b408d36d3ce44fc8753bf62c1bbdd6f",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "public_witness_default_must_fit",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "image.charge_materialization_internal(meter, scope)",
+      "new": "meter.heap(80_000)"
+    },
+    "exit": 101,
+    "seconds": 33.02,
+    "log": "target/lane-gs-round5/control-fixed-80000.log",
+    "sha256": "37b47881a6cff7254b6240b1d5da49c6412f8c7a02dacfb2f79cd17bf8eaae90",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.05s"
+    ]
+  },
+  {
+    "name": "unique-row-clone",
+    "source": "crates/snapback4-core/src/value/disclosed.rs",
+    "original_sha256": "2aedd6be84d3252c127f5d1fec7d82bafe3e1b01c7348b1698ca5984a196e12a",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "uniquely_owned_materialization",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "} else { self.row };",
+      "new": "} else { self.row.clone() };"
+    },
+    "exit": 101,
+    "seconds": 41.24,
+    "log": "target/lane-gs-round5/control-unique-row-clone.log",
+    "sha256": "28d89018a8dc35ba578071f1217a440a0704f8b5cca053fa3285a489b46b14ee",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.00s"
+    ]
+  },
+  {
+    "name": "retained-500000",
+    "source": "crates/snapback4-core/src/engine/authorized_point.rs",
+    "original_sha256": "1c1d49248b3e4c47e24d25a2e52792864a27da602159708323b4814469cb4d7d",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "adopted_default_prepay",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "self.meter.release_row_heap(prepay, materialization);",
+      "new": "self.meter.release_row_heap(prepay, materialization.saturating_sub(500_000));"
+    },
+    "exit": 101,
+    "seconds": 32.71,
+    "log": "target/lane-gs-round5/control-retained-500000.log",
+    "sha256": "1c7deb1a97b21c12f3a8ccb4694f6ec70cd0801c0588b041e968460569c53751",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.05s"
+    ]
+  },
+  {
+    "name": "nested-copy",
+    "source": "crates/snapback4-core/src/value.rs",
+    "original_sha256": "588f7b92787bbb36e51f7633b64b73a56f8231e1c8a9ec41a0ced51a668ffaf8",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "owned_nested_lists_price",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "for value in values { bytes += value.clone_heap(); }",
+      "new": ""
+    },
+    "exit": 101,
+    "seconds": 40.9,
+    "log": "target/lane-gs-round5/control-nested-copy.log",
+    "sha256": "2b666850a912d3bc378c87583a1356b59e7d79db6aca06aac03ce4b25155c101",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.00s"
+    ]
+  },
+  {
+    "name": "spare-capacity",
+    "source": "crates/snapback4-core/src/value.rs",
+    "original_sha256": "588f7b92787bbb36e51f7633b64b73a56f8231e1c8a9ec41a0ced51a668ffaf8",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "spare_capacity_strings",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "Value::String(s) | Value::Id(s) => s.capacity() as u64,",
+      "new": "Value::String(s) | Value::Id(s) => s.len() as u64,"
+    },
+    "exit": 101,
+    "seconds": 41.33,
+    "log": "target/lane-gs-round5/control-spare-capacity.log",
+    "sha256": "f55f3b4a6845afd0da3adaf9d1d6ad507d3b00a1e8a7a914c09ff145ff0ff564",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.00s"
+    ]
+  },
+  {
+    "name": "final-copy",
+    "source": "crates/snapback4-core/src/engine/runner.rs",
+    "original_sha256": "5f54fcd0efa4e3966f9a2188c1140092cfa8c684a11b43056bf59d9cfc828b5f",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "final_result_copy",
+      "--",
+      "--nocapture"
+    ],
+    "mutation": {
+      "old": "return Err(self.opening_error(merge, *count, true));",
+      "new": "return result.map(|_| Value::Null);"
+    },
+    "exit": 101,
+    "seconds": 33.28,
+    "log": "target/lane-gs-round5/control-final-copy.log",
+    "sha256": "5105a87e2caf40cb1825c279acc1567199889a38f5ab228aef399e8578f472b0",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.05s"
+    ]
+  }
+]

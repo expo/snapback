@@ -13,12 +13,12 @@
 **Battery gate:** `exact-graffiti-contract`
 **Failure signature:** `sha256:7f025602c44cd5ef01b471efbd37d5ca070b3640c91b0077295fd22e81e19c45`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260927T084919Z.3a1f8b55d22c`
-**Last processed run:** `local.20260927T084919Z.3a1f8b55d22c`
+**Last observed run:** `local.20260927T175940Z.8112f4ef6400`
+**Last processed run:** `local.20260927T175940Z.8112f4ef6400`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `3a1f8b55d22cbe2f79c58b0eb19e452fd02569a5`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `8112f4ef640058132c1c58fc69f3fbfaa2143de5`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
