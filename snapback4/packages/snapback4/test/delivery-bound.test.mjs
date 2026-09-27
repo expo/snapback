@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setImmediate as turn} from 'node:timers/promises';
 import {DeliveryQueue, memoryDelivery} from '../dist/delivery.js';
+import {acceptManifest, deliveryKey} from '../dist/delivery-state.js';
+import {webDevice, memoryPersistence} from '../dist/web.js';
+import {wasm, backend, snapshot} from './helpers/delivery-fixture.mjs';
 const binding={fingerprint:'fixture:messages',table:'messages',mutation:'delivered',args:['conversation','from','through']};
 const success={accepted:true,json:{state:'sent',head:10}};
 const bound={accepted:true,json:{state:'failed',why:{code:'E_BOUND'},head:10}};
@@ -62,8 +65,9 @@ test('E_BOUND burst parks; one new id per coalesced wake, at least 30 seconds ap
  await h.q.wake('timer');await h.flush();assert.equal(h.calls.length,count+3);
  assert.equal((await h.group()).attempt.bound.retries,8);assert.equal((await h.group()).attempt.bound.wakes,2);
 });
-test('E_BOUND wake cap survives restart, surfaces one refusal and stops minting even on later wakes',async t=>{
- const h=fixture(t,()=>bound);await exhaust(h);
+for(const collector of ['manifest','device'])test(`E_BOUND wake cap survives ${collector} eviction, recollection and restart with one refusal`,async t=>{
+ const device=collector==='device'?await deviceStorage(t):null;
+ const h=fixture(t,body=>body.args.from===41?bound:success,device?.storage);await exhaust(h);
  for(let n=1;n<=8;n++){
   h.advance(30000);await h.q.wake(n%2?'reconnect':'start');await h.flush();
   h.advance(1000);await h.flush();
@@ -72,13 +76,28 @@ test('E_BOUND wake cap survives restart, surfaces one refusal and stops minting 
  }
  assert.equal((await h.group()).parked[0]?.kind,'stopped');
  assert.deepEqual(h.refused.map(e=>[e.why.code,e.from,e.through]),[['E_BOUND',41,41]]);
+ assert.deepEqual((await h.group()).refused,[[41,41]],'terminal suppression is outside the evictable debt');
+ const pressure=Array.from({length:256},(_,i)=>100+i*2);
+ if(device)await device.collect(pressure);else await h.q.accept([{...binding,rows:pressure.map(n=>['c',n])}]);
+ assert.equal((await h.group()).parked.length,0,'the stopped park is evicted');
+ for(let n=0;n<256;n++)await h.flush();
+ assert.deepEqual((await h.group()).owed,[],'newer runs drain successfully');
+ if(device)await device.collect([41]);else await h.collect();
+ await h.flush();
+ assert.deepEqual((await h.group()).owed,[],'recollection cannot start another bound budget');
+ assert.equal(new Set(h.calls.filter(c=>c.args.from===41).map(c=>c.id)).size,17);
+ assert.equal(h.refused.length,1);
+ // Whole-group pressure also keeps suppression. The device's own group cap
+ // is covered on both native stores in delivery.rs.
+ await h.storage.update(s=>{acceptManifest(s,[{...binding,rows:[['other',1]]}],1);acceptManifest(s,[{...binding,rows:[['c',41]]}],1);});
+ assert.deepEqual((await h.group()).refused,[[41,41]]);
  const count=h.calls.length;await h.q.stop();
  // New queue over the same serialized state, with its own minting counter.
  let saved;await h.storage.update(s=>{saved=JSON.stringify(s);});
  let state=JSON.parse(saved);const storage={async update(edit){const result=edit(state);state=JSON.parse(JSON.stringify(state));return result;},async clear(){throw Error('unexpected clear');}};
  const resumed=new DeliveryQueue({storage,local:true,mint:()=>{assert.fail('wake cap must persist');},ready:()=>true,send:()=>{assert.fail('stopped debt must not dispatch');},now:()=>1e9});
  t.after(()=>resumed.stop());await resumed.start();await resumed.reconnect();await resumed.wake('timer');await resumed.accept([{...binding,rows:[['c',41]]}]);await resumed.pump();await settle();
- assert.equal(h.calls.length,count);assert.equal((await storage.update(s=>Object.values(s.groups)[0])).parked[0]?.kind,'stopped');
+ assert.equal(h.calls.length,count);assert.deepEqual((await storage.update(s=>Object.values(s.groups)[0])).refused,[[41,41]]);
 });
 
 
@@ -107,4 +126,94 @@ test('one bound wake is consumed once even when its success or new manifests wak
  assert.equal(h.calls.length,1,'a success cannot spend the same bound wake twice');
  await h.q.accept([{...binding,rows:[['c',43]]}]);await h.flush();assert.equal(h.calls.length,1,'neither can a later manifest');
  await h.q.wake('timer');await h.flush();assert.equal(h.calls.length,2);
+});
+
+// Real device publication exercises Rust's interval trim, using the queue's
+// own persisted terminal state rather than a hand-authored stopped fixture.
+async function deviceStorage(t) {
+ const core=await webDevice({wasm,persist:memoryPersistence()}).open('bound-lifetime',backend);
+ t.after(()=>core.close());
+ const ok=r=>{assert.ok(!r.denied,JSON.stringify(r));return r.ok;};
+ ok(await core.call(JSON.parse(JSON.stringify(snapshot).replaceAll('"c1"','"c"'))));
+ const storage={async update(edit){
+  const read=ok(await core.call({op:'delivery',viewer:'dev:alice',action:'read'}));
+  const state=JSON.parse(read.value),result=edit(state);
+  assert.equal(ok(await core.call({op:'delivery',viewer:'dev:alice',action:'write',expected:read.value,value:JSON.stringify(state)})),true);
+  return result;
+ },async clear(){assert.fail('unexpected clear');}};
+ const sample=snapshot.page.events.find(e=>e.table==='messages');let seq=1;
+ return {storage,async collect(positions){ok(await core.call({op:'apply',first:false,page:{
+  snapshot:false,watermark:++seq,more:false,events:positions.map(n=>({...sample,id:`pressure-${n}`,data:{...sample.data,id:`pressure-${n}`,conversationId:'c',at:n}})),
+ }}));}};
+}
+
+for(const wake of ['reconnect','start','timer'])test(`a due bound park cannot replace an attempt in backoff on ${wake}`,async t=>{
+ const h=fixture(t,()=>success);await h.collect();
+ const attempt={id:'committed-1',run:[1,1],retries:1,readyAt:61000,bound:{retries:2,wakes:0,replay:true}};
+ await h.storage.update(s=>{const g=Object.values(s.groups)[0];g.owed=[[1,1]];g.attempt=structuredClone(attempt);
+  g.parked=[{kind:'bound',run:[41,41],at:0,attempt:{id:'old-41',run:[41,41],retries:0,readyAt:0,bound:{retries:8,wakes:2,replay:true}}}];});
+ h.advance(60000);if(wake==='start')await h.q.start();else if(wake==='reconnect')await h.q.reconnect();else await h.q.wake('timer');
+ await h.flush();assert.equal(h.calls.length,0,'the due park waits behind the held replay');
+ assert.deepEqual((await h.group()).attempt,attempt);
+ assert.equal((await h.group()).parked[0].ready,true);
+ h.advance(1000);await h.flush();assert.equal(h.calls[0].id,'committed-1');
+ await h.flush();assert.equal(h.calls[1].args.from,41);
+ assert.notEqual(h.calls[1].id,'old-41');assert.deepEqual((await h.group()).reported,[[1,1],[41,41]]);
+});
+
+test('transport exhaustion and serialized restart retain a partially spent bound budget and cumulative id cap',async t=>{
+ let state={serial:0,groups:{},retired:{}},transport=false;
+ const storage={async update(edit){const result=edit(state);state=JSON.parse(JSON.stringify(state));return result;},async clear(){assert.fail('unexpected clear');}};
+ const h=fixture(t,()=>{if(transport)throw Error('lost transport');return bound;},storage);
+ await h.collect();await h.flush();
+ // Spend three burst ids, without exhausting the burst.
+ for(let n=0;(await h.group()).attempt.bound.retries<3&&n<20;n++){h.advance(60000);await h.flush();}
+ assert.equal((await h.group()).attempt.bound.retries,3);
+ transport=true;
+ for(let n=0;(await h.group()).attempt&&n<10;n++){h.advance(60000);await h.flush();}
+ let park=(await h.group()).parked[0];assert.equal(park.kind,'retry');
+ assert.equal(park.attempt.bound.retries,3);const heldId=park.attempt.id;
+ transport=false;await h.restart();await h.flush();
+ assert.equal(h.calls.at(-1).id,heldId,'uncertain transport keeps its id');
+ assert.equal((await h.group()).attempt.bound.retries,3,'start cannot replenish the burst');
+ for(let n=0;(await h.group()).attempt&&n<40;n++){h.advance(60000);await h.flush();}
+ assert.equal((await h.group()).parked[0].kind,'bound');
+ // Spend two wakes, then lose transport on the third. Both counters must
+ // survive this distinct retry park, too.
+ for(let n=0;n<2;n++){h.advance(30000);await h.q.reconnect();await h.flush();h.advance(1000);await h.flush();}
+ transport=true;h.advance(30000);await h.q.reconnect();await h.flush();
+ for(let n=0;(await h.group()).attempt&&n<10;n++){h.advance(60000);await h.flush();}
+ park=(await h.group()).parked[0];assert.equal(park.kind,'retry');assert.equal(park.attempt.bound.wakes,3);
+ const wakeId=park.attempt.id;transport=false;await h.restart();await h.flush();
+ assert.equal(h.calls.at(-1).id,wakeId);assert.equal((await h.group()).attempt.bound.wakes,3);
+ h.advance(1000);await h.flush();
+ for(let n=4;n<=8;n++){h.advance(30000);await h.q.reconnect();await h.flush();h.advance(1000);await h.flush();}
+ assert.equal((await h.group()).parked[0].kind,'stopped');assert.equal(h.refused.length,1);
+ assert.equal(new Set(h.calls.map(c=>c.id)).size,17,'transport/restart adds no bound ids');
+ await h.restart();await h.collect();h.advance(600000);await h.q.wake('timer');await h.flush();
+ assert.equal(new Set(h.calls.map(c=>c.id)).size,17);assert.equal(h.refused.length,1);
+});
+
+for(const location of ['attempt','bound','retry'])for(const pressure of ['interval','group'])
+ test(`eviction saturates a group before forgetting the bound budget in ${location} (${pressure})`,async t=>{
+ const h=fixture(t,()=>success);await h.collect();
+ await h.storage.update(s=>{const g=Object.values(s.groups)[0];
+  const attempt={id:'held',run:[41,41],retries:2,readyAt:1e9,bound:{retries:2,wakes:1,replay:true}};
+  if(location==='attempt')g.attempt=attempt;else{g.owed=[];g.parked=[{run:[41,41],kind:location,at:0,attempt}];}
+  if(pressure==='interval')acceptManifest(s,[{...binding,rows:Array.from({length:256},(_,i)=>['c',100+i*2])}],4096);
+  else{acceptManifest(s,[{...binding,rows:[['other',1]]}],1);assert.equal(s.retired[deliveryKey(binding,'c')].fingerprint,binding.fingerprint);acceptManifest(s,[{...binding,rows:[['c',41]]}],1);}
+ });
+ assert.equal((await h.group()).saturated,true);
+ await h.restart();await h.collect();h.advance(1e9);await h.q.reconnect();await h.q.wake('timer');await h.flush();
+ assert.equal(h.calls.length,0,'pressure must never grant a fresh budget');
+});
+
+
+test('the terminal bound refusal obeys refused capacity and saturates without another callback',async t=>{
+ const h=fixture(t,()=>bound);await h.collect();
+ await h.storage.update(s=>{const g=Object.values(s.groups)[0];g.refused=Array.from({length:63},(_,i)=>[100+i*2,100+i*2]);
+  g.attempt={id:'last',run:[41,41],retries:0,readyAt:0,bound:{retries:8,wakes:8,replay:true}};});
+ await h.flush();assert.equal((await h.group()).saturated,true);assert.equal((await h.group()).refused.length,64);
+ assert.deepEqual((await h.group()).parked,[]);assert.equal(h.refused.length,1);
+ await h.restart();await h.collect();await h.flush();assert.equal(h.calls.length,1);assert.equal(h.refused.length,1);
 });

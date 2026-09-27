@@ -258,3 +258,75 @@ fn activation_room<H:Host>(h:&mut H) {
     request(&mut d,"enumerate");assert_eq!(owed(&state(&mut d),"messages"),json!([[1,500]]));
     request(&mut d,"enumerate");assert_eq!(owed(&state(&mut d),"messages"),json!([[1,501]]));
 }
+
+fn edit_state<S:DeviceStore>(d:&mut Device<S>, edit:impl FnOnce(&mut Json)) {
+    let raw=request(d,"read");let mut s:Json=serde_json::from_str(raw["value"].as_str().unwrap()).unwrap();edit(&mut s);
+    assert_eq!(d.delivery(&json!({"viewer":"dev:alice","action":"write","expected":raw["value"],"value":s.to_string()})).unwrap(),json!(true));
+}
+fn bound_eviction<H:Host>(h:&mut H) {
+    let key="[\"messages\",\"delivered_messages\",\"r\"]";
+    for location in ["attempt","bound","retry","stopped"] { for whole_group in [false,true] {
+        let name=format!("bound-{location}-{whole_group}");
+        let mut d=h.open(&name,Some(backend())).unwrap();request(&mut d,"read");d.apply(&page(true,vec![event(41)],1),true).unwrap();
+        edit_state(&mut d,|s|{
+            let g=&mut s["groups"][key];
+            let attempt=json!({"id":"held","run":[41,41],"retries":2,"readyAt":1000000,"bound":{"retries":2,"wakes":1,"replay":true}});
+            if location=="attempt" {g["attempt"]=attempt;} else {
+                g["owed"]=json!([]);g["parked"]=json!([{"run":[41,41],"kind":location,"at":0,"attempt":attempt}]);
+                if location=="stopped" {g["refused"]=json!([[41,41]]);}
+            }
+            if whole_group {
+                let mut other=g.clone();other["owed"]=json!([]);other["parked"]=json!([]);other.as_object_mut().unwrap().remove("attempt");other["refused"]=json!([]);
+                for n in 0..4095 { let group=format!("other{n}");other["group"]=json!(group);other["collected"]=json!(10000+n);
+                    s["groups"][json!(["messages","delivered_messages",group]).to_string()]=other.clone(); }
+            }
+        });
+        if whole_group {
+            let mut row=event(1000);row["data"]["room"]=json!("new");
+            d.apply(&page(false,vec![row],2),false).unwrap();
+            let retired=state(&mut d)["retired"][key].clone();
+            assert_eq!(retired["fingerprint"],"fixture:messages");
+            assert_eq!(retired["saturated"],location!="stopped");
+        } else {
+            d.apply(&page(false,(0..256).map(|n|event(100+n*2)).collect(),2),false).unwrap();
+            let s=state(&mut d);let g=&s["groups"][key];
+            assert_eq!(g["saturated"],location!="stopped","{location}: pressure cannot reset bound counters");
+            assert!(g.get("attempt").is_none());
+            assert_eq!(g["parked"],json!([]));
+            if location=="stopped" { assert_eq!(g["owed"].as_array().unwrap().len(),256);reset_debt(&mut d); }
+        }
+        h.close(&name,d);let mut d=h.open(&name,None).unwrap();
+        d.apply(&page(false,vec![event(41)],3),false).unwrap();
+        let s=state(&mut d);let g=&s["groups"][key];assert_eq!(g["owed"],json!([]),"recollection must not replenish {location}");
+        if location=="stopped" {assert_eq!(g["refused"],json!([[41,41]]));} else {assert_eq!(g["saturated"],true);}
+    }}
+}
+#[test]fn bound_eviction_memory(){bound_eviction(&mut Memory::new())}
+#[test]fn bound_eviction_sqlite(){bound_eviction(&mut Sqlite::new("delivery-bound-lifetime"))}
+
+fn retired_adoption<H:Host>(h:&mut H) {
+    let mut initial=backend();initial.schema.delivery[0].fingerprint="older".into();
+    let mut d=h.open("retired-adoption",Some(initial)).unwrap();
+    let key="[\"messages\",\"delivered_messages\",\"r\"]";
+    let old_key="[\"messages\",\"delivered_messages\",\"old\"]";
+    let cursor="[\"messages\",\"delivered_messages\"]";
+    edit_state(&mut d,|s|{
+        s["bindings"].as_array_mut().unwrap().push(json!({"table":"messages","mutation":"delivered_messages","fingerprint":"fixture:messages","args":["conversation","from","through"]}));
+        s["retired"][key]=json!({"fingerprint":"fixture:messages","refused":[[41,41]],"saturated":true});
+        s["retired"][old_key]=json!({"fingerprint":"older","refused":[[9,9]],"saturated":true});
+        s["cursors"][cursor]=json!({"done":true});
+    });
+    d.adopt(backend()).unwrap();let s=state(&mut d);
+    assert_eq!(s["retired"][key]["saturated"],true,"adopting a fingerprint keeps its retired refusal memory");
+    assert!(s["retired"].get(old_key).is_none(),"the removed fingerprint is retired");
+    assert!(s["cursors"].get(cursor).is_none(),"the shared enumeration cursor still resets");
+    d.apply(&page(true,vec![event(41)],1),true).unwrap();let s=state(&mut d);
+    assert_eq!(s["groups"][key]["refused"],json!([[41,41]]));assert_eq!(s["groups"][key]["saturated"],true);
+    // A retained record from a different fingerprint can never suppress the
+    // newly compiled binding, even if it shares the table/mutation/group key.
+    edit_state(&mut d,|s|{s["groups"]=json!({});s["retired"][key]["fingerprint"]=json!("unrelated");});
+    d.apply(&page(false,vec![event(43)],2),false).unwrap();let s=state(&mut d);
+    assert_eq!(s["groups"][key]["refused"],json!([]));assert_eq!(s["groups"][key]["saturated"],false);assert_eq!(s["groups"][key]["owed"],json!([[43,43]]));
+}
+#[test]fn retired_adoption_memory(){retired_adoption(&mut Memory::new())}
+#[test]fn retired_adoption_sqlite(){retired_adoption(&mut Sqlite::new("delivery-retired-adoption"))}

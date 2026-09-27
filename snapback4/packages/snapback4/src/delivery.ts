@@ -121,7 +121,7 @@ export class DeliveryQueue {
           let entry = ready[0];
           if (!entry) {
             const eligible = (p: Parked) => p.kind === "full" || (p.kind === "bound" && p.ready);
-            const parked = idle.filter(([, g]) => g.wake && g.parked.some(eligible))
+            const parked = idle.filter(([, g]) => !g.attempt && g.wake && g.parked.some(eligible))
               .map(([key, group]) => ({ key, group, run: group.parked.filter(eligible).sort((a, b) => a.at - b.at)[0]! }))
               .filter(item => { if (item.run.at + 30_000 <= now) return true; nextAt = Math.min(nextAt, item.run.at + 30_000); return false; })
               .sort((a, b) => a.group.ready - b.group.ready)[0];
@@ -222,7 +222,10 @@ export class DeliveryQueue {
             attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** bound.retries++);
           } else {
             park(bound.wakes < 8 ? "bound" : "stopped", true);
-            if (bound.wakes >= 8) effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+            if (bound.wakes >= 8) {
+              group.refused = mergeRuns([...group.refused, run]);
+              effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+            }
           }
         } else if (why?.code === "RUNS_FULL") park("full");
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {

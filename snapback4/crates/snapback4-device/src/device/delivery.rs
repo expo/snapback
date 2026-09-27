@@ -63,10 +63,7 @@ fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
         let mutation = binding["mutation"].as_str().unwrap_or("");
         retain(&mut state["groups"], &mut |_, group| group["binding"]["fingerprint"] != binding["fingerprint"]);
         if let Some(cursors) = state["cursors"].as_object_mut() { cursors.remove(&encoded(&(table, mutation))?); }
-        retain(&mut state["retired"], &mut |key, _| {
-            let parts: Vec<String> = decoded(key).unwrap_or_default();
-            parts.first().is_none_or(|v| v != table) || parts.get(1).is_none_or(|v| v != mutation)
-        });
+        retain(&mut state["retired"], &mut |_, kept| kept["fingerprint"] != binding["fingerprint"]);
     }
     state["bindings"] = bindings;
     if !state["cursors"].is_object() { state["cursors"] = json!({}); }
@@ -91,7 +88,32 @@ fn add(value: &mut Json, n: i64) {
     // instantiates serde's owned-tree writer for the entire interval container.
     *value = Json::Array(merged.into_iter().map(|(a,b)| Json::Array(vec![Json::from(a), Json::from(b)])).collect());
 }
+// @ref LLP 3000.022#4 — eviction may omit delivery, never replenish bound retries.
+fn has_bound(debt: &Json) -> bool {
+    !debt["attempt"]["bound"].is_null() || debt["parked"].as_array().is_some_and(|parks| parks.iter().any(|p| p["kind"] != "stopped" && !p["attempt"]["bound"].is_null()))
+}
+fn saturate(debt: &mut Json) {
+    debt["saturated"] = json!(true); debt["owed"] = json!([]); debt["parked"] = json!([]);
+    debt.as_object_mut().unwrap().remove("attempt");
+}
 
+#[cold]
+fn retire_oldest(state: &mut Json, evict: bool) -> bool {
+    let mut oldest: Option<(&String, u64)> = None;
+    for (key, group) in state["groups"].as_object().unwrap() {
+        if !evict && !(group["owed"].as_array().is_some_and(|v| v.is_empty()) && group["parked"].as_array().is_some_and(|v| v.is_empty())) { continue; }
+        let collected = group["collected"].as_u64().unwrap_or(0);
+        if oldest.is_none_or(|(_, at)| collected < at) { oldest = Some((key, collected)); }
+    }
+    let Some((oldest, _)) = oldest else { return false; };
+    let oldest = oldest.clone();
+    let old = state["groups"].as_object_mut().unwrap().remove(&oldest).unwrap();
+    let saturated = old["saturated"] == true || has_bound(&old);
+    if saturated || old["refused"].as_array().is_some_and(|runs| !runs.is_empty()) {
+        state["retired"].as_object_mut().unwrap().insert(oldest, json!({"fingerprint":old["binding"]["fingerprint"],"refused":old["refused"],"saturated":saturated,"scope":old["scope"]}));
+    }
+    true
+}
 fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: String, evict: bool) -> Result<bool, RuntimeError> {
     let group = row.field(&binding.group)?.as_str()?;
     let position = row.field(&binding.position)?.as_int()?;
@@ -100,16 +122,10 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
     if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&position) { return Ok(true); }
     let key = group_key(binding, group)?;
     if state["groups"].get(&key).is_none() {
-        if state["groups"].as_object().unwrap().len() >= 4096 {
-            let oldest = state["groups"].as_object().unwrap().iter().filter(|(_,g)| evict || (g["owed"].as_array().is_some_and(|v| v.is_empty()) && g["parked"].as_array().is_some_and(|v| v.is_empty()))).min_by_key(|(_,v)| v["collected"].as_u64().unwrap_or(0)).map(|(k,_)| k.clone());
-            let Some(oldest) = oldest else { return Ok(false); };
-            let old = state["groups"].as_object_mut().unwrap().remove(&oldest).unwrap();
-            if old["saturated"] == true || !runs(&old["refused"]).is_empty() {
-                state["retired"][oldest] = json!({"refused":old["refused"],"saturated":old["saturated"],"scope":old["scope"]});
-            }
-        }
+        if state["groups"].as_object().unwrap().len() >= 4096 && !retire_oldest(state, evict) { return Ok(false); }
         let incarnation = serial(state);
         let kept = &state["retired"][&key];
+        let kept = if kept["fingerprint"] == binding.fingerprint { kept } else { &Json::Null };
         let refused = kept.get("refused").cloned().unwrap_or(json!([]));
         let saturated = kept["saturated"] == true;
         state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":binding.args,"fingerprint":binding.fingerprint},
@@ -117,22 +133,29 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
             "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
     // An older compiled generation must not collect into a newer manifest binding.
-    if state["groups"][&key]["binding"]["fingerprint"] != binding.fingerprint || state["groups"][&key]["saturated"] == true { return Ok(true); }
+    let debt = &state["groups"][&key];
+    if debt["binding"]["fingerprint"] != binding.fingerprint || debt["saturated"] == true { return Ok(true); }
     // Activation pauses before a collection could displace an owed or parked
     // run. A publication retains its ordinary bounded under-reporting policy.
-    let debt = &state["groups"][&key];
-    if !evict && debt["owed"].as_array().unwrap().len() + debt["parked"].as_array().unwrap().len() >= 256
+    let known = covers(&debt["reported"], position) || covers(&debt["refused"], position)
+        || debt["parked"].as_array().into_iter().flatten().any(|p| p["run"][0].as_i64().is_some_and(|a| a <= position) && p["run"][1].as_i64().is_some_and(|b| b >= position));
+    if debt["owed"].as_array().unwrap().len() + debt["parked"].as_array().unwrap().len() >= 256
         && !runs(&debt["owed"]).iter().any(|&(a,b)| a.saturating_sub(1) <= position && position <= b.saturating_add(1))
-        && !covers(&debt["reported"], position) && !covers(&debt["refused"], position)
-        && !debt["parked"].as_array().unwrap().iter().any(|p| p["run"][0].as_i64().is_some_and(|a| a <= position) && p["run"][1].as_i64().is_some_and(|b| position <= b)) { return Ok(false); }
+        && !known {
+        if !evict { return Ok(false); }
+        if has_bound(debt) { saturate(&mut state["groups"][&key]); return Ok(true); }
+    }
     let version = serial(state);
     let debt = &mut state["groups"][&key];
     debt["collected"] = json!(version); debt["wake"] = json!(true); debt["scope"] = json!(scope);
-    if covers(&debt["reported"], position) || covers(&debt["refused"], position)
-        || debt["parked"].as_array().into_iter().flatten().any(|p| p["run"][0].as_i64().is_some_and(|a| a <= position) && p["run"][1].as_i64().is_some_and(|b| b >= position)) { return Ok(true); }
+    if known { return Ok(true); }
     add(&mut debt["owed"], position); add(&mut debt["recent"], position);
     while debt["owed"].as_array().unwrap().len() + debt["parked"].as_array().unwrap().len() > 256 {
-        let parked = debt["parked"].as_array().unwrap().iter().enumerate().min_by_key(|(_,p)| p["run"][0].as_i64()).map(|(i,p)| (i,p["run"][0].as_i64().unwrap()));
+        let mut parked: Option<(usize, i64)> = None;
+        for (i, park) in debt["parked"].as_array().unwrap().iter().enumerate() {
+            let first = park["run"][0].as_i64().unwrap();
+            if parked.is_none_or(|(_, at)| first < at) { parked = Some((i, first)); }
+        }
         if let Some((i, first)) = parked && debt["owed"][0][0].as_i64().is_none_or(|n| first < n) { debt["parked"].as_array_mut().unwrap().remove(i); }
         else { debt["owed"].as_array_mut().unwrap().remove(0); }
     }

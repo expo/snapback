@@ -2298,7 +2298,11 @@ parks without notifying the application. The 10-minute timer, reconnect and
 start permit one new id per wake, at least 30 s apart, for at most eight more
 wake retries. Counts survive local restart; reconnect does not reset the burst.
 If all eight wakes fail, `onDeliveryRefused` fires once and that interval stops
-retrying. A bare denial keeps the uncertain same-id behavior.
+retrying. Its refused entry survives interval and group eviction. A group with a
+partially spent bound budget saturates on interval overflow or whole-group
+eviction and stops collection and reporting. Online queues live in memory; a
+new process starts a fresh budget. A bare denial keeps the uncertain same-id
+behavior.
 
 Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
 for application refusals. It receives

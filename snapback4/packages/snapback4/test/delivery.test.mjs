@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as turn } from 'node:timers/promises';
 import { DeliveryQueue, memoryDelivery } from '../dist/delivery.js';
-import { acceptManifest, deliveryKey, emptyDelivery } from '../dist/delivery-state.js';
+import { acceptManifest, deliveryKey, dropBinding, emptyDelivery } from '../dist/delivery-state.js';
 const binding={fingerprint:'fixture:messages',table:'messages',mutation:'delivered',args:['conversation','from','through']};
 const manifest=(rows,b=binding)=>[{...b,rows}];
 const ok={accepted:true,json:{state:'sent',seq:10,head:10,store_id:'S'}};
@@ -159,10 +159,10 @@ for(const envelope of ['why','denied'])test(`${envelope}: E_DELIVERY_BINDING dro
  const responses=[];const h=harness(t,{send:()=>{const response=deferred();responses.push(response);return response.promise;}});
  h.ready(false);await h.q.accept([...manifest([['c',1],['d',2]]),...manifest([['other',20]],other)]);
  await h.storage.update(s=>{
-  s.retired[deliveryKey(binding,'retired')]={refused:[[9,9]],saturated:true};
+  s.retired[deliveryKey(binding,'retired')]={fingerprint:binding.fingerprint,refused:[[9,9]],saturated:true};
   const g=s.groups[deliveryKey(other,'other')];g.reported=[[10,10]];g.refused=[[12,12]];
   g.attempt={id:'later',run:[20,20],retries:1,readyAt:100000};
-  s.retired[deliveryKey(other,'kept')]={refused:[[30,30]],saturated:true};
+  s.retired[deliveryKey(other,'kept')]={fingerprint:other.fingerprint,refused:[[30,30]],saturated:true};
  });
  const before=await h.state();h.ready(true);await h.flush();
  responses[0].resolve({accepted:true,json:{head:10,[envelope]:{code:'E_DELIVERY_BINDING'}}});await settle();
@@ -197,14 +197,16 @@ test('the completed startup barrier cannot reopen when bounded reported history 
 });
 
 
-test('startup waits for a ready persisted retry behind a post-start lower interval',async t=>{
+for(const kind of ['retry','bound'])test(`startup waits for a ready persisted ${kind} behind a post-start lower interval`,async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
  const responses=[],h=harness(t,{send:()=>{const d=deferred();responses.push(d);return d.promise;}});
  h.ready(false);await h.q.accept(manifest([['c',41]]));
- await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind:'retry',run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0}}];});
- await h.q.start();await h.q.accept(manifest([['c',1]]));h.ready(true);await h.flush();
+ await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind,run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0,...(kind==='bound'?{bound:{retries:8,wakes:2,replay:true}}:{})}}];});
+ h.advance(30000);await h.q.start();await h.q.accept(manifest([['c',1]]));h.ready(true);await h.flush();
  assert.equal(h.calls[0].args.from,1);assert.equal(await h.q.flushed(),false,'41 is ready but has not dispatched');
  responses[0].resolve(ok);await settle();await h.flush();
- assert.equal(h.calls[1].id,'persisted');assert.equal(await h.q.flushed(),false,'41 is still in flight');
+ if(kind==='retry')assert.equal(h.calls[1].id,'persisted');else assert.notEqual(h.calls[1].id,'persisted');
+ assert.equal(h.calls[1].args.from,41);assert.equal(await h.q.flushed(),false,'41 is still in flight');
  // Further traffic does not become startup debt.
  await h.q.accept(manifest([['c',3]]));responses[1].resolve(ok);await settle();await h.flush();
  assert.equal(await h.q.flushed(),true);assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);
@@ -225,4 +227,19 @@ test('answers without delivery manifests leave the dormant queue without timers'
  t.mock.method(globalThis,'setTimeout',(_,ms)=>{scheduled.push(ms);return {unref(){}};});
  await h.q.accept(undefined);await h.q.accept('partial');await h.q.accept([]);
  assert.deepEqual(scheduled,[]);
+});
+
+
+test('retired refusal state is removed and restored only for its fingerprint',()=>{
+ const s=emptyDelivery(),key=deliveryKey(binding,'c'),newer={...binding,fingerprint:'new'};
+ s.retired[key]={fingerprint:newer.fingerprint,refused:[[41,41]],saturated:true};
+ s.bindings=[binding,newer];dropBinding(s,binding);
+ assert.equal(s.retired[key].fingerprint,newer.fingerprint,'removing the old binding preserves the new tombstone');
+ acceptManifest(s,[{...newer,rows:[['c',41]]}],1);
+ assert.equal(s.groups[key].saturated,true);assert.deepEqual(s.groups[key].refused,[[41,41]]);
+ delete s.groups[key];s.retired[key].fingerprint='different';
+ acceptManifest(s,[{...newer,rows:[['c',43]]}],1);
+ assert.equal(s.groups[key].saturated,false);assert.deepEqual(s.groups[key].refused,[]);assert.deepEqual(s.groups[key].owed,[[43,43]]);
+ dropBinding(s,newer);assert.equal(s.retired[key].fingerprint,'different');
+ dropBinding(s,{...binding,fingerprint:'different'});assert.equal(s.retired[key],undefined);
 });

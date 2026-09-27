@@ -69230,3 +69230,55 @@ syntax/API, auth/expiry/meter weakening, original GS store writes, shared
 path tool installation, push or publication. Binaryen experimentation stayed
 under this worktree's target directory and was not adopted. Local commits
 carry the required co-author trailer.
+
+### 2026-09-27 — Lane DC round 5: preserve bound budgets and terminal suppression
+
+Merged origin/main first as ce02eb3d5 (main 166fe0579), preserving both
+journals, main's transactional replace_rows and 10,000-row page, and DC's
+collection and acceptance behavior. Read all prior lane prompts/reports,
+relevant journal entries and both complete round-4 NOT READY reviews.
+
+A due bound park now waits behind any existing attempt, including a held
+same-id replay in backoff. Terminal E_BOUND also enters the non-evictable
+refused set, so interval/group pressure and recollection cannot start another
+17-id budget or notify twice. TS and device collectors saturate a group before
+pressure forgets a partially spent bound budget, including transport retry
+parks. Retired records carry fingerprints; removal/restoration matches them,
+while adoption still resets the shared enumeration cursor. LLP 3000.022 and
+client operations now explicitly limit restart persistence to local clients;
+online queues remain memory-only. No acceptance or outbox priority change.
+
+New tests fail on the old implementation: 11 queue cases and four native
+memory/SQLite cases. Both requested mutations fail: removing ready bound
+parks from the startup barrier, and clearing bound counters when resuming a
+transport retry. Positive witnesses preserve the held id across all three
+wakes; pressure, drain, recollection and restart retain one callback and
+17 cumulative ids; actual device publication and the 4,096-group cap retain
+suppression. Partial budgets saturate across all three locations. Adoption
+keeps the new fingerprint's tombstones and ignores mismatched restoration.
+
+Final wasm: 2,022,790 B raw / 585,118 B gzip, 538 B below the merged baseline
+and 244 B below the accepted 585,362 B remainder. Shared coverage work, a cold
+eviction helper, explicit minimum scans and owned-key insertion paid for the
+lifetime fixes. The 572,841 B checked-in gate, toolchain, codecs and meters
+are unchanged; private Binaryen and larger refactor experiments were discarded.
+No tool was installed on a shared path. local.ts remains exactly 1,500 lines.
+
+Affected delivery/source-census/browser checks pass 152/152 on the selected
+artifact; device delivery 30/30; complete device 1,353 passed / 3 ignored;
+whole guide 86/86; artifact family and absence censuses pass. The complete
+suite ran exactly once, exit 1, exact summary: `== 1 failure(s) in 1530 s`.
+Its only failure is `wasm build`, baseline: 585,118 B exceeds the unchanged
+gate but remains inside the accepted remainder. Lane-owned and environmental
+full-suite failures: none. Rust 3,954 passed / 24 ignored; main client 2,765
+passed / 10 skipped; seven extra shards 56/56; models 78/78; wrappers 9/9.
+The inherited 60 s whole-suite target remains exceeded.
+
+No new syntax, request field, dependency, budget, version, server change,
+comparative choreography or crash-witness claim. Whole-group saturation is
+the brief's allowed under-reporting choice. Hosts without conditional
+supplementary commits retain the previously approved fallback omission.
+Report with file map, examples, mutations, commands and reproductions:
+reports/20260927-dc-delivery-client/ROUND5.md. Raw evidence:
+target/lane-dc-round5/. Commits carry the requested co-author. No push or
+publication.

@@ -59,9 +59,7 @@ import {
 } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
-
-// Fill the server's existing row allowance; fetchSync's byte ceiling and the
-// E_BOUND halving path still bound oversized pages without moving a cursor.
+// Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const PAGE = 10000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {

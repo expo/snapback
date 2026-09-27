@@ -16,7 +16,7 @@ export interface DeliveryGroup {
 export interface DeliveryState {
   serial: number;
   groups: Record<string, DeliveryGroup>;
-  retired: Record<string, { refused: Run[]; saturated: boolean; scope?: string | undefined }>;
+  retired: Record<string, { fingerprint: string; refused: Run[]; saturated: boolean; scope?: string | undefined }>;
   // The device owns these fields; queue transactions preserve them.
   cursors?: Record<string, unknown>;
   bindings?: DeliveryBinding[];
@@ -47,10 +47,11 @@ export function groupFor(state: DeliveryState, binding: DeliveryBinding, group: 
   if (!value) {
     if (Object.keys(state.groups).length >= cap) {
       const oldest = Object.entries(state.groups).sort(([, a], [, b]) => a.collected - b.collected)[0]!;
-      if (oldest[1].refused.length || oldest[1].saturated) state.retired[oldest[0]] = { refused: oldest[1].refused, saturated: oldest[1].saturated, scope: oldest[1].scope };
+      const old = oldest[1], saturated = old.saturated || hasBound(old);
+      if (old.refused.length || saturated) state.retired[oldest[0]] = { fingerprint: old.binding.fingerprint, refused: old.refused, saturated, scope: old.scope };
       delete state.groups[oldest[0]];
     }
-    const kept = state.retired[key];
+    const retired = state.retired[key], kept = retired?.fingerprint === binding.fingerprint ? retired : undefined;
     value = state.groups[key] = { binding, group, incarnation: ++state.serial, collected: state.serial,
       owed: [], reported: [], refused: kept?.refused ?? [], saturated: kept?.saturated ?? false,
       parked: [], wake: false, ready: state.serial, recent: [] };
@@ -72,6 +73,7 @@ export function collectRuns(state: DeliveryState, value: DeliveryGroup, runs: Ru
 }
 /** Collection and outcomes can both split intervals; enforce the same bound. */
 export function boundDebt(value: DeliveryGroup): void {
+  if (value.refused.length >= 64 || (value.owed.length + value.parked.length > 256 && hasBound(value))) { saturate(value); return; }
   // Parked runs count towards the same debt bound. Lowest positions are lost first.
   while (value.owed.length + value.parked.length > 256) {
     const p = value.parked.reduce((min, item, i, all) => item.run[0] < all[min]!.run[0] ? i : min, 0);
@@ -79,7 +81,17 @@ export function boundDebt(value: DeliveryGroup): void {
     else value.parked.splice(p, 1);
   }
   // An evicted uncertain interval cannot survive secretly in the attempt.
-  if (value.attempt && subtractRuns([value.attempt.run], value.owed).length) delete value.attempt;
+  if (value.attempt && subtractRuns([value.attempt.run], value.owed).length) {
+    if (value.attempt.bound) saturate(value);
+    else delete value.attempt;
+  }
+}
+// @ref LLP 3000.022#4 — pressure may under-report, never replenish a bound budget.
+function hasBound(value: DeliveryGroup): boolean {
+  return !!value.attempt?.bound || value.parked.some(p => p.kind !== "stopped" && p.attempt?.bound);
+}
+function saturate(value: DeliveryGroup): void {
+  value.saturated = true; value.owed = []; value.parked = []; delete value.attempt;
 }
 export function acceptManifest(state: DeliveryState, manifest: unknown, cap: number): boolean {
   if (!Array.isArray(manifest)) return false;
@@ -109,9 +121,8 @@ export function dropBinding(state: DeliveryState, binding: DeliveryBinding): voi
   for (const [key, group] of Object.entries(state.groups)) {
     if (group.binding.fingerprint === binding.fingerprint) delete state.groups[key];
   }
-  for (const key of Object.keys(state.retired)) {
-    const [table, mutation] = JSON.parse(key);
-    if (table === binding.table && mutation === binding.mutation) delete state.retired[key];
+  for (const [key, retired] of Object.entries(state.retired)) {
+    if (retired.fingerprint === binding.fingerprint) delete state.retired[key];
   }
   state.bindings = (state.bindings ?? []).filter(b => b.fingerprint !== binding.fingerprint);
 }
