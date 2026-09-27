@@ -67798,3 +67798,43 @@ The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
 never capabilities, and this is a name, not a secret. The operations manual
 calls it in a type-checked block, which the public-function census requires.
+
+## 2026-09-27 — LLP 3000.022 lane DC: device debt and SDK delivery queue
+
+Local lane commits implement the consumer half of delivery reporting: optional
+compiled bindings; publication/settlement/withdrawal/dequeue collection and
+viewer-scoped metadata on memory, SQLite and wasm; one activation cursor/done
+per binding; direct four-slot queues on local and online clients; accepted
+manifest debt, persisted attempts, outcome/backoff/wake rules, bounds, restore
+floors and lifecycle fences. The local scheduler waits for witnessRestore and
+an idle serial network chain. onDeliveryRefused is a client construction option.
+The receipts card now keeps only the seen hook and a member read; its React
+witness deliberately replaces the old hook-owned delivery/catch-up assertions.
+
+Measured: same-path clean base 3369ae543 was 1,981,512 B raw / 572,053 B gzip;
+final device is 2,044,323 B raw / 592,029 B gzip (+62,811 raw / +19,976 gzip).
+The unchanged 572,841 B budget is exceeded by 19,188 B. This is a lane-owned
+landing blocker; neither the budget nor any engine meter was raised.
+
+Required scripts/test.sh ran once and ended exactly:
+`== 3 failure(s) in 1586 s` (wasm build, cargo test, client tests; exit 1).
+All failures were ours. The route/README optional-type inference, serial promise
+ordering, synchronous sign-out, empty-queue timer, codec census and deliberately
+changed React recipe failures were fixed and pass affected rechecks. Final
+focused results: device 16/16, queue/client 44/44, wasm/crash/outbox 4/4, guide
+86/86, routes 9/9, React 45/45. The affected 187-case client run passed every
+pre-existing case; its sole new drain-test assertion wrongly required aborting
+an already completed request, was corrected, and passed in the 44-case recheck.
+Client models passed in the full run. The original full red remains recorded.
+
+Did not push, publish, raise ceilings, implement DS's compiler/server/no-op
+receipt work, or run the comparative choreography. A reviewable patch removes
+both reporters and the progress subscription from the actual comparative while
+keeping seen; the external app was not edited. The report includes an executable
+transport-boundary counterexample: an already accepted report has no table or
+generation in its request, so a client callback fence cannot prevent execution
+against a mutation name rebound to another table. No new wire field was invented.
+The full wasm path matrix, native process-kill and IndexedDB crash witnesses
+remain unclaimed; the killed-host witness uses real wasm and atomic filesystem
+persistence. See reports/20260927-dc-delivery-client/REPORT.md for every file,
+example, failure, reproduction and remaining integration limit. Not ready to land.

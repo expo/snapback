@@ -2258,3 +2258,42 @@ the effects above), an identity provider beyond guests, passwords,
 services and the sessions a service mints, presence beyond the server's
 own polls. If the package cannot express something, the diagnostic names
 the term; record the gap and move on.
+
+
+### Automatic delivery reports
+
+A mutation declaring `reports delivery of messages by .conversation, .ordinal`
+lets the SDK report exactly the positions delivered to this client. Local
+clients persist debt with published confirmed rows and accepted fallback
+manifests. Online clients collect accepted query manifests in memory, including
+nested images. No mounted conversation or application delivery hook is needed.
+Keep calling `seen` for messages the person actually views. A continuously
+mounted `progress` query acquires its returned message rows, so use it only
+when that catch-up is intended.
+
+Reports bypass the ordered outbox and dispatch only when its local network
+chain is idle. Four groups may report concurrently, one call per binding and
+group, with a 15-second deadline. An uncertain attempt keeps its id across
+local restarts. Committed success covers its exact run; `RUNS_FULL` parks it
+and allows other intervals to proceed. New publications, success, reconnect,
+start and a slow timer wake parked runs, at most once per 30 seconds each.
+
+Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
+for application refusals. It receives
+`{ table, mutation, args, group, from, through, why }`; `why` is the ordinary
+coded refusal. `NOT_A_RUN` and `PAST_LAST_MESSAGE` enter a remembered refused
+set; other non-retryable application refusals park until restart.
+`RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
+this callback. Reports do not appear in `onWrite` or `pendingWrites()`.
+
+Local debt survives closing or sign-out for the same viewer. Online sign-out
+waits at most one second for reports already in flight; remaining memory debt
+is lost. Leaving drops a group's debt. Store replacement or detected restore
+clears delivery metadata and fences outstanding callbacks; recover using a
+fresh device store. Debt never crosses viewers or binding incarnations.
+
+Each binding/group keeps at most 256 owed intervals, 256 reported intervals
+and 64 refused intervals. There are at most 4,096 local or 1,024 online active
+groups. Eviction drops owed positions, which stay `sent`, but retains refused
+intervals. A saturated refused set stops that group's collection and dispatch
+until a leave/rejoin or a new device store.
