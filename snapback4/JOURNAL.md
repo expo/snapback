@@ -68341,3 +68341,50 @@ driver: target/lane-fx-evidence/round1-*.
 Final reference audit: 517 LLP documents, 9,618 references, zero errors and
 zero unchecked. Diff whitespace check passes. Final one-minute host loads
 were 29.88 (expiry) and 51.26 (React).
+
+
+### 2026-09-27 — Lane FA: Following adoption over retained sources (research)
+
+Draft RFC LLP 3000.026 recommends first materialization at a fresh adoption
+boundary: all own copies, newest 1,000 retained events per current followed
+actor. This is a new feed's launch history, not restoration of an earlier feed.
+Identical current sources produce 1,001 versus 1,000 copies for early versus
+late admission. Existing declaration-specific source slots retain live repost
+ids, so the diagnostic's unqualified identity claim needs correction; source
+rows still cannot recover edge epochs, copies, delivery or cleanup history.
+Device floors remain acquisition state, not a server backfill window.
+
+The proposed job initializes a private catalog under a durable writer fence,
+fills slots and queues reader work, then publishes and admits writes before
+foreign backfill finishes. A shared frozen actor roster bounds that later work;
+ordinary live scans can keep encountering backdated later births. It retains
+all authorization, disclosure, durability and meter requirements. Populated
+adoption uses a first-use owned namespace: same-name retirement/re-addition
+beside a literal-default addition can pass the old device-image preservation
+predicate. Grandfathering retained reposts of removed or filtered originals,
+the initialization pause and the catalog handoff remain explicit review items.
+No production path, device algorithm, version or budget changes here.
+
+Branch-only probe and experiment record under experiments/following-adoption/
+measure actual metered engine replay into a separate candidate with concurrent
+WAL readers. 48,000 posts / 1,000 reposts / 6,000 follows / 1,008 principals:
+127.835 s, 557,886 logical writes, 340,697 copies; 10x all four counts:
+1,699.416 s, 5,579,689 writes, 3,407,033 copies. Candidate-read p95 is 1.783 /
+1.953 ms; process peak RSS 17.25 / 21 MiB. Observed Rust heap estimates are
+1.306 / 4.780 MiB, exclude SQLite, and used an earlier concurrent-realloc
+counter corrected afterward. Exact JSON, time-v summaries, fixture, method and
+limits are committed. These are single samples on the shared host, with frozen
+sources and uniform activity. They do not measure staged catalog publication,
+HTTP, signed-in changes, devices, the proposed frozen-roster worker or the
+initialization write pause. Only the existing copy machinery is exercised.
+
+Four research tests pass, including real process-exit checkpoint recovery,
+populated planned-query fallback and the same-name image predicate. The existing
+17 timeline-background tests and one epoch counterexample pass. Both ignored
+benchmark sizes were executed separately. The planned query reads retained
+sources without adoption, but one wanted event behind 9,000 unrelated events
+hits the 16 MiB heap meter with unavailable/complete-false and no continuation;
+the card should show that program and its tradeoff. No full Cargo or JS suite:
+this branch contains only research, fixtures and tests. No push or publication.
+The supervisor owns design selection and blind review; the RFC ends with five
+review questions and a counterexample for every rejected option.
