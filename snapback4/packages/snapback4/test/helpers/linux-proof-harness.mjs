@@ -21,7 +21,7 @@ const record = value => appendFileSync(${JSON.stringify(events)}, JSON.stringify
 if (name === 'cp') copyFileSync(join(inputs, basename(args[0])), join(process.cwd(), basename(args[0])));
 if (name === 'npm') {
   const integrity = path => 'sha512-' + createHash('sha512').update(readFileSync(path)).digest('base64');
-  record({ event: 'install', clientIntegrity: integrity(join(inputs, 'client.tgz')), platformIntegrity: integrity(join(inputs, 'platform.tgz')) });
+  record({ event: 'install', args, clientIntegrity: integrity(join(inputs, 'client.tgz')), platformIntegrity: integrity(join(inputs, 'platform.tgz')) });
 }
 if (name === 'node' && args[0] === '-v') {
   record({ event: 'node-version' }); console.log('v${scenario.wrongNode ? "0.0.0" : node}');
@@ -36,6 +36,7 @@ if (name === 'node' && args[0] === '-v') {
   exec("/bin/sh", ["-ec", script], { cwd, env, stdio: "pipe" });
   const observed = readFileSync(events, "utf8").trim().split("\n").map(JSON.parse);
   assert.deepEqual(observed.map(e => e.event), ["node-version", "install", "roundtrip"], "the proof entrypoint must execute after the Node check and installation");
+  assert.deepEqual(observed[1].args, ["install", "--ignore-scripts", "--no-audit", "--no-fund", "/proof/client.tgz", "/proof/platform.tgz"], "npm must install both qualified tarballs");
   assert.equal(observed[2].override, false);
   const path = join(root, "executed-proofs.jsonl");
   // Keep actual execution evidence outside cleaned-up guest scratch.

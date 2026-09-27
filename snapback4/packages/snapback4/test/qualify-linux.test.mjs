@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { digest, json, member, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
+import { digest, json, member, sqliteBuildFlags, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
@@ -21,10 +21,26 @@ function qualify(t, scenario = {}) {
       import { mkdirSync, writeFileSync } from 'node:fs';
       import { basename, join } from 'node:path';
       export function prootProof(client, platform, version) {
+        // Set these after Node starts: they must be observed as host environment,
+        // never interpreted by the test runner's loader or Node startup.
+        const sentinels = {
+          NODE_OPTIONS: '--host-node-sentinel', LD_PRELOAD: '/host/loader-sentinel.so',
+          LD_LIBRARY_PATH: '/host/library-sentinel', SNAPBACK4_BIN: '/host/binary-sentinel',
+          NPM_CONFIG__AUTHTOKEN: 'fake-host-token', AWS_SECRET_ACCESS_KEY: 'fake-host-secret',
+          LX_HOST_SENTINEL: 'must-not-reach-proot'
+        };
+        const saved = Object.fromEntries(Object.keys(sentinels).map(key => [key, process.env[key]]));
+        Object.assign(process.env, sentinels);
         const cache = ${JSON.stringify(join(root, "cache"))}; mkdirSync(cache);
-        return realProof(client, platform, version, cache, input => {
-          const path = join(cache, basename(new URL(input.url).pathname)); writeFileSync(path, 'fixture download'); return path;
-        });
+        try {
+          return realProof(client, platform, version, cache, input => {
+            const path = join(cache, basename(new URL(input.url).pathname)); writeFileSync(path, 'fixture download'); return path;
+          });
+        } finally {
+          for (const [key, value] of Object.entries(saved)) {
+            if (value === undefined) delete process.env[key]; else process.env[key] = value;
+          }
+        }
       }
     `);
   }
@@ -44,10 +60,12 @@ function qualify(t, scenario = {}) {
       writeFileSync(path, `#!${process.execPath}
 import { appendFileSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 const root = ${JSON.stringify(root)}, name = ${JSON.stringify(name)}, args = process.argv.slice(2);
 appendFileSync(join(root, 'build-commands.jsonl'), JSON.stringify({ name, args }) + '\\n');
 if (name === 'cargo') {
+  assert.equal(process.env.LIBSQLITE3_FLAGS, ${JSON.stringify(sqliteBuildFlags)}, 'Cargo must receive the publication SQLite flags');
   const index = args.indexOf('--target-dir');
   const target = index < 0 ? process.env.CARGO_TARGET_DIR : args[index + 1];
   const output = join(target, 'x86_64-unknown-linux-musl/production/snapback4');
@@ -63,6 +81,7 @@ if (name === 'node') {
   }
   writeFileSync(join(root, "mock.mjs"), `
 import cp from "node:child_process";
+import assert from "node:assert/strict";
 import os from "node:os";
 import { syncBuiltinESMExports } from "node:module";
 import { appendFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -106,6 +125,13 @@ cp.execFileSync = (cmd,args,opts={}) => {
     return "";
   }
   if(cmd.endsWith("/proot")) {
+    assert.deepEqual(opts.env, {
+      PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', HOME: '/root', LANG: 'C.UTF-8',
+      TMPDIR: '/tmp', PROOT_TMP_DIR: join(opts.cwd, 'tmp'), PROOT_NO_SECCOMP: '1',
+      NPM_CONFIG_USERCONFIG: '/tmp/empty-user.npmrc', NPM_CONFIG_GLOBALCONFIG: '/tmp/empty-global.npmrc',
+      NPM_CONFIG_CACHE: '/tmp/npm-cache', NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
+    }, 'actual proot subprocess environment must equal the allowlist');
+    appendFileSync(join(root, 'proot-environments.jsonl'), JSON.stringify({cwd: opts.cwd, env: opts.env}) + "\\n");
     if(args.at(-1).startsWith("apk add")) return "";
     const bound = target => args.find(a => a.endsWith(':' + target)).split(':')[0];
     runProofShell(original, args.at(-1), {root, cwd: bound('/consumer'), inputs: bound('/proof'), node: prootDistributions[proofIndex++].node, scenario});
@@ -121,7 +147,10 @@ cp.spawnSync = (cmd,args,opts={}) => {
 };
 syncBuiltinESMExports();
 `);
-  const env = { ...process.env }; delete env.NPM_TOKEN; delete env.NODE_AUTH_TOKEN; delete env.SNAPBACK4_BIN;
+  // Proot mutation failures may print the forwarded environment: only synthetic
+  // host values may enter that subprocess, never this runner's credentials.
+  const env = scenario.proot ? { PATH: process.env.PATH, HOME: root } : { ...process.env };
+  delete env.NPM_TOKEN; delete env.NODE_AUTH_TOKEN; delete env.SNAPBACK4_BIN;
   const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), join(root, "scripts/qualify-linux.mjs"), "--client", client, "--out", join(root, "out")], { encoding: "utf8", env });
   const receiptPath = join(root, "out/receipt.json");
   return { ...result, root, client, binary, receipt: existsSync(receiptPath) ? json(receiptPath) : null, commands: existsSync(join(root, "commands.jsonl")) ? readFileSync(join(root, "commands.jsonl"), "utf8").trim().split("\n").map(JSON.parse) : [] };
@@ -147,12 +176,13 @@ function assertProofsExecuted(r) {
   assert.equal(executions.length, 2);
   for (const events of executions) {
     assert.deepEqual(events.map(e => e.event), ["node-version", "install", "roundtrip"]);
+    assert.deepEqual(events[1].args, ["install", "--ignore-scripts", "--no-audit", "--no-fund", "/proof/client.tgz", "/proof/platform.tgz"]);
     assert.equal(events[1].clientIntegrity, r.receipt.clientIntegrity);
     assert.equal(events[1].platformIntegrity, r.receipt.platform.integrity);
   }
 }
 
-test("redirected CARGO_TARGET_DIR inspects, proves and packs the binary just built", t => {
+test("Cargo receives the SQLite flags and redirected CARGO_TARGET_DIR packs the binary just built", t => {
   const r = qualify(t, { redirectedTarget: true }); assert.equal(r.status, 0, r.stderr);
   const fresh = readFileSync(join(r.root, "fresh-binary"));
   assert.deepEqual(readFileSync(join(r.root, "inspected-binary")), fresh, "the shell ELF check inspected this build");
@@ -212,12 +242,14 @@ test("proot binds only disposable inputs, scratch and three devices, with an all
   for (const key of keys) assert.ok(!Object.hasOwn(env, key));
   assert.notEqual(env.NPM_CONFIG_USERCONFIG, env.NPM_CONFIG_GLOBALCONFIG);
 });
-test("proot receipt binds its route, both root filesystems and every pinned tool", t => {
+test("proot invocations use exactly the allowlist despite host sentinels, and bind receipt provenance", t => {
   const r = qualify(t, { proot: true }); assert.equal(r.status, 0, r.stderr);
   assert.equal(r.receipt.route, "proot");
   assert.deepEqual(r.receipt.proofs.map(p => p.rootfs), prootDistributions.map(p => p.rootfs));
   assert.deepEqual(r.receipt.proofs.map(p => p.tools), prootDistributions.map(p => p.tools));
   assertProofsExecuted(r);
+  const environments = readFileSync(join(r.root, 'proot-environments.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(environments.length, 3, 'Ubuntu proof, Alpine APK installation and Alpine proof all checked');
   const validate = receipt => validateLinux(receipt, join(r.root, "out", receipt.platform.filename), { version: "0.0.0", integrity: sri(r.client) }, "a".repeat(40));
   validate(r.receipt);
   for (const alter of [r => delete r.route, r => r.route = "docker", r => r.proofs.pop(), r => r.proofs[0].route = "docker",

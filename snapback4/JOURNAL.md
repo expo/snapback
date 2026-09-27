@@ -67979,3 +67979,35 @@ The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
 never capabilities, and this is a name, not a secret. The operations manual
 calls it in a type-checked block, which the public-function census requires.
+
+### 2026-09-27 — Lane LX round 3: mutation-proven publication tests
+
+Closed the four Low round-2 review gaps with test/record changes only.
+Fourteen new round-trip cases execute the unchanged production proof under
+mocked subprocess/client boundaries, pinning version/init/check/dev,
+write/read/disclosure assertions, refusal propagation and cleanup. The
+qualifier mock checks the actual proot environment against the exact
+allowlist with host sentinels seeded, including Alpine setup. Fake npm
+records and checks its install arguments and both tarball paths. Fake
+Cargo requires its actual LIBSQLITE3_FLAGS to equal sqliteBuildFlags.
+
+All 109 affected tests pass (4.332 s); the whole guide passes 86/86 (2.53 s
+execution). Eight independent temporary-copy mutations each fail exactly
+one selected test: immediate exception/no-op proof, inherited proot host
+environment, npm --version on each route, omission of either tarball,
+and unset SQLite flags immediately before Cargo. Production sources were
+never mutated. Frozen Bun install passes; no dependency changes.
+
+No scripts/test.sh run, per the explicit round-3 test-only instruction;
+round 2's `== 0 failure(s) in 1364 s` at 94c05f338 is historical evidence,
+not new qualification. No unmutated affected/guide failures. Retained wasm
+remeasures 1,980,253 B raw / 571,810 B gzip, unchanged SHA-256
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc,
+0 B delta; no rebuild or budget change. No production behavior, version,
+registry, signing, real-root qualification, push or publication change.
+
+Ticket moved to issues/closed/20260927-snapback4-linux-publication-test-gaps.md
+with the four resolutions. Full report and reproduction:
+reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
+mutation driver/results and all eight failure logs: target/lane-lx-round3/.
+No open round-3 problem; integration owns fresh 0.4.5 qualification.

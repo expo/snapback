@@ -679,3 +679,126 @@ Raw evidence is retained under ignored `target/lane-lx-round2/`:
 `prepare.log`, `qualify.log`, `qualification/suite.log`, `ref-check.log`,
 the prepared client and the qualified Linux tarball/receipt. All commits
 carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## Round 3 — close the four publication test gaps (2026-09-27)
+
+Based on integrated `ed45af5b5` on `sb4-intent/lx-linux-package`. All four
+Low findings from `lx-r2.astra.md` and `lx-r2.grok.md` are resolved. This
+round changes tests and records only. Production scripts, Rust, client,
+package manifests, dependencies, versions and budgets are unchanged.
+
+The scoped `llp-orient` pass followed LLP 3000 (the Snapback 4 fence),
+LLP 2000.000 (the retained authorization/meter contract), and the code's
+LLP 3000.021 §3.3 references (static SQLite policy, clean consumers and
+publication by digest). LLP 3000 and 3000.021 are in `llp/current/`; no
+Snapback 4 foundation document governs this test change. No new design
+choice or LLP revision is needed; the report, ticket and journal record
+stronger evidence for the existing contract. No unresolved reference or
+handoff was found.
+
+### File-by-file changes and what the tests prove
+
+| File (under `snapback4/` unless otherwise stated) | Change and evidence |
+| --- | --- |
+| `packages/snapback4/test/publication-roundtrip.test.mjs` | 14 new cases copy and execute `publication-roundtrip.mjs` unchanged in a disposable consumer. The success trace pins CLI arguments/cwd, dev invocation, both clients/personas/URL, mutation/query arguments, client closes and process-group termination. Refusal cases cover an override, version mismatch, each CLI failure, dev startup failure, mutation/query exceptions, unsent write, wrong row count/title and disclosure to Bob. Client-path failures close both clients and dev and exit 1 without the success message. |
+| `packages/snapback4/test/helpers/publication-roundtrip-mock.mjs` | Preloads subprocess stand-ins and exports the fake installed client. It records actual calls and returns controlled responses/errors; it never substitutes the proof body or starts a real server. |
+| `packages/snapback4/test/qualify-linux.test.mjs` | Seeds synthetic host Node/loader/binary/npm/cloud/extra-variable sentinels and deep-compares every actual proot `opts.env` with the explicit allowlist. Records three checked invocations: Ubuntu proof, Alpine APK setup, Alpine proof. Uses a controlled parent environment so failed mutation assertions cannot log real host credentials. The redirected-target fake Cargo now requires its actual `process.env.LIBSQLITE3_FLAGS` to equal imported `sqliteBuildFlags`. Both tarball install arguments are checked alongside the existing digest evidence. |
+| `packages/snapback4/test/helpers/linux-proof-harness.mjs` | Fake npm records `process.argv.slice(2)`; the harness requires exactly `install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz` on both routes. |
+| `../issues/closed/20260927-snapback4-linux-publication-test-gaps.md` | Records each resolution and its failing mutation, then moves the ticket out of the open working set. |
+| `JOURNAL.md` | One dated, append-only round-3 entry. |
+| `reports/20260927-lx-linux-package/REPORT.md` | This file-by-file account, mutation failures, validation and reproduction. |
+
+### Mutation evidence
+
+Each mutation ran alone in a disposable copy of the scripts and the two
+relevant test files/helpers. Working-tree production sources were never
+changed. Every command below exited **1** with **1 failed test**. These are
+intentional regressions; the unmodified revision passed all affected tests.
+
+| Mutation | Selected test (`--test-name-pattern`) | Observed failure |
+| --- | --- | --- |
+| Replace the entire round-trip script with `throw Error('review mutation: immediate exception')` (Astra 1) | `^unchanged round-trip proof` | `review mutation: immediate exception`; expected status 0, actual 1. |
+| Replace the entire round-trip script with a no-op (Astra 1 additional control) | `^unchanged round-trip proof` | Expected `consumer round trip passed`; stdout was empty. |
+| Replace `env: prootEnvironment(temporary)` with `env: { ...process.env, ...prootEnvironment(temporary) }` (Astra 2) | `^proot invocations use exactly` | `actual proot subprocess environment must equal the allowlist`; diff contains seeded host sentinels. |
+| Replace proot's full install command with `npm --version` (Grok 1) | `^proot invocations use exactly` | `npm must install both qualified tarballs`; actual arguments `['--version']`. |
+| Replace the container install command with `npm --version` (Grok 1, other route) | `^Linux qualification receipt` | `npm must install both qualified tarballs`; actual arguments `['--version']`. |
+| Remove `/proof/client.tgz` from proot's install | `^proot invocations use exactly` | `npm must install both qualified tarballs`; missing client argument. |
+| Remove `/proof/platform.tgz` from proot's install | `^proot invocations use exactly` | `npm must install both qualified tarballs`; missing platform argument. |
+| Insert `env -u LIBSQLITE3_FLAGS` immediately before `cargo build --locked`, retaining the original export (Grok 2) | `^Cargo receives the SQLite flags` | `Cargo must receive the publication SQLite flags`; actual `undefined`, expected `-USQLITE_ENABLE_MEMORY_MANAGEMENT`. |
+
+Reproduce each mutation in a temporary copy by making the single replacement
+above, then run from its Snapback 4 root:
+
+```sh
+node --test --test-reporter=tap --test-name-pattern 'PATTERN_FROM_TABLE' \
+  packages/snapback4/test/publication-roundtrip.test.mjs
+# For the other six rows, select packages/snapback4/test/qualify-linux.test.mjs.
+```
+
+The exact local driver and outputs are retained under ignored
+`target/lane-lx-round3/`: `run-mutations.py`, `mutations.json`, and eight
+`mutation-*.log` files. The driver uses independent replacements, checks
+exit status 1, the named diagnostic, and `# fail 1` for each, and restores
+its temporary source after each run. Run it again from `snapback4/` with
+`python3 target/lane-lx-round3/run-mutations.py`.
+
+### Verification and limits
+
+Frozen Bun install passed with no dependency changes. The affected command:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+bun install --frozen-lockfile
+node --test packages/snapback4/test/publication-roundtrip.test.mjs \
+  packages/snapback4/test/qualify-linux.test.mjs \
+  packages/snapback4/test/linux-package.test.mjs \
+  packages/snapback4/test/publish-linux.test.mjs \
+  packages/snapback4/test/publish-signing.test.mjs
+```
+
+Result: **109 passed, 0 failed, 0 skipped** in **4.332 s**: 14 round-trip,
+18 qualifier, 5 package/ELF/resolver/credential/flag, 48 publication and
+24 signing cases. Whole guide command:
+
+```sh
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+export CARGO_INCREMENTAL=0
+ulimit -n 65536
+cargo test -p snapback4-lang --test guide
+```
+
+Exact guide result:
+
+```text
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+```
+
+`scripts/test.sh`: **not run in round 3**, as explicitly directed for this
+test-only task; there is no new full-suite summary. The previous round-2
+result remains `== 0 failure(s) in 1364 s` at `94c05f338`, historical
+qualification only. This round's unmutated checks have **ours 0, baseline 0,
+environmental 0 failures**. Logs: `affected.log`, `guide.log` in the same
+ignored evidence directory.
+
+No new authoring form or runtime behavior is introduced. The unchanged
+proof exercises, for example, `npx --no-install snapback4 --version`,
+`npx --no-install snapback4 init app --online`, `npx --no-install snapback4
+check`, installed `snapback4 dev --port 0 --no-watch`, Alice's
+`mutate({ kind: 'mutation', name: 'add' }, { title: 'Linux consumer proof' })`,
+and each persona's `query({ kind: 'query', name: 'list' }, {})`.
+These round-3 executions mock subprocess/client boundaries; they do not
+claim another real distribution, Mac signing, or 0.4.5 release qualification.
+The two-host release commands recorded earlier are unchanged.
+
+Retained wasm measured again without rebuilding: **1,980,253 B raw /
+571,810 B gzip**, SHA-256
+`324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc`,
+**0 B delta** from round 2 and **1,031 B** below the unchanged **572,841 B**
+cap. Tests/records do not affect device bytes. No brief deviation or open
+round-3 problem remains. Integration still owns its coordinated version
+bump and fresh release qualification. Nothing was pushed or published.
+
+Reference audit passed (0 errors, 0 unchecked). `git diff --check` passed;
+all four changed/new test sources are under 1,500 lines (largest: 261).
+The journal delta is append-only, and the production diff against
+`ed45af5b5` is empty.
