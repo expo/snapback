@@ -130,3 +130,15 @@ test('a pre-transport serial gate race spends no retry and keeps its persisted i
  assert.equal(groups(await h.state())[0].attempt.retries,0);
  await h.flush();assert.equal(h.calls[0].id,h.calls[1].id);assert.deepEqual(groups(await h.state())[0].reported,[[1,1]]);
 });
+
+test('a lost recorded membership refusal keeps its original collection boundary on retry',async t=>{
+ let n=0;const h=harness(t,{send:async()=>{if(++n===1)throw Error('response lost');return {accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}};}});
+ await h.q.accept(manifest([['c',1]]));await h.flush();
+ await h.q.accept(manifest([['c',3]]));h.advance(1000);await h.flush();
+ assert.equal(h.calls[0].id,h.calls[1].id);
+ assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);
+});
+test('positions 41 and 43 never report unfetched 42',async t=>{
+ const h=harness(t);await h.q.accept(manifest([['c',41],['c',43]]));await h.flush();await h.flush();
+ assert.deepEqual(h.calls.map(c=>[c.args.from,c.args.through]),[[41,41],[43,43]]);
+});

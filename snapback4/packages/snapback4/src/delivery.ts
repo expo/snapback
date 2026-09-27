@@ -137,8 +137,10 @@ export class DeliveryQueue {
           }
           if (!group.parked.some(p => p.kind === "full")) group.wake = false;
           // This commit precedes transport, including the local host persistence batch.
-          group.attempt ??= { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0 };
-          group.recent = [];
+          if (!group.attempt) {
+            group.attempt = { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0 };
+            group.recent = [];
+          }
           return { key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
         }));
         if (!selected) { if (Number.isFinite(nextAt)) this.schedule(Math.max(1, nextAt - this.now())); break; }
@@ -177,7 +179,7 @@ export class DeliveryQueue {
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => { remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) }); };
         const retry = (recorded: boolean) => {
-          if (recorded) attempt.id = this.options.mint();
+          if (recorded) { attempt.id = this.options.mint(); group.recent = []; }
           if (attempt.retries >= 8) { park("retry", true); return; }
           attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** attempt.retries++);
         };
