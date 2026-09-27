@@ -67479,3 +67479,26 @@ owns integration and the blind reviews. Implementation commits: 14b476903,
 0821cb053 and afeb7bad9. Report: reports/20260927-fk-flakes/REPORT.md. Evidence,
 controls, the repeatable load driver and full-suite log/exit remain under
 `target/lane-fk-evidence/`; this entry is the lane's single journal append.
+### 2026-09-27 — `idFrom(label)`: a fixture label names a valid id
+
+Two builders on two releases (the 0.4.3 comparative's Grok, and calibration
+#23's Astra on 0.4.4) hit `E_WRITE_ID` with fixture strings and wrote the same
+workaround: a hash of the label into the `mintId()` form. `snapback4/client`
+now exports `idFrom(label)`, which is that mapping. It puts the first 80 bits
+of SHA-256 over `["snapback4:id:v1", label]` under a zero time, in 26
+Crockford digits. A derived id sorts before every minted id, as if minted at
+the epoch. With all 128 bits hashed, most ids decoded as future times, and
+seeded rows would have crowded a `by .id` sync window (Grok's review). It is synchronous on every host, through a small
+portable SHA-256 (`src/sha256.ts`), because Web Crypto's digest is
+asynchronous and Hermes has no `node:crypto`.
+
+- The derivation is pinned by a test, so fixtures replay across releases.
+- The portable hash is checked against `node:crypto` on 212 inputs, including
+  astral characters and lone surrogates.
+- `E_WRITE_ID`'s message, its `why` entry, `MutateOptions.id` and the README
+  (still 300 lines) point to it.
+
+The server's write records are keyed by principal and id, and nothing reads a
+write id's embedded time, so a derived id is as good as a minted one. Ids were
+never capabilities, and this is a name, not a secret. The operations manual
+calls it in a type-checked block, which the public-function census requires.
