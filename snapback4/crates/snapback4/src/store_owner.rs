@@ -9,6 +9,7 @@ pub(crate) struct Owner {
     identity: (u64, u64),
     path: PathBuf,
     record: Option<File>,
+    pub(crate) token_secret: Option<String>,
 }
 
 /// The address `doctor` dials for the server that owns this store: the
@@ -87,7 +88,7 @@ fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
             file.set_len(0).map_err(|e| failure(&record_path, e))?;
             Some(file)
         };
-        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record });
+        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record, token_secret: None });
     }
     Err(failure(store, "database path kept changing during ownership acquisition"))
 }
@@ -101,7 +102,7 @@ fn busy(path: &Path) -> String {
 }
 
 #[cfg(unix)]
-fn address(path: &Path) -> Option<String> {
+pub(crate) fn address(path: &Path) -> Option<String> {
     // A missing/replaced address record cannot grant ownership. Never follow
     // a symlink (including one to the database), nor block on a FIFO.
     let record = path.with_file_name("serve.lock");
@@ -114,7 +115,7 @@ fn address(path: &Path) -> Option<String> {
 }
 
 #[cfg(not(unix))]
-fn address(_: &Path) -> Option<String> { None }
+pub(crate) fn address(_: &Path) -> Option<String> { None }
 
 impl Owner {
     pub(crate) fn path(&self) -> Result<&Path, RuntimeError> {
@@ -144,6 +145,9 @@ impl Owner {
 }
 
 pub(crate) fn announce(owner: &mut Owner, address: std::net::SocketAddr) -> Result<(), String> {
+    // @ref LLP 3000.019#3.4 — live token work runs through the owner, with proof of local store access.
+    owner.token_secret = Some(crate::serve::token::publish(owner.path().map_err(|e| e.to_string())?)
+        .map_err(|e| failure(&owner.path, e))?);
     let file = owner.record.as_mut().ok_or("device ownership has no server address record")?;
     file.set_len(0).and_then(|_| file.seek(SeekFrom::Start(0))).map_err(|e| e.to_string())?;
     // First-line port is retained for the dev inspector.

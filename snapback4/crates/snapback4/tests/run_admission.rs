@@ -171,7 +171,7 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
         wait(|| host.logs().contains("snapback4 dev: http://"));
         let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
         let generation = p.generation();
-        for args in [vec!["run", "backfill"], vec!["run", "put"], vec!["run", "rows"], vec!["test"], vec!["token", "--service", "any"]] {
+        for args in [vec!["run", "backfill"], vec!["run", "put"], vec!["run", "rows"], vec!["test"]] {
             let before = Instant::now();
             let out = p.run(&args);
             let error = String::from_utf8(out.stderr).unwrap();
@@ -180,6 +180,8 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
             assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
         }
         assert_eq!(p.jobs(), 0); assert_eq!(p.generation(), generation);
+        let minted = p.run(&["token", "--service", "any"]);
+        assert!(minted.status.success(), "{minted:?}");
         // The dev inspector still understands the lock's first-line legacy port.
         assert!(p.run(&["doctor", "--json"]).status.success());
         let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
@@ -265,9 +267,11 @@ fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
         assert_owner_refusal(&p, &["serve", second, "--port", "0"], &address);
         for dir in [first, second] {
             let pointer = fs::read_to_string(PathBuf::from(dir).join("current")).unwrap();
-            for args in [vec!["token", "--release", dir, "--service", "worker"], vec!["deploy", dir], vec!["rollback", dir]] {
+            for args in [vec!["deploy", dir], vec!["rollback", dir]] {
                 assert_owner_refusal(&p, &args, &address);
             }
+            let minted = p.run(&["token", "--release", dir, "--service", "worker"]);
+            assert!(minted.status.success(), "{minted:?}");
             assert_eq!(fs::read_to_string(PathBuf::from(dir).join("current")).unwrap(), pointer);
             assert!(!PathBuf::from(dir).join("releases/3").exists());
         }

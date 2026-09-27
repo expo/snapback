@@ -131,6 +131,10 @@ E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database
 Stop the named host (the message includes its address), run the command once,
 then restart it; for another CLI, wait for it to finish. No work was admitted.
 The presence of an old lock file alone does not refuse work.
+`token` normally asks a live dev/serve owner to mint over loopback with its
+private store proof. Its E_STORE_BUSY means that path is unavailable: restore
+access to the named server and proof, or stop it, mint offline, then restart.
+After a lost mint reply, an unused session may remain until expiry.
 Leave `<database>-owner` in place: deleting or replacing it while a process runs
 ends exclusion and can admit a second owner without stopping the first.
 

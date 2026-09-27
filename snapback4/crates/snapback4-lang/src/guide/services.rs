@@ -44,7 +44,13 @@ The token and one newline are the whole of stdout (even with `--json`), with pro
 The owning store is printed on stderr: the project's `.snapback4/store.sqlite`,
 or `<dir>/store.sqlite` with `--release <dir>`. A token belongs only to that
 store; mint one for each isolated audit or proof store after starting its dev
-server. `--fresh` (also `--memory`) has no disk store for this CLI to mint into.
+server. While dev or serve owns the store, the CLI asks that server to mint
+through its loopback listener. Run it on the server host as the store owner;
+`serve` uses `snapback4 token --service ranker --release <dir>`.
+The server requires a loopback peer and its per-run private proof from the
+0600 `<database>-token` file; public listeners still refuse remote minting.
+Keep that proof private. With the server stopped, the same command mints offline.
+`--fresh` (also `--memory`) has no disk store for this CLI to mint into.
 Readiness for dev and serve is the first stdout line: the listening URL,
 emitted after store and native-module setup. Wait for that line before sending
 requests; lifecycle logs and the store banner use stderr.
@@ -58,6 +64,13 @@ An audience read rule may add `or viewer = 'service:ranker'`; sync ignores
 service grants, and `check --residency --verbose` lists them without changing any device's partition.
 
 ## Refusals
+
+E_STORE_BUSY from `token` names the owner when its loopback listener or private
+proof is unavailable. Restore local access and rerun token, or stop the named
+server, mint offline, then restart it. An older server needs that offline path
+or an upgrade. Another CLI owner must finish first. Leave `<database>-owner`
+in place. A lost reply can leave an unused session until expiry; the CLI does
+not automatically retry minting.
 
 E_AUTH means the request has no live principal or uses the wrong authority
 for its endpoint. For example, a user's bearer token cannot claim effects:
