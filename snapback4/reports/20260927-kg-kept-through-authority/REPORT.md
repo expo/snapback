@@ -1,3 +1,185 @@
+# Lane KG round 3 — complete withdrawal and expiry lifecycles
+
+Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.
+Merged `origin/main` in `a9624aab4` before implementation; no conflicts.
+Read the three lane prompts, round-2 reviews, earlier reports and KG journal
+entries. Previous reports remain below as historical evidence. No push or
+publication. All round-3 commits include the required Astra co-author trailer.
+
+## Findings and commits
+
+| Finding | Commit | Resolution and discriminating evidence |
+| --- | --- | --- |
+| 1 — Grok High: client close changes denial into loading at row expiry | `cccacaa47` | Both clients use `closeWatchAnswers`: stop row timers and clear deadlines before denial. Twelve actual online/wasm cases cover all three policies and live/detached handles. Self-review found non-lingering detached local handles absent from the close sweep: read now gives the owner's denial precedence. Both detached cases fail before that correction. |
+| 2 — both: every withdrawal must finish before callbacks inspect peers | `cccacaa47` | Discovery reuses the grouped reset; online/local link publication defers shared notifications; close batches lingering retirement and all denials. Early sign-out retirement moved into the grouped withdrawal. Thirty-five peer tests cover discovery, offline, close and sign-out, raw/guarded clients and opening lingering remounts. They inspect both raw snapshots, both exposed reads and the peer peek from shared/raw/link callbacks. Grok's first-watch-only offline mutation fails all five online cases. |
+| 3 — both Medium: resubscription must rearm row expiry | `cccacaa47` | Local start rearms the saved absolute device/server/local-wakeup deadlines before rerun. Two actual wasm cases, omitted and keep:false, hold device evaluation, deliver timers at the server deadline and inspect the published field without an accessor. Removing rearming fails both. |
+| 4 — Grok Medium / Astra High: inactive expiry must fence memory | `cccacaa47` | Inactive access invokes withdrawHeld with estimated server time before expire. Real wasm recovery expires A, rolls time back and fails transport: query returns E_OFFLINE. Deleting only the callback fails the closed-handle case; the live control stays green. |
+| 5 — Astra Low: early episode timer mutation survives | `f32bb700e` | Start at 1000, deliver early at host time 1500, deliver the rearmed timer at 2000 without accessors. Require loading and exactly one notification. Deleting only callback rearming fails. No production episode change was needed. |
+
+## Implementation, file by file
+
+Paths below are relative to `snapback4/packages/snapback4/`.
+
+| File | Change |
+| --- | --- |
+| `src/client.ts` | Group schema discovery, offline/sign-out publication and close; move link callbacks after withdrawals. |
+| `src/local.ts` | Group offline/sign-out publication and close, and rearm saved row deadlines before a resumed evaluation. |
+| `src/observe-watch.ts` | Shared close helper withdraws lingering and active watches, cancels row/presence timers, clears deadlines and defers callbacks. |
+| `src/read-expiry.ts` | ExpiryClock includes estimatedServerNow; inactive server expiry applies the remembered-answer fence before withdrawal. |
+| `src/read-observation.ts` | An explicit owner refusal has precedence over saved deadlines, including on a detached local handle. |
+| `test/retention-lifecycle.test.mjs` | 51 regressions/controls using the actual online client and Rust/wasm local client with a controlled wire. |
+| `test/retention-episode.test.mjs` | One discriminating early-delivery episode test. |
+| `CLIENT-AND-OPERATIONS.md` | Record callback ordering, stable close denial, resumed absolute deadlines and memory fencing across rollback. |
+
+This report and the single dated journal append record qualification. No Rust,
+authorization rule, disclosure policy, meter, public API, diagnostic, durable
+format, version, dependency, timeout or budget changed. No old assertion was
+relaxed. Largest changed source: local.ts, exactly 1,500 lines. The close
+helper shares the identical lifecycle operation instead of duplicating it.
+
+## Forms that compile and run
+
+No new spelling. The existing policies remain:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const immediate = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+All withdraw before peers' callbacks at the relevant boundary. Close preserves
+one terminal denial past row deadlines. A non-resetting raw local handle keeps
+its saved deadline, resubscription rearms it, and observing its server expiry
+prevents subsequent offline recovery of the expired body after clock rollback.
+
+## Qualification
+
+There are **52 new tests**: 51 lifecycle regressions/controls and one early
+clock-delivery regression. The final focused set is **125 passed / 0 failed**
+(5.933 s); package build and typecheck pass. The whole guide is **86/86**
+(2.56 s execution). Reference audit: **517 LLP docs, 9,635 refs, 0 errors,
+0 unchecked**. Whitespace and source-size checks pass.
+
+The broader affected run is **455 passed / 1 failed**, 428.258 s. All 18
+50-ms delayed-authority sequences and both Chromium input-preservation
+witnesses pass. Its sole failure is `ephemeral-keep.test.mjs`, online kept
+typing, line 91: `no publication hides typing during the burst`. This is
+classified **environmental/transient (inference, not a reproduced root cause)**:
+the case passes immediately in isolation on final code and on the merged-input
+module control; three additional baseline probes also pass, with bursts taking
+2.17–2.55 s. The failed run ended at 4.051 s in a test with a four-second row
+lifetime. No product assertion or timeout was changed. The full-run result
+below remains independent evidence. The broader run began before the six
+detached-handle controls and the denial-precedence follow-up; the final focused
+set and the complete suite include those final changes.
+
+Discrimination logs restore the five changed runtime modules from merged
+input a9624aab4 in memory: **34/51 lifecycle tests fail**, the other 17 are
+controls. Individual mutations fail both resubscription cases, only the
+closed-memory case (live control passes), all five first-watch-only online
+link-loss cases, and the early episode case. The detached-handle negative
+control separately fails both non-lingering wasm cases before its fix.
+The loaders never alter built files used by the full suite.
+
+Ran `scripts/test.sh` **exactly once** on the final runtime and tests.
+Exact summary: **`== 1 failure(s) in 1243 s`**, exit **1**.
+The script counts failed phases, not individual assertions.
+
+Rust tests/doctests: **3,835 passed / 0 failed / 24 ignored**, 542 s.
+Main client: **2,937 passed / 3 failed / 10 skipped**, client phase 429 s.
+Seven additional client shards: **56/56**. Final seeded models:
+**79 passed / 0 failed (261 s)**. Fixture wrappers: **9/9**. Both app typechecks,
+native/wasm builds, docs budget, release guard, and package build/typecheck
+pass. All 52 new tests, all 18 authority sequences, and both Chromium witnesses
+pass in the full run; the typing test from the affected run passes on all
+three tiers here.
+
+Every full-run failure (all in `expired-server-watch.test.mjs`):
+
+| Failure | Classification | Evidence |
+| --- | --- | --- |
+| recover, keep=true | Baseline | Line 62: timed out waiting for paced expired-response retries. The exact variant and message reproduce on the merged-input module control. |
+| close client, keep=false | Baseline | Line 64: retry 1 must back off; first gap 3.956 ms. Same variant/assertion fails on the merged-input control (8.635 ms). The failure occurs before the test calls close. |
+| close client, keep=true | Baseline | Line 62: paced expired-response retries timeout, before close. Same timeout signature reproduces on merged input in recover/true and was already recorded in round 2; policy/ending variants vary between runs. |
+
+No full-run failure is attributed to this round's changes. The merged-input
+control is **4 passed / 3 failed**: recover/true times out; close watch/false
+and close client/false fail first-retry pacing. It restores all five changed
+runtime modules from a9624aab4, not an entire independent checkout. The
+full-suite result remains red and was not rerun.
+
+Open baseline issue: the expiry retry tests intermittently violate their
+pacing/wait assertions. Reproduction:
+`cd snapback4 && node --test packages/snapback4/test/expired-server-watch.test.mjs`.
+The exact control is
+`node --import ./target/lane-kg-r3/merged-baseline-loader.mjs --test packages/snapback4/test/expired-server-watch.test.mjs`.
+Root cause beyond baseline reproduction remains unresolved. The affected
+suite's transient typing assertion can be attempted with its same file set
+(recorded below); its isolated
+reproduction command is
+`node --test --test-name-pattern='online: kept typing' packages/snapback4/test/ephemeral-keep.test.mjs`.
+The original transient did not reproduce in isolation or the complete suite.
+No assertion, timeout or budget was loosened. The inherited 60-second
+full-suite budget remains exceeded.
+
+Affected command, from snapback4:
+
+```sh
+node --test packages/snapback4/test/retention-*.test.mjs \
+  packages/snapback4/test/raw-read-deadlines.test.mjs \
+  packages/snapback4/test/read-observation.test.mjs \
+  packages/snapback4/test/keep-*.test.mjs \
+  packages/snapback4/test/answer-withdrawal.test.mjs \
+  packages/snapback4/test/expiry-retry-watch.test.mjs \
+  packages/snapback4/test/ephemeral-keep.test.mjs
+```
+
+
+Wasm from the full suite: **1,981,512 B raw / 572,053 B gzip**, delta **0 B**,
+**788 B below** the unchanged 572,841 B cap. SHA-256:
+`5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969`.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; frozen Bun
+install, eight Cargo jobs, dev/test debug information disabled and file limit
+65,536. No tool was installed or changed globally. The full-run PATH uses
+worktree-local symlinks to existing Node/Bun and the existing Cargo toolchain;
+the optional incompatible shared optimizer from round 2 is absent. Native and
+wasm build inputs and budgets are unchanged.
+
+Evidence: ignored `snapback4/target/lane-kg-r3/`, including `affected.log`,
+`lifecycle-final.log`, `guide.log`, `full-suite.log`, `full-suite.exit`,
+`ref-check-final.log`, `measurements.json`, `lifecycle-final-baseline.log`,
+`detached-before.log`, the four mutation logs, and typing baseline/isolated
+logs. All mutations are process-local source transforms.
+
+
+## Decisions, deviations and remaining issues
+
+No design deviation or stopped design part. Small engineering additions within
+the close finding: sharing both close loops, preserving denial precedence for
+a detached handle outside the map, and moving early lingering sign-out
+retirement inside the complete withdrawal. The latter has failing-before
+opening-remount tests on both clients. Local offline recovery retains its
+existing semantics: fresh answers withdraw first; a later successful offline
+read can publish remembered data. Peer tests hold that replacement so they
+measure the withdrawal boundary itself.
+
+The first test draft passed undeclared query arguments on the real device;
+it was corrected to two declared query operations. Initial resubscription
+assertions expected one raw notification, but expiry also triggers rerun;
+the regression now requires timer notification and one stable loading object.
+The exact-once assertion remains on the episode test as requested. These are
+resolved test-authoring errors, not loosened existing tests.
+
+llp-orient context: Snapback 4 fence (LLP 3000), Accepted LLP 3000.023
+§§3.1, 3.4–3.6 and §6, LLP 3000.019 §3.3, and the current client manual.
+The governing documents are in current, not foundation. The fixes restore
+existing constraints; no new LLP decision or hand-off is needed. The previous
+§3.5 keep-branch audit remains in the historical round-1 report.
+
+---
+
+# Historical round-2 report
+
 # Lane KG round 2 — withdrawal boundaries and discriminating regressions
 
 Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.

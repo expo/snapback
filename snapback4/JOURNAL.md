@@ -68185,3 +68185,62 @@ No design deviation, push or publication. Every commit has the requested Astra
 co-author trailer. Report and reproductions:
 reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
 target/lane-kg-r2/. This is round 2's single journal append.
+
+### 2026-09-27 — KG round 3: finish withdrawal and expiry lifecycles
+
+Merged origin/main in a9624aab4 without conflicts. Read all three lane prompts,
+prior reports and KG entries, both round-2 reviews and the governing retention
+RFC. cccacaa47 answers findings 1–4: both clients cancel row deadlines before
+terminal denial; schema discovery, link publication, sign-out and close finish
+peer raw/shared withdrawals before callbacks, including lingering retirement;
+local resubscription rearms saved absolute row deadlines before rerun; inactive
+server expiry applies the remembered-answer fence before withdrawal. A detached
+raw local handle, absent from the close map, now gives its owner's denial
+precedence. f32bb700e answers finding 5 with the exact early episode-delivery
+regression: first timer at host 1500, remaining timer at 2000, no accessor,
+loading and one notification. All commits carry the requested Astra trailer.
+
+Added 52 tests. Final focused set: 125/125; whole guide: 86/86. The merged-input
+module control fails 34 of the 51 lifecycle tests. Isolated mutations fail both
+resubscription cases, the closed memory case (live control stays green), all
+five first-watch-only online offline cases, and the early episode test. The two
+detached non-lingering wasm cases also fail before their follow-up. Thirty-five
+peer cases inspect raw snapshots, exposed reads and peeks from shared/raw/link
+callbacks across discovery, offline, close and sign-out. Actual online and
+Rust/wasm clients cover close, resumed expiry and public recovery after rollback.
+
+Broader affected set: 455 passed / 1 failed (428.258 s). Its online typing
+assertion at ephemeral-keep.test.mjs:91 failed at 4.051 s in the four-second
+lifetime test; isolated final code, four baseline probes, and the complete
+suite pass. Classified environmental/transient as an inference; the original
+failure did not reproduce and its exact cause remains unresolved. No assertion
+or timeout changed. All 18 delayed-authority sequences and both Chromium
+witnesses pass. Final focused and full-suite runs include the detached-handle
+follow-up, which was added while the initial affected run was executing.
+
+Ran scripts/test.sh exactly once: **== 1 failure(s) in 1243 s**, exit **1**.
+Rust: 3,835 passed / 0 failed / 24 ignored (542 s). Main client: 2,937 passed /
+3 failed / 10 skipped (429 s); seven extra shards: 56/56. Final seeded models:
+79 passed / 0 failed (261 s). Fixtures: 9/9. Builds, budgets, release guard, package and
+app typechecks pass. All 52 new tests pass in the full run.
+
+Every full-run failure is baseline, in expired-server-watch.test.mjs: recover /
+keep:true and close client / keep:true time out at paced retries (line 62);
+close client / keep:false fails retry-1 backoff with a 3.956 ms gap (line 64).
+The control restoring all five changed runtime modules from a9624aab4 is 4/7:
+recover/true reproduces the timeout, close watch/false and close client/false
+reproduce first-retry pacing. Variants vary, as in round 2. The test fails before
+its close call. This baseline issue remains open; the full run stays red and
+was not rerun. No full-run failure is attributed to this round's changes.
+
+Wasm is byte-identical: 1,981,512 B raw / 572,053 B gzip, delta 0, 788 B below
+the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Reference audit: 517 LLP docs, 9,635 refs, zero errors/unchecked. Largest changed
+source is exactly 1,500 lines. No Rust, authorization/disclosure rule, meter,
+public API, diagnostic, durable format, dependency, version or budget change.
+No global tool installation/change, push or publication. Existing Node/Bun are
+selected through worktree-local symlinks for the full run. The inherited 60 s
+suite budget remains exceeded. Report and reproductions:
+reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r3/. This is round 3's single append.
