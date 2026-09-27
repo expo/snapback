@@ -68393,3 +68393,35 @@ round-2 scripts/test.sh summary; historical round 0 remains
 weakened assertion, new API/design, unrelated fix, shared tool installation,
 push or publication. Report and durable run evidence:
 reports/20260927-fx-flakes/ROUND2.md and round2-qualification.json there.
+
+
+## 2026-09-27 — 0.4.6 lane CQ: a top-N answer is complete
+
+Recorded the supervisor decision first in LLP 3000.027 (`83f543fec`), then
+implemented it on `sb4-intent/cq-topn-complete` (`4d5a93669`). Cursorless first/last
+bounds now answer completely on server, SQLite and Memory without next;
+composed last-1 previews stay complete and no longer get N_NO_CURSOR. The note
+still explains continuation for a whole returned page if the screen pages.
+Cuts, undecided authorization, horizons, incomplete lane discovery, declared
+cursor ownership and metering retain their behavior. Client fallback and
+certificates already consume the shared facts. No GS membership-plan change.
+
+New exact-row regressions use 1,000 rows on server and both device stores,
+including reopen, real meter cuts, horizons, expiring-membership authorization
+and a newer hidden row. CLI fixture reporting and native/web local routing
+are covered. All final affected checks pass, including the entire 86-test
+guide. The nine edited guide/client texts shrink by 278 words; README is
+300/300 lines. Same-toolchain wasm: 1,981,159 B raw / 572,010 B gzip versus
+1,981,512 / 572,053 baseline, -353 raw / -43 gzip, 831 B below the unchanged
+572,841 B gzip budget.
+
+Ran scripts/test.sh once: `== 3 failure(s) in 1280 s`, exit 1: docs budget,
+cargo test, client tests. Docs and all 14 failing Rust targets were lane-owned
+expectations/budgets, corrected and retested. Existing web lost-reply retry
+count and HTTP startup timing failed under concurrent client load; both passed
+an isolated rerun (11/11), with cause/classification limits retained in the
+report. Client models passed 78/78. The original red run is preserved; no
+second full-suite-green claim. No live Postgres qualification, version bump,
+budget increase, shared tool installation, push or publication. File map,
+forms, every first-run failure, receipts and open reproduction details:
+reports/20260927-cq-topn-complete/REPORT.md.
