@@ -25,6 +25,50 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => { packing.delete(name); absent ? resolve(null) : reject(request.error); };
   });
+  const save = async (name: string, changes: Change[], current?: () => boolean): Promise<boolean> => {
+      const db = (await open(name))!;
+      try {
+        if (!packing.has(name) && changes.some(c => packedStore(c.s))) {
+          const tx = db.transaction("changes", "readonly");
+          const marker = tx.objectStore("changes").get([FORMAT.s, FORMAT.k]);
+          await done(tx);
+          if (marker.result?.v === "1") throw new Error("load the device before saving: its old row buckets require a bounded-format upgrade");
+          packing.set(name, marker.result?.v === FORMAT.v);
+        }
+        const tx = db.transaction("changes", "readwrite", { durability: "strict" });
+        const committed = done(tx), store = tx.objectStore("changes");
+        let stale = false;
+        try {
+          const groups = new Map<string, Change[]>();
+          for (const change of changes) {
+            if (packing.get(name) && packedStore(change.s)) {
+              const key = bucket(change.s, change.k);
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(change);
+            } else if (change.v === null) store.delete([change.s, change.k]);
+            else store.put(change);
+          }
+          // Keep every read/modify/write inside IDB's transaction, including
+          // simultaneous owners using separate Persistence instances.
+          for (const [key, delta] of groups) {
+            const request = store.get(["$bucket", key]);
+            request.onsuccess = () => {
+              try {
+                writeBucket(store, key, request.result, delta);
+              } catch { try { tx.abort(); } catch { /* An earlier request already aborted it. */ } }
+            };
+          }
+        } catch (error) { try { tx.abort(); } catch { /* The failing operation may already have aborted it. */ } await committed.catch(() => {}); throw error; }
+        // Delivery changes are metadata. Check inside the live transaction,
+        // after all requests, so a held write can abort without publishing debt.
+        if (current) {
+          const guard = store.get([FORMAT.s, FORMAT.k]);
+          guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
+        }
+        try { await committed; } catch (error) { if (!stale) throw error; }
+        return !stale;
+      } finally { db.close(); }
+  };
   return {
     claim,
     async has(name) {
@@ -59,42 +103,8 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
         return changes.flatMap(unpack);
       } finally { db.close(); }
     },
-    async save(name, changes) {
-      const db = (await open(name))!;
-      try {
-        if (!packing.has(name) && changes.some(c => packedStore(c.s))) {
-          const tx = db.transaction("changes", "readonly");
-          const marker = tx.objectStore("changes").get([FORMAT.s, FORMAT.k]);
-          await done(tx);
-          if (marker.result?.v === "1") throw new Error("load the device before saving: its old row buckets require a bounded-format upgrade");
-          packing.set(name, marker.result?.v === FORMAT.v);
-        }
-        const tx = db.transaction("changes", "readwrite", { durability: "strict" });
-        const committed = done(tx), store = tx.objectStore("changes");
-        try {
-          const groups = new Map<string, Change[]>();
-          for (const change of changes) {
-            if (packing.get(name) && packedStore(change.s)) {
-              const key = bucket(change.s, change.k);
-              if (!groups.has(key)) groups.set(key, []);
-              groups.get(key)!.push(change);
-            } else if (change.v === null) store.delete([change.s, change.k]);
-            else store.put(change);
-          }
-          // Keep every read/modify/write inside IDB's transaction, including
-          // simultaneous owners using separate Persistence instances.
-          for (const [key, delta] of groups) {
-            const request = store.get(["$bucket", key]);
-            request.onsuccess = () => {
-              try {
-                writeBucket(store, key, request.result, delta);
-              } catch { try { tx.abort(); } catch { /* An earlier request already aborted it. */ } }
-            };
-          }
-        } catch (error) { try { tx.abort(); } catch { /* The failing operation may already have aborted it. */ } await committed.catch(() => {}); throw error; }
-        await committed;
-      } finally { db.close(); }
-    },
+    async save(name, changes) { await save(name, changes); },
+    saveIfCurrent: save,
     async others(prefix) {
       const list = (indexedDB as { databases?: () => Promise<{ name?: string }[]> }).databases;
       return list ? (await list.call(indexedDB)).map(d => d.name ?? "").filter(name => name.startsWith(prefix)) : [];

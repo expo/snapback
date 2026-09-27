@@ -32,7 +32,7 @@ test('local acceptance persists before dispatch, waits for witness and idle outb
   if(request.action==='write'){if(request.expected!==value)return {ok:false};value=request.value;return {ok:true};}
   return {ok:{value,more:false}};
  };
- const q=localDelivery({viewer:'bob',url:'http://x',call,backend:()=>null,ready:()=>witness&&!busy&&!restored,current:()=>!restored,credentials:()=>({headers:{},revision:0}),refresh:()=>null,capture:async()=>({watermark:10,send_revision:0,store_id:'S'}),
+ const q=localDelivery({viewer:'bob',url:'http://x',call,collect:(request,current)=>current()?call(request):Promise.resolve({ok:true}),backend:()=>null,ready:()=>witness&&!busy&&!restored,current:()=>!restored,credentials:()=>({headers:{},revision:0}),refresh:()=>null,capture:async()=>({watermark:10,send_revision:0,store_id:'S'}),
   witness:async(_id,head)=>{restored=head<10;return restored;},restored:()=>restored,replaced:()=>{},auth:async()=>{},now:()=>100,
   fetch:async(_url,init)=>{calls.push(JSON.parse(init.body));assert.ok(Object.values(JSON.parse(value).groups)[0].attempt,'attempt persisted before network');return Response.json({state:'sent',seq:1,head:1,store_id:'S'});}});
  t.after(()=>q.stop());await q.accept(manifest([['c',41]]));assert.deepEqual(Object.values(JSON.parse(value).groups)[0].owed,[[41,41]]);await delay(270);assert.equal(calls.length,0);

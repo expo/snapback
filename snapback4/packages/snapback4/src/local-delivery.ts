@@ -8,6 +8,8 @@ import { mintId } from "./client.ts";
 interface Environment {
   viewer: string; url: string; fetch: typeof fetch;
   call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }>;
+  // A host without conditional commit may safely omit supplementary manifests.
+  collect?: ((request: Record<string, unknown>, current: () => boolean) => Promise<{ ok?: unknown; denied?: Refusal }>) | undefined;
   backend(): BackendJson | null;
   offline?(): void;
   ready(): boolean;
@@ -37,12 +39,20 @@ export function localDelivery(env: Environment) {
     const work = tail.then(body); tail = work.catch(() => {}); return work;
   };
   const storage: DeliveryStorage = {
-    update: edit => serial(async () => {
+    update: (edit, current) => serial(async () => {
       for (;;) {
         const read = await call({ action: "read" }) as { value: string };
         const state = read.value ? JSON.parse(read.value) as DeliveryState : emptyDelivery();
         const result = edit(state);
-        if (await call({ action: "write", expected: read.value, value: JSON.stringify(state) })) return result;
+        const value = JSON.stringify(state);
+        if (value === read.value || (current && !current())) return result;
+        const request = { op: "delivery", viewer: env.viewer, action: "write", expected: read.value, value };
+        if (current) {
+          if (!env.collect) return result; // An unsupported host under-reports, never writes stale debt.
+          const reply = await env.collect(request, current);
+          if (reply.denied) throw new Error(reply.denied.code);
+          if (reply.ok) return result;
+        } else if (await call(request)) return result;
       }
     }),
     clear: () => serial(async () => { await call({ action: "clear" }); }),

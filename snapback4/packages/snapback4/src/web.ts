@@ -1,3 +1,4 @@
+import { deliveryCommit } from "./local-device.ts";
 import { afterStoreLock } from "./app-storage.ts";
 import { indexedDbStore } from "./web-idb.ts";
 import { WebResidency } from "./web-residency.ts";
@@ -42,6 +43,9 @@ export interface Persistence {
   read?(name: string, store: string, key: string): Promise<string | null>;
   /** One batch, all or nothing, in order. */
   save(name: string, changes: Change[]): Promise<void>;
+  /** Optional supplementary collection: test current at the transaction's
+   * commit point; false writes nothing. A missing method under-reports. */
+  saveIfCurrent?(name: string, changes: Change[], current: () => boolean): Promise<boolean>;
   /** The stores held whose names begin with `prefix`. */
   others?(prefix: string): Promise<string[]>;
   remove?(name: string): Promise<void>;
@@ -180,14 +184,19 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         device = undefined;
         previous?.free();
       };
-      const settle = async (extra: Change[] = [], committedReply?: () => void, outboxStatusOnly = false): Promise<void> => {
+      const staleCollection = new Error("stale delivery collection");
+      const settle = async (extra: Change[] = [], committedReply?: () => void, outboxStatusOnly = false, current?: () => boolean): Promise<void> => {
         const changes = [...JSON.parse(device!.drain()) as Change[], ...journal.cleanup(committed), ...extra];
         let issuedFloor: number | undefined;
         for (const change of changes) if (change.s === "o" && change.v !== null) {
           const now = (JSON.parse(change.v) as { now?: number }).now;
           if (Number.isSafeInteger(now) && now! >= 0) issuedFloor = Math.max(issuedFloor ?? 0, now!);
         }
-        if (changes.length) await persist.save(store.name, changes);
+        if (changes.length) {
+          if (current) {
+            if (!persist.saveIfCurrent || !await persist.saveIfCurrent(store.name, changes, current)) throw staleCollection;
+          } else await persist.save(store.name, changes);
+        }
         // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the durable result reaches invalidation before any fallible host bookkeeping or recovery.
         committedReply?.();
         // Every outbox commit, including deferred journal replay, reaches the
@@ -282,6 +291,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           async write(id, hex) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: hex }]); },
           async remove(id) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: null }]); },
         },
+        [deliveryCommit](request, current) {
+          if (!persist.saveIfCurrent) return Promise.resolve({ ok: true }); // Supplementary collection unavailable.
+          return this.call({ ...request, [deliveryCommit]: current });
+        },
         call(request, committedReply) {
           if (closing) return Promise.reject(new Error("the device is closed"));
           if (request.op === "admit" && !prepared.has(request)) {
@@ -300,6 +313,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const execute = async (): Promise<Record<string, unknown>> => {
+                const current = (request as { [deliveryCommit]?: () => boolean })[deliveryCommit];
+                if (current && !current()) return { ok: true }; // Stale means no write, no retry.
                 if (request.op === "residency") {
                   return { ok: residency.snapshot((runtime!.initialized as { memory: WebAssembly.Memory }).memory.buffer.byteLength) };
                 }
@@ -352,8 +367,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
                 try {
-                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply), request.op === "begin_send" || request.op === "hold_write");
+                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply), request.op === "begin_send" || request.op === "hold_write", current);
                 } catch (error) {
+                  if (error === staleCollection) { discard(); return { ok: true }; }
                   if (!admission || !writeRefusal(reply)) throw error;
                   // The refusal is known even when both cancellation stores fail.
                   // Discard any uncommitted memory; the docs call recovery indeterminate.
@@ -721,6 +737,11 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
         if (change.v === null) held.delete(key);
         else held.set(key, change);
       }
+    },
+    async saveIfCurrent(name, changes, current) {
+      if (!current()) return false;
+      await provider.save(name, changes);
+      return true;
     },
     async others(prefix) {
       return [...stores.keys()].filter((n) => n.startsWith(prefix));

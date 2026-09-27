@@ -24,52 +24,53 @@ mutation add():
 `;
 async function fixture(t){
  const {url}=await server(t,'',source);
- const memory=memoryPersistence(),saved=[],reports=[];let saveGate,readGate,failSave=false,core,queryCount=0,onQuery=()=>{},client,offlineOnce=false;
- const persist={...memory,async save(name,changes){
+ const memory=memoryPersistence(),saved=[],reports=[];let saveGate,readGate,writeGate,writesHeld=0,failSave=false,core,queryCount=0,onQuery=()=>{},client,offlineOnce=false;
+ const persist={...memory,async saveIfCurrent(name,changes,current){
   const collected=changes.some(c=>c.s==='m'&&c.k.startsWith('device:delivery:')&&c.v&&Object.values(JSON.parse(c.v).groups).some(g=>g.owed.length));
   if(collected){saved.push(changes);if(saveGate)await saveGate.promise;if(failSave){failSave=false;throw Error('failed delivery save');}}
-  return memory.save(name,changes);
+  return memory.saveIfCurrent(name,changes,current);
  }};
  const underlying=webDevice({wasm,persist});
  client=await createLocalClient({url,persona:'alice',waitSeconds:1,device:{async open(...args){core=await underlying.open(...args);return {...core,async call(request,...rest){
   if(request.op==='delivery'&&request.action==='read'&&readGate)await readGate.promise;
+  if(request.op==='delivery'&&request.action==='write'&&writeGate){writesHeld++;await writeGate.promise;}
   return core.call(request,...rest);
  }}}},fetch:async(input,init)=>{
   const path=new URL(input).pathname;
   if(path==='/schema'){const b=await fetch(input,init).then(r=>r.json());b.schema.delivery=[binding];return Response.json(b);}
-  if(path==='/q/fallback'){const json=await fetch(input,init).then(r=>r.json());json.delivery=manifest(41);queryCount++;onQuery(json,queryCount);return Response.json(json);}
+  if(path==='/q/fallback'){const json=await fetch(input,init).then(r=>r.json());json.delivery=manifest(41);queryCount++;await onQuery(json,queryCount);return Response.json(json);}
   if(path==='/m/delivered'){reports.push(JSON.parse(init.body));if(offlineOnce){if(reports.length===1)return Response.json({denied:{code:'E_OFFLINE'}});const head=await fetch(`${url}/probe`,{headers:init.headers}).then(r=>r.json());return Response.json({state:'sent',head:head.seq,store_id:head.store_id});}return new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(Error('closed')),{once:true}));}
   return fetch(input,init);
- }});t.after(async()=>{saveGate?.resolve();readGate?.resolve();await client.close();});
+ }});t.after(async()=>{saveGate?.resolve();readGate?.resolve();writeGate?.resolve();await client.close();});
  await client.sync();
  // Insert after activation, into an online-only table. Only fallback can collect it.
  await fetch(`${url}/m/add`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify({id:'00000000000000000000000001',args:{}})});
  await client.sync();
- return {client,memory,saved,reports,get queries(){return queryCount;},offlineOnce(){offlineOnce=true;},holdSave(){return saveGate=gate();},holdRead(){return readGate=gate();},fail(){failSave=true;},onQuery(fn){onQuery=fn;},
+ return {client,memory,saved,reports,get queries(){return queryCount;},get writesHeld(){return writesHeld;},holdWrite(){return writeGate=gate();},offlineOnce(){offlineOnce=true;},holdSave(){return saveGate=gate();},holdRead(){return readGate=gate();},fail(){failSave=true;},onQuery(fn){onQuery=fn;},
   debt(){return [...memory.stores.values()].flatMap(store=>[...store.values()]).filter(c=>c.s==='m'&&c.k.startsWith('device:delivery:')&&c.v).flatMap(c=>Object.values(JSON.parse(c.v).groups));}};
 }
-test('real local fallback persists manifest debt before the query returns',async t=>{
+test('real local fallback accepts before supplementary debt becomes durable',async t=>{
  const h=await fixture(t);const read=await h.client.query(op,{});assert.equal(read.data[0].text,'delivered image');
- assert.deepEqual(h.debt().map(g=>g.owed),[[[41,41]]]);
+ await until(()=>h.debt().length);assert.deepEqual(h.debt().map(g=>g.owed),[[[41,41]]]);
 });
-test('a delayed local save is awaited without moving publication after persistence',async t=>{
+test('a delayed local save never delays query acceptance',async t=>{
  const h=await fixture(t),hold=h.holdSave();let settled=false;
- const read=h.client.query(op,{}).then(r=>{settled=true;return r;});await until(()=>h.saved.length);assert.equal(settled,false);
- hold.resolve();assert.equal((await read).data[0].ordinal,41);assert.deepEqual(h.debt().map(g=>g.owed),[[[41,41]]]);
+ const read=h.client.query(op,{}).then(r=>{settled=true;return r;});await until(()=>h.saved.length);assert.equal(settled,true);
+ hold.resolve();assert.equal((await read).data[0].ordinal,41);await until(()=>h.debt().length);assert.deepEqual(h.debt().map(g=>g.owed),[[[41,41]]]);
 });
 test('a failed manifest save leaves the successful local fallback answer intact',async t=>{
- const h=await fixture(t);h.fail();const read=await h.client.query(op,{});assert.equal(read.data[0].ordinal,41);assert.deepEqual(h.debt(),[]);
+ const h=await fixture(t);h.fail();const read=await h.client.query(op,{});assert.equal(read.data[0].ordinal,41);await until(()=>h.saved.length);await delay(20);assert.deepEqual(h.debt(),[]);
 });
 for(const change of ['commit','credential','expiry'])test(`local fallback rejects its manifest when ${change} changes before acceptance`,async t=>{
  const h=await fixture(t);let held;
- h.onQuery((json,n)=>{if(n===1){held=h.holdRead();if(change==='expiry')json.nextExpiry=Date.now()+100;}else json.delivery=[];});
+ h.onQuery((json,n)=>{if(n===1){held=gate();if(change==='expiry')json.nextExpiry=Date.now()+100;return held.promise;}else json.delivery=[];});
  const read=h.client.query(op,{});await until(()=>held);await delay(20);
  let ending;
  if(change==='commit')await h.client.sync();
  if(change==='credential')ending=h.client.signOut();
  if(change==='expiry')await delay(120);
  held.resolve();const result=await read;await ending;
- if(change==='credential')assert.equal(result.denied.code,'E_CLOSED');else assert.ok('data' in result);
+ if(change==='credential')assert.equal(result.denied.code,'E_CLOSED');else if(change==='expiry')assert.ok('loading' in result);else assert.ok('data' in result);
  assert.deepEqual(h.debt(),[]);assert.deepEqual(h.reports,[]);
 });
 test('a query below its local restore floor creates no delivery debt',async t=>{
@@ -96,4 +97,25 @@ test('a credential change during save withdraws an already accepted watch withou
  await until(()=>h.saved.length);assert.equal(watch.getSnapshot().data[0].ordinal,41);
  const ending=h.client.signOut();assert.ok('denied' in watch.getSnapshot());hold.resolve();await ending;
  assert.ok('denied' in watch.getSnapshot());assert.deepEqual(h.reports,[]);
+});
+
+for(const change of ['credential','expiry','commit'])test(`a held collection write after query acceptance omits debt after ${change}`,async t=>{
+ const h=await fixture(t),hold=h.holdWrite();let accepted=false;
+ if(change==='expiry')h.onQuery(json=>{json.nextExpiry=Date.now()+150;});
+ const answer=h.client.query(op,{}).then(read=>{accepted=true;assert.equal(h.client.viewer(),'dev:alice');return read;});
+ await until(()=>h.writesHeld);assert.equal(accepted,true,'the query resolved before its collection write');
+ assert.equal((await answer).data[0].ordinal,41);
+ let ending;
+ if(change==='credential')ending=h.client.signOut();
+ if(change==='expiry')await delay(200);
+ if(change==='commit')await h.client.sync();
+ hold.resolve();await ending;await delay(30);
+ assert.deepEqual(h.debt(),[]);assert.deepEqual(h.reports,[]);
+});
+for(const change of ['credential','expiry'])test(`a host save held after its CAS check writes nothing after ${change}`,async t=>{
+ const h=await fixture(t),hold=h.holdSave();
+ if(change==='expiry')h.onQuery(json=>{json.nextExpiry=Date.now()+150;});
+ const answer=await h.client.query(op,{});assert.equal(answer.data[0].ordinal,41);await until(()=>h.saved.length);
+ let ending;if(change==='credential')ending=h.client.signOut();else await delay(200);
+ hold.resolve();await ending;await delay(30);assert.deepEqual(h.debt(),[]);assert.deepEqual(h.reports,[]);
 });

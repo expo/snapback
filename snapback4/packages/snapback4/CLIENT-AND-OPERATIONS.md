@@ -2268,9 +2268,12 @@ clients persist debt with published confirmed rows and accepted fallback
 manifests. Online clients collect accepted query manifests in memory, including
 nested images. A composed answer omits the manifest when it replaces server
 rows with retained local rows. Query manifests pass the same restore floor as
-reports. Acceptance chooses the answer at its final publication fences; a local
-save completes before the query returns, and a failed save cannot reject that
-answer. No mounted conversation or application delivery hook is needed.
+reports. Acceptance publishes the watch or resolves the query synchronously
+at its final fences. Collection persistence never delays or rejects the answer;
+every CAS attempt rechecks those fences, including at the host's commit point.
+An answer overtaken before that write stays accepted, but collects nothing.
+Unsupported conditional persistence also omits the collection; those rows stay
+`sent`. No mounted conversation or application delivery hook is needed.
 Keep calling `seen` for messages the person actually views. A continuously
 mounted `progress` query acquires its returned message rows, so use it only
 when that catch-up is intended.
@@ -2281,8 +2284,9 @@ group, with a 15-second deadline. An uncertain attempt keeps its id across
 local restarts. Committed success covers its exact run; `RUNS_FULL` parks it
 and allows other intervals to proceed. New publications, success, reconnect,
 start and a slow timer wake parked runs, at most once per 30 seconds each.
-Startup flushes persisted debt before the one-time activation scan. A failed
-scan page resumes from its persisted cursor with bounded backoff.
+Startup waits only for debt present at startup. Later activation pages wait
+for capacity without evicting debt, retaining outbox priority even during live
+traffic. A failed page resumes its durable cursor with bounded backoff.
 
 Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
 for application refusals. It receives

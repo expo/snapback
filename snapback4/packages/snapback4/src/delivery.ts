@@ -3,7 +3,7 @@ import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, subtr
 export type { DeliveryRefused } from "./delivery-state.ts";
 
 export interface DeliveryStorage {
-  update<T>(edit: (state: DeliveryState) => T): Promise<T>;
+  update<T>(edit: (state: DeliveryState) => T, current?: () => boolean): Promise<T>;
   clear(): Promise<void>;
 }
 export function memoryDelivery(): DeliveryStorage {
@@ -59,12 +59,13 @@ export class DeliveryQueue {
     await this.wake("start");
     if (await this.options.storage.update(state => Object.keys(state.groups).length > 0)) this.slowTimer();
   }
-  async accept(manifest: unknown, publish: () => boolean = () => true): Promise<void> {
+  async accept(manifest: unknown, current: () => boolean = () => true): Promise<void> {
     if (this.stopped) return;
     const epoch = this.epoch;
+    const eligible = () => epoch === this.epoch && !this.stopped && current();
     const changed = await this.track(this.options.storage.update(state => {
-      if (epoch === this.epoch && !this.stopped && publish()) return acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
-    }));
+      if (eligible()) return acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
+    }, eligible));
     if (changed && !this.slow) this.slowTimer();
     this.schedule(250);
   }

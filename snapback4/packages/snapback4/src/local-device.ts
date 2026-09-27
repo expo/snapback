@@ -6,8 +6,12 @@ import type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { admissionCapture } from "./admission.ts";
 import { admissionOwnership, type AdmissionAuthorityContext } from "./admission-authority.ts";
 
+// @ref LLP 3000.022#4 — supplementary manifests require a conditional host commit.
+export const deliveryCommit = Symbol.for("snapback4.deliveryCommit");
+
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  [deliveryCommit]?(request: Record<string, unknown>, current: () => boolean): Promise<Record<string, unknown>>;
   /** Internal web capabilities. Adapters must forward all properties (including
    * symbols) with {...core} before overriding methods. */
   [admissionCapture]?: (request: Record<string, unknown>) => Refusal | undefined;
