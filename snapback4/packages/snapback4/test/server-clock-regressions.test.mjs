@@ -6,7 +6,7 @@ import ts from 'typescript';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { ServerClock, onClock, clockDelay } from '../dist/clock.js';
-import { ReadObservation } from '../dist/read-observation.js';
+import { ReadObservation, answerIdentity } from '../dist/read-observation.js';
 
 const read = { kind: 'query', name: 'read' };
 const backend = { generation: 1, schema: { tables: {} }, programs: [
@@ -103,7 +103,9 @@ test('syncedAt, device since and remembered server since remain wall time under 
   const observation = new ReadObservation(); observation.publish(remoteAnswer);
   let release;
   const replacing = observation.fetch(() => new Promise(resolve => { release = resolve; }), () => {}, { retain: true });
-  assert.equal(observation.snapshot.since, Date.now(), 'retained fresh answers use the same wall clock');
+  assert.equal(observation.snapshot.since, remoteAnswer.since, 'retention leaves the original freshness age unchanged');
+  assert.equal(observation.snapshot.fresh, remoteAnswer.fresh);
+  assert.equal(observation.snapshot.revalidating, true);
   release({ read: remoteAnswer }); await replacing;
   f.outcome = () => ({ data: ['kept'], complete: true, tables: [], nextExpiry: null });
   f.offline = true; await client.sync();
@@ -207,7 +209,9 @@ test('freshness is clamped at publication after wall time rolls back', async t =
   assert.equal(remembered.since, Date.now());
   let release;
   const replacing = observation.fetch(() => new Promise(resolve => { release = resolve; }), () => {}, { retain: true });
-  assert.equal(observation.snapshot.since, Date.now());
+  assert.equal(observation.snapshot.since, response.since, 'revalidation does not synthesize a freshness age after rollback');
+  assert.equal(observation.snapshot.fresh, response.fresh);
+  assert.equal(observation.snapshot.revalidating, true);
   release({ read: response }); await replacing;
   observation.publish({ ...response, fresh: false, since: Date.now() + 4000 });
   assert.equal(observation.snapshot.since, Date.now(), 'explicit since is also clamped on publication');
@@ -277,8 +281,9 @@ for (const [serverDelay, early] of [[null, false], [null, true], [300, false], [
   if (serverDelay === 300) {
     assert.deepEqual(watch.getSnapshot(), { loading: true }, 'simultaneous server expiry must reset');
   } else {
-    assert.equal(watch.getSnapshot(), before, 'a valid remembered page survives the timer and slow local call');
-    assert.equal(publications.length, count, 'a wakeup does not emit a loading notification');
+    assert.deepEqual(watch.getSnapshot(), { ...before, revalidating: true }, 'a valid remembered page survives with its original freshness');
+    assert.equal(answerIdentity(watch.getSnapshot()), answerIdentity(before));
+    assert.equal(publications.length, count + 1, 'the mark notifies without a loading withdrawal');
     if (serverDelay === 600) {
       t.mock.timers.tick(300); await drain();
       assert.deepEqual(watch.getSnapshot(), { loading: true }, 'the server cutoff stays armed during the local call');
