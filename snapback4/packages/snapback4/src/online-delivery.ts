@@ -4,6 +4,7 @@ import type { DeliveryRefused } from "./delivery-state.ts";
 
 export function onlineDelivery(env: {
   url: string; fetch: typeof fetch; mint(): string;
+  offline?(): void;
   ready(): boolean; current(): boolean;
   headers(): Record<string, string>; revision(): number;
   floor(): number; store(): string | undefined;
@@ -13,7 +14,7 @@ export function onlineDelivery(env: {
   onRefused?: ((event: DeliveryRefused) => void) | undefined;
 }) {
   return new DeliveryQueue({ local: false, storage: memoryDelivery(), mint: env.mint,
-    ready: env.ready, onRefused: event => env.onRefused?.(event),
+    ready: env.ready, onOffline: () => env.offline?.(), onRefused: event => env.onRefused?.(event),
     send: async (mutation, body, signal) => {
       if (env.refresh()) await env.refresh();
       if (!env.ready() || signal.aborted) return { json: {}, accepted: false, deferred: true };

@@ -49,7 +49,8 @@ mutation edit(id: messages):
 fn backend() -> Backend {
     let (_,mut b) = compile(SOURCE);
     b.schema.delivery = ["messages","photos"].into_iter().map(|table| DeliveryBinding {
-        table:table.into(), group:"room".into(),position:"ordinal".into(),mutation:format!("delivered_{table}"),args:["conversation".into(),"from".into(),"through".into()]
+        fingerprint: format!("fixture:{table}"),
+        table:table.into(), group:"room".into(),position:"ordinal".into(),mutation:format!("delivered_{table}"),args:vec!["conversation".into(),"from".into(),"through".into()]
     }).collect(); b
 }
 fn event(n:i64) -> Json { json!({"table":"messages","kind":"put","id":format!("m{n}"),"data":{"id":format!("m{n}"),"room":"r","ordinal":n,"text":"confirmed","expires":10000}}) }
@@ -176,3 +177,27 @@ fn bounded_attempt<H:Host>(h:&mut H) {
 #[test]fn horizon_sqlite(){horizon(&mut Sqlite::new("delivery-horizon"))}
 #[test]fn bounded_attempt_memory(){bounded_attempt(&mut Memory::new())}
 #[test]fn bounded_attempt_sqlite(){bounded_attempt(&mut Sqlite::new("delivery-bound"))}
+
+fn fingerprint_reconcile<H:Host>(h:&mut H) {
+    let mut d=h.open("fingerprints",Some(backend())).unwrap();request(&mut d,"read");
+    let photo=json!({"table":"photos","kind":"put","id":"p","data":{"id":"p","room":"r","ordinal":9,"text":"photo"}});
+    d.apply(&page(true,vec![event(1),photo],1),true).unwrap();
+    while request(&mut d,"enumerate")["more"]==true {}
+    let before=state(&mut d);
+    assert!(before["groups"].as_object().unwrap().values().all(|g|g["binding"]["fingerprint"].as_str().unwrap().starts_with("fixture:")));
+    d.adopt(backend()).unwrap();assert_eq!(state(&mut d),before,"unchanged bindings survive adoption");
+    let mut changed=backend();changed.schema.delivery[0].fingerprint="changed".into();d.adopt(changed).unwrap();
+    let after=state(&mut d);assert_eq!(owed(&after,"messages"),json!([]));assert_eq!(owed(&after,"photos"),json!([[9,9]]));
+    assert!(after["cursors"].get("[\"messages\",\"delivered_messages\"]").is_none());
+    assert!(after["cursors"]["[\"photos\",\"delivered_photos\"]"]["done"]==true);
+}
+#[test]fn fingerprints_memory(){fingerprint_reconcile(&mut Memory::new())}
+#[test]fn fingerprints_sqlite(){fingerprint_reconcile(&mut Sqlite::new("delivery-fingerprints"))}
+
+#[test]fn binding_decoder_requires_fingerprint_and_exactly_three_arguments(){
+    let value=json!({"table":"t","group":"g","position":"p","mutation":"m","fingerprint":"f","args":["g","a","b"]});
+    let decoded:DeliveryBinding=serde_json::from_value(value.clone()).unwrap();assert_eq!(decoded.fingerprint,"f");
+    let mut missing=value.clone();missing.as_object_mut().unwrap().remove("fingerprint");assert!(serde_json::from_value::<DeliveryBinding>(missing).is_err());
+    let mut extra=value.clone();extra["args"]=json!(["g","a","b","c"]);assert!(serde_json::from_value::<DeliveryBinding>(extra).is_err());
+    assert!(serde_json::from_str::<DeliveryBinding>(r#"{"table":"t","table":"u","group":"g","position":"p","mutation":"m","fingerprint":"f","args":["g","a","b"]}"#).is_err());
+}

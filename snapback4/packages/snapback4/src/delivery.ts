@@ -1,5 +1,5 @@
 import type { Refusal } from "./contract.ts";
-import { acceptManifest, boundDebt, emptyDelivery, mergeRuns, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
+import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 
 export interface DeliveryStorage {
@@ -23,7 +23,9 @@ interface Options {
   local: boolean;
   mint(): string;
   ready(): boolean;
-  send(mutation: string, body: { id: string; args: Record<string, unknown> }, signal: AbortSignal): Promise<DeliveryReply>;
+  send(mutation: string, body: { id: string; args: Record<string, unknown>; delivery: { fingerprint: string } }, signal: AbortSignal): Promise<DeliveryReply>;
+  onOffline?(): void;
+  onSettled?(): void;
   onRefused?(event: DeliveryRefused): void;
   now?: () => number;
   jitter?: () => number;
@@ -51,11 +53,11 @@ export class DeliveryQueue {
     await this.wake("start");
     if (await this.options.storage.update(state => Object.keys(state.groups).length > 0)) this.slowTimer();
   }
-  async accept(manifest: unknown): Promise<void> {
+  async accept(manifest: unknown, publish: () => boolean = () => true): Promise<void> {
     if (this.stopped) return;
     const epoch = this.epoch;
     const changed = await this.track(this.options.storage.update(state => {
-      if (epoch === this.epoch && !this.stopped) return acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
+      if (epoch === this.epoch && !this.stopped && publish()) return acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
     }));
     if (changed && !this.slow) this.slowTimer();
     this.schedule(250);
@@ -138,7 +140,7 @@ export class DeliveryQueue {
           if (!group.parked.some(p => p.kind === "full")) group.wake = false;
           // This commit precedes transport, including the local host persistence batch.
           if (!group.attempt) {
-            group.attempt = { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0 };
+            group.attempt = { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0, recent: [] };
             group.recent = [];
           }
           return { key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
@@ -148,14 +150,14 @@ export class DeliveryQueue {
         const flight: Flight = { ...selected, epoch, controller: new AbortController(), done: Promise.resolve() };
         this.flights.add(flight);
         const [groupArg, fromArg, throughArg] = selected.binding.args;
-        const body = { id: selected.attempt.id, args: { [groupArg]: selected.group, [fromArg]: selected.attempt.run[0], [throughArg]: selected.attempt.run[1] } };
+        const body = { delivery: { fingerprint: selected.binding.fingerprint }, id: selected.attempt.id, args: { [groupArg]: selected.group, [fromArg]: selected.attempt.run[0], [throughArg]: selected.attempt.run[1] } };
         flight.done = this.run(flight, selected.binding.mutation, body);
         void flight.done.catch(() => {});
       }
     } finally { this.pumping = false; }
   }
   private current(f: Flight): boolean { return !this.stopped && f.epoch === this.epoch; }
-  private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown> }): Promise<void> {
+  private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown>; delivery: { fingerprint: string } }): Promise<void> {
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let deferred = false;
     try {
@@ -179,7 +181,7 @@ export class DeliveryQueue {
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => { remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) }); };
         const retry = (recorded: boolean) => {
-          if (recorded) { attempt.id = this.options.mint(); group.recent = []; }
+          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; }
           if (attempt.retries >= 8) { park("retry", true); return; }
           attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** attempt.retries++);
         };
@@ -189,12 +191,14 @@ export class DeliveryQueue {
           else effects.paused = true;
         } else if (why?.code === "E_OFFLINE") effects.offline = true;
         else if (!reply || !reply.accepted || !Number.isSafeInteger(json?.head) || Number(json?.head) < 0) retry(false);
+        else if (why?.code === "E_DELIVERY_BINDING") { dropBinding(state, group.binding); }
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
         } else if (why?.code === "RUNS_FULL") park("full");
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {
-          if (!this.options.local && group.recent.length) {
-            group.owed = group.recent; group.parked = []; delete group.attempt;
+          const recent = attempt.recent ?? group.recent;
+          if (!this.options.local && recent.length) {
+            group.owed = recent; group.parked = []; delete group.attempt;
             group.incarnation = ++state.serial;
           } else { delete state.groups[f.key]; delete state.retired[f.key]; }
         } else if (why?.code === "NOT_A_RUN" || why?.code === "PAST_LAST_MESSAGE") {
@@ -211,7 +215,7 @@ export class DeliveryQueue {
       // the successfully committed edit may pause dispatch or notify the app.
       if (outcome && this.current(f)) {
         if (outcome.paused) this.paused = true;
-        if (outcome.offline) this.offline = true;
+        if (outcome.offline) { this.offline = true; this.options.onOffline?.(); }
         if (outcome.refused) this.options.onRefused?.(outcome.refused);
       }
     } finally {
@@ -219,7 +223,14 @@ export class DeliveryQueue {
       // Old-incarnation completions release their slot even when they adopt nothing.
       this.flights.delete(f);
       this.schedule(deferred ? 250 : 0);
+      this.options.onSettled?.();
     }
+  }
+  /** Activation cannot displace debt that has not had its startup flush. */
+  async flushed(): Promise<boolean> {
+    await this.pump();
+    return this.flights.size === 0 && await this.options.storage.update(state =>
+      !Object.values(state.groups).some(g => g.owed.length || g.attempt));
   }
   /** Store/generation changes fence every callback. Sign-out keeps local debt. */
   async reset(clear: boolean): Promise<void> {

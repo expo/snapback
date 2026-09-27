@@ -1,9 +1,9 @@
 import type { Refusal } from "./contract.ts";
 
 export type Run = [number, number];
-export interface DeliveryBinding { table: string; mutation: string; args: [string, string, string] }
+export interface DeliveryBinding { fingerprint: string; table: string; mutation: string; args: [string, string, string] }
 export interface DeliveryRefused extends DeliveryBinding { group: string; from: number; through: number; why: Refusal }
-export interface Attempt { id: string; run: Run; retries: number; readyAt: number }
+export interface Attempt { id: string; run: Run; retries: number; readyAt: number; recent?: Run[] }
 export interface Parked { run: Run; kind: "full" | "start" | "retry"; at: number; ready?: boolean; attempt?: Attempt }
 export interface DeliveryGroup {
   binding: DeliveryBinding; group: string; incarnation: number; collected: number;
@@ -19,7 +19,7 @@ export interface DeliveryState {
   retired: Record<string, { refused: Run[]; saturated: boolean; scope?: string | undefined }>;
   // The device owns these fields; queue transactions preserve them.
   cursors?: Record<string, unknown>;
-  bindings?: unknown;
+  bindings?: DeliveryBinding[];
 }
 export const emptyDelivery = (): DeliveryState => ({ serial: 0, groups: {}, retired: {} });
 export const deliveryKey = (b: DeliveryBinding, group: string) => JSON.stringify([b.table, b.mutation, group]);
@@ -41,7 +41,7 @@ export function subtractRuns(runs: Run[], covered: Run[]): Run[] {
 export function groupFor(state: DeliveryState, binding: DeliveryBinding, group: string, cap: number): DeliveryGroup {
   const key = deliveryKey(binding, group);
   let value: DeliveryGroup | undefined = state.groups[key];
-  if (value && JSON.stringify(value.binding.args) !== JSON.stringify(binding.args)) {
+  if (value && value.binding.fingerprint !== binding.fingerprint) {
     delete state.groups[key]; delete state.retired[key]; value = undefined;
   }
   if (!value) {
@@ -63,7 +63,11 @@ export function collectRuns(state: DeliveryState, value: DeliveryGroup, runs: Ru
   value.wake = true;
   const fresh = subtractRuns(mergeRuns(runs), [...value.reported, ...value.refused, ...value.parked.map(p => p.run)]);
   value.owed = mergeRuns([...value.owed, ...fresh]);
-  value.recent = mergeRuns([...value.recent, ...fresh]).slice(-256);
+  const recent = subtractRuns(mergeRuns(runs), [...value.reported, ...value.refused]);
+  value.recent = mergeRuns([...value.recent, ...recent]).slice(-256);
+  for (const attempt of [value.attempt, ...value.parked.map(p => p.attempt)]) {
+    if (attempt?.recent) attempt.recent = mergeRuns([...attempt.recent, ...recent]).slice(-256);
+  }
   boundDebt(value);
 }
 /** Collection and outcomes can both split intervals; enforce the same bound. */
@@ -81,9 +85,16 @@ export function acceptManifest(state: DeliveryState, manifest: unknown, cap: num
   if (!Array.isArray(manifest)) return false;
   let changed = false;
   for (const item of manifest) {
-    if (!item || typeof item.table !== "string" || typeof item.mutation !== "string"
+    if (!item || typeof item.fingerprint !== "string" || !item.fingerprint || typeof item.table !== "string" || typeof item.mutation !== "string"
       || !Array.isArray(item.args) || item.args.length !== 3 || !item.args.every((s: unknown) => typeof s === "string") || !Array.isArray(item.rows)) continue;
-    const binding: DeliveryBinding = { table: item.table, mutation: item.mutation, args: item.args };
+    const binding: DeliveryBinding = { fingerprint: item.fingerprint, table: item.table, mutation: item.mutation, args: item.args };
+    // Reconcile only the bindings this answer names. Unrelated generations
+    // preserve debt, refusals and saturation, including evicted groups.
+    state.bindings ??= [];
+    for (const old of [...state.bindings]) {
+      if ((old.table === binding.table || old.mutation === binding.mutation) && old.fingerprint !== binding.fingerprint) dropBinding(state, old);
+    }
+    if (!state.bindings.some(b => b.fingerprint === binding.fingerprint)) state.bindings.push(binding);
     const groups = new Map<string, Run[]>();
     for (const row of item.rows) if (Array.isArray(row) && typeof row[0] === "string" && Number.isSafeInteger(row[1])) {
       const runs = groups.get(row[0]) ?? []; runs.push([row[1], row[1]]); groups.set(row[0], runs);
@@ -91,4 +102,16 @@ export function acceptManifest(state: DeliveryState, manifest: unknown, cap: num
     for (const [group, runs] of groups) { collectRuns(state, groupFor(state, binding, group, cap), runs); changed = true; }
   }
   return changed;
+}
+
+/** A fingerprint mismatch retires only that binding, including its tombstones. */
+export function dropBinding(state: DeliveryState, binding: DeliveryBinding): void {
+  for (const [key, group] of Object.entries(state.groups)) {
+    if (group.binding.fingerprint === binding.fingerprint) delete state.groups[key];
+  }
+  for (const key of Object.keys(state.retired)) {
+    const [table, mutation] = JSON.parse(key);
+    if (table === binding.table && mutation === binding.mutation) delete state.retired[key];
+  }
+  state.bindings = (state.bindings ?? []).filter(b => b.fingerprint !== binding.fingerprint);
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setImmediate as turn } from 'node:timers/promises';
 import { DeliveryQueue, memoryDelivery } from '../dist/delivery.js';
 import { acceptManifest, deliveryKey, emptyDelivery } from '../dist/delivery-state.js';
-const binding={table:'messages',mutation:'delivered',args:['conversation','from','through']};
+const binding={fingerprint:'fixture:messages',table:'messages',mutation:'delivered',args:['conversation','from','through']};
 const manifest=(rows,b=binding)=>[{...b,rows}];
 const ok={accepted:true,json:{state:'sent',seq:10,head:10,store_id:'S'}};
 const deferred=()=>{let resolve; const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
@@ -17,7 +17,7 @@ function harness(t,{send=async()=>ok,local=false,storage=memoryDelivery()}={}){
 }
 const groups=s=>Object.values(s.groups);
 test('maximal exact runs, binding identity and named arguments',async t=>{
- const h=harness(t);await h.q.accept([...manifest([['c',41],['c',43],['c',42],['c',47]]),...manifest([['c',41]],{table:'photos',mutation:'deliveredPhoto',args:['room','lo','hi']})]);
+ const h=harness(t);await h.q.accept([...manifest([['c',41],['c',43],['c',42],['c',47]]),...manifest([['c',41]],{fingerprint:'fixture:photos',table:'photos',mutation:'deliveredPhoto',args:['room','lo','hi']})]);
  await h.flush();await h.flush();assert.deepEqual(h.calls.map(c=>[c.mutation,c.args]).sort(),[
  ['delivered',{conversation:'c',from:41,through:43}],['delivered',{conversation:'c',from:47,through:47}],['deliveredPhoto',{room:'c',lo:41,hi:41}]].sort());
  await h.q.accept(manifest([['c',41],['c',42]]));await h.flush();assert.equal(h.calls.length,3);
@@ -132,7 +132,7 @@ test('a pre-transport serial gate race spends no retry and keeps its persisted i
 });
 
 test('a lost recorded membership refusal keeps its original collection boundary on retry',async t=>{
- let n=0;const h=harness(t,{send:async()=>{if(++n===1)throw Error('response lost');return {accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}};}});
+ let n=0;const h=harness(t,{send:async()=>{if(++n===1)throw Error('response lost');if(n===2)return {accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}};return new Promise(()=>{});}});
  await h.q.accept(manifest([['c',1]]));await h.flush();
  await h.q.accept(manifest([['c',3]]));h.advance(1000);await h.flush();
  assert.equal(h.calls[0].id,h.calls[1].id);
@@ -141,4 +141,35 @@ test('a lost recorded membership refusal keeps its original collection boundary 
 test('positions 41 and 43 never report unfetched 42',async t=>{
  const h=harness(t);await h.q.accept(manifest([['c',41],['c',43]]));await h.flush();await h.flush();
  assert.deepEqual(h.calls.map(c=>[c.args.from,c.args.through]),[[41,41],[43,43]]);
+});
+test('binding fingerprints travel on reports and reconcile only changed bindings',async t=>{
+ const pending=deferred();let n=0;const h=harness(t,{send:async()=>++n===1?pending.promise:ok});
+ await h.q.accept([...manifest([['c',1]]),...manifest([['d',7]],{...binding,table:'photos',mutation:'photos',fingerprint:'photo-v1'})]);
+ await h.flush();assert.deepEqual(h.calls[0].delivery,{fingerprint:binding.fingerprint});
+ await h.q.accept(manifest([['c',3]],{...binding,fingerprint:'messages-v2'}));
+ pending.resolve({accepted:true,json:{head:10,why:{code:'E_DELIVERY_BINDING'}}});await settle();
+ const state=await h.state();assert.deepEqual(groups(state).find(g=>g.group==='d').reported,[[7,7]]);
+ const newer=groups(state).find(g=>g.group==='c');assert.equal(newer.binding.fingerprint,'messages-v2');assert.deepEqual(newer.owed,[[3,3]]);
+});
+for(const envelope of ['why','denied'])test(`${envelope}: E_DELIVERY_BINDING drops the entire binding only`,async t=>{
+ const h=harness(t,{send:async()=>({accepted:true,json:{head:10,[envelope]:{code:'E_DELIVERY_BINDING'}}})});
+ h.ready(false);await h.q.accept(manifest([['c',1],['d',2]]));
+ await h.storage.update(s=>{s.retired[deliveryKey(binding,'retired')]={refused:[[9,9]],saturated:true};});
+ h.ready(true);await h.flush();assert.deepEqual((await h.state()).groups,{});assert.deepEqual((await h.state()).retired,{});
+});
+test('identical fingerprints keep refused and saturated evicted state',async t=>{
+ const h=harness(t);h.ready(false);await h.q.accept(manifest([['c',1]]));
+ await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.refused=[[1,1]];g.saturated=true;});
+ await h.q.accept(manifest([['c',1],['c',3]]));const g=groups(await h.state())[0];assert.deepEqual(g.owed,[]);assert.equal(g.saturated,true);
+});
+test('an exhausted attempt retains its collection boundary while another interval runs',async t=>{
+ let replay=false;const h=harness(t,{send:async c=>{if(c.args.from===1){if(!replay)throw Error('lost');return {accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}};}return {accepted:true,json:{head:10,why:{code:'RUNS_FULL'}}};}});
+ await h.q.accept(manifest([['c',1]]));for(let i=0;i<9;i++){await h.flush();h.advance(60001);}
+ await h.q.accept(manifest([['c',1],['c',3]]));await h.flush();
+ replay=true;await h.q.reconnect();await h.flush();
+ const g=groups(await h.state())[0];assert.deepEqual(g.owed,[[1,1],[3,3]]);
+});
+test('manifests omit unsafe coordinates rather than rounding an unfetched position',async t=>{
+ const h=harness(t);await h.q.accept(manifest([['c',9007199254740992],['c',-9007199254740992],['c',41.5],['c',41]]));await h.flush();
+ assert.deepEqual(h.calls.map(c=>[c.args.from,c.args.through]),[[41,41]]);
 });

@@ -26,7 +26,7 @@ test('real local outbox keeps submission order ahead of delivery load', {timeout
   const path=new URL(input).pathname;
   if(path==='/schema'){
    const backend=await fetch(input,init).then(r=>r.json());
-   backend.schema.delivery=[{table:'messages',group:'room',position:'ordinal',mutation:'delivered',args:['conversation','from','through']}];
+   backend.schema.delivery=[{fingerprint:'fixture:messages',table:'messages',group:'room',position:'ordinal',mutation:'delivered',args:['conversation','from','through']}];
    return Response.json(backend);
   }
   if(path==='/m/add')writes.push(JSON.parse(init.body).args.n);

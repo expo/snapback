@@ -48,9 +48,9 @@ fn retain(value: &mut Json, keep: &mut dyn FnMut(&str, &Json) -> bool) {
 fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
     let bindings: Json = decoded(&encoded(&schema.delivery)?)?;
     if state["bindings"] == bindings { return Ok(()); }
-    let old = state["bindings"].as_array().cloned().unwrap_or_default();
-    for binding in old {
-        if bindings.as_array().is_some_and(|b| b.contains(&binding)) { continue; }
+    let old = state["bindings"].take();
+    for binding in old.as_array().into_iter().flatten() {
+        if bindings.as_array().is_some_and(|b| b.contains(binding)) { continue; }
         let table = binding["table"].as_str().unwrap_or("");
         let mutation = binding["mutation"].as_str().unwrap_or("");
         retain(&mut state["groups"], &mut |_, group| group["binding"]["table"] != table || group["binding"]["mutation"] != mutation);
@@ -103,7 +103,7 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
         let kept = &state["retired"][&key];
         let refused = kept.get("refused").cloned().unwrap_or(json!([]));
         let saturated = kept["saturated"] == true;
-        state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":binding.args},
+        state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":binding.args,"fingerprint":binding.fingerprint},
             "group":group,"incarnation":incarnation,"collected":incarnation,"ready":incarnation,"owed":[],"reported":[],"refused":refused,
             "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
