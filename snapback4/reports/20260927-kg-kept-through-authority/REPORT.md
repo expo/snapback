@@ -1,3 +1,222 @@
+# Lane KG round 9b — shared refusal ordering and complete notification ownership
+
+Branch: `sb4-intent/kg-kept-through-authority`. Read all prompts for rounds
+0–9, the historical report and KG journal entries, and both complete round-8
+NOT READY reviews. First ran `git fetch origin && git merge origin/main`:
+**Already up to date**, with `origin/main` at `8112f4ef6`. Retained the
+interrupted round-9 commit `5e9672fde` and built on it. No push or publication.
+The round-8 shared-approval ruling remains; the current prompt refines the
+closed rule to follow the source's current copy of the same identity.
+Earlier reports below are preserved as historical records.
+
+## Implementation and findings
+
+`5e9672fde` preserves rejection notification ownership, repeated denial
+broadcasts, release-custody assertions, and owner metadata on initial loading.
+`56ff11025` completes findings **1–9**, including Grok's shared-generation High.
+Both carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+Paths in this table are relative to `snapback4/`; it includes the retained
+round-9 commit as well as the restart's changes.
+
+| File | Result |
+| --- | --- |
+| `packages/snapback4/src/read-approval.ts` | One approval per raw owner; one generation incremented by every rejection and registration release. Notification listeners register by the existing watch key before an owner exists. Approval, rejection and release deliver through that ownership, with registration swaps avoiding intermediate loading. Old follower, expiry and release closures leave custody. |
+| `packages/snapback4/src/app-client.ts` | Every observation registers immediately. Refresh captures the shared generation before awaiting authority and fences obsolete success. Refusals propagate even after the originating handle closes. A failed opening adopts a denial delivered while it waited without allocating a second denial. New checks may report a later distinct denial. Closed getters follow the same identity's source copy and retain the earliest captured episode cap. Fence delivery remains deferred until the app publishes its new view. |
+| `packages/snapback4/src/read-observation.ts` | Retained round-9 owner association for initial loading and episode withdrawal, making these snapshots addressable by shared approval logic. |
+| `packages/snapback4/test/helpers/authority-fixture.mjs` | Retained programmable promise-gate callback for generated sequences. |
+| `packages/snapback4/test/approval-notifications.test.mjs` | 18 deterministic tests across all policies: new post-refusal authority recovers B without another publication; opening before first publication; successive denials; new opening errors; one release closure through 101 approvals and zero after rejection/close. The earlier random test moves to the stronger model file. |
+| `packages/snapback4/test/approval-lifecycle.test.mjs` | 28 tests for all additional review cases, both refusal/success orders, early registration, opening denial deduplication, late opening/replacement refusal after close, deferred fence delivery, same-identity closed revalidation, release-before-raw-callback ordering and the captured-only episode cap. |
+| `packages/snapback4/test/approval-model.test.mjs` | 180 seeds × 240 steps = 43,200 randomized operations. Checks all four requested invariants after every step, across all three policies. |
+| `packages/snapback4/test/keep-authority.test.mjs` | Resolves the older successful check before the shared-rejection assertions; teardown is no longer the only place that success resolves. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | Documents early notification registration, shared refusal ordering, late closed refusals, opening denial adoption, and same-identity closed copies under captured deadlines. |
+| `JOURNAL.md`, `reports/20260927-kg-kept-through-authority/REPORT.md` | One dated append and this qualification record, preserving earlier history. |
+
+The stricter round-9b generation rule supersedes the first round-9 test's
+expectation that a success already pending at rejection may restore B. Both
+orders now remain denied after resolving that success **inside the test**.
+A check begun after the refusal may recover B for every live facade, including
+the rejecter, even without a further source publication. This is the current
+prompt's explicit ordering requirement, not a change to session authorization.
+
+An opening that already received a shared denial while its check waited adopts
+that object when its own refusal arrives. A check opened after the prior denial
+can still publish a new distinct refusal; the retained second-error test covers
+that boundary. A refusal from a closed, retired raw owner addresses that owner;
+it does not revoke an independently recreated raw watch. The model scopes this
+case to the raw owner, consistent with the one-slot-per-owner ruling.
+
+## Forms that compile and run
+
+No new API or Quarry syntax:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+bounded.close();
+const read = bounded.getSnapshot();
+```
+
+Omission retains marked A within its original one-second episode while B awaits
+authority; true retains without that episode cap; false withdraws during the
+replacement. A qualifying peer approval updates every live facade. A refusal
+fences every authority success that started before it. Close never adopts B;
+while the source still owns A, a closed getter returns A's current source copy,
+including its revalidating mark and source deadline checks. An earlier captured
+episode remains a cap even if a later same-identity copy lacks that metadata.
+
+## Tests and discrimination
+
+The 28 new lifecycle tests comprise:
+
+- Three opening-before-owner cases: both facade openings are gated before any
+  raw watch exists; first approval and later source denial each reach the still
+  opening peer's subscriber.
+- Six completion-order cases: either of two facades refuses, the other older
+  success resolves, and both remain on the identical denial. A later-started
+  successful check reaches the rejecting facade.
+- Three opening-denial cases: the shared denial is exactly what the opening
+  callback reads, with no second event when its own pending check refuses.
+- Six late-refusal cases: opening/replacement × every policy, close after the
+  live peer approves B, then refuse the closed facade's check; the peer receives
+  one denial and the closed handle stays silent.
+- Four closed-mark cases: omitted/true × close before/during reload; same
+  identity, exact source copy, revalidating mark and proper episode behavior.
+- One captured-only cap case: close during a default episode at host 1000,
+  provide a same-identity source copy with no episode, read at 1500, then 2000
+  without timers. Loading is stable through rollback. This isolates the facade's
+  own condition instead of letting source expiry mask its deletion.
+- Two release-ordering cases: a source reset releases the approval before raw
+  subscriber delivery; resolving the pending success still cannot approve the
+  reset's new data.
+- Three facade-fence cases: snapshots revoke synchronously, but callbacks wait
+  for the returned delivery function, preserving app-view publication order.
+
+The model randomly publishes, resolves any pending success/refusal, opens a
+remount, closes a handle, reloads, resets, and independently advances host or
+server time. Timer delivery alternates with access-only latching. Its oracle
+tracks published identity/row deadlines, original episode deadlines, refusal
+ordering and close-time identities separately from production approval fields.
+After every step it checks: live getter equals the last callback snapshot;
+pre-refusal success does not recover data; data stays within its own row and
+episode deadlines; closed getters keep their original identity and stay silent.
+It also asserts snapshot stability and revalidation marks. Every action kind
+must occur for each policy. These are bounded generated witnesses, not an
+exhaustive proof.
+
+Initial regression run against retained `5e9672fde`: **3 passed / 20 failed**.
+Final tests with only that commit's runtime restored through an isolated loader:
+**105 passed / 106 failed**, including the model's parent counts. Restoring the
+round-8 runtime gives **3 passed / 15 failed** on notification regressions.
+No mutation edits the live source or dist used by the full suite.
+
+| Isolated mutation | Result |
+| --- | --- |
+| Remove shared-generation comparison | 62 failures / 127 controls pass (six order cases plus generated sequences); both strengthened old shared-rejection tests also fail. |
+| Stop incrementing generation on rejection | 48 failures / 135 controls pass in the model. |
+| Stop incrementing generation on release | Both release-ordering cases fail. |
+| Detach notification ownership on rejection | All three same-B recovery cases fail. |
+| Register only when an initial raw snapshot exists | All three pre-owner opening cases fail. |
+| Omit notification after rejection with no registrations | All six repeated/opening distinct-denial cases fail. |
+| Delete `releases.delete(release)` | All three custody tests fail. |
+| Opening getter reads its private snapshot | All three opening-denial cases fail. |
+| Allocate a second opening denial | All three opening-denial cases fail. |
+| Return before a closed replacement refusal | All three late replacement-refusal cases fail. |
+| Return before a closed opening refusal | All three late opening-refusal cases fail. |
+| Freeze the closed object instead of following its source copy | Both close-before-reload cases fail; two close-during-reload controls pass. |
+| Delete the captured episode deadline condition | The captured-only cap test fails. |
+| Deliver shared close notifications eagerly during facade fencing | All three deferred-fence tests fail. |
+
+An exploratory deletion of the redundant close-time deadline assignment survives:
+the first closed getter also captures that deadline from its saved snapshot. It
+does not remove the actual cap condition; deleting that condition fails above.
+The initial model draft over-scoped a retired owner's refusal to a newly created
+raw owner; correcting the oracle to the documented owner boundary gives the
+final passing run. No production assertion was relaxed to mask a failure.
+
+## Qualification
+
+Final affected set: **675 passed / 0 failed**, 19.072 s. Whole guide:
+**86 passed / 0 failed**, 2.55 s execution. Frozen Bun install, package build and
+typecheck, docs budget, release guard and whitespace checks pass. Reference
+audit: **518 LLP documents, 9,673 refs, zero errors / zero unchecked**.
+Largest changed runtime file: 283 lines; new tests: at most 160 lines.
+The interrupted first round-9 run is not claimed as qualification: all requested
+checks are rerun in this restart, including the full suite once.
+
+Ran `scripts/test.sh` **exactly once** in this restart. Exact summary:
+**`== 0 failure(s) in 1218 s`**, exit **0**. Every failure: **none** — zero
+round-9b-owned, baseline or environmental failures. Intentional pre-fix and
+mutation failures are discrimination evidence, not qualification failures.
+
+- Rust tests/doctests: **3,930 passed / 0 failed / 24 ignored**, 518 s.
+- Main client: **3,370 passed / 0 failed / 10 skipped**, plus **56/56**
+  acquisition/server shard cases; client phase 428 s.
+- Final session/online models: **79 passed / 0 failed**, 261 s, including
+  both 5,000-sequence session models and all 3,000 online interleavings.
+- Fixture wrappers **9/9**; both app typechecks, native/wasm builds, docs
+  budget, release guard, package build/typecheck and chat schema check pass.
+
+All new regressions and model seeds, all eighteen delayed-authority createApp
+sequences and both Chromium input-preservation witnesses pass in the full run.
+The final same-B recovery assertion was strengthened during the Rust phase,
+before client discovery; the full client phase includes every final test.
+Runtime bytes were fixed before the full run started. No restart or rerun.
+
+Wasm from this run is byte-identical to round 8: **1,981,453 B raw / 572,553 B
+gzip**, delta **0 B**, **288 B below** the unchanged 572,841 B budget. SHA-256:
+`3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa`.
+No Rust/wasm input, meter, durable format, authorization/disclosure rule,
+version, dependency or budget change.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Existing tools selected through worktree-local symlinks;
+no tool installed or modified on a shared path. Optional wasm-opt is absent
+from the selected PATH. Evidence: ignored `target/lane-kg-r9b/`, including
+per-check logs/exit files, source snapshots and loaders for every mutation,
+model failures and corrections, the full-suite PID/started marker and measurements.
+
+Reproduce the targeted changes from `snapback4/` after a package build:
+
+```sh
+node --test packages/snapback4/test/approval-*.test.mjs \
+  packages/snapback4/test/keep-authority.test.mjs
+node --import ./target/lane-kg-r9b/no-generation-loader.mjs --test \
+  --test-name-pattern='shared refusal|seeded' \
+  packages/snapback4/test/approval-lifecycle.test.mjs \
+  packages/snapback4/test/approval-model.test.mjs
+```
+
+## Decisions, deviations and open problems
+
+No deviation from the current brief. The generation rule and the refined closed
+copy rule explicitly supersede the earlier expectations noted above. The
+per-key listener list exists before raw ownership while approvals remain one
+per raw owner; closed and fenced facades unregister. Shared-close notification
+uses the existing deferral mechanism to preserve app-view publication ordering.
+The sole additional regression is that deferred-fence control. No new gate,
+diagnostic, API, dependency or design proposal. No independent new review is
+claimed; the supervisor owns review and integration.
+
+No unresolved assigned finding or final-check failure remains. The inherited
+60-second full-suite runtime budget is exceeded (1218 s); reproduce with
+`cd snapback4 && bash scripts/test.sh`. No timeout or budget was raised.
+
+llp-orient context pack: queried approval ownership, asynchronous refusal order,
+closed access and notification delivery. Governing current LLPs are
+3000 §4 (Snapback 4 fence), 3000.023 §§3.1/3.4/3.6 (single episode, own deadlines,
+shared withdrawal), 3000.019 §3.3 (held authority/expiry), and 3000.013 §6
+(facade revocation). None is in foundation. The current client manual was read
+before editing. The risk is a callback/getter discrepancy or resurrection by
+an obsolete authority check; both now have deterministic and generated evidence.
+The current prompt supplies the closed-copy refinement. Manual, report and
+journal updates suffice; hand-off: none.
+
+---
+
+# Historical round-8 report
+
 # Lane KG round 8 — one shared approval, closed facades keep one identity
 
 Branch: `sb4-intent/kg-kept-through-authority`. Read all round-0–7 prompts,

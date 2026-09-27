@@ -69539,3 +69539,83 @@ unresolved assigned finding, no push or publication. All commits carry the
 requested Astra co-author trailer. The supervisor owns independent review.
 Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
 target/lane-kg-r8/. This is round 8's single dated journal append.
+
+### 2026-09-27 — KG round 9b: shared refusal ordering and notification ownership
+
+Read rounds 0–9's prompts, the full prior report, KG journal entries and both
+complete round-8 NOT READY reviews. First fetched and merged origin/main:
+Already up to date at 8112f4ef6. Retained 5e9672fde from the interrupted first
+round-9 run and built on it in 56ff11025. Both commits carry the requested
+GPT-6 Astra co-author trailer. No push or publication.
+
+Every observe now registers for its watch key before a raw owner exists.
+Shared approval, refusal and release notify that list; a rejecting facade
+keeps listening until close/fence. Every reject and registration release bumps
+one generation on the shared slot; refresh captures it before authority and
+cannot apply an older success. Refusals completing after opening/replacement
+close still clear their raw watch's shared approval. Opening failures adopt
+a shared denial already delivered during that wait, without another denial
+object; a newly started check can deliver a later distinct error. A new
+post-refusal check can recover B without another source publication. This
+strict generation rule explicitly supersedes the first round-9 test's
+pending-success recovery expectation.
+
+Closed getters never adopt another identity. While the source still owns the
+captured identity they return its current copy, including revalidating, under
+row checks and the earliest captured episode cap. Stable loading latches when
+that identity disappears or a deadline passes. Shared-close delivery uses the
+existing deferral queue so app view publication still precedes notifications.
+Updated the client manual alongside the code; no new API or proposal.
+
+Retained round-9 coverage for first approvals, successive denials and bounded
+release custody. Added 28 deterministic lifecycle cases and strengthened the
+old shared-rejection test to resolve its older success before the assertions.
+The model runs 180 seeds, 240 operations each (43,200 steps), across all three
+policies, with independently advanced host/server clocks, delayed timers,
+random completion orders, publication, remount, close, reload and reset. After
+every step it checks callback/getter agreement, refusal ordering, identity-owned
+row/episode bounds and closed identity/no-notification behavior. An initial
+oracle draft incorrectly let a retired owner's refusal revoke a new owner;
+corrected the model scope, preserving the one-slot-per-raw-owner contract.
+
+All assigned fixes have discriminating evidence. Isolated mutations fail
+shared-generation ordering (62 cases), rejection generation (48), release
+generation (2), rejection detachment (3), pre-owner registration (3), successive
+denial delivery (6), release custody (3), opening getter (3), opening duplicate
+denial (3), late replacement refusal (3), late opening refusal (3), closed
+revalidation copies (2), captured-only deadline enforcement (1), and deferred
+fence delivery (3). A redundant close-time deadline assignment deletion survives
+because the first getter captures it too; deleting the actual condition fails.
+No mutation edits live source or built files used by the full suite.
+
+Final affected checks 675/675, whole guide 86/86. Frozen Bun install, package
+build/typecheck, docs budget, release guard, whitespace and references pass:
+518 LLP documents, 9,673 refs, zero errors/unchecked. Largest changed runtime
+file 283 lines; new test files at most 160. All requested checks from the
+interrupted first run were rerun here.
+
+Ran scripts/test.sh exactly once in this restart: **== 0 failure(s) in 1218 s**,
+exit **0**. Rust: 3,930 passed / 0 failed / 24 ignored (518 s). Main client:
+3,370 passed / 0 failed / 10 skipped, plus 56/56 acquisition/server shards
+(428 s). Final models 79/79 (261 s), including both 5,000-sequence session
+models and 3,000 online interleavings; fixture wrappers 9/9. Both app checks,
+builds and budgets pass. All new cases, all eighteen delayed-authority createApp
+sequences and both Chromium input-preservation witnesses pass. Every failure:
+none — zero lane-owned, baseline or environmental failures. The final same-B
+recovery assertion was strengthened before client discovery, during Rust;
+the full client phase includes every final test. Runtime bytes were fixed before
+the full run began. No restart/rerun. The inherited 60-second suite runtime
+budget remains exceeded; no timeout was raised. No assigned finding remains
+open.
+
+Wasm unchanged from round 8: 1,981,453 B raw / 572,553 B gzip, 288 B below
+the unchanged 572,841 B budget; SHA-256
+3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa.
+No Rust/wasm input, authorization/disclosure rule, meter, durable format,
+dependency, diagnostic, API, version or budget change. Node 24.13.1,
+Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd limit 65,536.
+Existing tools selected through worktree-local symlinks; no shared-path install
+or modification. No new independent review is claimed; the supervisor owns
+review and integration. Detailed file map, examples, failures and reproductions:
+reports/20260927-kg-kept-through-authority/REPORT.md. Ignored evidence:
+target/lane-kg-r9b/. This is the single dated round-9b journal append.
