@@ -159,19 +159,27 @@ query inbox(c: cursor ?):
 query unreadTotals(periodStart: time, periodEnd: time, c: cursor ?):
   return members where .principal = viewer first 20 by .conversationId after c { conversationId, unread: unreadIn(.conversationId, viewer, .readOrdinal, periodStart, periodEnd) }
 
+fn digestTotals(p: profiles, periodStart: time, periodEnd: time):
+  unread = 0
+  chats = 0
+  for m in members where .principal = p.principal:
+    n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
+    if n > 0:
+      chats = chats + 1
+      unread = unread + n
+  return { unread, chats }
+
 job digest(periodStart: time, periodEnd: time):
   for p in profiles:
-    unread = 0
-    chats = 0
-    for m in members where .principal = p.principal:
-      n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
-      if n > 0:
-        chats = chats + 1
-        unread = unread + n
-    if unread > 0:
-      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats } once [p.principal, periodEnd]
+    totals = digestTotals(p, periodStart, periodEnd)
+    if totals.unread > 0:
+      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread: totals.unread, chats: totals.chats } once [p.principal, periodEnd]
 schedule daily every 1d at 08:00: digest
 ```
+
+Helpers inherit loop placement: `digestTotals` accumulates per recipient.
+Top-level helper sweeps still refuse cross-chunk accumulators.
+`break` and `continue` require a loop inside the helper.
 
 The period predicate seeks messages in each recipient's current memberships.
 Expired, tombstoned, own, already-read and out-of-period messages contribute

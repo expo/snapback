@@ -13,6 +13,7 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod pure_calls;
 mod flow;
 mod conditional;
 mod joins;
@@ -66,6 +67,8 @@ impl BoundProgram {
 
 #[derive(Clone)]
 pub struct Binder<'a> {
+    pure_functions: BTreeMap<String, bool>,
+    call_types: BTreeMap<Vec<String>, Ty>,
     filters: BTreeMap<String, String>,
     view_types: BTreeMap<String, Ty>,
     constraint_domains: std::collections::BTreeSet<String>,
@@ -91,6 +94,8 @@ pub struct Binder<'a> {
     depth: u32,
     /// Enclosing `for` and `chunk` bodies: where `break` may stand.
     loops: u32,
+    /// Enclosing caller loops affect placement, but never helper-local jumps.
+    caller_loops: u32,
     in_prelude: bool,
     record_ownership: bool,
     /// The feed table and source site of the timeline read being expanded, while
@@ -128,7 +133,8 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
+        binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
