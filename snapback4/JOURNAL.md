@@ -67409,3 +67409,57 @@ No second full-suite run, focused failure rerun, unrelated fix, push or
 publication. All tested source bytes remained unchanged through qualification.
 This dated entry is included in the merge commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+### 2026-09-27 — Lane KG: keep the approved answer through replacement authority
+
+Implemented the 0.4.5 lane brief on `sb4-intent/kg-kept-through-authority`
+from `9473e0a34`. A kept createApp observation retains the last facade-approved
+answer, stale with its original since, while a replacement awaits authority.
+The raw live watch owns the held answer's deadline and reset lifetime, so a
+remount can peek it without extending the 30-second window. Device/server
+expiry sweeps withdraw all due held answers before callbacks can roll the clock
+back. Local reobservation wakeups preserve remembered server data; a raw
+replacement's earlier expiry does not expire the older approved answer.
+Scope resets, source refusals, facade fences and opening/replacement authority
+failures still withdraw immediately. Held server expiry also invokes the
+existing fallback-memory barrier, preserving newer unexpired memory while
+preventing old HTTP bodies from restoring expired data after rollback.
+
+Added internal `read-approval.ts`; changed app-client, read-observation,
+read-expiry and the online/local expiry callbacks. Updated the client manual
+and LLP 3000.019 §3.3 together with the code. No edit to authorized() or the
+existing raw observation linger mechanism was required. No public spelling,
+engine authorization, disclosure, durability, meter, version or budget changed.
+
+Affected evidence: 32 observation tests, 13 focused authority/expiry/reset
+cases, one real wasm/createApp fallback-memory regression, six generated
+createApp runs (108 actions across online and wasm clients, seeds 23/44/445,
+50 ms delayed session reads), and the Chromium React test preserving both
+useQuery/usePage inputs across 20 replacements. The original facade fails that
+React test on replacement 1 with an empty draft. A process-local module-loader
+negative control omitting only the held-memory callback fails by restoring A
+over newer B. Both controls were isolated/restored before final qualification.
+Existing keep/clock/device/expiry/reset/adoption/incarnation/ephemeral checks:
+100/100; whole guide: 86/86; frozen Bun install, package build/typecheck and
+reference audit pass. Changed source files stay below 1,500 lines (local.ts:
+1,477). Resolved development failures were lane-authored test-harness/type
+errors; none remains.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1382 s`, exit 0.
+Rust tests/doctests: 3,809 passed, zero failed, 24 ignored (906 s). Client main:
+2,503 passed, zero failed, 10 skipped; seven shards: 56/56 (197 s). Final
+seeded models: 78/78 (260 s). Fixture wrappers: 9/9. All builds, typechecks,
+budgets and release guard pass. No introduced, baseline or environmental
+suite failure. Opening-refusal and fallback-memory hardening were completed
+while the suite ran Rust; the final package was independently typechecked and
+rebuilt before its client phase, which exercised all final runtime/test bytes.
+
+Wasm remains 1,980,253 B raw / 571,810 B gzip: zero delta from the initial
+lane build and 1,031 B below the unchanged 572,841 B cap. SHA-256:
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. No open problem, design deviation or stopped design part.
+No push, publication, version bump, budget increase, full comparative or
+Apple UI run. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
+logs and negative controls: target/lane-kg/.
