@@ -90,8 +90,14 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         require_uniform_mutation_pages(schema, &scans)?;
         // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
         if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
+        // @ref LLP 3000.025#3-proposed-rule — research prototype: an entire read-only statement prefix precedes every effect, including hidden and indirect writes.
+        let prefix_len = program.body.iter().take_while(|stmt| super::read_only::statements::<false>(std::slice::from_ref(stmt))).count();
+        let (prelude, _) = crate::ir::body_read_structure(&program.body[..prefix_len]);
+        let never = schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never"));
         for scan in &scans {
-            if let Some(reason) = plain_prefix_problem(schema, scan) {
+            // Identity, not a forgeable diagnostic site or structural equality.
+            let prelude_expiry = never && prelude.iter().any(|before| std::ptr::eq(*before, *scan));
+            if let Some(reason) = plain_prefix_problem(schema, scan, prelude_expiry) {
                 let rewrite = if reason.starts_with("a mutation page cannot scan a table with expiry") {
                     "read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry"
                 } else { "read this page in a query, then pass the selected ids to the mutation" };
@@ -306,7 +312,8 @@ impl Flow<'_> {
         if self.nonuniform.is_some() { return Some("another non-uniform scan can truncate this mutation's population".into()); }
         // @ref LLP 3000.007#5.9 — a never-predicting pass drops completeness, never uniformity.
         if self.schema.operations.get(&self.program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
-            return plain_prefix_problem(self.schema, scan);
+            // Every original scan already passed the statement-prefix check.
+            return plain_prefix_problem(self.schema, scan, true);
         }
         let pinned: Vec<_> = index.columns().into_iter().take(scan.prefix.len()).collect();
         let cap = self.schema.group_bound(&scan.table, &pinned);
@@ -395,12 +402,12 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
     }
 }
 
-// @ref LLP 3000.007#17 — every mutation page stays a plain, non-expiring prefix even after the uniform-verdict repair.
-fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
+// @ref LLP 3000.025#3-proposed-rule — expiry alone may pass the server read-only prefix; matching and merges keep their refusal.
+fn plain_prefix_problem(schema: &Schema, scan: &Scan, prelude_expiry: bool) -> Option<String> {
     let table = schema.table(&scan.table)?;
     if !table.index(&scan.index)?.is_plain() || scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
         Some("matching word scans expand hidden words before deciding visibility; read it in a query, or use a plain prefix scan".into())
-    } else if table.is_expiring() {
+    } else if table.is_expiring() && !prelude_expiry {
         Some("a mutation page cannot scan a table with expiry; read it in a query, or use a job chunk".into())
     } else if scan.merge_site.is_some() {
         Some("a merge is not a plain prefix scan; read it in a query, or use a job chunk".into())

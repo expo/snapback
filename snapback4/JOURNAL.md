@@ -68341,3 +68341,49 @@ driver: target/lane-fx-evidence/round1-*.
 Final reference audit: 517 LLP documents, 9,618 references, zero errors and
 zero unchecked. Diff whitespace check passes. Final one-minute host loads
 were 29.88 (expiry) and 51.26 (React).
+
+## 2026-09-27 — Lane ER research: expiring mutation reads before effects
+
+Authored Draft RFC LLP 3000.025 on branch sb4-intent/er-expiring-pages from
+f39598de7febb1f3ddea45ae350b79e0bec50104, linked into llp/current/. Read the
+fenced instructions, builder cards and both prior ruling-33 review rounds.
+The refusal protects an abort oracle over expired physical rows, including
+a blind update that transfers and expires a hidden target before scanning it.
+Reproduced E_BOUND versus STOP for worlds differing only in retained ordinal.
+Current caps bound live occupants: cap 4 admits three expiry-separated waves
+leaving 12 physical rows without a sweep. Time divergence already exists for
+unique-point predictions; receipts correctly keep execution identity only.
+
+Recommend never-predicting, uniform, plain expiring scans only in the initial
+sequence of entirely read-only statements. Existing recursive effect checking
+rejects writes/emits even inside expressions, filters, helpers and loops; this
+avoids dependency closures and precise effect-order analysis. A small branch-
+only prototype changes admission and exposes the existing body scan walker.
+The calibration's delivered mutation binds its blocker page before deleting
+merged intervals; its complete rewrite compiles and advances across 1,000
+expired ordinals with 1,006 examined, 9 probes and one write. No authorization,
+disclosure, expiry, receipt, runtime meter, version or budget change.
+
+On expo-build-1000, opt-level-1 Rust 1.97, 31 warm instrumented samples per
+read, one conversation with 10,000 expired unswept 160-character messages and
+two live lookahead rows: SQLite first-1 page fetches 8,192 images and refuses
+E_BOUND at examined charge 8,193, median/p95 37.43/38.10 ms. Prefix exists and
+count also refuse. The builder's 1,024 probes take 5.26/5.28 ms but advance
+only 1,024 ordinals. Ten actual background sweeps of at most 1,024 deletes
+remove the backlog in 101.06 ms total. These are in-memory store/interpreter
+timings, not package/HTTP/fsync performance. The same failed id still replays
+its failure after sweeping; a fresh invocation succeeds.
+
+Seven explicit research tests pass; normal local prediction makes zero data
+fetches for the server operation on both row stores. Existing guide 86/86
+and prefix reads 10/10 pass. Simulator page_admission is 13/15: its two
+blanket-expiry-refusal tests intentionally conflict with the prototype; they
+were left unchanged. No full suite, wasm, browser, outbox/reopen or Postgres
+qualification. Reference audit: 518 LLP docs, 9,619 refs, zero errors/unchecked.
+Evidence, limitations and exact reproductions: experiments/er-expiring-pages/.
+The RFC records all four requested options, their counterexamples, short
+site-specific diagnostic drafts and open review questions. The backlog still
+limits availability; an expiry-aware index would be a separate larger change.
+Supervisor owns the design and two blind reviews. No push or publication.
+
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>
