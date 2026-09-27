@@ -68970,3 +68970,69 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+## 2026-09-27 — Lane DC round 4: preserve manifest debt and cap bound retries
+
+Read all four prior lane prompts/reports and DC entries, and both full round-3
+reviews. Fetched and merged origin/main as d5ee26744, preserving both journal
+parents, DC acceptance/receipt cases and main's server-read, React clock and
+shared-journal behavior. No push or publication.
+
+Commits c7c234475 and 3de80ad3c answer findings 1 and 4: unresolved manifest
+descriptors survive older-schema reads and restart, matching adoption keeps
+their debt, and compiled removal drops the removed fingerprint. An older
+compiled fingerprint cannot append rows to newer manifest debt. Memory,
+SQLite and wasm regressions cover both an absent and an older compiled
+binding. Real local activation resumes a blocked 256-run page and eventually
+reports all 300 disjoint rows. Memory and actual Chromium/IndexedDB tests
+queue a fence flip after the passing guard and prove commit happens before
+that microtask; an injected await makes both witnesses fail.
+
+Commit 16d156f47 answers findings 2 and 3. The startup barrier includes ready
+persisted retry intervals and still excludes post-start collection and new
+exhaustion parks. E_BOUND first replays the same id; only a replayed failed
+receipt with why.code E_BOUND permits a new id. Eight burst retries use the
+1–60 s schedule, then eight persisted wakes permit one new id each at least
+30 s apart. Reconnect does not reset the burst. Exhausting the wake cap
+notifies once and retains a terminal park; no notification at the initial
+park. The LLP 3000.022 §4 table and operations docs state this eight-wake
+engineering choice. A committed report hidden by denied E_BOUND is replayed
+and retired without a second execution. Coalesced wakes cannot dispatch a
+second bound interval after the first succeeds. The merged clock test also
+found and fixes a timer scheduled by an empty manifest.
+
+Final wasm: 2,023,290 B raw / 585,362 B gzip, exactly round 1's accepted
+gzip remainder and 1,178 raw bytes smaller. Against the rebuilt merged base,
++359 raw / +44 gzip bytes. The unchanged 572,841 B gate still fails by
+12,521 B; no budget increase. SHA-256:
+ed39afba813ad4561a5582110b878027603d72f9227079d36d093ad4e934714c.
+Rust 1.97.0, wasm-bindgen 0.2.127, Node 24.13.1, Bun 1.3.14. Used existing
+worktree-local Node/Bun symlinks and the same no-optimizer production build;
+no tool installation on any shared path.
+
+Final affected delivery/source-census/Chromium run: 138 passed, zero failed
+or skipped. Queue subset 61/61, including nine bound cases; whole guide
+86/86. Artifact family/forbidden-code census, package build/typecheck,
+README 300/300, reference audit (517 LLPs, 9,640 refs, zero errors) and diff
+whitespace checks pass. Final complete device: 1,346 passed, zero failed, three existing ignores;
+67 binaries, 503 executions plus doctests. All 26 delivery tests pass.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+`== 1 failure(s) in 1501 s`. Its only failure is `wasm build`, classified
+**baseline**: the run measured 585,349 B gzip against the unchanged gate,
+within the accepted remainder. Lane-owned full-suite failures: none;
+environmental full-suite failures: none. Rust 3,933 passed / 24 ignored;
+main client 2,749 passed / 10 skipped, seven extra shards 56/56, models
+78/78, fixture wrappers 9/9. All other phases passed. The inherited 60 s
+suite budget remains exceeded. The final older-fingerprint edge was found
+after that run's Rust/client phases and is covered by the complete device
+and affected reruns; no second full suite. Initial lane-owned fixture/timer/
+wake-reuse errors and deliberate mutants are recorded in the report, with
+their passing rechecks.
+
+Every commit has the requested co-author. No new syntax, wire field, contract
+reshape, dependency, version, server/DS/ER change or complete choreography
+claim. Conditional-commit-less hosts retain the accepted under-reporting
+fallback. Report with file map, examples, deviations, reproductions and exact
+qualification: reports/20260927-dc-delivery-client/ROUND4.md. Raw evidence:
+target/lane-dc-round4/.
