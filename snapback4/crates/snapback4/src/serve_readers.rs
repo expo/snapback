@@ -12,6 +12,8 @@ pub(super) struct QueryReaders {
     memory: bool,
     #[cfg(test)]
     pub(super) fail_open_after: Option<usize>,
+    #[cfg(test)]
+    pub(super) retry_open: Option<Arc<dyn Fn() + Send + Sync>>,
     candidate_queries: BTreeSet<String>,
     launching_feed: bool,
 }
@@ -65,7 +67,11 @@ impl QueryReaders {
     // @ref LLP 3000.019#3.6 — retry a failed factory on existing writer work; reads still refuse immediately.
     pub(super) fn retry_missing(&mut self, engine: &Engine) {
         if !self.memory && self.source.is_none() {
-            self.source = engine.reader().ok();
+            self.source = latency::acquire(|| {
+                #[cfg(test)]
+                if let Some(open) = &self.retry_open { open(); }
+                engine.reader()
+            }).ok();
         }
     }
     pub(super) fn begin_adoption(&mut self, candidate: &Bound) {

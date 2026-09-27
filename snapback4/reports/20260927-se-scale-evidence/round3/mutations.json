@@ -1,0 +1,68 @@
+[
+  {
+    "mutation": "mutation-background-wait",
+    "file": "crates/snapback4/src/serve_lock.rs",
+    "removed": "        super::latency::waited(started);",
+    "replacement": "        if !background { super::latency::waited(started); }",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "maintenance_writer_admission_under_a_request_sample_is_wait",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 188 filtered out; finished in 0.16s"
+    ],
+    "expected_failure": true
+  },
+  {
+    "mutation": "mutation-retry-open",
+    "file": "crates/snapback4/src/serve_readers.rs",
+    "removed": "latency::acquire(|| {\n                #[cfg(test)]\n                if let Some(open) = &self.retry_open { open(); }\n                engine.reader()\n            })",
+    "replacement": "(|| {\n                #[cfg(test)]\n                if let Some(open) = &self.retry_open { open(); }\n                engine.reader()\n            })()",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "clock_maintenance_retry_open_is_wait_not_engine",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 188 filtered out; finished in 0.18s"
+    ],
+    "expected_failure": true
+  },
+  {
+    "mutation": "mutation-production-listener",
+    "file": "crates/snapback4/src/serve.rs",
+    "removed": "dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));",
+    "replacement": "dispatch(request, shared.clone(), admission.clone(), true);",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "latency",
+      "dev_process_wildcard_listener_omits_timing_for_loopback_and_external_peers",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.03s"
+    ],
+    "expected_failure": true
+  }
+]

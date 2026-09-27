@@ -66,7 +66,8 @@ impl<T, C: Clock> FairMutex<T, C> {
         }
         drop(queue);
         let value = self.value.lock();
-        if !background { super::latency::waited(started); }
+        // @ref LLP 3000.019#3.7 — clock advances run maintenance inside the request sample too.
+        super::latency::waited(started);
         let timing = super::latency::EngineSpan::new();
         match value {
             Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended, _timing: timing }),

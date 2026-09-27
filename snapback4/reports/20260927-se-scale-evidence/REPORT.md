@@ -1,7 +1,7 @@
 # Lane SE — scale evidence a builder can cite
 
 Date: 2026-09-27. Branch: `sb4-intent/se-scale-evidence`.
-Round 1–2 review corrections and qualification are recorded at the end; the
+Round 1–3 review corrections and qualification are recorded at the end; the
 14,400-sample experiment below remains round 0 evidence.
 
 The repeated final-store probes show CPU contention creating an off-CPU tail,
@@ -202,8 +202,9 @@ in the existing refused histogram.
   return or drop. Held-poll sleeping is outside the spans. It includes I/O and
   descheduling while an engine is owned; it is not pure interpreter CPU.
 - **CPU:** `CLOCK_THREAD_CPUTIME_ID` on Linux/macOS if available; request-worker
-  CPU from worker start. Listener, maintenance, client and other-thread CPU
-  are excluded. CPU overlaps wall components and must not be added to them.
+  CPU from worker start. Synchronous maintenance during `/dev/clock/advance`
+  is included; listener, periodic maintenance-thread, client and other-thread
+  CPU are excluded. CPU overlaps wall components and must not be added to them.
 
 Doctor has bounded total/wait/engine/CPU histograms, `cpu_n` and optional
 `cpu` percentiles in JSON, and all four distributions in text. With no
@@ -382,8 +383,10 @@ Hand-off: none; the supervisor owns review of this local correction.
 2. **Acquisition:** detached checkout, direct `/changes` opens (including a
    reopen after a commit), and ephemeral pool `take` use one helper. It counts
    failed acquisitions too, suspends enclosing engine ownership during the
-   open/checkout, and resumes afterward. Factory creation/replacement belongs
-   to startup/adoption/maintenance, outside request sampling. Separate 150 ms
+   open/checkout, and resumes afterward. Factory creation/replacement normally
+   belongs to startup/adoption. Maintenance can retry a missing factory, including
+   synchronously inside `/dev/clock/advance` request sampling; round 3 below fixes
+   attribution of that retry and background writer admission. Separate 150 ms
    delay regressions cover cold and reused query readers, initial changes,
    changes after a commit, and ephemeral mutations. They require the delay in
    wait and disjoint wait/engine totals; doctor’s maxima agree with the header.
@@ -563,4 +566,114 @@ using `build-wasm.sh`’s `gzip -9 -c` method, **225 B below** the unchanged
 No device input changed and no wasm rebuild was needed. No original evidence
 store opened or modified; no new scale measurement or performance claim.
 No tool installed, no shared path modified. Commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. **No push or publication.**
+
+
+## Round 3 — synchronous maintenance and production listener coverage
+
+First ran `git fetch origin && git merge origin/main`: **Already up to date**.
+Starting lane commit `784f090b0`, main `d9c89a971`; no conflicts. Read all three
+binding prompts, the prior report and journal entries, and Astra's full
+rounds-1–2 **READY WITH CHANGES** review (`round3/astra-r12.md.gz`). Astra found
+no High/Medium or landing blocker. Grok had only progress prose, with no verdict
+at the initial check; did not wait.
+
+Applied `llp-orient` read-only from the populated sibling
+`lane-gs/vendor/llp/skills/llp-orient/SKILL.md`. Scope: writer admission,
+reader-factory recovery, timing tests and bounds. Governing constraints remain
+LLP 3000 §4, LLP 2000.000 §6 and LLP 3000.019 §§3.6–3.7 (in `llp/current`):
+retain independent readers, authorization/meters, the loopback timing fence
+and bounded statistics. The risk was request-thread maintenance bypassing
+acquisition attribution. Updated the existing §3.7, bounds and this report;
+no new design decision or LLP. Hand-off: none; independent review stays with
+the supervisor.
+
+1. **Synchronous maintenance attribution.** `FairMutex::admit` now calls
+   `latency::waited(started)` for background admission as well as foreground.
+   Without an active sample this remains a no-op. `retry_missing` wraps its
+   reader open in `latency::acquire`, which suspends the enclosing writer's
+   engine span. Periodic maintenance runs on its own thread; the same work
+   called by `/dev/clock/advance` runs inside that request's sample. Corrected
+   the earlier blanket outside-sampling claim and the CPU wording: synchronous
+   maintenance's thread CPU is also included.
+2. **Production listener wiring.** A new real-process test starts
+   `dev --bind 0.0.0.0 --i-understand-cleartext` on an ephemeral port. Using
+   localhost Host and the same persona, a loopback peer gets the successful
+   query result (200), an external-interface peer gets 403, and neither response
+   contains `Server-Timing`. It exercises the production accept loop rather
+   than supplying the listener predicate itself. The existing unit test stays.
+
+### Delay witnesses and every failure
+
+Two new maintenance tests use a 150 ms delay. The writer test holds the real
+writer until its background caller has enqueued under an active clock-request
+sample, then delays release; it exercises the admission used by maintenance.
+The retry test sends an actual `/dev/clock/advance` HTTP request with a missing
+file-backed factory and a test-only delayed retry. It requires exactly one open,
+a restored factory, and the successful clock response. Both require the delay
+in wait and disjoint wait/engine totals. No production fault-injection switch
+or new runtime state is introduced.
+
+| Controlled path | Before: wait / engine (ms) | Fixed: wait / engine (ms) |
+| --- | ---: | ---: |
+| Background writer admission | 0.000 / 0.004 | 155.156 / 0.004 |
+| Clock maintenance retry open | 0.000 / 150.877 | 151.226 / 0.607 |
+
+The writer's measured admission includes the existing bounded deferral before
+its FIFO ticket. These are injected-delay regression observations, not scale
+performance measurements. The original store and round-0 workload evidence
+were not opened, rerun or reinterpreted.
+
+Both new tests failed before the fixes: **ours, expected reproductions**.
+Three further negative controls each compiled and failed its targeted test:
+
+| Deliberate regression | Failure |
+| --- | --- |
+| Skip `waited` on background admission | delayed writer reports wait 0 |
+| Remove only retry `latency::acquire` | retry reports wait 1.069 ms, engine 151.396 ms |
+| Pass `true` from production `serve_requests` to dispatch | loopback wildcard response contains `Server-Timing` |
+
+These are **ours, expected negative-control failures**: five failed assertions
+in four test invocations in total, all restored before final qualification.
+`round3/mutations.json` records the exact edits/commands and all three successful
+negative controls; compressed logs retain their assertions and the initial
+before/fixed runs. No compile or mutation-harness failures.
+Unexpected test failures: **ours 0, baseline 0, environmental 0**. The inherited
+tiny_http unused-trait compiler warning remains a warning.
+Inspection-only path misses were ours: initially sought separate ROUND1/ROUND2
+files instead of REPORT sections, guessed the LLP 3000.019 slug, and probed
+absent Cargo config/foundation paths. Corrected discovery; no check was skipped.
+
+### Round 3 qualification
+
+From `snapback4/`, affected and guide commands used the existing worktree-local
+Node/Bun selection, eight Cargo jobs/test threads, fd limit 65,536,
+dev/test debug and incremental off, and packaged SQLite flags:
+
+```sh
+cargo test -p snapback4 --bin snapback4 --test latency --test read_latency --no-fail-fast
+cargo test -p snapback4-lang --test guide
+```
+
+**185 server/doctor unit tests passed, 4 existing tests ignored;
+12 real-process latency/doctor/recipe tests passed; 2 existing read measurement
+tests ignored. Whole guide: 89 passed.** The growth recipe runs verbatim.
+`node scripts/docs-budget.mjs` also passes: README 300/300 lines and the named
+first-screen test (this separate invocation used ambient Cargo defaults).
+Reference audit and whitespace checks pass; the affected-scope corpus audit
+confirms §3.7, bounds and implementation agree. `round3/qualification.json`
+records the final source digests, toolchain, wasm comparison and check results.
+
+**Did not run `scripts/test.sh` in round 3**, as instructed. Round 1's full
+run stands with exact summary `== 0 failure(s) in 1697 s`; this round makes no
+new full-suite claim.
+
+Wasm remains **byte-identical**, **1,979,732 B raw / 572,616 B gzip**, **225 B
+below** the unchanged **572,841 B** cap. SHA-256:
+`dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94`.
+Verified against the start-of-round artifact and previous qualification using
+`gzip -9 -c`, as in `build-wasm.sh`; no device input changed or rebuild was needed.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127. **No tool installed
+and no shared path modified.** No device/meter/authorization, dependency,
+version or budget change. Local commit carries the requested
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. **No push or publication.**

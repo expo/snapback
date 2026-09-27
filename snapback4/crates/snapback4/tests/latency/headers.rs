@@ -142,11 +142,11 @@ fn assert_open_wait(reply: &str, opens: usize) {
     assert!(opens > 0);
     let sample = timing(reply).unwrap();
     let delay = OPEN_DELAY.as_secs_f64() * 1000.0 * opens as f64;
-    assert!(sample["wait"] >= delay, "reader opening escaped wait: {sample:?}");
+    assert!(sample["wait"] >= delay, "acquisition escaped wait: {sample:?}");
     // Wait and engine are disjoint, even if a writer is held while opening.
     assert!(sample["wait"] + sample["engine"] <= sample["total"] + 0.002,
-        "reader opening counted as engine too: {sample:?}");
-    println!("{opens} delayed opens: {sample:?}");
+        "acquisition counted as engine too: {sample:?}");
+    println!("{opens} delayed acquisitions: {sample:?}");
 }
 
 fn delayed_path(method: &str, path: &str, payload: &str) {
@@ -215,4 +215,56 @@ fn changes_refresh_is_engine_work_but_poll_sleep_is_not() {
     assert!(op["total"]["max"].as_f64().unwrap() - op["engine"]["max"].as_f64().unwrap()
         - op["wait"]["max"].as_f64().unwrap() >= 600.0, "{op}");
     println!("refresh 150ms, held poll: {sample:?}");
+}
+
+#[test]
+fn maintenance_writer_admission_under_a_request_sample_is_wait() {
+    let host = Host::new(true);
+    let held = lock(&host.shared.engine);
+    let shared = host.shared.clone();
+    let worker = thread::spawn(move || {
+        let request = tiny_http::TestRequest::new().with_method(Method::Post)
+            .with_path("/dev/clock/advance").into();
+        let sample = latency::Sample::with_headers(&request, &shared.latency, true).unwrap();
+        let mut reply = String::new();
+        sample.run(|| {
+            // The admission used by maintenance::engine_work, also called
+            // synchronously by /dev/clock/advance inside its request sample.
+            drop(shared.engine.background());
+            reply = format!("{}\r\n\r\n", latency::header().unwrap());
+            latency::finished(false);
+        });
+        reply
+    });
+    let started = Instant::now();
+    while host.shared.engine.waiting() == 0 {
+        assert!(started.elapsed() < Duration::from_secs(3), "maintenance did not enqueue");
+        thread::yield_now();
+    }
+    // Begin the delay only after background admission actually queues.
+    thread::sleep(OPEN_DELAY);
+    drop(held);
+    assert_open_wait(&worker.join().unwrap(), 1);
+}
+
+#[test]
+fn clock_maintenance_retry_open_is_wait_not_engine() {
+    let fresh = query_readers::FreshDirectory::new().unwrap();
+    let host = Host::with_store(true, fresh.store().unwrap(), SOURCE);
+    let opens = Arc::new(AtomicUsize::new(0));
+    {
+        let mut readers = lock(&host.shared.readers);
+        readers.source = None; // Recover a missing file-backed connection factory.
+        let seen = opens.clone();
+        readers.retry_open = Some(Arc::new(move || {
+            seen.fetch_add(1, Ordering::SeqCst);
+            thread::sleep(OPEN_DELAY);
+        }));
+    }
+    let reply = host.request("POST", "/dev/clock/advance", PERSONA, r#"{"duration":"+1s"}"#);
+    assert_eq!(status(&reply), 200, "{reply}");
+    assert_eq!(body(&reply)["advancedMs"], 1000);
+    assert_eq!(opens.load(Ordering::SeqCst), 1);
+    assert!(lock(&host.shared.readers).source.is_some(), "retry must restore the factory");
+    assert_open_wait(&reply, 1);
 }

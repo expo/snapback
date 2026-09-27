@@ -180,7 +180,8 @@ writer lock acquisition, including connection opening; `engine` is wall time
 owning a reader/writer for engine work, including authentication and head reads, excluding reader acquisition;
 `cpu`, when supported, is CPU consumed by this request thread since it started.
 Engine time includes descheduling and store I/O. CPU overlaps the other times;
-it is not another phase to add. It excludes listener, background and client CPU.
+it is not another phase to add. Synchronous `/dev/clock/advance` maintenance
+counts in these timings; listener, background-thread and client CPU do not.
 Zero engine time can mean a request was refused before acquiring an engine.
 
 `doctor --latency` shows p50/p95/p99/max for total, wait, engine and CPU;

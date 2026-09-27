@@ -38,6 +38,33 @@ fn success(output: Output) -> String {
 }
 
 #[test]
+fn dev_process_wildcard_listener_omits_timing_for_loopback_and_external_peers() {
+    let fixture = Fixture::new("wildcard-timing");
+    let host = fixture.start_with(&["--bind", "0.0.0.0", "--i-understand-cleartext"]);
+    let bound: std::net::SocketAddr = host.address.parse().unwrap();
+    assert!(bound.ip().is_unspecified(), "{}", host.address);
+    let route = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+    route.connect("192.0.2.1:9").unwrap(); // Choose an interface; send no packet.
+    let external = route.local_addr().unwrap().ip();
+    assert!(!external.is_loopback());
+    for (ip, expected) in [("127.0.0.1".parse().unwrap(), 200), (external, 403)] {
+        let mut stream = TcpStream::connect(std::net::SocketAddr::new(ip, bound.port())).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        stream.write_all(b"POST /q/fast HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}").unwrap();
+        let mut reply = String::new();
+        stream.read_to_string(&mut reply).unwrap();
+        let (headers, body) = reply.split_once("\r\n\r\n").unwrap();
+        assert_eq!(headers.split_whitespace().nth(1).unwrap().parse::<u16>().unwrap(), expected, "{reply}");
+        assert!(!headers.lines().any(|line| line.split_once(':')
+            .is_some_and(|(name, _)| name.eq_ignore_ascii_case("Server-Timing"))),
+            "wildcard dev disclosed timing to {ip}: {reply}");
+        if expected == 200 {
+            assert_eq!(serde_json::from_str::<Value>(body).unwrap()["data"], 1);
+        }
+    }
+}
+
+#[test]
 fn doctor_idle_cpu_is_empty_before_traffic_and_after_reset() {
     let fixture = Fixture::new("idle-cpu");
     let host = fixture.start();

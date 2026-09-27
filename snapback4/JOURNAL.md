@@ -70936,3 +70936,46 @@ No original store opened, new performance claim, tool install or shared-path
 change. Report and compressed test/mutation/review evidence are under
 reports/20260927-se-scale-evidence/REPORT.md and round2/. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+
+### 2026-09-27 — Lane SE round 3: synchronous maintenance attribution and real listener coverage
+
+Fetched and merged origin/main first: already up to date (lane 784f090b0,
+main d9c89a971), no conflicts. Read all binding prompts, earlier report/journal
+entries and Astra's full rounds-1–2 READY WITH CHANGES review. No High/Medium or
+landing blocker; Grok had no verdict at the initial check, so did not wait.
+Used the populated sibling llp-orient skill read-only; LLP 3000.019 §3.7,
+bounds and the report now explicitly include synchronous clock maintenance.
+
+Background writer admission now records waited() under an active sample,
+and retry_missing opens through latency::acquire while suspending engine time.
+Periodic maintenance has no request sample; /dev/clock/advance runs that same
+work inside its request sample, including its request-thread CPU. Corrected
+the report's earlier blanket outside-sampling claim. Test-only delays pin
+150 ms in wait: writer 155.156 ms wait / 0.004 ms engine, HTTP clock retry
+151.226 ms wait / 0.607 ms engine. Both tests failed before the fixes.
+
+The new real-process test starts dev --bind 0.0.0.0 --i-understand-cleartext
+and connects from loopback (200 with the correct query answer) and an external
+interface (403). Neither response carries Server-Timing. Unlike the existing
+unit harness, it traverses the production listener-to-dispatch call.
+
+Three independently reverted behaviors each fail the intended test: background
+wait, retry acquisition, and the production listener predicate replaced by true.
+Together with the two initial failures, five expected lane-owned assertion
+failures; all restored. Unexpected test failures: ours 0, baseline 0,
+environmental 0. No build or mutation-harness failure. Inspection-only path
+misses are recorded in the report; none skipped qualification.
+
+Affected checks pass: 185 server/doctor units, 4 existing ignores; 12 real-process
+latency/doctor/recipe tests; 2 existing read measurements ignored. Whole guide
+89/89. Did not run scripts/test.sh, as instructed; round 1's exact summary
+stands: == 0 failure(s) in 1697 s. Source, test and audit evidence is retained
+with reports/20260927-se-scale-evidence/REPORT.md and round3/.
+
+Wasm byte-identical: 1,979,732 B raw / 572,616 B gzip, 225 B below the unchanged
+572,841 B cap; SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+No device, meter, authorization, dependency, version or budget change; no original
+store opened or workload measurement rerun. No tool installed or shared path
+modified. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
