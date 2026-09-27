@@ -199,7 +199,7 @@ fn redefinition_refuses_atomically_and_delivery_keeps_running() {
         let b = compile(&revised);
         let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
         assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
-        for word in ["following", "event identities", "remove the view and deploy, then add the new definition", "empty", "planned view"] {
+        for word in ["following", "repost identities", "remove the view and deploy, then add the new definition", "empty", "planned home query"] {
             assert!(error.to_string().contains(word), "{error}");
         }
         assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
