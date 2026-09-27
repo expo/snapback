@@ -410,7 +410,7 @@ impl RequestAdmission {
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
     // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
-    let sample = latency::Sample::new(&request, &shared.latency);
+    let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && dev_request(&request, &shared).is_ok());
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
@@ -582,6 +582,10 @@ pub(crate) fn cors(request: &Request) -> Vec<Header> {
     if let Ok(Some(origin)) = single_header(request, "origin") && origin_authority(origin).is_some() {
         headers.push(Header::from_bytes("Access-Control-Allow-Origin", origin).unwrap());
     }
+    if let Some(timing) = latency::header() {
+        headers.push(timing);
+        headers.push(Header::from_bytes("Access-Control-Expose-Headers", "Server-Timing").unwrap());
+    }
     headers
 }
 
@@ -752,7 +756,7 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
                 let result = snapback4_core::identity::resolve_read_only(reader.store(), &token, shared.now(), identity.as_deref());
-                lock(&shared.readers).put(&epoch, reader);
+                lock(&shared.readers).put(&epoch, reader.into_inner());
                 result
             }
             Err(_) if shared.memory_store() => snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()),
@@ -1107,7 +1111,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
                         let (outcome, cut) = reader.query_at(&op, context);
-                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
+                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
                         (outcome, cut, metadata, reads_presence)
                     },
                     // Only memory stores lack detached readers by construction.

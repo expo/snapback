@@ -106,11 +106,12 @@ impl Shared {
     // @ref LLP 3000.019#3.6 — a fresh WAL snapshot reads the old program during atomic activation.
     // The source is only a connection factory: no transaction, answer or viewer
     // is retained. Identity guards still refuse an obsolete generation.
-    pub(super) fn reader(&self) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
-        if let Some(result) = lock(&self.readers).detached() {
-            // @ref LLP 3000.019#3.7 — detached checkout is an engine acquisition too.
-            if result.is_ok() { latency::acquired(); }
-            return result;
+    pub(super) fn reader(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
+        let started = Instant::now();
+        let result = lock(&self.readers).detached();
+        latency::waited(started);
+        if let Some(result) = result {
+            return result.map(|(epoch, reader)| (epoch, TimedReader { engine: reader, _timing: latency::EngineSpan::new() }));
         }
         // A missing factory can also mean opening a file-backed reader failed.
         // Never acquire the writer to repair that failure under a read permit.
@@ -122,7 +123,7 @@ impl Shared {
         match self.reader() {
             Ok((epoch, mut reader)) => {
                 let head = response_head(&mut reader);
-                lock(&self.readers).put(&epoch, reader);
+                lock(&self.readers).put(&epoch, reader.into_inner());
                 head
             }
             Err(_) if self.memory_store() => response_head(&mut lock(&self.engine)),
@@ -154,4 +155,17 @@ impl Drop for FreshDirectory {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
+}
+
+// Ownership ends on return to the pool or on an error/drop (including sync).
+pub(super) struct TimedReader { engine: Engine, _timing: latency::EngineSpan }
+impl TimedReader {
+    pub(super) fn into_inner(self) -> Engine { self.engine }
+}
+impl std::ops::Deref for TimedReader {
+    type Target = Engine;
+    fn deref(&self) -> &Engine { &self.engine }
+}
+impl std::ops::DerefMut for TimedReader {
+    fn deref_mut(&mut self) -> &mut Engine { &mut self.engine }
 }

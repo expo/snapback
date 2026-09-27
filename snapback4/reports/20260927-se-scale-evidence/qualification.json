@@ -1,0 +1,108 @@
+{
+  "base": "51b318c63c622b8e93413de42328d9b41354bc3c",
+  "source": {
+    "snapback4/crates/snapback4-lang/src/guide.rs": "18113ab7182a7e0e9aa0ea09178e1bf14a0b8d3cd161f8e0fc84cbe29079729f",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "74c1245a589a8ace55219860720534e1172dead1571ba086f0b5720bb1bcf7b5",
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": "756b7780b8e84108d888cac6fb486dfb263a0e78399d616099585acc8bca18a2",
+    "snapback4/crates/snapback4/src/latency.rs": "a5373ec7048bea860dadaac2920639c038f9b740551bb2f388d7148434c353f9",
+    "snapback4/crates/snapback4/src/serve.rs": "4af83b5f37fca0de2f474bdad0ee451dbdfd3a053e3f7692bf078983161b15cb",
+    "snapback4/crates/snapback4/src/serve_changes.rs": "7fa9cf5af90490c879c7e4fd86c22639c67a882bbd910fd1b125f9f7b21944e8",
+    "snapback4/crates/snapback4/src/serve_ephemeral.rs": "9fa895822b8de8050e405e0ce1ce0d539f6cd260b0be02babf51ec9547ca3f74",
+    "snapback4/crates/snapback4/src/serve_lock.rs": "62c3a1d7f9fc166be92cb5c0d1959b9b2ac25df2975add2a52f85f4ace08d0e9",
+    "snapback4/crates/snapback4/src/serve_readers.rs": "af884c355666953c55072465bc0c9a9868e84c80e731261e71b2d3939d48af0f",
+    "snapback4/crates/snapback4/src/serve_routes.rs": "997333716ab319713433e9c98da083c087a6fa254990a190f562c3dbda9cfb10",
+    "snapback4/crates/snapback4/src/verbs/latency.rs": "e8e3a1f328f3ad68c4092cb466795520598f98bcf60a51c9d79817a4f0b2ac9c",
+    "snapback4/crates/snapback4/tests/latency.rs": "ddab044b32fc47cbc992d801146c85e18db63c9788e7cfd91beb6eed4694c51f",
+    "snapback4/crates/snapback4/tests/latency/histogram.rs": "51eb71e4d7c0eb645946a1766b124d0d98a747034c02bedc49cef1da69dd3d80",
+    "snapback4/crates/snapback4/tests/latency/serve.rs": "be7e1012d7af4ef5b33da1afc6c74496a788671c8f6eecc46bd735f1b31b92c6",
+    "snapback4/crates/snapback4/tests/serve_adoption/reader_failure.rs": "5a57cab332f2249dd26c61a3fbc97c543cfca6c93dc1f93f2682be9331e5e452",
+    "snapback4/crates/snapback4/tests/serve_sync/concurrent.rs": "ffbfd61ed3400f1b088f1427ba65239513fe131a82ddab64bb89878cb12547c5",
+    "snapback4/crates/snapback4/tests/latency/headers.rs": "cb3baa968a3f30b02de659d150c0e116d8f5803e04aede02640c70828319fb4e"
+  },
+  "binarySHA256": "394320e6c616514ddad1aec25da62913e71c4056d9d1a6d18a577d322297af6f",
+  "wasmBeforeSHA256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+  "wasmAfterSHA256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+  "wasmRaw": 1979732,
+  "wasmGzip": 572616,
+  "builderProbesSHA256": "637784c67570d58f63c2c4392315cbab6173250dff643f71004c04e10fb83cac",
+  "originalValidation": {
+    "verifiedAtUnixMs": 1790537301693,
+    "unchanged": true,
+    "files": 12,
+    "afterSHA256": {
+      "snapback/config.q": "2d1e6c31d9bd2159d7542d0551c8d500af8d880fac6745745fcde99c21c35ff7",
+      "snapback/digest.q": "9433b9c28ac3c520b6dd69dfeea7172d86b8d3fcea60bc68306195b5790bdde9",
+      "snapback/insights.q": "d46039b18de826a90ebb82e13d1fcb23a8a4984eed59ed809cfc4934022e523f",
+      "snapback/schedules.q": "3195e9791d5bab27c4f49d253cd2d8ca9fa172791f60e38cc56af9fb9bb3d8a9",
+      "snapback/messaging.q": "f20ff8b0aec53a261b3aeb79c4056757e97061e6efa74f4e747185112987b370",
+      "snapback/schema.q": "48539ea060d2700c28eb04da84e42cb7267e663ea3cd627308d84c347c6874f0",
+      ".snapback4/store.sqlite": "2984869303a81e7ed8c0896a54e28a80502f6a407d25ef7ec7a9de7ed14a75b6",
+      ".snapback4/store.sqlite-wal": "281b9095c6ad8fe0a7df850b2c9da43be2aadaf7e026c9e841d5ed1c60633787",
+      ".snapback4/store.sqlite-shm": "f9489306011b6cc43f338a02289c1d80939aab5d18d4f6196a4f41e14f84f763",
+      "snapback/generated/server.ts": "dcd5ef919dac1db6a2c279a5e329dc9eb256b19fa3f06312d777d99a78c8a045",
+      "snapback/generated/api.ts": "9d75bbb8cbf7c31b9e77f45ef010c3d0f087f8ca47d7088361d2e69f4025c18d",
+      "snapback/generated/package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    }
+  },
+  "measurements": {
+    "conditions": 3,
+    "runsPerCondition": 30,
+    "pairedQueries": 20970,
+    "measuredQueries": 14400,
+    "refusals": 0,
+    "cuts": 0,
+    "incomplete": 0,
+    "terminalJobRows": {
+      "quiet": 0,
+      "cpu": 0,
+      "writes": 0
+    }
+  },
+  "finalSource": {
+    "snapback4/crates/snapback4-lang/src/guide.rs": "18113ab7182a7e0e9aa0ea09178e1bf14a0b8d3cd161f8e0fc84cbe29079729f",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "74c1245a589a8ace55219860720534e1172dead1571ba086f0b5720bb1bcf7b5",
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": "4d8a806926164d5a80d43faf82e06d32b8d8d5d09b2693aea8e80e3aebff1896",
+    "snapback4/crates/snapback4/src/latency.rs": "a5373ec7048bea860dadaac2920639c038f9b740551bb2f388d7148434c353f9",
+    "snapback4/crates/snapback4/src/serve.rs": "4af83b5f37fca0de2f474bdad0ee451dbdfd3a053e3f7692bf078983161b15cb",
+    "snapback4/crates/snapback4/src/serve_changes.rs": "7fa9cf5af90490c879c7e4fd86c22639c67a882bbd910fd1b125f9f7b21944e8",
+    "snapback4/crates/snapback4/src/serve_ephemeral.rs": "9fa895822b8de8050e405e0ce1ce0d539f6cd260b0be02babf51ec9547ca3f74",
+    "snapback4/crates/snapback4/src/serve_lock.rs": "62c3a1d7f9fc166be92cb5c0d1959b9b2ac25df2975add2a52f85f4ace08d0e9",
+    "snapback4/crates/snapback4/src/serve_readers.rs": "af884c355666953c55072465bc0c9a9868e84c80e731261e71b2d3939d48af0f",
+    "snapback4/crates/snapback4/src/serve_routes.rs": "997333716ab319713433e9c98da083c087a6fa254990a190f562c3dbda9cfb10",
+    "snapback4/crates/snapback4/src/verbs/latency.rs": "e8e3a1f328f3ad68c4092cb466795520598f98bcf60a51c9d79817a4f0b2ac9c",
+    "snapback4/crates/snapback4/tests/latency.rs": "ddab044b32fc47cbc992d801146c85e18db63c9788e7cfd91beb6eed4694c51f",
+    "snapback4/crates/snapback4/tests/latency/histogram.rs": "51eb71e4d7c0eb645946a1766b124d0d98a747034c02bedc49cef1da69dd3d80",
+    "snapback4/crates/snapback4/tests/latency/serve.rs": "be7e1012d7af4ef5b33da1afc6c74496a788671c8f6eecc46bd735f1b31b92c6",
+    "snapback4/crates/snapback4/tests/serve_adoption/reader_failure.rs": "5a57cab332f2249dd26c61a3fbc97c543cfca6c93dc1f93f2682be9331e5e452",
+    "snapback4/crates/snapback4/tests/serve_sync/concurrent.rs": "ffbfd61ed3400f1b088f1427ba65239513fe131a82ddab64bb89878cb12547c5",
+    "snapback4/crates/snapback4/tests/latency/headers.rs": "cb3baa968a3f30b02de659d150c0e116d8f5803e04aede02640c70828319fb4e"
+  },
+  "postFullStartEdits": "Only sync-card prose: live-query observation rather than render; SS host kept exactly as reported without inferring its CPU model. Whole guide rerun after the corrections.",
+  "fullSuite": {
+    "runs": 1,
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1524 s",
+    "failures": {
+      "ours": [],
+      "baseline": [],
+      "environmental": []
+    },
+    "rust": {
+      "passed": 4063,
+      "ignored": 29,
+      "binaries": 253,
+      "executions": 966
+    },
+    "client": {
+      "passed": 2701,
+      "skipped": 10
+    },
+    "modelsPassed": 78,
+    "fixturePassed": 9
+  },
+  "guideFinal": {
+    "passed": 89,
+    "failed": 0
+  },
+  "finalReferenceAudit": "ref-check: ok \u2014 521 LLP docs, 9676 refs in 27481 files, 0 errors, 0 unchecked"
+}

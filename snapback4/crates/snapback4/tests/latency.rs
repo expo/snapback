@@ -56,6 +56,8 @@ fn doctor_latency_json_default_summary_all_operations_and_reset() {
     assert!(!ordinary.contains("/q/idle:"));
     let all = success(fixture.command(&["doctor", "--latency"]));
     assert!(all.contains("/q/idle: n=0"), "{all}");
+    assert!(all.contains("; engine p50=") && all.contains("; cpu n="), "{all}");
+    assert_eq!(snapshot["operations"]["/q/fast"]["cpu_n"], 5);
     let ordinary_json: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--json"]))).unwrap();
     assert_eq!(ordinary_json["latency"]["operations"]["/q/fast"]["n"], 5);
     let reset: Value = serde_json::from_str(&success(fixture.command(&["doctor", "--latency", "--reset", "--json"]))).unwrap();
@@ -265,4 +267,36 @@ fn doctor_url_inspects_and_resets_ipv6_loopback() {
     let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);
     assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
     no_discovery_record(&fixture);
+}
+
+
+#[test]
+fn bounds_guide_growth_recipe_runs_verbatim_against_dev() {
+    let fixture = Fixture::new("guide");
+    let host = fixture.start();
+    let card = success(fixture.command(&["guide", "bounds"]));
+    for alias in ["latency", "performance", "p95", "benchmark", "load test"] {
+        assert_eq!(success(fixture.command(&["guide", alias])), card);
+    }
+    let recipe = card.split("```sh\n").find(|s| s.starts_with("# Growth curve checkpoint"))
+        .unwrap().split("```").next().unwrap();
+    let bin = fixture.0.join("bin"); fs::create_dir(&bin).unwrap();
+    std::os::unix::fs::symlink(BIN, bin.join("snapback4")).unwrap();
+    let result = Command::new("sh").arg("-eu").arg("-c").arg(recipe)
+        .current_dir(&fixture.0).env("SB4_URL", format!("http://{}", host.address))
+        .env("SB4_OP", "fast").env("SB4_ARGS", "{}").env("SB4_PERSONA", "alice")
+        .env("PATH", format!("{}:{}", bin.display(), std::env::var("PATH").unwrap()))
+        .output().unwrap();
+    success(result);
+    let probes: Value = serde_json::from_slice(&fs::read(fixture.0.join("checkpoint-probes.json")).unwrap()).unwrap();
+    let server: Value = serde_json::from_slice(&fs::read(fixture.0.join("checkpoint-server.json")).unwrap()).unwrap();
+    let samples = probes["samples"].as_array().unwrap();
+    assert_eq!(samples.len(), 23);
+    assert_eq!(samples.iter().filter(|s| s["warmup"] == false).count(), 20);
+    for sample in samples {
+        for metric in ["total", "wait", "engine", "cpu"] { assert!(sample["server"][metric].is_number(), "{sample}"); }
+    }
+    assert_eq!(server["operations"]["/q/fast"]["n"], 23);
+    assert_eq!(server["operations"]["/q/fast"]["cpu_n"], 23);
+    assert_eq!(probes["before"]["load"].as_array().unwrap().len(), 3);
 }

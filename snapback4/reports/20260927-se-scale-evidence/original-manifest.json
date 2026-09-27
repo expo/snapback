@@ -1,0 +1,50 @@
+{
+  "snapback/config.q": {
+    "bytes": 264,
+    "sha256": "2d1e6c31d9bd2159d7542d0551c8d500af8d880fac6745745fcde99c21c35ff7"
+  },
+  "snapback/digest.q": {
+    "bytes": 1670,
+    "sha256": "9433b9c28ac3c520b6dd69dfeea7172d86b8d3fcea60bc68306195b5790bdde9"
+  },
+  "snapback/insights.q": {
+    "bytes": 1096,
+    "sha256": "d46039b18de826a90ebb82e13d1fcb23a8a4984eed59ed809cfc4934022e523f"
+  },
+  "snapback/schedules.q": {
+    "bytes": 86,
+    "sha256": "3195e9791d5bab27c4f49d253cd2d8ca9fa172791f60e38cc56af9fb9bb3d8a9"
+  },
+  "snapback/messaging.q": {
+    "bytes": 15533,
+    "sha256": "f20ff8b0aec53a261b3aeb79c4056757e97061e6efa74f4e747185112987b370"
+  },
+  "snapback/schema.q": {
+    "bytes": 5423,
+    "sha256": "48539ea060d2700c28eb04da84e42cb7267e663ea3cd627308d84c347c6874f0"
+  },
+  ".snapback4/store.sqlite": {
+    "bytes": 2314948608,
+    "sha256": "2984869303a81e7ed8c0896a54e28a80502f6a407d25ef7ec7a9de7ed14a75b6"
+  },
+  ".snapback4/store.sqlite-wal": {
+    "bytes": 13830872,
+    "sha256": "281b9095c6ad8fe0a7df850b2c9da43be2aadaf7e026c9e841d5ed1c60633787"
+  },
+  ".snapback4/store.sqlite-shm": {
+    "bytes": 32768,
+    "sha256": "f9489306011b6cc43f338a02289c1d80939aab5d18d4f6196a4f41e14f84f763"
+  },
+  "snapback/generated/server.ts": {
+    "bytes": 850,
+    "sha256": "dcd5ef919dac1db6a2c279a5e329dc9eb256b19fa3f06312d777d99a78c8a045"
+  },
+  "snapback/generated/api.ts": {
+    "bytes": 58583,
+    "sha256": "9d75bbb8cbf7c31b9e77f45ef010c3d0f087f8ca47d7088361d2e69f4025c18d"
+  },
+  "snapback/generated/package.json": {
+    "bytes": 18,
+    "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+  }
+}

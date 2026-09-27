@@ -43,7 +43,8 @@ fn failed_file_reader_refuses_without_waiting_for_the_writer() {
         assert_eq!(sample.refused, 1, "reader refusals must be counted once");
         assert!(sample.total.max > 0.0);
         assert!(sample.total.max >= sample.wait.max);
-        assert_eq!(sample.wait.max == 0.0, after == 0, "only a successful checkout ends wait");
+        assert!(sample.wait.max > 0.0, "failed checkout attempts count as wait");
+        assert_eq!(sample.engine.max == 0.0, after == 0, "only a successful checkout begins engine ownership");
         lock(&host.shared.readers).fail_open_after = None;
         drop(engine);
         // Use the same work path as periodic maintenance; never reinstall the

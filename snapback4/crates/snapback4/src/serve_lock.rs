@@ -66,10 +66,11 @@ impl<T, C: Clock> FairMutex<T, C> {
         }
         drop(queue);
         let value = self.value.lock();
-        if !background { super::latency::acquired(); }
+        if !background { super::latency::waited(started); }
+        let timing = super::latency::EngineSpan::new();
         match value {
-            Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended }),
-            Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended })),
+            Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended, _timing: timing }),
+            Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended, _timing: timing })),
         }
     }
     pub fn clear_poison(&self) { self.value.clear_poison(); }
@@ -84,7 +85,7 @@ impl<T, C: Clock> FairMutex<T, C> {
     pub fn queued(&self) -> u64 { let q = self.queue.lock().unwrap(); q.next.wrapping_sub(q.serving) }
 }
 
-pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool }
+pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool, _timing: super::latency::EngineSpan }
 impl<T, C: Clock> FairGuard<'_, T, C> {
     pub fn contended(&self) -> bool { self.contended }
 }

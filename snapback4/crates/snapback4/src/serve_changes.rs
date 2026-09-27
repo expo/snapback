@@ -35,7 +35,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     };
     let refresh = |reader: &mut Option<snapback4_core::Engine>| {
         match reader {
-            Some(reader) => check(reader, since),
+            Some(reader) => { let _timing = super::latency::EngineSpan::new(); check(reader, since) },
             None => check(&mut lock(&shared.engine), since),
         }
     };
@@ -83,6 +83,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     // wakes must not reacquire the serving engine merely to finish a poll.
     let auth_store_id = lock(&shared.wake).store_id.clone();
     let authenticated = if let Some(reader)=reader.as_ref() {
+        let _timing = super::latency::EngineSpan::new();
         if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|h.value.as_str().strip_prefix("Bearer ")) {
             match snapback4_core::identity::resolve_read_only(reader.store(),token.trim(),shared.now(),auth_store_id.as_deref()) {
                 Ok(Some(_))=>Ok(()),Ok(None)=>Err(snapback4_core::Refusal::new("E_AUTH","auth","this session is not live; sign in again").guide("personas")),Err(e)=>Err(e.refusal()),

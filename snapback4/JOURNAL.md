@@ -69962,3 +69962,64 @@ publisher remains unbuilt. The supervisor owns review of this follow-up.
 Report and durable verification: experiments/following-adoption/atomic/ROUND5.md
 and ROUND5.verification.json. Raw logs: target/fa-round5/. Local commit carries
 the requested co-author trailer. No push or publication.
+
+
+### 2026-09-27 — Lane SE: paired scale timings and evidence a builder can cite
+
+Fetched and merged origin/main first; already at 51b318c63. Read the Snapback 4
+fence, LLP 3000/2000.000, LLP 3000.019 §§3.6–3.7, current cards and SS's reports;
+used llp-orient from a populated sibling vendor checkout. The lane adds
+loopback-dev Server-Timing total/wait/engine/thread-CPU durations, cumulative
+reader/writer acquisition wait and engine/CPU doctor distributions. Production
+adds no header; its live-service-token inspection, all dev fences, authorization,
+meters and response data are unchanged. Header total ends at header construction;
+doctor still includes the final response flush. Timing attribution adds timing
+information, not row access; the report explicitly declines a literal claim of
+zero additional timing information. No device code or dependency change.
+
+Ran the unmodified builder's eight probes 30 times per condition on separate
+private copies of the final store with WAL, dev --replay: spare-capacity control,
+ten external CPU burners on ten assigned CPUs, and 64 settled sends immediately
+before each run. 14,400 measured queries / 20,970 paired samples include the
+three-warm-up/k=20 policy and cursor preparation; 90 reset/doctor windows.
+No refusal, cut, incomplete result or timeout; no jobs. All 12 original input
+files retain their hashes. The shared Linux EPYC host is expose-builder-pixel,
+96 logical CPUs, not the original M1 Max; global quietness and retrospective
+attribution of the original 10%/50% checkpoints are not claimed.
+
+Global-search client p95 is 5.086/10.497/5.266 ms for control/contention/writes;
+server total 4.000/9.187/4.093, CPU 3.839/3.914/3.871, reader wait 0.001 ms in
+all three. Trending client p95 is 2.142/4.728/2.250 ms. The added contention
+tail is predominantly off-CPU; no foreground read queue behind the writer was
+found, so no scheduling repair is claimed. Equal-size quiet run triples still
+fail the midpoint rule 5/10 (search) and 4/10 (trending); these are negative
+controls, not reconstructed growth curves. No frozen rule changed.
+
+The bounds card's complete shell/Node growth recipe runs in a real-process guide
+test. Added latency/performance/p95/benchmark/load test aliases. The sync card
+quotes SS round 2's methods/host and measured 100/1,000 acquisition: Node memory
+1.671/16.324 s, fake-IDB 2.022/21.036 s, Chromium real-IDB 4.186/27.327 s. Browser
+live-query p95 during 1,000-conversation acquisition remains unmet at 13.158 s
+(19 samples, no timeout); these are SS observations, not promises or new SE runs.
+
+Affected server/doctor units: 175 passed / 4 existing ignored; real-process
+latency/guide 10/10; existing read measurement fixtures 2 ignored; whole guide
+89/89, rechecked after two sync-card evidence-wording corrections. Earlier
+lane-owned compile/fixture/old-wait assertions and four environment failures
+from the first server run's low fd limit are listed and resolved in the report.
+Final reference and whitespace checks pass.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1524 s`. Every full-run failure: none — ours 0, baseline 0,
+environmental 0. Rust 4,063 passed / 29 ignored (253 binaries, 966 executions),
+clients 2,701 passed / 10 skipped, serial models 78/78, fixture wrappers 9/9;
+all other phases and doctests pass. The inherited 60-second total budget remains
+exceeded. Eight build jobs/test processes, fd limit 65,536, dev/test debug and
+incremental off; Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127.
+No shared-path tool install.
+
+Wasm is byte-identical before/after: 1,979,732 B raw / 572,616 B gzip, 225 B below
+the unchanged 572,841 B budget. Report, paired samples, per-run doctor snapshots,
+host traces, original hashes and compressed verification logs are under
+reports/20260927-se-scale-evidence/. LLP 3000.019 §3.7 records the timing meanings.
+The local commit carries the requested co-author trailer. No push or publication.

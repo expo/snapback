@@ -13,9 +13,15 @@ pub(super) fn read(host: &Value, reset: bool) -> Option<Snapshot> {
 pub(super) fn lines(snapshot: &Snapshot, all: bool) -> Vec<String> {
     let mut operations: Vec<_> = snapshot.operations.iter().filter(|(_, op)| all || op.n > 0).collect();
     operations.sort_by(|(an, a), (bn, b)| b.total.p95.total_cmp(&a.total.p95).then_with(|| an.cmp(bn)));
-    let mut lines = vec![format!("latency   since {} (Unix ms); total / engine wait in ms", snapshot.since)];
+    let mut lines = vec![format!("latency   since {} (Unix ms); total / acquisition wait / engine / thread CPU in ms", snapshot.since)];
     for (name, op) in operations.into_iter().take(if all { usize::MAX } else { 3 }) {
         lines.push(format!("latency   {name}: n={} refused={} total p50={:.3} p95={:.3} p99={:.3} max={:.3}; wait p50={:.3} p95={:.3} p99={:.3} max={:.3}", op.n, op.refused, op.total.p50, op.total.p95, op.total.p99, op.total.max, op.wait.p50, op.wait.p95, op.wait.p99, op.wait.max));
+        let last = lines.last_mut().unwrap();
+        last.push_str(&format!("; engine p50={:.3} p95={:.3} p99={:.3} max={:.3}", op.engine.p50, op.engine.p95, op.engine.p99, op.engine.max));
+        match &op.cpu {
+            Some(cpu) => last.push_str(&format!("; cpu n={} p50={:.3} p95={:.3} p99={:.3} max={:.3}", op.cpu_n, cpu.p50, cpu.p95, cpu.p99, cpu.max)),
+            None => last.push_str("; cpu unavailable"),
+        }
     }
     if let Some((name, op)) = snapshot.operations.iter().filter(|(_, op)| op.n > 0).max_by(|(_, a), (_, b)| a.wait.max.total_cmp(&b.wait.max)) {
         lines.push(format!("latency   worst wait: {name} {:.3} ms (p95 {:.3} ms)", op.wait.max, op.wait.p95));
