@@ -1,0 +1,10 @@
+   Compiling snapback4-lang v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.02s
+     Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-9e3be983f4097eb6)
+
+running 3 tests
+test cursorless_page_stamps_its_exact_bound_without_lookahead ... ok
+test admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay ... ok
+test compact_membership_search_reports_only_authorized_emitted_images ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s

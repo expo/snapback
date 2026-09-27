@@ -70155,3 +70155,58 @@ publisher remains unbuilt. The supervisor owns review of this follow-up.
 Report and durable verification: experiments/following-adoption/atomic/ROUND5.md
 and ROUND5.verification.json. Raw logs: target/fa-round5/. Local commit carries
 the requested co-author trailer. No push or publication.
+
+
+### 2026-09-27 — DS round 4: integrate current main for the DS + DC landing
+
+Merged origin/main 51b318c63 into DS round-3 head a36e9221a, committed as
+`db46bfe6d`. Both parent journals survive line-for-line in order; every parent
+report was preserved. Resolved error.rs with both the DS delivery-binding
+and GS search-opening refusal arms and their feature gates. The receipts card
+keeps the SDK reporter, seen hook and RUNS_FULL, plus ER’s sequences referral;
+the guide keeps all delivery/search definitions and ER assertions. The duplicate
+PostgreSQL optional-report fix from 3fade730c0 collapses to one None argument;
+delivery lookup preparation remains once. Read.rs and membership_search.rs
+are byte-identical to fetched main. Runner/mod/local preserve GS ownership,
+CQ completeness, ER admission, FA launch and DS stamping/receipt behavior;
+SS synchronization and TK live tokens remain integrated.
+
+Committed regression coverage as `36a2e09fb`: compact membership search reports
+only authorized emitted images through successive aliases, overlapping words,
+expiry and membership revocation; cursorless first 2 is complete at exactly
+two examined units and stamps no lookahead; admitted expiring reporter reads
+exclude dead rows, stamp no mutation result, retain receipt-only no-ops and
+replay both success and atomic bound refusal. Tracked and ordinary query data,
+meters and cuts agree. Removing GS’s emission stamp, restoring CQ lookahead,
+or removing delivery’s query-only guard each fails its new regression. The
+mutations restore source byte-for-byte and final affected checks pass.
+
+Affected results: 16 delivery, 3 new integration, 5 clause, 2 replay/fingerprint,
+3 provenance, 3 internal delivery, 6 HTTP and the whole 90-test guide pass.
+All 3 PostgreSQL delivery tests pass in Serialized and Serializable modes.
+PostgreSQL tools were copied into this worktree’s ignored target directory;
+the private socket-only cluster was stopped. No shared tool installation.
+
+Ran scripts/test.sh exactly once, exit 1, exact summary:
+`== 1 failure(s) in 1844 s` / `wasm build`. That sole failure is ours, the
+carried integration budget overage. Unoptimized wasm is 1,983,605 B raw /
+573,716 B gzip, SHA-256
+5a15e533a42a5f199fe04ccfecbbc5c87d93d641fbc3d357915219f91809ec00:
+875 B above the unchanged 572,841 B budget. Against pre-merge round 3 the
+whole artifact changes by -1,780 raw / +451 gzip; no per-lane attribution is
+claimed. The wasm script and budget remain byte-identical to fetched main,
+with no wasm-opt. The supervisor owns the LLP 3000.022 integration ratchet.
+
+No baseline or environmental full-run failures. Rust: 257 binaries, 970 target
+executions, 4,095 passed / 0 failed / 30 ignored plus passing doctests (1,305 s).
+Client tests: 2,700 passes across main and seven shards / 10 skips (198 s).
+All 78 client models pass with no skips (262 s); all other gates pass.
+During development, corrected two new fixture expectations (manifest order and
+failed-attempt metering), shortened the combined receipts lead to two sentences,
+and corrected an empty HTTP test filter; all are recorded in the report.
+
+Reference and source-size audits pass. No new runtime correction beyond merge
+resolution, no binding/wire or meter-ceiling change, no device/queue work,
+version bump, budget increase, push or publication. File-by-file resolutions,
+forms, tests, mutation evidence, exact full-run result and remaining reproduction:
+reports/20260927-delivery-server/ROUND4.md and round4/ beside it.

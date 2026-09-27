@@ -1,0 +1,24 @@
+   Compiling snapback4-core v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 13.55s
+     Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-9e3be983f4097eb6)
+
+running 1 test
+test admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay ... FAILED
+
+failures:
+
+---- admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay stdout ----
+
+thread 'admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay' (2570557) panicked at crates/snapback4-lang/tests/delivery_integration.rs:145:5:
+mutation reads must not stamp delivery
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery_integration`

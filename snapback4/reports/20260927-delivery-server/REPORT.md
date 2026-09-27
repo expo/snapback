@@ -1,10 +1,13 @@
 # DS: delivery, the server half
 
-**Current result:** [Round 3](ROUND3.md) repairs PostgreSQL adoption and adds
-mutation-proven reopen and index-heap coverage. [Round 2](ROUND2.md) records
-the unoptimized publisher baseline; [Round 1](ROUND1.md) documents the
-fingerprint protocol. The report below is the historical round-0 record;
-its interface and open-problem status are superseded.
+**Current result:** [Round 4](ROUND4.md) merges current main, preserves both
+sides’ behavior, and adds mutation-proven GS/CQ/ER integration coverage. Its
+single full suite fails only the unchanged wasm budget: 573,716 B gzip,
+875 B over. [Round 3](ROUND3.md) records adoption/reopen repairs;
+[Round 2](ROUND2.md) establishes the unoptimized publisher rule;
+[Round 1](ROUND1.md) documents the fingerprint protocol. The report below is
+the historical round-0 record; its interface and open-problem status are
+superseded.
 
 Date: 2026-09-27. Branch: `sb4-intent/ds-delivery-server`. Base: `3369ae543`.
 Implements LLP 3000.022 §§2, 5 and 6. No push or package publication.

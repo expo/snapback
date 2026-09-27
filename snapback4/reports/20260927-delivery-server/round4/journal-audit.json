@@ -1,0 +1,12 @@
+{
+  "HEAD": {
+    "lines": 68587,
+    "preserved_in_order": true,
+    "commit": "a36e9221a179ece9e2ecb3c64386bdc061f36de5"
+  },
+  "MERGE_HEAD": {
+    "lines": 69964,
+    "preserved_in_order": true,
+    "commit": "51b318c63c622b8e93413de42328d9b41354bc3c"
+  }
+}

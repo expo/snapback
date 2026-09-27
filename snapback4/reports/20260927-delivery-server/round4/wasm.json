@@ -1,0 +1,7 @@
+{
+  "raw": 1983605,
+  "gzip": 573716,
+  "sha256": "5a15e533a42a5f199fe04ccfecbbc5c87d93d641fbc3d357915219f91809ec00",
+  "budget": 572841,
+  "wasm_opt": false
+}
