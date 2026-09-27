@@ -1,0 +1,21 @@
+{
+  "name": "snapback4-linux-x64",
+  "version": "0.4.4",
+  "description": "The static musl snapback4 binary for Linux x64; installed by the snapback4 package.",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "snapback4",
+    "THIRD-PARTY-NOTICES"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ccheever/snapback",
+    "directory": "snapback4/packages/snapback4-linux-x64"
+  }
+}

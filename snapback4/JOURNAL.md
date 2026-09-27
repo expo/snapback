@@ -67559,6 +67559,73 @@ version or budget change, push or publication. Report:
 reports/20260927-gn-guide-note/REPORT.md; logs: target/lane-gn-round2/.
 
 
+### 2026-09-27 — Lane LX: a static Linux npm artifact and publication by digest
+
+Implemented LLP 3000.021 §3.3 on sb4-intent/lx-linux-package. Added the
+linux-x64 platform package at the client version, its optional dependency,
+and the resolver's two-platform explanation. The user-local musl 1.2.5
+installer pins the archive hash, chooses x64 explicitly and keeps the loader
+path in the user's prefix. The production build compiles bundled SQLite
+through musl-gcc with unchanged -USQLITE_ENABLE_MEMORY_MANAGEMENT, uses
+explicit static CRT/relocation, and rejects PT_INTERP or DT_NEEDED in the ELF.
+
+Publication now prepares one common client after rebuilding wasm and deleting
+and rebuilding dist, inspects its exact two optional dependencies, and stages
+per-platform artifacts. Linux qualification refuses even empty registry
+tokens, runs the source suite and pinned-Node Ubuntu/Alpine consumer proofs,
+and emits a success receipt only after all checks pass. The Mac imports the
+Linux tarball by SRI and binary hash against that same client and source; it
+never rebuilds, repacks, executes or signs Linux. Resume rereads the copied
+receipt, checks all artifacts and registry integrities, and requalifies Darwin
+only. Both platforms precede the client in publication. Old format-2 Darwin
+stages, signing/notarization checks, no-Linux-receipt flow and metrics remain.
+
+The actual Linux binary is 17,189,152 B, SHA-256
+78ce3de25bb7806c4dad8f56906a0aa9753535b424b3c8b172045ef163283c52.
+Both the parser check and readelf confirm no interpreter or shared-library
+dependencies. Its development tarball is 7,405,562 B. One clean-source
+client pack is 840,123 B. The real installed-host proof outside the checkout,
+with SNAPBACK4_BIN unset, passed version/init/check/dev, client mutation/read
+and a denied cross-persona read. The first manual toolchain attempt inherited
+ARM selection and later retained ARM headers; a fresh x64 install, rebuilt
+SQLite, a C probe and the successful host proof resolved the empty-store
+E_STORE failure. No storage workaround was added. The installer itself selects
+x64 from the start. Also corrected two npm config layers using the same path,
+which the real proof refused, and bounded consumer/container cleanup.
+
+Affected tests: 67 passed (24 existing signing cases, 34 publication cases,
+4 Linux package/ELF/resolver/credential cases, 5 qualification cases). Whole
+guide: 86 passed. Ran scripts/test.sh once: `== 1 failure(s) in 1481 s`, exit 1,
+reporting only `client tests`. Main client tests were 2,523 passed, 1 failed,
+10 intentional skips; all 56 shards and 78 models passed. All other suite
+stages passed. The one failure was unchanged ephemeral-e2e.test.mjs:61,
+`timed out: ephemeral trial 4 disappears`. Classified environmental/intermittent:
+its isolated rerun passed in 53.6 s, all five ephemeral trials disappearing
+about 3.93 s after the last call; the relevant test, helper, client and server
+sources are unchanged from the lane base. Its underlying race/scheduling
+cause is not diagnosed here. The full-suite red is retained, not converted
+into a qualification pass. No test assertion or deadline was weakened.
+
+Wasm is 1,980,253 B raw / 571,810 B gzip, under the unchanged 572,841 B budget;
+SHA-256 324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+No wasm source or dependency changed. The prior lane's recorded raw size is
+equal and gzip 31 B larger; no packaging-code attribution is claimed for that
+cross-build difference. Frozen Bun install, syntax checks and diff whitespace
+checks pass; root ref-check reports 515 LLP docs, 9,578 refs, zero errors or
+unchecked references. No changed source exceeds 1,500 lines.
+
+The real Ubuntu/Alpine proof remains environmental work: this host has no
+Docker/Podman or usable socket, unprivileged UID mapping refuses, and sudo
+requires a password. qualify-linux.mjs was run and refused at that preflight;
+no Linux success receipt exists. The source-suite run above also is not green.
+No system settings changed, no engine/client contract or meter change, no
+version/budget bump, no real Mac signing test, no registry login/write, push
+or publication. Node 24.13.1, npm 11.8.0, Bun 1.3.14, Rust 1.97.0, GCC 13.3.0;
+eight Cargo jobs, dev/test debug off, incremental off, descriptor limit 65,536.
+The broken user-local npm link was restored from the checksum-verified Node
+distribution. Report, exact next-publication commands, digests and reproductions:
+reports/20260927-lx-linux-package/REPORT.md. Raw logs and development tarballs:
+ignored target/lane-lx/ and target/publication/client-0.4.4/.
 ## 2026-09-27 — A5 round 4: request-bound restore evidence and open-owner recovery
 
 Read the lane prompt, reports and journal through round 3 and Astra's complete
@@ -67716,6 +67783,120 @@ The unchanged 572,841 B budget leaves 1,031 B. No runtime, authorization,
 disclosure, durability, IR-format or meter-ceiling change; no push or package
 publication. Report: reports/20260927-qe-quarry-ergonomics/REPORT.md. Logs:
 target/lane-qe/.
+
+### 2026-09-27 — Lane LX round 1: clean Linux consumers through pinned proot
+
+Removed the missing-container blocker without sudo, namespaces or system
+settings. qualify-linux prefers working Docker, then Podman, otherwise static
+proot 5.4.1. Pinned and verified 22 unique downloaded inputs in the user cache:
+proot, Ubuntu 24.04.3 and Alpine 3.23.3 roots, official Ubuntu Node 22.22.0,
+and Alpine Node 24.18.1/npm 11.11.0 with their entire APK dependency closure.
+The APK installation is offline and signature-checked under fake root. Each
+consumer gets fresh roots/HOME/scratch, explicit disposable input bindings,
+three null/random devices and an allowlisted environment; no host home,
+checkout, toolchain, libraries, /proc, npm credentials or binary override.
+The unchanged proof runs version/init/check/dev, mutation/read and denied
+cross-persona read. Receipts bind the route, every URL/SHA-256 and artifact
+SRI. A red suite may retain actual consumer evidence but never a success
+receipt. No runtime authorization, disclosure, durability or meter change.
+
+Implementation bd15a8def qualified at clean source with 0.4.4: both real roots
+passed, Ubuntu 11.155 s and Alpine 10.224 s including setup. scripts/test.sh
+ran exactly once, exit 0: `== 0 failure(s) in 1376 s`. Rust/doctests passed
+(880 s), main client 2,530 passed / 0 failed / 10 intentional skips, all 56
+shards and 78 models passed, fixture wrappers 9/9 and whole guide 86/86.
+Every other stage passed. Neither known flake failed; no targeted flake
+rerun, no introduced/baseline/environmental failure, no test deadline change.
+The inherited 60-second suite budget remains exceeded and unchanged.
+
+Merged origin/main 9473e0a34 in 35be43f56; the sole conflict was JOURNAL,
+resolved by preserving both complete entries verbatim. No code conflict.
+The subsequent test-only a95bbb44d checks hostile inherited credentials and
+loader settings. Post-merge affected checks pass 208/208: packaging 73,
+filesystem 1, ownership 9, admission 27, residency 7, guide 86, local-e2e 5.
+Reprepared the identical client and rebuilt musl production in 3m42s. Both
+merged roots passed: Ubuntu 11.225 s, Alpine 10.228 s. No second full suite.
+
+Rootfs SHA-256: Ubuntu
+6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9;
+Alpine 42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb.
+Merged binary: 17,193,248 B, SHA-256
+23e4e408c750d30ca6554c91fbbf04e7c522edd9b6048aff01d21ba16695803e;
+platform tarball 7,406,320 B; client 840,123 B, unchanged SRI. Both binaries
+have no ELF interpreter or NEEDED entries. Wasm unchanged before/after merge:
+1,980,253 B raw / 571,810 B gzip, 1,031 B under the unchanged 572,841 B cap;
+SHA-256 324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+
+Detailed file list, pins, timings, exact commands, successful pre-merge
+receipt and separately labelled merged evidence are in
+reports/20260927-lx-linux-package/. Raw logs and tarballs are in ignored
+target/lane-lx-round1/. Version remains 0.4.4; integration owns 0.4.5 and its
+fresh release qualification. No open round-1 blocker, no round-2 review
+response, no signing, registry login, push or publication.
+Final reference audit: 515 LLP docs, 9,585 refs, zero errors/unchecked;
+frozen Bun install and diff whitespace checks pass. Every lane commit has
+the requested co-author trailer; changed source files remain under 1,500 lines.
+
+
+### 2026-09-27 — Lane LX round 2: review fixes and repeated Linux qualification
+
+Answered both round-0 reviewers in five local commits: 72a5db71e selects
+exact packed platform dependencies (Astra 2/Grok 1); 0e85d0353 copies and
+verifies private upload snapshots, then rechecks immediately before each
+publish (Astra 1/Grok 2 and 3); 8bd9f6bc6 explicitly pins Cargo's target
+directory (Astra 3); 191baff79 executes both routes' real proof shell bodies
+in the qualifier harness and refuses entrypoint/guard failures (Astra 4/
+Grok 3); 94c05f338 parses packed ELF on the Mac import path and pins SQLite
+flag equality (Grok 4 and its flag observation). A new no-Linux-receipt run
+packs a Darwin-only client from a private package copy, preserving the flow
+without naming an unpublished Linux version. Prepared clients and resumes
+must match the staged platform set. Format-2 resumes still work. Proot is
+retained; the Mac does not execute or rebuild Linux.
+
+All 95 affected tests pass (48 publication, 24 signing, 18 qualifier, 5
+Linux package/parser/resolver/flag tests). Before/after regressions cover
+exact platform selection, all three stage tarballs swapped after proof in
+fresh/resumed runs with zero uploads, private snapshot isolation and upload
+rehashing, redirected Cargo output with a stale binary, forged static-ELF
+receipts and SQLite flag mismatch. Six proof-body mutations (entrypoint,
+override guard and Node pin on each route) all turn success tests red;
+actual failing entrypoints propagate without a receipt on both routes.
+
+At clean implementation head 94c05f338, prepared a fresh common client,
+then ran qualify-linux.mjs once. It ran scripts/test.sh exactly once and
+both real proot roots: exit 0, exact summary `== 0 failure(s) in 1364 s`.
+Failures: ours 0, baseline 0, environmental 0. Rust/doctests 3,809 passed,
+24 ignored, 877 s; whole guide 86/86; client main 2,552 passed, 10 skips,
+all 56 shards passed, 195 s; models 78/78, 256 s; wrappers 9/9. All other
+stages pass. Ephemeral typing and session restore passed in this full run;
+no flake rerun or change. The inherited 60-second suite budget remains
+exceeded; no deadline or budget changed.
+
+Fresh proot Ubuntu 24.04.3 / Node 22.22.0 passed in 13.033 s; Alpine 3.23.3 /
+Node 24.18.1 in 13.702 s, including setup. All cached downloads were checked;
+unchanged production Cargo outputs qualified in 0.05 s. Both roots ran
+version/init/check/dev, a real write/read and a denied cross-persona read
+with no binary override or checkout. Static binary 17,193,248 B, SHA-256
+23e4e408c750d30ca6554c91fbbf04e7c522edd9b6048aff01d21ba16695803e;
+Linux tarball 7,406,320 B; client 840,123 B. All match round 1's merged
+bytes. Both shell/import ELF checks find no interpreter or NEEDED entries.
+Wasm unchanged: 1,980,253 B raw / 571,810 B gzip, SHA-256
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc,
+1,031 B below the unchanged 572,841 B cap.
+
+Reference audit: 515 LLP documents, 9,586 refs, zero errors/unchecked.
+Frozen Bun install and diff whitespace checks pass; changed source files
+are below 1,500 lines. Node 24.13.1, npm 11.8.0, Bun 1.3.14, Rust 1.97.0,
+eight Cargo build jobs, dev/test debug off, incremental off, fd limit 65,536.
+No engine, authorization, disclosure, durability or meter changes. No
+system settings, version bump, actual Mac signing, registry login/write,
+push or publication. Integration owns 0.4.5 and its fresh qualification.
+
+The report and copied round2-receipt.json are under
+reports/20260927-lx-linux-package/; raw evidence and tarballs are under
+ignored target/lane-lx-round2/. The final evidence commit changes only
+documents/receipt after the qualified head. Every commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-27 — A5 round 5: an owned continuation's cut is never its head
 
 Read the lane prompt, report/journal rounds 0–4 and both round-4 reviews.
@@ -67912,3 +68093,34 @@ E_QUARRY_BOUND limitation and inner-if workaround remain documented. Full file
 map, examples, commits, individual failures and reproduction:
 reports/20260927-qe-quarry-ergonomics/ROUND1.md. Ignored evidence:
 target/lane-qe-r1/.
+### 2026-09-27 — Lane LX round 3: mutation-proven publication tests
+
+Closed the four Low round-2 review gaps with test/record changes only.
+Fourteen new round-trip cases execute the unchanged production proof under
+mocked subprocess/client boundaries, pinning version/init/check/dev,
+write/read/disclosure assertions, refusal propagation and cleanup. The
+qualifier mock checks the actual proot environment against the exact
+allowlist with host sentinels seeded, including Alpine setup. Fake npm
+records and checks its install arguments and both tarball paths. Fake
+Cargo requires its actual LIBSQLITE3_FLAGS to equal sqliteBuildFlags.
+
+All 109 affected tests pass (4.332 s); the whole guide passes 86/86 (2.53 s
+execution). Eight independent temporary-copy mutations each fail exactly
+one selected test: immediate exception/no-op proof, inherited proot host
+environment, npm --version on each route, omission of either tarball,
+and unset SQLite flags immediately before Cargo. Production sources were
+never mutated. Frozen Bun install passes; no dependency changes.
+
+No scripts/test.sh run, per the explicit round-3 test-only instruction;
+round 2's `== 0 failure(s) in 1364 s` at 94c05f338 is historical evidence,
+not new qualification. No unmutated affected/guide failures. Retained wasm
+remeasures 1,980,253 B raw / 571,810 B gzip, unchanged SHA-256
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc,
+0 B delta; no rebuild or budget change. No production behavior, version,
+registry, signing, real-root qualification, push or publication change.
+
+Ticket moved to issues/closed/20260927-snapback4-linux-publication-test-gaps.md
+with the four resolutions. Full report and reproduction:
+reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
+mutation driver/results and all eight failure logs: target/lane-lx-round3/.
+No open round-3 problem; integration owns fresh 0.4.5 qualification.
