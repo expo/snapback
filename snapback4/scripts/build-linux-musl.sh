@@ -18,5 +18,5 @@ if ! command -v "$CC_x86_64_unknown_linux_musl" >/dev/null; then
   exit 1
 fi
 rustup target add x86_64-unknown-linux-musl
-env -u CC_x86_64-unknown-linux-musl -u CFLAGS_x86_64-unknown-linux-musl cargo build --locked --profile production --target x86_64-unknown-linux-musl -p snapback4
+env -u CC_x86_64-unknown-linux-musl -u CFLAGS_x86_64-unknown-linux-musl cargo build --locked --profile production --target-dir "$PWD/target" --target x86_64-unknown-linux-musl -p snapback4
 node scripts/check-elf.mjs target/x86_64-unknown-linux-musl/production/snapback4

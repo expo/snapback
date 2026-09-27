@@ -1,17 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { digest, json, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
+import { digest, json, member, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
   if (scenario.proot) writeFileSync(join(root, "scripts/qualify-linux-proot.mjs"), `
     import { prootDistributions } from './linux-proof-inputs.mjs';
     import { sri } from './publication-artifacts.mjs';
@@ -29,6 +29,31 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "packages/snapback4-linux-x64/THIRD-PARTY-NOTICES"), "notices");
   const binary = join(root, "target/x86_64-unknown-linux-musl/production/snapback4"), b = Buffer.alloc(120);
   Buffer.from([127, 69, 76, 70, 2, 1, 1]).copy(b); b.writeUInt16LE(2, 16); b.writeUInt16LE(62, 18); b.writeBigUInt64LE(64n, 32); b.writeUInt16LE(56, 54); b.writeUInt16LE(1, 56); b.writeUInt32LE(scenario.interpreter ? 3 : 1, 64); writeFileSync(binary, b);
+  if (scenario.redirectedTarget) {
+    const bin = join(root, ".local/bin"); mkdirSync(bin, { recursive: true });
+    writeFileSync(join(root, "fresh-binary"), Buffer.concat([b, Buffer.from("built in this invocation")]));
+    for (const name of ["cargo", "rustup", "musl-gcc", "node"]) {
+      const path = join(bin, name);
+      writeFileSync(path, `#!${process.execPath}
+import { appendFileSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+const root = ${JSON.stringify(root)}, name = ${JSON.stringify(name)}, args = process.argv.slice(2);
+appendFileSync(join(root, 'build-commands.jsonl'), JSON.stringify({ name, args }) + '\\n');
+if (name === 'cargo') {
+  const index = args.indexOf('--target-dir');
+  const target = index < 0 ? process.env.CARGO_TARGET_DIR : args[index + 1];
+  const output = join(target, 'x86_64-unknown-linux-musl/production/snapback4');
+  mkdirSync(dirname(output), { recursive: true }); copyFileSync(join(root, 'fresh-binary'), output);
+}
+if (name === 'node') {
+  if (args[0].endsWith('check-elf.mjs')) copyFileSync(args[1], join(root, 'inspected-binary'));
+  process.stdout.write(execFileSync(${JSON.stringify(process.execPath)}, args));
+}
+`);
+      chmodSync(path, 0o755);
+    }
+  }
   writeFileSync(join(root, "mock.mjs"), `
 import cp from "node:child_process";
 import os from "node:os";
@@ -44,7 +69,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
   if(cmd === "git") return args[0] === "status" ? "" : "a".repeat(40);
   if(cmd === "tar" && args[1] === ${JSON.stringify(client)}) return JSON.stringify(${JSON.stringify(manifest)});
   if(cmd === "tar") return original(cmd,args,opts);
-  if(cmd === "bash") return "";
+  if(cmd === "bash") return scenario.redirectedTarget ? original(cmd,args,{...opts, env: {...opts.env, HOME: root, CARGO_TARGET_DIR: join(root,"redirected"), SNAPBACK4_MUSL_CC: join(root,".local/bin/musl-gcc")}}) : "";
   if(cmd === "curl") { writeFileSync(args[args.indexOf("--output") + 1], "wrong pinned bytes"); return ""; }
   if(cmd === "npm" && args[0] === "pack") {
     const filename = "snapback4-linux-x64-0.0.0.tgz";
@@ -91,6 +116,16 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   assert.ok(!r.commands.some(c => ["codesign", "security", "xcrun"].includes(c.cmd)));
   const containers = r.commands.filter(c => c.cmd === "docker" && c.args[0] === "run"); assert.equal(containers.length, 2);
   assert.ok(containers.every(c => !c.args.includes("--volume") && !c.args.includes("-v") && !c.args.includes("--env-file")));
+});
+
+test("redirected CARGO_TARGET_DIR inspects, proves and packs the binary just built", t => {
+  const r = qualify(t, { redirectedTarget: true }); assert.equal(r.status, 0, r.stderr);
+  const fresh = readFileSync(join(r.root, "fresh-binary"));
+  assert.deepEqual(readFileSync(join(r.root, "inspected-binary")), fresh, "the shell ELF check inspected this build");
+  assert.deepEqual(member(join(r.root, "out", r.receipt.platform.filename), "snapback4"), fresh, "qualification packed this build");
+  assert.equal(r.receipt.binarySha256, digest(join(r.root, "fresh-binary")));
+  assert.ok(r.receipt.proofs.every(p => p.platformIntegrity === r.receipt.platform.integrity));
+  assert.equal(existsSync(join(r.root, "redirected/x86_64-unknown-linux-musl/production/snapback4")), false);
 });
 for (const scenario of [{ suiteFail: true }, { proofFail: true }, { interpreter: true }, { noRuntime: true }, { proot: true, proofFail: true }, { proot: true, suiteFail: true }])
   test(`qualification never writes a success receipt on ${JSON.stringify(scenario)}`, t => {

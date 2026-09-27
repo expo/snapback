@@ -494,3 +494,12 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   stage replacement during registry checks (only qualified snapshot bytes
   uploaded), and snapshot corruption during registry checks (zero uploads).
   Publication/signing tests: 69 passed, 0 failed.
+
+- `Pin the musl build output to the qualified target directory`: Astra
+  finding 3 (High), round-2 request 3. `build-linux-musl.sh` passes
+  `--target-dir "$PWD/target"`. The qualifier harness executes the real
+  shell with fake Cargo, a redirected `CARGO_TARGET_DIR`, and a preexisting
+  stale ELF of the same version. The new regression failed before the fix;
+  now the shell's inspected bytes, packed bytes, receipt binary digest and
+  both proofs' platform digest all identify the fresh build. Qualifier
+  tests: 12 passed, 0 failed.
