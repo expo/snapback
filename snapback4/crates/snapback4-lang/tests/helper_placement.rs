@@ -128,3 +128,13 @@ fn normalized(mut program: snapback4_core::ir::Program) -> serde_json::Value {
     rename(&mut value, &aliases, &mut BTreeMap::new());
     value
 }
+
+#[test]
+fn helper_placement_is_restored_before_a_later_sweep() {
+    let source = "effect notify\ntable t:\n  n: int\n  public\nfn zero(): 0\njob run():\n  total = 0\n  for r in t:\n    n = zero()\n  for r in t:\n    total = total + 1\n    emit notify { total }\n";
+    let bound = compile(&[("schema.q".into(), source.into())]);
+    let error = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_PLACEMENT")
+        .unwrap_or_else(|| panic!("{:?}", bound.diagnostics));
+    assert!(error.message.contains("automatic sweep carries local total"), "{error:?}");
+    assert_eq!(error.site.line, 10);
+}
