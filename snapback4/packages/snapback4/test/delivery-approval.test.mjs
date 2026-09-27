@@ -83,6 +83,38 @@ for (const tier of ['online', 'local']) {
     await silent(h, 'Astra E_CLIENT reproduction');
   });
 
+  for (const recovery of ['approve', 'refuse']) test(`createApp ${tier}: a new peer can ${recovery} the same answer after storage recovers`, async t => {
+    const h = await fixture(t, tier);
+    h.onAnswer(() => { h.failStorage(true); return answer(); });
+    const first = h.observe();
+    await until(() => first.getSnapshot().denied?.code === 'E_CLIENT');
+    const identity = answerIdentity(peekObservation(h.raw, op, {}));
+    h.failStorage(false);
+    await silent(h, 'refusal before recovery');
+    h.hold();
+    const peer = h.observe();
+    await until(() => h.pending.length === 1);
+    h.pending[0].resolve(true); // The new facade may attach to the existing raw watch.
+    await until(() => h.pending.length === 2);
+    await silent(h, 'new approval still pending');
+    h.pending[1].resolve(recovery === 'approve');
+    if (recovery === 'approve') {
+      await until(() => peer.getSnapshot().data?.[0]?.ordinal === 41);
+      assert.equal(first.getSnapshot(), peer.getSnapshot(), 'the original facade also recovers');
+      await until(() => h.reports.length === 1, 'recovered manifest report');
+      await delay(300);
+      assert.deepEqual(h.collections, [manifest([41])], 'one collection of the original manifest');
+      assert.deepEqual(h.reports.map(r => r.args), [{ conversation: 'c', from: 41, through: 41 }]);
+      if (tier === 'local') await until(() => h.debt()[0]?.reported?.[0]?.[0] === 41, 'durable reported coverage');
+    } else {
+      await until(() => peer.getSnapshot().denied?.code === 'E_AUTH');
+      assert.equal(first.getSnapshot(), peer.getSnapshot(), 'the refusal reaches both facades');
+      await silent(h, 'answer never approved');
+    }
+    assert.equal(h.queries, 1, 'no refetch restored the manifest');
+    assert.equal(answerIdentity(peekObservation(h.raw, op, {})), identity, 'the raw answer is unchanged');
+  });
+
   for (const outcome of ['approve', 'false', 'throw', 'expired']) test(`createApp ${tier}: query waits for final ${outcome} check before accepting delivery`, async t => {
     const h = await fixture(t, tier);
     h.onAnswer(() => { h.hold(); return answer([41], outcome === 'expired' ? { nextExpiry: Date.now() + 500 } : {}); });
@@ -122,3 +154,42 @@ for (const tier of ['online', 'local']) {
     assert.deepEqual(h.reports[0].args, { conversation: 'c', from: 47, through: 47 });
   });
 }
+
+test('createApp local: superseding an approved answer fences its delayed collection commit', async t => {
+  const gate = Promise.withResolvers(), finished = Promise.withResolvers(), successor = Promise.withResolvers();
+  t.after(() => { gate.resolve(); successor.resolve(answer([43])); });
+  let held;
+  const h = await fixture(t, 'local', { async collect(commit, request, current) {
+    if (held) return commit();
+    held = { request, current };
+    await gate.promise;
+    try { return await commit(); } finally { finished.resolve(); }
+  } });
+  h.onAnswer(n => {
+    if (n === 1) return answer([41], { refresh: 250 });
+    h.hold(); return successor.promise;
+  });
+  const watch = h.observe();
+  await until(() => watch.getSnapshot().data?.[0]?.ordinal === 41 && held);
+  const original = peekObservation(h.raw, op, {}), owner = answerObservation(original);
+  const session = h.raw.session(), incarnation = owner.incarnation, resetVersion = owner.resetVersion;
+  assert.ok(Number.isInteger(incarnation), 'the real local watch records its client incarnation');
+  assert.equal(held.current(), true, '41 is approved and current before the delay');
+  assert.deepEqual(Object.values(JSON.parse(held.request.value).groups).map(g => g.owed), [[[41, 41]]]);
+  assert.deepEqual(h.debt(), [], 'the held collection has not committed');
+  successor.resolve(answer([43]));
+  await until(() => h.pending.length && peekObservation(h.raw, op, {}).data?.[0]?.ordinal === 43);
+  assert.notEqual(answerIdentity(peekObservation(h.raw, op, {})), answerIdentity(original));
+  assert.equal(answerObservation(peekObservation(h.raw, op, {})), owner);
+  assert.deepEqual(h.raw.session(), session, 'credentials stay unchanged');
+  assert.equal(owner.incarnation, incarnation, 'the client incarnation stays unchanged');
+  assert.equal(owner.resetVersion, resetVersion, 'no reset supplied the fence');
+  gate.resolve(); await finished.promise; await delay(320);
+  assert.deepEqual(h.debt(), [], 'superseded 41 writes no debt');
+  assert.deepEqual(h.reports, [], 'neither stale 41 nor unapproved 43 reports');
+  h.pending[0].resolve(true);
+  await until(() => watch.getSnapshot().data?.[0]?.ordinal === 43 && h.reports.length === 1);
+  assert.deepEqual(h.collections, [manifest([41]), manifest([43])]);
+  assert.deepEqual(h.reports.map(r => r.args), [{ conversation: 'c', from: 43, through: 43 }]);
+  await until(() => h.debt()[0]?.reported?.[0]?.[0] === 43, 'successor debt commits normally');
+});

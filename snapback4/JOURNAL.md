@@ -71991,3 +71991,62 @@ No device, meter, authorization, dependency, version or budget change; no origin
 store opened or workload measurement rerun. No tool installed or shared path
 modified. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-09-28 — Lane DC round 14: approval after refusal retains its manifest
+
+Fetched and merged origin/main first as 5eac262f2. The two journal-only
+conflicts retain both sides; both complete parent journals remain ordered
+subsequences. Read the binding prompts, prior DC reports/journal entries and
+Astra's full round-13 review. Grok had no verdict, so did not wait. Scoped
+llp-orient used the initialized sibling lane-a5 skill; the delivery acceptance
+and shared approval constraints remain LLP 3000.022 section 4 and LLP 3000.023
+section 3.6 under the supervisor's explicit ruling.
+
+Removed refusal-time deletion of the pending answer manifest and its unused
+internal helper. A newly checked peer can approve the same raw answer later,
+then collect exactly once. Shared approval generations and older-check fences
+are unchanged. Superseded, withdrawn, expired or obsolete-incarnation answers
+still fail the existing current/identity predicate, including during conditional
+persistence. Unguarded acceptance, device publication and queue policy remain.
+
+Added five createApp cases. On online and real wasm local fallback, actual
+session-store failure makes answer 41 refuse E_CLIENT; after storage recovery,
+a new peer approves the same identity, both facades show 41 and its manifest
+collects/reports once, with exactly one raw query. Two companion cases reject
+the new check and remain silent with no collection, debt or report. The fifth
+holds an approved local collection before its conditional commit, replaces the
+raw answer with 43 without changing credentials/incarnation/reset version, and
+proves released 41 writes no debt; approved 43 subsequently persists/reports.
+The helper delays outside the actual wasm device chain, preserving real CAS
+and conditional persistence while allowing the successor read to complete.
+
+Both recovery tests fail on the original runtime at the missing-report
+assertion. Astra's exact collect(valid) to collect(current) mutation now fails
+at superseded 41 writes no debt, with persisted reported coverage for 41.
+Bypassing guarded deferral fails both new never-approved tests. These five
+expected failures are ours, retained as negative-control evidence; there are
+no accidental or final qualification failures, and no environmental failures.
+
+Final checks: delivery/queue/refusal/CAS/activation/presence/browser plus
+prediction routing and source census 435/435; standalone facade cases 29/29;
+approval lifecycle/model/oracle 874/874 with 240 seeds; React 51/51; whole guide
+92/92. Build/typecheck, rebuilt merged CLI, changed-source caps and whitespace
+pass. Root ref-check: 521 LLPs, 9,744 refs, zero errors/unchecked. Both merge
+parents' histories and all runtime inputs are recorded with checksums.
+
+Remeasured, did not rebuild, the unchanged wasm: 2,019,815 B raw / 585,193 B
+gzip, SHA-256 fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1.
+This is byte-identical to round 13 and leaves 1,000 B under the unchanged
+586,193 B budget. No Rust device/core, meter, dependency or version change.
+Did not run scripts/test.sh, as directed: the supervisor owns the round-13
+landing suite. Its earlier completed result remains historical:
+== 1 failure(s) in 1707 s, client tests; the baseline process history/sync-join
+race documented in ROUND13.md, confirmed by Astra. No new full-suite claim.
+
+No design deviation or new open product problem. Unsupported hosts without
+conditional deliveryCommit still omit supplementary fallback debt, as the
+existing CAS test documents; ordinary device publication stays transactional.
+No new comparative or crash qualification. No tool installed, push or
+publication. The commit carries the required Astra co-author trailer.
+Report and durable evidence: reports/20260927-dc-delivery-client/ROUND14.md
+and round14/ beside it.

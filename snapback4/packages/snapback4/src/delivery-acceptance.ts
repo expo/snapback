@@ -8,8 +8,6 @@ const pending = new WeakMap<object, { current(): boolean; collect(): void }>();
 export function guardDelivery(client: Client): void {
   if (typeof client.observe === "function") guarded.add(client.observe);
 }
-export function discardDelivery(read: Read<unknown>): void { pending.delete(answerIdentity(read)); }
-
 // @ref LLP 3000.022#4 — a guarded answer carries collection until facade approval.
 export function offerDelivery(client: Client, read: Read<unknown>,
   collect: (current?: () => boolean) => void, current: () => boolean): void {

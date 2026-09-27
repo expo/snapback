@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { memorySessionStore, keepSession } from '../../dist/auth.js';
 import { webDevice, memoryPersistence } from '../../dist/web.js';
 import { DeliveryQueue } from '../../dist/delivery.js';
+import { deliveryCommit } from '../../dist/local-device.js';
 import { wasm } from './delivery-fixture.mjs';
 import { server, until } from './app-server.mjs';
 
@@ -47,7 +48,7 @@ table messages:
 query fallback():
   return messages first 20 by .id
 `;
-export async function fixture(t, tier = 'online') {
+export async function fixture(t, tier = 'online', { collect } = {}) {
   const { url } = await server(t, '', source), memory = memorySessionStore();
   const session = { kind: 'user', token: 'fixture', principal: 'dev:alice', expiresAt: Date.now() + 86400000 };
   await keepSession(url, session, memory);
@@ -69,6 +70,15 @@ export async function fixture(t, tier = 'online') {
     const headers = new Headers(init?.headers); headers.delete('authorization'); headers.set('x-snapback-persona', 'alice');
     return fetch(input, { ...init, headers });
   };
+  const device = webDevice({ wasm, persist });
+  const localDevice = collect ? { async open(...args) {
+    const core = await device.open(...args);
+    return { ...core, [deliveryCommit](request, current) {
+      // Delay outside the device chain so reads can supersede the answer while
+      // its collection waits. The real conditional commit still owns the write.
+      return collect(() => core[deliveryCommit](request, current), request, current);
+    } };
+  } } : device;
   const head = await personaFetch(url + '/probe').then(r => r.json());
   const options = { url, sessionStore: { ...memory, async get(key) {
     if (storageError) throw Error('session storage temporarily unavailable');
@@ -97,7 +107,7 @@ export async function fixture(t, tier = 'online') {
       return Response.json({ state: 'sent', head: head.seq, seq: head.seq, store_id: head.store_id });
     }
     return personaFetch(input, init);
-  }, ...(tier === 'local' ? { device: webDevice({ wasm, persist }), waitSeconds: 1 } : {}) };
+  }, ...(tier === 'local' ? { device: localDevice, waitSeconds: 1 } : {}) };
   const app = createApp(options);
   t.after(async () => {
     held = false; storageError = false; pending.forEach(gate => gate.resolve(true));

@@ -1,0 +1,15 @@
+{
+  "merge": "5eac262f21353a1f88d9967748982ef5bdc0a837",
+  "journals": [
+    {
+      "parent": "HEAD^1",
+      "lines": 71790,
+      "preserved_in_order": true
+    },
+    {
+      "parent": "HEAD^2",
+      "lines": 70981,
+      "preserved_in_order": true
+    }
+  ]
+}

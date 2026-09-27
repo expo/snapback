@@ -1,0 +1,86 @@
+{
+  "approval-before": {
+    "exit": 1,
+    "tests": 5,
+    "pass": 3,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "classification": "ours, expected pre-fix or mutation negative control"
+  },
+  "facade": {
+    "exit": 0,
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "mutant-identity": {
+    "exit": 1,
+    "tests": 1,
+    "pass": 0,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "classification": "ours, expected pre-fix or mutation negative control"
+  },
+  "mutant-early": {
+    "exit": 1,
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "classification": "ours, expected pre-fix or mutation negative control"
+  },
+  "approval": {
+    "exit": 0,
+    "tests": 874,
+    "pass": 874,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "react": {
+    "exit": 0,
+    "tests": 51,
+    "pass": 51,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "delivery-browser": {
+    "exit": 0,
+    "tests": 435,
+    "pass": 435,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "guide": {
+    "exit": 0,
+    "pass": 92,
+    "fail": 0
+  },
+  "build": {
+    "exit": 0
+  },
+  "typecheck": {
+    "exit": 0
+  },
+  "cli-build": {
+    "exit": 0
+  },
+  "ref-check": {
+    "exit": 0,
+    "llp_docs": 521,
+    "references": 9744,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "full-suite": {
+    "run": false,
+    "reason": "User instruction: supervisor owns the round-13 landing suite."
+  }
+}

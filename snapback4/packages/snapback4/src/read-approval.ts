@@ -3,7 +3,7 @@ import { answerIdentity, answerObservation, revalidatingAnswer, type ReadObserva
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
 import { ReadEpisode } from "./read-episode.ts";
-import { approveDelivery, discardDelivery } from "./delivery-acceptance.ts";
+import { approveDelivery } from "./delivery-acceptance.ts";
 
 export interface ApprovedAnswer {
   snapshot: Read<unknown>;
@@ -111,7 +111,8 @@ export class ReadApprovals {
   }
 
   reject(read: Read<unknown>, denied: Read<unknown>): void {
-    discardDelivery(read);
+    // A newly checked peer may still approve this raw identity. Keep its
+    // pending manifest; the generation below only fences older authority checks.
     const owner = answerObservation(read);
     if (!owner) return;
     const answer = this.get(read)!;
