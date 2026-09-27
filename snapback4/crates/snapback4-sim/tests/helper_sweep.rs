@@ -2,7 +2,7 @@
 use snapback4_core::{Engine, JobState, Value, value::object};
 use std::collections::BTreeMap;
 
-const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/helper-sweep.q");
+const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/qe/helper-sweep.q");
 
 #[test]
 fn helper_and_inline_digest_emit_the_same_effects_across_chunks() {

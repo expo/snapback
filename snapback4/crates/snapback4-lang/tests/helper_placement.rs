@@ -1,6 +1,6 @@
 use snapback4_lang::{Bound, compile};
 
-const SOURCE: &str = include_str!("fixtures/helper-sweep.q");
+const SOURCE: &str = include_str!("fixtures/qe/helper-sweep.q");
 
 fn checked(source: &str) -> Bound {
     let bound = compile(&[("schema.q".into(), source.into())]);
