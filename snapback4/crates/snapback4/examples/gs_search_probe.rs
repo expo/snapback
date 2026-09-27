@@ -32,6 +32,10 @@ fn measure(engine: &mut Engine, viewer: &str, name: &str, label: &str) {
         let first_ids = ids(&page.data);
         let next_ids = ids(&next.data);
         assert!(next_ids.iter().all(|id| !first_ids.contains(id)), "duplicate across pages");
+        let keys = page.data.as_array().unwrap().iter().chain(next.data.as_array().unwrap())
+            .map(|row| (row.field("at").unwrap().as_int().unwrap(), row.field("id").unwrap().as_str().unwrap()))
+            .collect::<Vec<_>>();
+        assert!(keys.windows(2).all(|pair| pair[0] > pair[1]), "global order across pages");
         json!({"complete":next.complete,"rows":next_ids.len(),"next":next.next.is_some(),"meter":next.metered})
     });
     println!("{}", json!({"label":label,"query":name,"p50_ms":times[9],"p95_ms":times[18],

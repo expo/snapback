@@ -68011,3 +68011,31 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+### 2026-09-27 — Lane GS: global-search baseline and continuation design stop
+
+Reproduced calibration #23's original unscoped search on a copied final store:
+empty, incomplete, no cut/next, examined 1. That is a prepaid caller reservation;
+the private authorization walk exhausts before the first readable descending
+coffee hit, entry 44,101. Reconstructed the old membership-scoped decoration:
+20 complete hits, next, 2,142 examined, 10,985,983 heap / 520,591 output bytes.
+Repeated peer profiles account for 10,170,235 incremental heap bytes. The final
+builder's existing DM-only peer helper costs 907,738 heap / 25,711 output;
+the bare merge costs 554,978 / 8,251. This viewer has 100 memberships, not the
+store's 1,002 conversations. Original DB/WAL/SHM hashes remain unchanged.
+
+Synthetic 1,000/3,000/10,000-member first pages: 3,040/3,000/8,193 examined,
+12,737,170/16,782,426/14,170,444 heap bytes; only 1,000 returns a complete
+20-hit page with next. The 3,000 opening is heap-cut; 10,000 is discovery-cut.
+LLP 3000.024 records the lean-cursor proposal and the required multi-request
+consistency/state-lifetime decision. Stopped at the brief's explicit design
+checkpoint: no runtime, authorization, cursor, meter, certificate or guide
+change; no raised budget, push or publication. No claim the feature is fixed.
+
+Whole guide 86/86; copied-store reproduction and research probes pass.
+Wasm 1,981,512 B raw / 572,053 B gzip under 572,841; runtime delta 0 B.
+`== 1 failure(s) in 1296 s`, exit 1. Baseline intermittent client failures:
+`MQ local branch wasm` clock assertion and `MQ local branch watch wasm` 60 s
+timeout; both pass together in isolation (2/2). Cause not established; no test
+or deadline changes. All other phases pass. Full report, raw measurements,
+reproduction commands and failure records: reports/20260927-gs-global-search/.
