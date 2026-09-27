@@ -39,3 +39,26 @@ test('client manifest-only binding keeps its fallback debt through device adopti
  ok(await core.call({...snapshot,page:{...snapshot.page,events:[]}}));
  assert.deepEqual((await debt(core)).groups,state.groups);
 });
+
+test('a failed wasm activation save retries the device cursor without skipping its page',async t=>{
+ const memory=memoryPersistence();let fail=false,failedCursor;
+ const persist={...memory,async save(name,changes){
+  const saved=changes.find(c=>c.s==='m'&&c.k.startsWith('device:delivery:'));
+  if(fail&&saved){fail=false;failedCursor=JSON.parse(saved.v).cursors;throw Error('failed after cursor advanced');}
+  return memory.save(name,changes);
+ }};
+ const core=await webDevice({wasm,persist}).open('cursor-failure',backend);t.after(()=>core.close());
+ const sample=snapshot.page.events.find(e=>e.table==='messages');
+ const events=[...snapshot.page.events.filter(e=>e.table!=='messages'),...Array.from({length:501},(_,i)=>({
+  ...sample,id:`row${i}`,data:{...sample.data,id:`row${i}`,at:i+1},
+ }))];
+ ok(await core.call({...snapshot,page:{...snapshot.page,events}}));
+ // No registered viewer during publication: the cursor is the only collector.
+ const enumerate={op:'delivery',viewer:'dev:alice',action:'enumerate',now:100};
+ fail=true;await assert.rejects(core.call(enumerate),/failed after cursor advanced/);
+ assert.ok(Object.values(failedCursor).some(c=>c.after&&c.done===false),'failure follows the actual device cursor advance');
+ const rolledBack=await debt(core);assert.deepEqual(rolledBack.cursors,{});assert.deepEqual(owed(rolledBack),[]);
+ ok(await core.call(enumerate));assert.deepEqual(owed(await debt(core)),[[[1,500]]]);
+ ok(await core.call(enumerate));assert.deepEqual(owed(await debt(core)),[[[1,501]]]);
+ assert.equal(ok(await core.call(enumerate)).more,false);
+});

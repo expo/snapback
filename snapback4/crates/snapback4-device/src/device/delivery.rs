@@ -86,16 +86,17 @@ fn add(value: &mut Json, n: i64) {
     *value = Json::Array(merged.into_iter().map(|(a,b)| Json::Array(vec![Json::from(a), Json::from(b)])).collect());
 }
 
-fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: String) -> Result<(), RuntimeError> {
+fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: String, evict: bool) -> Result<bool, RuntimeError> {
     let group = row.field(&binding.group)?.as_str()?;
     let position = row.field(&binding.position)?.as_int()?;
     // Queue arguments are JavaScript numbers: never round a fetched coordinate
     // into a different, unfetched position at the host boundary.
-    if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&position) { return Ok(()); }
+    if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&position) { return Ok(true); }
     let key = group_key(binding, group)?;
     if state["groups"].get(&key).is_none() {
         if state["groups"].as_object().unwrap().len() >= 4096 {
-            let oldest = state["groups"].as_object().unwrap().iter().min_by_key(|(_,v)| v["collected"].as_u64().unwrap_or(0)).map(|(k,_)| k.clone()).unwrap();
+            let oldest = state["groups"].as_object().unwrap().iter().filter(|(_,g)| evict || (g["owed"].as_array().is_some_and(|v| v.is_empty()) && g["parked"].as_array().is_some_and(|v| v.is_empty()))).min_by_key(|(_,v)| v["collected"].as_u64().unwrap_or(0)).map(|(k,_)| k.clone());
+            let Some(oldest) = oldest else { return Ok(false); };
             let old = state["groups"].as_object_mut().unwrap().remove(&oldest).unwrap();
             if old["saturated"] == true || !runs(&old["refused"]).is_empty() {
                 state["retired"][oldest] = json!({"refused":old["refused"],"saturated":old["saturated"],"scope":old["scope"]});
@@ -109,12 +110,19 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
             "group":group,"incarnation":incarnation,"collected":incarnation,"ready":incarnation,"owed":[],"reported":[],"refused":refused,
             "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
-    if state["groups"][&key]["saturated"] == true { return Ok(()); }
+    if state["groups"][&key]["saturated"] == true { return Ok(true); }
+    // Activation pauses before a collection could displace an owed or parked
+    // run. A publication retains its ordinary bounded under-reporting policy.
+    let debt = &state["groups"][&key];
+    if !evict && debt["owed"].as_array().unwrap().len() + debt["parked"].as_array().unwrap().len() >= 256
+        && !runs(&debt["owed"]).iter().any(|&(a,b)| a.saturating_sub(1) <= position && position <= b.saturating_add(1))
+        && !covers(&debt["reported"], position) && !covers(&debt["refused"], position)
+        && !debt["parked"].as_array().unwrap().iter().any(|p| p["run"][0].as_i64().is_some_and(|a| a <= position) && p["run"][1].as_i64().is_some_and(|b| position <= b)) { return Ok(false); }
     let version = serial(state);
     let debt = &mut state["groups"][&key];
     debt["collected"] = json!(version); debt["wake"] = json!(true); debt["scope"] = json!(scope);
     if covers(&debt["reported"], position) || covers(&debt["refused"], position)
-        || debt["parked"].as_array().into_iter().flatten().any(|p| p["run"][0].as_i64().is_some_and(|a| a <= position) && p["run"][1].as_i64().is_some_and(|b| b >= position)) { return Ok(()); }
+        || debt["parked"].as_array().into_iter().flatten().any(|p| p["run"][0].as_i64().is_some_and(|a| a <= position) && p["run"][1].as_i64().is_some_and(|b| b >= position)) { return Ok(true); }
     add(&mut debt["owed"], position); add(&mut debt["recent"], position);
     while debt["owed"].as_array().unwrap().len() + debt["parked"].as_array().unwrap().len() > 256 {
         let parked = debt["parked"].as_array().unwrap().iter().enumerate().min_by_key(|(_,p)| p["run"][0].as_i64()).map(|(i,p)| (i,p["run"][0].as_i64().unwrap()));
@@ -128,7 +136,7 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
             debt.as_object_mut().unwrap().remove("attempt");
         }
     }
-    Ok(())
+    Ok(true)
 }
 fn eligible(schema: &Schema, groups: &history::Groups, table: &str, row: &Value, now: i64) -> Result<bool, RuntimeError> {
     Ok(row.field("pending") != Ok(&Value::Bool(true)) && !schema.tables[table].expired(row, now)
@@ -162,7 +170,7 @@ pub(super) fn publish<T: DeviceTx>(tx: &T, schema: &Schema, candidates: &Candida
         let Some(row) = tx.get(table,id)? else { continue; };
         if !eligible(schema, &groups, table, &row, now)? { continue; }
         for binding in schema.delivery.iter().filter(|b| b.table == *table) {
-            collect(&mut state, binding, &row, history::row_key(&schema.tables[table], &row)?)?;
+            collect(&mut state, binding, &row, history::row_key(&schema.tables[table], &row)?, true)?;
         }
     }
     save(tx, &viewer, &state)
@@ -202,6 +210,7 @@ impl<S: DeviceStore> Device<S> {
         tx.set_meta(VIEWER, viewer)?;
         let mut state = load(&tx,viewer)?; reconcile(&mut state, &self.schema)?;
         let mut more = false;
+        let mut blocked = false;
         if request["action"] == "enumerate" {
             let groups = history::load(&tx, history::GROUPS)?;
             let now = expiry_clock::now(&tx, request["now"].as_i64().unwrap_or(0))?;
@@ -214,13 +223,16 @@ impl<S: DeviceStore> Device<S> {
                 let after: Option<Vec<Value>> = state["cursors"][&key].get("after").map(|v| decoded(&v.to_string())).transpose()?;
                 let reading = history::Reading { tx: &tx, schema: &self.schema, groups, boundaries: boundary::Boundaries::load(&tx,false)?, retained: std::cell::Cell::new(false) };
                 let rows = reading.scan(&binding.table, index.0, &[], &Bounds { after, ..Bounds::default() }, Dir::Asc, 500)?;
-                for (row,_) in &rows {
-                    if eligible(&self.schema, &reading.groups, &binding.table, row, now)? { collect(&mut state,binding,row,history::row_key(table,row)?)?; }
+                let mut last = None;
+                for (row,key_bytes) in &rows {
+                    if eligible(&self.schema, &reading.groups, &binding.table, row, now)?
+                        && !collect(&mut state,binding,row,history::row_key(table,row)?,false)? { blocked = true; break; }
+                    last = Some(key_bytes);
                 }
-                if let Some((_,key_bytes)) = rows.last() {
+                if let Some(key_bytes) = last {
                     let values = snapback4_core::key::decode(key_bytes).ok_or_else(|| RuntimeError::Store("invalid delivery index cursor".into()))?;
-                    state["cursors"][&key] = json!({"after": decoded::<Json>(&encoded(&values)?)?, "done": rows.len() < 500});
-                } else { state["cursors"][&key] = json!({"done":true}); }
+                    state["cursors"][&key] = json!({"after": decoded::<Json>(&encoded(&values)?)?, "done": !blocked && rows.len() < 500});
+                } else if !blocked { state["cursors"][&key] = json!({"done":true}); }
                 more = true; // Another bounded turn discovers all bindings' done markers.
                 break;
             }
@@ -228,7 +240,7 @@ impl<S: DeviceStore> Device<S> {
         let value = encoded(&state)?;
         tx.set_meta(&meta,&value)?;
         tx.commit()?;
-        Ok(json!({"value":value,"more":more}))
+        Ok(json!({"value":value,"more":more,"blocked":blocked}))
     }
 }
 

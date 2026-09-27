@@ -87,14 +87,15 @@ export function localDelivery(env: Environment) {
     enumerating = true;
     try {
       // Startup witnessing and the ordinary outbox gate apply to scanning too.
-      // Flush each page before collecting more, so activation cannot evict debt.
+      // Only startup debt holds the barrier. The device stops a later page
+      // at capacity without advancing over or evicting uncollected rows.
       if (!await queue.flushed()) return;
       if (stopped || !env.current() || !env.ready()) return;
-      const reply = await serial(() => call({ action: "enumerate", now: env.now() })) as { more: boolean };
+      const reply = await serial(() => call({ action: "enumerate", now: env.now() })) as { more: boolean; blocked?: boolean };
       enumerationDone = !reply.more;
       enumerationBackoff = 1000;
       queue.published();
-      if (reply.more) scheduleEnumeration(0);
+      if (reply.more && !reply.blocked) scheduleEnumeration(0);
     } catch {
       // The device owns the durable raw cursor; a failed page resumes there.
       scheduleEnumeration(enumerationBackoff);

@@ -219,3 +219,32 @@ fn manifest_adoption<H:Host>(h:&mut H) {
 }
 #[test]fn manifest_adoption_memory(){manifest_adoption(&mut Memory::new())}
 #[test]fn manifest_adoption_sqlite(){manifest_adoption(&mut Sqlite::new("delivery-manifest-adoption"))}
+
+fn activation_room<H:Host>(h:&mut H) {
+    let mut d=h.open("activation-room",Some(backend())).unwrap();
+    d.apply(&page(true,(1..=300).map(|n|event(n*2)).collect(),1),true).unwrap();
+    let first=request(&mut d,"enumerate");
+    let before=state(&mut d);let runs=owed(&before,"messages");
+    assert_eq!(runs.as_array().unwrap().len(),256);
+    assert_eq!(runs[0],json!([2,2]),"an activation page never evicts its earlier debt");
+    assert_eq!(first["blocked"],true);
+    request(&mut d,"enumerate");assert_eq!(state(&mut d),before,"no room leaves both debt and cursor unchanged");
+    reset_debt(&mut d);request(&mut d,"enumerate");
+    let rest=owed(&state(&mut d),"messages");assert_eq!(rest.as_array().unwrap().len(),44);assert_eq!(rest[0],json!([514,514]));
+}
+#[test]fn activation_room_memory(){activation_room(&mut Memory::new())}
+#[test]fn activation_room_sqlite(){activation_room(&mut Sqlite::new("delivery-activation-room"))}
+
+#[test]fn activation_sqlite_error_after_cursor_advance_retries_the_same_rows(){
+    let mut h=Sqlite::new("delivery-cursor-error");let mut d=h.open("cursor-error",Some(backend())).unwrap();
+    d.apply(&page(true,(1..=501).map(event).collect(),1),true).unwrap();request(&mut d,"read");
+    d.store().conn().execute_batch(r#"CREATE TRIGGER delivery_fail BEFORE INSERT ON _meta
+      WHEN NEW.key LIKE 'device:delivery:%' AND instr(NEW.value, '"after"') > 0
+      BEGIN SELECT RAISE(ABORT, 'failed after delivery cursor advanced'); END;"#).unwrap();
+    let error=d.delivery(&json!({"viewer":"dev:alice","action":"enumerate","now":20})).unwrap_err();
+    assert!(error.to_string().contains("failed after delivery cursor advanced"));
+    let rolled_back=state(&mut d);assert_eq!(rolled_back["cursors"],json!({}));assert_eq!(owed(&rolled_back,"messages"),json!([]));
+    d.store().conn().execute_batch("DROP TRIGGER delivery_fail").unwrap();
+    request(&mut d,"enumerate");assert_eq!(owed(&state(&mut d),"messages"),json!([[1,500]]));
+    request(&mut d,"enumerate");assert_eq!(owed(&state(&mut d),"messages"),json!([[1,501]]));
+}

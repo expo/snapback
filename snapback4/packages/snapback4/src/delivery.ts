@@ -40,6 +40,7 @@ export class DeliveryQueue {
   private paused = false;
   private offline = false;
   private pumping = false;
+  private startup: { key: string; incarnation: number; runs: [number, number][] }[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private slow: ReturnType<typeof setTimeout> | undefined;
   private flights = new Set<Flight>();
@@ -50,6 +51,11 @@ export class DeliveryQueue {
     this.tasks.add(promise); void promise.finally(() => this.tasks.delete(promise)).catch(() => {}); return promise;
   }
   async start(): Promise<void> {
+    // Snapshot only the debt present at startup. New live collections cannot
+    // extend this barrier and starve the device's first activation.
+    this.startup = await this.options.storage.update(state => Object.entries(state.groups).map(([key, g]) => ({
+      key, incarnation: g.incarnation, runs: mergeRuns([...g.owed, ...g.parked.filter(p => p.kind !== "full").map(p => p.run)]),
+    })));
     await this.wake("start");
     if (await this.options.storage.update(state => Object.keys(state.groups).length > 0)) this.slowTimer();
   }
@@ -229,8 +235,10 @@ export class DeliveryQueue {
   /** Activation cannot displace debt that has not had its startup flush. */
   async flushed(): Promise<boolean> {
     await this.pump();
-    return this.flights.size === 0 && await this.options.storage.update(state =>
-      !Object.values(state.groups).some(g => g.owed.length || g.attempt));
+    return this.options.storage.update(state => !this.startup.some(({ key, incarnation, runs }) => {
+      const g = state.groups[key];
+      return g?.incarnation === incarnation && runs.some(([a, b]) => g.owed.some(([x, y]) => a <= y && x <= b));
+    }));
   }
   /** Store/generation changes fence every callback. Sign-out keeps local debt. */
   async reset(clear: boolean): Promise<void> {
