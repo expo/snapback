@@ -34,6 +34,15 @@ Neither lane's branch point carries this landing. When either lane lands:
    preflight must produce the new runtime verdict (it shares the runtime's
    preflight, so a divergence is a test failure, not a silent drift), and the
    feeds card's ordering rule and LLP 3000.016 §2.1a need the new statement.
+   **FA reconciled on its branch, 2026-09-27 round 3; review/landing pending.**
+   CLI check and runtime now call the same retirement-aware atomic launch
+   preflight. Dev receives a located N_TIMELINE_ADOPT note with the launch
+   contract, copies, lock time and deploy's --allow-feed-adoption requirement;
+   the ceiling refuses with its estimate. Runtime/preview equality, copy counts
+   and database/WAL immutability have regressions. The feeds card replaces the
+   ordering rule with launch semantics; the existing LLP 3000.016 §2.1a and
+   3000.015 §2 paragraphs are amended. Both journal histories survive the merge.
+   Item 1 remains lane ER's work; this ticket stays open.
 3. Merge `snapback4/JOURNAL.md` keeping both entries; the LLP 3000.015 §2 and
    3000.016 §2.1a paragraphs added here are the ones to amend, not duplicate.
 

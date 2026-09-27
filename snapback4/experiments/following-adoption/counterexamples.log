@@ -1,0 +1,17 @@
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-fa/snapback4/crates/snapback4-lang)
+    Finished `release` profile [optimized] target(s) in 1.37s
+     Running tests/following_adoption_research.rs (target/release/deps/following_adoption_research-cb50c8b5224247bc)
+
+running 6 tests
+test crash_child ... ignored, child of committed_checkpoint_survives_process_exit
+test staged_replay_measurement ... ignored, research measurement: FA_SCALE=1 or 10, FA_DIR is an isolated output directory
+
+running 1 test
+test identical_feed_with_unrelated_literal_default_is_not_an_incarnation_fence ... ok
+test undiscovered_reader_is_pending_even_without_edge_work ... ok
+test committed_checkpoint_survives_process_exit ... ok
+SPARSE QueryOutcome { ephemeral: None, data: Null, unavailable: true, complete: false, cut: Some(Meter), capped_at: Some((HeapBytes, "programs.planned.2")), word_cut_at: None, next: None, seq: 3, metered: Metered { examined: 5764, index_entries: 0, rule_probes: 2882, steps: 40353, heap_bytes: 16778202, output_bytes: 6, rows_written: 0 }, tables: ["follows", "posts", "reposts"], next_expiry: None }
+COUNTEREXAMPLES early=1001 fresh=1000; equal repost sources/different event ids; planned populated read=1; sparse 9000-row suffix data=0 complete=false next=false examined=5764
+test counterexamples_and_planned_escape ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.25s

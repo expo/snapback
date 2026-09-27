@@ -22,6 +22,7 @@ mod activation_plan;
 #[cfg(test)]
 mod adoption_tests;
 mod event_slots;
+pub mod timeline_launch;
 mod caps;
 mod authority;
 mod successor;
@@ -114,12 +115,16 @@ impl Store {
         Ok(steps)
     }
 
-    /// Preview Following adoption without filling slots or retiring any rows.
-    pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<(), RuntimeError> {
+    /// Preview the same atomic launch admitted by dev, without changing the store.
+    pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> {
+        self.check_timeline_activation_at(schema, crate::now_ms(), true)
+    }
+
+    pub fn check_timeline_activation_at(&mut self, schema: &Schema, now: i64, allow_launch: bool) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> {
         let tx = self.read_transaction()?;
-        crate::engine::timeline::check_activation_read_only(&tx, schema, Some(crate::now_ms()))?;
+        let estimates = timeline_launch::preflight(&tx, schema, now, allow_launch)?;
         tx.rollback()?;
-        Ok(())
+        Ok(estimates)
     }
 
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
