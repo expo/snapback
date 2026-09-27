@@ -42,6 +42,8 @@ export interface DeviceOpener {
 }
 
 export interface LocalOptions {
+  /** A delivery interval the server refused; queued reports do not enter onWrite. */
+  readonly onDeliveryRefused?: (event: import("./delivery-state.ts").DeliveryRefused) => void;
   readonly url: string;
   readonly persona?: string;
   readonly session?: Session;
