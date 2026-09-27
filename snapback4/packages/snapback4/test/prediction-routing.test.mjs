@@ -599,6 +599,19 @@ function expiryRetry(t, outcome) {
   return { f, calls: () => calls };
 }
 const retryWatch = () => ({ dirty: false, fetch: work => work() });
+
+for (const observing of [false, true]) test(`rule 5: an initial expired server answer schedules only a live watch (watch=${observing})`, async () => {
+  const f = routing(); f.entries = [];
+  f.env.serverNow = () => 200;
+  f.outcome = { loading: true, unknown: true, tables: ["posts"] };
+  f.env.post = async () => ({ ok: true, obsoleteAuth: false,
+    json: { data: ["expired server"], complete: true, nextExpiry: 200 } });
+  const result = await evaluateLocal(f.env, op, input, 0, 0, observing ? retryWatch() : undefined);
+  assert.deepEqual(result.read, { loading: true });
+  assert.equal(result.retryExpired, observing);
+  assert.equal(result.nextExpiry, null);
+  assert.equal(f.env.serverAnswers.size, 0, "expired data never enters remembered answers");
+});
 const unknownRetry = (speculative = false) => ({ data: ["retry"], unknown: true, complete: false, speculative, tables: ["posts"], nextExpiry: null });
 for (const speculative of [false, true]) for (const observing of [false, true]) {
   test(`rules 3/4/5: online unknown expiry retry takes fallback (speculative=${speculative}, watch=${observing})`, async t => {

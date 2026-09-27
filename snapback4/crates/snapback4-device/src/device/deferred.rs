@@ -95,11 +95,11 @@ fn install_rows<T: DeviceTx>(tx: &T, schema: &Schema, gate: bool, touched: &mut 
             Some(row) => {
                 if gate && !boundaries.accept(tx, &name, table, effect.admission.as_ref().unwrap_or(&row), effect.admission.is_none())? {
                     // The metadata delta must not expose media for a rejected image.
-                    media::forget(tx, table, &row)?;
+                    media::forget(tx, &name, table, &row)?;
                     // Preserve an earlier private deletion even if its later
                     // recreation no longer passes the acquisition boundary.
                     if effect.admission.is_some() && let Some(old) = old {
-                        media::forget(tx, table, &old)?;
+                        media::forget(tx, &name, table, &old)?;
                         tx.delete(&name, table, &old)?;
                     }
                     continue;
@@ -229,14 +229,14 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
                 if !snapback4_core::schema::timeline::holds_event(schema, &event.table, &row) { continue; }
                 let old = tx.get(&event.table, &event.id)?;
                 if !boundaries.accept(tx, &event.table, table, &row, old.is_some())? { continue; }
-                if let Some(old) = &old { media::forget(tx, table, old)?; }
+                if let Some(old) = &old { media::forget(tx, &event.table, table, old)?; }
                 tx.put(&event.table, table, &row, old.as_ref())?;
                 upgrade_admission(tx, &event.table, table, &row, &mut boundaries, admissions)?;
                 media::remember(tx, &event.table, table, &row, generation)?;
             }
             "del" => {
                 if let Some(old) = tx.get(&event.table, &event.id)? {
-                    media::forget(tx, table, &old)?;
+                    media::forget(tx, &event.table, table, &old)?;
                     tx.delete(&event.table, table, &old)?;
                 }
             }

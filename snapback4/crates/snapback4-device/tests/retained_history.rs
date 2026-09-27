@@ -309,27 +309,27 @@ fn retained_history_confirmed_only_memory() { confirmed_only(&mut Memory::new())
 fn media_scope<H: Host>(host: &mut H) {
     let (_, backend) = compile("table photos:\n  owner: principal\n  photo: image <=100000\n  by byOwner: owner, id\n  read <- .owner = viewer\n  retain delivered-history\n  sync to .owner last 1 by byOwner\nquery photo(id: photos):\n  return photos[id]\n");
     let mut device = host.open("media", Some(backend)).unwrap();
-    let mut page: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":true,"events":[{
+    let mut page: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":true,"store_id":"media-store","events":[{
         "table":"photos", "id":"row", "kind":"put", "data":{"id":"row", "owner":"dev:bob",
         "photo":{"id":"asset","type":"image/png","bytes":26,"width":2,"height":3,"duration":null}}
     }],"watermark":1,"more":false})).unwrap();
     device.apply(&page, true).unwrap();
-    assert_eq!(device.asset_home("asset", "dev:bob", 1).unwrap()["row"], "row");
+    assert_eq!(device.asset_home("asset", "dev:bob", 1, &serde_json::json!({"store_id":"media-store","table":"photos","row":"row","column":"photo"})).unwrap()["row"], "row");
     page.stage_snapshot = true;
     device.apply(&page, true).unwrap();
-    let scope: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":false,"snapshot_catchup":true,
+    let scope: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":false,"store_id":"media-store","snapshot_catchup":true,
         "events":[{"table":"photos","kind":"scope","id":"scope","data":["dev:bob"]}],"watermark":2,"more":false})).unwrap();
     device.apply(&scope, false).unwrap();
-    assert_eq!(device.asset_home("asset", "dev:bob", 1).unwrap(), serde_json::Value::Null);
-    let empty: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":true,"events":[],"watermark":2,"more":false})).unwrap();
+    assert_eq!(device.asset_home("asset", "dev:bob", 1, &serde_json::json!({"store_id":"media-store","table":"photos","row":"row","column":"photo"})).unwrap(), serde_json::Value::Null);
+    let empty: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":true,"store_id":"media-store","events":[],"watermark":2,"more":false})).unwrap();
     device.apply(&empty, true).unwrap();
-    assert_eq!(device.asset_home("asset", "dev:bob", 1).unwrap(), serde_json::Value::Null);
+    assert_eq!(device.asset_home("asset", "dev:bob", 1, &serde_json::json!({"store_id":"media-store","table":"photos","row":"row","column":"photo"})).unwrap(), serde_json::Value::Null);
     assert_eq!(device.query("photo", "dev:bob", &serde_json::json!({"id":"row"}), 1).unwrap().data.field("id").unwrap(), &id("row"));
     // Reacquisition can activate the media home again.
     page.watermark = 3;
     page.stage_snapshot = false;
     device.apply(&page, true).unwrap();
-    assert_eq!(device.asset_home("asset", "dev:bob", 1).unwrap()["row"], "row");
+    assert_eq!(device.asset_home("asset", "dev:bob", 1, &serde_json::json!({"store_id":"media-store","table":"photos","row":"row","column":"photo"})).unwrap()["row"], "row");
     host.close("media", device);
 }
 

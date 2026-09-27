@@ -33,6 +33,7 @@ fn frame(w: u64, ev: Vec<serde_json::Value>, markers: Vec<serde_json::Value>) ->
 // Synthetic event pages still echo the request position used to obtain them.
 fn apply_frame<S: DeviceStore>(d: &mut Device<S>, page: &StreamPage, first: bool) -> Result<Vec<String>, snapback4_core::error::RuntimeError> {
     let mut page = page.clone();
+    page.store_id.get_or_insert_with(|| "media-store".into());
     page.requested_watermark = Some(d.sync_state_read()?.transfer_watermark);
     d.apply(&page, first)
 }
@@ -42,6 +43,11 @@ fn admit<S: DeviceStore>(d: &mut Device<S>) {
 }
 fn list<S: DeviceStore>(d: &mut Device<S>) -> serde_json::Value {
     snapback4_core::wire::to_json(&d.query("list","dev:alice",&json!({}),100).unwrap().data)
+}
+// @ref LLP 3000.019#3.5 — deferred publication must revalidate the download's home.
+fn media<S: DeviceStore>(d: &mut Device<S>, row: &str, n: i64) -> serde_json::Value {
+    d.asset_home(&format!("image-{row}-{n}"), "dev:alice", 100,
+        &json!({"store_id":"media-store","table":"posts", "row":row, "column":"photo"})).unwrap()
 }
 fn effects<H: Host>(h: &mut H, retain: bool) {
     let (mut e,b) = compile(&SOURCE.replace("RETAIN",if retain {"retain delivered-history"} else {""}));
@@ -66,7 +72,7 @@ fn effects<H: Host>(h: &mut H, retain: bool) {
     p.joined=serde_json::from_value(json!({"posts":[["dev:alice"]]})).unwrap();
     apply_frame(&mut d,&p,false).unwrap();
     direct=p.clone(); direct.images_at=Some(direct.watermark); direct.committed_above.clear(); apply_frame(&mut control,&direct,false).unwrap();
-    assert!(d.store().meta("device:media:image-x-6").unwrap().is_none());
+    assert_eq!(media(&mut d,"x",6),serde_json::Value::Null);
     h.close("buffered",d);
     let mut d=h.open("buffered",None).unwrap();
     assert_eq!(list(&mut d),json!([{"id":"a","n":11,"pending":true}]));
@@ -74,9 +80,9 @@ fn effects<H: Host>(h: &mut H, retain: bool) {
     let mut finish=frame(w+2,vec![],vec![]); finish.images_at=Some(w+2); finish.committed_above.clear(); finish.more=false;
     apply_frame(&mut d,&finish,false).unwrap();
     assert_eq!(list(&mut d),list(&mut control));
-    assert_eq!(d.store().meta("device:media:image-x-6").unwrap(),control.store().meta("device:media:image-x-6").unwrap());
-    assert!(d.store().meta("device:media:image-x-6").unwrap().is_some());
-    assert!(d.store().meta("device:media:image-x-5").unwrap().is_none());
+    assert_eq!(media(&mut d,"x",6),media(&mut control,"x",6));
+    assert_eq!(media(&mut d,"x",6)["row"],"x");
+    assert_eq!(media(&mut d,"x",5),serde_json::Value::Null);
     assert_eq!(d.store().boundary_entries(),control.store().boundary_entries());
     assert_eq!(d.store().meta("device:history:groups").unwrap(),control.store().meta("device:history:groups").unwrap());
 }
@@ -101,7 +107,7 @@ fn boundary_gate<H: Host>(h: &mut H, recreate: bool) {
     apply_frame(&mut d,&finish,false).unwrap();
     assert_eq!(d.query("one","dev:alice",&json!({"k":name}),100).unwrap().data,Value::Null);
     assert_eq!(list(&mut d),if recreate {json!([])} else {json!([{"id":"a","n":10}])});
-    assert!(d.store().meta(&format!("device:media:image-{name}-5")).unwrap().is_none());
+    assert_eq!(media(&mut d,name,5),serde_json::Value::Null);
 }
 #[test] fn deferred_images_recheck_the_published_acquisition_floor() { for recreate in [false,true] { boundary_gate(&mut Memory::new(),recreate); boundary_gate(&mut Sqlite::new("repair-floor"),recreate); } }
 
@@ -226,7 +232,8 @@ fn upgrade_evidence<H: Host>(h: &mut H, mode: usize, recreate: bool) {
     else {
         assert_eq!(result.field("n").unwrap(),&Value::Int(4));
         assert_eq!(list(&mut d),list(&mut control));
-        assert_eq!(d.store().meta("device:media:image-x-4").unwrap(),control.store().meta("device:media:image-x-4").unwrap());
+        assert_eq!(media(&mut d,"x",4),media(&mut control,"x",4));
+        assert_eq!(media(&mut d,"x",4)["row"],"x");
     }
 }
 mod later_qualifying_image_upgrades_admission_and_moves_keep_it {

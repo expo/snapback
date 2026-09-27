@@ -186,3 +186,89 @@ fn pending_publication_reads_the_slot_not_request_progress() {
     #[cfg(feature = "native")]
     with_sqlite(slot_occupancy);
 }
+
+// @ref LLP 3000.019#3.5 — an owned continuation's pinned cut is not a fresh head, even when terminal.
+fn leased_continuation<S: DeviceStore>(store: S, terminal: bool, publish_peer: impl FnOnce(&mut Device<S>, &StreamPage)) -> Device<S> {
+    let backend = Backend { generation: 1, schema: Schema::default(), programs: vec![] };
+    let mut a = Device::open_store(store, Some(backend)).unwrap();
+    let initial = decoded(r#"{"snapshot":true,"store_id":"shared-store","watermark":0,"more":false,"events":[]}"#).unwrap();
+    a.apply(&initial, true).unwrap();
+    let first = decoded(r#"{"snapshot":true,"store_id":"shared-store","watermark":8,"more":true,"next":"a-next","events":[]}"#).unwrap();
+    assert!(!a.apply_publication(&first, true).unwrap().1);
+    let owner = a.store.meta(SNAPSHOT_OWNER).unwrap();
+    assert!(owner.is_some());
+    assert_eq!(a.snapshot_owner, owner);
+    let stream = decoded(r#"{"snapshot":false,"store_id":"shared-store","requested_watermark":0,"watermark":20,"more":false,"events":[]}"#).unwrap();
+    publish_peer(&mut a, &stream);
+    assert_eq!(a.snapshot_owner, owner, "A stays open throughout B's publication");
+    assert_eq!(a.store.meta(SNAPSHOT_OWNER).unwrap(), owner, "ordinary stream publication keeps A's lease");
+    assert_eq!(a.store.meta(SNAPSHOT_NEXT).unwrap().as_deref(), Some("a-next"));
+    assert_eq!(a.store.meta(SNAPSHOT_WATERMARK).unwrap().as_deref(), Some("8"));
+    let capture = a.sync_state().unwrap();
+    assert_eq!(capture.watermark, 20);
+    assert!(capture.restore_refusal.is_none());
+    let continuation: StreamPage = decoded(&serde_json::json!({
+        "snapshot":true, "store_id":"shared-store", "after":"a-next", "watermark":8,
+        "more":!terminal, "next":if terminal { None } else { Some("a-later") }, "events":[],
+        "requested_watermark":0, "captured_watermark":capture.watermark,
+        "captured_restore_watermark":capture.restore_watermark,
+        "captured_restore_images_at":capture.restore_images_at, "send_revision":capture.send_revision
+    }).to_string()).unwrap();
+    assert!(continuation.images_at.is_none());
+    let observation = a.observe_store(&continuation).unwrap();
+    assert!(!observation.reset);
+    assert!(!observation.backend_required);
+    assert!(a.sync_state_read().unwrap().restore_refusal.is_none(), "observation must not persist a restore halt");
+    let error = a.apply(&continuation, false).unwrap_err();
+    assert_eq!(error.refusal().code, "E_GENERATION");
+    assert!(error.to_string().contains("device watermark would move backwards"), "the continuation passes the lease and head checks: {error}");
+    let state = a.sync_state_read().unwrap();
+    assert_eq!(state.watermark, 20);
+    assert!(state.restore_refusal.is_none(), "application must not persist a restore halt");
+    a
+}
+
+fn reopened_continuation<S: DeviceStore>(mut reopened: Device<S>) {
+    let state = reopened.sync_state_read().unwrap();
+    assert_eq!(state.watermark, 20);
+    assert!(state.acquired);
+    assert!(state.restore_refusal.is_none(), "no restore halt after reopen");
+}
+
+fn leased_continuation_memory(terminal: bool) {
+    let a = leased_continuation(MemoryStore::new(), terminal, |a, stream| {
+        // Transfer the same memory store between calls, keeping A's interpreter
+        // and snapshot lease alive; no fixture writes to snapshot metadata.
+        let mut b = Device::open_store(std::mem::take(&mut a.store), None).unwrap();
+        assert!(b.apply_publication(stream, false).unwrap().1);
+        a.store = b.store;
+    });
+    let mut persisted = MemoryStore::new();
+    persisted.load(a.store.export()).unwrap();
+    drop(a);
+    reopened_continuation(Device::open_store(persisted, None).unwrap());
+}
+
+#[cfg(feature = "native")]
+fn leased_continuation_sqlite(terminal: bool) {
+    with_sqlite(|store| {
+        let path = std::path::PathBuf::from(store.conn().path().unwrap());
+        let a = leased_continuation(store, terminal, |_, stream| {
+            let mut b = Device::open(&path, None).unwrap();
+            assert!(b.apply_publication(stream, false).unwrap().1);
+        });
+        drop(a);
+        reopened_continuation(Device::open(&path, None).unwrap());
+    });
+}
+
+#[test]
+fn leased_terminal_continuation_memory() { leased_continuation_memory(true); }
+#[test]
+fn leased_nonterminal_continuation_memory() { leased_continuation_memory(false); }
+#[cfg(feature = "native")]
+#[test]
+fn leased_terminal_continuation_sqlite() { leased_continuation_sqlite(true); }
+#[cfg(feature = "native")]
+#[test]
+fn leased_nonterminal_continuation_sqlite() { leased_continuation_sqlite(false); }

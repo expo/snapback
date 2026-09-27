@@ -482,10 +482,17 @@ fn media_home_follows_stream_clear_delete_expiry_and_scope_on_both_stores() {
         let mut device = host.open("homes", Some(backend)).unwrap();
         let facts = serde_json::json!({"id":"image", "type":"image/png", "bytes":26, "width":2, "height":3, "duration":null});
         let row = serde_json::json!({"id":"home", "owner":"dev:alice", "photo":facts, "secret":{ "id":"once", "type":"image/png", "bytes":26, "width":2, "height":3, "duration":null }, "until":100});
-        let put = |data: serde_json::Value, watermark| serde_json::json!({"op":"apply", "first":true, "page": {"snapshot":true, "events":[{"table":"photos", "id":"home", "kind":"put", "data":data}], "watermark":watermark, "more":false, "generation":generation}});
+        let put = |data: serde_json::Value, watermark| serde_json::json!({"op":"apply", "first":true, "page": {"snapshot":true,"store_id":"media-store", "events":[{"table":"photos", "id":"home", "kind":"put", "data":data}], "watermark":watermark, "more":false, "generation":generation}});
         ok(device.call(put(row.clone(), 1)));
-        let home = |id, now| serde_json::json!({"op":"asset_home", "id":id, "viewer":"dev:alice", "now":now});
+        let home = |id, now| serde_json::json!({"op":"asset_home", "home":{"store_id":"media-store","table":"photos","row":"home","column":if id == "once" { "secret" } else { "photo" }}, "id":id, "viewer":"dev:alice", "now":now});
+        assert_eq!(ok(device.call(serde_json::json!({"op":"asset_home","id":"image","viewer":"dev:alice","now":1}))), serde_json::Value::Null, "a synced reference is not a download receipt");
+        for store_id in [serde_json::Value::Null, serde_json::json!(""), serde_json::json!("other-store")] {
+            let mut receipt = home("image", 1);
+            receipt["home"]["store_id"] = store_id;
+            assert_eq!(ok(device.call(receipt)), serde_json::Value::Null, "receipt must identify the current store");
+        }
         let retained = ok(device.call(home("image", 1)));
+        assert_eq!(retained["store_id"], "media-store");
         assert_eq!(retained["row"], "home"); assert_eq!(retained["expiresAt"], 100);
         assert_eq!(ok(device.call(home("once", 1))), serde_json::Value::Null);
         assert_eq!(ok(device.call(home("image", 100))), serde_json::Value::Null);
@@ -493,10 +500,10 @@ fn media_home_follows_stream_clear_delete_expiry_and_scope_on_both_stores() {
         ok(device.call(put(cleared, 2)));
         assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
         ok(device.call(put(row.clone(), 3)));
-        ok(device.call(serde_json::json!({"op":"apply", "page":{"snapshot":false,"events":[{"table":"photos","id":"home","kind":"del"}],"watermark":4,"more":false}})));
+        ok(device.call(serde_json::json!({"op":"apply", "page":{"snapshot":false,"store_id":"media-store","events":[{"table":"photos","id":"home","kind":"del"}],"watermark":4,"more":false}})));
         assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
         ok(device.call(put(row.clone(), 5)));
-        ok(device.call(serde_json::json!({"op":"apply", "page":{"snapshot":false,"events":[{"table":"photos","id":"scope","kind":"scope","data":["dev:alice"]}],"watermark":6,"more":false}})));
+        ok(device.call(serde_json::json!({"op":"apply", "page":{"snapshot":false,"store_id":"media-store","events":[{"table":"photos","id":"scope","kind":"scope","data":["dev:alice"]}],"watermark":6,"more":false}})));
         assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
         ok(device.call(put(row, 7)));
         ok(device.call(serde_json::json!({"op":"clear_rows"})));
@@ -513,10 +520,10 @@ fn a_scope_retires_media_past_a_page_while_preserving_delivered_history() {
         let events = (0..501).map(|n| serde_json::json!({"table":"photos", "kind":"put", "id":format!("r{n:03}"), "data":{
             "id":format!("r{n:03}"), "owner":"dev:alice", "photo":{"id":format!("a{n:03}"),"type":"image/png","bytes":26,"width":2,"height":3,"duration":null}
         }})).collect::<Vec<_>>();
-        ok(device.call(serde_json::json!({"op":"apply","first":true,"page":{"snapshot":true,"events":events,"watermark":1,"more":false}})));
-        let home = serde_json::json!({"op":"asset_home", "id":"a500", "viewer":"dev:alice", "now":1});
+        ok(device.call(serde_json::json!({"op":"apply","first":true,"page":{"snapshot":true,"store_id":"media-store","events":events,"watermark":1,"more":false}})));
+        let home = serde_json::json!({"op":"asset_home", "home":{"store_id":"media-store","table":"photos","row":"r500","column":"photo"}, "id":"a500", "viewer":"dev:alice", "now":1});
         assert_eq!(ok(device.call(home.clone()))["row"], "r500");
-        ok(device.call(serde_json::json!({"op":"apply","page":{"snapshot":false,"events":[{"table":"photos","kind":"scope","id":"scope","data":["dev:alice"]}],"watermark":2,"more":false}})));
+        ok(device.call(serde_json::json!({"op":"apply","page":{"snapshot":false,"store_id":"media-store","events":[{"table":"photos","kind":"scope","id":"scope","data":["dev:alice"]}],"watermark":2,"more":false}})));
         assert_eq!(ok(device.call(home)), serde_json::Value::Null);
         assert_eq!(query(&mut *device, "photo", "dev:alice", serde_json::json!({"id":"r500"}), 1)["data"]["id"], "r500", "textual history remains held");
         device.close();

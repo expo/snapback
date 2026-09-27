@@ -171,15 +171,15 @@ their durable outbox. Pending writes stay with their original account. A termina
 `failed` carries the refusal.
 
 Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged
-arguments:
+arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time (it sorts before minted IDs):
 
 ```ts
-import { mintId } from "snapback4/client";
+import { mintId, idFrom } from "snapback4/client";
 const intent = { id: mintId(), args: { handle: "alice" } };
-await client.mutate(api.saveProfile, intent.args, { id: intent.id });
+await client.mutate(api.saveProfile, intent.args, { id: intent.id }); // a fixture: { id: idFrom("seed:alice") }
 ```
 
-A fixture label or a fresh ID on every retry does not identify that same intent. For a local send that queues without
+A fresh ID on every retry does not identify that same intent. For a local send that queues without
 predicting a message, render its arguments from `await client.pendingWrites()` until it settles.
 
 ### 5. Export an offline shell, then verify
