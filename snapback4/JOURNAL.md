@@ -68882,3 +68882,63 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+## 2026-09-27 — Lane GS round 3: actual-size admission and executable repairs
+
+Read the binding round 0–2 prompts, reports, journal records, LLP 3000.024 and
+its Decision, and both complete round-2 reviews. First fetched and merged
+origin/main as 3588816da, preserving both journal histories verbatim as ordered
+subsequences. Main's new authorized-scan caller received its missing optional
+selection argument. On sb4-intent/gs-global-search, 140463e43 removes the
+incomplete declaration-size fallback. Already authorized, non-expiring public
+heads and emitted rows use the existing actual-size metered scan. Heads decode
+a full transient image and retain only their ordering keys. Emitted rows
+recheck authority under declared witness scratch before disclosure; private,
+expiring, recorded and inherited rows retain their protected admission. No
+meter, ceiling, cursor format, budget or multi-request continuation change.
+
+Both Astra reproductions and Grok's 1,023,557-byte declaration now return the
+complete hit and agree with the old merge. Boundary cases straddle the old
+16 MiB and proposed 24 MiB cutoffs; custom active ceilings and the combined
+600,000-byte message/membership declaration also pass. Tiny hits retain
+25,253 heap bytes in compact search versus the old merge's 27,446. Private
+payload changes preserve the serialized outcome, and revocation passes on
+both ordinary and expiring paths. Generated repairs now print count and
+parenthesized +. The builtin audit also fixed missing calendar duration units;
+all supported printer spellings compile against their originating schemas.
+Certificate/refusal tests require last 3; runtime repairs return the newest
+three of four live hits while retaining tombstone and residual predicates.
+
+Ran scripts/test.sh exactly once at 140463e43: `== 0 failure(s) in 1434 s`,
+exit 0. Every failure classified: none (lane-owned 0, baseline 0,
+environmental 0). Rust 3,984 passed / 24 existing ignored across 246 binaries
+and 959 executions plus doctests; main client 2,644 passed / 10 existing skips,
+extra shards 56/56, client models 78/78, fixture wrappers 9/9. All remaining
+build, docs and artifact gates pass. The inherited 60-second target is still
+exceeded; no timeout, assertion, seed count or budget was relaxed.
+
+An admission audit found a missing adopted-default precharge while that frozen
+run was in progress. Its source remained unchanged through completion. Then
+67931c9d8 prepays missing-field materialization before copying an emitted row's
+default. The allocation-sensitive test fails without this line: a 64 KiB heap
+allocates 1,001,185 B before refusing. With the fix it allocates only 265 B;
+the ample-heap arm returns the entire default within its charged peak. All
+nine negative controls (eleven executions) fail at assertions as intended,
+including the 24 MiB cutoff and last-1 preview mutations, then restore cleanly.
+
+Final affected checks pass: core 148/148 with one existing ignored; membership
+13/13; certificate 7/7; shared server search 17/17; shared device search 50/50;
+device authorization/census 81/81; merge search 11/11; whole guide 86/86;
+docs budget and reference audit. The full suite was not repeated after the
+one-line materialization fix. Final wasm has the same sizes as the suite build:
+1,983,447 B raw / 572,688 B gzip, 153 B below the unchanged 572,841 B budget
+and 11 B gzip below round 2. SHA-256:
+dea4612052a43f422f6a9c62a73ed2b77b9fc5bb853368be84bd2d401a9a1891.
+Five artifact bytes differ; both digests are retained in the qualification.
+
+The guide labels the historical empty-chat calibration as round 1; those
+limits were not remeasured, and no original calibration database was opened
+or changed. No tool installation, push or publication. File map, runnable
+forms, tradeoffs, exact qualification and control evidence:
+reports/20260927-gs-global-search-round3/REPORT.md, qualification.json and
+controls.json. Raw logs remain in ignored target/lane-gs-round3/.
