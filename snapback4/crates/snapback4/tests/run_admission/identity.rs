@@ -11,6 +11,22 @@ fn server(p: &Project, name: &str) -> Running {
 }
 
 #[test]
+fn fresh_init_then_dev_becomes_ready() {
+    let root = Project::new();
+    let init = root.run(&["init", "fresh"]);
+    assert!(init.status.success(), "{init:?}");
+    let p = Project(root.0.join("fresh"));
+    assert!(!p.store().exists(), "init must leave a fresh database for dev");
+    let host = server(&p, "fresh-dev");
+    assert!(!host.logs().contains("startup schema adoption failed"), "{}", host.logs());
+    let status = http(&host, "/dev/status", None);
+    assert!(status.get("storeId").is_some(), "{status}");
+    assert!(p.conn().query_row("SELECT count(*) FROM _generations", [], |r| r.get::<_, i64>(0)).unwrap() > 0);
+    let sidecar = snapback4_core::private_fs::owner_path(&p.store());
+    assert_eq!(fs::metadata(sidecar).unwrap().permissions().mode() & 0o777, 0o600);
+}
+
+#[test]
 fn removing_or_replacing_the_address_record_never_admits_another_owner() {
     let p = Project::new(); p.initialize();
     let mut host = server(&p, "identity-host");
@@ -33,7 +49,7 @@ fn moving_a_live_database_and_its_sidecars_preserves_ownership() {
     let mut host = server(&p, "moving-host");
     let dir = p.0.join("moved"); fs::create_dir(&dir).unwrap();
     let target = dir.join("store.sqlite");
-    for suffix in ["", "-wal", "-shm"] {
+    for suffix in ["", "-wal", "-shm", "-owner"] {
         let from = PathBuf::from(format!("{}{suffix}", p.store().display()));
         assert!(from.exists(), "live sidecar missing: {}", from.display());
         fs::rename(from, PathBuf::from(format!("{}{suffix}", target.display()))).unwrap();
@@ -144,6 +160,39 @@ fn address_symlinks_and_nonregular_files_are_refused_without_truncation() {
         assert_eq!(fs::read(p.store()).unwrap(), database_before, "{kind}");
         assert_eq!(fs::read_to_string(&unrelated).unwrap(), "keep this unrelated file intact\n");
         assert_eq!(fs::metadata(&unrelated).unwrap().permissions().mode() & 0o777, 0o644, "{kind}: refusal changed the mode");
+    }
+}
+
+#[test]
+fn owner_sidecar_aliases_and_nonregular_files_are_refused_before_sqlite() {
+    for kind in ["database", "unrelated", "directory", "fifo", "hardlink", "unrelated-hardlink"] {
+        let p = Project::new(); p.initialize();
+        let sidecar = snapback4_core::private_fs::owner_path(&p.store());
+        fs::remove_file(&sidecar).unwrap();
+        let unrelated = p.0.join("unrelated");
+        fs::write(&unrelated, "keep this unrelated file intact\n").unwrap();
+        fs::set_permissions(&unrelated, fs::Permissions::from_mode(0o644)).unwrap();
+        let database_before = fs::read(p.store()).unwrap();
+        match kind {
+            "database" => symlink(p.store(), &sidecar).unwrap(),
+            "unrelated" => symlink(&unrelated, &sidecar).unwrap(),
+            "directory" => fs::create_dir(&sidecar).unwrap(),
+            "fifo" => {
+                let path = std::ffi::CString::new(sidecar.to_str().unwrap()).unwrap();
+                assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
+            }
+            "hardlink" => fs::hard_link(p.store(), &sidecar).unwrap(),
+            "unrelated-hardlink" => fs::hard_link(&unrelated, &sidecar).unwrap(),
+            _ => unreachable!(),
+        }
+        let out = p.run(&["run", "put"]);
+        assert!(!out.status.success(), "{kind}: {out:?}");
+        let error = String::from_utf8_lossy(&out.stderr);
+        assert!(error.contains("E_STORE") && error.contains("store.sqlite-owner") && error.contains("retry"), "{kind}: {error}");
+        assert!(Store::open_shared(&p.store()).is_err(), "native device accepted {kind}");
+        assert_eq!(fs::read(p.store()).unwrap(), database_before, "{kind}");
+        assert_eq!(fs::read_to_string(&unrelated).unwrap(), "keep this unrelated file intact\n");
+        assert_eq!(fs::metadata(&unrelated).unwrap().permissions().mode() & 0o777, 0o644, "{kind}");
     }
 }
 

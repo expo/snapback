@@ -41,6 +41,9 @@ wasmi = { version = "2.0.0", default-features = false, features = ["stable", "st
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 serde_json = { version = "1", features = ["unbounded_depth"] }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 rusqlite = { version = "0.40.2", features = ["hooks"] }
 snapback4-lang = { path = "../snapback4-lang" }

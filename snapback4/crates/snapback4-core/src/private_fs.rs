@@ -68,6 +68,47 @@ pub fn existing_file(path: &Path) -> io::Result<()> {
     }
 }
 
+// @ref LLP 3000.019#3.4 — ownership flocks belong beside SQLite, never on its database inode.
+#[cfg(unix)]
+pub fn owner_path(database: &Path) -> std::path::PathBuf {
+    let mut name = database.as_os_str().to_owned();
+    name.push("-owner");
+    name.into()
+}
+
+#[cfg(unix)]
+pub fn owner_file(database: &Path) -> io::Result<File> {
+    use std::os::unix::fs::MetadataExt;
+    let path = owner_path(database);
+    let regular = |meta: &fs::Metadata| {
+        if !meta.is_file() || meta.nlink() != 1 {
+            Err(io::Error::other("ownership sidecar must be a regular file, not a symlink or hard link"))
+        } else { Ok(()) }
+    };
+    // Reject aliases before opening: even closing a hard link to the database
+    // would discard SQLite's process-wide POSIX locks.
+    match fs::symlink_metadata(&path) {
+        Ok(meta) => regular(&meta)?,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {},
+        Err(e) => return Err(e),
+    }
+    let file = OpenOptions::new().read(true).write(true).create(true).truncate(false)
+        .mode(0o600).custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK).open(path)?;
+    regular(&file.metadata()?)?;
+    file.set_permissions(fs::Permissions::from_mode(0o600))?;
+    Ok(file)
+}
+
+#[cfg(unix)]
+pub fn owner_is_named(database: &Path, file: &File) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    fs::symlink_metadata(owner_path(database)).is_ok_and(|named| {
+        named.is_file() && named.nlink() == 1 && file.metadata().is_ok_and(|held| {
+            (named.dev(), named.ino()) == (held.dev(), held.ino())
+        })
+    })
+}
+
 // @ref LLP 3000.007#8 — item 12: closing a raw descriptor drops the process's SQLite locks, including the WAL dead-man lock.
 // Tighten existing files by path, without open/close. Another SQLite opener
 // may otherwise truncate shared memory still mapped by this process (SIGBUS).

@@ -41,8 +41,8 @@ fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> 
 
 pub struct Store {
     conn: Connection,
-    // Fields drop in declaration order: SQLite must close before the raw lock
-    // descriptor, whose close can discard process-wide SQLite POSIX locks.
+    // Fields drop in declaration order: retain the sidecar ownership lock until
+    // SQLite has closed. No raw descriptor to the database is held here.
     ownership: Option<std::sync::Arc<std::fs::File>>,
     #[cfg(unix)]
     file_identity: Option<(u64, u64)>,

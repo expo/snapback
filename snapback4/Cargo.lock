@@ -836,6 +836,7 @@ dependencies = [
  "argon2",
  "getrandom 0.3.4",
  "js-sys",
+ "libc",
  "postgres",
  "rusqlite",
  "serde",
