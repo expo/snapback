@@ -652,8 +652,8 @@ Logs: `target/a5-evidence/round3-mutant-<name>.log`; machine-readable outcomes:
 
 All affected checks were rerun with the mutations removed. During fixture
 construction, the HTTP witness was corrected to expect an omitted optional
-refusal field and to respect the existing owner-adoption boundary described
-below; no extra product change was made.
+refusal field and checked recovery only after reopening. Round 4 replaces that boundary
+with required recovery in the still-open owner.
 
 ### Wasm, scope and remaining boundary
 
@@ -678,17 +678,7 @@ package versions and public spellings are unchanged. The extra populated restore
 fixture addresses Grok's named surviving mutations within the requested restore
 regression scope.
 
-**Observed remaining owner-adoption limitation:** in the simultaneous native
-initial-acquisition fixture, A's still-open interpreter can report
-`backend_required: true`, `acquired: false` after B publishes the first store
-identity. Five explicit sync attempts over roughly 1.5 seconds did not adopt it;
-no restore refusal is persisted and closing/reopening A reads B's rows offline.
-Reproduction: the committed final HTTP test's A-stage/B-publish ordering; before
-closing A, repeat `local.sync()` and inspect `core.call({ op: "sync_state",
-capture: false })`. Probe: `target/a5-evidence/round3-owner-recovery-probe.log`.
-This round leaves ownership/adoption behavior unchanged as requested and makes
-no claim that the same open owner automatically converges. Neither requested
-finding remains open.
+The open-owner adoption defect observed in this round is fixed in round 4 below.
 
 ### Required complete suite
 
@@ -724,3 +714,229 @@ Full log: `target/a5-evidence/round3-full-suite.log`; exit:
 Commits: `36247cf00` (runtime, tests and LLP), followed by the round-3
 report/journal record. Both carry
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
+
+
+## Round 4 — 2026-09-27
+
+Merged `origin/main` `3a1f8b55d` first as `221fd3012`, preserving both sides
+of the LLP revision and journal conflicts. This includes published 0.4.4,
+DQ's Darwin changes and 0.4.5 lane GN. Read the lane prompt, reports and
+journal through round 3, and Astra's complete round-3 review. No push or
+publication.
+
+### Built, file by file
+
+Paths are relative to `snapback4/` except the LLP.
+
+- `crates/snapback4-device/src/device/store_identity.rs`: replace the two
+  restore predicates and published-only continuation guard with one fresh-head
+  versus captured-floor comparison. A continuation's pinned watermark supplies no fresh head,
+  regardless of terminality; explicit image heads retain their meaning. Before observation/application it must still match
+  the staged owner, cursor and cut. Request captures, never subsequently staged
+  private progress, supply the restore floor. Existing send/publication fences
+  and durable incarnation-bound refusal remain.
+- `crates/snapback4-device/src/device.rs`: pass the current snapshot owner into
+  the shared observation routine.
+- `packages/snapback4/src/local.ts`: preserve the captured interpreter adoption
+  requirement with `backendRequired ||= !!observation.backend_required`.
+- `crates/snapback4-device/tests/asset_lists.rs`: memory/SQLite tests now cover
+  B staging or publishing, terminal/nonterminal continuations, `observe_store`
+  and application, durable health after reopen and eventual acquisition. Two further tests reject borrowing published
+  progress for a legacy snapshot with no capture, with healthy offline reopen. Four more
+  tests protect independent stream-rewind proof and explicit snapshot heads.
+- `crates/snapback4-device/tests/repair_b/round8.rs`: prove a fresh first
+  snapshot at 15 below captured private image head 20 halts through observation
+  and application and survives reopening, despite published watermark 5.
+  Correct the existing healthy-disposal fixture to start at head 20; it still
+  proves private image evidence survives replacement/reopen and rejects 15.
+- `packages/snapback4/test/asset-lists.test.mjs`: four real HTTP orderings with
+  simultaneous native owners, A at cut 2 and B at 3, staged/published crossed
+  with terminal/nonterminal. Each requires `E_GENERATION`, no durable halt,
+  and acquired, adopted, touched-row offline reads from A before closing,
+  followed by offline reopen.
+- `packages/snapback4/test/asset-blob-lifecycle.test.mjs`: add valid JSON
+  `{"store_id":"old-store"}` without home coordinates to `once` invalidation;
+  require ordinary file/manifest removal, live-URL revocation, no body copy
+  or retention, and offline refusal after reopen. The parser needed no edit.
+- `../llp/3000.019-what-the-builder-still-wrote.rfc.md`: §3.5 records the
+  unified proof, continuation preflight, adoption and incomplete-receipt case.
+- `reports/20260927-lane-a5-list-offline.md`: this section; remove the resolved
+  owner-adoption limitation note from round 3.
+- `JOURNAL.md`: one dated, appended round-4 entry; existing entries preserved.
+
+### Rule, forms and scope
+
+The restore rule is **same incarnation + a fresh response head below evidence
+known before that request**. Explicit image heads supply head proof, including on snapshots. Without them,
+terminal stream heads and first snapshot pages supply a head. A stream rewind
+below its requested cursor is independent proof even when an image head is
+higher. A snapshot continuation's watermark is only a pinned cut; its current
+lease determines whether to retry. This replaces the ordering-specific
+restore cases. A concurrent private advance cannot retroactively condemn a
+healthy response or erase a restore already proved against its captured floor. Missing capture echoes contribute no published/private floor;
+a legacy response attests only its requested cursor. A delayed first snapshot
+without capture can retry but cannot borrow a newer shared watermark to halt.
+
+The governing context is LLP 3000 (root), LLP 3000.019 §3.5 (current working
+set), LLP 3000.007 §18.2 (current working set), and LLP 3000.001 Repair B
+(private evidence versus publication). The current assets/sync guide forms
+remain authoritative. No new LLP or review hand-off was needed.
+
+Existing forms compile and run:
+
+- `images: image <=10000 ?`: scalar acquisition and upgrade.
+- `images: [image <=10000] <=4 ?`, with
+  `createLocalClient({ ..., assets: { keep: "viewed", maxBytes: 10000 } })`
+  and `await client.asset(id)`: viewed ordinary list elements survive offline.
+- `secrets: [image <=10000 once] <=4 ?`: transient views, no durable bytes;
+  an incomplete home receipt cannot protect stale ordinary bytes.
+- `await client.sync(); await client.query(query, {})`: the still-open owner
+  adopts shared published identity and answers the touched row wholly offline.
+- Snapshot `{ from: 0, after: A_token }` at pinned cut 2 after B reaches 3:
+  `E_GENERATION` whether B merely stages or publishes, even for terminal pages.
+
+No implementation-scope deviation. The deliberate fixture change above follows the requested
+simplification: a fresh head below captured private evidence is a real restore,
+not a healthy disposal case. No server placement, authorization, meter, public
+API, package version or budget change was introduced by round 4.
+
+### Verification and mutations
+
+The expanded HTTP witness was first run against the merged round-3 runtime:
+**0 passed, 4 failed**. Both B-published cases fail the open-owner adoption
+assertion; staged nonterminal observation wrongly succeeds; staged terminal
+observation returns `E_STORE_RESTORE` instead of `E_GENERATION`. The fixed
+runtime passes all four, including A's offline touched-row query before close.
+
+Every temporary mutation was restored. Rust controls compile successfully and
+exit 101 at assertions; JS controls exit 1. Logs and outcome JSON are in ignored
+`target/a5-evidence/round4-*`.
+
+| Mutation | Detected failure |
+| --- | --- |
+| Restore round-3 logic | 2 staged memory/SQLite failures, `E_STORE_RESTORE` versus `E_GENERATION` |
+| Restore round-2 logic | 4 staged/published memory/SQLite failures |
+| Borrow shared published watermark when capture is absent | 2 delayed legacy snapshot failures |
+| Remove continuation preflight | 4 observation failures on both stores |
+| Require empty first-page events | 2 populated 12→7 restore failures |
+| Hardcode restored/published 100/5000 | 2 populated 12→7 restore failures |
+| Remove nonterminal snapshot-as-head proof | 2 upgrade restore failures |
+| Change head `<` floor to `<=` | 2 healthy equal-head upgrade failures |
+| Omit captured private image head from floor | 2 fresh-snapshot private-restore failures |
+| Stamp format at terminal staging | 2 interrupted-upgrade failures |
+| Remove foreign-store `once` guard | 1 serialized replacement-cache failure |
+| Preserve receipt-less `once` bytes | 3 absent/malformed/incomplete receipt failures |
+| Remove table/row/column receipt type checks | 1 incomplete-JSON receipt failure |
+| Overwrite captured adoption requirement | 2 published-owner HTTP failures |
+| Let an image head mask a stream rewind | 2 memory/SQLite restore failures |
+| Ignore explicit image heads on snapshots | 2 memory/SQLite false-halt failures |
+
+The initial affected Rust run passed 14 media tests and 106/108 Repair B tests;
+the two failures were the synthetic healthy-disposal fixture at 15 after known
+head 20, corrected as described above. This is an intentional stronger restore
+classification, with a new explicit refusal test, not a removed assertion.
+The legacy no-capture regression initially needed an `Option<String>` versus
+`Option<&str>` assertion correction; its compiled negative control then failed
+on both stores with the actual false `E_STORE_RESTORE`. Calls without capture
+evidence now retry backwards progress rather than borrowing shared publication
+as proof of restore; normal captured clients retain durable restore protection.
+
+Before the complete run, affected Rust checks passed: **16/16** media/restore, **110/110** Repair B,
+**20/20** retained history, **6/6** deferred boundaries, **10/10** store reset,
+and **2/2** background durability. Affected clients: **179/179**, including 40 list/HTTP and 27 Blob cases.
+Whole guide: **86/86**. Frozen Bun install,
+native build, package build/typecheck and whitespace check pass. Across the round, all 16 mutation
+controls fail; none is left in the tree. The changed source files stay below
+1,500 lines (largest: `local.ts`, 1,471).
+
+### Wasm
+
+Same host and production `scripts/build-wasm.sh`, Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt, `CARGO_INCREMENTAL=0`:
+
+| Artifact | Raw B | Gzip B |
+| --- | ---: | ---: |
+| Merged round-3 baseline (`221fd3012`) | 1,980,999 | 572,111 |
+| Round 4, final correction | 1,981,512 | 572,053 |
+| Delta | +513 | −58 |
+
+Final gzip is **788 B below the unchanged 572,841 B budget**. The single
+full run measured the pre-correction artifact at 1,981,526 raw / 571,954 gzip. Whole-artifact
+measurement. Raw SHA-256 before:
+`08b07d72fa83b95a388e197287263473c936d53c56c8047cc849c0ca3fd60492`;
+after: `5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969`.
+Artifacts and logs are retained under ignored `target/a5-evidence/round4-*`.
+
+### Required complete suite
+
+Ran `scripts/test.sh` **exactly once**, with implementation commit `21900c545`,
+exit **1**. Exact ending:
+
+```text
+== 1 failure(s) in 1440 s
+   client tests
+```
+
+Rust passed: **237 test binaries, 950 executions plus doctests; 3,819 passed,
+zero failed, 24 intentional ignores** (960 s). Client models: **78/78 passed**
+(257 s). All build, budget, release-guard, typecheck, fixture and app phases
+passed. Ordinary clients: **2,602 tests, 2,587 passed, 5 failure records,
+10 skips** (195 s).
+
+Every failure was lane-owned; no baseline or environmental failure occurred:
+
+1. `acquisition.test.mjs`, “W5R1x wasm: a restore halt keeps acquisition false
+   across retries and reopen”: the refactor let a higher `images_at` mask a
+   watermark below the request cursor, so the client did not halt.
+2. The same acquisition assertion on the process/native tier.
+3. `horizon-boundary.test.mjs`, “wasm rejects a skipped snapshot page before
+   accepting its completion”: the earlier preflight returned a different
+   diagnostic string. The `E_GENERATION` classification was correct.
+4. `repair-b-round9.test.mjs`, “native: snapshot-restart head 20, snapshot true”:
+   the refactor ignored its explicit image head and treated the lower selection
+   cut as a head, causing a false restore.
+5. The Repair B parent test's cascading failure from item 4.
+
+Reproduce on `21900c545` with a package/native/wasm build, then
+`node --test packages/snapback4/test/acquisition.test.mjs packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/repair-b-round9.test.mjs`.
+
+The follow-up preserves the single request-bound comparison while retaining
+independent stream-rewind proof, explicit image-head precedence, and the existing
+continuation diagnostic. Existing failing client assertions remain unchanged.
+Four new Rust regressions fail on the pre-correction runtime, then exercise both
+stores with the fix. The correction is qualified separately below; **the original
+full run remains red and was not repeated**.
+
+Environment: Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127, Bun 1.3.14;
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_BUILD_JOBS=8`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, `FORCE_COLOR` unset. Normal parallel clients,
+host load 2.52 across 96 CPUs; no counts, timeouts or assertions relaxed.
+
+**Final correction: `bc82b1f2b`.** Expanded affected clients: **376/376**, zero
+failures/skips (126.903 s), including the unchanged acquisition, horizon-boundary
+and all `repair-b*.test.mjs` tests. This covers every full-run failing assertion
+and the four HTTP staged/published × terminal/nonterminal orderings, including
+same-open-owner offline reads. Final Rust: **20/20** media/restore, **110/110**
+Repair B, **20/20** retained history, **6/6** deferred boundaries, **10/10**
+store reset and **2/2** background durability. Corrected native, wasm and package
+builds pass. Logs: `target/a5-evidence/round4-corrected-*`.
+
+**Open problems:** no known remaining requested implementation defect. The
+verification limitation is explicit: the once-only full script remains red on
+`21900c545`; the post-run correction has expanded affected qualification, not a
+green full-script rerun. The failure reproductions and exact result are retained
+above. No assertion was weakened or removed to obtain the correction's passes.
+
+Full log: `target/a5-evidence/round4-full-suite.log`; recorded exit:
+`target/a5-evidence/round4-full-suite.exit`; SHA-256:
+`f5b14453b029544ba13788c769a52ae4e01a93e19abda863c6c17bd9357caaf9`.
+
+Commits: `221fd3012` (merge), `21900c545` (initial round-4 implementation),
+`bc82b1f2b` (complete-suite corrections and head-proof regressions), followed by
+the report/journal evidence commit. Every commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
+
+Final reference audit: **515 LLP docs, 9,586 refs, zero errors and zero unchecked**;
+whitespace check passes. The journal diff appends one round-4 entry and removes
+no existing line.

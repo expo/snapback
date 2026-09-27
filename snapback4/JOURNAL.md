@@ -67396,3 +67396,65 @@ No deviation or open round-2 finding. Changed only the compiler note, its
 test, this append and the report's round-2 section. No runtime/client, guide,
 version or budget change, push or publication. Report:
 reports/20260927-gn-guide-note/REPORT.md; logs: target/lane-gn-round2/.
+
+
+## 2026-09-27 — A5 round 4: request-bound restore evidence and open-owner recovery
+
+Read the lane prompt, reports and journal through round 3 and Astra's complete
+round-3 review. First fetched and merged origin/main `3a1f8b55d` as `221fd3012`,
+preserving both LLP revision histories and both journal sides. This brings in
+published 0.4.4, DQ's Darwin fixes and 0.4.5 lane GN. Initial implementation is
+`21900c545`; complete-suite corrections are `bc82b1f2b`. All commits carry the
+requested GPT-6 Astra co-author trailer. No push or publication.
+
+Replace the ordering-specific restore checks with one comparison: a fresh head
+below facts captured before that request, in the same incarnation. An explicit
+image head retains its meaning, including on snapshots; a stream rewind below
+its request cursor remains independent proof. Otherwise only a fresh first
+snapshot or terminal stream supplies a head. A continuation's pinned watermark
+cannot prove restore. Observation and application preflight its staged owner,
+next cursor and cut, so B's unpublished staging and published progress both
+supersede A with E_GENERATION. Missing capture evidence never borrows newer
+shared progress to condemn an old response. Genuine restores remain durable.
+
+The client preserves its captured backend_required flag through observation,
+so A adopts B's identity, becomes acquired and answers the touched row offline
+before closing. A valid JSON once receipt containing only store_id is covered:
+it revokes ordinary bytes/live URLs, retains no once body, and cannot protect
+cached bytes as a foreign valid home. The parser was already correct. LLP
+3000.019 §3.5 and the report record these facts; the old report limitation is
+removed. Existing journal entries remain unchanged.
+
+All 16 failing controls were restored after proving their regressions. New
+memory/SQLite cases cover staged/published continuations, missing captures,
+fresh snapshots below private image heads, independent stream rewinds and
+explicit snapshot heads. Four real HTTP orderings cross B staged/published
+with A terminal/nonterminal and require same-open-owner offline recovery.
+The existing synthetic healthy-disposal Rust fixture now uses fresh head 20
+instead of 15 after captured head 20; a new refusal test explicitly protects
+15. No public API, server placement, authorization, meter, version or budget
+change. No assertion, count or timeout relaxation.
+
+Ran scripts/test.sh exactly once on `21900c545`, exit 1:
+`== 1 failure(s) in 1440 s`, `client tests`. Rust: 237 binaries, 950 executions
+plus doctests, 3,819 passes, zero failures, 24 intentional ignores (960 s).
+Ordinary clients: 2,602 tests, 2,587 passes, five failure records, 10 skips
+(195 s). All 78 seeded models pass (257 s); every other phase passes.
+Every failure is lane-owned: two acquisition restore assertions (wasm/native)
+exposed a higher image head masking a stream rewind; a skipped-snapshot test
+pinned the existing diagnostic; a Repair B snapshot-restart test needed its
+explicit image head respected, with one cascading parent failure. The follow-up
+preserves those existing tests unchanged and adds four Rust regressions that
+fail on the pre-correction runtime. The full run stays red; it was not repeated.
+
+Final correction qualification: 376/376 expanded clients (126.903 s), including
+all failing assertions; device media/restore 20/20, Repair B 110/110, retained
+history 20/20, deferred boundaries 6/6, store-reset 10/10, durability 2/2.
+Whole guide 86/86, frozen install, typecheck and builds pass. Final wasm on
+Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt: 1,981,512 raw / 572,053 gzip
+bytes, +513 raw / −58 gzip from the merged baseline, 788 B below the unchanged
+572,841 B budget. The full run's pre-correction artifact was 1,981,526 raw /
+571,954 gzip. No known requested defect remains; final complete-suite
+qualification is limited to the original red run plus the expanded passing
+checks. Evidence, reproductions and hashes are in the round-4 report,
+`reports/20260927-lane-a5-list-offline.md`, and ignored `target/a5-evidence/round4-*`.
