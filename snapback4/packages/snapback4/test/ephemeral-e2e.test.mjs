@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createLocalClient } from '../dist/local.js';
 import { defaultFetch } from '../dist/node-fetch.js';
+import { ServerClock } from '../dist/clock.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
 // @ref LLP 3000.017#47-tests — isolated phases keep durable commits from masking a lost ephemeral wake.
@@ -10,7 +11,11 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
   const measurements = Array.from({ length: 5 }, (_, n) => ({ trial: n + 1 }));
   for (const phase of ['ephemeral', 'durable']) {
     const { url } = await ephemeralServer(t), polls = [];
-    let sends = 0;
+    let sends = 0, expiredReplies = 0;
+    // Force the expiry re-read just before the server's deadline. A normal
+    // midpoint estimate can also run ahead under asymmetric transport/load.
+    const ahead = phase === 'ephemeral' ? 100 : 0;
+    const clock = new ServerClock(() => Date.now() + ahead);
     const op = phase === 'ephemeral' ? api.setTyping : api.setDurableTyping;
     const query = phase === 'ephemeral' ? api.typingIn : api.durableTypingIn;
     const a = await createLocalClient({ url, persona: 'alice', device: device(), fetch: (input, init) => {
@@ -18,14 +23,27 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
       return defaultFetch(input, init);
     } });
     t.after(() => a.close());
-    const b = await createLocalClient({ url, persona: 'bob', device: device(), fetch: async (input, init) => {
+    const b = await createLocalClient({ url, persona: 'bob', device: device(), fetch: clock.wrap(async (input, init) => {
       const parsed = new URL(input);
       const poll = parsed.pathname === '/changes' ? { parameters: parsed.searchParams, signal: init.signal } : null;
       if (poll) polls.push(poll);
       const response = await defaultFetch(input, init);
-      if (poll) void response.clone().json().then(answer => { poll.answer = answer; poll.at = performance.now(); }).catch(() => {});
-      return response;
-    } });
+      // This fixture owns the estimate; neither header nor held-poll samples
+      // may correct it before the race is exercised. Server data is unchanged.
+      const headers = new Headers(response.headers);
+      headers.delete('x-snapback-time');
+      if (poll) {
+        const answer = await response.json();
+        delete answer.serverNow; delete answer.clockRevision;
+        poll.answer = answer; poll.at = performance.now();
+        return Response.json(answer, { headers });
+      }
+      if (phase === 'ephemeral' && parsed.pathname === '/q/typingIn') {
+        const answer = await response.clone().json();
+        if (answer.data?.length && answer.nextExpiry <= Date.now() + ahead) expiredReplies++;
+      }
+      return new Response(response.body, { status: response.status, headers });
+    }) });
     t.after(() => b.close());
     await Promise.all([a.sync(), b.sync()]);
     for (const measure of measurements) {
@@ -48,7 +66,7 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
         }
         if (!read.data.length && times.first !== null && times.gone === null) times.gone = performance.now();
       });
-      const before = sends, outcomes = [], firstCall = performance.now();
+      const before = sends, expiredBefore = expiredReplies, outcomes = [], firstCall = performance.now();
       let lastCall = firstCall;
       for (let key = 0; key < 45; key++) {
         lastCall = performance.now();
@@ -59,6 +77,7 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
       if (phase === 'ephemeral') {
         for (const result of results) assert.equal(result.state, 'sent', JSON.stringify(result));
         await until(() => times.gone !== null, `${phase} trial ${measure.trial} disappears`);
+        assert.ok(expiredReplies > expiredBefore, 'an already-expired reply must not strand the watch loading');
       } else {
         // The durable control is measured, including a possible missed bound.
         const deadline = performance.now() + 5500;

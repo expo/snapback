@@ -26,6 +26,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
+  expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
 }
