@@ -150,10 +150,16 @@ fn latency_panicking_handler_excludes_withheld_request_body_cleanup() {
     assert!(total < arrived.as_secs_f64() * 1000.0 + 50.0, "panic cleanup entered total: {result}");
 }
 
+#[cfg(target_os = "macos")]
+type Stream = std::os::unix::net::UnixStream;
+#[cfg(not(target_os = "macos"))]
+type Stream = TcpStream;
+
 // Darwin's loopback TCP handshake raises 1 KiB buffers to 65/326 KiB.
 // Unix sockets exercise the same HTTP writers and honor these bounds, keeping
 // the JSON response below tiny_http's chunking threshold on every host.
-fn constrained_socket() -> (Server, std::os::unix::net::UnixStream) {
+#[cfg(target_os = "macos")]
+fn constrained_socket() -> (Server, Stream) {
     use std::os::{fd::AsRawFd, unix::net::{UnixListener, UnixStream}};
     static SERIAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let path = std::env::temp_dir().join(format!("sb4-lt-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
@@ -173,6 +179,36 @@ fn constrained_socket() -> (Server, std::os::unix::net::UnixStream) {
     assert!(send + receive < 16 * 1024, "the response must exceed both buffers");
     let server = Server::from_listener(listener, None).unwrap();
     std::fs::remove_file(path).unwrap();
+    reader.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    (server, reader)
+}
+
+// Linux keeps small TCP buffers when they are set before the handshake (a
+// Unix stream socket there ignores the receiver's size, and an accepted socket
+// need not inherit the listener's), so the reply cannot fit and the write blocks.
+#[cfg(not(target_os = "macos"))]
+fn constrained_socket() -> (Server, Stream) {
+    use std::os::fd::{AsRawFd, FromRawFd};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let buffer: libc::c_int = 1024;
+    let set_buffer = |fd, option| {
+        assert_eq!(unsafe { libc::setsockopt(fd, libc::SOL_SOCKET, option, (&buffer as *const libc::c_int).cast(), std::mem::size_of_val(&buffer) as _) }, 0);
+    };
+    set_buffer(listener.as_raw_fd(), libc::SO_SNDBUF);
+    let address = listener.local_addr().unwrap();
+    let server = Server::from_listener(listener, None).unwrap();
+    let fd = unsafe { libc::socket(libc::AF_INET, libc::SOCK_STREAM, 0) };
+    assert!(fd >= 0);
+    assert_eq!(unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) }, 0);
+    let reader = unsafe { TcpStream::from_raw_fd(fd) };
+    set_buffer(reader.as_raw_fd(), libc::SO_RCVBUF);
+    // Set the receive window before the handshake; changing it afterwards can
+    // leave the peer enough previously advertised credit for the entire reply.
+    let mut target: libc::sockaddr_in = unsafe { std::mem::zeroed() };
+    target.sin_family = libc::AF_INET as _;
+    target.sin_port = address.port().to_be();
+    target.sin_addr.s_addr = u32::from_ne_bytes([127, 0, 0, 1]);
+    assert_eq!(unsafe { libc::connect(reader.as_raw_fd(), (&target as *const libc::sockaddr_in).cast(), std::mem::size_of_val(&target) as _) }, 0);
     reader.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     (server, reader)
 }
