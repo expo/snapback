@@ -20,7 +20,7 @@ fn activation_does_not_register_or_bound_existing_profiles() {
 }
 
 #[test]
-fn activation_refuses_each_populated_event_or_edge_table() {
+fn activation_adopts_retained_sources_but_refuses_orphan_reposts() {
     for (table,row) in [
         ("posts",object([("id",id("post")),("authorId",id("a")),("at",Value::Int(1)),("removed",Value::Bool(false))])),
         ("reposts",object([("id",id("repost")),("actorId",id("a")),("postId",id("post")),("at",Value::Int(1))])),
@@ -28,9 +28,15 @@ fn activation_refuses_each_populated_event_or_edge_table() {
     ] {
         let mut e=bare();e.load([(table.into(),row)]).unwrap();
         let before=snapshot(&e); let generation=e.generation();
-        let err=adopt(&mut e,bound(true)).unwrap_err();assert_eq!(err.code(),"E_TIMELINE_ACTIVATE");
-        assert!(err.to_string().contains(table)); assert!(err.to_string().contains("planned query"));
-        assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);
+        if table == "reposts" {
+            let err=adopt(&mut e,bound(true)).unwrap_err(); assert_eq!(err.code(),"E_TIMELINE_ACTIVATE");
+            assert!(err.to_string().contains("original card"));
+            assert_eq!(snapshot(&e),before); assert_eq!(e.generation(),generation);
+        } else {
+            adopt(&mut e,bound(true)).unwrap(); assert_eq!(e.generation(),generation+1);
+            assert_eq!(rows(&e,"feedPosts").len(),usize::from(table == "posts"));
+            assert_eq!(rows(&e,"feedEdges").len(),usize::from(table == "follows"));
+        }
     }
 }
 
@@ -129,7 +135,7 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
 
 #[test]
 fn sqlite_activation_refusals_leave_reopened_file_unchanged() {
-    for table in ["posts","reposts","follows"] {
+    for table in ["reposts"] {
         let dir=TempDir::new();let path=dir.0.join("store.sqlite");let b=compile(APP);
         let mut e=Engine::new(Store::open(&path).unwrap(),b.schema,[]).unwrap();
         let images=match table {

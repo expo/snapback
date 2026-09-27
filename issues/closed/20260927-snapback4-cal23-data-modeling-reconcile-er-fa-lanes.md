@@ -45,14 +45,23 @@ Neither lane's branch point carries this landing. When either lane lands:
    retirement-aware atomic launch preflight; the feeds card and existing LLP
    3000.016 §2.1a describe populated-source launch. The branch's item-2 record
    names runtime/preview equality, copy-count and database/WAL regressions.
-   `origin/main` at `8112f4ef6` still has the old activation rule. This closure
-   records completed branch reconciliation, not an FA landing or ER validation
-   of FA's tests.
+   At round-4 closure, `origin/main` at `8112f4ef6` still had the old activation
+   rule; round 5 merges the landed FA work. This record does not claim separate
+   ER validation of FA's tests.
+
+   FA round-3 implementation details (now merged from origin/main):
+   CLI check and runtime now call the same retirement-aware atomic launch
+   preflight. Dev receives a located N_TIMELINE_ADOPT note with the launch
+   contract, copies, lock time and deploy's --allow-feed-adoption requirement;
+   the ceiling refuses with its estimate. Runtime/preview equality, copy counts
+   and database/WAL immutability have regressions. The feeds card replaces the
+   ordering rule with launch semantics; the existing LLP 3000.016 §2.1a and
+   3000.015 §2 paragraphs are amended. Both journal histories survive the merge.
 3. Merge `snapback4/JOURNAL.md` keeping both entries; the LLP 3000.015 §2 and
    3000.016 §2.1a paragraphs added here are the ones to amend, not duplicate.
    **Resolved.** ER merge `f0c5df844` preserves both journal histories; the
    existing paragraph is amended. FA records the same preservation.
 
 Closed under the round-4 instruction to close when both reconciliation items
-are done, including checking FA's branch. Both lane changes still require the
-supervisor's integration; no push or publication is claimed.
+are done, including checking FA's branch. FA is now on the fetched main; ER still requires the supervisor's integration.
+No push or publication by this lane is claimed.

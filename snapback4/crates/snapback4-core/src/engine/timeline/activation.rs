@@ -1,4 +1,4 @@
-//! Retirement is atomic. Existing history cannot be reconstructed from sources.
+//! Retirement is atomic. First-use launch construction lives in store::timeline_launch.
 // @ref LLP 3000.013#4-following-without-caps — copies, admission history and derived totals share activation.
 use super::*;
 use crate::{schema::Schema, store::Tx};
@@ -31,7 +31,7 @@ pub(crate) fn check_no_rebuilds(tx: &Tx<'_>, schema: &Schema) -> Result<(), Runt
         ]);
         let exists: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1) AND id = ?2)", [&t.table("Work"), &id], |row| row.get(0))?;
         if exists {
-            return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: an unfinished experimental reconstruction cannot prove repost identities or complete history; remove the view and deploy, then add the new definition over empty event and edge tables, or use the planned home query in guide feeds over the retained sources", t.name)));
+            return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: an unfinished experimental reconstruction cannot prove repost identities or complete history; remove the view and deploy, then add the new definition with a fresh view name, or use the planned home query in guide feeds over the retained sources", t.name)));
         }
     }
     Ok(())
@@ -46,7 +46,7 @@ pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema, retiremen
     for old in &previous.timelines {
         if let Some(new) = schema.timelines.iter().find(|new| old.name == new.name) {
             if !old.same_declaration(new) {
-                return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: changing its predicate or sources cannot recover edge-admission history or repost identities without their declaration-specific slots; original event ids are post ids; remove the view and deploy, then add the new definition over empty event and edge tables, or use the planned home query in guide feeds over the retained sources", old.name)));
+                return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: changing its predicate or sources cannot recover edge-admission history or repost identities without their declaration-specific slots; original event ids are post ids; remove the view and deploy, then add the new definition with a fresh view name, or use the planned home query in guide feeds over the retained sources", old.name)));
             }
         }
     }
@@ -59,11 +59,7 @@ pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema, retiremen
                 return Err(refusal("E_TIMELINE_ACTIVATE", format!("view {}: owned table {table} contains application data; rename the view to leave that table intact", new.name)));
             }
         }
-        for table in new.event_tables() {
-            if populated(tx, table, retirement.as_ref())? {
-                return Err(refusal("E_TIMELINE_ACTIVATE", format!("view {}: source table {table} is populated; original event ids are post ids, but this new declaration has no repost identity slots or edge-admission history. Use the planned query from guide feeds: query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", new.name)));
-            }
-        }
+
     }
     Ok(previous)
 }
