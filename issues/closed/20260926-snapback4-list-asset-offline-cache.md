@@ -49,3 +49,19 @@ imports missing the trace fixture that the blocked Rust run normally generates.
 The trace producer then passed 2/2 and those client files passed 48/48 separately.
 All 78 client model tests passed. Every failure and reproduction are recorded in
 [`the A5 report`](../../snapback4/reports/20260927-lane-a5-list-offline.md).
+
+
+## Round-1 correction — 2026-09-27
+
+After merging 0.4.4, A5 also recovers retention for persisted old-format devices:
+one normal confirmed snapshot reacquires unchanged rows while preserving queued
+writes and restore evidence. Retained history never supplies media markers.
+A held old-store download now leaves a newer confirmed download and live URL
+intact. Both client tiers cover that ordering, scalar/list upgrades without a
+server touch, nested lists with multiple inner lists and an empty first list,
+and a legacy reference in another column of the same row after release of the
+real home. Mutation checks reject each review's proposed faulty behavior.
+
+See the report's round-1 section for final suite evidence and the measurement
+against main's 572,841-byte ratchet. This correction supersedes the round-0
+upgrade recovery and verification limitations above.

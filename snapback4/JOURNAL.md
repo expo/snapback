@@ -66922,3 +66922,51 @@ ceilings are unchanged.
 Not in this release: offline retention of list assets (lane A5, next patch),
 and `/changes` without waiting for an adoption
 (`issues/20260926-snapback4-changes-waits-for-adoption.md`).
+
+
+## 2026-09-27 — A5 round 1: upgrade acquisition and delayed media deliveries
+
+Read both round-0 reviews and merged `origin/main` `0cca900d8` first; built and
+committed the merge as `18c3b31e3`, preserving both journal histories, A5's full
+LLP 3000.019 §3.5 and main's §3.6. Main brings the unread-range adapter repair
+and the 572,841-byte wasm ratchet. Runtime and regression changes are committed
+as `ad160808f`; the final commit records the evidence and fixes a shared test
+helper exposed by the full inventory.
+
+An unversioned media index now requests one normal confirmed snapshot, keeping
+the outbox, predictions, retained history, published watermark and private
+restore evidence. Only snapshot/catch-up publication stamps the new format and
+acquired-row markers; left history cannot restore media authority. Interrupted
+upgrades restart on reopen. No server row needs a touch. Invalid downloads
+remove only unconfirmed entries or entries bound to that receipt's exact store,
+table, row and column, so a delayed old response preserves newer bytes and URLs.
+
+Affected evidence: 110 unique client tests pass, including both native/wasm
+scalar/list upgrades, the replacement download cached before the old delivery,
+`[[a], [b]]` moving to `[[b], [a]]` and `[[], [b,a]]` across offline reopen,
+and a placed `photo` cleared while its same-row legacy `refs` copy remains.
+Eight memory/SQLite device cases cover upgrade interruption, preserved outbox,
+retained-history exclusion and exact column homes. Retained history 20/20,
+deferred boundaries 6/6, scalar media scenarios 2/2, server lists 28/28 and the
+whole guide 86/86 pass. Four compiled counterfactuals each produce two intended
+failures (first-inner-only, any-column fallback, no upgrade, unconditional cache
+deletion); all were restored and affected tests rerun.
+
+Production wasm, same Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt:
+merged baseline 1,980,173 raw / 571,841 gzip; round 1 1,980,804 raw / 571,975
+gzip, **+631 raw / +134 gzip**, **866 B below** main's unchanged ratchet.
+The full run reproduces that measurement. No server placement, authorization,
+runtime meter, package version or budget changed. No push or publication.
+
+Ran `scripts/test.sh` once, exit 1: `== 1 failure(s) in 622 s`, `cargo test`.
+This was lane-owned: the new shared fixture used `rusqlite` directly, but the
+simulator imports it without that dependency (E0433). Corrected it to use the
+core Store's connection, without adding a dependency. All other phases passed:
+2,565 ordinary client passes, 10 existing skips, zero client failures; all 78
+models passed. No baseline/environmental failure occurred. The separate
+corrected `node scripts/run-rust-tests.mjs` run exits 0: 236 test binaries,
+949 executions and workspace doctests, including simulator page_admission
+15/15 and main's unread_range 7/7. The original full-script result remains red;
+it was not rerun. Report, exact reproduction and artifact hashes:
+`reports/20260927-lane-a5-list-offline.md`, round 1. Evidence:
+`target/a5-evidence/round1-*`.

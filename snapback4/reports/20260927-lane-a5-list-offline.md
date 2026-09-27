@@ -222,3 +222,192 @@ Every failure, with classification:
 - Final documentation commit: report, closed ticket and one journal entry.
 
 Every commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## Round 1 — 2026-09-27
+
+Read the lane prompt, round-0 report/journal/LLP section and both reviews in
+full. Merged `origin/main` `0cca900d8` first, built it, and committed the merge
+as `18c3b31e3`. LLP 3000.019 retains A5's full §3.5 and main's §3.6; revision
+histories and both journal sides are preserved. Main supplies the unread-range
+`release_asset` adapter fix and the **572,841 B** wasm ratchet.
+
+### Built, file by file
+
+Paths below are relative to `snapback4/`, except the LLP.
+
+- `crates/snapback4-device/src/device/media.rs`: define the acquired-row
+  media-index format and refuse retention until that format is confirmed.
+- `crates/snapback4-device/src/device.rs`: initialize new stores with the
+  current format; existing unversioned stores request a normal snapshot from
+  zero and remain unacquired for media until snapshot/catch-up publication
+  stamps the format. Preserve the published watermark, private restore
+  evidence, outbox, predictions and delivered history. Interrupted acquisition
+  restarts on reopen; a completed upgrade does not repeat.
+- `packages/snapback4/src/local-assets.ts`: an invalid response drops bytes
+  only when no confirmed entry exists or its receipt names that entry's store,
+  table, row and column. A different receipt leaves newer bytes and URLs intact.
+- `crates/snapback4-device/tests/asset_lists.rs`: upgrade, interrupted snapshot,
+  outbox/history, exact-column and multi-inner-list witnesses on memory/SQLite.
+- `crates/snapback4-device/tests/common/mod.rs`: test-only persisted metadata
+  editing on both hosts to represent the shipped old media-index format.
+- `packages/snapback4/test/asset-lists.test.mjs`: real HTTP/native/wasm witnesses
+  for unchanged scalar/list upgrades, newer-download-before-old-response,
+  nested-list movement/empty first list, and same-row `photo`/legacy `refs`.
+- `packages/snapback4/test/asset-blob-lifecycle.test.mjs`: exact receipt fixture
+  and six regressions for foreign/missing versus matching invalid receipts.
+- `crates/snapback4-lang/src/guide.rs`: the assets card now states automatic
+  reacquisition, redownload of unconfirmed bytes and preserved queued writes.
+- `../llp/3000.019-what-the-builder-still-wrote.rfc.md`: extend §3.5 with the
+  upgrade protocol, delayed-response rule and round-1 evidence.
+- `../issues/closed/20260926-snapback4-list-asset-offline-cache.md`: append
+  the round-1 correction to the original resolution.
+- `JOURNAL.md`: one appended dated round-1 entry with measurements and outcome.
+- `reports/20260927-lane-a5-list-offline.md`: this round-1 record; round 0 remains.
+
+### Forms and regressions
+
+No new Quarry or public client spelling. Existing `photo: image <=10000 ?`
+and `images: [image <=10000] <=4 ?` now recover retention after an upgrade
+through `await client.sync(); await client.asset(id)`, with
+`assets: { keep: "viewed", maxBytes: 10000 }`. The upgrade fixtures preserve
+rows, store id, generation and watermark, project only media metadata to the
+shipped old shape (no row markers/version, scalar per-id metadata), then close
+and reopen. They sync twice, require exactly one snapshot, download, reopen
+wholly offline and require byte equality. No server row is touched.
+
+`images: [[image <=10000] <=2] <=2 ?` is placed by the real server as
+`[[a], [b]]`, reordered to `[[b], [a]]`, then moved to `[[], [b,a]]`.
+Both bytes survive each offline reopen. Device tests also remove an element
+with the first inner list empty. Existing optional video and `once` forms
+continue to run; `once` remains uncached.
+
+The same-row witness uses `photo: image <=10000 ?` and
+`refs: [image <=10000] <=4 ?`. Its legacy `refs` copy is installed directly in
+the stopped fixture database, without moving the real `photo` ledger home.
+Clearing `photo` returns HTTP 404 for that asset, while `refs` remains readable;
+offline reads and reopen must return `E_OFFLINE`.
+
+The replacement race now has both orderings: an unplaced replacement still
+cannot inherit the old download; a placed replacement first downloads and
+caches the asset, then receives the old store's held response. Its manifest
+stays bound to the replacement, its live URL remains usable and its bytes
+survive offline reopen. The cache unit tests independently vary store, table,
+row, column and absent receipt; a matching invalid receipt still deletes bytes.
+
+Memory/SQLite upgrade tests additionally preserve a real pending predicted
+write, restart an interrupted multi-page snapshot, wait for catch-up before
+media authority, retain left text history without media markers, and prove the
+format stamp prevents another reacquisition after reopen.
+
+### Verification
+
+Evidence is under the ignored `target/a5-evidence/round1-*` paths.
+
+- Affected clients: **110/110 unique tests**, with the final list/Blob run
+  **55/55** and clock/reset cases **55/55**. The list target is now **32/32**;
+  Blob lifecycle is **23/23**.
+- Device list/upgrade/column cases: **8/8** on restored source. Retained
+  history: **20/20**; deferred boundaries: **6/6**.
+- Existing scalar media scenarios: **2/2** (both stores); the filtered target
+  also ran two matching trending tests, for **4/4**. Server lists: **28/28**.
+- Whole guide: **86/86**. Frozen dependency install, package typecheck/build
+  and native builds passed. Source files remain below 1,500 lines.
+- Four temporary counterfactuals compiled and failed the intended assertions:
+  first-inner-list-only traversal **2 failures**; any-column fallback **2**;
+  disabled upgrade reacquisition **2**; unconditional invalid-receipt deletion
+  **2**, including both native and wasm replacement live URLs. Every mutation
+  was restored, then affected tests reran on the final code.
+- Final reference audit: **515 LLP docs, 9,567 refs in 27,049 files, 0 errors,
+  0 unchecked** after the report/journal append.
+
+### Wasm and scope
+
+Same host, Rust 1.97.0 / wasm-bindgen 0.2.127, production `build-wasm.sh`,
+no wasm-opt, `CARGO_INCREMENTAL=0`:
+
+| Artifact | Raw B | Gzip B |
+| --- | ---: | ---: |
+| Merged 0.4.4 + A5 round 0 (`18c3b31e3`) | 1,980,173 | 571,841 |
+| Round 1 | 1,980,804 | 571,975 |
+| Round-1 delta | +631 | +134 |
+
+The final gzip is **866 B below** main's unchanged **572,841 B** ratchet.
+It is **+134 B gzip** against main's recorded 571,841 B release measurement;
+main's recorded raw size is 1,980,253 B, so the cumulative raw difference is
++551 B. Whole-artifact measurements; no per-component attribution.
+
+Preserved raw-artifact SHA-256:
+
+- Merged baseline: `7d84b18c911ad5f88e929e7380b3ff56b91f2554199ee7ed00f35f5d3994d6fa`.
+- Round 1: `a71993c5f58fa6bef720e519d2f04ffbbf53bef3dcefb1253d0121fb20a1fb4d`.
+
+No implementation-scope deviation. The required full-run compile failure needed
+a corrected Rust-phase rerun, documented below; the full script was not repeated. Engineering choice: preserve the old published
+watermark/restore floors and force only the transfer request to zero, rather
+than erase progress. This retains restore protection while using the ordinary
+confirmed acquisition path. Upgrade fixtures construct the exact older media
+metadata shape in a persisted current device; they do not embed an old runtime
+in the test suite. Server placement, authorization, meters, version and budget
+are unchanged. No push or publication.
+
+
+### Required complete suite and correction
+
+Ran `scripts/test.sh` **once**, exit **1**. Exact ending:
+
+```text
+== 1 failure(s) in 622 s
+   cargo test
+```
+
+The run used Node 24.13.1, eight Cargo build jobs and eight Rust test processes,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0`, and no `FORCE_COLOR`. Client concurrency used the
+suite's normal host-load selection (13.70 across 96 CPUs, parallel files);
+no count, timeout, runtime ceiling or assertion was relaxed.
+
+**Every failure:** one **lane-owned** test-helper compile error. The new
+`tests/common/mod.rs::patch_meta` referred directly to `rusqlite`, available in
+the device test crate but absent from the simulator crate that imports this
+shared source. The full Cargo artifact build failed with E0433 at
+`snapback4-device/tests/common/mod.rs:133`, from `snapback4-sim`'s
+`page_admission` target. Reproduce on `ad160808f` with
+`cargo test -p snapback4-sim --test page_admission --no-run`. The helper is now
+corrected to open `snapback4_core::store::Store` and use its existing connection;
+no dependency was added. The failure is fixed in the final tree, but the
+original full-run result remains red and is not relabeled as a green suite.
+
+All other phases passed: native/wasm builds, docs budget, release guard,
+package typecheck/build, chat check, chat/Expo typechecks, fixture tests,
+ordinary clients and models. Across the main ordinary-client process and
+seven shards: **2,575 tests, 2,565 passed, 0 failed, 10 skipped**. All **78
+client models passed**. No baseline or environmental failure was reported.
+The wasm step reproduced 1,980,804 B raw / 571,975 B gzip. Main's unread-range
+trait fix compiled; there was no missing event-trace client import.
+
+To verify the helper across all importers and execute the Rust tests skipped
+by the compile failure, ran `node scripts/run-rust-tests.mjs` separately after
+correction, with the same Rust environment. This is a rerun of the failed
+phase, not a second `scripts/test.sh` invocation. Its result follows below.
+
+
+**Corrected Rust phase: exit 0.** The complete inventory compiled and ran:
+**236 test binaries, 949 executions, plus workspace doctests**, with no failed
+execution. This includes the previously blocked simulator `page_admission`
+**15/15**, device media **8/8**, server assets **28/28**, unread range **7/7**,
+all **86** guide tests, the long disclosure targets and the isolated
+performance/lifecycle/witness targets. No runtime code changed after the
+successful client and wasm phases. The only source correction was the shared
+test helper's connection constructor.
+
+**Open problems:** no known unresolved implementation defect from this round.
+The verification limitation is explicit: the once-only full script exited 1;
+the corrected complete Rust phase passed separately. There was no second full
+script invocation. Reproduction of the fixed failure is pinned above to its
+pre-correction commit.
+
+**Commits:** `18c3b31e3` (merge/build), `ad160808f` (runtime, tests, guide and
+LLP), and the final helper-correction/report/journal commit containing this
+record. All carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Nothing was pushed or published.

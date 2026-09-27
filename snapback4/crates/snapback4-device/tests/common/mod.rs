@@ -130,7 +130,8 @@ impl Host for Sqlite {
         drop(device);
     }
     fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]) {
-        let conn = rusqlite::Connection::open(self.path(name)).unwrap();
+        let store = snapback4_core::store::Store::open(&self.path(name)).unwrap();
+        let conn = store.conn();
         for (key, value) in changes {
             if let Some(value) = value { conn.execute("INSERT OR REPLACE INTO _meta (key,value) VALUES (?1,?2)", [key, &value.as_str()]).unwrap(); }
             else { conn.execute("DELETE FROM _meta WHERE key=?1", [key]).unwrap(); }
