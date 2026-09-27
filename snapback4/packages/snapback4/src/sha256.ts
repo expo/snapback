@@ -30,7 +30,7 @@ export function utf8(text: string): Uint8Array {
 
 export function sha256(message: Uint8Array): Uint8Array {
   const h = Uint32Array.from([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
-  const padded = new Uint8Array(((message.length + 9 + 63) >> 6) << 6);
+  const padded = new Uint8Array(Math.ceil((message.length + 9) / 64) * 64);
   padded.set(message);
   padded[message.length] = 0x80;
   const view = new DataView(padded.buffer);

@@ -67429,4 +67429,5 @@ asynchronous and Hermes has no `node:crypto`.
 
 The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
-never capabilities, and this is a name, not a secret.
+never capabilities, and this is a name, not a secret. Unlike `mintId()`'s,
+derived ids do not sort by creation time.

@@ -121,7 +121,8 @@ export function mintId(now = Date.now()): string {
 /** The id a stable key names, in the `mintId()` form: the same key gives the
  * same id on every client and host. For fixtures, seeds and replays keyed by a
  * label (`idFrom("post-17")`), as a write id or a row id. It is a name, not a
- * secret: anyone who knows the key knows the id. */
+ * secret: anyone who knows the key knows the id. Unlike mintId's, derived ids
+ * do not sort by creation time. */
 export function idFrom(key: string): string {
   if (typeof key !== "string" || key === "") throw new TypeError("idFrom: the key must be a non-empty string");
   const digest = sha256(utf8(JSON.stringify(["snapback4:id:v1", key])));
