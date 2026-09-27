@@ -84,6 +84,9 @@ pub struct Runner<'a> {
     /// and while that allowance is active (nested checks share the same meter).
     pub(super) device_allowance: Option<Meter>,
     pub(super) device_work_active: bool,
+    /// Caller ceiling and public reservations inside a restoring rule scope.
+    /// Private internal charges never advance this public admission ledger.
+    pub(super) caller_heap_ceiling: Option<(u64, u64)>,
     pub(crate) env: BTreeMap<String, Value>,
     pub(crate) consts: BTreeSet<String>,
     /// Rows this transaction inserted, by (table, index, encoded key).
@@ -198,6 +201,8 @@ pub struct Runner<'a> {
     pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
+    #[cfg(feature = "server-search")]
+    pub(super) compact_memberships: usize,
     pub(crate) column_heap: u64,
     pub(crate) column_prepaid: bool,
     #[cfg(feature = "sqlite")]
@@ -242,6 +247,7 @@ impl<'a> Runner<'a> {
             meter,
             device_allowance: None,
             device_work_active: false,
+            caller_heap_ceiling: None,
             env,
             consts: BTreeSet::new(),
             created: BTreeMap::new(),
@@ -311,6 +317,8 @@ impl<'a> Runner<'a> {
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,
+            #[cfg(feature = "server-search")]
+            compact_memberships: 0,
             column_prepaid: false,
             #[cfg(feature = "sqlite")]
             assets_prepaid: false,
@@ -335,6 +343,16 @@ impl<'a> Runner<'a> {
             for value in self.context.args.values() { self.meter.heap(value.expression_copy(ExpressionAccess(())))?; }
             self.statements(&program.body, &program.name)
         })();
+        // @ref LLP 3000.024#decision — the page plan follows the generated
+        // result binding through return. Keep the final copy charge, and use
+        // the original IR only on refusal rather than cloning it per execution.
+        #[cfg(feature = "server-search")]
+        if matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }))
+            && let Some(returned) = self.page_plan.returns.get(&self.statement_site)
+            && let Some(Some(count)) = self.page_plan.compact.get(&returned.page)
+            && let Some(merge) = crate::search_plan::merges(&program.body).into_iter().find(|merge| merge.site == returned.page) {
+            return Err(self.opening_error(merge, *count, true));
+        }
         match result {
             Ok(Flow::Return(value)) => Ok(value),
             Ok(_) => Ok(Value::Null),
@@ -371,8 +389,7 @@ impl<'a> Runner<'a> {
             self.meter.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {
-                    let value = self.expr(value)?;
-                    self.meter.heap(expression_heap(&value))?;
+                    let value = self.binding_expr(value)?;
                     self.bind_effect_value(name, value)?;
                     self.consts.insert(name.clone());
                     Flow::Next
@@ -381,8 +398,7 @@ impl<'a> Runner<'a> {
                     if matches!(statement, Stmt::Assign { .. }) && self.consts.contains(name) {
                         return Err(RuntimeError::Input(format!("cannot assign to const binding {name}")));
                     }
-                    let value = self.expr(value)?;
-                    self.meter.heap(expression_heap(&value))?;
+                    let value = self.binding_expr(value)?;
                     self.bind_effect_value(name, value)?;
                     Flow::Next
                 }
@@ -542,10 +558,18 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Return(value) => {
-                    let value = match value {
-                        Expr::Object(fields) if component_return => self.component_record(fields, value)?,
-                        _ => self.expr(value)?,
+                    let result = match value {
+                        Expr::Object(fields) if component_return => self.component_record(fields, value),
+                        _ => self.expr(value),
                     };
+                    // A nested expression can change statement_site. Preserve
+                    // this return's origin when its final copy unwinds to run().
+                    #[cfg(feature = "server-search")]
+                    if matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })) {
+                        self.statement_site = site;
+                        return result.map(Flow::Return);
+                    }
+                    let value = result?;
                     let returned = self.page_plan.returns.get(&site);
                     self.page_owner = returned.map(|returned| returned.page.clone());
                     let shaped = returned.into_iter().flat_map(|returned| &returned.shapes)
@@ -572,6 +596,22 @@ impl<'a> Runner<'a> {
             }
         }
         Ok(Flow::Next)
+    }
+
+    fn binding_expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
+        let value = self.expr(expression)?;
+        let charged = self.meter.heap(expression_heap(&value));
+        // @ref LLP 3000.024#decision — Quarry's search conditional binds the
+        // merge result before returning it. That reservation still belongs to
+        // the compact page and must not turn its buffered hits into heap-null.
+        #[cfg(feature = "server-search")]
+        if matches!(charged, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }))
+            && let Expr::Merge(merge) = expression
+            && !self.device && crate::search_plan::eligible(self.schema, merge) {
+            return Err(self.opening_error(merge, self.compact_memberships, true));
+        }
+        charged?;
+        Ok(value)
     }
 
     fn bind(&mut self, name: &str, value: Value) {
@@ -811,8 +851,7 @@ impl<'a> Runner<'a> {
                 Ok(Value::Array(values))
             }
             Expr::Merge(merge) => {
-                let values = self.merge(merge)?;
-                self.meter.heap(values.iter().map(expression_heap).sum::<u64>())?;
+                let values = self.merge(merge, |runner, values| runner.meter.heap(values.iter().map(expression_heap).sum::<u64>()))?;
                 Ok(Value::Array(values))
             }
         }

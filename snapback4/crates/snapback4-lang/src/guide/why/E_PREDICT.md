@@ -16,7 +16,8 @@ prove readability, and the device holds every row that can collide on a
 secondary unique index or count toward an affected cap. Defaults are part of
 that image. Otherwise it queues without a predicted row, including in a left
 group. See `guide prediction` for the conditions and a set-membership recipe.
-An expiring cap counts unswept physical rows, which live snapshots omit.
+An expiring cap limits live occupancy; unswept expired rows can require a
+bounded recount. Held snapshots cannot prove server occupancy or recount cost.
 Occupancy-increasing writes queue without predicted rows and settle on the
 server even after full acquisition; updates within a cap group can still predict.
 Replacing an expired same-id row also queues: the server may have swept it and

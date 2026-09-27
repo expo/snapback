@@ -137,7 +137,8 @@ mutation delivered(conversation: conversations, from: int, through: int):
     delete runs[run]
   if low <= prefix + 1:
     update members[me] { deliveredOrdinal: high }
-  else if count(runs where .conversation = conversation and .principal = viewer) < 64:
+  else:
+    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   return null
 
@@ -217,6 +218,15 @@ preserve unchanged bindings.
 `E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
 drops that binding's debt and collects under the current fingerprint; it
 does not retry the old report.
+
+For explicit catch-up, `progress` answers with the member's row, their stored
+runs and the next 100 ordinals ahead of the prefix, counted from the join,
+newest first within that interval. The next interval follows as the prefix
+moves. An interval below the acquired window needs the server; it never needs
+the page's cursor. The SDK keeps fetched positions merged into disjoint runs
+until a report succeeds. A member keeps at most 64 stored runs: one more
+refuses `RUNS_FULL` until a merge or catching up frees room.
+
 
 Reports call `delivered` directly, outside the ordered outbox. Success means
 the whole run is covered. `RUNS_FULL` parks a disjoint run while other runs

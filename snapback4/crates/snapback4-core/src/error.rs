@@ -90,6 +90,9 @@ impl MeterKind {
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    #[cfg(feature = "server-search")]
+    #[error("E_SEARCH_OPEN: {memberships} authorized membership keys discovered{unfinished}; opening exceeded this read's envelope ({ceiling} {resource} maximum) at {site}; use the grouped form in `snapback4 guide search`")]
+    SearchOpening { site: String, memberships: usize, unfinished: &'static str, resource: &'static str, ceiling: u64, rewrite: Option<String> },
     #[error("{code}: {message}")]
     Structural { code: &'static str, message: String },
     #[error("E_INPUT: {0}")]
@@ -164,6 +167,8 @@ impl RuntimeError {
 
     pub fn code(&self) -> String {
         match self {
+            #[cfg(feature = "server-search")]
+            Self::SearchOpening { .. } => "E_SEARCH_OPEN".into(),
             Self::Structural { code, .. } => (*code).into(),
             Self::Input(_) => "E_INPUT".into(),
             Self::Schema(_) => "E_SCHEMA".into(),
@@ -210,6 +215,8 @@ impl RuntimeError {
             Self::Rule { .. } | Self::AuthorizationBudget { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
             Self::Conflict { .. } | Self::Constraint(_) | Self::ExpiringCap { .. } | Self::NamedConstraint { .. } => "constraint",
+            #[cfg(feature = "server-search")]
+            Self::SearchOpening { .. } => "bound",
             Self::Fanout | Self::Bound { .. } => "bound",
             Self::UnknownOp(_) => "op",
             Self::Asset { .. } => "asset",
@@ -247,6 +254,12 @@ impl RuntimeError {
     pub fn refusal(&self) -> Refusal {
         let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
         match self {
+            #[cfg(feature = "server-search")]
+            Self::SearchOpening { site, rewrite, .. } => {
+                refusal.site = Some(site.clone());
+                refusal.rewrite = rewrite.clone();
+                refusal.guide = Some("search".into());
+            }
             Self::NamedConstraint { code, message, detail } => {
                 refusal.rule = Some(code.clone());
                 refusal.message = message.clone();

@@ -69,6 +69,13 @@ impl<'a> GuardedRows<'a> {
         if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(rows)
     }
+    #[cfg(feature = "server-search")]
+    pub(crate) fn scan_selected(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.limit(table, 1)?;
+        let rows = self.raw.scan_selected(table, name, prefix, bounds, dir, fields)?;
+        self.charge(rows.len());
+        Ok(rows)
+    }
     pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let permitted = self.limit(table, limit)?;
         let rows = InternalLedger::with_meter(meter, |meter, _| self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter))?;
@@ -108,6 +115,14 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn prefetch(&self, requests: &[PrefetchRequest]) { self.raw.prefetch(requests) }
 }
 
+struct PrepaidState {
+    mark: crate::meter::MeterMark,
+    ceilings: Ceilings,
+    cut: Cut,
+    authorizing: bool,
+    nested: bool,
+}
+
 impl Runner<'_> {
     // @ref LLP 3000.015#1 — declaration-only scratch is admitted before any
     // candidate/witness access. The logical heap retains only disclosed output.
@@ -137,7 +152,8 @@ impl Runner<'_> {
     }
 
     pub(super) fn witness_scratch(&self, table: &str) -> u64 {
-        let own = crate::rows::disclosed::admission(&self.schema.tables[table]);
+        let definition = &self.schema.tables[table];
+        let own = crate::rows::disclosed::admission(definition);
         let source = self.schema.maintain_for(table)
             .and_then(|m| self.schema.table(&m.source)).filter(|source| source.is_expiring());
         own.saturating_add(source.map_or(0, crate::rows::disclosed::admission))
@@ -183,19 +199,41 @@ impl Runner<'_> {
             if !self.read_charge(kind, amount)? { return Ok(T::default()); }
         }
         if self.read_capped() { return Ok(T::default()); }
-        let mark = self.meter.mark();
         let scope = Authorization { probes: Cell::new(0), remaining_probes: self.meter.ceilings.rule_probes.saturating_sub(self.meter.used.rule_probes) };
-        let ceilings = std::mem::replace(&mut self.meter.ceilings, Ceilings::unbounded());
-        let cut = std::mem::replace(&mut self.meter.cut, Cut::Abort);
-        let active = self.tx.authorizing.replace(self.tx.authorizing.get() || (physical && !self.context.is_system()));
+        let state = self.enter_prepaid(physical);
         let result = scan(self, &scope);
-        self.tx.authorizing.set(active);
-        self.meter.restore(mark);
-        self.meter.ceilings = ceilings;
-        self.meter.cut = cut;
+        self.leave_prepaid(state, result.as_ref().err());
         if scope.probes.get() > 0 { self.read_charge(MeterKind::RuleProbes, scope.probes.get())?; }
         result
     }
+
+    // Kept out of the generic closure wrapper: every protected access shares
+    // the same scope transition instead of instantiating its restoration code.
+    #[inline(never)]
+    fn enter_prepaid(&mut self, physical: bool) -> PrepaidState {
+        let nested = self.caller_heap_ceiling.is_some();
+        self.caller_heap_ceiling.get_or_insert((self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes));
+        PrepaidState {
+            mark: self.meter.mark(),
+            ceilings: std::mem::replace(&mut self.meter.ceilings, Ceilings::unbounded()),
+            cut: std::mem::replace(&mut self.meter.cut, Cut::Abort),
+            authorizing: self.tx.authorizing.replace(self.tx.authorizing.get() || (physical && !self.context.is_system())),
+            nested,
+        }
+    }
+
+    #[inline(never)]
+    fn leave_prepaid(&mut self, state: PrepaidState, error: Option<&RuntimeError>) {
+        self.tx.authorizing.set(state.authorizing);
+        self.meter.restore(state.mark);
+        self.meter.ceilings = state.ceilings;
+        self.meter.cut = state.cut;
+        if !state.nested { self.caller_heap_ceiling = None; }
+        if let Some(RuntimeError::Bound { kind: MeterKind::HeapBytes, site, .. }) = error {
+            self.meter.capped_at.get_or_insert((MeterKind::HeapBytes, site.clone()));
+        }
+    }
+
 }
 
 #[cfg(all(test, feature = "sqlite"))]

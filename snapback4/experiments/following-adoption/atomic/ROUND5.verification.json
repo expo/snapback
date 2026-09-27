@@ -1,0 +1,220 @@
+{
+  "round": 5,
+  "branch": "sb4-intent/fa-following-adoption",
+  "merged_origin_main": "687e2a05fd8dd691ca97224e64f0af13dfca4d6d",
+  "affected": [
+    {
+      "check": "affected-lang",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "following_atomic_launch",
+        "--test",
+        "following_adoption_research",
+        "--test",
+        "following_view",
+        "--test",
+        "timeline_background",
+        "--test",
+        "timeline_epoch_counterexample",
+        "--test",
+        "timeline_guide",
+        "--test",
+        "guide"
+      ],
+      "exit": 0,
+      "seconds": 46.591,
+      "sha256": "517e88cd55757e2b706520aef793f7d05fde96089f2ae01d2a552c933cf51a2d"
+    },
+    {
+      "check": "affected-cli",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "following_view",
+        "--test",
+        "timeline",
+        "--test",
+        "timeline_adoption",
+        "--test",
+        "timeline_delivery",
+        "--test",
+        "timeline_delivery_counterexample",
+        "--test",
+        "timeline_design"
+      ],
+      "exit": 0,
+      "seconds": 43.536,
+      "sha256": "96d8781a5952f4a5dbee9d115ee8e1581ec2f8e299081411a99e82bd6faa53b3"
+    },
+    {
+      "check": "http-adoption",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "serve::tests::adoption_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 11.733,
+      "sha256": "0c91cac12a5fe3085c4d89a5ab99a23205a649f1f81a2a132f1bac7db147c24b"
+    },
+    {
+      "check": "core-adoption",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "store::adoption_tests"
+      ],
+      "exit": 0,
+      "seconds": 19.954,
+      "sha256": "e5f6bf3c57e15ec07671e421f52a9dece661b48cdf4d5cfa183cc7dc21149eab"
+    },
+    {
+      "check": "device",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device"
+      ],
+      "exit": 0,
+      "seconds": 1570.706,
+      "sha256": "7f513c8d2421d4c7e606dfe5fcb1def0e222f0207fbcffee7c4cc44bf521dedc"
+    },
+    {
+      "check": "wasm",
+      "command": [
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "exit": 0,
+      "seconds": 33.717,
+      "sha256": "0682b4e4ee0ce64130f4982ac9c27b8050ecd139fe28c8574f563cfc0642dba1"
+    },
+    {
+      "check": "census",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/wasm-codec-census.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 13.192,
+      "sha256": "16e6971f7c0608749fe6031feaf9690273b2fca090ae75e2bbc0655314f64de9"
+    }
+  ],
+  "final_interleaving_check": {
+    "command": "cargo test -p snapback4-lang --test following_atomic_launch copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock -- --exact --nocapture",
+    "exit": 0,
+    "sha256": "4f90d97b3325cfb1884d39f25373f7b70f44531f627d8a51daf7cc04c2890357"
+  },
+  "regression_reproductions": [
+    {
+      "test": "sparse_literal_defaults_agree_in_check_and_atomic_launch",
+      "unfixed_exit": 101,
+      "fixed_exit": 0,
+      "classification": "ours, expected unfixed-code reproduction; fixed and passed"
+    }
+  ],
+  "mutation_tests": [
+    {
+      "mutant": "omit in-lock preflight",
+      "test": "copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock",
+      "exit": 101,
+      "killed_by_test": true,
+      "classification": "ours, expected mutation failure; original code restored"
+    }
+  ],
+  "full_suite": {
+    "invocations": 1,
+    "started": "2026-09-27T17:42:38.248732+00:00",
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1368 s",
+    "sha256": "ca675e28668a5018c306aa5aab464796c8cc9e7f11f9d624f0a22da9451816dd",
+    "source_before": "afd6be835d06fc1138fb2d5bf6bb23995c8e0a288a970551b8ef4c3c07be75fe",
+    "source_after": "afd6be835d06fc1138fb2d5bf6bb23995c8e0a288a970551b8ef4c3c07be75fe",
+    "source_unchanged": true,
+    "failures": {
+      "ours": [],
+      "baseline": [],
+      "environmental": []
+    },
+    "rust_scheduler": {
+      "passed": 3933,
+      "failed": 0,
+      "ignored": 28,
+      "binaries": 250,
+      "executions": 963
+    },
+    "fixture_tests": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "client_tests": {
+      "passed": 2701,
+      "failed": 0,
+      "skipped": 10
+    },
+    "client_models": {
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "device": {
+    "passed": 1332,
+    "failed": 0,
+    "ignored": 3,
+    "harness_summaries": 68
+  },
+  "guide": {
+    "passed": 86,
+    "failed": 0
+  },
+  "census": {
+    "passed": 26,
+    "failed": 0
+  },
+  "wasm": {
+    "raw_bytes": 1981453,
+    "gzip_bytes": 572553,
+    "budget": 572841,
+    "headroom": 288,
+    "sha256": "3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa",
+    "wasm_bindgen": "0.2.127",
+    "wasm_opt": false
+  },
+  "environment": {
+    "rust": "1.97.0",
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "cargo_build_jobs": 8,
+    "incremental": false,
+    "dev_and_test_debug_info": false,
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "fd_limit": 65536,
+    "tool_installs": []
+  },
+  "source_unchanged_during_full_run": true,
+  "push_or_publication": false,
+  "reference_audit": {
+    "exit": 0,
+    "summary": "ref-check: ok \u2014 519 LLP docs, 9649 refs in 27389 files, 0 errors, 0 unchecked"
+  }
+}

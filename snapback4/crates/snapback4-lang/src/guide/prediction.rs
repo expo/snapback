@@ -85,6 +85,9 @@ past a horizon, even on an unchanged program. `why` qualifies the heading:
 A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
 causes with deduplicated sites and rewrites.
+Expiring scans admitted by the rule in guide programs run only on the server;
+the device queues these mutations without executing their bodies. Query
+entries refuse mutations and jobs; they cannot be used to run that body locally.
 Every mutation can queue on the local client; eligibility is not a promise
 that every call produces a predicted row. Native reads also need their module.
 Persisted writes without a valid integer prediction clock queue without rows;
@@ -113,15 +116,12 @@ including when synced rows are trusted; only additional device authorization
 work spends the separate allowance. A mutation-meter cut can refuse with `E_BOUND`.
 Queries continue to charge authorization to their query meter.
 
-An expiring table's cap counts physical rows, including expired rows awaiting
-the server sweep. A complete live snapshot cannot establish that occupancy.
-A sweep can also free space before its deletion reaches the device; the last
-received occupancy would still say the cap is full.
-Writes that increase an expiring cap's occupancy queue without predicted rows
-and settle on the server. This includes inserts, missing upserts and moves
-into another capped group. Updates within the same group and deletes can still
-predict under the ordinary rules. Acquiring again cannot prove space in this
-cap; observe the queued write's settlement (`guide writes`).
+An expiring cap counts live occupants; expired physical rows can remain until
+swept. Checking occupancy may need a bounded live recount. Neither a held
+snapshot nor reacquisition proves the server's occupancy or recount cost.
+Inserts, missing upserts and moves into an expiring capped group queue without
+predicted rows. Updates within the same group and deletes can still predict
+under the ordinary rules. Observe the queued write's settlement (guide writes).
 
 
 An unreadable output does not prevent prediction. For example, a moderation

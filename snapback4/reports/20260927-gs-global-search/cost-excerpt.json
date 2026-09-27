@@ -1,0 +1,359 @@
+{
+  "scale": [
+    {
+      "aggregates": [],
+      "bounds": {
+        "arguments": {},
+        "lanes": null,
+        "meters": {
+          "examined": 8192,
+          "heap_bytes": 16777216,
+          "index_entries": 16384,
+          "output_bytes": 1048576,
+          "rows_written": 1024,
+          "rule_probes": 8192,
+          "steps": 1000000
+        },
+        "probes": 688248,
+        "rows_examined": 134415418,
+        "writes": 0
+      },
+      "class": "grows",
+      "growth_sites": [
+        {
+          "reason": "members in the domain `members where .principal = viewer`",
+          "rewrite": "cap the domain, page it, or add a maintained view for its aggregate",
+          "site": "programs.searchMessages.1",
+          "when": "search q is present"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.searchMessages.2",
+          "when": "search q is present"
+        },
+        {
+          "reason": "matching words and candidate messages rows (additional search terms filter)",
+          "rewrite": "use an equality-pinned domain for a fixed-cost read; word-prefix search remains data-dependent",
+          "site": "programs.searchMessages.2",
+          "when": "search q is present"
+        },
+        {
+          "reason": "members in the domain `members where .principal = viewer`",
+          "rewrite": "cap the domain, page it, or add a maintained view for its aggregate",
+          "site": "programs.searchMessages.1",
+          "when": "search q is absent"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.searchMessages.2",
+          "when": "search q is absent"
+        },
+        {
+          "reason": "members skipped by `.principal != viewer` before 50 match",
+          "rewrite": "pin the filter column in the read, or add a view indexed by that predicate",
+          "site": "programs.searchMessages.6"
+        }
+      ],
+      "operation": "messaging.searchMessages",
+      "per_chunk": false,
+      "per_write": [],
+      "variants": [
+        {
+          "class": "grows",
+          "indexes": [
+            "members.$intent:byPrincipalConversation:704755329aa6ad8c",
+            "messages.$intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd"
+          ],
+          "when": "search q is present"
+        },
+        {
+          "class": "grows",
+          "indexes": [
+            "members.$intent:byPrincipalConversation:704755329aa6ad8c",
+            "messages.$intent:byConversationTombstoneAt:981bcf7c5768822a"
+          ],
+          "when": "search q is absent"
+        }
+      ],
+      "whole_job": []
+    },
+    {
+      "aggregates": [],
+      "bounds": {
+        "arguments": {},
+        "lanes": null,
+        "meters": {
+          "examined": 8192,
+          "heap_bytes": 16777216,
+          "index_entries": 16384,
+          "output_bytes": 1048576,
+          "rows_written": 1024,
+          "rule_probes": 8192,
+          "steps": 1000000
+        },
+        "probes": 688128,
+        "rows_examined": 134250498,
+        "writes": 0
+      },
+      "class": "grows",
+      "growth_sites": [
+        {
+          "reason": "members in the domain `members where .principal = viewer`",
+          "rewrite": "cap the domain, page it, or add a maintained view for its aggregate",
+          "site": "programs.gsbare.1",
+          "when": "search q is present"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.gsbare.2",
+          "when": "search q is present"
+        },
+        {
+          "reason": "matching words and candidate messages rows (additional search terms filter)",
+          "rewrite": "use an equality-pinned domain for a fixed-cost read; word-prefix search remains data-dependent",
+          "site": "programs.gsbare.2",
+          "when": "search q is present"
+        },
+        {
+          "reason": "members in the domain `members where .principal = viewer`",
+          "rewrite": "cap the domain, page it, or add a maintained view for its aggregate",
+          "site": "programs.gsbare.1",
+          "when": "search q is absent"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.gsbare.2",
+          "when": "search q is absent"
+        }
+      ],
+      "operation": "messaging.gsbare",
+      "per_chunk": false,
+      "per_write": [],
+      "variants": [
+        {
+          "class": "grows",
+          "indexes": [
+            "members.$intent:byPrincipalConversation:704755329aa6ad8c",
+            "messages.$intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd"
+          ],
+          "when": "search q is present"
+        },
+        {
+          "class": "grows",
+          "indexes": [
+            "members.$intent:byPrincipalConversation:704755329aa6ad8c",
+            "messages.$intent:byConversationTombstoneAt:981bcf7c5768822a"
+          ],
+          "when": "search q is absent"
+        }
+      ],
+      "whole_job": []
+    },
+    {
+      "aggregates": [],
+      "bounds": {
+        "arguments": {},
+        "lanes": null,
+        "meters": {
+          "examined": 8192,
+          "heap_bytes": 16777216,
+          "index_entries": 16384,
+          "output_bytes": 1048576,
+          "rows_written": 1024,
+          "rule_probes": 8192,
+          "steps": 1000000
+        },
+        "probes": 688208,
+        "rows_examined": 134415398,
+        "writes": 0
+      },
+      "class": "grows",
+      "growth_sites": [
+        {
+          "reason": "members in the domain `members where .principal = viewer`",
+          "rewrite": "cap the domain, page it, or add a maintained view for its aggregate",
+          "site": "programs.gsoriginalFixed.1",
+          "when": "search q is present"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.gsoriginalFixed.2",
+          "when": "search q is present"
+        },
+        {
+          "reason": "matching words and candidate messages rows (additional search terms filter)",
+          "rewrite": "use an equality-pinned domain for a fixed-cost read; word-prefix search remains data-dependent",
+          "site": "programs.gsoriginalFixed.2",
+          "when": "search q is present"
+        },
+        {
+          "reason": "members in the domain `members where .principal = viewer`",
+          "rewrite": "cap the domain, page it, or add a maintained view for its aggregate",
+          "site": "programs.gsoriginalFixed.1",
+          "when": "search q is absent"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.gsoriginalFixed.2",
+          "when": "search q is absent"
+        },
+        {
+          "reason": "members skipped by `.principal != viewer` before 50 match",
+          "rewrite": "pin the filter column in the read, or add a view indexed by that predicate",
+          "site": "programs.gsoriginalFixed.5"
+        }
+      ],
+      "operation": "messaging.gsoriginalFixed",
+      "per_chunk": false,
+      "per_write": [],
+      "variants": [
+        {
+          "class": "grows",
+          "indexes": [
+            "members.$intent:byPrincipalConversation:704755329aa6ad8c",
+            "messages.$intent:byConversationTombstoneWordsTextAt:aba766adcc60a9fd"
+          ],
+          "when": "search q is present"
+        },
+        {
+          "class": "grows",
+          "indexes": [
+            "members.$intent:byPrincipalConversation:704755329aa6ad8c",
+            "messages.$intent:byConversationTombstoneAt:981bcf7c5768822a"
+          ],
+          "when": "search q is absent"
+        }
+      ],
+      "whole_job": []
+    },
+    {
+      "aggregates": [],
+      "bounds": {
+        "arguments": {},
+        "lanes": null,
+        "meters": {
+          "examined": 8192,
+          "heap_bytes": 16777216,
+          "index_entries": 16384,
+          "output_bytes": 1048576,
+          "rows_written": 1024,
+          "rule_probes": 8192,
+          "steps": 1000000
+        },
+        "probes": 32852,
+        "rows_examined": 181286,
+        "writes": 0
+      },
+      "class": "grows",
+      "growth_sites": [
+        {
+          "reason": "messages skipped by its per-row read rule",
+          "rewrite": "pin the read rule's deciding columns in the domain",
+          "site": "programs.gsOriginal.0",
+          "when": "search q is present"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.gsOriginal.0",
+          "when": "search q is present"
+        },
+        {
+          "reason": "matching words and candidate messages rows (additional search terms filter)",
+          "rewrite": "use an equality-pinned domain for a fixed-cost read; word-prefix search remains data-dependent",
+          "site": "programs.gsOriginal.0",
+          "when": "search q is present"
+        },
+        {
+          "reason": "messages skipped by its per-row read rule",
+          "rewrite": "pin the read rule's deciding columns in the domain",
+          "site": "programs.gsOriginal.0",
+          "when": "search q is absent"
+        },
+        {
+          "backlog": true,
+          "reason": "expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)",
+          "rewrite": "",
+          "site": "programs.gsOriginal.0",
+          "when": "search q is absent"
+        },
+        {
+          "reason": "members skipped by `.principal != viewer` before 50 match",
+          "rewrite": "pin the filter column in the read, or add a view indexed by that predicate",
+          "site": "programs.gsOriginal.3"
+        }
+      ],
+      "operation": "messaging.gsOriginal",
+      "per_chunk": false,
+      "per_write": [],
+      "variants": [
+        {
+          "class": "grows",
+          "indexes": [
+            "messages.$intent:byTombstoneWordsTextAt:16a6a990607440c7"
+          ],
+          "when": "search q is present"
+        },
+        {
+          "class": "grows",
+          "indexes": [
+            "messages.$intent:byTombstoneAt:0ea93173c2611134"
+          ],
+          "when": "search q is absent"
+        }
+      ],
+      "whole_job": []
+    }
+  ],
+  "notes": [
+    {
+      "code": "N_NEVER_COMPLETE",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query messaging.gsOriginal: the page over messages[..] by read or declaration on messages (tombstone, at, id) at messaging.q:332:10 is never `complete` \u2014 the read rule `exists members[.conversation, viewer]` reads .conversation, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"",
+      "rewrite": "pin .conversation with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read",
+      "site": {
+        "col": 1,
+        "file": "messaging.q",
+        "line": 331
+      }
+    },
+    {
+      "code": "N_NEVER_COMPLETE",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query messaging.gsOriginal: the page over messages[..] by read or declaration on messages (tombstone, at, id) at messaging.q:332:10 is never `complete` \u2014 the read rule `exists members[.conversation, viewer]` reads .conversation, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"",
+      "rewrite": "pin .conversation with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `read or declaration on messages (conversation, tombstone, at, id) at digest.q:11:16: conversation, tombstone, at, id` supports it; or read the page on the device",
+      "site": {
+        "col": 1,
+        "file": "messaging.q",
+        "line": 331
+      }
+    },
+    {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query messaging.gsOriginal `messages where not .tombstone matching q last 20 by .at after c` reads messages by .at, .id, newest first (index [tombstone, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "messaging.q",
+        "line": 332
+      }
+    }
+  ]
+}

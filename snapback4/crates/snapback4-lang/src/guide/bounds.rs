@@ -195,6 +195,10 @@ per pass across tables. This is a cadence, not a maximum age or size of the
 backlog: a burst of 2,001 expirations leaves at least one row after a pass,
 and downtime, slow maintenance or a failed sweep can leave older rows.
 Reads remain metered and expired rows remain invisible on every host.
+For an admitted server mutation (guide programs), pages, prefix `exists` and
+`count` include this work and the scan-attempt charge under the examined
+ceiling. Even `first 1` can refuse `E_BOUND` with no write; shrinking its
+page cannot remove the backlog. See why E_BOUND for fresh-id recovery.
 An operation says `class: backlog` only when cleanup explains all of its
 variable work: constant once the sweep catches up, and bounded by the read
 meter while a backlog lasts, so the certificate keeps the meter allowance.
