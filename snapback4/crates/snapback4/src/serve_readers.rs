@@ -107,15 +107,26 @@ impl Shared {
     // The source is only a connection factory: no transaction, answer or viewer
     // is retained. Identity guards still refuse an obsolete generation.
     pub(super) fn reader(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
-        let started = Instant::now();
-        let result = lock(&self.readers).detached();
-        latency::waited(started);
+        let result = self.acquire_reader(|| lock(&self.readers).detached());
         if let Some(result) = result {
             return result.map(|(epoch, reader)| (epoch, TimedReader { engine: reader, _timing: latency::EngineSpan::new() }));
         }
         // A missing factory can also mean opening a file-backed reader failed.
         // Never acquire the writer to repair that failure under a read permit.
         Err(snapback4_core::RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()))
+    }
+    fn acquire_reader<T>(&self, open: impl FnOnce() -> T) -> T {
+        latency::acquire(|| {
+            #[cfg(test)]
+            test_work(&self.reader_open);
+            open()
+        })
+    }
+    pub(super) fn open_reader(&self, engine: &Engine) -> Result<Engine, snapback4_core::RuntimeError> {
+        self.acquire_reader(|| engine.reader())
+    }
+    pub(super) fn take_reader(&self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
+        self.acquire_reader(|| lock(&self.readers).take(engine))
     }
     pub(super) fn memory_store(&self) -> bool { lock(&self.readers).memory }
 

@@ -123,7 +123,7 @@ impl Registry {
 #[derive(Clone, Copy)]
 struct Timing {
     accepted: Instant, wait: Duration, engine: Duration,
-    engine_started: Option<Instant>, depth: usize, cpu_start: Option<Duration>,
+    engine_started: Option<Instant>, depth: usize, acquiring: bool, cpu_start: Option<Duration>,
     headers: bool, finished: Option<(Duration, bool, Option<Duration>, Duration)>,
 }
 impl Timing {
@@ -172,7 +172,7 @@ impl Sample {
     }
     pub fn run(mut self, handle: impl FnOnce()) {
         let timing = Timing { accepted: self.accepted, wait: Duration::ZERO, engine: Duration::ZERO,
-            engine_started: None, depth: 0, cpu_start: thread_cpu(), headers: self.headers, finished: None };
+            engine_started: None, depth: 0, acquiring: false, cpu_start: thread_cpu(), headers: self.headers, finished: None };
         CURRENT.with(|current| { assert!(current.get().is_none()); current.set(Some(timing)); });
         struct Clear<'a>(&'a mut Sample);
         impl Drop for Clear<'_> { fn drop(&mut self) {
@@ -202,7 +202,7 @@ impl EngineSpan {
     pub fn new() -> Self {
         Self(CURRENT.with(|current| {
             let Some(mut timing) = current.get().filter(|t| t.finished.is_none()) else { return false; };
-            if timing.depth == 0 { timing.engine_started = Some(Instant::now()); }
+            if timing.depth == 0 && !timing.acquiring { timing.engine_started = Some(Instant::now()); }
             timing.depth += 1;
             current.set(Some(timing)); true
         }))
@@ -214,11 +214,38 @@ impl Drop for EngineSpan {
         CURRENT.with(|current| {
             if let Some(mut timing) = current.get() {
                 timing.depth -= 1;
-                if timing.depth == 0 { timing.engine += timing.engine_started.take().unwrap().elapsed(); }
+                if timing.depth == 0 && let Some(started) = timing.engine_started.take() { timing.engine += started.elapsed(); }
                 current.set(Some(timing));
             }
         });
     }
+}
+// @ref LLP 3000.019#3.7 — reader acquisition is wait even inside writer ownership.
+// Nested acquisition helpers count once; resume the enclosing engine span only
+// after opening/checking out the reader, including failed opens and unwinding.
+pub(super) fn acquire<T>(open: impl FnOnce() -> T) -> T {
+    struct Acquisition(Option<Instant>);
+    impl Drop for Acquisition {
+        fn drop(&mut self) {
+            let Some(started) = self.0 else { return; };
+            CURRENT.with(|current| {
+                if let Some(mut timing) = current.get() {
+                    timing.wait += started.elapsed();
+                    timing.acquiring = false;
+                    if timing.depth > 0 { timing.engine_started = Some(Instant::now()); }
+                    current.set(Some(timing));
+                }
+            });
+        }
+    }
+    let _acquisition = Acquisition(CURRENT.with(|current| {
+        let Some(mut timing) = current.get().filter(|t| !t.acquiring && t.finished.is_none()) else { return None; };
+        if let Some(started) = timing.engine_started.take() { timing.engine += started.elapsed(); }
+        timing.acquiring = true;
+        current.set(Some(timing));
+        Some(Instant::now())
+    }));
+    open()
 }
 pub(super) fn waited(started: Instant) {
     CURRENT.with(|current| {
@@ -236,6 +263,9 @@ pub(crate) fn finished(refused: bool) {
 
 /// Headers necessarily describe work up to header construction, not future
 /// socket writes. Doctor's total continues through the completed response.
+pub(super) fn headers_enabled() -> bool {
+    CURRENT.with(|current| current.get().is_some_and(|timing| timing.headers))
+}
 pub(crate) fn header() -> Option<Header> {
     CURRENT.with(|current| {
         let timing = current.get().filter(|t| t.headers)?;

@@ -70835,3 +70835,65 @@ on a shared path. No unresolved assigned finding or independent new review
 claim. Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication. Report: reports/20260927-kg-kept-through-authority/REPORT.md;
 ignored evidence: target/lane-kg-r12/. This is the single round-12 append.
+
+
+### 2026-09-27 — Lane SE round 1: listener fence and consistent timing attribution
+
+First fetched and merged origin/main d9c89a971 in local merge 59b217892,
+keeping both journal appends and both LLP 3000.019 revision histories. Read
+the original prompt, round-0 report/journal and Astra’s complete READY WITH
+CHANGES review. Grok had no verdict at the initial check; did not wait.
+Used llp-orient with the same populated sibling skill; LLP 3000.019 §3.7
+and the bounds card carry the corrected meanings and disclosure rationale.
+
+Server-Timing now requires the listener itself to be loopback, as well as
+dev and the existing peer/Host/Origin fence. A wildcard listener omits the
+header for both loopback and external peers. Timing attachment is independent
+of CORS: service-route persona refusals, route pending and /dev/token refusals
+retain timing without granting CORS. Streams and other response paths retain
+separate attachment. Queries, direct /changes opens/reopens and ephemeral
+pool take use one acquisition helper. It suspends enclosing engine spans so
+opening a reader counts as wait rather than engine work.
+
+Seven new regressions plus stronger stream checks cover these paths. Controlled
+150 ms reader delays count as wait; a 150 ms changes refresh counts as engine,
+while at least 600 ms of a one-second poll remains outside engine/wait. Six
+negative controls fail as intended: remove the listener check, acquisition
+timing, enclosing-engine suspension, independent attachment, refresh span,
+or poll-sleep exclusion. All mutation edits restored before qualification.
+One initial mutation-harness E0308 (closure not invoked) was ours and fixed;
+it is retained and not counted as a successful negative control. The first
+staged whitespace check flagged three Markdown hard-break spaces in the copied
+review (ours, artifact formatting); trimmed them in the readable copy. No
+unintentional product-test failure, baseline failure or environmental failure.
+
+The report and one bounds sentence plainly acknowledge that phase/CPU timings
+reveal more than total time: hidden payload work, contention attribution, and
+doctor’s other-principal aggregation. Per-response timing belongs only on
+loopback-bound dev, where the developer already holds the store, never serve;
+production aggregates retain their live-service check. Round-0 measurements,
+14,400 samples and SS’s acquisition figures remain historical evidence;
+no original store opened/modified and no new workload-performance claim.
+
+Affected checks: server/doctor units 182 passed / 4 existing ignored;
+real-process latency/doctor/recipe 10/10; read measurements 2 existing ignored;
+whole guide 89/89. Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1697 s`. Every full-suite failure: none — ours 0, baseline 0,
+environmental 0. Rust 4,070 passed / 29 ignored, 253 binaries / 966 executions,
+plus 17 doctests; client main 3,655 passed / 10 skipped, shards 56/56, models
+79/79, wrappers 9/9. All other phases pass. The inherited 60-second total budget
+remains exceeded; no timeout/budget raised. Runtime/test semantic inputs are
+unchanged; 1,412 of 1,413 tracked inputs are byte-identical, with only four
+spaces of assertion indentation corrected afterward. Both hashes and the
+final reference/whitespace audit are retained with the report.
+
+Wasm byte-identical: 1,979,732 B raw / 572,616 B gzip, 225 B below unchanged
+572,841 B cap; SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+No device/meter code, authorization rule, dependency or version change.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127 without wasm-opt;
+eight build jobs/test processes/test threads, dev/test debug and incremental
+off, packaged SQLite flags, fd limit 65,536. No tool installed or shared path
+modified. Report, review, mutation and qualification evidence:
+reports/20260927-se-scale-evidence/REPORT.md and round1/.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication; the supervisor owns independent review of round 1.

@@ -172,11 +172,12 @@ JS
 snapback4 doctor --latency --json --url "$SB4_URL" > checkpoint-server.json
 ```
 
-Each loopback `dev` response has `Server-Timing` durations in milliseconds:
+Each response from a loopback-bound `dev` listener that passes the loopback
+peer/Host/Origin fence has `Server-Timing` durations in milliseconds:
 `total` is acceptance (after HTTP headers, before body buffering and worker
 admission) to response-header construction; `wait` sums reader checkouts and
 writer lock acquisition, including connection opening; `engine` is wall time
-owning a reader/writer for engine work, including authentication and head reads;
+owning a reader/writer for engine work, including authentication and head reads, excluding reader acquisition;
 `cpu`, when supported, is CPU consumed by this request thread since it started.
 Engine time includes descheduling and store I/O. CPU overlaps the other times;
 it is not another phase to add. It excludes listener, background and client CPU.
@@ -209,8 +210,10 @@ an asymptotic bound, or 1,000-conversation acquisition evidence.
 
 The header carries only durations, never counters, rows, arguments or principals.
 It is exposed to permitted loopback dev browser origins; `serve` does not add it.
-This refines an already observable request duration, so it gives timing
-attribution, not new row access. It is not a claim of constant-time execution.
+Phase and CPU timings reveal more than total response time (and doctor aggregates
+other principals’ requests); the headers are acceptable only on loopback-bound
+`dev`, where the developer already holds the store, and never appear on `serve`.
+This is not a claim of constant-time execution.
 Existing authorization and meter disclosure rules still apply.
 `doctor` summarizes the slowest few operations. Reset is dev-only; windows
 start at startup/reset and exclude old in-flight arrivals. Persisted dev is

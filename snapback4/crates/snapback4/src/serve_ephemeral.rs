@@ -182,7 +182,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
             return failed(request, why);
         }
-        lock(&shared.readers).take(&engine)
+        shared.take_reader(&engine)
     };
     let context = Context::new(principal.clone(), args).at(shared.now());
     let result = match reader {

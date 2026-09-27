@@ -1,6 +1,6 @@
 use super::*;
 
-fn timing(reply: &str) -> Option<BTreeMap<String, f64>> {
+pub(super) fn timing(reply: &str) -> Option<BTreeMap<String, f64>> {
     let header = reply.split("\r\n\r\n").next().unwrap().lines()
         .find_map(|line| line.split_once(':').filter(|(name, _)| name.eq_ignore_ascii_case("server-timing")).map(|(_, value)| value))?;
     Some(header.split(',').map(|metric| {
@@ -87,4 +87,132 @@ fn thread_cpu_excludes_another_busy_thread_and_records_own_work() {
     let sample = timing(&host.request("POST", "/q/read", PERSONA, "{}")).unwrap();
     assert!(sample["cpu"] >= 20.0, "{sample:?}");
     assert!(sample["engine"] - sample["cpu"] >= 80.0, "CPU must be request-thread only: {sample:?}");
+}
+
+#[test]
+fn wildcard_listener_omits_timing_for_loopback_and_external_peers() {
+    let host = Host::with_store_on(true, snapback4_core::Store::memory().unwrap(), SOURCE, "0.0.0.0");
+    assert!(host.address.ip().is_unspecified());
+    let route = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+    route.connect("192.0.2.1:9").unwrap(); // Select an interface without sending a packet.
+    let external = route.local_addr().unwrap().ip();
+    assert!(!external.is_loopback());
+    for (ip, expected) in [("127.0.0.1".parse().unwrap(), 200), (external, 403)] {
+        let reply = exchange(SocketAddr::new(ip, host.address.port()),
+            "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}");
+        assert_eq!(status(&reply), expected, "{reply}");
+        assert!(timing(&reply).is_none(), "wildcard listener disclosed timings: {reply}");
+    }
+}
+
+#[test]
+fn timing_survives_cors_suppression_on_route_and_token_refusals_and_pending() {
+    let source = format!("{SOURCE}\nroute hook: post \"/hook\" as service:hook wait 100ms\n");
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &source);
+    for (path, headers, expected, code) in [
+        ("/hook", PERSONA, 401, "E_ROUTE_VERIFY"),
+        ("/hook", "", 503, "E_ROUTE_PENDING"),
+        ("/dev/token", PERSONA, 403, "E_AUTH"),
+    ] {
+        let reply = host.request("POST", path, headers, "{}");
+        assert_eq!(status(&reply), expected, "{reply}");
+        assert_eq!(body(&reply)["denied"]["code"], code);
+        assert!(!reply.to_ascii_lowercase().contains("access-control-allow-origin:"));
+        assert!(!reply.to_ascii_lowercase().contains("access-control-expose-headers:"));
+        assert!(timing(&reply).is_some(), "missing timing with CORS suppressed: {reply}");
+    }
+    let reply = host.request("POST", "/a/echo?wait=0", PERSONA, r#"{"id":"pending","args":{}}"#);
+    assert_eq!(body(&reply)["state"], "pending", "{reply}");
+    assert!(timing(&reply).is_some(), "{reply}");
+    let reply = host.request("POST", "/hook", "Origin: https://evil.example\r\n", "{}");
+    assert!(timing(&reply).is_none(), "CORS-independent timing must retain its fence");
+}
+
+const OPEN_DELAY: Duration = Duration::from_millis(150);
+fn delayed_open(host: &Host) -> Arc<AtomicUsize> {
+    let opens = Arc::new(AtomicUsize::new(0));
+    let seen = opens.clone();
+    *lock(&host.shared.reader_open) = Some(Arc::new(move || {
+        seen.fetch_add(1, Ordering::SeqCst);
+        thread::sleep(OPEN_DELAY);
+    }));
+    opens
+}
+fn assert_open_wait(reply: &str, opens: usize) {
+    assert!(opens > 0);
+    let sample = timing(reply).unwrap();
+    let delay = OPEN_DELAY.as_secs_f64() * 1000.0 * opens as f64;
+    assert!(sample["wait"] >= delay, "reader opening escaped wait: {sample:?}");
+    // Wait and engine are disjoint, even if a writer is held while opening.
+    assert!(sample["wait"] + sample["engine"] <= sample["total"] + 0.002,
+        "reader opening counted as engine too: {sample:?}");
+    println!("{opens} delayed opens: {sample:?}");
+}
+
+fn delayed_path(method: &str, path: &str, payload: &str) {
+    let source = format!("{SOURCE}\ntable viewing:\n  principal: principal\n  unique byPrincipal: principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 30s\nmutation view():\n  upsert viewing[principal = viewer] {{principal: viewer}}\n");
+    let fresh = query_readers::FreshDirectory::new().unwrap();
+    let host = Host::with_store(true, fresh.store().unwrap(), &source);
+    let opens = delayed_open(&host);
+    let reply = host.request(method, path, PERSONA, payload);
+    assert_eq!(status(&reply), 200, "{reply}");
+    assert!(body(&reply).get("denied").is_none(), "{reply}");
+    if path == "/m/view" { assert_eq!(body(&reply)["state"], "sent"); }
+    assert_open_wait(&reply, opens.load(Ordering::SeqCst));
+    let name = path.split('?').next().unwrap();
+    let snapshot = counted(&host, name, 1);
+    let op = &snapshot["operations"][name];
+    let sample = timing(&reply).unwrap();
+    assert!(op["wait"]["max"].as_f64().unwrap() + 0.001 >= sample["wait"], "{op}");
+    if path == "/q/read" {
+        assert!(!lock(&host.shared.readers).idle.is_empty());
+        opens.store(0, Ordering::SeqCst);
+        assert_open_wait(&host.request(method, path, PERSONA, payload), opens.load(Ordering::SeqCst));
+    }
+}
+#[test]
+fn delayed_query_open_and_pool_checkout_are_wait() { delayed_path("POST", "/q/read", "{}"); }
+#[test]
+fn delayed_changes_open_is_wait() { delayed_path("GET", "/changes?wait=0", ""); }
+#[test]
+fn delayed_ephemeral_pool_take_is_wait() { delayed_path("POST", "/m/view", r#"{"id":"view","args":{}}"#); }
+
+#[test]
+fn changes_reopens_after_a_commit_and_times_each_open_as_wait() {
+    let fresh = query_readers::FreshDirectory::new().unwrap();
+    let host = Host::with_store(true, fresh.store().unwrap(), SOURCE);
+    let opens = delayed_open(&host);
+    let (sent, received) = mpsc::channel();
+    *lock(&host.shared.poll_wait) = Some(Arc::new(move || { let _ = sent.send(()); }));
+    let address = host.address;
+    let poll = thread::spawn(move || exchange(address,
+        "GET /changes?wait=2 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\n\r\n"));
+    received.recv_timeout(Duration::from_secs(2)).unwrap();
+    drop(lock(&host.shared.wake)); // Poll released the wake mutex into its wait.
+    let reply = host.request("POST", "/m/put", PERSONA, r#"{"id":"wake","args":{"n":1}}"#);
+    assert_eq!(body(&reply)["state"], "sent");
+    let reply = poll.join().unwrap();
+    assert_eq!(status(&reply), 200, "{reply}");
+    assert_eq!(body(&reply)["tables"], json!(["notes"]));
+    assert_eq!(opens.load(Ordering::SeqCst), 2);
+    assert_open_wait(&reply, 2);
+}
+
+#[test]
+fn changes_refresh_is_engine_work_but_poll_sleep_is_not() {
+    let fresh = query_readers::FreshDirectory::new().unwrap();
+    let host = Host::with_store(true, fresh.store().unwrap(), SOURCE);
+    *lock(&host.shared.changes_refresh) = Some(Arc::new(|| thread::sleep(Duration::from_millis(150))));
+    let reply = host.request("GET", "/changes?wait=1", PERSONA, "");
+    assert_eq!(status(&reply), 200, "{reply}");
+    let sample = timing(&reply).unwrap();
+    assert!(sample["engine"] >= 150.0, "refresh escaped its engine span: {sample:?}");
+    assert!(sample["total"] - sample["engine"] - sample["wait"] >= 600.0,
+        "poll sleeping entered engine/wait: {sample:?}");
+    let snapshot = counted(&host, "/changes", 1);
+    let op = &snapshot["operations"]["/changes"];
+    assert!(op["engine"]["max"].as_f64().unwrap() >= 150.0, "{op}");
+    assert!(op["total"]["max"].as_f64().unwrap() - op["engine"]["max"].as_f64().unwrap()
+        - op["wait"]["max"].as_f64().unwrap() >= 600.0, "{op}");
+    println!("refresh 150ms, held poll: {sample:?}");
 }

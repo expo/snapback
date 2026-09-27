@@ -112,6 +112,10 @@ pub struct Shared {
     #[cfg(test)]
     pub query_wait: WorkHook,
     #[cfg(test)]
+    pub reader_open: WorkHook,
+    #[cfg(test)]
+    pub changes_refresh: WorkHook,
+    #[cfg(test)]
     pub mutation_wait: WorkHook,
 }
 
@@ -315,6 +319,8 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
         #[cfg(test)] query_wait: Mutex::new(None),
+        #[cfg(test)] reader_open: Mutex::new(None),
+        #[cfg(test)] changes_refresh: Mutex::new(None),
         #[cfg(test)] mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
@@ -371,7 +377,7 @@ fn serve_requests(
         }
         if worker.is_finished() { return Err("worker thread stopped".into()); }
         if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
-            dispatch(request, shared.clone(), admission.clone());
+            dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
         }
     }
 }
@@ -408,9 +414,9 @@ impl RequestAdmission {
     }
 }
 
-fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
+fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
     // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
-    let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && dev_request(&request, &shared).is_ok());
+    let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
@@ -582,8 +588,7 @@ pub(crate) fn cors(request: &Request) -> Vec<Header> {
     if let Ok(Some(origin)) = single_header(request, "origin") && origin_authority(origin).is_some() {
         headers.push(Header::from_bytes("Access-Control-Allow-Origin", origin).unwrap());
     }
-    if let Some(timing) = latency::header() {
-        headers.push(timing);
+    if latency::headers_enabled() {
         headers.push(Header::from_bytes("Access-Control-Expose-Headers", "Server-Timing").unwrap());
     }
     headers
@@ -664,6 +669,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     if allow_origin {
         for header in cors(&request) { response.add_header(header); }
     }
+    if let Some(header) = latency::header() { response.add_header(header); }
     if status >= 400 && request.method() == &Method::Post {
         let _ = request.respond_and_close_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
@@ -695,7 +701,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
 /// next response on a persistent connection.
 pub(crate) fn respond_empty(request: Request, status: u16) {
     let mut response = Response::empty(status);
-    for header in cors(&request).into_iter().filter(|header| !header.field.equiv("Content-Type")) {
+    for header in cors(&request).into_iter().chain(latency::header()).filter(|header| !header.field.equiv("Content-Type")) {
         response.add_header(header);
     }
     let _ = request.respond(response);
@@ -998,7 +1004,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     response.add_header(Header::from_bytes("Content-Type", "application/wasm").unwrap());
                     response.add_header(Header::from_bytes("ETag", format!("\"{}\"", module.digest)).unwrap());
                     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
-                    for header in cors(&request) { response.add_header(header); }
+                    for header in cors(&request).into_iter().chain(latency::header()) { response.add_header(header); }
                     let _ = request.respond(response);
                 }
                 None => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
@@ -1009,7 +1015,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let mut response = Response::from_string(text);
             response.add_header(Header::from_bytes("Content-Type", "text/plain; charset=utf-8").unwrap());
             response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
-            for header in cors(&request) { response.add_header(header); }
+            for header in cors(&request).into_iter().chain(latency::header()) { response.add_header(header); }
             let _ = request.respond(response);
         }
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
@@ -1359,7 +1365,7 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
-            query_wait: Mutex::new(None),
+            query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
             mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();

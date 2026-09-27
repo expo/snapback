@@ -31,11 +31,16 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return;
         }
         shared.presence.enter(&connected);
-        engine.reader().ok()
+        shared.open_reader(&engine).ok()
     };
     let refresh = |reader: &mut Option<snapback4_core::Engine>| {
         match reader {
-            Some(reader) => { let _timing = super::latency::EngineSpan::new(); check(reader, since) },
+            Some(reader) => {
+                let _timing = super::latency::EngineSpan::new();
+                #[cfg(test)]
+                super::test_work(&shared.changes_refresh);
+                check(reader, since)
+            },
             None => check(&mut lock(&shared.engine), since),
         }
     };
@@ -50,7 +55,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             let wake=lock(&shared.wake);
             if wake.seq != observed {
                 observed=wake.seq; sequence_wake=true; drop(wake);
-                reader=lock(&shared.engine).reader().ok();
+                reader=shared.open_reader(&lock(&shared.engine)).ok();
                 current=refresh(&mut reader)?;
                 continue;
             }
@@ -133,7 +138,7 @@ impl PollResponse<'_> {
             frame.push_str("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store, no-transform\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n");
             // Clock time belongs to the final body, after the hold. A buffering
             // transport must not mistake early headers for an end stamp.
-            for header in cors(request).into_iter().chain(super::ephemeral_headers(self.shared)) { frame.push_str(&format!("{header}\r\n")); }
+            for header in cors(request).into_iter().chain(super::ephemeral_headers(self.shared)).chain(super::latency::header()) { frame.push_str(&format!("{header}\r\n")); }
             frame.push_str("\r\n");
             self.started = true;
         }
