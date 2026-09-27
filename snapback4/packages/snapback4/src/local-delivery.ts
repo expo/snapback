@@ -9,6 +9,7 @@ interface Environment {
   viewer: string; url: string; fetch: typeof fetch;
   call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }>;
   backend(): BackendJson | null;
+  offline?(): void;
   ready(): boolean;
   current(): boolean;
   credentials(): { headers: Record<string, string>; revision: number };
@@ -47,6 +48,7 @@ export function localDelivery(env: Environment) {
     clear: () => serial(async () => { await call({ action: "clear" }); }),
   };
   const queue = new DeliveryQueue({ storage, local: true, mint: mintId,
+    onOffline: () => env.offline?.(), onSettled: () => scheduleEnumeration(0),
     ready: () => enabled && !stopped && env.ready(), onRefused: event => env.onRefused?.(event),
     send: async (mutation, body, signal) => {
       if (env.refresh()) await env.refresh();
@@ -74,16 +76,29 @@ export function localDelivery(env: Environment) {
       return { json, accepted: validHead && json.store_id === id && response.status < 500 };
     },
   });
+  let enumerationDone = false, enumerationBackoff = 1000;
+  function scheduleEnumeration(delay: number) {
+    if (enumerationTimer || enumerationDone || stopped || !enabled) return;
+    enumerationTimer = setTimeout(() => { enumerationTimer = undefined; void enumerate(); }, delay);
+    (enumerationTimer as { unref?: () => void }).unref?.();
+  }
   const enumerate = async () => {
-    if (enumerating || stopped || !enabled || !env.current()) return;
+    if (enumerating || enumerationDone || stopped || !enabled || !env.current() || !env.ready()) return;
     enumerating = true;
     try {
+      // Startup witnessing and the ordinary outbox gate apply to scanning too.
+      // Flush each page before collecting more, so activation cannot evict debt.
+      if (!await queue.flushed()) return;
+      if (stopped || !env.current() || !env.ready()) return;
       const reply = await serial(() => call({ action: "enumerate", now: env.now() })) as { more: boolean };
+      enumerationDone = !reply.more;
+      enumerationBackoff = 1000;
       queue.published();
-      if (reply.more && !stopped) {
-        enumerationTimer = setTimeout(() => { void enumerate().catch(() => {}); }, 0);
-        (enumerationTimer as { unref?: () => void }).unref?.();
-      }
+      if (reply.more) scheduleEnumeration(0);
+    } catch {
+      // The device owns the durable raw cursor; a failed page resumes there.
+      scheduleEnumeration(enumerationBackoff);
+      enumerationBackoff = Math.min(60_000, enumerationBackoff * 2);
     } finally { enumerating = false; }
   };
   const open = async (force = false) => {
@@ -96,21 +111,21 @@ export function localDelivery(env: Environment) {
       await env.call({ op: "set_meta", key: "delivery-active", value: "1" });
       enabled = true;
       await queue.start(); // Persisted attempts precede bounded activation pages.
-      void enumerate().catch(() => {});
+      scheduleEnumeration(0);
     })();
     try { await opening; } finally { opening = undefined; }
   };
   return {
     open,
     get enabled() { return enabled; },
-    async accept(manifest: unknown) {
+    async accept(manifest: unknown, publish: () => boolean = () => true) {
       if (!Array.isArray(manifest) || !manifest.length || stopped) return;
-      await open(true); if (!stopped) await queue.accept(manifest);
+      await open(true); if (!stopped) await queue.accept(manifest, publish);
     },
-    published() { if (enabled) queue.published(); else void open().catch(() => {}); },
-    available() { if (enabled) queue.available(); },
-    reconnect() { if (enabled) void queue.reconnect().catch(() => {}); },
-    fence(clear = false) { if (enabled) void queue.reset(clear).catch(() => {}); },
+    published() { if (enabled) { queue.published(); scheduleEnumeration(0); } else void open().catch(() => {}); },
+    available() { if (enabled) { queue.available(); scheduleEnumeration(0); } },
+    reconnect() { if (enabled) { void queue.reconnect().catch(() => {}); scheduleEnumeration(0); } },
+    fence(clear = false) { enumerationDone = false; if (enabled) void queue.reset(clear).catch(() => {}); },
     async stop() { stopped = true; if (enumerationTimer) clearTimeout(enumerationTimer); await queue.stop(); await tail; },
   };
 }
