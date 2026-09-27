@@ -169,6 +169,7 @@ export class DeliveryQueue {
         if (epoch !== this.epoch || this.stopped) break;
         if ("refused" in selected) {
           if (selected.refused) this.options.onRefused?.(selected.refused);
+          this.options.onSettled?.(); // A terminal disposition can free activation capacity without transport.
           continue;
         }
         const flight: Flight = { ...selected, epoch, controller: new AbortController(), done: Promise.resolve() };
