@@ -68532,3 +68532,56 @@ round-2 scripts/test.sh summary; historical round 0 remains
 weakened assertion, new API/design, unrelated fix, shared tool installation,
 push or publication. Report and durable run evidence:
 reports/20260927-fx-flakes/ROUND2.md and round2-qualification.json there.
+
+### 2026-09-27 — DS round 3: delivery survives PostgreSQL adoption and SQLite reopen
+
+Read the earlier briefs, reports/journal entries and both round-2 reviews.
+Fetched and merged origin/main 8dfbf7daa first, in dcd58071a. Preserved both
+parent journal histories in order. Kept main's extracted React harness and
+journal/clock repairs, transplanting DS's receipts/seen cases into the helper;
+the merged browser file passes 47/47.
+
+PostgreSQL adopt_at now prepares the delivery lookup beside contribution
+indexes, before rebuilding or installing its incoming schema. Two regressions
+fail before the fix: round-tripped adoption loses [["c1",1]], and removal from
+a warmed schema clone emits partial plus a 24-byte delivery meter. Both now
+pass in Serialized and Serializable modes, alongside the existing no-op,
+fingerprint and replay test. Audited SQLite memory/new/new_at, new_release,
+open/open_at, attach_release/attach_release_at, reader, adopt/adopt_at and
+private activate; PostgreSQL create/open/attach, contribution upgrade and
+adopt_at. The report records each path's lookup handling. The private
+socket-only PostgreSQL cluster was stopped; no shared tool installation.
+
+A new file-store reopen test pins the complete manifest. Deleting only
+open_at's lookup preparation fails it. A new index-only test gives the ledger
+3,000 heap bytes and 25,000 steps; two insertions reserve 2,480 bytes and three
+steps, then heap stops the third. Removing the index's heap debit fails it.
+Both mutations restore source byte-for-byte; final affected tests pass:
+16 delivery, 5 clause, 2 replay/fingerprint, 3 provenance, 3 internal delivery,
+6 HTTP, 3 PostgreSQL tests in both modes, and the whole 87-test guide.
+
+The merged guide initially exceeded its unchanged aggregate target by 26
+words. Shortened introductory language-card prose by 26, retaining every
+compiled block and inventoried Details fact; final total is 12,810. A first
+attempt that removed a pinned duplicate paragraph was rejected by the fact
+home test and restored. The initial heap fixture's wrong allowance/debit was
+also corrected before final checks. These development failures are ours and
+resolved; the report records them and the local PostgreSQL setup correction.
+
+Ran scripts/test.sh exactly once, exit 1, exact summary:
+`== 1 failure(s) in 1492 s` / `wasm build`. That sole failure is ours, carried
+from earlier DS rounds: unoptimized wasm is 1,985,385 B raw / 573,265 B gzip,
+424 B over the unchanged 572,841 cap. It is byte-identical to round 2, delta
+0/0; SHA-256 8fb46c34b5536599c516bafe08c83382491828421cf37c598ded27754b2a65a2.
+No wasm-opt on PATH; the build script is unchanged. The supervisor owns the
+single LLP 3000.022 integration ratchet under the standing round-2 ruling.
+
+No baseline or environmental full-run failures. Every other phase passes:
+Rust 3,915 passed / 25 ignored across 959 executions plus doctests (991 s),
+client main 2,636 passes plus 56 shard passes / 10 skips (194 s), all 78 models
+(260 s), builds, docs budget, release guard, package/app checks and fixture
+wrappers. Frozen install and reference audit pass; changed source is under
+1,500 lines. No wire, authorization, disclosure, receipt, meter-ceiling,
+version, device/queue, budget, push or publication change. Full file map,
+forms, audit, mutation proof, exact failures and wasm reproduction:
+reports/20260927-delivery-server/ROUND3.md; evidence under round3/ there.

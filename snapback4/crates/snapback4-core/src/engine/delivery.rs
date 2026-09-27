@@ -646,6 +646,26 @@ mod tests {
     }
 
     #[test]
+    fn cold_index_exhausts_heap_before_steps_and_charges_its_allocations() {
+        let schema = schema();
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        let ceilings = Ceilings { heap_bytes: 12_000, steps: 100_000, ..Ceilings::default() };
+        let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()),
+            Meter::new(ceilings, Cut::Cap), 0);
+        assert!(!runner.delivery_index(), "a cold index cannot fit in the heap quarter");
+        assert!(runner.delivery.index.is_none());
+        assert!(schema.delivery_lookup.0.index.get().is_none(), "never publish a partial index");
+        let ledger = runner.delivery_ledger();
+        assert!(ledger.partial);
+        assert!(ledger.used.steps < ceilings.steps / 4);
+        // Two insertions fit: 64 for the heap tracker, 968 for tracked0,
+        // and 1,448 for tracked1. The third 1,448-byte reservation cannot fit.
+        assert_eq!(ledger.meter().heap_bytes, 2480, "index allocations debit the heap");
+        assert_eq!(ledger.used.steps, 3, "heap, not steps, stops the index");
+    }
+
+    #[test]
     fn installed_lookup_is_shared_by_readers_and_replaced_on_adoption() {
         let path = std::env::temp_dir().join(format!("snapback4-delivery-lookup-{}-{:x}", std::process::id(), crate::ids::seed()));
         let mut installed = schema();

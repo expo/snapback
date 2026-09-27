@@ -1,0 +1,14 @@
+[
+  {
+    "mutation": "reopen-without-lookup",
+    "test": "reopening_an_installed_reporter_preserves_its_manifest",
+    "exit": 101,
+    "killed": true
+  },
+  {
+    "mutation": "index-without-heap",
+    "test": "engine::delivery::tests::cold_index_exhausts_heap_before_steps_and_charges_its_allocations",
+    "exit": 101,
+    "killed": true
+  }
+]

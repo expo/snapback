@@ -14,6 +14,72 @@ fn snapshot(e: &mut PostgresEngine) -> (u64, Vec<i64>) {
     (head, counts.into())
 }
 
+fn reporter(mode: WriteMode) -> PostgresEngine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let client = Client::connect(
+        &std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private database"),
+        postgres::NoTls,
+    ).unwrap();
+    let mut engine = PostgresEngine::create(
+        client,
+        &format!("sb4_eval_delivery_{:x}", crate::ids::seed()),
+        serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap(),
+        bound.programs.into_iter().map(|p| {
+            serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap()
+        }),
+    ).unwrap();
+    engine.set_write_mode(mode);
+    engine.load([("messages".into(), crate::value::object([
+        ("id", Value::Id("m1".into())),
+        ("chat", Value::Id("c1".into())),
+        ("ordinal", Value::Int(1)),
+        ("text", Value::String("message".into())),
+        ("owner", Value::Id("alice".into())),
+        ("quote", Value::Null),
+    ]))]).unwrap();
+    engine
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn delivery_manifest_survives_round_tripped_adoption() {
+    for mode in [WriteMode::Serialized, WriteMode::Serializable] {
+        let mut engine = reporter(mode);
+        let before = engine.query("raw", Context::new("alice", BTreeMap::new())).unwrap();
+        assert_eq!(serde_json::to_value(&before.delivery).unwrap()[0]["rows"], serde_json::json!([["c1", 1]]));
+        let next = serde_json::from_str(&serde_json::to_string(engine.schema()).unwrap()).unwrap();
+        let programs = engine.programs().values().cloned().collect::<Vec<_>>();
+        engine.adopt_at(next, programs, 100).unwrap();
+        let after = engine.query("raw", Context::new("alice", BTreeMap::new())).unwrap();
+        assert_eq!(after.data, before.data);
+        assert_eq!(serde_json::to_value(after.delivery).unwrap()[0]["rows"], serde_json::json!([["c1", 1]]), "{mode:?}");
+    }
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn removed_reporter_pays_nothing_after_adopting_a_warmed_clone() {
+    for mode in [WriteMode::Serialized, WriteMode::Serializable] {
+        let mut engine = reporter(mode);
+        let before = engine.query("raw", Context::new("alice", BTreeMap::new())).unwrap();
+        assert_eq!(serde_json::to_value(&before.delivery).unwrap()[0]["rows"], serde_json::json!([["c1", 1]]));
+        // The clone shares the installed schema's prepared membership and warm index.
+        let mut next = engine.schema().clone();
+        next.delivery.clear();
+        let programs = engine.programs().values().cloned().collect::<Vec<_>>();
+        engine.adopt_at(next, programs, 100).unwrap();
+        let after = engine.query("raw", Context::new("alice", BTreeMap::new())).unwrap();
+        assert_eq!(after.data, before.data);
+        assert_eq!(after.metered, before.metered);
+        assert_eq!(after.complete, before.complete);
+        assert_eq!(after.cut, before.cut);
+        assert_eq!(after.capped_at, before.capped_at);
+        assert!(after.delivery.is_none(), "removed reporter must not emit partial: {mode:?}: {after:?}");
+        assert!(after.delivery_meter.is_none(), "removed reporter must not pay: {mode:?}: {after:?}");
+    }
+}
+
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
 fn delivery_noop_records_only_receipt_and_replay_does_not_lookup_program() {

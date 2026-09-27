@@ -49,6 +49,29 @@ fn rows(e: &mut Engine, op: &str) -> Json {
 }
 
 #[test]
+fn reopening_an_installed_reporter_preserves_its_manifest() {
+    let path = std::env::temp_dir().join(format!(
+        "snapback4-delivery-reopen-{}-{:x}", std::process::id(), snapback4_core::ids::seed()
+    ));
+    let bound = compile(SOURCE);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut installed = Engine::new(
+        snapback4_core::Store::open(&path.join("store.sqlite")).unwrap(),
+        bound.schema, bound.programs.into_iter().map(|p| p.program),
+    ).unwrap();
+    installed.load([("messages".into(), row("m1", 1, "alice", None))]).unwrap();
+    let before = manifest(&mut installed, "raw");
+    assert_eq!(before[0]["rows"], json!([["c1", 1]]));
+    drop(installed);
+    let mut reopened = Engine::open(snapback4_core::Store::open(&path.join("store.sqlite")).unwrap()).unwrap();
+    let after = manifest(&mut reopened, "raw");
+    assert_eq!(after[0]["rows"], json!([["c1", 1]]));
+    assert_eq!(after, before);
+    drop(reopened);
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[test]
 fn manifest_tracks_only_qualifying_surviving_images() {
     let mut e = engine(SOURCE);
     for op in ["raw", "fields", "alias", "spread", "variable"] {

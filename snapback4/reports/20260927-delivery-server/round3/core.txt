@@ -1,0 +1,11 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 21.11s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-a69dc20283931e9f)
+
+running 3 tests
+test engine::delivery::tests::cold_index_exhausts_heap_before_steps_and_charges_its_allocations ... ok
+test engine::delivery::tests::untracked_sources_and_answers_never_start_supplemental_work ... ok
+test engine::delivery::tests::installed_lookup_is_shared_by_readers_and_replaced_on_adoption ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 143 filtered out; finished in 0.04s

@@ -1,7 +1,8 @@
 # DS: delivery, the server half
 
-**Current result:** [Round 2](ROUND2.md) fixes the round-1 review findings and
-restores the unoptimized publisher build. [Round 1](ROUND1.md) documents the
+**Current result:** [Round 3](ROUND3.md) repairs PostgreSQL adoption and adds
+mutation-proven reopen and index-heap coverage. [Round 2](ROUND2.md) records
+the unoptimized publisher baseline; [Round 1](ROUND1.md) documents the
 fingerprint protocol. The report below is the historical round-0 record;
 its interface and open-problem status are superseded.
 

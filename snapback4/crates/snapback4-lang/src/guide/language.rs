@@ -2,7 +2,7 @@
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
 Quarry defines tables, rules and backend operations; eligible programs run on devices too.
-Coming from SQL or Convex: `snapback4 guide from-sql` translates familiar idioms.
+`snapback4 guide from-sql` translates SQL and Convex idioms.
 
 ```quarry
 table notes:
@@ -18,14 +18,13 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`table` declares stored columns; every row also has an `id`.
-`read` and `insert` give the owner access; `sync` brings those rows to their device.
-`query` returns the newest page; pass its `next` back as `c`.
+`table` declares columns and an implicit `id`.
+`read` and `insert` authorize owners; `sync` brings their rows to the device.
+`query` pages newest first; pass `next` as `c`.
 `mutation` inserts atomically, using the default time.
 
-`reports delivery of messages by .conversation, .ordinal` before a mutation's
-colon opts into SDK reporting. Its three arguments identify the group and
-inclusive run. See `guide receipts`.
+`reports delivery of messages by .conversation, .ordinal` enables SDK reporting
+(`guide receipts`).
 
 ## Limits
 
