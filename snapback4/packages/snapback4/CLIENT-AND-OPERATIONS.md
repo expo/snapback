@@ -1220,8 +1220,12 @@ delivering read or link callbacks, including callbacks from lingering remounts.
 Facade snapshots honor their source's loading or denial even before their own
 subscription callback runs, including with `keep: false`; data still waits for
 the facade's authority check. A closed facade keeps consulting its detached raw
-handle, so its private snapshot cannot outlive that handle's deadlines. Shared
-approval and raw subscription delivery announce the same withdrawal only once.
+handle. If a live peer replaces the source answer, a closed `keep: false`
+facade withdraws its cached answer to stable `loading`; the replacement's
+deadlines cannot validate the old answer, and close grants no authority to
+adopt new data. Closing a standalone `keep: false` facade removes its raw owner
+and cancels its subscriptions and timers. Shared approval and raw subscription delivery
+announce the same withdrawal only once.
 An episode expiring during a grouped commit notifies after every affected watch
 has reloaded, so callbacks also see peers' revalidation marks.
 

@@ -146,6 +146,9 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
           const read = source?.getSnapshot();
           if (read && ("loading" in read || "denied" in read)) return snapshot = read;
+          // @ref LLP 3000.023#3.4 — a replacement's deadlines cannot validate a detached facade's old answer.
+          if (closed && options?.keep === false && read && "data" in snapshot
+            && answerIdentity(read) !== answerIdentity(snapshot)) snapshot = loading;
           return opening ? peekObservation(client, op, args, options) ?? loading
             : held ? held.read() as Read<R> : snapshot;
         },

@@ -25,7 +25,7 @@ async function until(check) {
 }
 async function fixture(t, tier, appFacade = false) {
   let wall = 1000, failing = false, held = false, holdDevice = false, queries = 0, discovering = false;
-  let data = "private A", nextExpiry = 5000;
+  let data = "private A", nextExpiry = 5000, seq = 1, replacementDelivered = false;
   const loss = Promise.withResolvers(), deviceGate = Promise.withResolvers();
   const opener = modelDevice();
   const device = { async open(...args) {
@@ -46,15 +46,20 @@ async function fixture(t, tier, appFacade = false) {
     if (path === "/probe") return appFacade
       ? Response.json({ ok: true, principal: "alice", store_id: "session-model-store", seq: 1 }) : parked(init.signal);
     if (path === "/changes") {
+      if (replacementDelivered) return parked(init.signal);
       const event = await Promise.race([loss.promise, parked(init.signal)]);
       if (event === "offline") throw Error("controlled link loss");
+      if (event === "replacement") {
+        replacementDelivered = true;
+        return Response.json({ seq, generation: 1, tables: ["remote"] });
+      }
       return Response.json({ seq: 2, generation: 1, tables: ["remote"] }, { headers: { "x-snapback-ephemeral": "1" } });
     }
     assert.ok(path === "/q/viewer" || path === "/q/peer");
     queries++;
     if (failing) throw Error("offline after rollback");
     if (held) return parked(init.signal);
-    return Response.json({ data, complete: true, tables: ["remote"], seq: 1, nextExpiry });
+    return Response.json({ data, complete: true, tables: ["remote"], seq, nextExpiry });
   }) };
   let app, raw;
   if (appFacade) {
@@ -68,6 +73,7 @@ async function fixture(t, tier, appFacade = false) {
   if (raw.sync) await raw.sync();
   return { raw, wall(n) { wall = n; }, queries: () => queries, discovering: () => discovering,
     answer(value, expiry) { data = value; nextExpiry = expiry; },
+    async replace() { if (raw.sync) await raw.sync(); else { seq++; loss.resolve("replacement"); } },
     holdDevice() { holdDevice = true; }, fail() { failing = true; },
     trigger(boundary) { held = true; if (boundary === "close") return raw.close(); if (boundary === "sign-out") return raw.signOut(); loss.resolve(boundary); } };
 }
@@ -100,6 +106,70 @@ for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]
     f.wall(1000);
     assert.equal(closed.getSnapshot(), loading, "rollback does not restore the private snapshot");
     peer?.close();
+  });
+}
+
+for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]) {
+  test(`${tier} ${mode}: closed withdrawing facade drops A after its live peer replaces it with B`, async t => {
+    const f = await fixture(t, tier, mode === "createApp");
+    const facade = mode === "guard" ? guardClient(f.raw, async () => true, () => true,
+      () => ({ code: "E_AUTH", family: "auth", message: "closed" })) : undefined;
+    t.after(() => facade?.fence()());
+    const client = facade?.client ?? f.raw, options = { keep: false };
+    const closed = client.observe(q, {}, options);
+    await until(() => closed.getSnapshot().data === "private A");
+    const peer = client.observe(q, {}, options);
+    await until(() => peer.getSnapshot().data === "private A");
+    await delay(0); // Attach the peer's raw subscription after its opening peek.
+    assert.equal(answerObservation(closed.getSnapshot()), answerObservation(peer.getSnapshot()));
+    const approved = closed.getSnapshot();
+    closed.close();
+    assert.equal(closed.getSnapshot(), approved, "the same still-live raw answer remains valid after detach");
+    f.answer("private B", 8000);
+    await f.replace();
+    await until(() => peer.getSnapshot().data === "private B");
+    // Do not inspect the closed facade during the intervening raw loading state.
+    f.wall(5000);
+    assert.equal(peer.getSnapshot().data, "private B", "B remains live past A's deadline");
+    const loading = closed.getSnapshot();
+    assert.deepEqual(loading, { loading: true }, "B's deadlines cannot validate cached A");
+    assert.equal(closed.getSnapshot(), loading, "withdrawal has one stable snapshot");
+    f.wall(1000);
+    assert.equal(closed.getSnapshot(), loading, "rollback cannot restore A or adopt unchecked B");
+    peer.close();
+  });
+}
+
+for (const tier of ["online", "wasm"]) {
+  test(`${tier}: closing a standalone withdrawing facade releases its raw owner and callbacks`, async t => {
+    const f = await fixture(t, tier);
+    const facade = guardClient(f.raw, async () => true, () => true,
+      () => ({ code: "E_AUTH", family: "auth", message: "closed" }));
+    t.after(() => facade.fence()());
+    const options = { keep: false }, watch = facade.client.observe(q, {}, options);
+    await until(() => watch.getSnapshot().data === "private A");
+    const owner = answerObservation(watch.getSnapshot());
+    assert.equal(answerObservation(peekObservation(f.raw, q, {}, options)), owner, "the raw owner is in the map");
+    assert.equal(owner.subscribers.size, 1);
+    assert.ok(owner.expiryTimer, "the live answer has a row expiry timer");
+    let calls = 0;
+    watch.subscribe(() => calls++);
+    watch.close();
+    assert.equal(peekObservation(f.raw, q, {}, options), undefined, "close removes the raw owner from its map");
+    assert.equal(owner.subscribers.size, 0);
+    assert.equal(owner.expiryTimer, null);
+    assert.equal(owner.presenceRefresh, null);
+    assert.equal(owner.lingering, undefined);
+    assert.equal(calls, 0, "close detaches before any raw withdrawal notification");
+    owner.publish({ data: "late old-owner result", complete: true, fresh: true, cut: null });
+    for (const subscriber of owner.subscribers) subscriber();
+    f.answer("private B", 8000);
+    const replacement = facade.client.observe(q, {}, options);
+    await until(() => replacement.getSnapshot().data === "private B");
+    assert.notEqual(answerObservation(replacement.getSnapshot()), owner, "reopening creates a new owner");
+    replacement.close();
+    await delay(0);
+    assert.equal(calls, 0, "late old-owner and new-owner publications never reach the closed facade");
   });
 }
 
