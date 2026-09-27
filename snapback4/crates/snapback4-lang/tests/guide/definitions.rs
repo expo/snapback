@@ -411,3 +411,30 @@ fn delivery_bound_guidance_requires_start_only_recovery() {
         }
     }
 }
+
+#[test]
+fn delivery_bound_rfc_acceptance_requires_start_only_recovery() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../llp/3000.025-expiring-mutation-read-prefix.rfc.md");
+    let rfc = std::fs::read_to_string(path).unwrap();
+    for (number, required) in [
+        (5, vec!["onDeliveryRefused once", "next start sends a new id", "delivery-refusal.test.mjs"]),
+        (6, vec!["E_BOUND is an ordinary non-retryable refusal", "calls onDeliveryRefused once",
+            "until the next start", "with a new id"]),
+        (7, vec!["start-only queue witnesses prove §3's policy", "one onDeliveryRefused",
+            "a new id only at the next start"]),
+    ] {
+        let section = rfc.split_once(&format!("\n## {number}. ")).unwrap().1
+            .split("\n## ").next().unwrap();
+        let text = section.replace(['`', '*'], "").split_whitespace().collect::<Vec<_>>().join(" ");
+        for phrase in required.into_iter().chain([
+            "no retry within the session", "committed report that runs again is a no-op report",
+        ]) {
+            assert!(text.contains(phrase), "LLP 3000.025 §{number}: missing {phrase}");
+        }
+        let lower = text.to_lowercase();
+        for obsolete in ["fresh id without restart", "replay the same id first", "replay-confirmed"] {
+            assert!(!lower.contains(obsolete), "LLP 3000.025 §{number}: obsolete {obsolete}");
+        }
+    }
+}

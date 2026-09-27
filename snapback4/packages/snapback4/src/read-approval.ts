@@ -3,6 +3,7 @@ import { answerIdentity, answerObservation, revalidatingAnswer, type ReadObserva
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
 import { ReadEpisode } from "./read-episode.ts";
+import { approveDelivery, discardDelivery } from "./delivery-acceptance.ts";
 
 export interface ApprovedAnswer {
   snapshot: Read<unknown>;
@@ -104,11 +105,13 @@ export class ReadApprovals {
     this.drops.set(owner, drop);
     this.releases.add(release);
     owner.followers.add(follow);
+    approveDelivery(read);
     notify();
     return held;
   }
 
   reject(read: Read<unknown>, denied: Read<unknown>): void {
+    discardDelivery(read);
     const owner = answerObservation(read);
     if (!owner) return;
     const answer = this.get(read)!;

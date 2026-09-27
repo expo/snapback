@@ -907,13 +907,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
-  function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean) {
+  function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
     return publishDelivery(deliveryQueue, result, () => !unavailable()
       && result.incarnation === incarnation && result.authority === answers.revision
       && (result.credential === undefined || result.credential === credentialRevision)
       && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
-      && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), publish);
+      && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), publish, { client, watch });
   }
 
   function watchEphemeral(watch: Watch) {
@@ -982,7 +982,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           notify(watch);
           watch.presenceEvery = after;
           return true;
-        });
+        }, watch);
       }
     } catch {}
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
@@ -1021,7 +1021,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           notify(watch);
         }
         return true;
-      });
+      }, watch);
       if (!accepted) { watch.dirty = true; retryExpired = true; }
     } catch {
       if (!closed && watches.get(watch.key) === watch) {

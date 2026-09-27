@@ -10,11 +10,13 @@ import { deferReadNotifications } from "./read-notifications.ts";
 import { episodeDeadline } from "./read-episode.ts";
 import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
+import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
  * I12 preserves dispatched outcomes: a fence cannot turn a commit into failure. */
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
+  guardDelivery(raw);
   let active = true;
   const valid = () => active && validScope();
   const approved = new WeakSet<object>();
@@ -70,7 +72,9 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const denied = await refusal();
       if (denied) return { denied };
       const read = await raw.query(op, args);
-      return valid() ? read : { denied: why() };
+      const after = await refusal();
+      if (after) return { denied: after };
+      return approveDelivery(read) ? read : { loading: true };
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;

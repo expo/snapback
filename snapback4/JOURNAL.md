@@ -71698,3 +71698,93 @@ rebuild or meter change. Did not run scripts/test.sh: round 11's exact
 push or publication. The local commit carries the requested co-author trailer.
 Report and durable evidence: reports/20260927-dc-delivery-client/ROUND12.md
 and round12/ beside it.
+
+## 2026-09-27 — Lane DC round 13: delivery follows facade approval
+
+Fetched and merged origin/main before editing (6db10b223, no conflicts), read
+all binding lane prompts/reports and the complete Astra integration review.
+Grok had no verdict at startup; its later review agreed on the facade defect
+and added an RFC-text regression gap, also addressed here. Scoped llp-orient
+used the initialized sibling skill because this worktree's skill link was
+uninitialized. Governing acceptance and shared-approval rules remain those of
+LLP 3000.022 section 4 and LLP 3000.023 section 3.6, with the supervisor's
+explicit guarded-client acceptance ruling.
+
+A private delivery-acceptance helper carries collection with the exact answer
+identity. guardClient marks the raw reader guarded; shared ReadApprovals
+publishes approved collection once before notifying peers. Query performs its
+final authority check before returning and accepting. Raw foreground,
+background and local fallback paths offer their actual published identity;
+refusal discards it, and final identity/expiry/CAS checks permit only
+under-reporting. Unguarded raw acceptance and device-publication transactions
+are unchanged. Write-only facades do not register a reader. No public API,
+wire field, contract reshape, dependency, version, meter or budget change;
+local.ts remains exactly 1,500 lines. The delivery RFC's Revised line and
+acceptance paragraph, operations manual and receipts card explain the rule.
+
+Added 24 createApp cases across online and wasm-local fallback: false/throw
+refusal, supersession, episode/row expiry, exact manifest and shared peer
+approval, actual temporary session-store E_CLIENT, final query checks and
+background-only delivery. A separate unguarded background witness holds
+/changes and starts empty. Restoring early collection fails all 24 cases;
+removing background acceptance fails both new online witnesses; omitting
+query acceptance fails both approved-query cases. The RFC guide test reads
+LLP 3000.025 sections 5–7 independently: all three old-section reversions and
+all three appended stale-advice controls fail. Mutation source is restored.
+Focused delivery/queue/refusal/CAS/activation/browser scope passes 399 tests;
+approval passes 874 with 240 seeds; React passes 51; the whole guide passes
+92; root ref-check passes 521 LLPs and 9,744 references without errors.
+
+The host filled its disk during the first full-suite invocation, interrupting
+it without a final summary. The supervisor freed about 440 GB and explicitly
+requested recovery. Preserved the incomplete Rust/client logs and every
+recoverable failure name; restarted the suite to obtain a complete result.
+The eleven lifecycle failures and doctest compilation failure occurred in the
+full-disk window. Of 134 surviving client failure labels, five exposed our
+write-only-facade registration error, reproduced after disk recovery and fixed
+without changing assertions; the other 129 occurred during disk exhaustion.
+The complete outcome file plus new delivery cases now pass 32/32. Earlier
+fixture restoration/ordering failures were also ours and corrected. All are
+recorded separately from intentional mutation failures in ROUND13.md.
+
+Checked every evidence file written after 21:15Z. One gzip was zero-length;
+regenerated every compressed log, parsed JSON, checked driver syntax, verified
+the report tail and source diff, and redid the interrupted hash/size step.
+No source or documentation was truncated. Both wasm builds remeasure
+2,019,815 B raw / 585,193 B gzip, SHA-256
+fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1,
+identical to rounds 11–12; the 586,193 B budget retains 1,000 B. The recovery
+suite is running; its final result will be appended below. Existing hosts
+without deliveryCommit still omit supplementary fallback debt (the existing
+without-conditional-commit CAS test reproduces this); no new crash or
+comparative-performance claim. No tools installed, push or publication.
+Report: reports/20260927-dc-delivery-client/ROUND13.md and round13/ evidence.
+
+The recovery invocation completed with exit 1. Exact summary:
+
+```text
+== 1 failure(s) in 1707 s
+   client tests
+```
+
+The sole completed-run failure is baseline: ordinary-history.test.mjs:226,
+process receipts screen/history after leave. Its immediate inbox assertion
+sees the conversation after sync joins a round begun before the leave. Both
+final code and merge baseline 6db10b223 pass ordinarily in isolation, and
+both fail the same unmodified assertion when a real pre-leave sync response
+is held across leave and the second sync call. The in-memory baseline loader
+uses the five pre-round client modules; the fixture and receipts Quarry are
+unchanged. The reproduction and logs are in round13/; filesystem issue
+issues/20260927-snapback4-ordinary-history-sync-join-race.md records the open
+contract/fixture question. No assertion or raw-sync behavior was changed.
+
+Completed counts: Rust 4,145 pass, zero fail, 30 existing ignores; main clients
+4,184 pass, one baseline failure, ten existing skips; additional shards 56/56;
+fixture wrappers 9/9; final models 79/79. All new delivery cases, the five
+corrected write-only fixtures, all 92 guide tests, the dev-adoption lifecycle
+timing assertion and the existing queue timing case pass. All disk-failed
+Rust lifecycle/doctest checks pass in recovery. Runtime hashes and final wasm
+measurement are unchanged. The inherited 60-second suite target remains
+exceeded. The report retains every known failure, including the interrupted
+attempt; no second completed full run was made. Commit carries the required
+Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer; no push or publication.

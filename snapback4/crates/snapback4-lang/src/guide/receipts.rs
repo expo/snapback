@@ -237,6 +237,14 @@ the client stays `sent`. Positions outside JavaScript's safe-integer range
 also stay `sent`. Composed answers omit their manifest when retained local
 rows replace server rows.
 
+Through `createApp` / `guardClient`, a query manifest is accepted only when
+the facade publishes its shared authority-approved answer or `query()` returns
+it after approval. Peer facades collect the same answer once; refused,
+superseded or expired answers report nothing. Without a facade, acceptance
+remains the raw watch publication or query return after its final fences.
+Collection persistence never delays the answer and rechecks its fences on
+every attempt. Ordinary device publication still persists debt with its rows.
+
 Every report sends its binding's fingerprint; the server checks it under the
 writer before executing the mutation. Unrelated generation changes preserve
 unchanged bindings.

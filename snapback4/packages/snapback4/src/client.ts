@@ -1,4 +1,5 @@
 import { onlineDelivery } from "./online-delivery.ts";
+import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
@@ -589,6 +590,11 @@ export function createClient(options: ClientOptions): Client {
     return current;
   };
 
+  function acceptDelivery(result: QueryResult<unknown>, read: Read<unknown>) {
+    offerDelivery(client, read, current => { void delivery?.accept(result.delivery, current).catch(() => {}); },
+      () => !closed && !storeRefusal && credentials && currentRead(result));
+  }
+
   function watchEphemeral(watch: Watch) {
     const tables = ephemeralTables(watch.op);
     if (!tables.length) { ephemeralReads.remove(watch); return; }
@@ -650,7 +656,7 @@ export function createClient(options: ClientOptions): Client {
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
     // An accepted reply is published whatever it says, loading and refusals included.
     watch.publish(result.read);
-    if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
+    acceptDelivery(result, watch.snapshot);
     watch.tables = new Set(result.tables);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
     if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
@@ -688,7 +694,7 @@ export function createClient(options: ClientOptions): Client {
         return;
       }
       watch.publish(result.transportOffline ? { loading: true } : result.read);
-      if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
+      acceptDelivery(result, watch.snapshot);
       notify(watch);
       watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
@@ -892,7 +898,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       if (!currentRead(result)) return { loading: true };
-      if ("data" in result.read) void delivery?.accept(result.delivery).catch(() => {});
+      acceptDelivery(result, result.read);
       return result.read;
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {

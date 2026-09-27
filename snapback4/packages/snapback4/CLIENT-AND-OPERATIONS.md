@@ -2345,8 +2345,12 @@ clients persist debt with published confirmed rows and accepted fallback
 manifests. Online clients collect accepted query manifests in memory, including
 nested images. A composed answer omits the manifest when it replaces server
 rows with retained local rows. Query manifests pass the same restore floor as
-reports. Acceptance publishes the watch or resolves the query synchronously
-at its final fences. Collection persistence never delays or rejects the answer;
+reports. Through `createApp` / `guardClient`, acceptance occurs only when the
+facade publishes the shared authority-approved answer or returns it from
+`query()` after approval. Its manifest follows the answer's identity, so peer
+facades collect it once; refused, superseded or expired answers collect nothing.
+Without a facade, acceptance remains the raw watch publication or query return,
+synchronously at its final fences. Collection persistence never delays or rejects the answer;
 every CAS attempt rechecks those fences, including at the host's commit point.
 An answer overtaken before that write stays accepted, but collects nothing.
 Unsupported conditional persistence also omits the collection; those rows stay
