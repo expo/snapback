@@ -1,0 +1,406 @@
+{
+  "date": "2026-09-27T15:07:26.710984+00:00",
+  "merge_commit": "0dd5eed436197dd1ff353d38c82639b19c76e1cd",
+  "merged_origin_main": "166fe05794d59444d8e661dd24dd55d9774eaddf",
+  "full_suite_commit": "39f3998ddaafad1f0ef114486c93e534f2dbed8c",
+  "final_implementation_commit": "39f3998ddaafad1f0ef114486c93e534f2dbed8c",
+  "full_suite": {
+    "runs": 1,
+    "started": "2026-09-27T14:43:39Z",
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1381 s",
+    "failures": [],
+    "classification": {
+      "yours": 0,
+      "baseline": 0,
+      "environmental": 0
+    },
+    "rust": {
+      "passed": 3991,
+      "failed": 0,
+      "ignored": 24
+    },
+    "rust_inventory": {
+      "binaries": 247,
+      "executions": 960
+    },
+    "clients_including_shards": {
+      "tests": 2711,
+      "pass": 2701,
+      "fail": 0,
+      "skipped": 10,
+      "cancelled": 0
+    },
+    "client_models": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    }
+  },
+  "wasm": {
+    "raw_bytes": 1982267,
+    "gzip_bytes": 572803,
+    "unchanged_budget_bytes": 572841,
+    "headroom_bytes": 38,
+    "sha256": "beeb9f25954a94660cc5580285cfb251dd12ab7d4497659cb58b957b8772a8ff"
+  },
+  "merged_baseline_wasm": {
+    "raw_bytes": 1983525,
+    "gzip_bytes": 573173,
+    "over_budget_bytes": 332
+  },
+  "affected": [
+    {
+      "name": "core",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 49.5,
+      "log": "target/lane-gs-round4/core-final.log",
+      "sha256": "3370880201f3774263c6feb06f82002db8173e1fcea58253e1393ee800189dbf",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 149 filtered out; finished in 0.22s",
+        "test result: ok. 149 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.25s"
+      ]
+    },
+    {
+      "name": "runtime",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-sim",
+        "--test",
+        "membership_search",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 35.53,
+      "log": "target/lane-gs-round4/runtime-final.log",
+      "sha256": "06ac4b391a960641faa2b05436019c23fb77e2050e534668bc2bfc09bd9169e6",
+      "summaries": [
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s"
+      ]
+    },
+    {
+      "name": "certificate",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "scale::search"
+      ],
+      "exit": 0,
+      "seconds": 39.16,
+      "log": "target/lane-gs-round4/certificate-final.log",
+      "sha256": "42ee9b62019b28d7e4f13c6148b0c67225c5260df9224007708d9e7acb710def",
+      "summaries": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "name": "shared-server",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-sim",
+        "--test",
+        "clique",
+        "search_global"
+      ],
+      "exit": 0,
+      "seconds": 82.98,
+      "log": "target/lane-gs-round4/shared-server-final.log",
+      "sha256": "f07fe908590bba8e9eafa50e15c3e0c3d9545850b41e666929ad0ef8fe855c6a",
+      "summaries": [
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 60.21s"
+      ]
+    },
+    {
+      "name": "device",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "device"
+      ],
+      "exit": 0,
+      "seconds": 343.01,
+      "log": "target/lane-gs-round4/device-final.log",
+      "sha256": "98964ddd566161cc006b782fa859907bfdef08cb9fcd87be99f16267fcd2ca3a",
+      "summaries": [
+        "test result: ok. 436 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 309.58s"
+      ]
+    },
+    {
+      "name": "device-census",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth"
+      ],
+      "exit": 0,
+      "seconds": 16.58,
+      "log": "target/lane-gs-round4/device-census-final.log",
+      "sha256": "4ad30661abf28f0686cbcb40f6d7c968764ab62f01e49a99fb77bfd59501b017",
+      "summaries": [
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.21s"
+      ]
+    },
+    {
+      "name": "merge",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-sim",
+        "--test",
+        "search_merge"
+      ],
+      "exit": 0,
+      "seconds": 13.32,
+      "log": "target/lane-gs-round4/merge-final.log",
+      "sha256": "2d8fa1541845d0e296360f985b3becac77dfcaf85c347eb822cceaf3493984f8",
+      "summaries": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s"
+      ]
+    },
+    {
+      "name": "guide",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide"
+      ],
+      "exit": 0,
+      "seconds": 6.51,
+      "log": "target/lane-gs-round4/guide-final.log",
+      "sha256": "924c52291769e9cc377f212b2af12627f1672846f8a3dd2be184763ba46bf99f",
+      "summaries": [
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.57s"
+      ]
+    },
+    {
+      "name": "docs-budget",
+      "command": [
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.16,
+      "log": "target/lane-gs-round4/docs-budget-final.log",
+      "sha256": "bbf0b5dd0664dffb0678753643e53afc01b3a751cfba704af2b4ea4b8ae81871",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "name": "wasm",
+      "command": [
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "exit": 0,
+      "seconds": 27.45,
+      "log": "target/lane-gs-round4/wasm-final.log",
+      "sha256": "1b9ba831e30c4add7b00314c91ab31ce4ec65e453591745d7b1a14892224110c",
+      "summaries": [
+        "wasm 1982267 B raw, 572803 B gzip (budget 572841: ok)"
+      ]
+    }
+  ],
+  "logs": {
+    "install": {
+      "path": "target/lane-gs-round4/install.log",
+      "sha256": "eda9f9f110a3c1f3f0ab42bb1bc78dbb1ad40baa63c2f34c006a78d671c1786b",
+      "summaries": []
+    },
+    "core-final": {
+      "path": "target/lane-gs-round4/core-final.log",
+      "sha256": "3370880201f3774263c6feb06f82002db8173e1fcea58253e1393ee800189dbf",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 149 filtered out; finished in 0.22s",
+        "test result: ok. 149 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.25s"
+      ]
+    },
+    "runtime-final": {
+      "path": "target/lane-gs-round4/runtime-final.log",
+      "sha256": "06ac4b391a960641faa2b05436019c23fb77e2050e534668bc2bfc09bd9169e6",
+      "summaries": [
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s"
+      ]
+    },
+    "certificate-final": {
+      "path": "target/lane-gs-round4/certificate-final.log",
+      "sha256": "42ee9b62019b28d7e4f13c6148b0c67225c5260df9224007708d9e7acb710def",
+      "summaries": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.02s"
+      ]
+    },
+    "shared-server-final": {
+      "path": "target/lane-gs-round4/shared-server-final.log",
+      "sha256": "f07fe908590bba8e9eafa50e15c3e0c3d9545850b41e666929ad0ef8fe855c6a",
+      "summaries": [
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 60.21s"
+      ]
+    },
+    "device-final": {
+      "path": "target/lane-gs-round4/device-final.log",
+      "sha256": "98964ddd566161cc006b782fa859907bfdef08cb9fcd87be99f16267fcd2ca3a",
+      "summaries": [
+        "test result: ok. 436 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 309.58s"
+      ]
+    },
+    "device-census-final": {
+      "path": "target/lane-gs-round4/device-census-final.log",
+      "sha256": "4ad30661abf28f0686cbcb40f6d7c968764ab62f01e49a99fb77bfd59501b017",
+      "summaries": [
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.21s"
+      ]
+    },
+    "merge-final": {
+      "path": "target/lane-gs-round4/merge-final.log",
+      "sha256": "2d8fa1541845d0e296360f985b3becac77dfcaf85c347eb822cceaf3493984f8",
+      "summaries": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s"
+      ]
+    },
+    "guide-final": {
+      "path": "target/lane-gs-round4/guide-final.log",
+      "sha256": "924c52291769e9cc377f212b2af12627f1672846f8a3dd2be184763ba46bf99f",
+      "summaries": [
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.57s"
+      ]
+    },
+    "docs-budget-final": {
+      "path": "target/lane-gs-round4/docs-budget-final.log",
+      "sha256": "bbf0b5dd0664dffb0678753643e53afc01b3a751cfba704af2b4ea4b8ae81871",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s"
+      ]
+    },
+    "wasm-final": {
+      "path": "target/lane-gs-round4/wasm-final.log",
+      "sha256": "1b9ba831e30c4add7b00314c91ab31ce4ec65e453591745d7b1a14892224110c",
+      "summaries": [
+        "wasm 1982267 B raw, 572803 B gzip (budget 572841: ok)"
+      ]
+    },
+    "ref-check": {
+      "path": "target/lane-gs-round4/ref-check.log",
+      "sha256": "14bc899fd38ea55797c29d0c8117b400f5cdc720efbac561d0285687580eae42",
+      "summaries": [
+        "ref-check: ok \u2014 518 LLP docs, 9647 refs in 27393 files, 0 errors, 0 unchecked"
+      ]
+    },
+    "wasm-merged-baseline": {
+      "path": "target/lane-gs-round4/wasm-merged-baseline.log",
+      "sha256": "c2d5eaf7caf251698085bb9c8a1ef660680be5ce37d0d52d9e710d196c38092c",
+      "summaries": [
+        "wasm 1983525 B raw, 573173 B gzip (budget 572841: OVER by 332 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)",
+        "wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md)."
+      ]
+    },
+    "suite": {
+      "path": "target/lane-gs-round4/suite.log",
+      "sha256": "f707fe875fedd3997aa368a96a88e1d06603859b4ec58c94a1502acb177b856e",
+      "summaries": [
+        "== cargo build",
+        "-- ok: cargo build (17 s)",
+        "== wasm build",
+        "wasm 1982267 B raw, 572803 B gzip (budget 572841: ok)",
+        "-- ok: wasm build (0 s)",
+        "== docs budget",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s",
+        "-- ok: docs budget (17 s)",
+        "== release guard",
+        "-- ok: release guard (4 s)",
+        "== package typecheck",
+        "-- ok: package typecheck (1 s)",
+        "== package build",
+        "-- ok: package build (2 s)",
+        "== chat app check",
+        "-- ok: chat app check (1 s)",
+        "== cargo test",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "-- ok: cargo test (888 s)",
+        "== chat app typecheck",
+        "-- ok: chat app typecheck (1 s)",
+        "== expo app typecheck",
+        "-- ok: expo app typecheck (0 s)",
+        "== fixture wrapper tests",
+        "-- ok: fixture wrapper tests (10 s)",
+        "== client tests",
+        "wasm moved survivor hidden=false: payload-bytes=631 identical-worlds=2 completions=1 key-at=100",
+        "wasm moved survivor hidden=true: payload-bytes=631 identical-worlds=2 completions=1 key-at=100",
+        "wasm unselected control removed=false: completions=1 key-at=1500 page-complete=true",
+        "wasm unselected control removed=true: completions=1 key-at=1000 page-complete=true",
+        "wasm empty groups: groups=5000 pages=158 max-response-bytes=119331",
+        "wasm written unselected round-trip=true: payload-bytes=812 worlds=2 p1-puts=3 completions=1 key-at=1000",
+        "wasm written unselected round-trip=false: payload-bytes=722 worlds=1 p1-puts=2 completions=1 key-at=1000",
+        "wasm membership collision kind=scope row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500",
+        "wasm membership collision kind=scope row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500",
+        "wasm membership collision kind=scope row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000",
+        "wasm membership collision kind=join row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500",
+        "wasm membership collision kind=join row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500",
+        "wasm membership collision kind=join row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000",
+        "-- ok: client tests (195 s)",
+        "== client models",
+        "-- ok: client models (256 s)",
+        "== 0 failure(s) in 1381 s"
+      ],
+      "archive": "reports/20260927-gs-global-search-round4/suite.log.gz",
+      "archive_sha256": "73b3d0146e87a73c1ba00e54add7f7152c1dfacf4c77f41eb439e3068260aa41"
+    },
+    "ref-check-final": {
+      "path": "target/lane-gs-round4/ref-check-final.log",
+      "sha256": "204f059e79bf7686602a37057c74879867e0341dde267fd4b865b54816b7b492",
+      "summaries": [
+        "ref-check: ok \u2014 518 LLP docs, 9647 refs in 27396 files, 0 errors, 0 unchecked"
+      ]
+    }
+  },
+  "source_sha256": {
+    "llp/3000.024-global-search-beyond-one-read.rfc.md": "2106c54f51a9341a13c4cd13a9a33259e1ca13378d2916f4ebff0be0aaef3667",
+    "snapback4/crates/snapback4-core/src/engine/authorized_point.rs": "1c1d49248b3e4c47e24d25a2e52792864a27da602159708323b4814469cb4d7d",
+    "snapback4/crates/snapback4-core/src/engine/authorized_scan.rs": "c4d00351e054a648fb7fd893a3bb0efc6806fc8702d162e2be067b1e175176fe",
+    "snapback4/crates/snapback4-core/src/engine/membership_search.rs": "dac24139f2b83324050075f242605227ac76f593b9abc187ea1567fc21da1a15",
+    "snapback4/crates/snapback4-core/src/engine/read.rs": "ac522bda223baef2a40f6c606d36d5c8d8376b4bac78e1a18283d427052ad344",
+    "snapback4/crates/snapback4-core/src/engine/runner.rs": "3139d50f5a8c76e7089a5d084148b05074ab496edb8652117f47601536683f5c",
+    "snapback4/crates/snapback4-core/src/engine/witness.rs": "7ac42cb0ec82276d96c813316b76fac9754e7d95fce2c0ef9072a5d0a4fdba43",
+    "snapback4/crates/snapback4-core/src/search_plan/print.rs": "400dae0e121582e29e6dbbc7525ff463b9399875c4c2487d5d4ab7b5327e9c10",
+    "snapback4/crates/snapback4-core/src/value.rs": "54d6a4ff254db6b57b729963bea9540e3b85b6e996bf2dc21f4a9906a20157b0",
+    "snapback4/crates/snapback4-core/src/value/disclosed.rs": "88c7924071101a1e39a37f32b1459757bcfa0aa493f87d41c0ebc49e5a19b76b",
+    "snapback4/crates/snapback4-lang/src/guide/search_all.md": "447cc28358dd968c85ad34ff1c01b3d89333690538c7c5eccde39478458a4b8d",
+    "snapback4/crates/snapback4-lang/src/guide/why/SEARCH.md": "03ffcb75158ed8b9bb921aefa5a46971e4a5765c43c3e073eeff04f14ce2d10f",
+    "snapback4/crates/snapback4-sim/tests/membership_search.rs": "e148670c5af92bf182fbbf211c47e07cee9961beb2bc95ab38f9a09945731bc8",
+    "snapback4/crates/snapback4-sim/tests/membership_search/edges.rs": "5893d406bee843ad4ff0abe2dc7f2b4fc84294cae335c8d9060b27e54b4baf66"
+  },
+  "scope": "No source changes after the full suite snapshot; no push, publication, meter or cursor budget change. One-read Decision preserved."
+}

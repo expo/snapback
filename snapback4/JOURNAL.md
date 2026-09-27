@@ -68125,6 +68125,78 @@ reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
 
+### 2026-09-27 — Lane GS: global-search baseline and continuation design stop
+
+Reproduced calibration #23's original unscoped search on a copied final store:
+empty, incomplete, no cut/next, examined 1. That is a prepaid caller reservation;
+the private authorization walk exhausts before the first readable descending
+coffee hit, entry 44,101. Reconstructed the old membership-scoped decoration:
+20 complete hits, next, 2,142 examined, 10,985,983 heap / 520,591 output bytes.
+Repeated peer profiles account for 10,170,235 incremental heap bytes. The final
+builder's existing DM-only peer helper costs 907,738 heap / 25,711 output;
+the bare merge costs 554,978 / 8,251. This viewer has 100 memberships, not the
+store's 1,002 conversations. Original DB/WAL/SHM hashes remain unchanged.
+
+Synthetic 1,000/3,000/10,000-member first pages: 3,040/3,000/8,193 examined,
+12,737,170/16,782,426/14,170,444 heap bytes; only 1,000 returns a complete
+20-hit page with next. The 3,000 opening is heap-cut; 10,000 is discovery-cut.
+LLP 3000.024 records the lean-cursor proposal and the required multi-request
+consistency/state-lifetime decision. Stopped at the brief's explicit design
+checkpoint: no runtime, authorization, cursor, meter, certificate or guide
+change; no raised budget, push or publication. No claim the feature is fixed.
+
+Whole guide 86/86; copied-store reproduction and research probes pass.
+Wasm 1,981,512 B raw / 572,053 B gzip under 572,841; runtime delta 0 B.
+`== 1 failure(s) in 1296 s`, exit 1. Baseline intermittent client failures:
+`MQ local branch wasm` clock assertion and `MQ local branch watch wasm` 60 s
+timeout; both pass together in isolation (2/2). Cause not established; no test
+or deadline changes. All other phases pass. Full report, raw measurements,
+reproduction commands and failure records: reports/20260927-gs-global-search/.
+
+### 2026-09-27 — Lane GS round 1: compact one-read membership search
+
+Implemented the supervisor's narrowed LLP 3000.024 Decision in b2d8b2957:
+stream authorized compact membership keys, retain one authorized order head
+per scope, bound inner word expansion by rescanning and charging repeated
+work, and materialize emitted hit rows/shapes. Selected-field SQLite decode
+stays inside the ordinary declared reservation and row/field/expiry boundary.
+Inherited-parent reads and specialized view merges keep their existing path;
+a denied live parent cannot authorize enumeration of retained child words.
+Opening refuses E_SEARCH_OPEN with an authorized count (explicit lower bound
+when discovery is unfinished), the exhausted resource/ceiling and grouped
+rewrite. No ordinary cursor for unfinished opening; live drain/shape rules
+remain. Check/--cost separately classify unscoped search, opening, word work
+and per-hit group decoration including inlined searchPeers; all codes have
+sites, rewrites and why entries. The search_all card shrinks 147 → 89 lines.
+
+Dense one-word, 30-hit/chat synthetic first and continuation pages complete
+through 4,076 memberships: 8,192 examined, 11,006,689 / 14,106,138 heap B,
+2,131 output B. 4,077 yields 19 hits with next; 4,096 refuses before a first
+hit; 10,000 refuses discovery with a lower bound of 8,192 keys. 1,000 and
+3,000 now complete; 100 chats × 32 overlapping words also completes. On the
+calibration copy, all eight query variants preserve baseline data and cursor
+tokens; this viewer has 100 memberships. Bare heap falls 554,978 → 432,575 B;
+the final DM-only shape costs 785,647 B, while old full peer decoration still
+costs 10,863,931 B. Artificially adding empty chats reaches heap first on
+continuations: bare fits 5,493 memberships, decorated fits 5,317; adjacent
+counts fail. Discovery is therefore the dense-fixture limit, not a universal
+limit. Original DB/WAL/SHM hashes remain unchanged.
+
+Affected search checks pass (6 new runtime, 1 certificate, 17 server, 50 device,
+11 merge); final guard checks also pass 9 read-through / 3 review fixtures;
+final core library 142 pass / 1 ignored; whole guide 86/86. Full
+suite ran once: `== 1 failure(s) in 1468 s`, exit 1. Only failure:
+wasm build, lane-owned. Every other phase passes; no baseline or environmental
+failure. Full-suite wasm was 2,011,380 raw / 580,955 gzip B. Final scoped audit
+checks and rebuild give 2,011,417 raw / 580,877 gzip B: +29,905 raw / +8,824
+gzip against the same-host baseline, 8,036 B over the unchanged 572,841 limit.
+No meter or size budget rises. The size gate remains an integration blocker.
+
+No retained search-work session, multi-pass protocol, snapshot promise, new
+query-state lifetime, push or publication. LLP 3000.024 §4's counterexamples
+remain requirements for a later RFC after real user need. Full file-by-file
+report, measurements, commands, development corrections and exact failure:
+reports/20260927-gs-global-search-round1/REPORT.md.
 ### 2026-09-27 — Lane FX: forced schedules close the expiry and journal flakes
 
 From `54099bc882`, committed expiry-retry scheduling assertions (`192488266`),
@@ -68471,6 +68543,67 @@ Final reference audit: 517 LLP documents, 9,618 references, zero errors and
 zero unchecked. Diff whitespace check passes. Final one-minute host loads
 were 29.88 (expiry) and 51.26 (React).
 
+### 2026-09-27 — Lane GS round 2: device budget and review regressions
+
+Read rounds 0–1, both binding prompts, LLP 3000.024's Decision and both full
+reviews. First fetched/merged origin/main as c86450e6d; the sole conflict was
+this journal. Both parent histories remain verbatim and in order, verified
+before committing. Implementation ad4ad7cf6 addresses the six review findings.
+
+The compact one-read evaluator, selected decoder/adapter, key/head consumers
+and refusal are behind server-search; the device build omits that feature.
+Device dispatch stays on the existing evaluator even when native test Cargo
+features unify. Oversized declared decode reservations use the permitted
+existing metered-plan fallback: one tiny message under body text <=2000000
+now completes and matches the explicit merge. Compact selected heads and
+emitted-point reads still use their declared reservations. No actual-size
+private-row admission or meter relaxation was introduced.
+
+Runtime/certificate share eligibility. Grouped refusals and notes derive
+actual table/column/argument bindings and preserve scalar pins and residual
+filters in both existence and preview. Deleted-only chats and deleted previews
+are excluded. Unscoped repairs preserve direction, order, take and filters;
+only roster reads under message hits get the decoration warning. Bounded
+explicit merges describe their existing heap-null/no-next cut. The source
+renderer withholds unsupported expressions instead of fabricating a repair.
+
+Affected checks: runtime 10/10, certificate 6/6, shared server search 17/17,
+shared device search 50/50, device authorization/census 81/81, merge 11/11,
+whole guide 86/86. Complete shared device pages and cursor tokens are directly
+compared with server results. Eight negative controls all fail their intended
+assertions: device routing, declaration fallback, hard-coded rewrite, dropped
+tombstone, zero count, lost lower-bound wording, first-word-only head, and old
+certificate. Source is restored byte-for-byte after each. Runtime/certificate
+pass again after restoration. Ten emitted rewrites pass the rebuilt CLI's
+check --cost --json without compiler diagnostics/notes; grouped repairs have
+no search advice, while scoped/bare global repairs retain independent costs.
+
+Wasm passes twice at 1,983,444 raw / 572,699 gzip B, under unchanged 572,841
+by 142 B: −8,178 gzip B from round 1, +646 from the recorded same-host baseline.
+SHA-256 48ff5cd876c24533943ed9811fa85744387552585072863866c7da0995c54d43.
+No shared-path tool installation. Rust 1.97.0, Node 24.13.1, Bun 1.3.14;
+eight Cargo jobs, debug/incremental off, fd limit 65,536. Source files stay
+below 1,500 lines (maximum changed file: engine/read.rs, 1,444).
+
+The single full suite is `== 1 failure(s) in 1585 s`, exit 1. Rust passes
+3,947 with 24 existing ignored (244 binaries, 957 executions plus doctests,
+1,062 s). Client main: 2,636 pass / one fail / 10 existing skips; all seven
+shards pass 56/56 (197 s phase). All nine wrappers, both app typechecks, earlier
+gates and all 78 models (265 s) pass. Only failure is baseline intermittent:
+residency.test.mjs's server-class remembered-data watch did not observe offline
+fresh=false within its unchanged 8-second wait. The identical assertion is in
+the earlier lane O round-3 report; client/test sources are unchanged, and its
+query uses no search. No lane-owned or confirmed environmental full-suite
+failure. A single focused follow-up passes 1/1 (180.598508 ms); this does not
+replace the red full result or establish a cause. Filed
+issues/20260927-snapback4-server-watch-offline-freshness-flaky.md. No unrelated
+client fix, timeout change, or second full run. The inherited 60-second target
+remains exceeded and unchanged.
+
+No multi-request continuation, saved work state, cursor or meter budget change,
+original calibration-store access, push or publication. Existing device and
+legacy-plan opening limits remain documented. Full file map, examples, negative
+controls, exact failure and hashes: reports/20260927-gs-global-search-round2/.
 ### 2026-09-27 — Calibration 23: receipt gaps and Following adoption are discoverable
 
 Calibration 23's M5 run log records `E_STRUCTURAL_FANOUT` for a mutation
@@ -68942,6 +69075,65 @@ the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
 
+## 2026-09-27 — Lane GS round 3: actual-size admission and executable repairs
+
+Read the binding round 0–2 prompts, reports, journal records, LLP 3000.024 and
+its Decision, and both complete round-2 reviews. First fetched and merged
+origin/main as 3588816da, preserving both journal histories verbatim as ordered
+subsequences. Main's new authorized-scan caller received its missing optional
+selection argument. On sb4-intent/gs-global-search, 140463e43 removes the
+incomplete declaration-size fallback. Already authorized, non-expiring public
+heads and emitted rows use the existing actual-size metered scan. Heads decode
+a full transient image and retain only their ordering keys. Emitted rows
+recheck authority under declared witness scratch before disclosure; private,
+expiring, recorded and inherited rows retain their protected admission. No
+meter, ceiling, cursor format, budget or multi-request continuation change.
+
+Both Astra reproductions and Grok's 1,023,557-byte declaration now return the
+complete hit and agree with the old merge. Boundary cases straddle the old
+16 MiB and proposed 24 MiB cutoffs; custom active ceilings and the combined
+600,000-byte message/membership declaration also pass. Tiny hits retain
+25,253 heap bytes in compact search versus the old merge's 27,446. Private
+payload changes preserve the serialized outcome, and revocation passes on
+both ordinary and expiring paths. Generated repairs now print count and
+parenthesized +. The builtin audit also fixed missing calendar duration units;
+all supported printer spellings compile against their originating schemas.
+Certificate/refusal tests require last 3; runtime repairs return the newest
+three of four live hits while retaining tombstone and residual predicates.
+
+Ran scripts/test.sh exactly once at 140463e43: `== 0 failure(s) in 1434 s`,
+exit 0. Every failure classified: none (lane-owned 0, baseline 0,
+environmental 0). Rust 3,984 passed / 24 existing ignored across 246 binaries
+and 959 executions plus doctests; main client 2,644 passed / 10 existing skips,
+extra shards 56/56, client models 78/78, fixture wrappers 9/9. All remaining
+build, docs and artifact gates pass. The inherited 60-second target is still
+exceeded; no timeout, assertion, seed count or budget was relaxed.
+
+An admission audit found a missing adopted-default precharge while that frozen
+run was in progress. Its source remained unchanged through completion. Then
+67931c9d8 prepays missing-field materialization before copying an emitted row's
+default. The allocation-sensitive test fails without this line: a 64 KiB heap
+allocates 1,001,185 B before refusing. With the fix it allocates only 265 B;
+the ample-heap arm returns the entire default within its charged peak. All
+nine negative controls (eleven executions) fail at assertions as intended,
+including the 24 MiB cutoff and last-1 preview mutations, then restore cleanly.
+
+Final affected checks pass: core 148/148 with one existing ignored; membership
+13/13; certificate 7/7; shared server search 17/17; shared device search 50/50;
+device authorization/census 81/81; merge search 11/11; whole guide 86/86;
+docs budget and reference audit. The full suite was not repeated after the
+one-line materialization fix. Final wasm has the same sizes as the suite build:
+1,983,447 B raw / 572,688 B gzip, 153 B below the unchanged 572,841 B budget
+and 11 B gzip below round 2. SHA-256:
+dea4612052a43f422f6a9c62a73ed2b77b9fc5bb853368be84bd2d401a9a1891.
+Five artifact bytes differ; both digests are retained in the qualification.
+
+The guide labels the historical empty-chat calibration as round 1; those
+limits were not remeasured, and no original calibration database was opened
+or changed. No tool installation, push or publication. File map, runnable
+forms, tradeoffs, exact qualification and control evidence:
+reports/20260927-gs-global-search-round3/REPORT.md, qualification.json and
+controls.json. Raw logs remain in ignored target/lane-gs-round3/.
 ### 2026-09-27 — Lane FA round 1: expose the populated-store query; revise adoption
 
 Merged origin/main first (86c50df51), preserving every line of both journal
@@ -69180,6 +69372,53 @@ whitespace inspection finds 12 baseline whitespace findings in four incoming
 verbatim publication logs; those bytes are preserved, and edited source/docs pass.
 Full evidence, program, rejected options and reviewer handoff:
 [round-3 report](./experiments/following-adoption/atomic/ROUND3.md).
+
+## 2026-09-27 — lane GS round 4: heap boundaries and default ownership
+
+Read both complete round-3 reviews and the earlier lane prompts/reports;
+merged `origin/main` first as `0dd5eed43`, preserving both sides of the journal
+conflict. Implementation `39f3998dd` converts compact heap failures after
+buffering, result reservation and the compiler's generated assignment to
+E_SEARCH_OPEN. Examined/index/probe drains retain their existing continuations.
+Default materialization is prepaid before copying, then transferred to the
+retained row charge. Public witness defaults are charged before materialization
+and covered by a schema-only reservation around protected authorization scopes.
+Carriage-return literals withhold diagnostic repairs; calendar repairs execute
+on both sides of day/hour/bucket offset boundaries.
+
+Added both tiny-payload reproductions, three stored 1.9–2.2 MB payload cases,
+638 heap ceilings (complete page or explicit refusal), the 3.6 MB default
+case, the 64 KiB public-witness case and an allocation-sensitive witness
+lifetime test. At 64 KiB the public default refuses after allocating 133 bytes;
+at 3.6 MB its full value allocates 1,000,812 bytes under a 1,003,016-byte ledger
+peak. All seven negative controls fail at assertions; source restoration is
+byte-checked. Whole core 149 passed / one existing ignored, membership 20/20,
+certificate 7/7, shared server search 17/17, whole device 436 passed / one
+existing ignored (including 50 shared search fixtures), census 81/81, merge
+11/11, whole guide 86/86; docs budget and reference audit pass.
+
+The merged baseline measures 1,983,525 raw / 573,173 gzip bytes, 332 above
+the unchanged 572,841-byte wasm budget. Equivalent disclosure/pricing loops
+and removing the temporary default vector reduce the final artifact to
+**1,982,267 raw / 572,803 gzip bytes**, 38 below budget. The original image stays
+available for visibility decisions; the existing materialization prepay covers
+its possible map copy. No runtime ceiling or feature is disabled.
+
+Ran `scripts/test.sh` once on `39f3998ddaafad1f0ef114486c93e534f2dbed8c`:
+**`== 0 failure(s) in 1381 s`**, exit **0**. Full Rust **3,991 passed / 24
+existing ignored**, client files plus shards **2,701 passed / 10 existing
+skips**, and serial client models **78/78**. Every full-suite failure: none
+(yours 0; baseline 0; environmental 0). The inherited 60-second target remains
+exceeded; no timeout, seed count or assertion was relaxed. Source stayed fixed
+through the full run. The report, full compressed log, exact summary, source and
+artifact hashes are in `reports/20260927-gs-global-search-round4/`.
+
+Kept LLP 3000.024's one-read Decision, cursor format and meter/wasm budgets.
+No saved search session or multi-request continuation. No original GS store
+opened or modified, tools installed, shared paths changed, push or publication.
+Only this lane's old ignored incremental build cache was removed for disk space.
+Local commits carry the required co-author trailer.
+
 ## 2026-09-27 — 0.4.6 lane CQ round 1: stop the plain query at its bound
 
 Read both round 0 reviews and the supervisor ruling. Merged origin/main in
@@ -69273,3 +69512,51 @@ The supervisor owns acceptance; the online publisher remains unbuilt.
 Report and durable verification: experiments/following-adoption/atomic/ROUND4.md
 and ROUND4.verification.json. Raw logs: target/fa-round4/. Local commits carry
 the required co-author trailer. No push or publication.
+## 2026-09-27 — GS round 5: final-copy refusal and actual public-witness admission
+
+Read rounds 0–4's prompts, reports and journal entries, LLP 3000.024 and its
+Decision, and both round-4 reviews. Fetched and merged origin/main first in
+6b277bf5c, preserving both complete journal appends and combining compact search
+with main's cursorless completion. Implementation: 5cf51bed32db66f91c988385b6a994d830b6a2fd.
+
+Carry each compact search's origin and visible membership count through the
+generated result binding to return. The final array-copy heap charge now
+refuses E_SEARCH_OPEN, retaining the charge. Byte-by-byte sweeps cover computed
+cursor, result, binding and final-copy boundaries plus transient admission; the
+3,025,041–3,025,072 interval and the stored 1.9 MB payload at 17,125,185 no longer
+return heap-null pages. Complete pages preserve their continuation token.
+
+Protected scopes save the caller's ceiling and public reservations separately
+from private work. Public witnesses check actual materialization before copying;
+stored fields no longer reserve unused schema defaults. Materialization decides
+visibility on the original image, moves a uniquely owned row, then inserts
+admitted defaults. Tests pin the stored 'hi' case at 64 KiB, missing million-byte
+defaults at 64 KiB and 200,000 bytes, and a 1.5 MB stored title at both assigned
+ceilings. Nested private-work isolation, pointer/allocation checks, exact
+retained default heap (compact 3,025,073; control 3,034,639), nested owned-list
+prices and spare string/id capacity are asserted. Nine targeted negative
+controls fail at assertions and restore source bytes.
+
+Affected checks pass: core 153 passed / one existing ignored; membership 24/24;
+certificate 7/7; shared server search 17/17; device 436 passed / one existing
+ignored (including all 50 shared fixtures); census 81/81; merge 11/11; whole
+guide 86/86; docs budget and reference audit pass. Factoring protected-scope
+entry/restoration out of the generic wrapper keeps wasm at **1,979,558 raw /
+572,577 gzip bytes**, **264 below** the unchanged 572,841-byte budget, and
+321 gzip bytes below the same-toolchain merged baseline. No check was removed.
+
+Ran `scripts/test.sh` once on the unchanged implementation:
+**`== 0 failure(s) in 1389 s`**, exit **0**. Full Rust: **4,006 passed / 24
+existing ignored**, plus workspace doctests; client tests: **2,701 passed / 10
+existing skipped**; serial models: **78/78**. Every suite failure: none
+(ours 0; baseline 0; environmental 0). The inherited 60-second target remains
+exceeded; timeouts and seed counts are unchanged. The source/artifact hashes,
+affected results, negative controls and compressed full log are preserved in
+`reports/20260927-gs-global-search-round5/`.
+
+Kept the Decision's one-read scope, cursor format, authorization/disclosure and
+production meter budgets. Only delivery-boundary fixtures use a larger output
+allowance to isolate their heap boundary. No original GS store opened or
+modified, no tools installed, no shared-path installation, no push or publication.
+Local commits carry the required co-author trailer. No unresolved round-5
+reproduction or scope deviation.

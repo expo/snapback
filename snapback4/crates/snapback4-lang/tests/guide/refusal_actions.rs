@@ -2,6 +2,11 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_SEARCH_OPEN", &["grouped rewrite", "lower bound"]),
+    ("N_SEARCH_OPEN", &["Use the grouped form"]),
+    ("N_SEARCH_UNSCOPED", &["Preserve the filters and add"]),
+    ("N_SEARCH_WORDS", &["Try a longer first term or a pinned chat"]),
+    ("N_SEARCH_SHAPE", &["Return a bare hit page"]),
     ("E_FIELD_AUTHORITY", &["Name a required principal column on this table, declare a default, and omit the field when writing another principal's row."]),
     ("E_SEQUENCE_PARENT", &["Do not supply a value or default."]),
     ("E_SEQUENCE_SUPPLIED", &["Declare an engine sequence."]),

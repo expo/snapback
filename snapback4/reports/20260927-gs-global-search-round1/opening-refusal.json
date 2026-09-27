@@ -1,0 +1,11 @@
+{
+  "complete": false,
+  "denied": {
+    "code": "E_SEARCH_OPEN",
+    "family": "bound",
+    "guide": "search",
+    "message": "E_SEARCH_OPEN: 8000 authorized membership keys discovered; opening exceeded this read's envelope (16777216 heap bytes maximum) at programs.gsbare.0; use the grouped form in `snapback4 guide search`",
+    "rewrite": "return members[principal = viewer] after c first 20 by .conversation where exists (messages[conversation = .conversation] matching q by .at) { conversation, hits: messages[conversation = .conversation] matching q last 3 by .at }; see the grouped form in search_all and use bare hits plus separate detail reads",
+    "site": "programs.gsbare.0"
+  }
+}

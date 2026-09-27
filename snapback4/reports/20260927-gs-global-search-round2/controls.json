@@ -1,0 +1,164 @@
+[
+  {
+    "name": "device-routing",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "search_global::forms::memory::cases::w13e_dense_100",
+      "--",
+      "--exact"
+    ],
+    "mutation": "Remove !self.device from compact dispatch; expect 340 examinations, receive 240.",
+    "log_sha256": "6de66442da6142f6fd44c7bef2a394a10f0a900fc1bb08fba0eb5be1cfe807ec",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 436 filtered out; finished in 0.80s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "wide-declaration",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "oversized_declaration"
+    ],
+    "mutation": "Remove the decode_reservation <= default heap eligibility conjunct; tiny row refuses E_SEARCH_OPEN.",
+    "log_sha256": "f742a8c761fbbdaa7dd8e07b733585910b08d8394f59b660d4ea0c725b7924b2",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "hardcoded-rewrite",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "refusal_rewrite"
+    ],
+    "mutation": "Restore the members/messages/conversation refusal query; originating room schema refuses compilation.",
+    "log_sha256": "014d9b78be0e5d333bb2d4cd76a36c0623a6764e21bb65df21ced37f60ddf54a",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "dropped-tombstone",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "refusal_rewrite"
+    ],
+    "mutation": "Skip the tombstone scalar pin in the query renderer; deleted-only chat and preview become visible results.",
+    "log_sha256": "284cd9e183afe169498dd8bcb2f8df1c9b84ad372b45d43df6bbd8820378ad40",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.03s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "count-zero",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "refusal_counts"
+    ],
+    "mutation": "Replace memberships: count with memberships: 0; exact authorized-key count assertion fails.",
+    "log_sha256": "73d0a5e3b166fe783ff3e5e827123b0ac03b0e4e458f1c26ccb95cb54accd8c8",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.02s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "lost-lower-bound",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "refusal_counts"
+    ],
+    "mutation": "Replace unfinished-discovery qualifier with empty text; interrupted-discovery assertion fails.",
+    "log_sha256": "b0ab87a7af9a2c8ce9f8269fef87f48834fbc5293d7324822a4fd3ae618345b0",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "first-word-only",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "later_word_head"
+    ],
+    "mutation": "Replace if better with if best.is_none(); coffee@100 loses to chat@1.",
+    "log_sha256": "bcbbe97cc51d8a666860b380843c2bb5836957a7b68a11eabbc6fe69aa7c6314",
+    "summary": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  },
+  {
+    "name": "round1-certificate",
+    "exit": 101,
+    "failed_test": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "scale::search"
+    ],
+    "mutation": "Restore c86450e6d scale/search.rs production classifier while retaining the new test module.",
+    "log_sha256": "6e0fdba3343f51993d77b6ce23f4f44baca6920ede4124ff4233383954954561",
+    "summary": [
+      "test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.00s"
+    ],
+    "restoration": "Driver finally block restores original bytes and asserts their SHA-256 equality."
+  }
+]

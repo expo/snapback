@@ -1168,7 +1168,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }

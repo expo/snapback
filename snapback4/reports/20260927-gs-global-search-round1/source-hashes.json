@@ -1,0 +1,12 @@
+{
+  "before": {
+    "store.sqlite": "2984869303a81e7ed8c0896a54e28a80502f6a407d25ef7ec7a9de7ed14a75b6",
+    "store.sqlite-wal": "281b9095c6ad8fe0a7df850b2c9da43be2aadaf7e026c9e841d5ed1c60633787",
+    "store.sqlite-shm": "0725165808dbbed593eff79ecb04d3a5f6b24a78de2562ec28d65c4772e8c141"
+  },
+  "after": {
+    "store.sqlite": "2984869303a81e7ed8c0896a54e28a80502f6a407d25ef7ec7a9de7ed14a75b6",
+    "store.sqlite-shm": "0725165808dbbed593eff79ecb04d3a5f6b24a78de2562ec28d65c4772e8c141",
+    "store.sqlite-wal": "281b9095c6ad8fe0a7df850b2c9da43be2aadaf7e026c9e841d5ed1c60633787"
+  }
+}

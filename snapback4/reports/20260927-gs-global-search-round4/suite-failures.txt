@@ -1,0 +1,13 @@
+Command: scripts/test.sh
+Runs: 1
+Source: 39f3998ddaafad1f0ef114486c93e534f2dbed8c
+Exit: 0
+Exact summary: == 0 failure(s) in 1381 s
+
+Every failure: none.
+Yours: 0. Baseline: 0. Environmental: 0.
+
+The inherited 60-second target remains exceeded; no timeout or assertion was relaxed.
+Negative-control assertion failures were intentional and are recorded separately in controls.json.
+Local log: target/lane-gs-round4/suite.log
+SHA-256: f707fe875fedd3997aa368a96a88e1d06603859b4ec58c94a1502acb177b856e

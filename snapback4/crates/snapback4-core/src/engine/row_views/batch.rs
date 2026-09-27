@@ -87,7 +87,7 @@ impl Runner<'_> {
                 let mark = self.meter.mark();
                 let result = (|| {
                     // Every source row still crosses the sealed rule/field boundary.
-                    let Some((row, key)) = self.scan_authorized(&m.source, &index, prefix, &bounds, Dir::Asc, 1, true, true)?.pop() else { return Ok(false); };
+                    let Some((row, key)) = self.scan_authorized(&m.source, &index, prefix, &bounds, Dir::Asc, 1, true, true, #[cfg(feature = "server-search")] None)?.pop() else { return Ok(false); };
                     let Some(row) = row else {
                         return Err(RuntimeError::Prediction("row-view source authority is not covered".into()));
                     };
