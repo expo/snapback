@@ -1,0 +1,21 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 17.45s
+     Running tests/guide.rs (target/debug/deps/guide-337558960c79c69f)
+
+running 1 test
+
+thread 'definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook' (735605) panicked at crates/snapback4-lang/tests/guide/definitions.rs:349:9:
+missing SDK reports debt collected from publications and accepted answer manifests
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... FAILED
+
+failures:
+
+failures:
+    definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 86 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

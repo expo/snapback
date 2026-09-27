@@ -116,6 +116,7 @@ impl PostgresEngine {
         caps::install(&mut client, &schema)?;
         let mut store=Store::new(client); store.generation=generation;
         store.generation=contribution_upgrade::install(&mut store, &mut schema)?;
+        schema.prepare_delivery_lookup();
         Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
 

@@ -1,0 +1,24 @@
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6.49s
+     Running unittests src/main.rs (target/debug/deps/snapback4-c1bf67872b7abf4f)
+
+running 6 tests
+test serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding ... ok
+test serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer ... ok
+test serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in ... ok
+test serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body ... ok
+test serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses ... ok
+test serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.55s

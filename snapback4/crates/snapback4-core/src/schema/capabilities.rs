@@ -12,6 +12,9 @@ struct Wire {
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
+    #[cfg(feature = "sqlite")]
+    #[serde(skip)]
+    delivery_lookup: crate::engine::delivery::Lookup,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     timelines: Vec<timeline::Timeline>,
     #[serde(default)]

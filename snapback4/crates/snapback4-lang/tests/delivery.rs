@@ -446,6 +446,7 @@ query ownImages():
     let tight = manifest(&mut e, "ownImages");
     assert_eq!(tight.as_array().unwrap().len(), 1, "{tight}");
     assert_eq!(tight[0]["partial"], true, "{tight}");
+    assert_eq!(tight[0]["rows"], json!([["c1", 4]]), "{tight}");
 }
 
 #[test]
@@ -489,5 +490,67 @@ fn many_bindings_exhaust_metadata_work_before_further_source_stamping() {
     let out = e.query("page", context("alice")).unwrap();
     assert_eq!(serde_json::to_value(out.delivery).unwrap(), json!("partial"));
     assert!(out.delivery_meter.unwrap().steps <= 200);
-    assert!(out.delivery_meter.unwrap().steps > 100, "index work is charged");
+    // 42 insertions cost 195 steps; the next costs six and cannot fit.
+    // Charging only one per insertion instead spends all 200 and must fail.
+    assert_eq!(out.delivery_meter.unwrap().steps, 195, "index search work is charged");
+}
+
+#[test]
+fn unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit() {
+    for count in [1, 1001] {
+        let mut bound = compile(SOURCE);
+        let binding = bound.schema.delivery[0].clone();
+        for n in 1..count {
+            let mut other = binding.clone(); other.table = format!("unused{n}");
+            bound.schema.delivery.push(other);
+        }
+        let mut baseline = bound.schema.clone();
+        baseline.delivery.clear();
+        let programs = bound.programs.iter().map(|p| p.program.clone()).collect::<Vec<_>>();
+        let mut tracked = Engine::memory(bound.schema, programs.clone()).unwrap();
+        let mut plain = Engine::memory(baseline, programs).unwrap();
+        for e in [&mut tracked, &mut plain] {
+            e.load([("chats".into(), object([("id", Value::Id("c1".into())), ("name", Value::String("chat".into()))]))]).unwrap();
+            e.set_ceilings(Ceilings { steps: 800, ..Ceilings::default() });
+        }
+        let out = tracked.query("unrelated", context("alice")).unwrap();
+        let control = plain.query("unrelated", context("alice")).unwrap();
+        assert!(out.delivery.is_none(), "{count}: {out:?}");
+        assert!(out.delivery_meter.is_none(), "{count}: {out:?}");
+        assert_eq!(out.data, control.data);
+        assert_eq!(out.metered, control.metered);
+        assert_eq!(out.complete, control.complete);
+        assert_eq!(out.cut, control.cut);
+        assert_eq!(out.capped_at, control.capped_at);
+    }
+}
+
+#[test]
+fn per_source_lookup_exhausts_steps_after_the_index_fits() {
+    let source = SOURCE.replace("first 20 by .ordinal", "first 100 by .ordinal")
+        .replace("read <- .owner = viewer", "read <- allow");
+    let mut bound = compile(&source);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    for n in 0..7 {
+        let mut other = bound.schema.delivery[0].clone(); other.table = format!("unused{n}");
+        bound.schema.delivery.push(other);
+    }
+    let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    // Legacy/imported positions skip coordinate allocation after lookup, so
+    // exhaustion discriminates lookup work from per-field origin stamping.
+    let table = e.schema().tables["messages"].clone();
+    let tx = e.store_mut().transaction().unwrap();
+    for n in 1..=100 {
+        tx.put("messages", &table, &row(&format!("m{n}"), 9_007_199_254_740_991 + n, "alice", None), None).unwrap();
+    }
+    tx.commit().unwrap();
+    e.set_ceilings(Ceilings { steps: 800, ..Ceilings::default() });
+    let out = e.query("page", context("alice")).unwrap();
+    assert_eq!(out.data.as_array().unwrap().len(), 100, "{out:?}");
+    assert!(out.complete, "{out:?}");
+    assert_eq!(serde_json::to_value(out.delivery).unwrap(), json!("partial"));
+    // The eight-entry index fits in 21 steps. Forty-four four-step source
+    // lookups leave three steps; another lookup cannot fit. Zero-cost source
+    // lookup and one-step index insertion both produce different debits.
+    assert_eq!(out.delivery_meter.unwrap().steps, 197);
 }

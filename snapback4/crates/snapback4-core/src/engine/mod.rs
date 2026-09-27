@@ -343,6 +343,7 @@ impl Engine {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
@@ -376,6 +377,7 @@ impl Engine {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms())?;
@@ -406,6 +408,7 @@ impl Engine {
         let mut schema: Schema = schema;
         let stored_schema_hash = schema.hash();
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         let schema_hash = schema.hash();
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
@@ -523,6 +526,7 @@ impl Engine {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));

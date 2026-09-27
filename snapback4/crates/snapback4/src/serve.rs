@@ -1026,10 +1026,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             } else { None };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
-            if path.starts_with("/m/") {
+            let signature = if path.starts_with("/m/") {
                 let id = payload.get("id").and_then(Json::as_str);
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (replay, metadata) = {
+                let (replay, metadata, signature) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
                         drop(engine);
@@ -1044,7 +1044,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    (replay, response_head(&mut engine))
+                    // @ref LLP 3000.022#5 — decoding uses the signature whose binding
+                    // passed preflight; adoption is rechecked by the executing writer.
+                    let signature = engine.program(&op).map(|p| (p.kind, p.args.clone()));
+                    (replay, response_head(&mut engine), signature)
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
@@ -1052,9 +1055,12 @@ fn handle(mut request: Request, shared: &Shared) {
                     Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
-            }
-            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                .map(|p| (p.program.kind, p.program.args.clone()));
+                #[cfg(test)] test_work(&shared.mutation_wait);
+                signature
+            } else {
+                lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
+                    .map(|p| (p.program.kind, p.program.args.clone()))
+            };
             // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
             // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));

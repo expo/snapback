@@ -345,10 +345,10 @@ const DEFINITIONS: &[(&str, &str)] = &[
 #[test]
 fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
     let text = normalize(&card("receipts").unwrap());
-    for fact in ["retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "client.mutate(api.seen"] {
+    for fact in ["SDK reports debt collected from publications and accepted answer manifests", "`progress` remains a catch-up read", "retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "client.mutate(api.seen"] {
         assert!(text.contains(fact), "missing {fact}");
     }
-    for obsolete in ["client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
+    for obsolete in ["the pages it has walked", "client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
         assert!(!text.contains(obsolete), "obsolete: {obsolete}");
     }
 }

@@ -1,0 +1,7 @@
+{"mutation": "source-lookup-free", "test": "per_source_lookup_exhausts_steps_after_the_index_fits", "exit": 101, "killed": true}
+{"mutation": "index-one-step", "test": "many_bindings_exhaust_metadata_work_before_further_source_stamping", "exit": 101, "killed": true}
+{"mutation": "skip-reserved-rows", "test": "colliding_ids_do_not_turn_foreign_fields_into_own_images", "exit": 101, "killed": true}
+{"mutation": "ungated-source", "test": "engine::delivery::tests::untracked_sources_and_answers_never_start_supplemental_work", "exit": 101, "killed": true}
+{"mutation": "ungated-manifest", "test": "unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit", "exit": 101, "killed": true}
+{"mutation": "late-signature", "test": "serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding", "exit": 101, "killed": true}
+{"mutation": "old-card-paragraph", "test": "definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook", "exit": 101, "killed": true}

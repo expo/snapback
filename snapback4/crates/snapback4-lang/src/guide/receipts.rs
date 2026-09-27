@@ -214,10 +214,10 @@ positions before the join. Membership and allocation remain server decisions. An
 cannot keep a durable replay receipt; use durable tables.
 
 A member's row claims every message through `deliveredOrdinal`, and each of
-their `runs` one unbroken run above a gap. The client reports every unbroken
-run of settled messages it holds with `delivered(from, through)`: the pages it
-has walked and the page `progress` returns ahead of the delivered prefix. The
-mutation merges a run with every run it meets, and folds it into the prefix
+their `runs` one unbroken run above a gap. The SDK reports debt collected from
+publications and accepted answer manifests with `delivered(from, through)`.
+`progress` remains a catch-up read; its returned message images also qualify
+for a manifest. The mutation merges a run with every run it meets, and folds it into the prefix
 when it reaches it. So whatever a client fetched is delivered once its report
 is recorded, however many gaps lie between, and a receipt never claims a
 message the client did not fetch, nor moves back.

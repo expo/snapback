@@ -11,10 +11,33 @@ use serde::{Serialize, Serializer};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::{
-        Arc,
+        Arc, OnceLock,
         atomic::{AtomicU64, Ordering},
     },
 };
+
+// @ref LLP 3000.022#5 — unrelated reads pay no supplemental work. Membership
+// belongs to the installed schema; its lazily built index is shared by readers.
+#[derive(Clone, Debug, Default)]
+pub struct Lookup(Arc<LookupState>);
+#[derive(Debug, Default)]
+struct LookupState {
+    tables: BTreeSet<String>,
+    index: OnceLock<Arc<BTreeMap<String, usize>>>,
+}
+// Runtime caches never change schema equality, its hash or its wire form.
+impl PartialEq for Lookup {
+    fn eq(&self, _: &Self) -> bool { true }
+}
+impl Eq for Lookup {}
+impl crate::schema::Schema {
+    pub(crate) fn prepare_delivery_lookup(&mut self) {
+        self.delivery_lookup = Lookup(Arc::new(LookupState {
+            tables: self.delivery.iter().map(|binding| binding.table.clone()).collect(),
+            index: OnceLock::new(),
+        }));
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -141,7 +164,7 @@ pub(super) struct Origins {
 pub(super) struct Tracking {
     ledger: Option<Ledger>,
     pub last: Option<Origin>,
-    index: Option<BTreeMap<String, usize>>,
+    index: Option<Arc<BTreeMap<String, usize>>>,
     variables: BTreeMap<String, (Origin, Lease)>,
     // Removing an entry need not free its BTree node. Retain node charges
     // until the whole map is dropped; individual leases own only the names.
@@ -227,7 +250,8 @@ impl Runner<'_> {
             .get_or_insert_with(|| Ledger::new(self.meter.ceilings))
     }
     pub(super) fn stamp_delivery(&mut self, table: &str, row: &mut Value) {
-        if self.device || self.meter.cut != crate::meter::Cut::Cap {
+        if self.device || self.meter.cut != crate::meter::Cut::Cap
+            || !self.schema.delivery_lookup.0.tables.contains(table) {
             return;
         }
         if !self.delivery_index() { return; }
@@ -407,18 +431,26 @@ impl Runner<'_> {
         fields.replace_source(identity);
     }
 
-    // Build once per query. Each insertion is reserved before looking at the
-    // next binding, so many bindings cannot evade a small supplemental budget.
+    // Reserve each insertion before building a cold index. Publish only a
+    // complete index; later queries/readers borrow it without rebuilding it.
     fn delivery_index(&mut self) -> bool {
         if self.schema.delivery.is_empty() { return false; }
         if self.delivery_ledger().stamping_stopped { return false; }
         if self.delivery.index.is_none() {
-            self.delivery.index = Some(BTreeMap::new());
+            if let Some(index) = self.schema.delivery_lookup.0.index.get() {
+                self.delivery.index = Some(index.clone());
+                return true;
+            }
+            let mut index = BTreeMap::new();
             for (i, binding) in self.schema.delivery.iter().enumerate() {
                 let bytes = crate::rows::word_heap::insertion::<String, usize>(i) + binding.table.len() as u64;
                 if !self.delivery_ledger().reserve(1 + (i + 1).ilog2() as u64, bytes, 0) { return false; }
-                self.delivery.index.as_mut().unwrap().insert(binding.table.clone(), i);
+                index.insert(binding.table.clone(), i);
             }
+            // Concurrent cold readers may finish together. Each paid for its
+            // own construction; all subsequent readers share the first result.
+            let index = self.schema.delivery_lookup.0.index.get_or_init(|| Arc::new(index));
+            self.delivery.index = Some(index.clone());
         }
         true
     }
@@ -427,7 +459,8 @@ impl Runner<'_> {
         &mut self,
         data: &Value,
     ) -> (Option<Manifest>, Option<DeliveryMeter>) {
-        if self.device || self.query_unavailable || self.schema.delivery.is_empty() {
+        if self.device || self.query_unavailable
+            || !self.read_tables.iter().any(|table| self.schema.delivery_lookup.0.tables.contains(table)) {
             return (None, None);
         }
         if !self.delivery_index() { return self.partial_manifest(); }
@@ -436,6 +469,7 @@ impl Runner<'_> {
         // Select by read table through the index, never by scanning all bindings
         // once per source. Reserve the final partial-flag pass with each envelope.
         for table in &self.read_tables {
+            if !self.schema.delivery_lookup.0.tables.contains(table) { continue; }
             let cost = 1 + (self.schema.delivery.len() + 1).ilog2() as u64;
             let ledger = self.delivery.ledger.as_mut().unwrap();
             if !ledger.reserve(cost, 0, 0) { break; }
@@ -459,9 +493,8 @@ impl Runner<'_> {
             if self.delivery_ledger().partial { return self.partial_manifest(); }
             return (None, None);
         }
-        if !self.delivery_ledger().partial {
-            walk(data, &mut bindings, &mut seen, self.delivery_ledger());
-        }
+        // A later envelope can fail while rows still fit the reserved ones.
+        walk(data, &mut bindings, &mut seen, self.delivery_ledger());
         let ledger = self.delivery_ledger();
         if !ledger.partial {
             for binding in &mut bindings { binding.partial = false; }
@@ -579,4 +612,71 @@ fn walk(
         _ => {}
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Context, Engine, Store, meter::{Cut, Meter}, schema::Schema};
+
+    fn schema() -> Schema {
+        let mut schema = Schema::default();
+        schema.delivery = (0..1001).map(|i| DeliveryBinding {
+            table: format!("tracked{i}"), args: vec!["group".into(), "low".into(), "high".into()],
+            ..DeliveryBinding::default()
+        }).collect();
+        schema.prepare_delivery_lookup();
+        schema
+    }
+
+    #[test]
+    fn untracked_sources_and_answers_never_start_supplemental_work() {
+        let schema = schema();
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()),
+            Meter::new(Ceilings { steps: 800, ..Ceilings::default() }, Cut::Cap), 0);
+        runner.stamp_delivery("chats", &mut Value::Null);
+        assert!(runner.delivery.ledger.is_none(), "even hidden delivery work is forbidden");
+        runner.read_tables.insert("chats".into());
+        assert_eq!(runner.delivery_manifest(&Value::Null), (None, None));
+        assert!(runner.delivery.ledger.is_none());
+        assert!(runner.delivery.index.is_none());
+        assert!(schema.delivery_lookup.0.index.get().is_none());
+    }
+
+    #[test]
+    fn installed_lookup_is_shared_by_readers_and_replaced_on_adoption() {
+        let path = std::env::temp_dir().join(format!("snapback4-delivery-lookup-{}-{:x}", std::process::id(), crate::ids::seed()));
+        let mut installed = schema();
+        installed.delivery.truncate(8);
+        let mut engine = Engine::new(Store::open(&path.join("store.sqlite")).unwrap(), installed, []).unwrap();
+        let snapshot = engine.schema().clone();
+        let hash = snapshot.hash();
+        let tx = engine.store_mut().transaction().unwrap();
+        let mut runner = Runner::new(&tx, &snapshot, Context::new("alice", BTreeMap::new()),
+            Meter::new(Ceilings::default(), Cut::Cap), 0);
+        assert!(runner.delivery_index());
+        let index = runner.delivery.index.clone().unwrap();
+        drop(runner); tx.rollback().unwrap();
+        let mut reader = engine.reader().unwrap();
+        assert!(Arc::ptr_eq(&index, reader.schema().delivery_lookup.0.index.get().unwrap()));
+        let reader_schema = reader.schema().clone();
+        let read_tx = reader.store_mut().read_transaction().unwrap();
+        let mut borrowed = Runner::new(&read_tx, &reader_schema, Context::new("alice", BTreeMap::new()),
+            Meter::new(Ceilings::default(), Cut::Cap), 0);
+        assert!(borrowed.delivery_index());
+        assert_eq!(borrowed.delivery_ledger().used.steps, 0, "the shared index is not rebuilt");
+        drop(borrowed); read_tx.rollback().unwrap();
+        assert_eq!(snapshot.hash(), hash, "runtime cache never enters wire identity");
+        let mut successor = snapshot.clone();
+        successor.delivery.clear();
+        engine.adopt(successor, []).unwrap();
+        assert!(engine.schema().delivery_lookup.0.tables.is_empty());
+        assert!(engine.schema().delivery_lookup.0.index.get().is_none());
+        assert!(reader.schema().delivery_lookup.0.tables.contains("tracked0"));
+        assert!(Arc::ptr_eq(&index, reader.schema().delivery_lookup.0.index.get().unwrap()));
+        drop(reader); drop(engine);
+        std::fs::remove_dir_all(path).unwrap();
+    }
 }

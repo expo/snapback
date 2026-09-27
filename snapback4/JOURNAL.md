@@ -68104,3 +68104,51 @@ the unoptimized 573,266 B gzip module; the qualified build requires the tool.
 No client collection/queue, API contract redesign, package version, push or
 publication changes. Report, protocol examples, file map, full-run failure and
 passing repair, measurements and reproduction: reports/20260927-delivery-server/ROUND1.md.
+
+
+### 2026-09-27 — DS round 2: preflight signature custody and delivery work boundaries
+
+Merged origin/main first, retaining both parents in 09d70e30c, then addressed
+both round-1 reviews. The HTTP mutation signature is captured from the engine
+under the same ownership as receipt/fingerprint preflight. Pausing immediately
+after that preflight and adopting an argument rename, operation removal or
+query conversion now returns terminal E_DELIVERY_BINDING; the executing
+writer's independent check remains in place.
+
+Tracked-table membership belongs to the installed schema. Untracked source
+stamps and answers return before creating a supplemental ledger or building an
+index. A complete, metered cold index is shared with detached readers of that
+schema; adoption starts a new set/cache and old readers keep their old one.
+A partial index is never published. Later envelope failure still walks the
+already-reserved envelopes, retaining the fitting messages row [["c1",4]].
+The receipts paragraph above Owing now describes SDK debt from publications
+and accepted manifests, with progress retained as the catch-up read.
+
+Tests pin 195 steps for cold index exhaustion, and 197 for source lookups after
+an eight-binding index fits. The unrelated-query control uses 1,001 bindings
+and an 800-step ceiling; internal tests prove no hidden ledger or index work.
+Seven deliberate mutations fail, including zero-cost source lookup, one-step
+index insertion, lost reserved rows, each missing membership gate, the late
+signature and the obsolete card sentence. Restored-source affected checks pass:
+15 delivery, 5 clause, 2 replay/fingerprint, the whole 87-test guide, 2 internal
+lookup tests, 6 HTTP delivery tests, the existing lock-gap authority test, and
+the PostgreSQL delivery test in both Serialized and Serializable modes. Its
+private socket-only cluster was stopped. All changed source is <=1,500 lines.
+
+Reverted scripts/build-wasm.sh exactly to its pre-round-1 content. Round 1's
+optimizer-dependent qualification does not establish a fit on the macOS
+publisher, which has no wasm-opt. This Linux unoptimized build is 1,985,385 B
+raw / 573,265 B gzip, 424 bytes over the unchanged 572,841-byte budget. Rust
+1.97.0 and wasm-bindgen 0.2.127; no optimizer. The supervisor owns the single
+LLP 3000.022 integration ratchet. No tool was installed onto a shared path.
+
+The required scripts/test.sh ran once and exited 1, with exactly:
+`== 1 failure(s) in 1834 s` / `wasm build`. That failure is ours, the known
+unoptimized budget overrun above. No baseline or environmental full-run
+failures. All other phases passed, including 953 Rust executions plus doctests,
+client tests, and all 78 seeded client models. No suite rerun or changed test
+count/timeouts; the retained full log records the red size gate honestly.
+
+No client queue/device collection, version bump, budget increase, push or
+publication. File map, forms, regression evidence, measurements and the
+remaining budget reproduction: reports/20260927-delivery-server/ROUND2.md.

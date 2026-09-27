@@ -12,13 +12,8 @@ rm -rf "$out"
 wasm-bindgen --target web --out-dir "$out" --out-name snapback4_device target/wasm32-unknown-unknown/wasm/snapback4_device.wasm
 wasm=$out/snapback4_device_bg.wasm
 if command -v wasm-opt >/dev/null; then
-  # Exact duplicate bodies need no distinct code. Unlike -Os, this pass keeps
-  # LLVM's compression-friendly layout. Keep each candidate only if gzip wins.
-  # @ref LLP 3000.022#5 — compiled delivery bindings must fit the existing device budget.
-  wasm-opt --duplicate-function-elimination --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/dedup.wasm" "$wasm"
-  if [ "$(gzip -9 -c < "$out/dedup.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then mv "$out/dedup.wasm" "$wasm"; else rm "$out/dedup.wasm"; fi
-  wasm-opt -Os --enable-sign-ext --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/os.wasm" "$wasm"
-  if [ "$(gzip -9 -c < "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then mv "$out/os.wasm" "$wasm"; else rm "$out/os.wasm"; fi
+  wasm-opt -Os --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/os.wasm" "$wasm"
+  if [ "$(gzip -9 -c "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c "$wasm" | wc -c)" ]; then mv "$out/os.wasm" "$wasm"; else rm "$out/os.wasm"; fi
 fi
 rm -f "$out/.gitignore" "$out/package.json"
 gzip_bytes=$(gzip -9 -c "$wasm" | wc -c | tr -d ' ')

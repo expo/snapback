@@ -21,6 +21,8 @@ pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
 pub mod timeline;
 mod capabilities;
+mod delivery;
+pub use delivery::DeliveryBinding;
 pub mod field_authority;
 pub use field_authority::FieldAuthority;
 pub use routes::RouteSpec;
@@ -30,6 +32,9 @@ pub struct Schema {
     pub tables: BTreeMap<String, Table>,
     /// SDK delivery reporters, keyed by (table, mutation).
     pub delivery: Vec<DeliveryBinding>,
+    /// Derived server lookup, shared by readers of this installed schema.
+    #[cfg(feature = "sqlite")]
+    pub delivery_lookup: crate::engine::delivery::Lookup,
     pub timelines: Vec<timeline::Timeline>,
     pub maintains: Vec<Maintain>,
     pub auth: Auth,
@@ -46,9 +51,6 @@ pub struct Schema {
     /// Only these paths publish application HTTP handlers.
     pub routes: BTreeMap<String, RouteSpec>,
 }
-
-mod delivery;
-pub use delivery::DeliveryBinding;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UniqueRefusal {
