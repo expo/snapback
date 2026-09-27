@@ -1,0 +1,12 @@
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 39.94s
+     Running tests/er_expiry_research.rs (target/debug/deps/er_expiry_research-f2f7e9186416dbf2)
+
+running 2 tests
+test query_refuses_mutation_and_job_memory ... ok
+test query_refuses_mutation_and_job_native ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s

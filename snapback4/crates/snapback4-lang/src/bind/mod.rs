@@ -157,7 +157,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         }
     }
     if diagnostics.is_empty() {
-        programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
+        programs.retain(|bound| match snapback4_core::engine::admission::check_detail_with_statements(&schema, &bound.program, &bound.statement_ends) {
             Ok(()) => true,
             Err(error) => {
                 if let Some(diagnostic) = bound.expiry_gap_diagnostic(&schema, &error).or_else(|| bound.constraint_diagnostic(&schema, &error)) {

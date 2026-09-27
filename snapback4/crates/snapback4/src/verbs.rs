@@ -275,7 +275,13 @@ pub fn check(options: &Options) -> i32 {
 fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String {
     let certificate = bound.programs.iter().find(|p| p.program.name == program.name).map_or_else(
         || crate::scale::analyze(&bound.schema, program), |p| crate::scale::analyze_bound(&bound.schema, p));
-    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {}", certificate.line())];
+    // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — a domain count completes or aborts; growth explains reaching the ceiling.
+    let expiring_mutation = program.kind == ProgramKind::Mutation && ir::scans(program).iter().any(|scan| bound.schema.table(&scan.table).is_some_and(|table| table.is_expiring()));
+    let scale = certificate.line();
+    let scale = if expiring_mutation {
+        format!("scale: examined ceiling {}; E_BOUND, with no write, if exceeded; {}", certificate.bounds.meters.examined, scale.strip_prefix("scale: ").unwrap_or(&scale))
+    } else { scale };
+    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {scale}")];
     for aggregate in &certificate.aggregates { lines.push(format!("    {aggregate}")); }
     for growth in &certificate.growth_sites {
         let rewrite = if growth.rewrite.is_empty() { String::new() } else { format!("; rewrite: {}", growth.rewrite) };
@@ -331,7 +337,9 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             lines.push(format!("      {selection}"));
         }
         if let Some(scan) = scan {
-            lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" } else { "      sort/group/sum/count consume this page, not the whole population" }.into());
+            lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" }
+                else if scan.take == ir::Bound::Meter && bound.schema.table(&scan.table).is_some_and(|table| table.is_expiring()) { "      domain aggregate: complete the domain or refuse; no partial total" }
+                else { "      sort/group/sum/count consume this page, not the whole population" }.into());
             if let Some(filter) = &scan.filter {
                 let ceiling = if program.kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() }.examined;
                 lines.push(format!("      filter over ≤ examined ceiling ({ceiling})"));
@@ -340,6 +348,11 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             }
         }
         if site.kind == "scan" && program.kind == ProgramKind::Mutation && bound.schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
+            // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — expiry prices backlog, never just the requested output rows.
+            if bound.schema.table(&site.table).is_some_and(|table| table.is_expiring()) {
+                lines.push(format!("    A mutation refuses E_BOUND, with no write, when the unswept prefix exceeds the examined ceiling {}; the scan attempt also costs one examined unit.", snapback4_core::Ceilings::default().examined));
+                continue;
+            }
             // @ref LLP 3000.007#5.9 — a never-predicting mutation's pass over a uniformly authorized page, priced as one.
             let prefix = scan.map(|scan| scan.prefix.iter().map(|key| match key {
                 ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value) => crate::scale::expression(value),

@@ -133,12 +133,14 @@ fn refused_pair(base: &str, operation: &str, population: usize, expired: bool, c
 }
 
 #[test]
-fn w2_hidden_word_expansion_and_expired_populations_are_refused_at_check() {
+fn w2_hidden_word_expansion_and_effectful_expiring_pages_are_refused_at_check() {
     refused_pair(SOURCE, "mutation pass(): server\n  for r in items['alice'] matching 'word' first 10 by byWords:\n    update items[r] {amount: 1}\n", 40, false, "E_STRUCTURAL_FANOUT", "matching word scans");
     refused_pair(SOURCE, "mutation pass(): server\n  rows = items['alice'] matching 'word' first 10 by byWords\n  return count(rows)\n", 40, false, "E_STRUCTURAL_FANOUT", "matching word scans");
     let expires = SOURCE.replace("  read <-", "  expire at .expiresAt\n  read <-");
-    refused_pair(&expires, "mutation pass(): server\n  for r in items['alice'] first 10 by byOwner:\n    update items[r] {amount: 1}\n", 9000, true, "E_STRUCTURAL_FANOUT", "expiry");
-    refused_pair(&expires, "mutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n", 9000, true, "E_STRUCTURAL_FANOUT", "expiry");
+    refused_pair(&expires, "mutation pass(): server\n  for r in items['alice'] first 10 by byOwner:\n    update items[r] {amount: 1}\n", 9000, true, "E_STRUCTURAL_FANOUT", "scans expiring items");
+    // @ref LLP 3000.025#3-proposed-rule — the old blanket refusal is replaced only for the server read-only prefix.
+    let allowed = compile(&format!("{expires}\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n"));
+    assert!(allowed.diagnostics.is_empty(), "{:?}", allowed.diagnostics);
     refused_pair(SOURCE, "mutation pass(): server\n  rows = merge items first 10 by byOwner:\n    ['alice']\n    ['bob']\n  for r in rows:\n    update items[r] {amount: 1}\n", 40, false, "E_STRUCTURAL_FANOUT", "merge");
 }
 
@@ -324,12 +326,13 @@ fn w4_live_maintain_probe_equalities_ignore_expired_contributions() {
 }
 
 #[test]
-fn w14b_expiry_rewrite_names_query_and_job_doors() {
+fn w14b_expiry_rewrite_names_the_statement_boundary_and_keeps_job_door() {
     let expires = SOURCE.split("query page(").next().unwrap().replace("  read <-", "  expire at .expiresAt\n  read <-");
-    let bound = compile(&format!("{expires}\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n"));
+    let bound = compile(&format!("{expires}\nmutation pass(): server\n  update items['target'] {{amount: 1}}\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n"));
     let diagnostic = bound.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap();
-    assert!(diagnostic.message.contains("a mutation page cannot scan a table with expiry"));
-    assert_eq!(diagnostic.rewrite, "read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry");
+    // The earlier test pinned the blanket query/id rewrite; a read-first binding now suffices.
+    assert!(diagnostic.message.contains("after `update items`"), "{}", diagnostic.message);
+    assert_eq!(diagnostic.rewrite, "Move this scan into its own statement above the entire `update items`. Then write.");
     let allowed = compile(&format!("{expires}\njob pass():\n  chunk r in items first 10 by byId:\n    update items[r.id] {{amount: 1}}\n"));
     assert!(allowed.diagnostics.is_empty(), "{:?}", allowed.diagnostics);
     assert!(allowed.notes.is_empty(), "{:?}", allowed.notes);

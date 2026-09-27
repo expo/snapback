@@ -122,14 +122,26 @@ fn single_branch_view_preserves_mutation_scan_admission() {
 }
 
 #[test]
-fn single_branch_view_does_not_relax_mutation_visibility_or_expiry() {
-    for table in [
-        "table t:\n  owner: principal\n  removed: bool\n  read <- .owner = viewer and .removed = false\n",
-        "table t:\n  owner: principal\n  expires: time ?\n  expire at .expires\n  read <- .owner = viewer\n",
+// @ref LLP 3000.025#3-proposed-rule — projection preserves uniformity, prediction and the whole-statement effect boundary.
+fn single_branch_view_keeps_visibility_and_initial_expiry_phase() {
+    for (table, uniform, synced) in [
+        ("table t:\n  owner: principal\n  removed: bool\n  read <- .owner = viewer and .removed = false\n", false, false),
+        ("table t:\n  owner: principal\n  expires: time ?\n  expire at .expires\n  read <- .owner = viewer\n", true, false),
+        ("table t:\n  owner: principal\n  expires: time ?\n  expire at .expires\n  read <- .owner = viewer\n  sync to .owner\n", true, true),
     ] {
         for source in ["t", "v"] {
-            let bound = compile(&[("schema.q".into(), format!("{table}view v:\n  t {{ owner }}\nmutation page():\n  return {source} where .owner = viewer first 5\n"))]);
-            assert!(bound.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"), "{source}: {:?}", bound.diagnostics);
+            for server in [false, true] {
+                for effect in [false, true] {
+                    let mode = if server { " server" } else { "" };
+                    let before = if effect { "  emit notify {}\n" } else { "" };
+                    let bound = compile(&[("schema.q".into(), format!("effect notify\n{table}view v:\n  t {{ owner }}\nmutation page():{mode}\n{before}  return {source} where .owner = viewer first 5\n"))]);
+                    if uniform && (server || !synced) && !effect {
+                        assert!(bound.diagnostics.is_empty(), "{source} server={server}: {:?}", bound.diagnostics);
+                    } else {
+                        assert!(bound.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"), "{source} server={server} effect={effect}: {:?}", bound.diagnostics);
+                    }
+                }
+            }
         }
     }
 }
