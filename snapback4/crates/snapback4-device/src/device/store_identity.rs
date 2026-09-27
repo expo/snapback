@@ -82,6 +82,12 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     if page.captured_watermark.is_some_and(|expected| expected != watermark) {
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
+    // @ref LLP 3000.019#3.5 — continuations retain their first page's cut, not the server head.
+    // Reject before either restore proof: an owner can capture newer published
+    // progress while still holding its older snapshot's continuation.
+    if page.snapshot && page.after.is_some() && page.watermark < watermark {
+        return Err(RuntimeError::Generation("published acquisition overtook this snapshot continuation; retry sync".into()));
+    }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
     let transfer_identity = tx.meta(deferred::IDENTITY)?;
     let receipt_identity = previous.as_ref().or(transfer_identity.as_ref());
@@ -102,7 +108,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     } else { false };
     // @ref LLP 3000.019#3.5 — an upgrade requests from zero without lowering its published restore floor.
     let published_restore = page.watermark < watermark
-        && (page.snapshot || page.requested_watermark.is_none_or(|requested| page.watermark < requested));
+        && ((page.snapshot && page.after.is_none()) || page.requested_watermark.is_none_or(|requested| page.watermark < requested));
     if same_identity && (published_restore || private_restore) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }

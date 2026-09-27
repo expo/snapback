@@ -148,23 +148,28 @@ for (const type of ["image/png", "video/mp4"]) test(`native ${type} bytes surviv
   assert.deepEqual(urls.created, [], "native retained files need no Blob URL");
 });
 
-test("once responses remove stale ordinary bytes without reading or storing the once Blob", async t => {
+for (const receipt of ["valid", "absent", "malformed"]) test(`once responses with ${receipt} receipts remove stale ordinary bytes without reading or storing the once Blob`, async t => {
   const readers = installReader(t), urls = installUrls(t), files = await deviceFiles(t);
   files.homes.set("photo", home("image/png"));
-  const { cache } = await files.open();
+  const { core, cache } = await files.open();
+  // Exercise live Blob URL revocation as well as removal of the durable file.
+  delete core.media.uri;
   const viewed = (body, reply) => cache.viewed("photo", body, reply);
   const ordinary = await fetchBlob(nativeBlob([1, 2]), viewed);
-  ordinary.revoke();
   const once = nativeBlob([3, 4]);
-  const result = await fetchBlob(once, viewed, "none");
+  const reply = response(once, "none");
+  if (receipt === "absent") reply.headers.delete("x-snapback-asset-home");
+  if (receipt === "malformed") reply.headers.set("x-snapback-asset-home", "%not-json");
+  const result = await fetchAsset("https://assets.invalid", {}, async () => reply, "photo", viewed);
   assert.equal(readers.length, 1, "once bytes must not enter byte extraction");
   assert.deepEqual(files.writes, ["photo"]);
   assert.deepEqual(await files.manifest(), []);
   await assert.rejects(readFile(files.bytesPath("photo")), { code: "ENOENT" });
+  assert.deepEqual(urls.revoked, [ordinary.url], "the live ordinary handle loses its bytes");
   assert.equal(once.closes, 0, "the transient view owns its live native Blob");
   result.revoke(); result.revoke();
   assert.equal(once.closes, 1);
-  assert.deepEqual(urls.revoked, [result.url]);
+  assert.deepEqual(urls.revoked, [ordinary.url, result.url]);
   await cache.close();
   const reopened = await files.open();
   assert.equal((await reopened.cache.read("photo")).denied.code, "E_OFFLINE");

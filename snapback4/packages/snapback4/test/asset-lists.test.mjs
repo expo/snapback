@@ -588,3 +588,69 @@ for (const tier of ["native", "wasm"]) test(`${tier}: a paged upgrade restore ha
   assert.equal(sends, 0);
   assert.deepEqual((await core.call({ op: "queued" })).ok, queued);
 });
+
+// A stays open while B acquires through the same native store. The continuation
+// is requested only after A has captured B's publication, as in Astra's report.
+test("native: initial acquisition rejects an overtaken snapshot continuation without a durable restore halt", { timeout: 40000 }, async t => {
+  const f = await fixture(t);
+  const device = processDevice({ binary, dir: join(f.dir, "shared-device") });
+  let core, overtaken = false, continuation, observed, published, offline = false;
+  const options = { url: f.url, persona: "bob", waitSeconds: 1,
+    device: { async open(name, backend) {
+      core = await device.open(name, backend);
+      return { ...core, async call(request) {
+        const answer = await core.call(request);
+        if (request.op === "observe_store" && request.page.after && request.page.watermark < published) {
+          continuation = request.page;
+          observed = answer;
+        }
+        if (request.op === "apply" && request.page.snapshot && request.page.more && !overtaken) {
+          assert.ok(answer.ok, JSON.stringify(answer));
+          overtaken = true;
+          assert.equal((await f.alice.mutate(mutation("touch"), { id: f.id })).state, "sent");
+          const b = await device.open(name);
+          try {
+            const reply = await fetch(f.url + "/sync", { method: "POST", headers: { "x-snapback-persona": "bob" }, body: JSON.stringify({ from: 0, limit: 100 }) });
+            const page = await reply.json();
+            assert.equal(page.snapshot, true); assert.equal(page.more, false);
+            assert.equal(page.watermark, request.page.watermark + 1);
+            assert.ok((await b.call({ op: "apply", first: true, page })).ok);
+            const state = (await b.call({ op: "sync_state", capture: false })).ok;
+            assert.equal(state.acquired, true);
+            published = state.watermark;
+          } finally { await b.close(); }
+        }
+        return answer;
+      } };
+    } },
+    async fetch(input, init) {
+      if (offline) throw Error("offline");
+      if (String(input).endsWith("/sync")) {
+        const body = JSON.parse(init.body);
+        // Small real HTTP pages keep A's first continuation nonterminal.
+        if (!overtaken || body.after) body.limit = 1;
+        return fetch(input, { ...init, body: JSON.stringify(body) });
+      }
+      return fetch(input, init);
+    },
+  };
+  const local = await createLocalClient(options); f.clients.push(local);
+  await local.sync();
+  assert.equal(overtaken, true);
+  assert.ok(continuation, "A requested its old continuation after B published");
+  assert.equal(continuation.more, true);
+  assert.equal(continuation.requested_watermark, 0);
+  assert.equal(continuation.captured_watermark, published);
+  assert.equal(continuation.captured_restore_watermark, published);
+  assert.equal(continuation.watermark, published - 1);
+  assert.equal(observed.denied?.code, "E_GENERATION");
+  await local.sync();
+  const state = (await core.call({ op: "sync_state", capture: false })).ok;
+  assert.equal(state.restore_refusal, undefined);
+  assert.notEqual((await local.query(query, {})).denied?.code, "E_STORE_RESTORE");
+  offline = true;
+  await local.close();
+  const reopened = await createLocalClient(options); f.clients.push(reopened);
+  assert.equal((await reopened.query(query, {})).data[0].caption, "touched");
+  assert.equal((await core.call({ op: "sync_state", capture: false })).ok.restore_refusal, undefined);
+});
