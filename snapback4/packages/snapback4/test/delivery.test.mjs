@@ -117,11 +117,11 @@ test('an outcome splitting a collected interval still enforces the debt cap',asy
  assert.equal(g.owed.length+g.parked.length,256);assert.deepEqual(g.owed[0],[42,42]);assert.deepEqual(g.reported,[[41,41]]);
 });
 test('evicting lowest debt also fences its persisted uncertain attempt',async t=>{
- const pending=deferred(),h=harness(t,{send:async()=>pending.promise});
+ const responses=[];const h=harness(t,{send:()=>{const response=deferred();responses.push(response);return response.promise;}});
  await h.q.accept(manifest([['c',1]]));await h.flush();
  await h.q.accept(manifest(Array.from({length:256},(_,i)=>['c',10+i*2])));
  assert.equal(groups(await h.state())[0].attempt,undefined);
- pending.resolve({accepted:true,json:{head:10,why:{code:'NOT_A_RUN'}}});await settle();
+ responses[0].resolve({accepted:true,json:{head:10,why:{code:'NOT_A_RUN'}}});await settle();
  assert.deepEqual(h.refused,[]);assert.deepEqual(groups(await h.state())[0].refused,[]);
 });
 test('a pre-transport serial gate race spends no retry and keeps its persisted id',async t=>{
@@ -152,10 +152,21 @@ test('binding fingerprints travel on reports and reconcile only changed bindings
  const newer=groups(state).find(g=>g.group==='c');assert.equal(newer.binding.fingerprint,'messages-v2');assert.deepEqual(newer.owed,[[3,3]]);
 });
 for(const envelope of ['why','denied'])test(`${envelope}: E_DELIVERY_BINDING drops the entire binding only`,async t=>{
- const h=harness(t,{send:async()=>({accepted:true,json:{head:10,[envelope]:{code:'E_DELIVERY_BINDING'}}})});
- h.ready(false);await h.q.accept(manifest([['c',1],['d',2]]));
- await h.storage.update(s=>{s.retired[deliveryKey(binding,'retired')]={refused:[[9,9]],saturated:true};});
- h.ready(true);await h.flush();assert.deepEqual((await h.state()).groups,{});assert.deepEqual((await h.state()).retired,{});
+ const other={...binding,table:'photos',mutation:'deliveredPhotos',fingerprint:'fixture:photos'};
+ const responses=[];const h=harness(t,{send:()=>{const response=deferred();responses.push(response);return response.promise;}});
+ h.ready(false);await h.q.accept([...manifest([['c',1],['d',2]]),...manifest([['other',20]],other)]);
+ await h.storage.update(s=>{
+  s.retired[deliveryKey(binding,'retired')]={refused:[[9,9]],saturated:true};
+  const g=s.groups[deliveryKey(other,'other')];g.reported=[[10,10]];g.refused=[[12,12]];
+  g.attempt={id:'later',run:[20,20],retries:1,readyAt:100000};
+  s.retired[deliveryKey(other,'kept')]={refused:[[30,30]],saturated:true};
+ });
+ const before=await h.state();h.ready(true);await h.flush();
+ responses[0].resolve({accepted:true,json:{head:10,[envelope]:{code:'E_DELIVERY_BINDING'}}});await settle();
+ const after=await h.state();
+ assert.deepEqual(after.groups,{[deliveryKey(other,'other')]:before.groups[deliveryKey(other,'other')]});
+ assert.deepEqual(after.retired,{[deliveryKey(other,'kept')]:before.retired[deliveryKey(other,'kept')]});
+ assert.deepEqual(after.bindings,[other]);
 });
 test('identical fingerprints keep refused and saturated evicted state',async t=>{
  const h=harness(t);h.ready(false);await h.q.accept(manifest([['c',1]]));
