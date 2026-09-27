@@ -94,6 +94,7 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       if (ending !== 'recover') timers.at(-1).fire();
       await delay(1100); // Beyond even the capped retry delay.
       assert.equal(requests.length, count, `${ending} stops expiry retries`);
+      assert.equal(timers.length, 8, `${ending} schedules no further expiry retries`);
     });
   }
 }

@@ -68289,3 +68289,55 @@ the requested Astra co-author. No push or publication. Full file map, examples,
 failing-before and mutation evidence, exact historical suite failure list and
 scope: reports/20260927-qe-quarry-ergonomics/ROUND3.md. Ignored logs and
 repeatable probes: target/lane-qe-r3/.
+
+### 2026-09-27 — Lane FX round 1: mutation-proven recovery and listener coverage
+
+Read the binding lane prompt, round-0 report/journal and both blind reviews.
+Fetched and merged origin/main 880788cc5 in 5bf51d938 before editing. The sole
+conflict was this append-only journal; both parents' histories were preserved
+verbatim and in order. Added only tests and evidence for the three requested
+review findings. The expiry test now requires exactly eight scheduled timers
+after recovery/closure and the existing 1,100 ms wait. A focused EventTarget
+test proves two owners register one storage listener, the first close removes
+none, the final close removes the identical handler, and a later event reaches
+neither handler nor owner. A real second Chromium page clears localStorage;
+the first page's mounted pending-write hook and durable list must become empty.
+No peer custody client, manual refresh, remount or broadcast supplies that
+invalidation. No product behavior or existing timeout changed.
+
+Each exact reviewer mutation fails five out of five loaded processes. The
+retry expression creates nine timers instead of eight in all 15 recovery cases
+(three keep variants per process). Removing stopStorage lets the post-close
+event reach a third handler delivery. Dropping key=null leaves the hook stale
+at the unchanged 30,000 ms wait. The exact retry expression initially refused
+TypeScript compilation (optional expiredRetries); its behavioral control was
+therefore applied to the emitted rerun JS. That setup refusal is not counted
+as a regression test failure. All mutated files were restored byte-for-byte,
+including built output; no product-source diff remains from the merged tree.
+
+Both complete affected files ran 20 times, five processes at a time on cores
+0–7 with eight CPU workers. Expiry: 20/20, seven cases each. React: 19/20,
+48 cases each; both new journal tests passed every run. Run 04 failed only the
+already recorded useNow clock-advance assertion ("bob" remained), plus its
+parent; the other 46 tests passed. The same unrelated case also failed in one
+clear-mutation control. Appended both observations and the reproduction to
+issues/20260927-snapback4-react-usenow-deadline-flaky.md. No green rerun replaced
+the red result, and no unrelated fix was made. The initial affected smoke run
+passed 55/55; frozen install, package build and merged native CLI build pass.
+The whole guide passes 86/86, zero ignored, 2.51 s test execution.
+
+No full suite rerun, per the explicit round-1 instruction for test-only work.
+The historical round-0 scripts/test.sh result remains
+`== 0 failure(s) in 1436 s`, exit 0; it is not a round-1 qualification.
+Wasm was not rebuilt and remains byte-identical: 1,981,512 B raw / 572,053 B
+gzip, SHA-256 5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Test-only device-code delta 0 B, unchanged 572,841 B budget, 788 B headroom.
+No syntax, API, authorization, disclosure, durability, meter, version or
+budget change. No push or publication. All assigned findings are covered;
+the inherited useNow issue remains open. File map, mutation reproduction,
+exact failures and limits: reports/20260927-fx-flakes/ROUND1.md. Durable run
+statuses and hashes: round1-qualification.json there; raw evidence and mutation
+driver: target/lane-fx-evidence/round1-*.
+Final reference audit: 517 LLP documents, 9,618 references, zero errors and
+zero unchecked. Diff whitespace check passes. Final one-minute host loads
+were 29.88 (expiry) and 51.26 (React).

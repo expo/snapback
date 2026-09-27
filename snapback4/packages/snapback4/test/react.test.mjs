@@ -12,8 +12,56 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
+import { journalChanges } from "../dist/journal-changes.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+test("journal storage listener belongs to the last shared owner", (t) => {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const target = new EventTarget(), registered = [], removed = [], wrappers = new Map();
+  const add = target.addEventListener.bind(target), remove = target.removeEventListener.bind(target);
+  let deliveries = 0, aNotices = 0, bNotices = 0;
+  t.mock.method(target, "addEventListener", (type, handler, options) => {
+    assert.equal(type, "storage");
+    registered.push(handler);
+    const wrapped = event => { deliveries++; handler(event); };
+    wrappers.set(handler, wrapped);
+    add(type, wrapped, options);
+  });
+  t.mock.method(target, "removeEventListener", (type, handler, options) => {
+    assert.equal(type, "storage");
+    removed.push(handler);
+    remove(type, wrappers.get(handler), options);
+  });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: target });
+  const key = "snapback4.test.shared-journal.writes";
+  const storageChanged = () => {
+    const event = new Event("storage");
+    Object.defineProperty(event, "key", { value: key });
+    target.dispatchEvent(event);
+  };
+  let a, b;
+  try {
+    a = journalChanges(key, () => aNotices++);
+    b = journalChanges(key, () => bNotices++);
+    assert.equal(registered.length, 1, "two owners share one storage listener");
+    storageChanged();
+    assert.deepEqual([deliveries, aNotices, bNotices], [1, 1, 1]);
+    a.close();
+    assert.equal(removed.length, 0, "the first close keeps the shared listener");
+    storageChanged();
+    assert.deepEqual([deliveries, aNotices, bNotices], [2, 1, 2]);
+    b.close();
+    storageChanged();
+    assert.deepEqual([deliveries, aNotices, bNotices], [2, 1, 2], "after final close the event reaches no handler or owner");
+    assert.equal(removed.length, 1, "the last close removes the shared listener");
+    assert.equal(removed[0], registered[0], "removal uses the registered handler");
+  } finally {
+    a?.close(); b?.close();
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+    else delete globalThis.window;
+  }
+});
 
 test("React hooks and reference-app lifetimes", async (t) => {
   let executablePath;
@@ -152,6 +200,28 @@ test("React hooks and reference-app lifetimes", async (t) => {
       } finally {
         await page.evaluate(() => window.pendingPeer?.close());
         await peer.evaluate(() => window.pendingPeer?.close());
+        await peer.close();
+      }
+    });
+    await t.test("clearing localStorage in another tab invalidates the journal hook", async () => {
+      const peer = await page.context().newPage();
+      try {
+        await peer.goto(server.resolvedUrls.local[0]);
+        const admitted = await page.evaluate(async () => {
+          localStorage.clear();
+          window.pendingPeer = await window.openPendingPeer();
+          await window.pendingPeer.mount();
+          return window.pendingPeer.submit();
+        });
+        await page.waitForFunction(id => window.pendingPeer.snapshot().some(w => w.id === id && w.state === "sent"), admitted.id);
+        assert.deepEqual(await page.evaluate(async () => (await window.pendingPeer.client.pendingWrites()).map(w => w.id)), [admitted.id]);
+        // No peer client or broadcast: clear emits a real key=null storage
+        // event, which must reread the journal and update the mounted hook.
+        await peer.evaluate(() => localStorage.clear());
+        await page.waitForFunction(() => window.pendingPeer.snapshot().length === 0);
+        assert.deepEqual(await page.evaluate(() => window.pendingPeer.client.pendingWrites()), []);
+      } finally {
+        await page.evaluate(() => window.pendingPeer?.close());
         await peer.close();
       }
     });
