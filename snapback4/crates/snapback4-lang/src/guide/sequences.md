@@ -76,7 +76,7 @@ mutation delivered(conversationId: conversations, from: int, through: int): serv
   if low <= prefix + 1:
     prefix = max(prefix, high)
   else:
-    require count(runs where .conversationId = conversationId and .principal = viewer) < 64 else TOO_MANY_RUNS
+    require count(runs where .conversationId = conversationId and .principal = viewer) < 64 else RUNS_FULL
     insert runs { conversationId, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   if prefix > me.deliveredOrdinal:
     update members[me] { deliveredOrdinal: prefix }
@@ -117,7 +117,7 @@ Replay the same id first; only a recorded failure takes a fresh id after sweepin
 
 The caller must check authority and validate the received run. Ordinals alone
 do not prove delivery. Keep disjoint runs until they meet the prefix; refuse
-when no run slot is free. `sequence by` is dense across participating columns:
+`RUNS_FULL` when no run slot is free. `sequence by` is dense across participating columns:
 membership joins consume positions; deleted or expired messages leave holes.
 Use settled positions for acknowledgement; predicted ordinals can move.
 

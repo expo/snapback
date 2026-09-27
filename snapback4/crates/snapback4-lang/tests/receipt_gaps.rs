@@ -95,6 +95,23 @@ fn receipt_helper_keeps_the_prediction_repair_first() {
 }
 
 #[test]
+fn receipt_helper_keeps_both_prediction_and_source_boundary_repairs() {
+    let source = refused_gap("  unique conversation, ordinal")
+        .replace("  online only\n", "  sync public last 500 by .id\n");
+    let b = compile(&[("schema.q".into(), source.clone())]);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    let d = &b.diagnostics[0];
+    assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
+    let prediction = d.rewrite.find("Make `gap` `: server`").expect(&d.rewrite);
+    let boundary = d.rewrite.find("above the entire `emit observeGap`").expect(&d.rewrite);
+    let helper = d.rewrite.find("fn skipExpired_messages").expect(&d.rewrite);
+    assert!(prediction < boundary && boundary < helper, "{d}");
+    checked(&source.replace("mutation gap(conversation: conversations):", "mutation gap(conversation: conversations): server")
+        .replace("  emit observeGap {}\n  return first(", "  blocker = first(")
+        .replace("first 1 by .ordinal)\n", "first 1 by .ordinal)\n  emit observeGap {}\n  return blocker\n"));
+}
+
+#[test]
 fn helper_follows_the_scan_coordinate_regardless_of_key_order_or_other_indexes() {
     for keys in [
         "  unique aExternal: conversation, externalNumber\n  unique zOrdinal: conversation, ordinal",
@@ -357,4 +374,48 @@ fn server_receipt_scan_stops_at_live_blockers_then_resumes_the_saved_run() {
     assert_eq!(write(&mut e, "delivered", &args, &[], 20), Value::Int(4));
     assert!(e.store().rows("runs").unwrap().is_empty());
     assert_eq!(e.store().rows("messages").unwrap().len(), 3, "no physical sweep needed");
+}
+
+// @ref LLP 3000.025#3-proposed-rule — full slots must refuse without claiming coverage, then recover on a fresh id.
+#[test]
+fn card_full_slots_refuse_runs_full_roll_back_and_recover() {
+    use snapback4_core::value::object;
+    let source = format!("{}\nmutation freeSlot(): server\n  delete runs['r0']\n", recipe());
+    let b = checked(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    write(&mut e, "createConversation", &[], &["c", "member"], 1);
+    for (name, expiry) in [("gone", Value::Int(10)), ("blocker", Value::Null), ("received", Value::Null)] {
+        write(&mut e, "send", &[("conversationId", id("c")), ("expiresAt", expiry)], &[name], 2);
+    }
+    e.seed_at((0..64).map(|n| ("runs".into(), object([
+        ("id", id(&format!("r{n}"))), ("conversationId", id("c")), ("principal", id("alice")),
+        ("fromOrdinal", Value::Int(10 + 2 * n)), ("throughOrdinal", Value::Int(10 + 2 * n)),
+    ]))), 2).unwrap();
+    let tables = ["conversations", "members", "messages", "runs"];
+    let before = tables.map(|table| e.store().rows(table).unwrap());
+    let seq = e.store().seq().unwrap();
+    let ctx = || Context::new("alice", [
+        ("conversationId".into(), id("c")), ("from".into(), Value::Int(4)), ("through".into(), Value::Int(4)),
+    ].into()).with_ids(["received-run".to_owned()]).at(10);
+    let full = e.mutate("delivered", Some("full"), ctx()).unwrap();
+    assert!(matches!(&full.state, WriteState::Failed { why, .. } if why.code == "RUNS_FULL"), "{:?}", full.state);
+    assert_eq!(tables.map(|table| e.store().rows(table).unwrap()), before, "refusal must leave every application row unchanged");
+    assert_eq!(e.store().seq().unwrap(), seq, "refusal must not publish a row change");
+    write(&mut e, "freeSlot", &[], &[], 10);
+    assert_eq!(e.store().rows("runs").unwrap().len(), 63);
+    let replay = e.mutate("delivered", Some("full"), ctx()).unwrap();
+    assert!(replay.replayed);
+    assert_eq!(full.receipt(Some("full")), replay.receipt(Some("full")));
+    let recovered = e.mutate("delivered", Some("recovered"), ctx()).unwrap();
+    assert!(!recovered.replayed);
+    assert!(matches!(&recovered.state, WriteState::Sent { result, .. } if result == &Value::Int(2)), "{:?}", recovered.state);
+    assert_eq!(e.store().rows("members").unwrap()[0].field("deliveredOrdinal"), Ok(&Value::Int(2)));
+    let runs = e.store().rows("runs").unwrap();
+    assert_eq!(runs.len(), 64);
+    assert!(runs.iter().any(|row| row.field("id") == Ok(&id("received-run"))
+        && row.field("fromOrdinal") == Ok(&Value::Int(4)) && row.field("throughOrdinal") == Ok(&Value::Int(4))));
+    for run in before[3].iter().filter(|row| row.field("id") != Ok(&id("r0"))) {
+        assert!(runs.contains(run), "the other saved intervals must survive");
+    }
+    assert_eq!(e.store().rows("messages").unwrap(), before[2], "no physical sweep needed");
 }

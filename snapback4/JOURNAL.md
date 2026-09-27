@@ -69561,3 +69561,63 @@ The supervisor owns acceptance; the online publisher remains unbuilt.
 Report and durable verification: experiments/following-adoption/atomic/ROUND4.md
 and ROUND4.verification.json. Raw logs: target/fa-round4/. Local commits carry
 the required co-author trailer. No push or publication.
+
+## 2026-09-27 — Lane ER round 5: the card refuses RUNS_FULL
+
+Read Accepted LLP 3000.025, all binding ER prompts and prior journal entries,
+Astra's round-4 READY WITH CHANGES review, and the DC round-7 simplification.
+Grok's file initially held progress only; its completed READY WITH CHANGES
+review arrived during device qualification and was read in full. Both families
+confirm the prior fixes and identify the same remaining full-slot mismatch.
+First fetched and merged origin/main at 687e2a05f as 4381f90d1. Both complete
+parent journals remain ordered subsequences; LLP revision history and both
+lanes' reconciliation details survive. FA is now on the fetched main.
+
+The sequences card now refuses RUNS_FULL in its full-slot branch and names
+that code in prose. Its own recipe() is run with expired ordinal 2, live
+blocker 3, received ordinal 4 and 64 disjoint saved runs. delivered(c, 4, 4)
+refuses RUNS_FULL, preserves all application rows and the store sequence,
+replays the same failure after a slot is freed, and succeeds with a fresh id,
+storing [4,4] and prefix 2 while retaining the other intervals. The test fails
+on the old TOO_MANY_RUNS and on a temporary false-success return-prefix mutant.
+Both expected reds are ours; the repaired card passes. Grok's combined
+predicting/post-emit Ref-parent fixture now requires both admission repairs
+before the helper and recompiles the repair. Dropping only its server-only
+sentence fails that new test while the two older fixtures pass. All mutants
+were restored before the full run.
+
+LLP 3000.025 §3 replaces the copied queue policy with one sentence referring
+to LLP 3000.022 §4's E_BOUND row; §8 no longer assigns a finite wake cap.
+DC owns the simplified per-group/session limit and queue implementation.
+No card restated the obsolete wake/cap rule. No admission, runtime, device,
+disclosure, meter, receipt format, version or budget change.
+
+Final affected checks: receipt gaps 16/16; expiry 19 passed / 1 optional
+benchmark ignored; whole guide 89/89; wasm census/families/absence/budget
+tooling 40/40. Complete device suite: 1,336 passed / 0 failed / 3 existing
+ignored, 68 binaries and 504 executions, with workspace doctests also green.
+The untracked runner copies the existing scheduler, narrowing only Cargo's
+artifact-build scope to the device package. No permanent runner is added.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+```text
+== 0 failure(s) in 1536 s
+```
+
+Every full-run failure: none — ours 0, baseline 0, environmental 0.
+Rust 3,982 passed / 29 ignored; clients 2,701 passed / 10 skipped; models
+78/78; fixture wrappers 9/9; every other phase passed. The final code/test
+patch remained identical throughout the complete run. The inherited
+60-second total budget is still exceeded and unchanged.
+
+Wasm: 1,981,627 B raw / 572,559 B gzip, byte-identical to round 4 and 282 B
+below the unchanged 572,841 B budget. No new latency measurement. Frozen Bun
+install changed no dependency; no tools installed. Node 24.13.1, Bun 1.3.14,
+Rust 1.97.0, wasm-bindgen 0.2.127; eight build jobs/eight test processes,
+debug information and incremental off, fd limit 65,536. Reference audit and
+whitespace checks pass. Report, alternatives/counterexamples and intermediate
+failure evidence: reports/20260927-er-round5.md; raw logs and qualification:
+target/lane-er-round5/. No ER design question remains; DC owns queue recovery
+and the supervisor owns integration. Local commits carry the co-author trailer.
+No push or publication.
