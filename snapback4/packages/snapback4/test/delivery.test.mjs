@@ -144,11 +144,13 @@ test('positions 41 and 43 never report unfetched 42',async t=>{
  assert.deepEqual(h.calls.map(c=>[c.args.from,c.args.through]),[[41,41],[43,43]]);
 });
 test('binding fingerprints travel on reports and reconcile only changed bindings',async t=>{
- const pending=deferred();let n=0;const h=harness(t,{send:async()=>++n===1?pending.promise:ok});
+ const responses=[];const h=harness(t,{send:body=>{const response=deferred();responses.push({body,response});return response.promise;}});
  await h.q.accept([...manifest([['c',1]]),...manifest([['d',7]],{...binding,table:'photos',mutation:'photos',fingerprint:'photo-v1'})]);
  await h.flush();assert.deepEqual(h.calls[0].delivery,{fingerprint:binding.fingerprint});
+ responses.find(r=>r.body.delivery.fingerprint==='photo-v1').response.resolve(ok);await settle();
  await h.q.accept(manifest([['c',3]],{...binding,fingerprint:'messages-v2'}));
- pending.resolve({accepted:true,json:{head:10,why:{code:'E_DELIVERY_BINDING'}}});await settle();
+ responses[0].response.resolve({accepted:true,json:{head:10,why:{code:'E_DELIVERY_BINDING'}}});await settle();await h.q.pump();await settle();
+ assert.ok(responses.some(r=>r.body.delivery.fingerprint==='messages-v2'),'the replacement request remains independently held');
  const state=await h.state();assert.deepEqual(groups(state).find(g=>g.group==='d').reported,[[7,7]]);
  const newer=groups(state).find(g=>g.group==='c');assert.equal(newer.binding.fingerprint,'messages-v2');assert.deepEqual(newer.owed,[[3,3]]);
 });
