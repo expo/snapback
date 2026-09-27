@@ -67848,3 +67848,67 @@ The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
 never capabilities, and this is a name, not a secret. The operations manual
 calls it in a type-checked block, which the public-function census requires.
+
+
+## 2026-09-27 — 0.4.5 lane QE round 1: sound items, bounded growth and pure-call narrowing
+
+Read the original lane prompt, round-0 report/journal and both complete blind
+reviews. Fetched and merged origin/main 3369ae543 as a05192ae7, retaining both
+journal histories. Answered Astra's Medium in 2c5d06ec7: nonempty literal and
+concat items reject incompatible scalars and different reference tables;
+empty-list joins remain exempt. 951390b66 preserves heterogeneous positional
+once-key tuples, and 74e4bb434 explicitly widens projected IDs in the mixed-row
+provenance fixture without changing its values or assertions. a3ef8e9a5 adds
+the exact two-sweep restoration regression; deleting caller_loops restoration
+makes it fail. bcb3e2b0e answers both recursive-growth Lows with whole-assignment
+concat detection and the self-append rewrite, including early reassignment
+failures. 4317ca16e answers Grok's scale Low: count bounded append/prepend
+increments and initial contents; keep doubling and open/cyclic growth on the
+fallback. Five prepends certify 40,965 examinations, matching Push, instead of
+8,193,000,000; measured nested/prepend engine cases agree with their bounds.
+
+174a155f3 implements the supervisor's calibration #22 rule. Repeated pure fn
+calls over stable lexical arguments narrow under null guards, including the
+exact windows.ttl(c.disappearing) expression and nested calls. Expanded IR
+classifies transitive effects; table/clock/connection reads, writes and unstable
+arguments retain the bind-once rewrite. Both calls execute under existing meters.
+Facts use every argument root's field-refinement state, including reassignment,
+branch and loop invalidation. 794ac556a extends this to implicit shape snapshots
+and corrects guide expectations. All five assigned findings have failing-before
+regressions or the requested deletion control. LLP 3000.007 and the language,
+types, programs and why cards record the final rule. The historic pure-call
+refusal now compiles/runs; its unchanged fixture moved below fixtures/qe to
+avoid entering an unrelated frozen corpus. No budget or census baseline raised.
+
+Ran scripts/test.sh exactly once at 174a155f3, exit 1, exact summary:
+`== 2 failure(s) in 1425 s`, groups `cargo test` and `client tests`.
+Rust: 241 binaries / 954 executions plus doctests; 3,860 passed, 2 failed,
+24 ignored, 919 s. Both failures were ours: authoring_census duplicated the
+language corpus via the added tableless types-card block; language_operation_classes
+omitted the new expiration query. Client main: 2,532 passed, 16 failed,
+10 skipped, plus 56/56 in seven shards, 198 s. All 16 failures were ours:
+one shared provenance fixture joined children/reactions reference IDs, which
+now correctly refuses. The report names every individual failure. No baseline
+or environmental failure. All 78 models pass, 272 s; all other script phases
+and 9 fixture wrappers pass. The inherited 60 s budget remains exceeded.
+
+The final source at 74e4bb434 passes 290 affected checks after those corrections:
+compiler/guide 152 (whole guide 86), device authorization 81, scale 41 and
+wasm/process provenance 16. The existing engine helper/chunk comparison also
+passed 1/1 before the full run. Reference audit: 516 LLP docs, 9,602 refs,
+zero errors/unchecked. The final CLI builds, and source files stay below 1,500
+lines (maximum changed source: guide tests, 1,487). Did not repeat the full
+script: qualification is its recorded red result plus the passing affected
+checks, including the additional implicit-snapshot regression/fix.
+
+Wasm before/full-run artifacts are byte-identical: 1,981,512 B raw / 572,053 B
+gzip, SHA-256 5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969,
+788 B below the unchanged 572,841 B budget. Round-1 wasm inputs are unchanged
+from the merged base: zero lane delta; the increase over round 0 came from main.
+No engine, authorization, disclosure, durability, IR-format, meter, version or
+budget change. No push or publication. All round-1 commits carry the requested
+Astra co-author. No assigned finding remains open; the round-0 optional-filter
+E_QUARRY_BOUND limitation and inner-if workaround remain documented. Full file
+map, examples, commits, individual failures and reproduction:
+reports/20260927-qe-quarry-ergonomics/ROUND1.md. Ignored evidence:
+target/lane-qe-r1/.
