@@ -207,9 +207,29 @@ mod driver {
             assert!(!output.status.success()); let error = String::from_utf8_lossy(&output.stderr);
             assert!(error.contains(code), "{mode}: {error}");
             assert!(protocol::refused(port).unwrap());
-            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap_or_else(|e| panic!("{mode}: missing failure manifest: {e}; stderr: {error}"))).unwrap();
+            if mode == "timeout" {
+                assert!(error.contains("app did not reach offline-done within 5 seconds"), "the receipt-step premise did not hold: {error}");
+                assert!(manifest["events"].as_array().unwrap().iter().any(|event| event["step"] == "waiting-offline-done"));
+            }
+            eprintln!("{mode}: {error}");
             assert_eq!(manifest["exitStatus"], 1);
         }
+    }
+    #[test]
+    fn cli_preparation_timeout_still_records_failure_manifest() {
+        let fixture = Fixture::new();
+        let port = Fixture::port();
+        let output = fixture.run("timeout-prepare", port);
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success());
+        assert!(error.contains("E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out"), "{error}");
+        assert!(!fixture.0.join(".snapback4").exists(), "preparation must not start the backend");
+        assert!(protocol::refused(port).unwrap());
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).expect("preparation failure must have a manifest")).unwrap();
+        assert_eq!(manifest["exitStatus"], 1);
+        assert_eq!(manifest["phase"], "preparation");
+        assert!(manifest["error"].as_str().unwrap().contains("E_WITNESS_TIMEOUT"));
     }
     fn invalid_protocol(mode: &str, code: &str) {
         let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());
