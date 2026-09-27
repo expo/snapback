@@ -51,10 +51,10 @@ export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: s
     watches.delete(key);
     stop(watch);
     watch.retire();
-    if (watch.linger || resetOnClose) watch.reset({ loading: true });
+    if (watch.linger || resetOnClose) { watch.reset({ loading: true }); watch.deadlines = undefined; }
     if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
     watch.expiryTimer = null;
-    watch.deadlines = undefined;
+    // A non-resetting local close keeps access-time deadlines for its last snapshot.
     if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
     watch.presenceRefresh = null;
   };

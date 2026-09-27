@@ -42,11 +42,15 @@ export function holdReadExpiry(owner: ExpiringRead, withdraw: () => () => void):
 }
 
 /** Accessors enforce row expiry even when the host has not delivered timers. */
-export function checkReadExpiry(watch: ExpiringRead): void {
+export function checkReadExpiry(watch: ExpiringRead & { expire(): () => void }): void {
   const context = expiryOwners.get(watch), d = watch.deadlines;
-  if (!context || !d || !context.current()) return;
+  if (!context || !d) return;
   const serverDue = d.server !== null && context.clock.serverDelay(d.server) === 0;
-  if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)) context.expired(serverDue);
+  if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)) {
+    if (context.current()) context.expired(serverDue);
+    // A closed local handle has left the live sweep, but can still be read.
+    else if (serverDue || !d.localWakeup) { watch.deadlines = undefined; watch.expire()(); }
+  }
 }
 
 // @ref LLP 3000.019#3.3 — timers and clock corrections withdraw every due answer before any subscriber can roll time back.

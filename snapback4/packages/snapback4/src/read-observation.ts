@@ -40,7 +40,7 @@ export class ReadObservation<T> {
     this.deliver("answer")();
     this.onWithdrawal();
   });
-  retire(): void { this.episode.clear(); this.deliver("reset")(); }
+  retire(): void { this.episode.stop(); this.deliver("reset")(); }
 
   snapshot: Read<T> = { loading: true };
   kept = false;

@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { ServerClock } from "../dist/clock.js";
+import { answerObservation } from "../dist/read-observation.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { processDevice } from "../dist/native.js";
 import { server, binary, until } from "./helpers/app-server.mjs";
@@ -30,6 +31,24 @@ const parked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(Error("closed"));
   else signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
 });
+
+for (const tier of ["wasm", "process"]) for (const deadline of ["row", "episode"]) {
+  test(`${tier}: a closed raw local observation still latches its ${deadline} deadline`, async t => {
+    const f = await fixture(t, tier), watch = f.client.observe(q, {});
+    await until(() => watch.getSnapshot().data?.body === "private answer");
+    let wall = 1000;
+    t.mock.method(Date, "now", () => wall);
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    if (deadline === "episode") answerObservation(watch.getSnapshot()).reload();
+    watch.close();
+    assert.equal(watch.getSnapshot().data.body, "private answer", "the non-resetting close preserves the last snapshot");
+    if (deadline === "row") f.expire();
+    else wall = 2000;
+    const loading = watch.getSnapshot();
+    assert.deepEqual(loading, { loading: true });
+    assert.equal(watch.getSnapshot(), loading);
+  });
+}
 
 async function fixture(t, tier) {
   const { url, dir } = await server(t, undefined, source);

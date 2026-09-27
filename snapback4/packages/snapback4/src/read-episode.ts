@@ -31,9 +31,12 @@ export class ReadEpisode {
     }
   }
   clear(): void {
+    this.stop();
+    this.deadline = undefined;
+  }
+  stop(): void {
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
-    this.deadline = undefined;
   }
   private schedule(): void {
     this.timer = setTimeout(() => {
