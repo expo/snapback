@@ -21,7 +21,7 @@ table messages:
   at: time
   search body
   read <- exists members[.roomId, viewer]
-  sync to members[.roomId]
+  sync to members[.roomId] last 200 by .at
 
 query searchHeld(q: text <=100, c: cursor ?) held:
   return messages matching q after c last 20 by .at
@@ -86,13 +86,12 @@ without a cut is complete. The source-coverage line alone promises no answer's
 completeness and is absent for a horizon, an online-only source or zero read sites.
 Sources include reads nested in the `matching` expression, not just the searched table.
 
-Cold acquisition costs every live message in every held chat; the query's
-cheap read does not make that acquisition cheap. This block intentionally emits N_NO_HORIZON
-for `messages` (full history is acquired). The scoped server operations
-compile without notes. Add `last 200 by .at` to the messages sync
-line to acquire only the newest 200 per chat. That bounds acquisition,
-not later holdings, and word search then reports `complete: false`, even
-on an empty match: it cannot prove that older server history has no match.
+Cold acquisition costs every live message in every held chat without a horizon;
+the query's cheap read does not make that acquisition cheap. This example's
+`last 200 by .at` acquires only the newest 200 per chat. That bounds acquisition,
+not later holdings, and word search reports `complete: false`, even on an empty
+match: it cannot prove that older server history has no match. Removing the
+horizon acquires full history and emits N_NO_HORIZON for `messages`.
 Offline, label these results as searched on this device. Online, use the
 grouped or newest form for complete history beyond holdings.
 

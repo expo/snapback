@@ -1,3 +1,5 @@
+// @ref LLP 3000.021#3.1 — ordinary history and separate decorations.
+// @ref LLP 3000.021#3.4 — retain the parent and pin its own screen query.
 pub(super) const CARD: &str = r##"# App: a complete chat backend
 
 This chat backend gives conversation members live messages and offline writes.
@@ -15,6 +17,7 @@ table conversations:
   update <- deny
   delete <- deny
   after insert <- exists memberships[conversationId = .id, principal = .creatorId, role = 'admin']
+  retain delivered-history
   sync to memberships[.id]
 
 table memberships:
@@ -34,6 +37,7 @@ table messages:
   conversationId: conversations
   authorId: principal
   body: text <=4000 ?
+  quote: messages ?
   editedAt: time ?
   at: time
   immutable conversationId, authorId
@@ -48,8 +52,10 @@ view messageCounts: count messages by .conversationId
   read <- exists memberships[.conversationId, viewer]
 
 query thread(conversationId: conversations, c: cursor ?):
-  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return messages where .conversationId = conversationId after c last 50 by .at
+
+query conversationScreen(conversationId: conversations):
+  return conversations[conversationId]
 
 query inbox(c: cursor ?):
   return memberships where .principal = viewer after c first 50 by .conversationId
@@ -65,7 +71,49 @@ mutation edit(messageId: messages, body: text <=4000):
   require msg.authorId = viewer else NOT_AUTHOR
   update messages[msg] { body, editedAt: now }
   return null
+
+table profiles:
+  principal: principal
+  name: text <=80
+  unique principal
+  public 'display names are public'
+  sync last 500 by .id
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text <=16
+  unique message, principal
+  cap 32 by message
+  immutable message, principal
+  read through .message
+  online only
+
+query messageAuthor(message: messages):
+  return profiles[principal = messages[message].authorId]
+
+query quotedMessage(message: messages):
+  return messages[messages[message].quote]
+
+query messageReactions(message: messages):
+  return reactions where .message = message first 32 by .principal
+
 ```
+
+The screen pins `conversationScreen` by its conversation id beside the bare
+`thread` page. Both queries are ordinary, with no membership `require`:
+table rules still decide every server read. A device keeps the conversation
+and delivered messages after leave, through remount and reopen, offline and
+online. The inbox reads memberships and drops the row when that member row
+is deleted; keep the screen pinned by id rather than by the inbox result.
+An online-only client cannot recover a departed member's retained rows.
+
+Render profiles, quotes and reactions from their own queries beside the page;
+`guide receipts` shows the separate receipt query. A decoration that loads or
+refuses must not take history with it. Use `held` only for a read the server
+cannot answer, such as a word search over every chat held on this device.
+Ordinary history asks the server before acquisition or beyond its horizon,
+and keeps a left group's retained page local.
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
 directives, tables, views, shapes, helpers, queries, mutations, jobs
