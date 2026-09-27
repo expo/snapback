@@ -70593,3 +70593,66 @@ failure evidence: reports/20260927-er-round5.md; raw logs and qualification:
 target/lane-er-round5/. No ER design question remains; DC owns queue recovery
 and the supervisor owns integration. Local commits carry the co-author trailer.
 No push or publication.
+
+### 2026-09-27 — KG round 11: normalize openings and retain closed episode caps
+
+Read the round-0–10 prompts (including 9b), prior report and KG journal
+entries, and Astra's complete round-10 NOT READY review. Grok's file held only
+progress notes at start, then completed during the suite. Read its full READY
+WITH CHANGES review; its captured-episode gap is addressed by this round. First merged
+origin/main c48593818 in 37a61b3b8. The journal was the sole conflict;
+635 additions against the lane parent, 685 against main, zero deletions
+against either. The shared-approval ruling remains unchanged.
+
+27e449490 normalizes current raw withdrawals before opening notifications,
+preserving saved associations after retirement; recognizes every loading
+snapshot captured at close; randomizes initial/recreated opening and replacement
+completion order and batches; and independently remembers a closed facade's
+earliest observed episode. Randomized setup also found an opening getter
+retaining denial before its sourced peer accessed raw expiry. A minimized
+three-policy replay fails before the associated-opening getter correction.
+The manual describes all three boundaries; no public API or design change.
+
+Seven added deterministic lifecycle cases and eleven named oracle replays.
+Default model count doubles to 120 seeds per policy: 360 seeds, 86,400 random
+actions, plus setup and original-copy probes. Every default seed exercises
+before/after-close episode capture, then an original source copy without a
+cap; time 2000 still withdraws it. Every callback remains checked. Final
+approval set 496/496; model 413/413; affected set 942/942; whole guide 89/89.
+Package build/typecheck, frozen install, whitespace and references pass:
+521 LLP docs, 9,711 refs, zero errors/unchecked. Largest changed source: 296 lines.
+
+Process-local mutations fail 49 opening model cases (40 seeds), 63 getter-cap
+model cases (61 seeds), six source-loading close cases, four before/after-close
+cases with both deadline assignments removed, and three opening-access cases.
+Deleting shared approval fails 410/413 model cases, including all 360 seeds;
+three no-data opening controls pass. Grok's exact deadline-comparison deletion
+fails 123 model cases, including all 120 default-policy seeds. No mutation edits live source/dist.
+The close-time assignment alone is redundant with getter capture; no claim
+that deleting it alone must fail. Initial overbroad getter polling before
+association failed notification ownership and was corrected before qualification.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1641 s**, exit **0**.
+Every failure: none — zero ours, baseline or environmental failures. Rust:
+4,076 passed / 0 failed / 29 ignored (905 s). Main client: 3,637 passed /
+0 failed / 10 skipped, plus 56/56 acquisition/server shards (427 s). Final
+session/online models 79/79 (260 s), including both 5,000-sequence session
+models and 3,000 online interleavings; fixture wrappers 9/9. Both app
+checks, builds and budgets pass. All final runtime/tests, 360 model seeds,
+50 named oracle replays, eighteen delayed-authority createApp sequences and
+both Chromium witnesses participate. Grok's late review required only the
+additional mutation probe, no code/test change. No restart or repeat.
+No unresolved assigned finding or final-check failure. The inherited
+60-second full-suite budget remains exceeded; no timeout or budget raised.
+
+Wasm: 1,979,732 B raw / 572,616 B gzip, 225 B below the unchanged 572,841 B cap;
+SHA-256 dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94.
+Compared with round 10: -1,721 raw / +63 gzip bytes from merged inputs;
+round 11 changes no Rust/wasm input, meter, durable format or authorization rule.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, eight Cargo jobs, dev/test debug off,
+fd limit 65,536. Worktree-local tool symlinks only; no shared-path installation
+or modification. No push, publication or new independent-review claim.
+All commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+The report preserves all earlier rounds:
+reports/20260927-kg-kept-through-authority/REPORT.md. Ignored evidence:
+target/lane-kg-r11/. This is the single dated round-11 journal append.

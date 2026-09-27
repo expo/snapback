@@ -1,3 +1,175 @@
+# Lane KG round 11 — consistent opening withdrawals and captured closed episodes
+
+Branch: `sb4-intent/kg-kept-through-authority`. Read the round-0–10 prompts,
+including round 9b, prior report and KG journal entries, and Astra's round-10
+NOT READY review. Grok's round-10 file held progress notes at start and completed
+during the full suite. Read its full READY WITH CHANGES review: its sole finding
+is the same captured-episode model gap, addressed by this round. The shared
+approval ruling remains in force. Nothing pushed or published.
+
+First fetched and merged `origin/main` at `c48593818`, committing `37a61b3b8`.
+The journal was the only conflicted file. Both histories remain: 635 additions
+against the lane parent, 685 against main, and zero deletions against either.
+`27e449490` implements all four requested findings and the additional opening
+access case found by randomized setup. All commits have the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer.
+
+## Implementation, file by file
+
+Paths below are relative to `snapback4/`.
+
+| File | Round-11 result |
+| --- | --- |
+| `packages/snapback4/src/app-client.ts` | Shared listeners normalize current raw loading/denial before emitting, including during opening. A missing retired owner leaves the saved association intact. Associated opening getters also consult raw expiry. Closed snapshots recognize every loading object while preserving fence and own-refusal precedence. |
+| `packages/snapback4/test/approval-lifecycle.test.mjs` | Seven additional deterministic tests: second opening succeeds/first refuses and reset→close→source denial without an intervening getter for every policy; after-close episode capture beside the existing before-close case. |
+| `packages/snapback4/test/approval-model.test.mjs` | Randomize initial and recreated opening/replacement completion order and batch size; inject opening refusals; assert both orders and batches occur. Double default seeds to 120 per policy. Add eleven named replays, including the supplied reproductions, both captured-episode timings, and opening-access expiry. Every default-policy seed exercises episode-copy omission with randomized close timing. |
+| `packages/snapback4/test/helpers/approval-oracle.mjs` | Independently retain the earliest episode observed by a closed facade. Model the supplied original source copy with no episode, without deriving expected deadlines from production metadata. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | Document opening withdrawal normalization, earliest observed closed episodes, and loading captured at close. |
+| `JOURNAL.md`, this report | One dated append and complete qualification evidence; preserve all earlier records. |
+
+No new public API or Quarry syntax. Existing forms compile and run:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+bounded.close();
+const captured = bounded.getSnapshot();
+```
+
+All three normalize opening callbacks against current raw withdrawals and keep
+loading captured at close through a later source denial. The omitted policy
+keeps its original episode even when first observed after close and then absent
+from a subsequent same-identity source copy.
+
+## Regressions and model strength
+
+The original-code reproduction run was **2 passed / 12 failed**: the new direct
+and oracle opening-order and no-poll close cases fail under all three policies;
+both captured-episode controls pass existing runtime behavior. Removing the
+getter's deadline assignment discriminates the new after-close case.
+
+Randomized setup exposed an additional ordering: an opening handle reads its
+shared denial before a sourced peer accesses an expired raw answer. Its getter
+previously did not consult raw expiry. The minimized oracle replay fails all
+three policies before the associated-opening getter correction. The correction
+applies only after association, preserving notification ownership before an
+owner exists. An initial overbroad draft peeked before association and failed
+the callback invariant; that draft was corrected before final qualification.
+
+Final approval set: **496/496**, 30.578 s. The model contributes **413/413**:
+360 seeds, three parent cases and 50 named replays. Seeds each execute 240
+random actions (**86,400 actions**), plus randomized setup/recreation and the
+closed-episode probes. Completion selection uses the full pseudorandom value
+instead of the LCG's correlated low bits. Up to four pending checks complete
+before one settle; initial openings and replacements also batch. Every callback
+is still checked independently, including intermediate results. These are
+bounded generated witnesses, not an exhaustive proof.
+
+The oracle keeps expected identity, authority, refusal, eligibility, lifetime,
+row deadlines and the earliest observed episode separately from facade output.
+Its original-copy input deliberately bypasses the raw accessor, so a raw expiry
+cannot mask a missing facade cap. It tests at host time 2000 and across rollback.
+No existing product assertion or timeout was relaxed.
+
+All final mutations are process-local loaders; live source/dist used by the
+full suite are unchanged:
+
+| Mutation | Discriminating evidence |
+| --- | --- |
+| Restore pre-round-11 opening listener/getter behavior | 9 selected failures; **49 model failures**, including 40 randomized seeds. |
+| Restore private-object-only closed loading guard | **6 failures**, direct and oracle under all policies. |
+| Delete getter `closedDeadline = Math.min(...)` | Both new after-close direct/oracle cases fail; **63 model failures**, including 61 seeds. |
+| Delete both closed-deadline assignments | All **4 before/after-close direct/oracle cases fail**. |
+| Delete the actual deadline comparison (Grok) | **123 model failures**, including all 120 default-policy seeds. |
+| Remove the additional associated-opening expiry lookup | All **3 minimized opening-access cases fail**. |
+| Delete shared approval installation | **410 model failures**, including every one of the 360 seeds; the three no-data opening controls pass. |
+
+The close-time assignment alone is not claimed as independently necessary:
+the getter can capture the same saved snapshot before replacing it. Grok's
+proposed consolidation is a redundant-write cleanup; the existing close-time
+cache is retained, with no behavioral dependency claimed for that line. The
+substantive getter-capture mutation that survived round 10 now fails. Grok's
+exact comparison-removal mutation also fails, as recorded above. No runtime or test
+change was needed after its completed review arrived.
+
+## Qualification
+
+- Final affected set: **942 passed / 0 failed**, 30.176 s.
+- Whole guide: **89 passed / 0 failed**, 2.52 s test execution.
+- Frozen Bun install, package build/typecheck and whitespace checks pass.
+- Reference audit: **521 LLP documents, 9,711 refs, zero errors/unchecked**.
+- Largest changed source/test: **296 lines**.
+
+Ran `scripts/test.sh` **exactly once**, exit **0**. Exact summary:
+**`== 0 failure(s) in 1641 s`**. Every failure: **none** — zero ours,
+baseline or environmental failures. Intentional pre-fix and mutation failures
+are discrimination evidence, separate from final qualification.
+
+- Rust tests/doctests: **4,076 passed / 0 failed / 29 ignored**, 905 s.
+- Main client: **3,637 passed / 0 failed / 10 skipped**, plus **56/56**
+  acquisition/server shard tests; client phase 427 s.
+- Final session/online models: **79/79**, 260 s, including both 5,000-sequence
+  session models and the 3,000-sequence online model.
+- Fixture wrappers **9/9**; both app typechecks, native/wasm builds, docs
+  budget, release guard, package build/typecheck and chat schema check pass.
+
+The full run includes all final runtime and test changes, all 360 new-model
+seeds and 50 named oracle replays, all eighteen delayed-authority createApp
+sequences and both Chromium input-preservation witnesses. Grok's later review
+required only an additional process-local mutation probe; no source or test
+changed during the full run. The script was not restarted or repeated.
+
+Wasm from the full run: **1,979,732 B raw / 572,616 B gzip**, **225 B below**
+the unchanged 572,841 B budget. SHA-256:
+`dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94`.
+Against round 10: -1,721 raw / +63 gzip bytes, from the merged inputs. Round 11
+changes no Rust or wasm input; no independent per-component attribution is
+claimed. Authorization/disclosure rules, meters, durable formats, versions,
+dependencies and budgets are unchanged by this round.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Existing executables selected through worktree-local symlinks;
+no tool installed or modified on a shared path. Optional wasm-opt is absent
+from the selected PATH. Ignored `target/lane-kg-r11/` holds logs, exit statuses,
+mutation snapshots/loaders, measurements and the one full-suite launch marker.
+
+Reproduce from `snapback4/` after the package build:
+
+```sh
+node --test packages/snapback4/test/approval-*.test.mjs
+node --import ./target/lane-kg-r11/no-getter-deadline-loader.mjs --test \
+  packages/snapback4/test/approval-model.test.mjs
+```
+
+## Scope, deviations and open work
+
+The only extension to the brief is the associated-opening getter correction
+found by the newly randomized setup, with its three-policy failing-before
+replay. The one-shared-approval design and saved retirement association stay.
+No new design, API, dependency, gate or diagnostic was introduced. The final
+runtime and tests were fixed before the single full-suite run began.
+The supervisor owns independent review and integration; none is claimed here.
+
+No unresolved assigned finding, failing qualification check or new behavior
+problem remains. The inherited 60-second full-suite runtime budget is still
+exceeded (1641 s); reproduce with `cd snapback4 && bash scripts/test.sh`.
+No timeout or budget was raised.
+
+llp-orient context pack: scope is opening notification/access, closed lifetime
+and approval-model coverage. Governing current LLPs: 3000 §4 (track fence),
+3000.023 §§3.1/3.4/3.6 (single episode, exact withdrawals, shared authority),
+3000.019 §3.3 (own held deadlines), and 3000.013 §6 (facade revocation).
+None is in foundation. Read the current client manual before editing. The
+rationale is consistent callback/getter snapshots and a cap that follows its
+answer instead of a later copy. Risks were arbitrary completion order and
+lost captured metadata; the new deterministic and mutation evidence covers
+both. Manual, journal and report updates suffice. Hand-off: none.
+
+---
+
+# Historical round-10 report
+
 # Lane KG round 10 — retired opening refusals and an independent approval oracle
 
 Branch: `sb4-intent/kg-kept-through-authority`. Read the round-0–9b prompts,
