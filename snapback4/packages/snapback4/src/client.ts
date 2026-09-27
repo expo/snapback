@@ -348,16 +348,20 @@ export function createClient(options: ClientOptions): Client {
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
-    endLingering(watches.values());
-    queryEpoch++;
-    // Terminal connectivity is observable without discarding the session that
-    // createApp may validate on its replacement client.
-    link = "signed-out";
-    if (retry) { clearTimeout(retry); retry = undefined; }
-    if (refreshTimer) clearTimeout(refreshTimer);
-    aborter.abort();
-    stopRefresh(storeRefusal);
-    for (const watch of watches.values()) { watch.reset({ denied: storeRefusal }); scheduleExpiry(watch, null); }
+    // @ref LLP 3000.023#3.4 — even lingering approvals withdraw before callbacks can inspect a peer.
+    const deliver = deferReadNotifications(() => {
+      endLingering(watches.values());
+      queryEpoch++;
+      // Terminal connectivity is observable without discarding the session that
+      // createApp may validate on its replacement client.
+      link = "signed-out";
+      if (retry) { clearTimeout(retry); retry = undefined; }
+      if (refreshTimer) clearTimeout(refreshTimer);
+      aborter.abort();
+      stopRefresh(storeRefusal!);
+      for (const watch of watches.values()) { watch.reset({ denied: storeRefusal! }); scheduleExpiry(watch, null); }
+    });
+    deliver();
     // Retire every owner, including the request currently awaiting its body.
     // A late receipt must not settle it a second time or schedule another send.
     for (const entry of pending.splice(0)) {
