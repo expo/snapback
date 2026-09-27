@@ -91,7 +91,9 @@ export function localDelivery(env: Environment) {
       // at capacity without advancing over or evicting uncollected rows.
       if (!await queue.flushed()) return;
       if (stopped || !env.current() || !env.ready()) return;
-      const reply = await serial(() => call({ action: "enumerate", now: env.now() })) as { more: boolean; blocked?: boolean };
+      const reply = await serial(() => stopped || !env.current() || !env.ready() ? Promise.resolve(undefined)
+        : call({ action: "enumerate", now: env.now() })) as { more: boolean; blocked?: boolean } | undefined;
+      if (!reply) return;
       enumerationDone = !reply.more;
       enumerationBackoff = 1000;
       queue.published();

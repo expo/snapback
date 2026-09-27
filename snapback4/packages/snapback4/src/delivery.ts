@@ -235,10 +235,12 @@ export class DeliveryQueue {
   /** Activation cannot displace debt that has not had its startup flush. */
   async flushed(): Promise<boolean> {
     await this.pump();
-    return this.options.storage.update(state => !this.startup.some(({ key, incarnation, runs }) => {
+    const cleared = await this.options.storage.update(state => !this.startup.some(({ key, incarnation, runs }) => {
       const g = state.groups[key];
       return g?.incarnation === incarnation && runs.some(([a, b]) => g.owed.some(([x, y]) => a <= y && x <= b));
     }));
+    if (cleared) this.startup = [];
+    return cleared;
   }
   /** Store/generation changes fence every callback. Sign-out keeps local debt. */
   async reset(clear: boolean): Promise<void> {

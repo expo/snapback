@@ -121,7 +121,8 @@ test('evicting lowest debt also fences its persisted uncertain attempt',async t=
  await h.q.accept(manifest([['c',1]]));await h.flush();
  await h.q.accept(manifest(Array.from({length:256},(_,i)=>['c',10+i*2])));
  assert.equal(groups(await h.state())[0].attempt,undefined);
- responses[0].resolve({accepted:true,json:{head:10,why:{code:'NOT_A_RUN'}}});await settle();
+ responses[0].resolve({accepted:true,json:{head:10,why:{code:'NOT_A_RUN'}}});await settle();await h.flush();
+ assert.equal(h.calls.length,2);assert.notEqual(h.calls[0].id,h.calls[1].id);
  assert.deepEqual(h.refused,[]);assert.deepEqual(groups(await h.state())[0].refused,[]);
 });
 test('a pre-transport serial gate race spends no retry and keeps its persisted id',async t=>{
@@ -183,4 +184,12 @@ test('an exhausted attempt retains its collection boundary while another interva
 test('manifests omit unsafe coordinates rather than rounding an unfetched position',async t=>{
  const h=harness(t);await h.q.accept(manifest([['c',9007199254740992],['c',-9007199254740992],['c',41.5],['c',41]]));await h.flush();
  assert.deepEqual(h.calls.map(c=>[c.args.from,c.args.through]),[[41,41]]);
+});
+
+test('the completed startup barrier cannot reopen when bounded reported history ages out',async t=>{
+ const h=harness(t,{local:true});await h.q.accept(manifest([['c',1]]));await h.q.start();await h.flush();
+ assert.equal(await h.q.flushed(),true);
+ h.ready(false);await h.storage.update(s=>{groups(s)[0].reported=[];});await h.q.accept(manifest([['c',1]]));
+ assert.deepEqual(groups(await h.state())[0].owed,[[1,1]]);
+ assert.equal(await h.q.flushed(),true,'a completed barrier stays completed');
 });
