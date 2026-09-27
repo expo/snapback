@@ -1,3 +1,162 @@
+# Lane KG round 7 — approvals preserve each facade's answer
+
+Branch: `sb4-intent/kg-kept-through-authority`. Read the round-0 through
+round-6 prompts, reports and KG journal entries, plus both complete round-6
+READY WITH CHANGES reviews. Previous reports remain below as history.
+No push or publication.
+
+## Integration and findings
+
+`d0f9c7942` merges `origin/main` at `d17f8b3cc` before implementation,
+without conflicts. Both journal histories and the incoming guide, adoption and
+receipt changes are retained. `30ccd0d9f` answers all three round-7 findings.
+Every round-7 commit includes `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+1. **Grok Medium: a closed retaining facade adopts its peer's replacement.**
+   A new answer identity allocates a new approval. The previous snapshot,
+   follower, episode and held expiry remain intact. Releasing an old approval
+   removes the map entries only if they still point to it. A closed facade
+   keeps revalidating A under A's deadlines; a peer can independently approve B.
+2. **Astra Low: duplicate authority-refusal delivery.** `emit` deduplicates
+   against the snapshot identity already announced while preserving the shared
+   broadcast. It uses the visible denial after a facade fence, so an unchanged
+   internal approval cannot suppress revocation notification.
+3. **Grok Low: payload-only identity tests.** Added same-body republishes with
+   a new expiry, alongside the different-body cases. The tests wait for a new
+   answer identity, not just a matching payload, before checking withdrawal.
+
+## File map
+
+Paths below are relative to `snapback4/`.
+
+| File | Round-7 change |
+| --- | --- |
+| `packages/snapback4/src/read-approval.ts` | Allocate approvals by answer identity; preserve older holds; conditionally remove current map entries on release. |
+| `packages/snapback4/src/app-client.ts` | Deduplicate snapshot announcements, with facade-fence denial precedence. |
+| `packages/snapback4/test/retention-lifecycle.test.mjs` | Extend four prior cases to all policies and both different/same-body replacements, on online/wasm and guardClient/createApp. |
+| `packages/snapback4/test/keep-authority.test.mjs` | Exact refusal callback counts, independently gated peer approvals and fence notification controls. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | Document independent approval identities/deadlines and single refusal delivery. |
+| `JOURNAL.md` | One dated round-7 append; preserve earlier entries. |
+| `reports/20260927-kg-kept-through-authority/REPORT.md` | This evidence, preserving rounds 0–6 below. |
+
+## Tests and negative controls
+
+Thirty added tests, with no existing assertion relaxed:
+
+- **20 additional lifecycle cases** expand the existing four to 24. Approve A
+  with expiry 5000 at server time 1000, close the first facade, then approve B
+  (or another `"private A"`) at expiry 8000 on its peer. A retaining closed
+  facade still has A's identity, freshness and since, marked revalidating at
+  4999; at 5000 every closed policy is stable loading while the peer keeps its
+  replacement. Rollback cannot restore A. Host time is held fixed so the
+  episode cap cannot mask a missing row-deadline check.
+- **Five exact refusal-count cases:** replacement refusal with omitted/false/
+  true, and opening refusal with omitted/true. Each denied facade receives
+  exactly one callback; the opening case's live peer also receives exactly one.
+- **Two independently gated peer cases:** omitted/true. One facade approves B
+  while the other's check waits; the waiting facade still shows marked A,
+  then shows B only after its own successful check.
+- **Three fence controls:** all policies still notify once when the facade is
+  revoked after its last approved answer was announced.
+
+The pre-fix selected run is **9 passed / 20 failed**: 16 retaining replacement
+cases and four retaining refusal counts fail; withdrawing controls pass.
+Final affected set: **416 passed / 0 failed**, 18.997 s. Whole guide:
+**86 passed / 0 failed**, 2.65 s test execution. Frozen Bun install, package
+build/typecheck, reference audit and whitespace validation pass. Reference
+audit: **517 LLP docs, 9,663 refs, zero errors/unchecked**. All changed source
+and test files remain under 1,500 lines.
+
+Isolated process-local module mutations, without touching live source/dist:
+
+| Mutation | Result |
+| --- | --- |
+| Restore merged-input approval reuse | 18 failures: all 16 retaining lifecycle cases and both waiting-peer cases; 8 withdrawing controls pass. |
+| Compare payloads instead of answer identities | All 4 closed keep:false same-body cases fail; the other 20 lifecycle cases pass. |
+| Restore unconditional emit and insert `{ reject(snapshot); emit(); }` | All 5 refusal-count tests fail. |
+| Deduplicate against the cached approval without fence-denial precedence | All 3 fence-notification controls fail. |
+
+## Existing forms that compile and run
+
+No new API or syntax:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+```
+
+After `bounded.close()` or `lingering.close()`, a live peer's replacement
+cannot supply a new identity or later deadline. `withdrawing.close()` keeps
+its earlier identity-withdrawal behavior even when the replacement data is
+identical. Authority refusal notifies each affected subscriber once.
+
+## Full qualification
+
+Ran `scripts/test.sh` **exactly once**. Exact summary:
+**`== 0 failure(s) in 1378 s`**, exit **0**. Every failure: **none** — zero
+round-7-owned, baseline or environmental failures. Intentional pre-fix and
+mutation failures above are separate discrimination evidence.
+
+- Rust tests/doctests: **3,924 passed / 0 failed / 24 ignored**, 644 s.
+- Main client: **3,111 passed / 0 failed / 10 skipped**; seven additional
+  acquisition/server shards: **56/56**; client phase 427 s.
+- Final seeded models: **79 passed / 0 failed**, 258 s.
+- Fixture wrappers: **9/9**. Native/wasm builds, both app typechecks, package
+  build/typecheck, docs budget, release guard and chat schema check pass.
+
+All 34 cases in the expanded round-7 regression/control groups, all 18
+delayed-authority createApp sequences and both Chromium input-preservation
+witnesses pass. Both round-6 baseline timeline targets now pass, with main's
+corrections carried by the initial merge. Rust/Cargo/native-fixture inputs
+match the merged main `d17f8b3cc` exactly. The script selected normal client
+concurrency at host load 21.72 across 96 CPUs.
+
+Wasm: **1,981,590 B raw / 572,608 B gzip**, **0 B delta** and byte-identical
+to round 6, **233 B below** the unchanged 572,841 B budget. SHA-256:
+`f31efbe90951a07e45d98bb115f907030da51fc36d2bf6afce6941d0ce04e93c`.
+This round changes no Rust or wasm input.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Existing Node/Bun selected through worktree-local symlinks;
+no tool installed or modified on a shared path. Optional wasm-opt is absent
+from the selected PATH. No runtime meter or wasm budget change.
+
+Evidence: ignored `target/lane-kg-r7/`, including install/build/typecheck,
+affected, guide, reference and full-suite logs/exit files, and the four
+isolated mutation loaders plus their source snapshots and results.
+Reproduce the changed test files from `snapback4/`:
+
+```sh
+node --test packages/snapback4/test/retention-lifecycle.test.mjs \
+  packages/snapback4/test/keep-authority.test.mjs
+node --import ./target/lane-kg-r7/payload-identity-loader.mjs --test \
+  --test-name-pattern='closed facade keeps' \
+  packages/snapback4/test/retention-lifecycle.test.mjs
+```
+
+## Decisions, deviations and remaining issues
+
+No design deviation, stopped design part or unresolved assigned finding.
+The small fence-denial detail preserves existing notifications while applying
+Astra's deduplication. No engine authorization/disclosure, meter, durable
+format, diagnostic, dependency, version or Rust change in this round. The
+full run is not restarted or rerun. The inherited 60-second full-suite runtime
+budget remains exceeded (1378 s); reproduce with `cd snapback4 && bash
+scripts/test.sh`. No timeout or budget was raised. No other open issue was
+found in the assigned scope.
+
+llp-orient context: scope is approval identity/lifetime and facade notification.
+Governing current LLPs: 3000 §4 (Snapback 4 fence), 3000.023 §§3.1/3.4/3.6
+(episode, own deadlines and source withdrawals), 3000.019 §3.3 (held answer
+expiry) and 3000.013 §6 (facade revocation). None is in foundation. Current
+manual read before editing. No new LLP decision; manual, journal and report
+updates suffice. Hand-off: none.
+
+---
+
+# Historical round-6 report
+
 # Lane KG round 6 — detached answers cannot borrow replacement deadlines
 
 Branch: `sb4-intent/kg-kept-through-authority`. Read all six prior prompts,

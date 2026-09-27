@@ -69350,3 +69350,54 @@ on a shared path. No design deviation, push, publication or new independent
 review claim. All commits carry the requested Astra co-author trailer.
 Report and reproductions: reports/20260927-kg-kept-through-authority/REPORT.md;
 ignored evidence: target/lane-kg-r6/. This is round 6's single dated append.
+
+### 2026-09-27 — KG round 7: each facade keeps its approved identity and deadlines
+
+Read rounds 0–6's prompts, reports and KG journal entries, both full round-6
+READY WITH CHANGES reviews, and the governing retention/facade context.
+Merged origin/main d17f8b3cc in d0f9c7942 before implementation, without
+conflicts; both histories remain. 30ccd0d9f answers all three findings.
+
+ReadApprovals allocates a new approval for a new identity, preserving the old
+snapshot, follower, episode and held expiry. An old release removes the map
+entries only when they still point to it. A closed retaining facade and a peer
+still awaiting authority keep their own marked A while another peer approves
+B. Facade emission deduplicates the already-announced snapshot, preserving
+shared refusal delivery and the visible denial after a facade fence. The
+manual records these boundaries. No new API, design deviation or stopped part.
+
+Thirty added tests: twenty additional online/wasm guardClient/createApp
+replacement cases (all three policies, different and identical bodies), five
+exact refusal callback counts, two independently gated peer approvals and
+three fence notification controls. A expires at server time 5000 while its
+replacement remains valid until 8000; closed snapshots withdraw stably and
+cannot recover on rollback. The same-body controls discriminate identity from
+payload. Negative controls fail 18 reused-approval cases, four payload-identity
+cases, five unconditional/doubled refusal-delivery cases and three cached-fence
+cases. All transformations are process-local, never edits to live dist/source.
+No existing assertion was relaxed.
+
+Affected tests: 416/416; whole guide: 86/86. Frozen Bun install, package
+build/typecheck, reference audit and whitespace checks pass. Changed source
+and test files remain below 1,500 lines. Ran scripts/test.sh exactly once:
+**== 0 failure(s) in 1378 s**, exit **0**. Rust: 3,924 passed / 0 failed /
+24 ignored (644 s). Main client: 3,111 passed / 0 failed / 10 skipped; seven
+extra shards: 56/56 (427 s). Final seeded models: 79/79 (258 s). Fixtures:
+9/9. Builds, app typechecks, budgets and release guard pass. Every failure:
+none — no round-7-owned, baseline or environmental failure. All 34 expanded
+round-7 cases, all eighteen delayed-authority sequences and both Chromium
+input-preservation witnesses pass. Both round-6 baseline timeline targets now
+pass after the initial main merge. No full-suite restart or rerun.
+
+Wasm is byte-identical to round 6: 1,981,590 B raw / 572,608 B gzip, zero delta,
+233 B below the unchanged 572,841 B cap. SHA-256:
+f31efbe90951a07e45d98bb115f907030da51fc36d2bf6afce6941d0ce04e93c.
+No Rust, engine authorization/disclosure, meter, durable format, diagnostic,
+dependency, version or budget change. Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+eight Cargo jobs, dev/test debug off, fd limit 65,536. Existing tools selected
+through worktree-local symlinks; no shared-path tool installation or change.
+No push, publication or new independent-review claim. All commits carry the
+requested Astra co-author trailer. No unresolved assigned finding; the
+inherited 60-second suite budget remains exceeded, with no timeout raised.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r7/. This is round 7's single dated journal append.
