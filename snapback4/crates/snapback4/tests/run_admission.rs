@@ -11,7 +11,7 @@ impl Project {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let path = std::env::temp_dir().join(format!("snapback4-run-admission-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir_all(path.join("snapback")).unwrap();
-        let p = Self(path); p.source(SOURCE); p
+        let p = Self(path.canonicalize().unwrap()); p.source(SOURCE); p
     }
     fn source(&self, text: &str) { fs::write(self.0.join("snapback/schema.q"), text).unwrap(); }
     fn store(&self) -> PathBuf { self.0.join(".snapback4/store.sqlite") }
