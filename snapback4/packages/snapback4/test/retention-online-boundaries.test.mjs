@@ -49,3 +49,40 @@ for (const keep of [undefined, true]) test(`schema discovery withdraws an overla
   wall = 3000; owner.reload(); owner.reload();
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "discovery never renews or removes a cap while keeping A");
 });
+
+for (const keep of [undefined, false, true]) for (const invalidated of [false, true]) {
+  test(`online link loss withdraws a live ${invalidated ? "invalidated" : "settled"} answer immediately, keep=${keep}`, async t => {
+    t.mock.method(Date, "now", () => 1000); // The episode cannot expire and mask a broken offline withdrawal.
+    const invalidate = Promise.withResolvers(), loss = Promise.withResolvers();
+    let polls = 0, reads = 0;
+    const client = createClient({ url: "http://link-loss.test", persona: "alice", fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") {
+        if (++polls === 1 && invalidated) {
+          await invalidate.promise;
+          return Response.json({ seq: 2, generation: 1, tables: ["private"] });
+        }
+        await loss.promise; throw Error("link lost");
+      }
+      if (path === "/probe") return parked(init.signal);
+      assert.equal(path, "/q/read");
+      if (++reads > 1) return parked(init.signal);
+      return Response.json({ data: ["private A"], complete: true, seq: 1, tables: ["private"] });
+    } });
+    t.after(async () => { invalidate.resolve(); loss.resolve(); await client.close(); });
+    const options = keep === undefined ? undefined : { keep }, watch = client.observe(q, {}, options), seen = [];
+    watch.subscribe(() => seen.push(watch.getSnapshot()));
+    await until(() => watch.getSnapshot().data);
+    if (invalidated) {
+      invalidate.resolve(); await until(() => reads > 1 && polls > 1);
+      if (keep !== false) assert.equal(watch.getSnapshot().revalidating, true);
+      else assert.deepEqual(watch.getSnapshot(), { loading: true });
+    }
+    seen.length = 0; loss.resolve();
+    await until(() => client.link() === "offline");
+    const loading = watch.getSnapshot();
+    assert.deepEqual(loading, { loading: true }, "link loss must not start or extend retention");
+    assert.equal(watch.getSnapshot(), loading);
+    if (!(invalidated && keep === false)) assert.ok(seen.some(read => read.loading), "withdrawal notifies the live observer");
+  });
+}
