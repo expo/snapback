@@ -627,6 +627,10 @@ and its absence is not proof that a ranking cannot be forged. Sync and
 
 ## A value per member: Clique unread
 
+For receipt gaps in expiring messages, `guide sequences` pairs `sequence by`
+with bounded unique ordinal probes. The count below answers what remains
+unread; it cannot establish which individual messages a client received.
+
 A row-keyed view keeps one count per row of another table. Its read rule and
 sync audience are the keyed row's. The key is exactly one equality between
 required references to the same parent; other conjuncts compare source fields

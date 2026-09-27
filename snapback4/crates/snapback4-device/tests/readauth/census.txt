@@ -418,6 +418,10 @@ card/routes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index"
 card/routes/1:split | never
 card/rules/5:markRead | eligible
 card/rules/5:markRead | members/update | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/sequences/1:createConversation | never
+card/sequences/1:send | never
+card/sequences/1:skipExpiredBefore | never
+card/sequences/2:manualSend | never
 card/services/1:rank | never
 card/shapes/1:checkin | never
 card/shapes/1:createRoom | eligible

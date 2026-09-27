@@ -1,7 +1,9 @@
 # Feeds: Global, Following and Trending
 
 Feeds present public originals and reposts as Global, Following or Trending.
-Views define the event stream; a predicate read selects the trending posts.
+Declare Following before the first post, repost or follow: event identities and
+edge-admission history are recorded when sources change, and existing source
+rows cannot reconstruct them.
 
 ## Global: a union view
 
@@ -31,7 +33,10 @@ query global(c: cursor ?):
 
 ## Following: a view for the reader
 
-Declare the view before adding posts, reposts or follows. This standalone
+Declare the view before adding posts, reposts or follows. `check` against the
+dev store (or `check --store <path>`) reports the adoption refusal at the
+view before adoption if any of those tables already holds rows. Without a
+store, `check` only compiles. Populated profiles are allowed. This standalone
 program includes replies in `posts` but selects only originals for the feed.
 The three sources are public and writable only by their owners. Posts and
 reposts acquire the newest 1,000 rows globally on a cold device.
@@ -220,6 +225,13 @@ sync choice advances the generation and re-snapshots acquisition; a device
 never trims in place. Returning to full sync re-acquires the whole table.
 
 Declare before source events or follows exist; populated profiles are allowed.
+There is no source-history backfill command. Slot-fill during activation
+upgrades an existing Following: it copies event state from that declaration's
+owned event table into source slots before validation. It cannot invent the
+missing event identities or follow-admission history of a newly declared Following.
+Reordering source files or restarting the server does not repair populated
+sources. Keep them and use the Global planned-view example above, or declare
+Following in a new store before seeding through the example's mutations.
 Removing a materialized view retires its owned rows, indexes and delivery work
 and resets or retires dependent aggregates in the same activation transaction.
 Sources and unrelated views survive. Dev needs no flag; deploy requires

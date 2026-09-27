@@ -298,3 +298,74 @@ fn two_step_replacement_over_empty_sources_is_supported() {
     drain(&mut e);
     assert_eq!(pages(&mut e, "reader").len(), 2);
 }
+
+#[test]
+fn check_reports_late_following_at_the_view_without_changing_the_store() {
+    let s = source();
+    let lead = snapback4_lang::guide::card("feeds").unwrap().split("\n\n").nth(1).unwrap();
+    assert!(lead.contains("before the first post, repost or follow"));
+    assert!(lead.contains("event identities") && lead.contains("edge-admission history"));
+    for (table, row) in [
+        ("posts", snapback4_core::value::object([("id", id("p")), ("authorId", id("author")), ("parentId", Value::Null), ("at", Value::Int(1)), ("removed", Value::Bool(false))])),
+        ("reposts", snapback4_core::value::object([("id", id("r")), ("actorId", id("author")), ("postId", id("p")), ("at", Value::Int(2))])),
+        ("follows", snapback4_core::value::object([("id", id("f")), ("followerId", id("reader")), ("followedId", id("author"))])),
+    ] {
+        for disk in [false, true] {
+            let dir = Dir::new();
+            fs::create_dir(dir.0.join(".snapback4")).unwrap();
+            let path = dir.0.join(".snapback4/store.sqlite");
+            let b = compile(&without_view(&s));
+            let store = if disk { Store::open(&path).unwrap() } else { Store::memory().unwrap() };
+            let mut e = Engine::new(store, b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            e.seed([(table.into(), row.clone())]).unwrap();
+            let generation = e.generation();
+            let before = e.store().rows(table).unwrap();
+            let b = compile(&s);
+            let error = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
+            assert_eq!(error.code(), "E_TIMELINE_ACTIVATE");
+            assert!(error.to_string().contains(&format!("source table {table} is populated")), "{error}");
+            let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
+            assert_eq!(error.code(), "E_TIMELINE_ACTIVATE");
+            assert_eq!(e.generation(), generation);
+            assert_eq!(e.store().rows(table).unwrap(), before);
+            drop(e);
+            if disk {
+                dir.source(&s);
+                let stored = fs::read(&path).unwrap();
+                for explicit in [false, true] {
+                    let args = if explicit { vec!["check", "--json", "--store", path.to_str().unwrap()] } else { vec!["check", "--json"] };
+                    let result = dir.command(&args);
+                    assert!(!result.status.success(), "{result:?}");
+                    let json: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+                    let problems = json["problems"].as_array().expect("check diagnostic envelope");
+                    let d = problems.iter().find(|d| d["code"] == "E_TIMELINE_ACTIVATE").expect("Following preflight diagnostic");
+                    assert_eq!(d["guide"], "feeds");
+                    assert!(d["rewrite"].as_str().unwrap().contains("before the first post, repost or follow"));
+                    assert!(d["rewrite"].as_str().unwrap().contains("No source-history backfill exists"));
+                    let line = d["site"]["line"].as_u64().unwrap() as usize;
+                    assert!(s.lines().nth(line - 1).unwrap().starts_with("view following:"), "{d}");
+                    assert_eq!(fs::read(&path).unwrap(), stored, "check is read-only");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn following_declared_before_events_passes_check_and_unchanged_adoption() {
+    let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
+    let path = dir.0.join(".snapback4/store.sqlite");
+    let s = source(); dir.source(&s);
+    // No store: compile only. Empty existing sources: adoption preflight passes.
+    assert!(dir.command(&["check"]).status.success());
+    let b = compile(&without_view(&s));
+    let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    assert!(dir.command(&["check"]).status.success());
+    adopt(&mut e, &s);
+    post(&mut e, "author", "p", Value::Null, 1);
+    follow(&mut e, "reader", "author");
+    drain(&mut e);
+    assert!(dir.command(&["check"]).status.success());
+    adopt(&mut e, &s);
+    assert_eq!(pages(&mut e, "reader").len(), 1);
+}

@@ -21,6 +21,9 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 Any refusal rolls back the entire mutation.
 Keep one minted write id with each intent when retrying.
 
+For receipt gaps in expiring messages, `guide sequences` pairs engine ordinals
+with bounded unique probes and a row-keyed missed-message count.
+
 ## Limits
 
 - Hidden targets do not disclose refusal details: NOT_FOUND.

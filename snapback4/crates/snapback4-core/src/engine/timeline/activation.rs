@@ -25,7 +25,7 @@ pub(crate) fn check_no_rebuilds(tx: &Tx<'_>, schema: &Schema) -> Result<(), Runt
     Ok(())
 }
 
-pub(crate) fn check_activation(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema) -> Result<Schema, RuntimeError> {
     crate::schema::timeline::check_version(schema)?;
     let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
     let previous: Schema = previous.map(|s| crate::json_codec::from_text(&s).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?.unwrap_or_default();
@@ -52,6 +52,12 @@ pub(crate) fn check_activation(tx: &Tx<'_>, schema: &Schema) -> Result<(), Runti
             }
         }
     }
+    Ok(previous)
+}
+
+pub(crate) fn check_activation(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+    let previous = check_activation_read_only(tx, schema)?;
+    let retired = crate::successor::retired_timeline_tables(&previous, schema);
     // Clear reused names too. This includes dependent public/private aggregate
     // targets; surviving maintained columns are reset by ordinary activation.
     // Catalog numbers stay reserved, as for removed maintained tables.

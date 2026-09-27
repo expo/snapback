@@ -4,6 +4,33 @@ use super::*;
 use snapback4_core::{engine::{admission, rules}, schema::{Constraint, Schema}};
 
 impl BoundProgram {
+    // @ref LLP 3000.015#2-sequence-by — receipt holes are unique ordinal probes, never expiry scans.
+    pub(crate) fn expiry_gap_diagnostic(&self, schema: &Schema, problem: &admission::Problem) -> Option<Diagnostic> {
+        use snapback4_core::schema::ColumnType;
+        if problem.code != "E_STRUCTURAL_FANOUT" || self.program.kind != ir::ProgramKind::Mutation { return None; }
+        let site = problem.page_site.as_ref()?;
+        let scan = ir::scans(&self.program).into_iter().find(|scan| &scan.site == site)?;
+        let table = schema.table(&scan.table)?;
+        if !table.is_expiring() || !rules::scan_visibility(schema, scan).uniform { return None; }
+        let (parent, ordinal, parent_table) = table.indexes.values().filter(|index| index.unique).find_map(|index| {
+            if index.components.len() != 2 { return None; }
+            let parent = index.components[0].column()?;
+            let ordinal = index.components[1].column()?;
+            let ColumnType::Ref { table: parent_table } = table.columns.get(parent)? else { return None; };
+            (table.columns.get(ordinal) == Some(&ColumnType::Int)).then_some((parent, ordinal, parent_table))
+        })?;
+        // A sender/ordinal equality may make the refused page uniform while
+        // other positions in the parent group remain hidden. Never call those holes.
+        let scope = table.index(&scan.index)?.components.iter().zip(&scan.prefix)
+            .find_map(|(part, key)| (part.column() == Some(parent)).then(|| key.scalar()).flatten())?;
+        if !rules::prefix_visibility(&scan.table, table, &table.rules.read, &[(parent, scope)].into()).uniform { return None; }
+        let name = &scan.table;
+        let rewrite = format!("fn skipExpired_{name}(scope: {parent_table}, initialPrefix: int, low: int):\n  prefix = initialPrefix\n  for i in range(0, 1024):\n    if prefix + 1 >= low:\n      break\n    if exists {name}[{parent} = scope, {ordinal} = prefix + 1]:\n      break\n    prefix = prefix + 1\n  return prefix");
+        Some(Diagnostic::new(&self.sources.get(site)?.0, problem.code,
+            format!("{}. For receipt gaps in expiring messages, declare `{ordinal}: sequence by {parent}` with `unique {parent}, {ordinal}` in a new schema, then use bounded unique ordinal probes. This helper skips only holes before a validated received run; call it inside the receipt merge, retain disjoint runs, and require authority over the whole conversation. A 1,024-probe limit may leave progress to resume. For an unread badge use a row-keyed count; for general processing use a query or job (guide sequences)", problem.message),
+            rewrite).guide("sequences"))
+    }
+
     /// This is diagnostic selection only. The ordinary admission pass still
     /// owns the capped-scope case; neither path changes a rule or a scan.
     pub(crate) fn constraint_diagnostic(&self, schema: &Schema, problem: &admission::Problem) -> Option<Diagnostic> {

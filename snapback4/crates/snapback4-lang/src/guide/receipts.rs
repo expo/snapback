@@ -2,10 +2,9 @@
 // @ref LLP 3000.021#3.4 — retaining the parent keeps the pinned screen after leave.
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member's client records what it fetched and how far it has shown it, as
-ordinals, on its own membership row and in runs beside it. One helper turns them
-into every message's receipt, `sent`, `delivered` or `read`, rendered beside
-the history page.
+Each member records fetched message runs and its read position to derive
+`sent`, `delivered` and `read` receipts. For expiring messages or engine-assigned
+ordinals, start with `guide sequences`, then use the run merge below.
 
 ```quarry
 table conversations:
@@ -188,6 +187,8 @@ intact. Use `held` only for a read the server cannot answer, such as word
 search over every chat held on a device. An ordinary history can ask the
 server before acquisition or past its horizon; a left group's retained page
 stays local.
+
+This card's contiguous message-only intervals assume no deletion or expiry.
 
 Every message takes the conversation's next ordinal, and a member records the
 last ordinal when they join. So commit order, not the clock, decides a
