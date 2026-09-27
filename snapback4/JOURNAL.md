@@ -66838,3 +66838,43 @@ generated tracked file cleanup was needed. Node 24.13.1 / Bun 1.3.14 /
 Rust 1.97.0; eight Cargo jobs, dev/test debug info off, file limit 65,536.
 This one entry, the report, implementation and tests are committed together
 with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push or publication.
+
+## 2026-09-26 — 0.4.4 integration: what calibration #21's builder still wrote, and what #22 charged
+
+Branch `sb4-intent/integration-044`, from `da21a2792`. It merges lanes SP, O,
+P2, P1, K, R, EK, P5, LT and AD, and `main` twice: the wasm diet, then the
+image-list fix that the author held the release for. Codex lanes wrote the
+code; Astra and Grok reviewed every round blind; the supervisor merged and
+wrote the integration fixes. The lanes, merges, resolutions, measurements
+and review record are in `reports/20260926-intent-integration-044/REPORT.md`.
+LLP 3000.019 is at revision 5 and Implemented; LLP 3000.020 carries P5, and
+LLP 3000.021 (Accepted) plans 0.4.5.
+
+Integration fixes, each its own commit:
+
+- P2's device test builds the outbox entry lane O extended.
+- The guide's before-fixture is re-pinned from its generator.
+- The native fixture's lock names the workspace version.
+- A busy store names a live server's published address.
+- P5's device authority check builds on wasm after the diet.
+- The row-view page receipt includes its lookahead.
+- `doctor` dials the published loopback address.
+- P5's counting store takes the image-list fix's `release_asset`.
+
+Lane AD's detached readers change one behavior lane R had tested. After the
+database file is replaced under a running server, reads now answer with a
+retryable `E_STORE` instead of serving the old file through the writer.
+
+**Wasm ratchet raised.** `main`'s measured base is 569,966 B gzip, after the
+diet and the image-list fix. The integrated tree measures 1,980,253 B raw /
+571,841 B gzip (Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt): +1,875 B.
+That is the shared interpreter and device code of P2 (row-expression
+extrema), P1 (multi-column window boundaries), O (queued-write listing), R
+(residency statistics) and P5 (range certification). It is a whole-artifact
+measurement. The ratchet is measured + 1,000 = 572,841 B
+(`metrics/wasm-budget.json`, with the reason there too). Runtime meter
+ceilings are unchanged.
+
+Not in this release: offline retention of list assets (lane A5, next patch),
+and `/changes` without waiting for an adoption
+(`issues/20260926-snapback4-changes-waits-for-adoption.md`).
