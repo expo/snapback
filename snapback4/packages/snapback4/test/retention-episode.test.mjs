@@ -179,3 +179,17 @@ test("facade inherits A's episode timestamp from the invalidation, through B and
   assert.equal(watch.getSnapshot().revalidating, undefined);
   watch.close();
 });
+
+test("an early episode timer rearms to the original deadline without accessor help", t => {
+  let wall = 1000, notifications = 0;
+  t.mock.method(Date, "now", () => wall);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const watch = new ReadObservation();
+  watch.onWithdrawal = () => notifications++;
+  watch.publish(ready("A")); watch.reload();
+  wall = 1500; t.mock.timers.tick(1000); // First delivery is early in the host clock.
+  assert.equal(watch.snapshot.data, "A"); assert.equal(notifications, 0);
+  wall = 2000; t.mock.timers.tick(500);
+  assert.deepEqual(watch.snapshot, { loading: true });
+  assert.equal(notifications, 1);
+});
