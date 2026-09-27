@@ -2,6 +2,15 @@ use super::effect_health;
 use snapback4_core::{Engine, Store};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc};
 
+// Used by the missing-clock regression with the snapshot the recorder produced.
+pub(crate) fn assert_cpu_unavailable(snapshot: &crate::serve::latency::Snapshot) {
+    for all in [false, true] {
+        let lines = super::latency::lines(snapshot, all);
+        let line = lines.iter().find(|line| line.contains("/q/one: n=1")).unwrap();
+        assert!(line.ends_with("; cpu unavailable"), "{line}");
+    }
+}
+
 #[test]
 fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
     let path = std::env::temp_dir().join(format!("sb4-doctor-{}-{}", std::process::id(), snapback4_core::now_ms()));

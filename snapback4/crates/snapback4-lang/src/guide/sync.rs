@@ -369,6 +369,23 @@ grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on an aggregate view it opts
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
+Lane SS's 2026-09-27 round-2 measurement used the calibration #23 program/store
+at 100 conversations and a synthetic extension to 1,000, on expo-build-1000
+(shared Linux x86_64, 96 reported CPUs; Node 24.13.1).
+Single cold runs with no concurrent writer acquired 15,588/110,088 rows:
+Node memory took 1.671/16.324 s; Node fake-IndexedDB took 2.022/21.036 s.
+Those adapters do not measure browser persistence.
+Fresh Chromium 151.0.7922.34 contexts with real IndexedDB and a concurrent
+live writer took 4.186/27.327 s at 100/1,000 conversations. At 1,000,
+send-to-live-query p95 during acquisition was 13.158 s (19 sequential
+samples, no timeouts), still above the 1 s target; after acquisition it was
+0.754 s (three warm-ups, twenty samples). The 100-conversation during p95 was
+also above target: 2.449 s (five samples). Terminal synchronous device work
+and persistence still stall live delivery. These are observed runs, not
+latency promises or a proven growth law; differing sample counts prevent a
+p95 distribution comparison. Method and raw measurements:
+`snapback4/reports/20260927-ss-sync-scale/ROUND2.md` and
+`round2-measurements.json`.
 
 ## Refusals
 

@@ -646,7 +646,7 @@ fn human(bytes: u64) -> String {
 
 #[cfg(test)]
 #[path = "../tests/doctor/mod.rs"]
-mod doctor_tests;
+pub(crate) mod doctor_tests;
 
 fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<String, u64>, rusqlite::Result<(i64, Option<i64>)>), snapback4_core::RuntimeError> {
     // Counts (including replay suppression) and grace deadlines describe one snapshot.

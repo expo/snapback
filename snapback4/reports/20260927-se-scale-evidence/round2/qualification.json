@@ -1,0 +1,71 @@
+{
+  "round": 2,
+  "starting_commit": "da0c90ba7d97564e3bacd24c8c6382a0eb721acb",
+  "merged_main": "d9c89a971913ca995a1e5a6d436a85dc8a5d11d6",
+  "merge_result": "Already up to date.",
+  "review_sha256": "18b4e76dc4f9ba4fe52f25074659c635df013f1f24ce51dd2645516a6eb3acf5",
+  "full_suite_runs": 0,
+  "inherited_round1_full_suite_summary": "== 0 failure(s) in 1697 s",
+  "affected": {
+    "server_doctor_units": {
+      "passed": 183,
+      "ignored": 4
+    },
+    "latency_doctor_recipe": {
+      "passed": 11
+    },
+    "read_measurement": {
+      "ignored": 2
+    },
+    "whole_guide": {
+      "passed": 89
+    }
+  },
+  "expected_failures": {
+    "ours": [
+      "idle-before: new regression reproduces the round-0 idle CPU bug",
+      "mutation-idle-text",
+      "mutation-idle-json",
+      "mutation-missing-header",
+      "mutation-missing-doctor",
+      "mutation-poll-sleep"
+    ]
+  },
+  "unexpected_test_failures": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "wasm": {
+    "raw_bytes": 1979732,
+    "gzip_bytes": 572616,
+    "sha256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+    "budget_bytes": 572841,
+    "gzip_method": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm (build-wasm.sh)",
+    "after_sha256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+    "byte_identical": true,
+    "rebuilt_in_round2": false
+  },
+  "tools_installed": [],
+  "source_sha256": {
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "5cfca44bd51f658a0a64e4b369a08834f555b06cddc097c894c6f87f0726df06",
+    "snapback4/crates/snapback4/src/latency.rs": "d075c9b3bcb18c8521fea154920b72a3827b5cc342c89d7a1649a6813dde63a0",
+    "snapback4/crates/snapback4/src/verbs.rs": "504630f48842a45df04a0ad99af3cb298e639e94b59a323b1e2a51004e612781",
+    "snapback4/crates/snapback4/src/verbs/latency.rs": "8023fe6f77972644bc7e21cbf96f03eeefb30d97ba92f32f3b316ed521842840",
+    "snapback4/crates/snapback4/tests/doctor/mod.rs": "c04807fbc58ed403f5ba3f9458e2b9f9deeafe28502fec2a0aebc01b753ee15a",
+    "snapback4/crates/snapback4/tests/latency.rs": "10ab889cd3294730a9dcfe568cfbacffe46d716d6f01fe9c2a7a9d754d7bad20",
+    "snapback4/crates/snapback4/tests/latency/histogram.rs": "87d834393761afcdab08ad074501a377780401f3c6cb5265e24798a77a881ce8"
+  },
+  "reference_audit": "ref-check: ok \u2014 521 LLP docs, 9709 refs in 27509 files, 0 errors, 0 unchecked",
+  "docs_budget": {
+    "readme_lines": 300,
+    "budget": 300,
+    "first_screen_test_passed": true
+  },
+  "commands": [
+    "cargo test -p snapback4 --bin snapback4 --test latency --test read_latency",
+    "cargo test -p snapback4-lang --test guide",
+    "node scripts/docs-budget.mjs",
+    "./ref-check --verbose"
+  ]
+}

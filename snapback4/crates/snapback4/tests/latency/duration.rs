@@ -42,6 +42,7 @@ fn latency_total_excludes_post_response_drain_for_changes_and_asset() {
         let began = Instant::now();
         let mut reader = get(&host, &path, 2048);
         let headers = head(&mut reader);
+        assert!(super::headers::timing(&headers).is_some(), "{headers}");
         let mut body = vec![0; content_length(&headers)];
         reader.read_exact(&mut body).unwrap();
         let arrived = began.elapsed();
@@ -81,6 +82,7 @@ fn latency_held_poll_ends_at_final_frame_before_request_body_drain() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
     let mut reader = get(&host, "/changes?wait=25&heartbeat=1", 2048);
     let headers = head(&mut reader);
+    assert!(super::headers::timing(&headers).is_some(), "{headers}");
     assert!(headers.contains("Transfer-Encoding: chunked"));
     let mut heartbeat = [0; 6]; reader.read_exact(&mut heartbeat).unwrap();
     assert_eq!(&heartbeat, b"1\r\n\n\r\n");
@@ -109,6 +111,7 @@ fn latency_large_asset_total_includes_blocked_socket_write() {
     let id = asset(&host, size);
     let mut reader = get(&host, &format!("/assets/{id}"), 0);
     let headers = head(&mut reader);
+    assert!(super::headers::timing(&headers).is_some(), "{headers}");
     // Body is streamed (chunked for HTTP/1.1). 32 MiB exceeds the socket's
     // send/receive buffers, so withholding reads holds the final write.
     assert!(headers.contains("Transfer-Encoding: chunked"));
