@@ -462,6 +462,7 @@ fn sparse_literal_defaults_agree_in_check_and_atomic_launch() {
             .replace("postId: posts\n", "postId: posts default 'p'\n")
             .replace("followerId: principal", "followerId: principal default 'reader'")
             .replace("followedId: principal", "followedId: principal default 'a'");
+        let s = format!("{s}\nquery inspectSource(key: id):\n  return {sparse_table}[id = key]\n");
         let mut table = "";
         let old = s.split("view activity:").next().unwrap().lines().filter(|line| {
             if let Some(name) = line.strip_prefix("table ").and_then(|s| s.strip_suffix(':')) { table = name; }
@@ -473,6 +474,7 @@ fn sparse_literal_defaults_agree_in_check_and_atomic_launch() {
         let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, []).unwrap();
         let mut rows = vec![
             ("posts".to_string(), object([("id", id("p")), ("authorId", id("a")), ("parentId", Value::Null), ("at", Value::Int(1)), ("removed", Value::Bool(false))])),
+            ("posts".to_string(), object([("id", id("reply")), ("authorId", id("a")), ("parentId", id("p")), ("at", Value::Int(3)), ("removed", Value::Bool(false))])),
             ("follows".to_string(), object([("id", id("f")), ("followerId", id("reader")), ("followedId", id("a"))])),
         ];
         if repost { rows.push(("reposts".into(), object([("id", id("r")), ("actorId", id("b")), ("postId", id("p")), ("at", Value::Int(2))]))); }
@@ -482,7 +484,7 @@ fn sparse_literal_defaults_agree_in_check_and_atomic_launch() {
         e.seed(rows).unwrap();
         adopt(&mut e, &without_view(&s));
         let retained = e.store().rows(sparse_table).unwrap();
-        for field in &missing { assert!(retained[0].field(field).is_err(), "{case}: default was stored"); }
+        for row in &retained { for field in &missing { assert!(row.field(field).is_err(), "{case}: default was stored"); } }
         let copies = if repost { 3 } else { 2 };
         preview(&dir, &path, &s, true, Some(copies), "start this feed now");
         let b = compile(&s);
@@ -499,6 +501,38 @@ fn sparse_literal_defaults_agree_in_check_and_atomic_launch() {
             assert_eq!(event.field("authorId"), Ok(&id("a")));
             assert_eq!(event.field("actorId"), Ok(&id("b")));
             assert_eq!(e.store().rows("reposts").unwrap()[0].field("$timeline:following:repost"), event.field("id"));
+        }
+        let reply = e.store().rows("posts").unwrap().into_iter().find(|r| r.field("id") == Ok(&id("reply"))).unwrap();
+        assert_eq!(reply.field("$timeline:following:post"), Ok(&Value::Bool(false)));
+        let launched = e.store().rows(sparse_table).unwrap();
+        assert_eq!(launched.len(), retained.len(), "{case}");
+        for (row, original) in launched.iter().zip(&retained) {
+            for field in &missing { assert!(row.field(field).is_err(), "{case}: launch stored {field}"); }
+            let mut without_slots = row.clone();
+            if let Value::Row(fields) | Value::Map(fields) = &mut without_slots { fields.retain(|field, _| !field.starts_with("$timeline:")); }
+            assert_eq!(&without_slots, original, "{case}: launch changed source fields");
+        }
+        // Defaults remain an interpretation after launch, including excluded
+        // replies. A later schema reads the new defaults from the same bytes.
+        let changed = s.replace("default 'a'", "default 'next-a'")
+            .replace("default 'b'", "default 'next-b'")
+            .replace("default 'p'", "default 'reply'")
+            .replace("default 'reader'", "default 'next-reader'");
+        adopt(&mut e, &changed);
+        assert_eq!(e.store().rows(sparse_table).unwrap(), launched, "{case}: default edit changed stored images");
+        for row in &retained {
+            let read = e.query("inspectSource", Context::new("reader", [("key".into(), row.field("id").unwrap().clone())].into())).unwrap();
+            assert!(read.complete && !read.unavailable, "{case}: {read:?}");
+            for field in &missing {
+                let expected = match *field {
+                    "authorId" | "followedId" => "next-a",
+                    "actorId" => "next-b",
+                    "postId" => "reply",
+                    "followerId" => "next-reader",
+                    _ => unreachable!(),
+                };
+                assert_eq!(read.data.field(field), Ok(&id(expected)), "{case}: {field}");
+            }
         }
     }
 }

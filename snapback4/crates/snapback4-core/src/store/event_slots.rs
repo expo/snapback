@@ -37,10 +37,11 @@ fn fill_slot(tx: &Tx<'_>, schema: &Schema, t: &Timeline, repost: bool, now: i64)
             meter.charge(MeterKind::Examined, 1)?;
             meter.step(1)?;
             // @ref LLP 3000.026#4-atomic-launch-adoption — retained literal
-            // defaults need not be stored; slots use the candidate source image.
-            crate::schema::materialize_optional_fields(&mut row, &schema.tables[source]);
-            let actor = row.field(if repost { &t.reposts[1] } else { &t.posts[1] })?.clone();
-            let post = row.field(if repost { &t.reposts[2] } else { "id" })?.clone();
+            // defaults remain an interpretation; persist only the new slot.
+            let mut interpreted = row.clone();
+            crate::schema::materialize_optional_fields(&mut interpreted, &schema.tables[source]);
+            let actor = interpreted.field(if repost { &t.reposts[1] } else { &t.posts[1] })?.clone();
+            let post = interpreted.field(if repost { &t.reposts[2] } else { "id" })?.clone();
             let event = tx.lookup(&events, "byActorPost", index, &[actor, post, Value::Bool(repost)])?
                 .filter(|row| !definition.expired(row, now));
             let value = if repost { event.map(|row| row.field("id").cloned()).transpose()?.unwrap_or(Value::Null) }
