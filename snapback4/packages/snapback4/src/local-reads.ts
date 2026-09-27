@@ -1,5 +1,6 @@
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
+import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
 
 
@@ -31,6 +32,19 @@ export interface LocalWatch extends ReadObservation<unknown> {
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
+}
+
+export function armLocalPresence(watch: LocalWatch, unavailable: boolean, acquiring: boolean, refresh: () => void): void {
+  // A closed client or a dead session keeps no interval, whichever read settles last.
+  if (unavailable) watch.presenceEvery = undefined;
+  // @ref LLP 3000.019#3.3 — a live fallback must not wait behind cold snapshot publication.
+  // Reuse the bounded background read while sync owns the change-follow loop.
+  const interval = !unavailable && acquiring && watch.serverRead
+    ? Math.min(watch.presenceEvery ?? 250, 250) : watch.presenceEvery;
+  watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, interval, () => {
+    watch.presenceRefresh = null;
+    refresh();
+  });
 }
 
 export type ServerAnswer = {

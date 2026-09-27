@@ -24,13 +24,12 @@ import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 import { evaluateLocal } from "./local-query.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, predictedTables, armLocalPresence, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
-import { presenceRefresh } from "./presence-refresh.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
@@ -963,16 +962,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function armPresence(watch: Watch) {
-    // A closed client or a dead session keeps no interval, whichever read settles last.
-    if (unavailable()) watch.presenceEvery = undefined;
-    // @ref LLP 3000.019#3.3 — a live fallback must not wait behind cold snapshot publication.
-    // Reuse the bounded background read while sync owns the change-follow loop.
-    const interval = !unavailable() && syncing && !acquired && watch.serverRead
-      ? Math.min(watch.presenceEvery ?? 250, 250) : watch.presenceEvery;
-    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, interval, () => {
-      watch.presenceRefresh = null;
-      void refreshPresence(watch);
-    });
+    armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); });
   }
 
   // @ref LLP 3000.018#3.2 — a presence refresh evaluates in the background and publishes only an answer
