@@ -48,6 +48,64 @@ test('a committed report answered denied E_BOUND replays its receipt without a s
  assert.equal(executions,1);assert.equal(h.calls.length,2);assert.equal(h.calls[0].id,h.calls[1].id);
  assert.deepEqual((await h.group()).reported,[[41,41]]);assert.equal((await h.group()).attempt,undefined);
 });
+test('a recorded conflict after a bound replay resets replay-first for the replacement id',async t=>{
+ const replies=[denied,{accepted:true,json:{state:'failed',why:{code:'E_CONFLICT',retryable:true},head:10}},bound,success];
+ const h=fixture(t,()=>{assert.ok(replies.length);return replies.shift();});
+ await h.collect();await h.flush();h.advance(60000);await h.flush();
+ assert.equal(h.minted,2,'the recorded conflict reserves id 2');
+ h.advance(60000);await h.flush();assert.equal(h.minted,2,'id 2 must replay its own first bound result');
+ h.advance(60000);await h.flush();
+ assert.deepEqual(h.calls.map(c=>c.id),['bound-1','bound-1','bound-2','bound-2']);
+ assert.deepEqual((await h.group()).reported,[[41,41]]);assert.deepEqual(h.refused,[]);
+});
+for(const timing of ['outstanding','headless'])for(const pressure of ['interval','group'])
+ test(`bound replay marker survives ${pressure} eviction with ${timing} response`,async t=>{
+  const receipts=new Map(),held=[];let recovered=false;
+  const h=fixture(t,body=>{
+   if(receipts.has(body.id))return receipts.get(body.id);
+   receipts.set(body.id,success); // The report committed before its oversized answer.
+   if(recovered)return success;
+   return new Promise(resolve=>held.push(resolve));
+  });
+  for(let cycle=0;cycle<25;cycle++){
+   await h.collect();await h.flush();
+   if(timing==='headless'&&held.length){held.shift()({accepted:false,json:{denied:{code:'E_BOUND'}}});await settle();}
+   if(pressure==='interval')await h.q.accept([{...binding,rows:Array.from({length:256},(_,i)=>['c',100+cycle*1000+i*2])}]);
+   else await h.storage.update(s=>{
+    acceptManifest(s,[{...binding,rows:[['other',1]]}],1);
+    acceptManifest(s,[{...binding,rows:[['c',41]]}],1);
+   });
+   assert.equal((await h.group()).attempt,undefined,'collection pressure evicted the outstanding attempt');
+   if(timing==='outstanding'&&held.length){
+    const newer=await h.group();held.shift()(denied);await settle();
+    assert.deepEqual(await h.group(),newer,'a stale bound outcome must not edit newer debt');
+   }
+   // Remove only the pressure fixture's debt so 41 can be recollected next turn.
+   await h.storage.update(s=>{s.groups[deliveryKey(binding,'c')].owed=[];});
+   h.advance(60000);
+  }
+  assert.equal(h.minted,1,'losing the required replay cannot issue fresh initial ids');
+  assert.equal(new Set(h.calls.map(c=>c.id)).size,1);
+  assert.equal(receipts.size,1,'only one report executed, with a success receipt available for replay');
+  assert.deepEqual((await h.group()).refused,[]);assert.deepEqual(h.refused,[]);
+  recovered=true;await h.collect();await h.restart();await h.flush();
+  assert.deepEqual((await h.group()).reported,[[41,41]],'a new session recovers recollected debt');
+ });
+for(const fence of ['deadline','reset'])test(`a bound arriving after ${fence} still marks this session without editing newer debt`,async t=>{
+ let finish;const h=fixture(t,()=>new Promise(resolve=>{finish=resolve;}));
+ await h.collect();await h.flush();
+ if(fence==='deadline'){h.advance(15000);t.mock.timers.tick(15000);await settle();}
+ else {await h.q.reset(false);await settle();}
+ await h.storage.update(s=>{
+  acceptManifest(s,[{...binding,rows:[['other',1]]}],1);
+  acceptManifest(s,[{...binding,rows:[['c',41]]}],1);
+ });
+ const newer=await h.group();finish(denied);await settle();
+ assert.deepEqual(await h.group(),newer,'late transport observes only the session marker');
+ h.advance(60000);await h.flush();assert.equal(h.minted,1);
+ assert.deepEqual((await h.group()).parked.map(p=>[p.kind,p.run]),[['start',[41,41]]]);
+ assert.deepEqual((await h.group()).refused,[]);assert.deepEqual(h.refused,[]);
+});
 test('the eighth replacement still replays a hidden committed success after the group allowance is spent',async t=>{
  const receipts=new Map();let executions=0;
  const h=fixture(t,body=>{

@@ -186,19 +186,32 @@ export class DeliveryQueue {
   private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown>; delivery: { fingerprint: string } }): Promise<void> {
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let deferred = false;
+    const sessionKey = JSON.stringify([body.delivery.fingerprint, f.key]);
     try {
       const timeout = new Promise<undefined>(resolve => {
         f.controller.signal.addEventListener("abort", () => resolve(undefined), { once: true });
         deadline = setTimeout(() => { f.controller.abort(); resolve(undefined); }, 15_000);
       });
       let reply: DeliveryReply | undefined;
-      try { reply = await Promise.race([this.options.send(mutation, body, f.controller.signal), timeout]); } catch { /* uncertain */ }
+      try {
+        const sent = this.options.send(mutation, body, f.controller.signal).then(reply => {
+          // @ref LLP 3000.022#4 — every bound outcome requires replay, even if
+          // its debt was evicted, its head is missing, or its flight was fenced.
+          // Observe transport itself so a deadline cannot hide a late bound.
+          const why = (reply.json.why ?? reply.json.denied) as Refusal | undefined;
+          if (!this.stopped && why?.code === "E_BOUND") {
+            const pending = this.boundPending.get(sessionKey) ?? new Set<string>();
+            pending.add(f.attempt.id); this.boundPending.set(sessionKey, pending);
+          }
+          return reply;
+        });
+        reply = await Promise.race([sent, timeout]);
+      } catch { /* uncertain */ }
       if (!this.current(f)) return;
       if (reply?.deferred) { deferred = true; return; }
       const json = reply?.json;
       const why = (json?.why ?? json?.denied) as Refusal | undefined;
       if (why?.code === "E_STORE_REPLACED" || why?.code === "E_STORE_RESTORE") { await this.reset(true); return; }
-      const sessionKey = JSON.stringify([body.delivery.fingerprint, f.key]);
       // CAS retries reuse this reservation; they cannot debit/mint repeatedly.
       let replacement: { id: string; delay: number } | undefined;
       const outcome = await this.track(this.options.storage.update(state => {

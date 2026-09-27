@@ -2295,6 +2295,7 @@ committed success, whose replay retires the interval without executing again.
 Only a replayed `failed` receipt with `why.code: "E_BOUND"` permits a new id,
 with 1–60 s backoff. Each queue keeps an in-memory counter keyed by binding
 fingerprint and group key, allowing at most eight replacement ids per session.
+Abandoned persistence reservations consume allowance and can require a restart before eight replacements have actually been dispatched.
 No park, merge, split, eviction, recollection or success resets that counter;
 only a new queue on app start or sign-in does. Once spent, the group's intervals
 wait in `start` parks for the next session. Reconnect and timer wakes grant no
