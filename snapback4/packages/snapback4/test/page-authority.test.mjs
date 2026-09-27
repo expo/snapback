@@ -83,14 +83,14 @@ test('a loading server reply retires memory before a speculative transport failu
 
 for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {
   const f = await fixture(t);
-  const page = f.client.observe(query('privatePage'), {}), server = f.client.observe(query('serverPage'), {});
+  const page = f.client.observe(query('privatePage'), {}, { keep: false }), server = f.client.observe(query('serverPage'), {}, { keep: false });
   await until(() => page.getSnapshot().data?.[0]?.body === 'private' && server.getSnapshot().data?.[0]?.body === 'private', 'published private rows');
   // Capture an authorized HTTP response, but deliver it only after revocation.
   f.hold(); await f.post('/m/setCost', { grow: false }); await f.client.sync();
   await until(f.entered, 'old server answer held');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
   await until(() => page.getSnapshot().loading, 'heap abort settles as unavailable');
-  assert.deepEqual(server.getSnapshot(), { loading: true }, 'server-run queries retain nothing');
+  assert.deepEqual(server.getSnapshot(), { loading: true }, 'keep:false server-run queries withdraw immediately');
   if (postCommitFailure) f.failAfterApply();
   await f.post('/m/revoke');
   if (postCommitFailure) await assert.rejects(f.client.sync(), /fallible work after committed revocation/);
@@ -110,7 +110,7 @@ for (const postCommitFailure of [false, true]) test(`applied revocation clears k
 });
 
 test('an unavailable held rerun clears its answer without a server fallback', { timeout: 30_000 }, async t => {
-  const f = await fixture(t), watch = f.client.observe(query('heldPage'), {});
+  const f = await fixture(t), watch = f.client.observe(query('heldPage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'held answer');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
   await until(() => watch.getSnapshot().loading, 'held unavailable rerun');
@@ -149,7 +149,7 @@ test('transport failures are loading and an explained server refusal lasts until
 
 test('a local observation has no remembered answer after a failed replacing fetch', { timeout: 30_000 }, async t => {
   const f = await fixture(t);
-  const watch = f.client.observe(query('serverPage'), {});
+  const watch = f.client.observe(query('serverPage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
   f.failServer(true);
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
@@ -163,17 +163,20 @@ test('a local observation has no remembered answer after a failed replacing fetc
 test('a server-class observation uses ordinary device-fallback retention during HTTP', { timeout: 30_000 }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('serverPage'), {});
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
+  const before = watch.getSnapshot();
   f.hold(); watch.close(); watch.subscribe(() => {});
   await until(f.entered, 'server rerun without a local commit');
   assert.equal(watch.getSnapshot().data[0].body, 'private', 'local-first fallback may retain an answer during transport');
-  assert.equal(watch.getSnapshot().fresh, false);
+  assert.equal(watch.getSnapshot().fresh, before.fresh);
+  assert.equal(watch.getSnapshot().since, before.since);
+  assert.equal(watch.getSnapshot().revalidating, true);
   f.release();
-  await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'replacement server answer');
+  await until(() => watch.getSnapshot().data?.[0]?.body === 'private' && !watch.getSnapshot().revalidating, 'replacement server answer');
   watch.close();
 });
 
 test('a predicted membership removal clears a kept private answer before the pending send', { timeout: 30_000 }, async t => {
-  const f = await fixture(t), watch = f.client.observe(query('privatePage'), {});
+  const f = await fixture(t), watch = f.client.observe(query('privatePage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
   f.hold('privatePage');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
@@ -190,7 +193,7 @@ test('a predicted membership removal clears a kept private answer before the pen
 
 for (const operation of ['expireSecret', 'expireMember'])
   test(`predicted ${operation}: every commit clears the pending observation`, { timeout: 30_000 }, async t => {
-    const f = await fixture(t), watch = f.client.observe(query('privatePage'), {});
+    const f = await fixture(t), watch = f.client.observe(query('privatePage'), {}, { keep: false });
     await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
     const id = watch.getSnapshot().data[0].id;
     f.hold('privatePage');
@@ -211,7 +214,7 @@ for (const operation of ['expireSecret', 'expireMember'])
   });
 
 test('online client drops a heap-aborted private answer within one fetch, including after revoke', { timeout: 30_000 }, async t => {
-  const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {});
+  const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {}, { keep: false });
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'online private answer');
   f.hold('privatePage');
   await f.client.mutate({ kind: 'mutation', name: 'setCost' }, { grow: true });
@@ -228,7 +231,7 @@ test('online client drops a heap-aborted private answer within one fetch, includ
 });
 
 test('online revoke fences an already authorized HTTP response held across its commit', { timeout: 30_000 }, async t => {
-  const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {}), values = [];
+  const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {}, { keep: false }), values = [];
   watch.subscribe(() => values.push(watch.getSnapshot()));
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial authorized answer');
   f.hold('privatePage');

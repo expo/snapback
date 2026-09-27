@@ -1,5 +1,6 @@
+import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
-import { bindWatchPeek, endLingering, observeWatch } from "./observe-watch.ts";
+import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
@@ -190,10 +191,13 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
-  const resetKept = (publish = true) => {
-    endLingering(watches.values());
-    for (const watch of watches.values()) if (watch.keep) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
-    if (publish) for (const watch of watches.values()) if (watch.keep) notify(watch);
+  const resetWatches = (publish = true) => {
+    const deliver = deferReadNotifications(() => {
+      endLingering(watches.values());
+      for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+    });
+    if (publish) { deliver(); for (const watch of watches.values()) notify(watch); }
+    return deliver;
   };
   const ephemeralReads = new EphemeralReads(aborter.signal);
   let backend: BackendJson | undefined;
@@ -219,7 +223,7 @@ export function createClient(options: ClientOptions): Client {
     ephemeralAdvertised = Object.values(next.schema.tables).some(table => table.ephemeral);
     for (const watch of watches.values()) watchEphemeral(watch);
     if (firstBackend) {
-      for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+      const deliver = resetWatches(false); deliver();
       for (const watch of watches.values()) { notify(watch); void refresh(watch); }
     }
     // Seeding is safe only after existing answers have been retired. Later
@@ -231,14 +235,11 @@ export function createClient(options: ClientOptions): Client {
     // Discovery failures and the adoption publication window retry here, so a
     // held /changes request cannot postpone installation for its whole wait.
     // Until the interests are known, query polling keeps durable changes live.
-    // These answers cannot claim freshness while /changes is suspended.
+    // @ref LLP 3000.023#3.4 — discovery withdraws; copying an answer through reset loses its episode.
     schemaLoading = true;
     queryEpoch++;
-    for (const watch of watches.values()) {
-      watch.reset("data" in watch.snapshot ? { ...watch.snapshot, fresh: false } : { loading: true });
-      if (!("data" in watch.snapshot)) scheduleExpiry(watch, null);
-      notify(watch); void refresh(watch);
-    }
+    const deliver = resetWatches(false); deliver();
+    for (const watch of watches.values()) { notify(watch); void refresh(watch); }
     const fallback = setInterval(() => {
       if (closed || storeRefusal || !credentials || !watches.size) { clearInterval(fallback); return; }
       for (const watch of watches.values()) void refresh(watch);
@@ -288,17 +289,16 @@ export function createClient(options: ClientOptions): Client {
 
   const endCredentials = () => {
     if (!credentials) return;
-    endLingering(watches.values());
     session = null;
     stopRefresh(auth());
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
-    pendingEvents.notify();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
     setLink("signed-out");
+    pendingEvents.notify();
     // A dead session refreshes nothing (LLP 3000.018 §3.2).
     for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
     for (const listener of [...sessionListeners]) listener(null);
@@ -308,30 +308,31 @@ export function createClient(options: ClientOptions): Client {
     if (closed || storeRefusal || (!credentials && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    const changed: Watch[] = [];
+    const deliver = deferReadNotifications(() => {
+      if (next === "signed-out") endLingering(watches.values());
+      if (next !== "online") for (const watch of watches.values()) {
+        if (next === "signed-out" || "data" in watch.snapshot) {
+          watch.publish(next === "signed-out" ? { denied: auth() } : { loading: true });
+          changed.push(watch);
+        }
+      }
+    });
+    deliver();
+    for (const watch of changed) notify(watch);
     ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") {
       void flush();
       for (const watch of watches.values()) void refresh(watch);
-    } else if (next === "signed-out") {
-      failUnsentWrites(auth());
-      for (const watch of watches.values()) watch.publish({ denied: auth() });
-      for (const watch of watches.values()) notify(watch);
-    } else {
-      for (const watch of watches.values()) {
-        if ("data" in watch.snapshot) {
-          watch.publish({ loading: true });
-          notify(watch);
-        }
-      }
-    }
+    } else if (next === "signed-out") failUnsentWrites(auth());
   };
 
   const setViewer = (next: Principal | null) => {
     if (viewer === next) return;
     viewer = next;
-    resetKept();
-    if (credentials) for (const watch of watches.values()) if (watch.keep) void refresh(watch);
+    resetWatches();
+    if (credentials) for (const watch of watches.values()) void refresh(watch);
     for (const listener of viewerListeners) listener(next);
   };
 
@@ -344,16 +345,20 @@ export function createClient(options: ClientOptions): Client {
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
-    endLingering(watches.values());
-    queryEpoch++;
-    // Terminal connectivity is observable without discarding the session that
-    // createApp may validate on its replacement client.
-    link = "signed-out";
-    if (retry) { clearTimeout(retry); retry = undefined; }
-    if (refreshTimer) clearTimeout(refreshTimer);
-    aborter.abort();
-    stopRefresh(storeRefusal);
-    for (const watch of watches.values()) { watch.reset({ denied: storeRefusal }); scheduleExpiry(watch, null); }
+    // @ref LLP 3000.023#3.4 — even lingering approvals withdraw before callbacks can inspect a peer.
+    const deliver = deferReadNotifications(() => {
+      endLingering(watches.values());
+      queryEpoch++;
+      // Terminal connectivity is observable without discarding the session that
+      // createApp may validate on its replacement client.
+      link = "signed-out";
+      if (retry) { clearTimeout(retry); retry = undefined; }
+      if (refreshTimer) clearTimeout(refreshTimer);
+      aborter.abort();
+      stopRefresh(storeRefusal!);
+      for (const watch of watches.values()) { watch.reset({ denied: storeRefusal! }); scheduleExpiry(watch, null); }
+    });
+    deliver();
     // Retire every owner, including the request currently awaiting its body.
     // A late receipt must not settle it a second time or schedule another send.
     for (const entry of pending.splice(0)) {
@@ -407,7 +412,7 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
-    resetKept(false);
+    const deliverReset = resetWatches(false);
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
@@ -449,7 +454,8 @@ export function createClient(options: ClientOptions): Client {
       return refreshed;
     })();
     refreshing = work;
-    for (const watch of watches.values()) if (watch.keep) notify(watch);
+    deliverReset();
+    for (const watch of watches.values()) notify(watch);
     void work.finally(() => { if (refreshing === work) refreshing = null; }).catch(() => {});
     return work;
   }
@@ -572,8 +578,10 @@ export function createClient(options: ClientOptions): Client {
     const tables = ephemeralTables(watch.op);
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
-      if (reset) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+      const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
+      if (reset) scheduleExpiry(watch, null);
       return () => {
+        deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
         void refresh(watch);
@@ -597,8 +605,8 @@ export function createClient(options: ClientOptions): Client {
   }
 
   function withdrawExpiry(watch: Watch): () => void {
-    watch.reset({ loading: true });
-    return () => { if (watches.get(watch.key) === watch) notify(watch); };
+    const deliver = watch.expire();
+    return () => { deliver(); if (watches.get(watch.key) === watch) notify(watch); };
   }
 
   // @ref LLP 3000.018#3.2 — a server's reply decides the refresh interval; a transport failure keeps it, so it retries.
@@ -636,12 +644,12 @@ export function createClient(options: ClientOptions): Client {
 
   async function refresh(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
+    if (watch.retain) { watch.reload(); notify(watch); }
     if (watch.inFlight) {
       watch.dirty = true;
       return;
     }
-    // @ref LLP 3000.019#3.3 — a cadence tick queues work without fencing the current answer; commits and resets still fence it.
-    if (watch.keep) { watch.reload(); notify(watch); }
+    // @ref LLP 3000.023#3.5 — every option follows the reset fence; retention never renews an episode.
     watch.inFlight = true;
     const resetVersion = watch.resetVersion;
     let exhausted = false;
@@ -649,15 +657,15 @@ export function createClient(options: ClientOptions): Client {
       const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: result => {
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
-        if (!(watch.keep && "data" in watch.snapshot && (result.transportOffline || "loading" in result.read))) scheduleExpiry(watch, result.nextExpiry);
+        scheduleExpiry(watch, result.nextExpiry);
         return true;
       } });
-      if (watch.keep && resetVersion !== watch.resetVersion) { watch.dirty = credentials; return; }
+      if (resetVersion !== watch.resetVersion) { watch.dirty = credentials; return; }
       const { tables, retryExhausted } = result;
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
-        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.reload();
+        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.publish({ loading: true });
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
         notify(watch);
@@ -740,11 +748,9 @@ export function createClient(options: ClientOptions): Client {
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
-          resetKept(false);
+          const deliver = resetWatches(false);
           queryEpoch++;
-          for (const watch of watches.values()) {
-            watch.reset({ loading: true }); scheduleExpiry(watch, null);
-          }
+          deliver();
           for (const watch of watches.values()) notify(watch);
           if ((backend || ephemeralAdvertised) && !await loadBackend(json.generation)) continue;
         }
@@ -863,8 +869,8 @@ export function createClient(options: ClientOptions): Client {
       return currentRead(result) ? result.read : { loading: true };
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
-      const keep = options?.keep === true;
-      const key = `${keep ? "keep:" : ""}${op.name}:${JSON.stringify(args)}`;
+      const keep = options?.keep;
+      const key = observationKey(op, args, options);
       return observeWatch(watches, key,
         () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null }),
         watch => { watchEphemeral(watch); void refresh(watch); void poll(); },
@@ -1003,18 +1009,14 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
-      endLingering(watches.values());
       stopClock();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
-      for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-      for (const watch of watches.values()) if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
-      for (const watch of watches.values()) watch.publish({ denied: storeRefusal ?? ended() });
-      for (const watch of watches.values()) notify(watch);
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();

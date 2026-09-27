@@ -88,7 +88,7 @@ for (const tier of ["wasm", "process"]) for (const kind of ["apply", "admit", "r
     const client = await createLocalClient({ url, persona: "bob", device, waitSeconds: 1 });
     t.after(async () => { blocked.resolve(); watch?.close(); await client.close(); });
     await client.sync();
-    watch = client.observe(query, {});
+    watch = client.observe(query, {}, { keep: false });
     const stop = watch.subscribe(() => {});
     await until(() => watch.getSnapshot().data?.body === "private answer", "initial authorized answer");
     const before = (await core.call({ op: "sync_state", capture: false })).ok;
@@ -109,7 +109,7 @@ for (const tier of ["wasm", "process"]) for (const kind of ["apply", "admit", "r
     const current = (await core.call({ op: "query", name: "secret", viewer: "dev:bob", args: {}, now: Date.now() })).ok;
     assert.equal(current.data, null, "Bob's authority is already gone at the commit");
     if (kind === "remount") {
-      watch = client.observe(query, {});
+      watch = client.observe(query, {}, { keep: false });
       assert.deepEqual(watch.getSnapshot(), { loading: true }, "a remount must not restore the former owner's answer");
     } else {
       assert.deepEqual(snapshotAtCommit, { loading: true }, "commit withdraws the answer even without a probe-table change");
@@ -137,7 +137,7 @@ test("online: remount after owner transfer cannot restore an answer with no rule
     return response;
   } });
   t.after(async () => { blocked.resolve(); watch?.close(); await client.close(); });
-  watch = client.observe(query, {});
+  watch = client.observe(query, {}, { keep: false });
   const stop = watch.subscribe(() => {});
   await until(() => watch.getSnapshot().data?.body === "private answer", "initial online answer");
   // Keep a separate watch alive so /changes consumes the ownership commit
@@ -151,7 +151,7 @@ test("online: remount after owner transfer cannot restore an answer with no rule
   await until(() => observedChange >= write.seq, "online ownership change notification");
   await delay(0); // Let the consumed notification's client continuation run.
   assert.equal(client.viewer(), "dev:bob");
-  watch = client.observe(query, {});
+  watch = client.observe(query, {}, { keep: false });
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "a 30-second answer keyed to the same viewer/store is revoked too");
   blocked.resolve();
   await until(() => "data" in watch.getSnapshot() && watch.getSnapshot().data === null, "new online answer");
