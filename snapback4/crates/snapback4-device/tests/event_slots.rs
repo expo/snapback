@@ -154,3 +154,28 @@ macro_rules! stores { ($name:ident, $run:ident) => { mod $name { use super::*;
 stores!(residencies, residency);
 stores!(source_transitions, transitions);
 stores!(interrupted_activation, activation);
+
+fn launch_adoption<H: Host>(mut host: H) {
+    let before = SOURCE.replace("view feed: activity where .actor = viewer or exists follows[viewer, .actor]\n", "")
+        .replace("return feed last", "return activity last")
+        .replace("{ *, post: posts[.post] }", "{ * }");
+    let (mut e, backend) = common::compile(&before);
+    post(&mut e, "retained", 1);
+    write(&mut e, "follow", "bob", &[("actor", id("alice"))], 2);
+    let mut d = host.open("bob", Some(backend)).unwrap();
+    acquire(&mut d, &mut e, "bob");
+    assert_eq!(d.store().raw_rows("posts").len(), 1);
+    let next = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(next.diagnostics.is_empty());
+    let programs: Vec<_> = next.programs.into_iter().map(|p| p.program).collect();
+    let generation = e.adopt(next.schema.clone(), programs.clone()).unwrap();
+    d.adopt(Backend { generation, schema: next.schema, programs }).unwrap();
+    assert!(d.store().raw_rows("posts").is_empty(), "generation adoption drops predecessor images");
+    assert!(d.store().raw_rows("feedFeed").is_empty());
+    acquire(&mut d, &mut e, "bob");
+    let result = d.query("home", "bob", &json!({"c":null}), 10).unwrap();
+    assert!(!result.unavailable && result.complete, "{result:?}");
+    assert_eq!(result.data.as_array().unwrap().len(), 1);
+    assert_eq!(slot(&d.store().raw_rows("posts")[0], "feed", false), Value::Bool(true));
+}
+stores!(atomic_launch, launch_adoption);

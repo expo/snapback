@@ -1,0 +1,53 @@
+{
+  "adoption_construction_s": 1699.415900735,
+  "batches": 91840,
+  "candidate_reads_during": {
+    "max_ms": 19.493874,
+    "n": 145210,
+    "p50_ms": 1.158076,
+    "p95_ms": 1.95261
+  },
+  "delivery_chunks": 490812,
+  "final_copies": 3407033,
+  "final_edges": 60000,
+  "final_events": 490000,
+  "follows": 60000,
+  "logical_rows_written": 5579689,
+  "max_reported_chunk_heap_bytes": 1266958,
+  "pending_samples": 145210,
+  "phases_s": {
+    "delivery": 269.178576218,
+    "follows": 1111.576342821,
+    "posts": 305.307158178,
+    "reposts": 12.369602531
+  },
+  "posts": 480000,
+  "principals": 10080,
+  "reopen_ms": 1.575371,
+  "reposts": 10000,
+  "retained_work": 490000,
+  "rust_heap_at_start_bytes": 634651,
+  "rust_heap_peak_bytes": 5011816,
+  "scale": 10,
+  "source_read_baseline": {
+    "max_ms": 0.51353,
+    "n": 100,
+    "p50_ms": 0.082413,
+    "p95_ms": 0.088143
+  },
+  "source_reads_during": {
+    "max_ms": 8.510297999999999,
+    "n": 145210,
+    "p50_ms": 0.357887,
+    "p95_ms": 0.487921
+  },
+  "sqlite_sizes": {
+    "file": 11537776640,
+    "indexes": 5097593714,
+    "log": 2200219989,
+    "log_events": 5487845,
+    "ops": 0,
+    "row_count": 4997034,
+    "rows": 1859985563
+  }
+}

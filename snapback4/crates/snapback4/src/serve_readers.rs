@@ -13,6 +13,7 @@ pub(super) struct QueryReaders {
     #[cfg(test)]
     pub(super) fail_open_after: Option<usize>,
     candidate_queries: BTreeSet<String>,
+    launching_feed: bool,
 }
 
 impl QueryReaders {
@@ -44,6 +45,7 @@ impl QueryReaders {
         self.idle.clear();
         self.source = None;
         self.candidate_queries.clear();
+        self.launching_feed = false;
     }
 }
 
@@ -67,6 +69,8 @@ impl QueryReaders {
         }
     }
     pub(super) fn begin_adoption(&mut self, candidate: &Bound) {
+        self.launching_feed = self.source.as_ref().is_some_and(|old| candidate.schema.timelines.iter()
+            .any(|next| !old.schema().timelines.iter().any(|t| t.same_declaration(next))));
         self.candidate_queries = candidate
             .programs
             .iter()
@@ -76,7 +80,9 @@ impl QueryReaders {
     }
     pub(super) fn finish_adoption(&mut self) {
         self.candidate_queries.clear();
+        self.launching_feed = false;
     }
+    pub(super) fn launching_feed(&self) -> bool { self.launching_feed }
     pub(super) fn pending(&self, name: &str) -> bool {
         self.candidate_queries.contains(name)
     }

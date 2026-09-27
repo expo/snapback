@@ -1,0 +1,54 @@
+{
+  "activation_wall_s": 101.772395799,
+  "copies": 340697,
+  "estimated_row_writes": 493697,
+  "follows": 6000,
+  "phases_s": [
+    [
+      "key validation",
+      0.000074071
+    ],
+    [
+      "preflight",
+      39.52295701
+    ],
+    [
+      "project and index",
+      56.331971163
+    ],
+    [
+      "cap counts",
+      4e-8
+    ],
+    [
+      "derived rebuild",
+      0.000159208
+    ],
+    [
+      "validation",
+      3.04695573
+    ],
+    [
+      "metadata",
+      0.000341702
+    ],
+    [
+      "commit",
+      2.73673923
+    ]
+  ],
+  "posts": 48000,
+  "principals": 1008,
+  "reposts": 1000,
+  "scale": 1,
+  "sizes": {
+    "file": 908685312,
+    "indexes": 509750810,
+    "log": 18673196,
+    "log_events": 55000,
+    "ops": 0,
+    "row_count": 499697,
+    "rows": 185853835
+  },
+  "writer_lock_s": 101.63919815399998
+}
