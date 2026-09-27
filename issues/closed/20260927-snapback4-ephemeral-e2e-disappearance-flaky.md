@@ -40,7 +40,9 @@ from starting another request. One-shot reads keep their existing behavior.
 No engine, meter, durable write, timeout or assertion was changed.
 
 The end-to-end fixture holds an explicit estimate 100 ms ahead by suppressing
-header/stream clock resampling; server rows and deadlines remain real. Every
+header/stream clock resampling. At the deadline it replays the last real row
+reply once, so even a scheduler wake that misses the 100 ms window exercises
+the expired-reply path. Server rows and deadlines remain real. Every
 trial now requires an expired reply, while preserving the original empty
 answer, <=500 ms appearance, <=4500 ms disappearance, <=4 ephemeral request,
 notification-table and unchanged-sequence assertions. Poll answers are
@@ -52,10 +54,13 @@ Proof on expo-build-1000 from `9473e0a34`:
   delayed-renewal-reply probe passed and was not used as proof of the race.
 - Original product plus the 100 ms early estimate: **5/5 failures**,
   `timed out: ephemeral trial 1 disappears`.
+- Final fixture with recovery disabled in an isolated copied package: **5/5
+  failures** at the same disappearance timeout. The live suite/package was
+  not modified for this negative control.
 - Fixed end-to-end test: **20/20 passes**, five processes at a time sharing
-  cores 0–7 with eight CPU workers, 246.302 s. **100 trials** first appeared
-  in 15.367–49.936 ms, reached an authoritative empty answer
-  3883.333–4049.248 ms after the last call, and sent **2** ephemeral requests
+  cores 0–7 with eight CPU workers, 259.976 s. **100 trials** first appeared
+  in 4.867–47.664 ms, reached an authoritative empty answer
+  3877.760–4041.328 ms after the last call, and sent **2** ephemeral requests
   versus **45** durable-control requests each.
 - New expiry lifecycle tests: **5/5**, proving repeated expired answers are
   withheld, requests serialize/back off, default and kept observations
@@ -63,13 +68,13 @@ Proof on expo-build-1000 from `9473e0a34`:
   **191/191**. Adjacent expiry, keep, clock and ephemeral-watch tests: **72/72**.
 
 Evidence: `snapback4/target/lane-fk-evidence/ephemeral-old-clock-*.log`,
-`ephemeral-fixed-*.log`, `expiry-routing.log`, `expiry-lifecycle-final.log`,
-`affected-expiry.log`, `measurements.json`, JSON summaries and `repeat.py`.
+`ephemeral-final-*.log`, `expiry-routing.log`, `expiry-lifecycle-final.log`,
+`affected-expiry.log`, `measurements-final.json`, JSON summaries and `repeat.py`.
 The original-product probe is `ephemeral-ahead-clock.test.mjs`. On the fixed
 product, repeat the checked-in reproduction under load from `snapback4/`:
 
 ```sh
-python3 target/lane-fk-evidence/repeat.py ephemeral-fixed packages/snapback4/test/ephemeral-e2e.test.mjs - 20
+python3 target/lane-fk-evidence/repeat.py ephemeral-final packages/snapback4/test/ephemeral-e2e.test.mjs - 20
 ```
 
 The full-suite result is recorded in the lane's dated JOURNAL entry and

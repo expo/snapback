@@ -12,6 +12,7 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
   for (const phase of ['ephemeral', 'durable']) {
     const { url } = await ephemeralServer(t), polls = [];
     let sends = 0, expiredReplies = 0;
+    const lastLive = new Map(), replayed = new Set();
     // Force the expiry re-read just before the server's deadline. A normal
     // midpoint estimate can also run ahead under asymmetric transport/load.
     const ahead = phase === 'ephemeral' ? 100 : 0;
@@ -40,6 +41,15 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
       }
       if (phase === 'ephemeral' && parsed.pathname === '/q/typingIn') {
         const answer = await response.clone().json();
+        const room = JSON.parse(init.body).args.room;
+        if (answer.data?.length) lastLive.set(room, answer);
+        const prior = lastLive.get(room);
+        if (!replayed.has(room) && prior?.nextExpiry <= Date.now() + ahead) {
+          // Even if a busy host misses the early-read window, deliver the last
+          // real row reply late once. The next request gets the current answer.
+          replayed.add(room); expiredReplies++;
+          return Response.json(prior, { headers });
+        }
         if (answer.data?.length && answer.nextExpiry <= Date.now() + ahead) expiredReplies++;
       }
       return new Response(response.body, { status: response.status, headers });
