@@ -1,3 +1,193 @@
+# Lane KG round 6 — detached answers cannot borrow replacement deadlines
+
+Branch: `sb4-intent/kg-kept-through-authority`. Read all six prior prompts,
+reports and KG journal entries, plus Astra's full round-5 READY WITH CHANGES
+review. Grok's round-5 run produced no review; none is claimed here. Previous
+reports remain below as historical evidence. No push or publication.
+
+## Integration and commits
+
+- `36f970290` merges `origin/main` at `09e55ad98` before implementation.
+  Kept both journal histories (zero removed lines against either parent) and
+  both Revised histories in LLP 3000.019. Main's sync-scale changes merge
+  automatically; local.ts takes the 10,000-row initial page while retaining
+  KG's expiry/presence handling. FX's deterministic useNow tests remain intact.
+- `6cc971eee` answers both Astra findings, including the regressions and manual.
+- The final evidence commit records this report and one dated journal append.
+
+Every commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## Findings and discriminating tests
+
+1. **Astra Medium, closed keep:false facade borrows B's deadlines.** The
+   getter compares the raw answer's identity with its cached answer before
+   returning data from a closed withdrawing facade. A mismatch replaces that
+   private snapshot with its stable loading object. It neither adopts B nor
+   starts another authority check. Source loading/denial still passes through.
+   Four real online/wasm cases cover guardClient and createApp: approve A with
+   expiry 5000, attach a live peer, close the first facade, replace the raw
+   answer with B expiring at 8000, advance to 5000. The peer shows B and the
+   closed facade is loading. Repeated access and rollback to 1000 preserve
+   the loading object's identity. Before replacement, the unchanged authorized
+   A remains valid after detach. Tests deliberately avoid inspecting the closed
+   facade during the intermediate raw loading publication, so that earlier
+   withdrawal cannot mask the identity defect. All four fail on merged input
+   and pass after the fix; the final tests also fail with only app-client.ts
+   restored from 36f970290 through an isolated loader.
+2. **Astra Low, standalone cleanup lacked coverage.** Two tests, online and
+   wasm, assert the raw owner's initial map presence, subscriber and armed row
+   timer; close removes it from the map, empties subscribers and clears expiry,
+   presence and linger timers. Explicit old-owner publication and a fresh
+   observation's real B publication deliver zero callbacks to the closed
+   facade. Reopening owns a different raw watch. Both pass current cleanup;
+   replacing source.close with the reviewer’s keep:false skip fails both at
+   the map-removal assertion. No production cleanup change was needed.
+
+Six tests added. No existing assertion relaxed. All negative controls are
+process-local module loaders; they never change live source or built output.
+The initial pre-fix run passes both cleanup tests and fails the four identity
+reproductions. These intentional failures are discrimination evidence.
+
+## File map
+
+Paths are relative to `snapback4/`, except the named root LLP.
+
+| File | Round-6 change |
+| --- | --- |
+| `packages/snapback4/src/app-client.ts` | Three-line identity fence for closed keep:false snapshots, referencing LLP 3000.023 §3.4. |
+| `packages/snapback4/test/retention-lifecycle.test.mjs` | Four replacement-deadline regressions, two standalone cleanup tests, and controlled online change-feed replacement support. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | State closed-facade identity withdrawal, authority preservation and standalone keep:false cleanup. |
+| `JOURNAL.md` | Preserve both merge histories; append one round-6 entry. |
+| `reports/20260927-kg-kept-through-authority/REPORT.md` | This evidence, preserving rounds 0–5 below. |
+| Root `llp/3000.019-what-the-builder-still-wrote.rfc.md` | Preserve both Revised histories during merge; no design amendment. |
+
+## Forms that compile and run
+
+No new syntax or API. The same observation can be opened through guardClient
+or createApp:
+
+```ts
+const closed = app.client.observe(api.inbox, {}, { keep: false });
+const peer = app.client.observe(api.inbox, {}, { keep: false });
+// After both have approved A:
+closed.close();
+// After the live peer receives replacement B:
+closed.getSnapshot(); // stable { loading: true }, never A or unchecked B
+```
+
+The standalone form closes its raw owner and cancels its subscriptions/timers:
+
+```ts
+const watch = guarded.client.observe(api.inbox, {}, { keep: false });
+watch.subscribe(render);
+watch.close(); // later publications cannot call render
+```
+
+## Qualification
+
+Frozen Bun install, package build and typecheck pass. Changed lifecycle file:
+**150 passed / 0 failed**. Affected retention/deadline/authority/clock/presence
+set: **386 passed / 0 failed**, 18.804 s. Whole guide: **86 passed / 0 failed**,
+2.52 s test execution. Reference audit: **517 LLP docs, 9,661 refs, zero errors
+and unchecked**. Changed source/test files are under 1,500 lines; merged
+local.ts is 1,498 lines. Whitespace validation passes.
+
+Ran `scripts/test.sh` **exactly once**. Exact summary:
+**`== 1 failure(s) in 4034 s`**, exit **1**. The script counts failed phases:
+**cargo test** failed with the two baseline assertions below. There are **zero
+round-6-owned and zero environmental failures**. The complete run was neither
+restarted nor rerun.
+
+- Rust tests/doctests: **3,908 passed / 2 failed / 24 ignored**, 1,068 s.
+- Client tests: **3,137 passed / 0 failed / 10 skipped**, 2,658 s. The script
+  chose serial file execution automatically: measured host load 110.36 across
+  96 CPUs. Acquisition/server-e2e cases run inside this one set, not extra shards.
+- Final seeded models: **79 passed / 0 failed**, 258 s.
+- Fixture wrappers: **9/9**; native/wasm builds, package and both app typechecks,
+  docs budget, release guard and chat schema check pass.
+
+All six round-6 regressions, all eighteen delayed-authority createApp sequences,
+and both Chromium input-preservation witnesses pass in the complete client run.
+
+
+Every full-run failure:
+
+| Failure | Classification | Evidence |
+| --- | --- | --- |
+| `snapback4::timeline`, `lifecycle::activation_refuses_each_populated_event_or_edge_table`, lifecycle.rs:32 | Baseline | Expected diagnostic substring `planned view`; fetched main now says `planned home query`. |
+| `snapback4::timeline_adoption`, `redefinition_refuses_atomically_and_delivery_keeps_running`, timeline_adoption.rs:203 | Baseline | Required wording includes `event identities` and `planned view`; fetched main replaced it with concrete post/repost and planned-home-query wording. |
+
+Main commit `bbece7c3e` changed these diagnostics. Every Rust source, test,
+Cargo manifest/lock and native-fixture input in this checkout matches fetched
+`origin/main` (`09e55ad98`) exactly. Each failed test also reproduces alone on
+those unchanged inputs, in `baseline-timeline.log` and
+`baseline-timeline-adoption.log`. No unrelated assertion was changed and the
+complete red run is not relabeled green.
+
+Reproduce the two baseline failures:
+
+```sh
+cargo test -p snapback4 --test timeline \
+  lifecycle::activation_refuses_each_populated_event_or_edge_table -- --exact
+cargo test -p snapback4 --test timeline_adoption \
+  redefinition_refuses_atomically_and_delivery_keeps_running -- --exact
+```
+
+
+Wasm from the full run: **1,981,590 B raw / 572,608 B gzip**, **233 B below**
+the unchanged 572,841 B budget. SHA-256:
+`f31efbe90951a07e45d98bb115f907030da51fc36d2bf6afce6941d0ce04e93c`.
+Relative to round 5's recorded artifact, the merged build is +78 raw / +559
+gzip bytes. Round 6 changes no Rust or wasm input; the new baseline includes
+main's device optimizations. No separate per-component size attribution.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug
+information disabled, file limit 65,536. Existing Node/Bun selected through
+worktree-local symlinks; optional wasm-opt absent from the selected PATH.
+No tool installed or modified on a shared path.
+
+Evidence: ignored `target/lane-kg-r6/`, containing focused, affected, guide,
+full-suite and reference logs/exit files, measurements, and both isolated
+mutation loaders with their source snapshots and logs. Reproduce from snapback4:
+
+```sh
+node --test packages/snapback4/test/retention-lifecycle.test.mjs
+node --import ./target/lane-kg-r6/old-identity-loader.mjs --test \
+  --test-name-pattern='closed withdrawing facade drops A' \
+  packages/snapback4/test/retention-lifecycle.test.mjs
+node --import ./target/lane-kg-r6/skip-close-loader.mjs --test \
+  --test-name-pattern='standalone withdrawing facade' \
+  packages/snapback4/test/retention-lifecycle.test.mjs
+```
+
+## Decisions, deviations and remaining issues
+
+No design deviation, stopped design part, or new LLP decision. The identity
+check follows Astra's requested closed-withdrawing scope. Cleanup remains
+unchanged and now has discriminating coverage. No engine authorization,
+disclosure, meter, durable format, diagnostic, dependency, version or budget
+change in round 6. No new round-6 independent review is claimed.
+
+Both baseline diagnostic-wording failures remain open, with the exact
+reproductions above. No unresolved defect in the two assigned round-6 findings
+remains. The inherited 60-second full-suite budget is still exceeded (4034 s);
+reproduce with `cd snapback4 && bash scripts/test.sh`. No timeout or budget
+was raised. The automatic serial client selection accounts for 2658 seconds
+of this run.
+
+llp-orient context: scope is app-client.ts detached access and its lifecycle
+tests. Governing current LLPs: 3000 (Snapback 4 fence), 3000.023 §§3.4/3.6
+(exact withdrawal and facade authority), 3000.019 §3.3 (answer identity and
+own deadlines), 3000.013 §6 (facade lifetime). None is in foundation. Current
+client manual read before editing. Risk: treating a replacement's deadline
+as authority for an older private snapshot; covered by the four reproductions.
+Manual/report/journal updates suffice. Hand-off: none.
+
+
+---
+
+# Historical round-5 report
+
 # Lane KG round 5 — detached deadlines and exact withdrawal delivery
 
 Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.

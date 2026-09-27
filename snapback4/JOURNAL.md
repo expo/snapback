@@ -69176,3 +69176,63 @@ syntax/API, auth/expiry/meter weakening, original GS store writes, shared
 path tool installation, push or publication. Binaryen experimentation stayed
 under this worktree's target directory and was not adopted. Local commits
 carry the required co-author trailer.
+
+### 2026-09-27 — KG round 6: a closed facade cannot borrow replacement deadlines
+
+Read rounds 0–5's prompts, reports and KG journal entries and Astra's complete
+round-5 READY WITH CHANGES review; Grok produced no round-5 review. First merged
+origin/main 09e55ad98 in 36f970290. Kept both journal histories (zero removed
+lines against either parent), both LLP 3000.019 Revised histories, incoming
+sync-scale behavior and KG's expiry/presence handling. FX's deterministic
+useNow tests remain intact. Merged local.ts stays within budget at 1,498 lines.
+
+6cc971eee answers both findings. A closed keep:false facade compares its
+cached answer identity with its detached raw handle's current answer. If a live
+peer has replaced A with B, it withdraws A to stable loading; B's deadlines
+cannot validate A, and no replacement data is adopted without authority.
+The still-identical approved A remains valid after detach until withdrawal.
+Updated the manual with this boundary and standalone keep:false cleanup.
+
+Six added tests: all four online/wasm guardClient/createApp reproductions
+(A expires 5000, close first facade, peer replaces with B expiring 8000,
+advance to 5000), plus two standalone online/wasm cleanup cases. Repeated
+reads and clock rollback preserve loading identity. Cleanup checks raw map
+removal, zero subscribers, cancelled timers, a different owner on reopen and
+zero facade callbacks from old/new-owner publications. Restoring the merged
+getter through a process-local loader fails all four identity cases; skipping
+source.close for false fails both cleanup cases. Production cleanup needed no
+change. No existing assertion was relaxed; no live source/build mutation.
+
+Affected tests 386/386, changed lifecycle file 150/150, whole guide 86/86.
+Frozen Bun install, package build/typecheck, final docs budget and whitespace
+checks pass. Reference audit: 517 LLP docs, 9,661 refs, zero errors/unchecked.
+Changed source/test files are below 1,500 lines.
+
+Ran scripts/test.sh exactly once: **== 1 failure(s) in 4034 s**, exit **1**.
+Failed phase: cargo test. Rust: 3,908 passed / 2 failed / 24 ignored (1068 s).
+Client tests: 3,137 passed / 0 failed / 10 skipped (2658 s); the script selected
+serial files at host load 110.36 across 96 CPUs. Final models: 79/79 (258 s).
+Fixtures: 9/9. Builds, app typechecks, guide, budgets and release guard pass.
+All six new regressions, eighteen delayed-authority sequences and both Chromium
+input-preservation witnesses pass. Every failure is baseline as detailed below;
+zero round-6-owned or environmental failures. The inherited 60-second full-suite
+budget remains exceeded; no timeout or budget was raised.
+
+The two Rust baseline failures are timeline lifecycle activation's planned-view
+substring at lifecycle.rs:32 and timeline redefinition's old event-identities/
+planned-view substrings at timeline_adoption.rs:203. Main bbece7c3e revised
+those diagnostics. All Rust/Cargo/native-fixture inputs match origin/main
+09e55ad98 exactly; each failing test reproduces alone. No unrelated assertion
+was changed. The full run was neither restarted nor rerun.
+
+Wasm: 1,981,590 B raw / 572,608 B gzip, 233 B below the unchanged 572,841 B
+budget. SHA-256 f31efbe90951a07e45d98bb115f907030da51fc36d2bf6afce6941d0ce04e93c.
+Merged artifact versus round 5: +78 raw / +559 gzip bytes. Round 6 has no Rust
+or wasm-input change; no engine authorization/disclosure, meter, durable format,
+API, diagnostic, dependency, version or budget change. Node 24.13.1, Bun 1.3.14,
+Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd limit 65,536. Existing
+Node/Bun selected through worktree-local symlinks; no tool installed or changed
+on a shared path. No design deviation, push, publication or new independent
+review claim. All commits carry the requested Astra co-author trailer.
+Report and reproductions: reports/20260927-kg-kept-through-authority/REPORT.md;
+ignored evidence: target/lane-kg-r6/. This is round 6's single dated append.
