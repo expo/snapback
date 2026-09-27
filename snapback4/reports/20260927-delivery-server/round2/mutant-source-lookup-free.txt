@@ -1,0 +1,32 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+warning: unused variable: `cost`
+   --> crates/snapback4-core/src/engine/delivery.rs:258:13
+    |
+258 |         let cost = 1 + (self.schema.delivery.len() + 1).ilog2() as u64;
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_cost`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 12.52s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'per_source_lookup_exhausts_steps_after_the_index_fits' (690082) panicked at crates/snapback4-lang/tests/delivery.rs:551:5:
+assertion `left == right` failed
+  left: Array [Object {"args": Array [String("group"), String("low"), String("high")], "fingerprint": String("2f5d2629caf0cd61eacb5eb5bd772dd8684be9e7872af1112bd679c5719f3443"), "mutation": String("delivered"), "partial": Bool(true), "rows": Array [], "table": String("messages")}]
+ right: String("partial")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test per_source_lookup_exhausts_steps_after_the_index_fits ... FAILED
+
+failures:
+
+failures:
+    per_source_lookup_exhausts_steps_after_the_index_fits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`

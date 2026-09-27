@@ -1,0 +1,23 @@
+{
+  "runs": 1,
+  "exit": 1,
+  "summary": "== 1 failure(s) in 1844 s",
+  "failures": [
+    {
+      "gate": "wasm build",
+      "attribution": "ours; carried DS integration-budget failure",
+      "raw": 1983605,
+      "gzip": 573716,
+      "budget": 572841,
+      "over": 875
+    }
+  ],
+  "baseline_failures": [],
+  "environmental_failures": [],
+  "models": {
+    "passed": 78,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 262
+  }
+}

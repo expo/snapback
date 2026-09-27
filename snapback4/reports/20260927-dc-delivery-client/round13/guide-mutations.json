@@ -1,0 +1,38 @@
+[
+  {
+    "section": 5,
+    "mutation": "revert",
+    "exit": 101,
+    "log": "guide-mutant-5-revert.log"
+  },
+  {
+    "section": 5,
+    "mutation": "append",
+    "exit": 101,
+    "log": "guide-mutant-5-append.log"
+  },
+  {
+    "section": 6,
+    "mutation": "revert",
+    "exit": 101,
+    "log": "guide-mutant-6-revert.log"
+  },
+  {
+    "section": 6,
+    "mutation": "append",
+    "exit": 101,
+    "log": "guide-mutant-6-append.log"
+  },
+  {
+    "section": 7,
+    "mutation": "revert",
+    "exit": 101,
+    "log": "guide-mutant-7-revert.log"
+  },
+  {
+    "section": 7,
+    "mutation": "append",
+    "exit": 101,
+    "log": "guide-mutant-7-append.log"
+  }
+]

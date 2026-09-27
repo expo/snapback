@@ -1,0 +1,3 @@
+{"mutation": "lost-second-binding", "test": "colliding_ids_do_not_turn_foreign_fields_into_own_images", "exit": 101, "killed": true}
+{"mutation": "unmetered-index", "test": "many_bindings_exhaust_metadata_work_before_further_source_stamping", "exit": 101, "killed": true}
+{"mutation": "unsafe-position", "test": "unsafe_positions_are_not_reported_and_safe_endpoints_are_exact", "exit": 101, "killed": true}

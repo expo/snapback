@@ -35,6 +35,7 @@ impl MutationOutcome {
             body["why"]["message"] = Json::String(format!("the program refused with {}", why.code));
             body["why"].as_object_mut().expect("refusal object").remove("detail");
         }
+        if self.receipt_only { body["receiptOnly"] = Json::Bool(true); }
         body["replayed"] = Json::Bool(true);
         body
     }
@@ -54,6 +55,6 @@ impl MutationOutcome {
             }
             _ => return Err(malformed()),
         };
-        Ok(Self { state, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: true })
+        Ok(Self { receipt_only: body.get("receiptOnly").and_then(Json::as_bool).unwrap_or(false), state, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: true })
     }
 }

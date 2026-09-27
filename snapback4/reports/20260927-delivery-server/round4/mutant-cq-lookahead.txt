@@ -1,0 +1,26 @@
+   Compiling snapback4-core v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 13.37s
+     Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-9e3be983f4097eb6)
+
+running 1 test
+test cursorless_page_stamps_its_exact_bound_without_lookahead ... FAILED
+
+failures:
+
+---- cursorless_page_stamps_its_exact_bound_without_lookahead stdout ----
+
+thread 'cursorless_page_stamps_its_exact_bound_without_lookahead' (2569550) panicked at crates/snapback4-lang/tests/delivery_integration.rs:114:9:
+assertion `left == right` failed
+  left: 3
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cursorless_page_stamps_its_exact_bound_without_lookahead
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery_integration`

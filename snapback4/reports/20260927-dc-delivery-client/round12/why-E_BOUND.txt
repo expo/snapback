@@ -1,0 +1,44 @@
+E_BOUND: family bound — the meter cut a mutation (or a response exceeded 16 MiB): the message names the meter, the ceiling and the site, never the count (it would measure rows the viewer may not read). For an expiring scan, the examined ceiling includes expired rows not yet swept; a smaller page does not help with that backlog. For delivery reports, E_BOUND is an ordinary non-retryable refusal: the SDK calls onDeliveryRefused once and parks the interval until the next start, which retries with a new id. There is no retry within the session. A committed report that runs again is a no-op report (guide receipts). E_BOUND is not marked retryable and carries no backlog count. For other bound causes, read a smaller page, narrow its where predicate, or move the sweep into a job.
+
+## Operations
+
+Nothing is priced at check. As a program runs, the meter counts examined
+rows, index entries, rule probes, steps, heap bytes, output bytes and rows
+written against ceilings: 8,192 rows examined, 16,384 index entries, 8,192
+rule probes, 1,000,000 steps, 16 MiB heap, 1 MiB output, 1,024 rows written
+per mutation; a job's chunk may examine 16,384 rows and write 8,192. A
+query past a ceiling returns what it found with `complete: false`; a
+mutation aborts with E_BOUND naming the meter, the ceiling and the site
+(never the count: it would measure rows the viewer may not read).
+Read a smaller page, narrow its predicate, or move the sweep into a job.
+Authorization-dependent scans prepay a fixed logical allowance before row
+discovery. Hidden candidates do not consume the caller's remaining allowance;
+readable rows, filters and output still do. These logical meters exclude private
+scan work: authorization candidates share one physical limit of 8,192
+per request, including nested witnesses and maintained-source walks. A row behind at least 8,192 such candidates is unreachable by paging
+in that direction; an empty page has no cursor into the hidden range. Expiring
+cap checks draw from that same allowance; any authorization that cannot be
+established within it returns generic E_RULE without identifying a cause.
+The device's separate prediction-work budget can instead queue an operation.
+`snapback4 check --cost` prints each site's structural class;
+`snapback4 test` prints the numbers on your data and names query/persona reads
+past half any ceiling without a cut: at most ten lines and a count of the rest.
+Loopback `dev` logs actual meter and word cuts with the operation, principal,
+site, counters and `snapback4 why <op>`. Repeats are suppressed per operation
+and site (at most two lines per minute); the next emitted line includes the
+suppressed count. `serve` neither logs these costs nor returns read meters.
+A loop is bounded
+by a page's `first N`, a schema-capped prefix, a query's meter-bounded prefix, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
+or `tokens`' 64. An accumulated list is bounded by the heap meter and its
+iterations by the step meter. `while` stays refused.
+`range(a, b)` evaluates int expressions once and iterates under the step meter,
+without materializing the range. `check --cost` prints `steps ≤ meter`, a
+filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,
+and a seek as a prefix. Sorting or grouping a page only processes that page.
+`sha256(text)` charges the input's UTF-8 byte length plus one to steps before
+hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
+cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
+the client read `loading`, as other query heap cuts do. A mutation rolls
+back on either cut.
+
+Full card: snapback4 guide bounds

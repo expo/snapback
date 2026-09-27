@@ -1,0 +1,21 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 12.65s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit' (695744) panicked at crates/snapback4-lang/tests/delivery.rs:518:9:
+1001: QueryOutcome { delivery: Some(Partial), delivery_meter: Some(DeliveryMeter { steps: 195, heap_bytes: 114151, output_bytes: 24 }), ephemeral: None, data: Row(ObjectFields({"id": Id("c1"), "name": String("chat")}, false, None, false)), unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 0, steps: 3, heap_bytes: 426, output_bytes: 51, rows_written: 0 }, tables: ["chats"], next_expiry: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit ... FAILED
+
+failures:
+
+failures:
+    unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`

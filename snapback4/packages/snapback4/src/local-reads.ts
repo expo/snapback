@@ -47,6 +47,15 @@ export function armLocalPresence(watch: LocalWatch, unavailable: boolean, acquir
   });
 }
 
+export function notifyLocalWatch(watch: LocalWatch): void {
+  for (const subscriber of watch.subscribers) subscriber();
+}
+
+export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => Promise<void>): void {
+  if (!tables.size) return;
+  for (const watch of watches) if (watch.tables.size === 0 || [...watch.tables].some(table => tables.has(table))) void rerun(watch);
+}
+
 export type ServerAnswer = {
   read: Extract<import("./contract.ts").Read<unknown>, { data: unknown }>;
   at: number;
@@ -132,6 +141,11 @@ export class RememberedAnswers {
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
+
+  // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
+  expire(watch: LocalWatch, serverDue: boolean, serverNow: number): void {
+    if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
+  }
 
   // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
   committed(watches: Iterable<LocalWatch>, operation: string): void {

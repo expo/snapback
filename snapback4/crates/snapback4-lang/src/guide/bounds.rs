@@ -288,7 +288,11 @@ Reads remain metered and expired rows remain invisible on every host.
 For an admitted server mutation (guide programs), pages, prefix `exists` and
 `count` include this work and the scan-attempt charge under the examined
 ceiling. Even `first 1` can refuse `E_BOUND` with no write; shrinking its
-page cannot remove the backlog. See why E_BOUND for fresh-id recovery.
+page cannot remove the backlog. For delivery reports, `E_BOUND` is an ordinary
+non-retryable refusal: the SDK calls `onDeliveryRefused` once and parks the
+interval until the next start, which retries with a new id. There is no retry
+within the session. A committed report that runs again is a no-op report
+(`why E_BOUND`, `guide receipts`).
 An operation says `class: backlog` only when cleanup explains all of its
 variable work: constant once the sweep catches up, and bounded by the read
 meter while a backlog lasts, so the certificate keeps the meter allowance.

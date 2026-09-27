@@ -409,6 +409,7 @@ impl Engine {
             .unwrap_or(0);
         let seq = tx.next_seq()? - 1;
         let mut hub = self.ephemeral.lock()?;
+        self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
         hub.bind(&identity, generation, &self.schema)?;
         hub.sweep(now)?;
         let epoch = hub

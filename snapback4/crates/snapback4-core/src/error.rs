@@ -254,6 +254,12 @@ impl RuntimeError {
     pub fn refusal(&self) -> Refusal {
         let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
         match self {
+            #[cfg(feature = "sqlite")]
+            Self::Structural { code: "E_DELIVERY_BINDING", .. } => {
+                refusal.site = Some("delivery.fingerprint".into());
+                refusal.rewrite = Some("drop this binding's debt; collect and report using the current binding fingerprint".into());
+                refusal.guide = Some("receipts".into());
+            }
             #[cfg(feature = "server-search")]
             Self::SearchOpening { site, rewrite, .. } => {
                 refusal.site = Some(site.clone());

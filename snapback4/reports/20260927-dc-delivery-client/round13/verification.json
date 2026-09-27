@@ -1,0 +1,137 @@
+{
+  "delivery-browser": {
+    "exit": 0,
+    "tests": 399,
+    "pass": 399,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "approval": {
+    "exit": 0,
+    "tests": 874,
+    "pass": 874,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "react": {
+    "exit": 0,
+    "tests": 51,
+    "pass": 51,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "guide": {
+    "exit": 0
+  },
+  "guide-final": {
+    "exit": 0
+  },
+  "ref-check": {
+    "exit": 0
+  },
+  "mutant-early": {
+    "exit": 1,
+    "tests": 24,
+    "pass": 0,
+    "fail": 24,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "mutant-background": {
+    "exit": 1,
+    "tests": 3,
+    "pass": 1,
+    "fail": 2,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "mutant-query": {
+    "exit": 1,
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "guide-restored": {
+    "exit": 0,
+    "pass": 92,
+    "fail": 0
+  },
+  "full-suite-interrupted": {
+    "exit": null,
+    "summary": null,
+    "reason": "Host disk full; process interrupted after Rust stage, client output incomplete."
+  },
+  "outcomes-recovery-probe": {
+    "exit": 1,
+    "tests": 5,
+    "pass": 0,
+    "fail": 5,
+    "classification": "ours, subsequently corrected"
+  },
+  "facade-recovery": {
+    "exit": 0,
+    "tests": 32,
+    "pass": 32,
+    "fail": 0
+  },
+  "ref-check-recovery": {
+    "exit": 0,
+    "llp_docs": 521,
+    "references": 9744,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "cargo-test-recovery": {
+    "exit": 0,
+    "pass": 4145,
+    "fail": 0,
+    "ignored": 30,
+    "lifecycle_pass": 20,
+    "guide_pass": 92
+  },
+  "history-recovery-current": {
+    "exit": 0,
+    "classification": "isolated passing rerun"
+  },
+  "history-recovery-baseline": {
+    "exit": 0,
+    "classification": "isolated passing rerun"
+  },
+  "history-interleaving-current": {
+    "exit": 1,
+    "classification": "baseline interleaving reproduction"
+  },
+  "history-interleaving-baseline": {
+    "exit": 1,
+    "classification": "baseline interleaving reproduction"
+  },
+  "client-tests-recovery": {
+    "tests": 4195,
+    "pass": 4184,
+    "fail": 1,
+    "skipped": 10,
+    "classification": "baseline",
+    "failure": "process: receipts screen and history after leave, remount and offline/online reopen",
+    "additional_shards_pass": 56
+  },
+  "full-suite-recovery": {
+    "exit": 1,
+    "summary": "== 1 failure(s) in 1707 s",
+    "failing_stage": "client tests",
+    "classification": "baseline",
+    "client_models_pass": 79,
+    "fixture_wrappers_pass": 9
+  },
+  "ref-check-final": {
+    "exit": 0,
+    "llp_docs": 521,
+    "references": 9744,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

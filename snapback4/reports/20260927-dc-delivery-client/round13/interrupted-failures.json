@@ -1,0 +1,727 @@
+{
+  "rust": [
+    {
+      "name": "dev_default_adoption_and_check_share_the_successor_refusal",
+      "classification": "environmental"
+    },
+    {
+      "name": "development_banner_and_release_auth_boundary",
+      "classification": "environmental"
+    },
+    {
+      "name": "killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children",
+      "classification": "environmental"
+    },
+    {
+      "name": "memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill",
+      "classification": "environmental"
+    },
+    {
+      "name": "off_thread_panic_and_watcher_return_have_one_line_reasons",
+      "classification": "environmental"
+    },
+    {
+      "name": "service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved",
+      "classification": "environmental"
+    },
+    {
+      "name": "sqlite_permissions_preserve_database_and_wal_locks",
+      "classification": "environmental"
+    },
+    {
+      "name": "sqlite_replay_survives_counter_split_and_an_offline_cli_backfill",
+      "classification": "environmental"
+    },
+    {
+      "name": "startup_refusals_name_the_unserved_generation",
+      "classification": "environmental"
+    },
+    {
+      "name": "w10r1b_dev_reports_the_same_cascades_as_check",
+      "classification": "environmental"
+    },
+    {
+      "name": "watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill",
+      "classification": "environmental"
+    }
+  ],
+  "client": [
+    {
+      "name": "W5R1x wasm: durable receipts evict beyond 256 without growing metadata",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x wasm: replacement stays unacquired until the new catch-up completes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x wasm: a restore halt keeps acquisition false across retries and reopen",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x process: a restore halt keeps acquisition false across retries and reopen",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: schema alone is not acquisition; queued guarded writes survive offline reopen",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R2a wasm: a sent queued id emits once beyond 256 other emissions",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x process: replacement stays unacquired until the new catch-up completes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x process: durable receipts evict beyond 256 without growing metadata",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x wasm: opener returns an offline unacquired client on network loss",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: a genuinely empty partition at sequence zero is acquired durably",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional require refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R1x process: opener returns an offline unacquired client on network loss",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: a genuinely empty partition at sequence zero is acquired durably",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional sequence key refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional upsert index refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R2a: two native owners recover 600 completions without stale pending memory",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: apply withdraws an owner-only answer despite having no rule probes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: admit withdraws an owner-only answer despite having no rule probes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: remount withdraws an owner-only answer despite having no rule probes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: apply withdraws an owner-only answer despite having no rule probes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: admit withdraws an owner-only answer despite having no rule probes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: remount withdraws an owner-only answer despite having no rule probes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: remount after owner transfer cannot restore an answer with no rule-probe dependencies",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: short circuit preserves prediction metadata and authority",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5 confirmation N3: another owner's durable receipt still notifies this client once",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by process: two offline Write results remain pending until settled",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional named constraint refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional empty index refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: point preserves prediction metadata and authority",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional rule refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional postcondition refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional cap group refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: cap independent preserves prediction metadata and authority",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: page preserves prediction metadata and authority",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: admit revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: transfer revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: remount revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: admit revocation, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: transfer revocation, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: admit revocation, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: transfer revocation, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: admit revocation, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: transfer revocation, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: apply revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: admit revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: transfer revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "wasm: remount revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: admit revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: transfer revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: remount revocation, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: admit revocation, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: transfer revocation, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: admit revocation, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: transfer revocation, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: admit revocation, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: transfer revocation, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: apply revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: admit revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: transfer revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: remount revocation, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=undefined, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=undefined, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=undefined, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=undefined, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=false, held",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=false, retryExhausted",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=false, unavailable",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: revoked data, keep=false, throw",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "a held global acknowledgement preserves retirement of a login minted after its dispatch",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "a held global acknowledgement preserves retirement of a login minted after its dispatch across a cleanup retry",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: a dormant tab cannot globally revoke a later login of the same principal",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local: a dormant tab cannot globally revoke a later login of the same principal",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "global selection uses the principal's journal watermark for legacy session bytes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "another principal's watermark and legacy counter cannot block a same-scope rotated bearer",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: global logout follows another tab's persisted rotation and revokes external siblings",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: global logout follows another tab's held rotation and revokes external siblings",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local: global logout follows another tab's persisted rotation and revokes external siblings",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local: global logout follows another tab's held rotation and revokes external siblings",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "global logout never selects another principal's stored bearer",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "a pending global fence survives replacement before a late rotation returns",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "a completed global fence survives replacement before a late rotation returns",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "refusal tombstones an unpersisted rotation's consumed predecessor",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "online: global logout keeps the public view until its fence commits, then fences captured handles",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local: global logout keeps the public view until its fence commits, then fences captured handles",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "rollback publishes a new facade and never revives captured handles",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "refusal of an unpersisted successor preserves an unrelated replacement",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local wasm: mutation-sent held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local wasm: mutation-failed held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local wasm: action-done held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local wasm: action-failed held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local wasm: query held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local native: mutation-sent held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local native: mutation-failed held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local native: action-done held across app.close keeps its outcome unknown",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "local native: action-failed held across app.close keeps its outcome",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "raw HTTP settlement validates declared results terminally and never reclaims them",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "parked action operator disposition records known provider acceptance without resuming original work",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "cancellation and admitting-session revocation abort an in-flight context before later writes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "serve uses the same generated contract and declared environment across a supervised restart",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "process: snapshot and catch-up publish readiness together; later failures preserve acquired rows",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5c process: online reopen reports acquisition and a missing-row reason, then predicts",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "W5R2a process: a sent queued id emits once beyond 256 other emissions",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: two offline Write results remain pending until settled",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "check validates generated handler returns, arguments and declared secrets without executing the entry",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "scheduled generated action runs under its declared service seat",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional constraint refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional old refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: provisional postcondition index refusal queues for the server",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "sequence by wasm: unique independent preserves prediction metadata and authority",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "mutate: a facade fence preserves a dispatched outcome and refuses later calls",
+      "classification": "ours",
+      "evidence": "deterministic recovery probe"
+    },
+    {
+      "name": "act: a facade fence preserves a dispatched outcome and refuses later calls",
+      "classification": "ours",
+      "evidence": "deterministic recovery probe"
+    },
+    {
+      "name": "upload: a facade fence preserves a dispatched outcome and refuses later calls",
+      "classification": "ours",
+      "evidence": "deterministic recovery probe"
+    },
+    {
+      "name": "refreshSession: a facade fence preserves a dispatched outcome and refuses later calls",
+      "classification": "ours",
+      "evidence": "deterministic recovery probe"
+    },
+    {
+      "name": "write: a facade fence preserves a dispatched outcome and refuses later calls",
+      "classification": "ours",
+      "evidence": "deterministic recovery probe"
+    },
+    {
+      "name": "a held committed mutation returns pending at logout and replays once with its original id",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "known online commit survives failed receipt saves and same-id restart recovery",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    },
+    {
+      "name": "known online refusal survives failed receipt saves and same-id restart recovery",
+      "classification": "environmental",
+      "evidence": "disk full window; interrupted log, rechecked by recovery suite"
+    }
+  ],
+  "other": [
+    {
+      "name": "workspace doctest compile snapback4-device",
+      "classification": "environmental",
+      "evidence": "diagnostic preceding compile failure was lost to the full disk; complete compile is rerun"
+    }
+  ]
+}

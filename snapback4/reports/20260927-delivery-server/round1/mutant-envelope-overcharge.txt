@@ -1,0 +1,23 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 25.97s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'exact_output_reservation_admits_a_fitting_binding_and_row' (3631880) panicked at crates/snapback4-lang/tests/delivery.rs:455:5:
+assertion `left == right` failed
+  left: Null
+ right: Array [Array [String("c1"), Number(1)]]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test exact_output_reservation_admits_a_fitting_binding_and_row ... FAILED
+
+failures:
+
+failures:
+    exact_output_reservation_admits_a_fitting_binding_and_row
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`

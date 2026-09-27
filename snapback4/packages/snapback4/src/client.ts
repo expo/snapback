@@ -1,3 +1,6 @@
+import { onlineDelivery } from "./online-delivery.ts";
+import { offerDelivery } from "./delivery-acceptance.ts";
+export type { DeliveryRefused } from "./delivery-state.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
@@ -29,6 +32,8 @@ import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
 import { sha256, utf8 } from "./sha256.ts";
 
 export interface ClientOptions {
+  /** Delivery reports refused by the application; these are separate from onWrite. */
+  readonly onDeliveryRefused?: (event: import("./delivery-state.ts").DeliveryRefused) => void;
   /** The server, e.g. `http://127.0.0.1:4400`. */
   readonly url: string;
   /** A development persona (loopback only): `alice` acts as `dev:alice`. */
@@ -47,6 +52,7 @@ export interface ClientOptions {
 }
 
 interface QueryResult<R> {
+  delivery?: unknown; credential?: number | undefined;
   read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null;
   transportOffline?: boolean; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown;
   /** The server's presence refresh interval (LLP 3000.018). */
@@ -162,6 +168,7 @@ export function createClient(options: ClientOptions): Client {
   let credentials = Boolean(viewer || token);
   let link: Link = credentials ? "online" : "signed-out";
   let closed = false;
+  let delivery: ReturnType<typeof onlineDelivery> | undefined;
   const aborter = new AbortController();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
@@ -288,6 +295,7 @@ export function createClient(options: ClientOptions): Client {
   const refreshBeforeExpiry = 24 * 60 * 60 * 1000;
 
   const endCredentials = () => {
+    void delivery?.stop();
     if (!credentials) return;
     session = null;
     stopRefresh(auth());
@@ -323,6 +331,7 @@ export function createClient(options: ClientOptions): Client {
     ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") {
+      void delivery?.reconnect();
       void flush();
       for (const watch of watches.values()) void refresh(watch);
     } else if (next === "signed-out") failUnsentWrites(auth());
@@ -331,6 +340,7 @@ export function createClient(options: ClientOptions): Client {
   const setViewer = (next: Principal | null) => {
     if (viewer === next) return;
     viewer = next;
+    void delivery?.reset(true);
     resetWatches();
     if (credentials) for (const watch of watches.values()) void refresh(watch);
     for (const listener of viewerListeners) listener(next);
@@ -342,6 +352,7 @@ export function createClient(options: ClientOptions): Client {
 
   function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
     if (storeRefusal) return;
+    void delivery?.reset(true);
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
@@ -486,7 +497,7 @@ export function createClient(options: ClientOptions): Client {
     return request;
   }
 
-  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false): Promise<{ ok: true; json: Record<string, unknown>; revision?: number } | { ok: false }> {
     if (refreshing) await refreshing;
     if (closed || !credentials || storeRefusal || (eph && !ephemeralReads.current(eph))) return { ok: false };
     const revision = credentialRevision;
@@ -540,7 +551,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
-      return { ok: true, json };
+      return { ok: true, json, revision };
     } catch {
       if (credentials && !quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
       return { ok: false };
@@ -568,11 +579,21 @@ export function createClient(options: ClientOptions): Client {
     if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    return { delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
   }
 
-  const currentRead = (result: QueryResult<unknown>, watch?: Watch) => result.epoch === queryEpoch && result.seq >= minimumReadSeq
-    && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
+  const currentRead = (result: QueryResult<unknown>, watch?: Watch) => {
+    const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
+      && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
+      && (result.credential === undefined || result.credential === credentialRevision)
+      && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
+    return current;
+  };
+
+  function acceptDelivery(result: QueryResult<unknown>, read: Read<unknown>) {
+    offerDelivery(client, read, current => { void delivery?.accept(result.delivery, current).catch(() => {}); },
+      () => !closed && !storeRefusal && credentials && currentRead(result));
+  }
 
   function watchEphemeral(watch: Watch) {
     const tables = ephemeralTables(watch.op);
@@ -635,6 +656,7 @@ export function createClient(options: ClientOptions): Client {
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
     // An accepted reply is published whatever it says, loading and refusals included.
     watch.publish(result.read);
+    acceptDelivery(result, watch.snapshot);
     watch.tables = new Set(result.tables);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
     if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
@@ -654,7 +676,7 @@ export function createClient(options: ClientOptions): Client {
     const resetVersion = watch.resetVersion;
     let exhausted = false;
     try {
-      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: result => {
+      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => {
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
         scheduleExpiry(watch, result.nextExpiry);
@@ -671,6 +693,9 @@ export function createClient(options: ClientOptions): Client {
         notify(watch);
         return;
       }
+      watch.publish(result.transportOffline ? { loading: true } : result.read);
+      acceptDelivery(result, watch.snapshot);
+      notify(watch);
       watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
@@ -852,6 +877,12 @@ export function createClient(options: ClientOptions): Client {
     sweepExpiries();
     scheduleRefresh();
   });
+  delivery = onlineDelivery({ offline: () => setLink("offline"), url: base, fetch: doFetch, mint: mintId,
+    ready: () => !closed && credentials && !storeRefusal && !refreshing && link === "online" && !!storeIdentity,
+    current: () => !closed && credentials && !storeRefusal, headers: () => ({ ...headers }), revision: () => credentialRevision,
+    floor: () => minimumReadSeq, store: () => storeIdentity, observe: (json, floor) => observeStore(json, floor, true),
+    obsolete: obsoleteRefusal, refresh: () => refreshing, onRefused: options.onDeliveryRefused });
+  void delivery.start();
   const client: Client = {
     async residency() { return null; },
     now: clock.issuedDeviceNow,
@@ -866,7 +897,9 @@ export function createClient(options: ClientOptions): Client {
       // this continuation runs. Do not start an additional retry round here.
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
-      return currentRead(result) ? result.read : { loading: true };
+      if (!currentRead(result)) return { loading: true };
+      acceptDelivery(result, result.read);
+      return result.read;
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       const keep = options?.keep;
@@ -998,17 +1031,22 @@ export function createClient(options: ClientOptions): Client {
       return revoked;
     },
     async signOut() {
+      const draining = delivery?.stop(true);
+      // Stop ordinary work synchronously; only delivery's own signals receive
+      // the bounded grace period. endCredentials/close must not abort them.
+      delivery = undefined;
       const bearer = headers.authorization?.slice("Bearer ".length);
       endCredentials();
       // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
       if (bearer) void logout(base, bearer, doFetch);
-      await closing;
+      await Promise.all([closing, draining]);
     },
     close() {
       if (closing) return closing;
       closed = true;
+      void delivery?.stop();
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
       stopClock();

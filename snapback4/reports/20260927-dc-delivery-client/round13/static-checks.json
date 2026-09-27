@@ -1,0 +1,31 @@
+{
+  "modified_code_lines": {
+    "snapback4/crates/snapback4-lang/src/guide/receipts.rs": 337,
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": 440,
+    "snapback4/packages/snapback4/src/app-client.ts": 298,
+    "snapback4/packages/snapback4/src/client.ts": 1085,
+    "snapback4/packages/snapback4/src/delivery-acceptance.ts": 31,
+    "snapback4/packages/snapback4/src/local-publication.ts": 20,
+    "snapback4/packages/snapback4/src/local.ts": 1500,
+    "snapback4/packages/snapback4/src/read-approval.ts": 130,
+    "snapback4/packages/snapback4/test/delivery-approval.test.mjs": 124,
+    "snapback4/packages/snapback4/test/helpers/delivery-app-fixture.mjs": 126,
+    "snapback4/packages/snapback4/test/presence-refresh.test.mjs": 234
+  },
+  "runtime_hashes_match": true,
+  "staged_paths": [
+    "llp/3000.022-delivery-the-sdk-reports.rfc.md",
+    "snapback4/crates/snapback4-lang/src/guide/receipts.rs",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+    "snapback4/packages/snapback4/src/app-client.ts",
+    "snapback4/packages/snapback4/src/client.ts",
+    "snapback4/packages/snapback4/src/delivery-acceptance.ts",
+    "snapback4/packages/snapback4/src/local-publication.ts",
+    "snapback4/packages/snapback4/src/local.ts",
+    "snapback4/packages/snapback4/src/read-approval.ts",
+    "snapback4/packages/snapback4/test/delivery-approval.test.mjs",
+    "snapback4/packages/snapback4/test/helpers/delivery-app-fixture.mjs",
+    "snapback4/packages/snapback4/test/presence-refresh.test.mjs"
+  ]
+}

@@ -112,6 +112,9 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_DELIVERY_BINDING", "a report's binding changed or was removed"),
+    ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),
+    ("RUNS_FULL", "`RUNS_FULL` refuses a disjoint 65th run"),
     ("E_SEARCH_OPEN", "Its membership count includes only authorized discovered keys."),
     ("N_SEARCH_OPEN", "every membership and its authorized head must fit one read"),
     ("N_SEARCH_UNSCOPED", "the read rule varies within the searched index"),
@@ -346,6 +349,17 @@ const DEFINITIONS: &[(&str, &str)] = &[
 ];
 
 #[test]
+fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
+    let text = normalize(&card("receipts").unwrap());
+    for fact in ["SDK reports debt collected from publications and accepted answer manifests", "`progress` remains a catch-up read", "retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "client.mutate(api.seen"] {
+        assert!(text.contains(fact), "missing {fact}");
+    }
+    for obsolete in ["the pages it has walked", "client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
+        assert!(!text.contains(obsolete), "obsolete: {obsolete}");
+    }
+}
+
+#[test]
 fn expiring_mutation_programs_card_states_prediction_class() {
     let programs = card("programs").unwrap();
     assert!(programs.contains("Mutation scans of expiring tables require `predicts: \"never\"`"));
@@ -365,4 +379,62 @@ fn expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal() {
     assert!(fanout.contains("query cut is an incomplete null"), "{fanout}");
     assert!(fanout.contains("mutation cut is `E_BOUND` with no write"), "{fanout}");
     assert!(!fanout.contains("returns false on an already capped answer"));
+}
+
+#[test]
+fn delivery_bound_guidance_requires_start_only_recovery() {
+    let why = explain_code("E_BOUND").unwrap();
+    for (name, text) in [
+        ("why E_BOUND", why.as_str()),
+        ("refusals", card("refusals").unwrap()),
+        ("sequences", card("sequences").unwrap()),
+        ("bounds", card("bounds").unwrap()),
+    ] {
+        let text = text.replace('`', "").split_whitespace().collect::<Vec<_>>().join(" ");
+        for required in [
+            "E_BOUND is an ordinary non-retryable refusal",
+            "calls onDeliveryRefused once",
+            "until the next start",
+            "with a new id",
+            "no retry within the session",
+            "committed report that runs again is a no-op report",
+        ] {
+            assert!(text.contains(required), "{name}: missing {required}");
+        }
+        let lower = text.to_lowercase();
+        for obsolete in [
+            "replay the same id first", "only a recorded failure",
+            "retry a recorded failure with a new id after cleanup",
+            "fresh-id recovery", "bare denied stays uncertain",
+        ] {
+            assert!(!lower.contains(obsolete), "{name}: obsolete {obsolete}");
+        }
+    }
+}
+
+#[test]
+fn delivery_bound_rfc_acceptance_requires_start_only_recovery() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../llp/3000.025-expiring-mutation-read-prefix.rfc.md");
+    let rfc = std::fs::read_to_string(path).unwrap();
+    for (number, required) in [
+        (5, vec!["onDeliveryRefused once", "next start sends a new id", "delivery-refusal.test.mjs"]),
+        (6, vec!["E_BOUND is an ordinary non-retryable refusal", "calls onDeliveryRefused once",
+            "until the next start", "with a new id"]),
+        (7, vec!["start-only queue witnesses prove §3's policy", "one onDeliveryRefused",
+            "a new id only at the next start"]),
+    ] {
+        let section = rfc.split_once(&format!("\n## {number}. ")).unwrap().1
+            .split("\n## ").next().unwrap();
+        let text = section.replace(['`', '*'], "").split_whitespace().collect::<Vec<_>>().join(" ");
+        for phrase in required.into_iter().chain([
+            "no retry within the session", "committed report that runs again is a no-op report",
+        ]) {
+            assert!(text.contains(phrase), "LLP 3000.025 §{number}: missing {phrase}");
+        }
+        let lower = text.to_lowercase();
+        for obsolete in ["fresh id without restart", "replay the same id first", "replay-confirmed"] {
+            assert!(!lower.contains(obsolete), "LLP 3000.025 §{number}: obsolete {obsolete}");
+        }
+    }
 }

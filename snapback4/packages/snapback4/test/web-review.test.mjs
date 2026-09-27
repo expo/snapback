@@ -21,6 +21,8 @@ query rows():
   const mutant = process.env.SNAPBACK4_WEB_REVIEW_MUTANT;
   const sourceOverrides = {};
   const path = name => join(root, 'packages/snapback4/src', name);
+  if (mutant === 'delivery-guard') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8').replace('if (!current())', 'if (false)');
+  if (mutant === 'delivery-gap') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8').replace('guard.onsuccess = () =>', 'guard.onsuccess = async () =>').replace('else tx.commit();', 'else { await Promise.resolve(); tx.commit(); }');
   if (mutant === 'reset') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replace('reset() { publish(empty); }', 'reset() {}');
   if (mutant === 'tables') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replaceAll('Object.create(null)', '{}');
   if (mutant === 'overflow-delete') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
@@ -37,6 +39,45 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
   t.after(() => witness.close());
   const { page, api } = witness;
   const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await t.test('delivery guard aborts the actual IndexedDB transaction before stale debt commits', async () => {
+    const result = await page.evaluate(async () => {
+      const store = indexedDbPersistence(), name = 'conditional-delivery';
+      await store.save(name, [{s:'m',k:'existing',v:'kept'}]);
+      let current = true, checks = 0;
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, ...args) {
+        const request = put.call(this,value,...args);
+        if(value.k === 'delivery') current = false;
+        return request;
+      };
+      let accepted;
+      try { accepted = await store.saveIfCurrent(name, [{s:'m',k:'delivery',v:'debt'}], () => { checks++;return current; }); }
+      finally { IDBObjectStore.prototype.put = put; }
+      const after = await store.load(name);
+      const fresh = await store.saveIfCurrent(name,[{s:'m',k:'delivery',v:'fresh'}],()=>true);
+      return {accepted,checks,after:after.filter(c=>c.s==='m'),fresh,value:await store.read(name,'m','delivery')};
+    });
+    assert.equal(result.accepted,false);assert.equal(result.checks,1);
+    assert.deepEqual(result.after,[{s:'m',k:'existing',v:'kept'}]);
+    assert.equal(result.fresh,true);assert.equal(result.value,'fresh');
+  });
+  await t.test('IndexedDB commits in the passing guard turn before a queued fence change', async () => {
+    const result = await page.evaluate(async () => {
+      const store = indexedDbPersistence(), name = 'conditional-commit-gap';
+      let current = true, checks = 0, currentAtCommit;
+      const commit = IDBTransaction.prototype.commit;
+      IDBTransaction.prototype.commit = function() { currentAtCommit = current; return commit.call(this); };
+      let accepted;
+      try {
+        accepted = await store.saveIfCurrent(name, [{s:'m',k:'delivery',v:'debt'}], () => {
+          checks++;queueMicrotask(() => { current = false; });return current;
+        });
+      } finally { IDBTransaction.prototype.commit = commit; }
+      const stale = await store.saveIfCurrent(name, [{s:'m',k:'delivery',v:'stale'}], () => current);
+      return {accepted,stale,checks,current,currentAtCommit,value:await store.read(name,'m','delivery')};
+    });
+    assert.deepEqual(result,{accepted:true,stale:false,checks:1,current:false,currentAtCommit:true,value:'debt'});
+  });
   const seed = async rows => {
     const result = await fetch(api + '/seed', { method: 'POST', body: JSON.stringify(rows.map(row => ({ table: 'constructor', row }))) }).then(r => r.json());
     assert.equal(result.seeded, rows.length, JSON.stringify(result));

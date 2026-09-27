@@ -1,0 +1,23 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 12.45s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'many_bindings_exhaust_metadata_work_before_further_source_stamping' (691234) panicked at crates/snapback4-lang/tests/delivery.rs:495:5:
+assertion `left == right` failed: index search work is charged
+  left: 200
+ right: 195
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test many_bindings_exhaust_metadata_work_before_further_source_stamping ... FAILED
+
+failures:
+
+failures:
+    many_bindings_exhaust_metadata_work_before_further_source_stamping
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`

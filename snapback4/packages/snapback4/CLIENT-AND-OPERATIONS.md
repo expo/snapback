@@ -2335,3 +2335,71 @@ the effects above), an identity provider beyond guests, passwords,
 services and the sessions a service mints, presence beyond the server's
 own polls. If the package cannot express something, the diagnostic names
 the term; record the gap and move on.
+
+
+### Automatic delivery reports
+
+A mutation declaring `reports delivery of messages by .conversation, .ordinal`
+lets the SDK report exactly the positions delivered to this client. Local
+clients persist debt with published confirmed rows and accepted fallback
+manifests. Online clients collect accepted query manifests in memory, including
+nested images. A composed answer omits the manifest when it replaces server
+rows with retained local rows. Query manifests pass the same restore floor as
+reports. Through `createApp` / `guardClient`, acceptance occurs only when the
+facade publishes the shared authority-approved answer or returns it from
+`query()` after approval. Its manifest follows the answer's identity, so peer
+facades collect it once; refused, superseded or expired answers collect nothing.
+Without a facade, acceptance remains the raw watch publication or query return,
+synchronously at its final fences. Collection persistence never delays or rejects the answer;
+every CAS attempt rechecks those fences, including at the host's commit point.
+An answer overtaken before that write stays accepted, but collects nothing.
+Unsupported conditional persistence also omits the collection; those rows stay
+`sent`. No mounted conversation or application delivery hook is needed.
+Keep calling `seen` for messages the person actually views. A continuously
+mounted `progress` query acquires its returned message rows, so use it only
+when that catch-up is intended.
+
+Reports bypass the ordered outbox and dispatch only when its local network
+chain is idle. Four groups may report concurrently, one call per binding and
+group, with a 15-second deadline. A retained uncertain attempt keeps its id across
+local restarts. Committed success covers its exact run; `RUNS_FULL` parks it
+and allows other intervals to proceed. New publications, success, reconnect,
+start and a slow timer wake parked runs, at most once per 30 seconds each.
+Startup waits only for debt present at startup. Later activation pages wait
+for capacity without evicting debt, retaining outbox priority even during live
+traffic. A failed page resumes its durable cursor with bounded backoff.
+
+`E_BOUND` is an ordinary non-retryable refusal in either the `why` or
+`denied` envelope, including a denial without a head. The interval parks until
+the next start and calls `onDeliveryRefused` once. Reconnect, timer wakes,
+eviction and recollection do not resend it within the session; clean intervals
+in the same group can still report. The next start retries with a new id.
+An expired unswept backlog normally clears before then; if an oversized reply
+hid a committed report, reporting that coverage again is a no-op. Retries are
+bounded by app starts. Start-only suppression applies to every ordinary
+non-retryable refusal, is scoped to fingerprint and group, and clears on start
+or store reset; it creates no terminal refused entry.
+
+Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
+for application refusals. It receives
+`{ table, mutation, args, group, from, through, why }`; `why` is the ordinary
+coded refusal. `NOT_A_RUN` and `PAST_LAST_MESSAGE` enter a remembered refused
+set; other non-retryable application refusals park until restart.
+`RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
+this callback. Reports do not appear in `onWrite` or `pendingWrites()`.
+
+Local debt survives closing or sign-out for the same viewer. Online sign-out
+waits at most one second for reports already in flight; remaining memory debt
+is lost. Leaving drops a group's debt. Store replacement or detected restore
+clears delivery metadata and fences outstanding callbacks; recover using a
+fresh device store. Debt never crosses viewers or binding incarnations.
+Each report sends `delivery: { fingerprint }` from its compiled binding or
+manifest. `E_DELIVERY_BINDING` drops that binding's state; an unrelated backend
+generation preserves unchanged fingerprints. Positions outside JavaScript's
+safe-integer range are never collected.
+
+Each binding/group keeps at most 256 owed intervals, 256 reported intervals
+and 64 refused intervals. There are at most 4,096 local or 1,024 online active
+groups. Eviction drops owed positions, which stay `sent`, but retains refused
+intervals. A saturated refused set stops that group's collection and dispatch
+until a leave/rejoin or a new device store.
