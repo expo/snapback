@@ -111,7 +111,8 @@ if (!dry) {
   for (const a of artifacts) converge(a, root);
 }
 const darwin = staged.platforms[0];
-const record = { at: new Date().toISOString(), version, source: staged.source, artifacts: artifacts.map(({ tarball, ...a }) => a), resume: receiptPath, ...darwin.signing, binaryBytes: darwin.binaryBytes, binarySha256: darwin.binarySha256, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
+const compatibility = { tarballBytes: staged.client.bytes, platformTarballBytes: darwin.bytes, tarballIntegrity: staged.client.integrity, platformTarballIntegrity: darwin.integrity, files: staged.client.files, binaryVersion: darwin.binaryVersion, binaryProfile: darwin.binaryProfile, sqliteBuildFlags, cargoProfile: darwin.cargoProfile, platform: "darwin-arm64" };
+const record = { ...compatibility, at: new Date().toISOString(), version, source: staged.source, artifacts: artifacts.map(({ tarball, ...a }) => a), resume: receiptPath, ...darwin.signing, binaryBytes: darwin.binaryBytes, binarySha256: darwin.binarySha256, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
 mkdirSync(join(root, "metrics"), { recursive: true });
 appendFileSync(join(root, "metrics/publish.jsonl"), JSON.stringify(record) + "\n");
 console.log(JSON.stringify(record));

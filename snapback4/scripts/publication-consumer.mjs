@@ -44,6 +44,6 @@ console.log("consumer ok: query complete+fresh, online write sent, offline write
 console.log(run("node", ["run.mjs"], { cwd: consumer }).trim());
 
 copyFileSync(new URL("./publication-roundtrip.mjs", import.meta.url), join(consumer, "roundtrip.mjs"));
-run("node", ["roundtrip.mjs", staged.version], { cwd: consumer, env });
+run("node", ["roundtrip.mjs", staged.version], { cwd: consumer, env, timeout: 90_000 });
 return { status: "passed", clientIntegrity: staged.client.integrity, platformIntegrity: platform.integrity };
 }

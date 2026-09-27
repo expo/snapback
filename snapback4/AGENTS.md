@@ -35,7 +35,9 @@ bash scripts/check-release-guard.sh # the web artifact's configuration plus the 
 bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4-device), family-checked, bound and measured → metrics/wasm.jsonl
 bash scripts/build-xcframework.sh    # the device as an iOS xcframework for packages/snapback4-expo (staticlib alone, stripped; 13.2 MB with native reads)
 node loopbar/run.mjs --n 3           # the loop bar: fresh agents on the published pin build reduced Clique M1–M3 → metrics/loopbar.jsonl
-node scripts/publish.mjs             # runs the suite (refuses on red), builds the production binary, publishes snapback4 + snapback4-darwin-arm64
+node scripts/publish.mjs --prepare-client # rebuild wasm + clean client, pack once for cross-host qualification
+node scripts/qualify-linux.mjs --client /path/client.tgz --out /path/qualification # Linux suite + Ubuntu/Alpine proof, no publish
+node scripts/publish.mjs             # Mac: qualify/sign Darwin; optional --linux-receipt + --linux-tarball import; platforms before client
 ```
 
 Crates: `snapback4-core` (value model, schema with `sync`, IR, key encoding,
@@ -48,7 +50,7 @@ interpreter over a `DeviceStore`: the core's SQLite under the native
 module for Expo and Exact2 hosts, memory under wasm on the web; one
 dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is
 the language card and the keyword cards; packages: `snapback4` (the client
-over the device and the CLI shim), `snapback4-darwin-arm64` (the binary), `snapback4-expo`
+over the device and the CLI shim), `snapback4-darwin-arm64` and `snapback4-linux-x64` (the binaries), `snapback4-expo`
 (the Swift module over the device's C ABI).
 
 What exists, by week (LLP 3000 §5):
@@ -79,13 +81,23 @@ Gotchas you cannot derive from the code:
   names the indexes that exist. Named equalities covering a total unique key
   check any extra columns on that one row without an additional index.
 - The packaged CLI uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` during both publication tests and its production build (LLP 3000 §7). A plain production Cargo build retains the dependency's ordinary SQLite policy; use the same build input when comparing with the package. The variable is unnecessary at runtime.
-- When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
-- Publication retains exact signed tarballs under `target/publication/`. If a
+- When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json`,
+  `packages/snapback4-linux-x64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
+- Publication retains exact qualified tarballs under `target/publication/`. If a
   stage exists, use `node scripts/publish.mjs --resume` to validate its recorded
   suite qualification, requalify those exact bytes through the installed-consumer
   proof, and finish missing registry artifacts; an existing version must match
   its staged integrity. This also applies after `--dry-run`. An ordinary invocation
   refuses an existing stage so changed source cannot silently publish old bytes.
   Bump the version to build a new pair; preserve a partially published stage.
+- Cross-host publication (LLP 3000.021 §3.3): prepare the common client once
+  from clean release source, qualify that tarball on Linux, and import the
+  Linux tarball plus its receipt on the Mac. Source commit, client SRI and
+  Linux SRI must agree. Linux requires a working Docker/Podman and refuses
+  `NPM_TOKEN` or `NODE_AUTH_TOKEN`, even when empty. It never signs or packs
+  the client. The Mac never rebuilds or executes Linux; `--resume` rechecks
+  its copied receipt. No receipt keeps the Darwin-only publication flow.
+  Commands and current qualification limits:
+  [`reports/20260927-lx-linux-package/REPORT.md`](./reports/20260927-lx-linux-package/REPORT.md).
 - The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.
 - Native jobs (LLP 3000.005) need `rustup target add wasm32-unknown-unknown`; the suite's fixture build fails loudly without it. The guest SDK `crates/snapback4-native` is a path dependency until it is published; an app's `snapback/native/Cargo.toml` names it by path.

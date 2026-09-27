@@ -37,4 +37,3 @@ export function converge(artifact, directory) {
   }
   if (after !== artifact.integrity) throw new Error(`npm published ${artifact.name}@${artifact.version}, but registry integrity is ${after ?? "absent after waiting 10 minutes"}; expected ${artifact.integrity}`);
 }
-

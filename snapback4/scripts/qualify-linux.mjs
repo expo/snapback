@@ -23,17 +23,20 @@ export function containerProof(runtime, client, platform, version, work) {
     const dockerfile = base === "alpine"
       ? `FROM node:${nodeVersion}-alpine AS node\nFROM alpine:3.23\nCOPY --from=node /usr/local /usr/local\nRUN apk add --no-cache libstdc++ ca-certificates\n`
       : `FROM node:${nodeVersion}-bookworm-slim AS node\nFROM ubuntu:22.04\nCOPY --from=node /usr/local /usr/local\nRUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 ca-certificates && rm -rf /var/lib/apt/lists/*\n`;
-    writeFileSync(join(context, "Dockerfile"), dockerfile + `COPY client.tgz platform.tgz roundtrip.mjs /proof/\nWORKDIR /consumer\nENV NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/dev/null\n`);
+    writeFileSync(join(context, "Dockerfile"), dockerfile + `COPY client.tgz platform.tgz roundtrip.mjs /proof/\nWORKDIR /consumer\nENV NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/tmp/snapback4-empty-global.npmrc\n`);
     const tag = `snapback4-proof-${process.pid}-${base.startsWith("ubuntu") ? "ubuntu" : "alpine"}`;
     try {
       run(runtime, ["build", "--pull", "--platform", "linux/amd64", "-t", tag, context], { stdio: "inherit" });
       const image = run(runtime, ["image", "inspect", "--format", "{{.Id}}", tag]).trim();
       // The only host files in the image are these three proof inputs. No checkout,
       // home, npmrc, binary override or host credentials enter the container.
-      run(runtime, ["run", "--rm", "--platform", "linux/amd64", tag, "sh", "-ec",
+      run(runtime, ["run", "--rm", "--name", tag, "--platform", "linux/amd64", tag, "sh", "-ec",
         `test -z "\${SNAPBACK4_BIN+x}"; test "$(node -v)" = v${nodeVersion}; printf '{"private":true,"type":"module"}' > package.json; npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz; cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}`], { stdio: "inherit", timeout: 300_000 });
       proofs.push({ base, image, runtime, node: nodeVersion, status: "passed", clientIntegrity: sri(client), platformIntegrity: sri(platform) });
-    } finally { spawnSync(runtime, ["image", "rm", tag], { stdio: "ignore", timeout: 30_000 }); }
+    } finally {
+      spawnSync(runtime, ["rm", "--force", tag], { stdio: "ignore", timeout: 30_000 });
+      spawnSync(runtime, ["image", "rm", tag], { stdio: "ignore", timeout: 30_000 });
+    }
   }
   return proofs;
 }

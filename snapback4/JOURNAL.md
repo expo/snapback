@@ -67203,3 +67203,72 @@ No deviation or open round-2 finding. Changed only the compiler note, its
 test, this append and the report's round-2 section. No runtime/client, guide,
 version or budget change, push or publication. Report:
 reports/20260927-gn-guide-note/REPORT.md; logs: target/lane-gn-round2/.
+
+
+### 2026-09-27 — Lane LX: a static Linux npm artifact and publication by digest
+
+Implemented LLP 3000.021 §3.3 on sb4-intent/lx-linux-package. Added the
+linux-x64 platform package at the client version, its optional dependency,
+and the resolver's two-platform explanation. The user-local musl 1.2.5
+installer pins the archive hash, chooses x64 explicitly and keeps the loader
+path in the user's prefix. The production build compiles bundled SQLite
+through musl-gcc with unchanged -USQLITE_ENABLE_MEMORY_MANAGEMENT, uses
+explicit static CRT/relocation, and rejects PT_INTERP or DT_NEEDED in the ELF.
+
+Publication now prepares one common client after rebuilding wasm and deleting
+and rebuilding dist, inspects its exact two optional dependencies, and stages
+per-platform artifacts. Linux qualification refuses even empty registry
+tokens, runs the source suite and pinned-Node Ubuntu/Alpine consumer proofs,
+and emits a success receipt only after all checks pass. The Mac imports the
+Linux tarball by SRI and binary hash against that same client and source; it
+never rebuilds, repacks, executes or signs Linux. Resume rereads the copied
+receipt, checks all artifacts and registry integrities, and requalifies Darwin
+only. Both platforms precede the client in publication. Old format-2 Darwin
+stages, signing/notarization checks, no-Linux-receipt flow and metrics remain.
+
+The actual Linux binary is 17,189,152 B, SHA-256
+78ce3de25bb7806c4dad8f56906a0aa9753535b424b3c8b172045ef163283c52.
+Both the parser check and readelf confirm no interpreter or shared-library
+dependencies. Its development tarball is 7,405,562 B. One clean-source
+client pack is 840,123 B. The real installed-host proof outside the checkout,
+with SNAPBACK4_BIN unset, passed version/init/check/dev, client mutation/read
+and a denied cross-persona read. The first manual toolchain attempt inherited
+ARM selection and later retained ARM headers; a fresh x64 install, rebuilt
+SQLite, a C probe and the successful host proof resolved the empty-store
+E_STORE failure. No storage workaround was added. The installer itself selects
+x64 from the start. Also corrected two npm config layers using the same path,
+which the real proof refused, and bounded consumer/container cleanup.
+
+Affected tests: 67 passed (24 existing signing cases, 34 publication cases,
+4 Linux package/ELF/resolver/credential cases, 5 qualification cases). Whole
+guide: 86 passed. Ran scripts/test.sh once: `== 1 failure(s) in 1481 s`, exit 1,
+reporting only `client tests`. Main client tests were 2,523 passed, 1 failed,
+10 intentional skips; all 56 shards and 78 models passed. All other suite
+stages passed. The one failure was unchanged ephemeral-e2e.test.mjs:61,
+`timed out: ephemeral trial 4 disappears`. Classified environmental/intermittent:
+its isolated rerun passed in 53.6 s, all five ephemeral trials disappearing
+about 3.93 s after the last call; the relevant test, helper, client and server
+sources are unchanged from the lane base. Its underlying race/scheduling
+cause is not diagnosed here. The full-suite red is retained, not converted
+into a qualification pass. No test assertion or deadline was weakened.
+
+Wasm is 1,980,253 B raw / 571,810 B gzip, under the unchanged 572,841 B budget;
+SHA-256 324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+No wasm source or dependency changed. The prior lane's recorded raw size is
+equal and gzip 31 B larger; no packaging-code attribution is claimed for that
+cross-build difference. Frozen Bun install, syntax checks and diff whitespace
+checks pass; root ref-check reports 515 LLP docs, 9,578 refs, zero errors or
+unchecked references. No changed source exceeds 1,500 lines.
+
+The real Ubuntu/Alpine proof remains environmental work: this host has no
+Docker/Podman or usable socket, unprivileged UID mapping refuses, and sudo
+requires a password. qualify-linux.mjs was run and refused at that preflight;
+no Linux success receipt exists. The source-suite run above also is not green.
+No system settings changed, no engine/client contract or meter change, no
+version/budget bump, no real Mac signing test, no registry login/write, push
+or publication. Node 24.13.1, npm 11.8.0, Bun 1.3.14, Rust 1.97.0, GCC 13.3.0;
+eight Cargo jobs, dev/test debug off, incremental off, descriptor limit 65,536.
+The broken user-local npm link was restored from the checksum-verified Node
+distribution. Report, exact next-publication commands, digests and reproductions:
+reports/20260927-lx-linux-package/REPORT.md. Raw logs and development tarballs:
+ignored target/lane-lx/ and target/publication/client-0.4.4/.
