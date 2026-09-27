@@ -211,11 +211,16 @@ fn manifest_adoption<H:Host>(h:&mut H) {
     s["groups"]["[\"messages\",\"delivered_messages\",\"r\"]"]=json!({"binding":binding,"group":"r","incarnation":1,"owed":[[41,41]],"reported":[[3,3]],"refused":[[5,5]]});
     let groups=s["groups"].clone();
     d.delivery(&json!({"viewer":"dev:alice","action":"write","expected":raw["value"],"value":s.to_string()})).unwrap();
+    assert_eq!(state(&mut d)["groups"],groups,"older-schema reads keep unresolved manifest debt");
+    h.close("manifest-adoption",d);let mut d=h.open("manifest-adoption",None).unwrap();
+    assert_eq!(state(&mut d)["groups"],groups,"unresolved descriptors survive restart too");
     d.adopt(backend()).unwrap();
     let adopted=state(&mut d);assert_eq!(adopted["groups"],groups,"manifest-only rows survive compiled binding adoption");
     assert_eq!(adopted["bindings"][0]["group"],"room");
     d.apply(&page(true,vec![],1),true).unwrap();
     assert_eq!(state(&mut d)["groups"],groups,"later publications keep the adopted debt");
+    let mut removed=backend();removed.schema.delivery.clear();d.adopt(removed).unwrap();
+    assert_eq!(state(&mut d)["groups"],json!({}),"removing a previously compiled binding drops its debt");
 }
 #[test]fn manifest_adoption_memory(){manifest_adoption(&mut Memory::new())}
 #[test]fn manifest_adoption_sqlite(){manifest_adoption(&mut Sqlite::new("delivery-manifest-adoption"))}

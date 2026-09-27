@@ -46,13 +46,19 @@ fn retain(value: &mut Json, keep: &mut dyn FnMut(&str, &Json) -> bool) {
     value.as_object_mut().unwrap().retain(|key, value| keep(key, value));
 }
 fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
-    let bindings: Json = decoded(&encoded(&schema.delivery)?)?;
+    let mut bindings: Json = decoded(&encoded(&schema.delivery)?)?;
     if state["bindings"] == bindings { return Ok(()); }
     let old = state["bindings"].take();
-    for binding in old.as_array().into_iter().flatten() {
+    let Json::Array(old) = old else { return Ok(()); };
+    for binding in old {
         // A manifest first supplies only the wire fields; the fingerprint also
         // identifies its later compiled binding (which adds group and position).
         if schema.delivery.iter().any(|b| binding["fingerprint"] == b.fingerprint) { continue; }
+        // Unresolved wire descriptors survive older-schema reads. Adoption of
+        // the same fingerprint replaces them above; only compiled removals drop state.
+        if binding["group"].is_null() && binding["position"].is_null() {
+            bindings.as_array_mut().unwrap().push(binding); continue;
+        }
         let table = binding["table"].as_str().unwrap_or("");
         let mutation = binding["mutation"].as_str().unwrap_or("");
         retain(&mut state["groups"], &mut |_, group| group["binding"]["table"] != table || group["binding"]["mutation"] != mutation);
