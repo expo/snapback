@@ -67706,3 +67706,95 @@ version or budget change. No push or publication. No known implementation
 problem remains; the test-only post-suite correction is the explicit verification
 limitation. File map, repros and evidence: reports/20260927-lane-a5-list-offline.md,
 round 5; ignored target/a5-evidence/round5-*.
+
+## 2026-09-27 — 0.4.5 lane FK: identity stall ordering and expired server-reply recovery
+
+Committed the remaining flake fixes on `sb4-intent/fk-flakes`, starting at
+`9473e0a34`. The identity defect was a test race: its first status poll could
+cancel before the chosen stall. The fixture now forces status arrival first,
+then delivers cancellation only after actual fetch/body entry. Body cases
+prove consumption, including clones. Every cancellation, aborted-signal,
+no-mint/no-verification and late-core-effect assertion remains. Removing the
+entry wait makes the private-core control fail 5/5 (`false !== true`); the
+fixed ten-scenario test passes 20/20 loaded runs, 200 scenarios total.
+Closed `issues/closed/20260926-snapback4-identity-invocation-stall-flaky.md`.
+
+The ephemeral investigation found a product race: a server-time estimate
+100 ms ahead can trigger an expiry re-read before server expiry. The client
+correctly withholds that expired reply, but its first-attempt server branch
+lost the watch's final wakeup. Since expiry changes neither sequence nor
+ephemeral epoch, the watch stayed loading. Live queries now retry rejected
+server/composed replies through the ordinary publication/authority fences,
+with one request per watch and 25/50/100/... ms backoff capped at 1 s. A
+valid answer resets pacing; watch removal, close and sign-out prevent a late
+continuation. One-shot reads keep their existing result. LLP 3000.017 §2.4
+records this engineering choice; the brief did not prescribe retry pacing.
+
+The end-to-end fixture keeps its original assertions and clock bounds. It
+holds an explicit early estimate and replays the last real row reply once
+at expiry, so even a late scheduler wake cannot skip the race. Poll answers
+are recorded before consumption, following EK's method. Original product
+plus the early estimate fails 5/5 at `ephemeral trial 1 disappears`. The
+final fixture with recovery disabled in an isolated copied package also
+fails 5/5 at that assertion. No live suite bytes were mutated for that control.
+The final fixture passes 20/20 runs, five at a time beside eight CPU workers
+on cores 0–7, in 259.976 s. Its 100 trials appear in 4.867–47.664 ms and
+reach an authoritative empty answer 3877.760–4041.328 ms after the last call,
+with 2 ephemeral requests versus 45 durable-control requests each. An earlier
+20/20 proof of the window-only fixture is also retained. Opened and closed
+`issues/closed/20260927-snapback4-ephemeral-e2e-disappearance-flaky.md`.
+The original LX log has no component timestamps: this reproduces its failure
+signature, without claiming its precise historical offset/delivery order.
+
+Added five lifecycle tests for repeated expired replies, pacing, withholding,
+recovery with/without keep, and watch/client teardown; added two routing tests
+for first-attempt expiry and one-shot behavior. Routing plus lifecycle passes
+191/191; full identity plus original routing passes 202/202; adjacent expiry,
+keep, clock and ephemeral watches pass 72/72. The whole guide passes 86/86.
+No new diagnostic, syntax or guide snippet; all source files stay below
+1,500 lines (`local.ts`: 1,482). Reference audit and diff whitespace checks
+pass. Wasm is unchanged: 1,980,253 B raw / 571,810 B gzip, delta 0 B, 1,031 B
+below the unchanged 572,841 B budget; SHA-256
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+
+Ran `scripts/test.sh` exactly once on expo-build-1000 with Node 24.13.1,
+Bun 1.3.14, Rust 1.97.0, eight Cargo build jobs, dev/test debug information
+disabled and fd limit 65,536. Exact result: **`== 0 failure(s) in 1403 s`**,
+exit **0**. Cargo: 3,809 passed / 24 existing ignored, 928 s. Main client:
+2,488 passed / 10 existing skips; all seven additional shards pass 56/56,
+client phase 197 s. Models pass 78/78 in 260 s; fixture wrappers pass 9/9.
+Native/wasm builds, docs/wasm budgets, release guard, package checks and both
+app typechecks pass. Both assigned flakes and all new lifecycle cases pass
+in that full run. No lane-owned, baseline or environmental failure, and no
+other intermittent failure observed. The inherited 60 s budget is still
+exceeded; no budget, deadline or timeout was raised.
+
+No identity runtime, engine/meter, authorization, disclosure, durable admission,
+version, package publication or unrelated flake change. No push. The supervisor
+owns integration and the blind reviews. Implementation commits: 14b476903,
+0821cb053 and afeb7bad9. Report: reports/20260927-fk-flakes/REPORT.md. Evidence,
+controls, the repeatable load driver and full-suite log/exit remain under
+`target/lane-fk-evidence/`; this entry is the lane's single journal append.
+### 2026-09-27 — `idFrom(label)`: a fixture label names a valid id
+
+Two builders on two releases (the 0.4.3 comparative's Grok, and calibration
+#23's Astra on 0.4.4) hit `E_WRITE_ID` with fixture strings and wrote the same
+workaround: a hash of the label into the `mintId()` form. `snapback4/client`
+now exports `idFrom(label)`, which is that mapping. It puts the first 80 bits
+of SHA-256 over `["snapback4:id:v1", label]` under a zero time, in 26
+Crockford digits. A derived id sorts before every minted id, as if minted at
+the epoch. With all 128 bits hashed, most ids decoded as future times, and
+seeded rows would have crowded a `by .id` sync window (Grok's review). It is synchronous on every host, through a small
+portable SHA-256 (`src/sha256.ts`), because Web Crypto's digest is
+asynchronous and Hermes has no `node:crypto`.
+
+- The derivation is pinned by a test, so fixtures replay across releases.
+- The portable hash is checked against `node:crypto` on 212 inputs, including
+  astral characters and lone surrogates.
+- `E_WRITE_ID`'s message, its `why` entry, `MutateOptions.id` and the README
+  (still 300 lines) point to it.
+
+The server's write records are keyed by principal and id, and nothing reads a
+write id's embedded time, so a derived id is as good as a minted one. Ids were
+never capabilities, and this is a name, not a secret. The operations manual
+calls it in a type-checked block, which the public-function census requires.
