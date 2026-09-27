@@ -68011,3 +68011,59 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+### 2026-09-27 — Lane FX: forced schedules close the expiry and journal flakes
+
+From `54099bc882`, committed expiry-retry scheduling assertions (`192488266`),
+manual expiry-clock isolation (`90dc4bf23`) and a product fix for cross-tab
+journal visibility (`61b75b538`). A sync commit can legitimately rerun a query
+without expiry backoff; the test now forces that order and checks actual
+25/50/100/200/400/800/1000/1000 ms timer calls, single flight, withholding,
+recovery and closure. Both fixture clock instances now stop accepting live
+samples after their manual boundary is calibrated; probe headers and stream
+stamps are forced across the held local reply without changing its exact
+clock/two-evaluation/fallback/pagination assertions.
+
+Chromium delivered an admission broadcast before A's localStorage image
+updated: the hook read empty, and the later storage event had no SDK listener.
+The product now rereads the existing journal on its keyed storage event (or
+clear), retaining the existing lock, viewer checks and custody, and detaches
+both listeners with the final owner. The two-page test forces that order and
+B's immediate close. Split the 1,594-line React test into its runner and two
+helpers; unrelated cases moved byte-for-byte. Documented the storage ordering
+in CLIENT-AND-OPERATIONS and closed all three issue families, including QE's
+copied ticket. No new authoring form or diagnostic.
+
+Each final group passed 20/20 on expo-build-1000, five test processes at a
+time sharing cores 0–7 with eight CPU workers: seven expiry cases per run,
+ten wasm/process manual-clock cases per run, and the full 46-test React file
+per run. Every negative family fails 5/5: old arrival gaps, held-timer paced
+waits, branch clock assertion, branch-watch 60-second wait and missing
+storage-event listener. The held-timer control is a scheduling counterexample,
+not a reconstruction of KG's exact historical timeout schedule. A header-only
+intermediate clock fix failed 1/20 because stream bodies can sample later;
+the final sampling-boundary fixture passed 20/20. Online/pending compatibility
+passes 55/55; the entire guide passes 86/86. Reference check: 517 LLP docs,
+9,609 references, zero errors and zero unchecked. No shared tool installation.
+
+The single full suite finished **`== 0 failure(s) in 1436 s`**, exit **0**.
+Rust: 3,818 passed / 24 existing ignored, 942 s. Client: 2,635 main-file passes
+plus 56 shard passes / 10 existing skips, 198 s. Models: 78/78, 260 s;
+fixture wrappers: 9/9. Native/wasm build, docs budget, release guard, package
+checks and both app typechecks pass. All assigned cases pass. No lane-owned,
+baseline or environmental failure in the full run; no additional flake there.
+The inherited 60 s budget is exceeded, without changing any deadline or limit.
+Wasm is 1,981,512 B raw / 572,053 B gzip both before changes and in the suite,
+under the unchanged 572,841 B ceiling; device-code delta 0 B.
+
+An unrelated unchanged useNow deadline case intermittently kept "bob" in
+baseline journal-tracing/control runs, then passed in all final React stress
+runs and the full suite. Filed issues/20260927-snapback4-react-usenow-deadline-flaky.md;
+its cause is unconfirmed and it remains unfixed per the lane brief. Initial
+package/React attempts before fresh wasm artifacts existed were setup-order
+errors, resolved before qualification. No authorization, disclosure, durability,
+engine/meter, runtime clock, version, package publication or unrelated-flake
+change. No push. Supervisor owns integration and blind reviews. Full file map,
+reproduction, limitations and evidence: reports/20260927-fx-flakes/REPORT.md;
+raw logs/controls under target/lane-fx-evidence/ and durable result hashes in
+reports/20260927-fx-flakes/qualification.json. This is the single journal append.
