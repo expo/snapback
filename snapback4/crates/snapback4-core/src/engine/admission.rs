@@ -74,6 +74,14 @@ pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
 
 // @ref LLP 3000.007#20 — admission reports the author's population and bound; source locations stay beside the IR.
 pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
+    check_detail_with_statements(schema, program, &[])
+}
+
+/// Source statement ends supplied by Quarry alongside its flattened IR. Empty
+/// means each IR statement owns itself (serialized/hand-built programs). Grouping
+/// can only shorten eligibility: every statement in each group is still checked.
+// @ref LLP 3000.025#3-proposed-rule — hoisted setup belongs to its entire source statement.
+pub fn check_detail_with_statements(schema: &Schema, program: &Program, statement_ends: &[usize]) -> Result<(), Problem> {
     let mut fact = schema.operations.get(&program.name).cloned().unwrap_or_default();
     crate::schema::ephemeral::execution(schema, program, &mut fact).map_err(|message| Problem {
         code: "E_QUARRY_EPHEMERAL", site: program.name.clone(), page_site: None,
@@ -91,7 +99,7 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
         if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
         // @ref LLP 3000.025#3-proposed-rule — an entire read-only statement prefix precedes every effect, including hidden and indirect writes.
-        let prefix_len = program.body.iter().take_while(|stmt| super::read_only::statements::<false>(std::slice::from_ref(stmt))).count();
+        let (prefix_len, effect_end) = read_only_prefix(&program.body, statement_ends);
         let (prelude, _) = crate::ir::body_read_structure(&program.body[..prefix_len]);
         let never = schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never"));
         for scan in &scans {
@@ -101,7 +109,7 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
                 return Err(fanout(Some(scan), &scan.site, &reason, "read this page in a query, then pass the selected ids to the mutation"));
             }
             if schema.table(&scan.table).is_some_and(|table| table.is_expiring()) && !(never && in_prefix) {
-                return Err(expiry_problem(program, scan, prefix_len, never, in_prefix));
+                return Err(expiry_problem(program, scan, prefix_len..effect_end, never, in_prefix));
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
@@ -123,6 +131,20 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         }
     }
     Ok(())
+}
+
+// Always cover the complete body; absent or malformed boundaries cannot skip
+// an effect. A source statement may own several lowered top-level statements.
+fn read_only_prefix(body: &[Stmt], statement_ends: &[usize]) -> (usize, usize) {
+    let ends: Vec<_> = if statement_ends.is_empty() { (1..=body.len()).collect() }
+        else { statement_ends.iter().copied().chain(std::iter::once(body.len())).collect() };
+    let mut start = 0;
+    for end in ends {
+        if end <= start || end > body.len() { continue; }
+        if !super::read_only::statements::<false>(&body[start..end]) { return (start, end); }
+        start = end;
+    }
+    (body.len(), body.len())
 }
 
 struct Flow<'a> {
@@ -404,13 +426,14 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
 }
 
 // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — name the enclosing statement, not an inferred product invariant.
-fn expiry_problem(program: &Program, scan: &Scan, prefix_len: usize, never: bool, in_prefix: bool) -> Problem {
+fn expiry_problem(program: &Program, scan: &Scan, boundary: std::ops::Range<usize>, never: bool, in_prefix: bool) -> Problem {
     let mut message = format!("{} scans expiring {}", program.name, scan.table);
     let mut rewrite = if never { String::new() } else { format!("Make `{}` `: server`. ", program.name) };
     if in_prefix {
         message.push_str(" but may predict");
-    } else if let Some(statement) = program.body.get(prefix_len) {
-        let (inside, _) = crate::ir::body_read_structure(std::slice::from_ref(statement));
+    } else if let Some(statement) = program.body[boundary.clone()].last() {
+        let group = &program.body[boundary.clone()];
+        let (inside, _) = crate::ir::body_read_structure(group);
         let enclosing = inside.iter().any(|candidate| std::ptr::eq(*candidate, scan));
         let site = match statement {
             Stmt::If { .. } => "if".into(),
@@ -423,9 +446,9 @@ fn expiry_problem(program: &Program, scan: &Scan, prefix_len: usize, never: bool
             Stmt::Delete { table, .. } => format!("delete {table}"),
             Stmt::DeleteTarget { target } => format!("delete {}", target.table),
             Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => format!("insert {table}"),
-            _ => format!("statement {}", prefix_len + 1),
+            _ => format!("statement {}", boundary.start + 1),
         };
-        let effect = if super::read_only::statements::<true>(std::slice::from_ref(statement)) { "an emit" } else { "a write" };
+        let effect = if super::read_only::statements::<true>(group) { "an emit" } else { "a write" };
         message.push_str(&if enclosing {
             format!(" inside `{site}` containing {effect} (an untaken arm counts)")
         } else {

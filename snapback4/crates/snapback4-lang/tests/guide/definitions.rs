@@ -338,3 +338,25 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("SNAPBACK4_SIGNAL", "`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance stopped; an unexpected stop ends the server)."),
     ("SNAPBACK4_THREAD_EXIT", "`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance stopped; an unexpected stop ends the server)."),
 ];
+
+#[test]
+fn expiring_mutation_programs_card_states_prediction_class() {
+    let programs = card("programs").unwrap();
+    assert!(programs.contains("Mutation scans of expiring tables require `predicts: \"never\"`"));
+    assert!(programs.contains("inferred from server-only work, or declared with `: server`"));
+}
+
+#[test]
+fn expiring_cap_why_states_live_occupancy_and_bounded_recount() {
+    let predict = explain_code("E_PREDICT").unwrap();
+    assert!(predict.contains("live occupancy") && predict.contains("bounded recount"), "{predict}");
+    assert!(!predict.contains("cap counts unswept physical rows"));
+}
+
+#[test]
+fn expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal() {
+    let fanout = explain_code("E_STRUCTURAL_FANOUT").unwrap();
+    assert!(fanout.contains("query cut is an incomplete null"), "{fanout}");
+    assert!(fanout.contains("mutation cut is `E_BOUND` with no write"), "{fanout}");
+    assert!(!fanout.contains("returns false on an already capped answer"));
+}

@@ -1,17 +1,12 @@
 # Programs — E_STRUCTURAL_FANOUT
 
-For a receipt gap over expiring messages, use `ordinal: sequence by conversationId`
-with `unique conversationId, ordinal`, then bounded unique ordinal probes.
-`snapback4 guide "receipt gap expiring messages"` contains the compiled, tested
-recipe, including the older manual allocator and a row-keyed missed-message
-count. The compiler supplies a pasteable helper for an expiring table with a
-unique parent/ordinal key. Use it only with authority over the whole conversation
-and a validated received run; a hidden row is not proof of an expired hole.
-Resume after the bound and keep disjoint receipt runs. A row-keyed count answers
-the badge question, not which individual messages were received.
-
-For general processing, read the page in a query and pass selected ids to the
-mutation, or use a job sweep, which may read a table with expiry.
+For receipt gaps, `guide sequences` has the `sequence by conversationId` and bounded unique
+ordinal-probe recipe, manual allocator, and row-keyed count. The compiler
+supplies a helper for a unique parent/ordinal key. Require authority over the
+whole conversation and a validated received run; hidden rows do not prove
+holes. Resume after the bound, preserving disjoint runs. Counts answer badges,
+not individual receipt coverage. General processing can use query-selected ids
+or a job sweep.
 
 Example: declare `cap 50 by room` on members, then iterate
 `for m in members where .room = room:`; put the condition and row write inside
@@ -47,14 +42,11 @@ prints the examined ceiling and, for expiry, the unswept-row backlog and
 atomic `E_BOUND` outcome rather than a first-N-rows price.
 For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
-Example: on a non-expiring table with a uniform read rule, `cap 50 by room`
-admits the complete loop `for row in messages where .room = room:`.
-
 A program's prefix `exists` is a top-1 scan below the page: no cursor and no
 page overflow. Expired siblings still cost examined rows, and `matching` pays
 word discovery. A positive held row proves existence on a device regardless of
-its horizon; only a negative answer past that horizon needs coverage. A cut
-before finding a row returns false on an already capped answer. Mutation prefix
-existence tests require a uniform plain prefix and the same expiry admission
-as other scans (guide programs); a cut refuses instead of returning false. Rule probes keep
+its horizon; only a negative answer past that horizon needs coverage. A
+query cut is an incomplete null; a mutation cut is `E_BOUND` with no write.
+Mutation prefix existence tests require a uniform plain prefix and the same
+expiry admission as other scans (guide programs). Rule probes keep
 exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor.

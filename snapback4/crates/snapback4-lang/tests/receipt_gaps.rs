@@ -1,4 +1,4 @@
-//! Calibration 23: the expiry refusal leads to a compiled receipt-gap recipe.
+//! Calibration 23: an expiry scan after an effect leads to a compiled receipt-gap recipe.
 use snapback4_core::{Context, Engine, Store, Value, WriteState};
 use snapback4_lang::{compile, guide};
 
@@ -38,7 +38,15 @@ fn diary_and_run_log_intents_reach_the_recipe_directly() {
 
 fn refused_gap(keys: &str) -> String {
     let scan_index = if keys.contains("conversation, ordinal") { "" } else { "  by byConversationOrdinal: conversation, ordinal, id\n" };
-    format!("table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  other: conversations\n  ordinal: int\n  externalNumber: int\n  expiresAt: time ?\n{keys}\n{scan_index}  public\n  expire at .expiresAt\n  online only\nmutation gap(conversation: conversations):\n  return first(messages where .conversation = conversation and .ordinal > 0 first 1 by .ordinal)\n")
+    format!("table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  other: conversations\n  ordinal: int\n  externalNumber: int\n  expiresAt: time ?\n{keys}\n{scan_index}  public\n  expire at .expiresAt\n  online only\neffect observeGap\nmutation gap(conversation: conversations):\n  emit observeGap {{}}\n  return first(messages where .conversation = conversation and .ordinal > 0 first 1 by .ordinal)\n")
+}
+
+// @ref LLP 3000.025#3-proposed-rule — these scans now admit before effects; the receipt helper remains an alternative after the phase ends.
+fn assert_initial_read_admitted(source: &str) {
+    let source = source.replace("  emit observeGap {}\n", "");
+    let b = compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.schema.operations["gap"].predicts.as_deref(), Some("never"));
 }
 
 #[test]
@@ -50,6 +58,7 @@ fn helper_follows_the_scan_coordinate_regardless_of_key_order_or_other_indexes()
         "  unique aOther: other, externalNumber\n  unique zOrdinal: conversation, ordinal",
     ] {
         let source = refused_gap(keys);
+        assert_initial_read_admitted(&source);
         let b = compile(&[("schema.q".into(), source.clone())]);
         let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
         assert!(d.rewrite.contains("conversation = scope, ordinal = prefix + 1"), "{keys}: {d}");
@@ -74,6 +83,7 @@ fn deny_and_read_through_scopes_require_authority_before_using_the_prefix() {
             .replace("  conversation: conversations\n", "  conversation: conversations\n  immutable conversation\n")
             .replace("  public\n  expire", &format!("  {read}\n  expire"))
             .replace("table conversations:\n  public", "table conversations:\n  read <- deny");
+        assert_initial_read_admitted(&source);
         let b = compile(&[("schema.q".into(), source.clone())]);
         let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
         assert!(d.rewrite.contains("skipExpired"), "{read}: {d}");
@@ -98,7 +108,9 @@ fn deny_and_read_through_scopes_require_authority_before_using_the_prefix() {
 
 #[test]
 fn no_unique_key_covering_the_scan_coordinate_withholds_the_helper() {
-    let b = compile(&[("schema.q".into(), refused_gap("  unique aExternal: conversation, externalNumber"))]);
+    let source = refused_gap("  unique aExternal: conversation, externalNumber");
+    assert_initial_read_admitted(&source);
+    let b = compile(&[("schema.q".into(), source)]);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
     assert!(!d.rewrite.contains("skipExpired"), "{d}");
 }
@@ -108,6 +120,7 @@ fn uniform_membership_rule_still_requires_the_callers_authority_check() {
     let source = refused_gap("  unique conversation, ordinal")
         .replace("table messages:", "table members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\n  online only\ntable messages:")
         .replace("  public\n  expire", "  read <- exists members[.conversation, viewer]\n  expire");
+    assert_initial_read_admitted(&source);
     let b = compile(&[("schema.q".into(), source.clone())]);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
     assert!(d.rewrite.contains("skipExpired"), "uniformity alone is not caller authority");
@@ -146,6 +159,12 @@ fn expiry_page_refusal_supplies_a_pasteable_helper_for_both_allocators() {
             // the supplied artifact copy does not contain the builder's rejected source.
             let refused = source.replace(&format!("prefix = skipExpired_messages(message.{parent}, prefix, message.{ordinal})"),
                 &format!("gap = first(messages where .{parent} = message.{parent} and .{ordinal} > prefix first 1 by .{ordinal})"));
+            let admitted = compile(&[("schema.q".into(), refused.clone())]);
+            assert!(admitted.diagnostics.is_empty(), "{:?}", admitted.diagnostics);
+            assert_eq!(admitted.schema.operations["skipExpiredBefore"].predicts.as_deref(), Some("never"));
+            // LLP 3000.025 admits the original initial scan. An earlier emit
+            // ends that phase; keep all helper-coordinate and authority checks.
+            let refused = format!("effect observeGap\n{}", refused.replace("gap = first(messages", "emit observeGap {}\n  gap = first(messages"));
             let b = compile(&[("schema.q".into(), refused.clone())]);
             assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
             let d = &b.diagnostics[0];
@@ -198,11 +217,14 @@ fn recipe_skips_expired_positions_but_never_live_messages_on_memory_and_sqlite()
 
 #[test]
 fn a_uniform_sender_page_does_not_justify_treating_other_senders_as_holes() {
-    let source = "table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  ordinal: int\n  sender: principal\n  expiresAt: time ?\n  unique conversation, ordinal\n  read <- .sender = viewer\n  expire at .expiresAt\n  online only\nmutation gap(conversation: conversations):\n  return first(messages where .conversation = conversation and .sender = viewer first 1 by .ordinal)\n";
+    let source = "table conversations:\n  public\n  online only\ntable messages:\n  conversation: conversations\n  ordinal: int\n  sender: principal\n  expiresAt: time ?\n  unique conversation, ordinal\n  read <- .sender = viewer\n  expire at .expiresAt\n  online only\neffect observeGap\nmutation gap(conversation: conversations):\n  emit observeGap {}\n  return first(messages where .conversation = conversation and .sender = viewer first 1 by .ordinal)\n";
+    assert_initial_read_admitted(source);
     let b = compile(&[("schema.q".into(), source.into())]);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").expect("expiry page refused");
     assert!(!d.rewrite.contains("skipExpired"), "a hidden message is not an expired hole: {d}");
-    assert!(d.rewrite.contains("query"), "{d}");
+    assert!(d.message.contains("after `emit observeGap`"), "{d}");
+    assert!(d.rewrite.contains("entire `emit observeGap`"), "{d}");
+    assert!(!d.rewrite.contains("selected ids"), "{d}");
 }
 
 #[test]

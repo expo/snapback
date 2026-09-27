@@ -69108,3 +69108,63 @@ syntax/API, auth/expiry/meter weakening, original GS store writes, shared
 path tool installation, push or publication. Binaryen experimentation stayed
 under this worktree's target directory and was not adopted. Local commits
 carry the required co-author trailer.
+
+## 2026-09-27 — Lane ER round 3: preserve source statement ownership
+
+Read LLP 3000.025 (still Accepted), all three binding lane prompts, prior ER
+entries and both complete round-2 reviews. Merged origin/main first as
+ac8ba9def, preserving both journal histories in order and combining the
+expiry rule with main's receipt-gap guide. No new disclosure or population
+bypass: every scan is still matched by object identity.
+
+The binder records each source statement's lowered end beside the IR.
+Admission checks the whole group, including payload constants and inlined
+helper setup, before admitting any of its expiry scans. Three source tests
+failed before repair and now refuse: insert payload count, helper read in an
+emitting if condition, and helper read before an untaken write. Existing
+positive tests remain; separate read/helper bindings and IR round-trip pass.
+Serialized IR, runtime metering and device representation are unchanged.
+
+Corrected the canonical prediction-class rule, live-cap recount explanation,
+and query-null versus atomic mutation E_BOUND wording. Three rendered-card
+tests fail against the old prose. Kept guide facts, compiled examples and
+unchanged byte/word budgets while shortening merged duplication. Direct
+native_query/native_observation tests cover mutations/jobs on memory/SQLite
+before any body or module execution; deleting only the inner guard fails
+with E_NATIVE_TRAP instead of E_OP. Separate exists/count tests refuse below
+the live row behind an expired row; suppressing the scan error fails with
+false/0. All temporary production mutants were restored.
+
+Affected checks pass: expiry 16 passed / 1 optional benchmark ignored;
+whole guide 89/89; intent_review 7/7; prefix_reads 10/10; simulator page
+admission 15/15 and work_intent 12/12; full device 1,326 passed / 3 ignored,
+including readauth/census 81/81; wasm census/families/absence/budget 40/40;
+CLI expiry cost 1/1 for page/exists/count. Wasm is 1,981,764 B raw / 572,618 B
+gzip, 223 B under the unchanged 572,841 B budget. No new latency claim.
+
+Ran scripts/test.sh exactly once, exit 1, exact summary:
+
+```text
+== 1 failure(s) in 3410 s
+   cargo test
+```
+
+Rust: 3,940 passed / 7 failed / 25 ignored. Clients: 2,701 passed / 10 skipped;
+models 78/78; wrappers 9/9; every other phase passed. All seven failures were
+ours, in merged receipt-gap tests: six still required blanket expiry refusal,
+and one required the shortened-away sequence phrase. Baseline 0,
+environmental 0. Each failure and repair is listed in the round-3 report.
+The compiler/runtime patch stayed fixed throughout the full run. Afterward,
+restored the phrase and made the refusal fixtures cross an emit boundary,
+adding positive initial-read controls while retaining authority/coordinate
+checks and helper execution. Post-run expiry 16 passed / 1 ignored, whole
+guide 89/89, receipt gaps 10/10, CLI why 1/1. Final ref-check: 518 LLPs,
+9,647 refs, zero errors/unchecked. No full rerun or green full-suite claim;
+the inherited 60-second suite budget remains exceeded and unchanged.
+
+No tools installed, shared-path installation, push or publication. Removed
+only this worktree's inactive incremental cache when disk space ran low.
+Commits carry the requested co-author trailer. No ER design question remains;
+queue recovery stays with DC. Findings, program, alternatives, all failures
+and validation: reports/20260927-er-round3.md. Raw logs:
+target/lane-er-round3/.

@@ -360,3 +360,128 @@ fn helper_expansion_cannot_hide_the_first_effect() {
         assert!(b.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"), "{:?}", b.diagnostics);
     }
 }
+
+#[test]
+fn hoisted_insert_payload_keeps_its_source_statement_boundary() {
+    assert_source_boundary("", "  insert messages { conversation: viewer, ordinal: count(messages where .conversation = viewer), expiresAt: null, body: '' }\n", "inside `insert messages`");
+}
+
+#[test]
+fn hoisted_helper_condition_keeps_its_enclosing_emit_boundary() {
+    assert_source_boundary("fn hasMessage():\n  return exists messages where .conversation = viewer\n", "  if hasMessage():\n    emit notify {}\n", "inside `if`");
+}
+
+#[test]
+fn hoisted_helper_read_keeps_its_untaken_write_boundary() {
+    assert_source_boundary("fn readThenWrite():\n  found = exists messages where .conversation = viewer\n  if false:\n    update messages['target'] { body: 'unused' }\n  return found\n", "  found = readThenWrite()\n", "inside");
+}
+
+fn assert_source_boundary(helper: &str, body: &str, expected: &str) {
+    let b = snapback4_lang::compile(&[("schema.q".into(), format!("{MODEL}\neffect notify\n{helper}\nmutation inspect(): server\n{body}  return null\n"))]);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    let refusal = &b.diagnostics[0];
+    assert_eq!(refusal.code, "E_STRUCTURAL_FANOUT", "{refusal:?}");
+    assert!(refusal.message.contains(expected), "{refusal:?}");
+    assert!(refusal.rewrite.contains("entire"), "{refusal:?}");
+    assert!(!refusal.rewrite.contains("selected ids"), "{refusal:?}");
+}
+
+#[test]
+fn expiry_exists_cut_never_reports_absence() {
+    assert_scalar_backlog_cut("hasLive", Value::Bool(true));
+}
+
+#[test]
+fn expiry_count_cut_never_reports_partial_total() {
+    assert_scalar_backlog_cut("countLive", Value::Int(1));
+}
+
+fn assert_scalar_backlog_cut(name: &str, expected: Value) {
+    let b = compiled(&format!("{MODEL}\nmutation hasLive(): server\n  found = exists messages where .conversation = viewer\n  return found\nmutation countLive(): server\n  total = count(messages where .conversation = viewer)\n  return total\n"));
+    let memory = MemoryRows::new();
+    let mut engine = Engine::memory(b.schema.clone(), []).unwrap();
+    let tx = engine.store_mut().transaction().unwrap();
+    for rows in [&memory as &dyn Rows, &tx as &dyn Rows] {
+        for (n, expiry) in [(1, 1000), (2, 9000)] {
+            rows.put("messages", &b.schema.tables["messages"], &row(n, expiry), None).unwrap();
+        }
+        {
+            let p = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
+            let before = rows.get("messages", "m2").unwrap();
+            // 1 cannot pass the expired candidate; 2 pays it but cannot reach
+            // the live row. The scan attempt itself also costs one examined.
+            for ceiling in [1, 2] {
+                let mut runner = Runner::new(rows, &b.schema, Context::new("alice", BTreeMap::new()).at(2000), Meter::new(Ceilings { examined: ceiling, ..Default::default() }, Cut::Abort), 0);
+                assert_eq!(runner.run(p).unwrap_err().code(), "E_BOUND", "{name}/{ceiling}");
+                assert_eq!(runner.metered().rows_written, 0);
+                assert_eq!(rows.get("messages", "m2").unwrap(), before);
+            }
+            let mut runner = Runner::new(rows, &b.schema, Context::new("alice", BTreeMap::new()).at(2000), Meter::new(Ceilings::default(), Cut::Abort), 0);
+            assert_eq!(runner.run(p).unwrap(), expected);
+        }
+    }
+}
+
+#[test]
+fn native_entries_refuse_mutations_and_jobs_before_module_or_body_execution() {
+    use snapback4_core::{engine::local, ir::ProgramKind};
+    // A valid read module whose sb4_read immediately traps. Reaching the
+    // module is observable even if it performs no data operations.
+    let mut wasm = b"\0asm\x01\0\0\0".to_vec();
+    let mut section = |id: u8, bytes: Vec<u8>| {
+        assert!(bytes.len() < 128);
+        wasm.extend([id, bytes.len() as u8]);
+        wasm.extend(bytes);
+    };
+    section(1, vec![3, 0x60, 1, 0x7f, 1, 0x7f, 0x60, 0, 1, 0x7e, 0x60, 2, 0x7f, 0x7f, 1, 0x7e]);
+    section(3, vec![3, 0, 1, 2]);
+    section(5, vec![1, 0, 1]);
+    let mut exports = vec![4];
+    for (name, kind, index) in [("memory", 2, 0), ("sb4_alloc", 0, 0), ("sb4_reads", 0, 1), ("sb4_read", 0, 2)] {
+        exports.push(name.len() as u8);
+        exports.extend(name.bytes());
+        exports.extend([kind, index]);
+    }
+    section(7, exports);
+    section(10, vec![3, 5, 0, 0x41, 0x80, 0x08, 0x0b, 4, 0, 0x42, 11, 0x0b, 3, 0, 0, 0x0b]);
+    let mut data = vec![1, 0, 0x41, 0, 0x0b, 11];
+    data.extend(b"[\"natural\"]");
+    section(11, data);
+    let module = snapback4_core::engine::native::Module::compile(&wasm).unwrap();
+    assert_eq!(module.reads(), &["natural"]);
+    let b = compiled(&format!("{MODEL}{ACK}"));
+    let mut program = b.programs.iter().find(|p| p.program.name == "natural").unwrap().program.clone();
+    let memory = MemoryRows::new();
+    let mut engine = Engine::memory(b.schema.clone(), []).unwrap();
+    let tx = engine.store_mut().transaction().unwrap();
+    for rows in [&memory as &dyn Rows, &tx as &dyn Rows] {
+        let counted = Counted::new(rows);
+        for kind in [ProgramKind::Mutation, ProgramKind::Job] {
+            program.kind = kind;
+            for native in [false, true] {
+                program.native = native;
+                let (result, unknown, retained) = local::native_query(&counted, &b.schema, &module, &program, natural_context(), Ceilings::default());
+                assert_eq!(result.unwrap_err().code, "E_OP", "{kind:?}/{native}");
+                assert!(!unknown && !retained);
+                let (result, unknown, retained, _) = local::native_observation(&counted, &b.schema, &module, &program, natural_context(), Ceilings::default());
+                assert_eq!(result.unwrap_err().code, "E_OP", "{kind:?}/{native}");
+                assert!(!unknown && !retained);
+                assert_eq!(counted.calls.get(), 0, "executed a non-query body");
+            }
+        }
+        // Prove this module is executable and the trap can detect dispatch.
+        program.kind = ProgramKind::Query;
+        let (result, _, _) = local::native_query(&counted, &b.schema, &module, &program, natural_context(), Ceilings::default());
+        assert_eq!(result.unwrap_err().code, "E_NATIVE_TRAP");
+        assert_eq!(counted.calls.get(), 0);
+    }
+}
+
+#[test]
+fn separate_read_only_helpers_and_payload_bindings_remain_admitted() {
+    let b = compiled(&format!("{MODEL}\neffect notify\nfn hasMessage():\n  return exists messages where .conversation = viewer\nmutation inspect(): server\n  ordinal = count(messages where .conversation = viewer)\n  found = hasMessage()\n  if found:\n    emit notify {{}}\n  insert messages {{ conversation: viewer, ordinal, expiresAt: null, body: '' }}\n  return null\n"));
+    let p = &b.programs.iter().find(|p| p.program.name == "inspect").unwrap().program;
+    // The admitted program remains admitted after the normal wire round trip.
+    let decoded: Program = snapback4_core::json_codec::from_text(&serde_json::to_string(p).unwrap()).unwrap();
+    snapback4_core::engine::admission::check(&b.schema, &decoded).unwrap();
+}
