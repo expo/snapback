@@ -167,7 +167,10 @@ export class DeliveryQueue {
         }));
         if (!selected) { if (Number.isFinite(nextAt)) this.schedule(Math.max(1, nextAt - this.now())); break; }
         if (epoch !== this.epoch || this.stopped) break;
-        if ("refused" in selected) { this.options.onRefused?.(selected.refused); continue; }
+        if ("refused" in selected) {
+          if (selected.refused) this.options.onRefused?.(selected.refused);
+          continue;
+        }
         const flight: Flight = { ...selected, epoch, controller: new AbortController(), done: Promise.resolve() };
         this.flights.add(flight);
         const [groupArg, fromArg, throughArg] = selected.binding.args;
