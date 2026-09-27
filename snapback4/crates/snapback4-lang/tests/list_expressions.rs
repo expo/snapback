@@ -151,3 +151,17 @@ fn empty_lists_and_same_table_optional_references_keep_their_item_types() {
     assert_eq!(run("query run():\n  return [[], [1]] + [[]]\n"),
         Value::Array(vec![Value::Array(vec![]), Value::Array(vec![Value::Int(1)]), Value::Array(vec![])]));
 }
+
+#[test]
+fn direct_and_conditional_recursive_growth_get_the_self_append_rewrite() {
+    for assignment in ["xs = [xs] + []", "xs = xs + [xs]", "xs = (xs + [xs]) if flag else xs"] {
+        let source = format!("query run(flag: bool):\n  xs = []\n  for x in [1, 2]:\n    {assignment}\n  return xs\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        let error = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_TYPE")
+            .unwrap_or_else(|| panic!("{assignment}: {:?}", bound.diagnostics));
+        assert!(error.message.contains("growing"), "{assignment}: {error:?}");
+        assert!(error.rewrite.contains("xs = xs + [x]"), "{assignment}: {error:?}");
+        assert!(error.rewrite.contains("fixed item type"), "{error:?}");
+        assert!([3, 4].contains(&error.site.line), "{error:?}");
+    }
+}

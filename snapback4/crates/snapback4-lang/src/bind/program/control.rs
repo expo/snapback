@@ -37,7 +37,14 @@ impl Binder<'_> {
     }
 
     pub(super) fn statement(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
-        let result = self.statement_inner(statement, out, completes);
+        let result = self.statement_inner(statement, out, completes).map_err(|error| {
+            if self.loops > 0 && error.code == "E_QUARRY_TYPE"
+                && let S::Bind { names, value, site } = statement
+                && names.len() == 1 && recursive_concat(value, &names[0]) {
+                return recursive_list_error(site, &names[0]);
+            }
+            error
+        });
         if let Err(error) = &result {
             self.record_error(error.clone());
             if let S::Bind { names, .. } = statement {
@@ -79,9 +86,9 @@ impl Binder<'_> {
                     && let A::Array { items, .. } = right.as_ref()
                     && items.len() == 1
                 {
-                    let (value, ty) = self.value_of(&items[0], out)?;
+                    let (element, ty) = self.value_of(&items[0], out)?;
                     let mut origins = binding.origins.clone();
-                    origins.push((Ty::List(Box::new(ty.clone()), 1), right.as_ref().clone()));
+                    origins.push((Ty::List(Box::new(ty.clone()), 1), value.clone()));
                     let joined = if *max == 0 { ty.clone() } else { item.join_item(&ty).map_err(|error| self.join_error_many(error.at("[]"), &origins))? };
                     if !ty.assignable_to(item) && !item.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"));
@@ -93,7 +100,7 @@ impl Binder<'_> {
                     binding.fields.clear();
                     binding.error = None;
                     binding.revision += 1;
-                    out.push(Stmt::Push { target: binding.runtime.clone(), value });
+                    out.push(Stmt::Push { target: binding.runtime.clone(), value: element });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
                     return Ok(());
                 }
@@ -358,7 +365,7 @@ impl Binder<'_> {
                 let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
                 let type_changed = old.ty != ty || old.declared != declared;
                 if type_changed && matches!(ty, Ty::List(..))
-                    && new.origins.iter().any(|(_, source)| matches!(source, A::Binary { op, .. } if op == "+")) {
+                    && new.origins.iter().any(|(_, source)| has_concat(source)) {
                     growing_list.get_or_insert_with(|| local.clone());
                 }
                 changed |= type_changed || !old.fields.is_empty();
@@ -379,8 +386,7 @@ impl Binder<'_> {
         // @ref LLP 3000.007#5.1 — lengths widen to the heap bound, but recursively
         // nesting a carried list has no finite item type. Offer the fixed-item form.
         if let Some(local) = growing_list {
-            return Err(type_error(site, format!("this loop keeps growing {local}'s recursive list item type"),
-                format!("use `{local} = {local} + [x]` with x of a fixed item type; do not nest a carried accumulator inside itself")));
+            return Err(recursive_list_error(site, &local));
         }
         Err(type_error(site, "this loop keeps growing a recursive value type", "accumulate items of a fixed type rather than nesting an accumulator inside itself"))
     }
@@ -660,4 +666,32 @@ pub(super) fn bool_condition_rewrite(ty: &crate::types::Ty, shape: &str) -> Stri
     } else {
         format!("compare the value: `{}`", shape.replace("{}", "!= null"))
     }
+}
+
+fn has_concat(value: &A) -> bool {
+    let mut found = false;
+    super::super::intent_walk::expression(&mut value.clone(), &mut |value| {
+        found |= matches!(value, A::Binary { op, .. } if op == "+");
+    });
+    found
+}
+
+fn recursive_concat(value: &A, name: &str) -> bool {
+    if !has_concat(value) { return false; }
+    let mut nested = false;
+    super::super::intent_walk::expression(&mut value.clone(), &mut |value| {
+        if let A::Array { items, .. } = value {
+            for item in items {
+                super::super::intent_walk::expression(item, &mut |value| {
+                    nested |= matches!(value, A::Name { name: source, .. } if source == name);
+                });
+            }
+        }
+    });
+    nested
+}
+
+fn recursive_list_error(site: &Site, local: &str) -> Diagnostic {
+    type_error(site, format!("this loop keeps growing {local}'s recursive list item type"),
+        format!("use `{local} = {local} + [x]` with x of a fixed item type; do not nest a carried accumulator inside itself"))
 }
