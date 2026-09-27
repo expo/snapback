@@ -32,6 +32,17 @@ table messages:
   insert <- .sender = viewer and exists members[.conversationId, viewer]
   expire at .expiresAt
   online only
+table runs:
+  conversationId: conversations
+  principal: principal
+  fromOrdinal: int
+  throughOrdinal: int
+  unique conversationId, principal, fromOrdinal
+  cap 64 by conversationId, principal
+  read <- .principal = viewer
+  insert <- .principal = viewer and exists members[.conversationId, viewer]
+  delete <- .principal = viewer
+  online only
 
 view missed: count messages by members m
   where .conversationId = m.conversationId and .ordinal > m.deliveredOrdinal
@@ -62,28 +73,56 @@ mutation skipExpiredBefore(next: messages):
   if prefix > me.deliveredOrdinal:
     update members[me] { deliveredOrdinal: prefix }
   return prefix
+mutation delivered(conversationId: conversations, from: int, through: int):
+  me = members[conversationId, viewer] ! else NOT_MEMBER
+  anchor = messages[conversationId = conversationId, ordinal = through] ! else NOT_FOUND
+  require 0 < from and from <= through else NOT_A_RUN
+  prefix = max(me.deliveredOrdinal, me.joinedAt)
+  if through <= prefix:
+    return prefix
+  low = from
+  high = through
+  for run in runs where .conversationId = conversationId and .principal = viewer and .fromOrdinal <= through + 1 and .throughOrdinal + 1 >= from:
+    low = min(low, run.fromOrdinal)
+    high = max(high, run.throughOrdinal)
+    delete runs[run]
+  prefix = skipExpired_messages(conversationId, prefix, low)
+  if low <= prefix + 1:
+    prefix = max(prefix, high)
+  else:
+    require count(runs where .conversationId = conversationId and .principal = viewer) < 64 else TOO_MANY_RUNS
+    insert runs { conversationId, principal: viewer, fromOrdinal: low, throughOrdinal: high }
+  if prefix > me.deliveredOrdinal:
+    update members[me] { deliveredOrdinal: prefix }
+  return prefix
 query whatDidIMiss(member: members):
   return missed[member]
 ```
 
 ## Receipt-gap progress
 
-Use `ordinal: sequence by conversationId` and `unique conversationId, ordinal`.
-The engine assigns positions; bounded unique ordinal probes skip expired holes.
 E_STRUCTURAL_FANOUT refuses a mutation page over expiring messages, even
 `first 1`: an expiry backlog can make that page walk unboundedly many rows.
-A unique probe names one position instead of scanning the expiring population.
+Unique probes name individual positions.
 
-This standalone recipe advances only across absent positions before a known
-live message. It does not acknowledge that message or any other live message.
-Use the helper inside `guide receipts`' delivered-run merge; keep disjoint runs
-until they meet the prefix. The member must be authorized to read every message
-in the conversation, so a hidden message cannot be mistaken for an expired hole.
+`skipExpiredBefore` crosses absent positions before a readable live message;
+it acknowledges no live message.
+The helper's prefix justifies advancing a receipt only after the caller's own authority check (the membership check or this card's readable-message anchor).
+Uniformity alone proves one read verdict for the conversation, which can be false.
+
+Use the `delivered` mutation above to integrate the helper into `guide receipts`'
+run merge: remove the early return for a run already covered by `held`, retaining
+only `if through <= prefix`. Merge and delete the overlapping saved runs, run
+the helper, then either join the merged run to the prefix or reinsert it and
+save partial prefix progress. Keep disjoint runs until they meet the prefix.
+For `[1027,1027]` with initial prefix 0 and only holes before it, the first call
+saves prefix 1024 and that run; a second call with the same receipt reaches the
+helper again and joins the run at 1027. Submit that second call as a new mutation
+invocation: reusing an at-most-once mutation id replays its original result.
 
 The loop stops at the first live message or after 1,024 probes. Keep the
 returned prefix and resume later if a longer gap remains; the ordinary work
-meter can still refuse the transaction. Never infer delivery from a positive
-ordinal alone. `sequence by` is dense across all participating columns:
+meter can still refuse the transaction. Ordinals alone do not prove delivery. `sequence by` is dense across all participating columns:
 membership joins also take positions, and deleted or expired rows leave holes.
 Use settled positions for receipt acknowledgement; predicted ordinals can move.
 
@@ -93,9 +132,8 @@ It does not prove a received run or replace the receipt merge. For an unread
 badge, use the member's read position instead of `deliveredOrdinal`; see
 `guide maintains` for tombstones, private member fields and offline count coverage.
 
-The older manual allocator compiles too, but needs a conversation update on
-every send and every writer must obey it. This public example isolates the
-allocation difference; retain the membership rules above in a private app:
+Manual allocation requires every writer to update the conversation on send.
+This public example isolates allocation; private apps need the membership rules:
 
 ```quarry
 table conversations:
@@ -122,8 +160,7 @@ mutation manualSend(conversationId: conversations, expiresAt: time ?):
   return insert messages { conversationId, ordinal, sender: viewer, expiresAt }
 ```
 
-The bounded probe loop is already the paved receipt-gap form; `sequence by`
-removes this manual allocation and refuses supplied or patched ordinals.
+`sequence by` replaces manual allocation and refuses supplied or patched ordinals.
 It does not make the probe loop constant cost. Do not change an existing
 populated integer column into a sequence casually: `check --store` assesses
 adoption, and a sequence change requires an empty table. Use this schema for

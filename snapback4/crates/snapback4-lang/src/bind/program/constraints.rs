@@ -12,22 +12,29 @@ impl BoundProgram {
         let scan = ir::scans(&self.program).into_iter().find(|scan| &scan.site == site)?;
         let table = schema.table(&scan.table)?;
         if !table.is_expiring() || !rules::scan_visibility(schema, scan).uniform { return None; }
-        let (parent, ordinal, parent_table) = table.indexes.values().filter(|index| index.unique).find_map(|index| {
+        let scan_index = table.index(&scan.index)?;
+        let ordinal = scan_index.components.get(scan.prefix.len())?.column()?;
+        if table.columns.get(ordinal) != Some(&ColumnType::Int) || !scan.orders_field(schema, ordinal) { return None; }
+        let (parent, parent_table) = table.indexes.values().filter(|index| index.unique).find_map(|index| {
             if index.components.len() != 2 { return None; }
-            let parent = index.components[0].column()?;
-            let ordinal = index.components[1].column()?;
+            let columns = [index.components[0].column()?, index.components[1].column()?];
+            let parent = if columns[0] == ordinal { columns[1] } else if columns[1] == ordinal { columns[0] } else { return None; };
             let ColumnType::Ref { table: parent_table } = table.columns.get(parent)? else { return None; };
-            (table.columns.get(ordinal) == Some(&ColumnType::Int)).then_some((parent, ordinal, parent_table))
+            // Consider every covering key, in either column order. An earlier
+            // key on an unpinned parent cannot hide the applicable one.
+            let scope = scan_index.components.iter().zip(&scan.prefix)
+                .find_map(|(part, key)| (part.column() == Some(parent)).then(|| key.scalar()).flatten())?;
+            rules::prefix_visibility(&scan.table, table, &table.rules.read, &[(parent, scope)].into()).uniform
+                .then_some((parent, parent_table))
         })?;
         // A sender/ordinal equality may make the refused page uniform while
         // other positions in the parent group remain hidden. Never call those holes.
-        let scope = table.index(&scan.index)?.components.iter().zip(&scan.prefix)
-            .find_map(|(part, key)| (part.column() == Some(parent)).then(|| key.scalar()).flatten())?;
-        if !rules::prefix_visibility(&scan.table, table, &table.rules.read, &[(parent, scope)].into()).uniform { return None; }
+        // Uniformity proves one verdict for the scope, not that it is readable;
+        // proving a dominating caller check needs control-flow/rule implication.
         let name = &scan.table;
         let rewrite = format!("fn skipExpired_{name}(scope: {parent_table}, initialPrefix: int, low: int):\n  prefix = initialPrefix\n  for i in range(0, 1024):\n    if prefix + 1 >= low:\n      break\n    if exists {name}[{parent} = scope, {ordinal} = prefix + 1]:\n      break\n    prefix = prefix + 1\n  return prefix");
         Some(Diagnostic::new(&self.sources.get(site)?.0, problem.code,
-            format!("{}. For receipt gaps in expiring messages, declare `{ordinal}: sequence by {parent}` with `unique {parent}, {ordinal}` in a new schema, then use bounded unique ordinal probes. This helper skips only holes before a validated received run; call it inside the receipt merge, retain disjoint runs, and require authority over the whole conversation. A 1,024-probe limit may leave progress to resume. For an unread badge use a row-keyed count; for general processing use a query or job (guide sequences)", problem.message),
+            format!("{}. For receipt gaps in expiring messages, declare `{ordinal}: sequence by {parent}` with `unique {parent}, {ordinal}` in a new schema, then use bounded unique ordinal probes. The helper's prefix justifies advancing a receipt only after the caller's own authority check (the membership check or the card's readable-message anchor). Call it inside the receipt merge, retain disjoint runs, and let an already-recorded run reach the helper again to resume after the 1,024-probe limit. For an unread badge use a row-keyed count; for general processing use a query or job (guide sequences)", problem.message),
             rewrite).guide("sequences"))
     }
 

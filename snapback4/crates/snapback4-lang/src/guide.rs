@@ -86,6 +86,11 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("sequence", "sequences"), ("sequence by", "sequences"),
     ("receipt gap", "sequences"), ("receipt gaps", "sequences"), ("expiring messages", "sequences"),
     ("receipt gap expiring messages", "sequences"), ("what did this member miss", "sequences"),
+    ("skip expired gaps in receipts", "sequences"),
+    ("advance delivered prefix over expired messages", "sequences"),
+    ("resume receipts after messages expire", "sequences"),
+    ("move receipt watermark past expired messages", "sequences"),
+    ("disappearing message receipt", "sequences"),
     ("bounded unique ordinal probes", "sequences"), ("expired ordinal holes", "sequences"),
     ("mutation page over expiring messages", "sequences"),
     ("prohibited mutation scan over expiring rows", "sequences"),
@@ -128,7 +133,8 @@ mod language_card;
 pub use language_card::LANGUAGE;
 
 pub fn card(keyword: &str) -> Option<&'static str> {
-    let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
+    let keyword = ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(keyword)).map(|(_, target)| *target)
+        .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(keyword)))?;
     Some(match keyword {
         "language" => LANGUAGE,
         "ephemeral" => include_str!("guide/ephemeral.md"),

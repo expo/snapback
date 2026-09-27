@@ -369,3 +369,70 @@ fn following_declared_before_events_passes_check_and_unchanged_adoption() {
     adopt(&mut e, &s);
     assert_eq!(pages(&mut e, "reader").len(), 1);
 }
+
+#[test]
+fn check_and_adoption_agree_across_expiry_through_changes_and_following_presence() {
+    use snapback4_core::value::object;
+    // Astra's repro: inherited expiry remains physically present until a
+    // read-through change retires it, before Following checks occupancy.
+    let base = source().split("mutation post").next().unwrap().to_owned()
+        .replace("  sync public last 1000 by .at", "  online only")
+        .replace("  public 'public posts and replies'", "  group: groups\n  immutable group\n  read through .group");
+    let base = format!("table groups:\n  deadline: time ?\n  immutable deadline\n  public\n  expire at .deadline\n  online only\n{base}\nmutation addPost(group: groups, expiresAt: time ?):\n  return insert posts {{ group, expiresAt, authorId: viewer, parentId: null, at: now }}\n");
+    for expired in [false, true] {
+        for changed in [false, true] {
+            for existing in [false, true] {
+                let case = format!("expired={expired}, through_changed={changed}, following_existing={existing}");
+                let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
+                let path = dir.0.join(".snapback4/store.sqlite");
+                // No read-through change: use an own expiry and remove it in the
+                // candidate; ordinary expiry removal must NOT retire raw rows.
+                let old = without_view(&base);
+                let old = if changed { old } else {
+                    old.replace("read through .group", "public 'public posts and replies'\n  expire at .expiresAt")
+                };
+                let old = old.replace("  group: groups", "  expiresAt: time ?\n  immutable expiresAt\n  group: groups");
+                let next = base.replace("read through .group", "public 'public posts and replies'")
+                    .replace("  group: groups", "  expiresAt: time ?\n  immutable expiresAt\n  group: groups");
+                let candidate = compile(&next);
+                let mut b = compile(&old);
+                if existing {
+                    // Generate a stored predecessor with an existing declaration.
+                    // Quarry currently rejects expiring Following sources, but
+                    // the stored-schema activation API must still agree with check.
+                    b.schema.timelines = candidate.schema.timelines.clone();
+                    for name in &b.schema.timelines[0].owned {
+                        b.schema.tables.insert(name.clone(), candidate.schema.tables[name].clone());
+                    }
+                }
+                let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                e.seed_at([("groups".into(), object([("id", id("g")), ("deadline", if expired { Value::Int(2) } else { Value::Null })]))], 1).unwrap();
+                write(&mut e, "alice", "addPost", &[("group", id("g")), ("expiresAt", if expired { Value::Int(2) } else { Value::Null })], 1);
+                assert_eq!(e.store().rows("posts").unwrap().len(), 1, "unswept: {case}");
+                dir.source(&next);
+                let b = compile(&next);
+                assert!(!e.store_mut().successor(&b.schema).unwrap().iter().any(|s| s.change == snapback4_core::successor::Change::Narrowing), "{case}");
+                // Check under a live writer too: the preview takes no writer lock
+                // and must leave both the database and existing WAL unchanged.
+                let before = fs::read(&path).unwrap();
+                let wal_path = path.with_extension("sqlite-wal");
+                let wal = fs::read(&wal_path).unwrap();
+                let check = dir.command(&["check", "--json"]);
+                let json: serde_json::Value = serde_json::from_slice(&check.stdout).unwrap();
+                assert_eq!(fs::read(&path).unwrap(), before, "{case}");
+                assert_eq!(fs::read(&wal_path).unwrap(), wal, "{case}");
+                let preview = e.store_mut().check_timeline_activation(&b.schema);
+                let adoption = e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), 5000);
+                let expected = existing || (expired && changed);
+                assert_eq!(adoption.is_ok(), expected, "runtime {case}: {adoption:?}");
+                assert_eq!(preview.is_ok(), adoption.is_ok(), "API divergence {case}: {preview:?}, {adoption:?}");
+                assert_eq!(check.status.success(), adoption.is_ok(), "CLI divergence {case}: {json}, {adoption:?}");
+                if !expected {
+                    assert_eq!(adoption.unwrap_err().code(), "E_TIMELINE_ACTIVATE", "{case}");
+                    assert!(json["problems"].as_array().unwrap().iter().any(|d| d["code"] == "E_TIMELINE_ACTIVATE"), "{json}");
+                }
+                assert_eq!(e.store().rows("posts").unwrap().len(), usize::from(!(expired && changed)), "{case}");
+            }
+        }
+    }
+}
