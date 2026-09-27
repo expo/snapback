@@ -1,6 +1,8 @@
 //! Compact membership opening, refusals and live continuation correctness.
 use snapback4_core::{Context, Engine, Value, Ceilings, value::object};
 use std::collections::BTreeMap;
+#[path = "membership_search/edges.rs"]
+mod edges;
 const SOURCE: &str = r#"
 table members:
   room: id
@@ -114,15 +116,30 @@ fn membership_revocation_between_pages_rechecks_authority() {
 }
 
 #[test]
-fn every_examined_cut_either_explains_opening_or_advances() {
+fn every_drain_cut_either_explains_opening_or_advances() {
     let mut e = setup(4,1);
     let complete = e.query("newest",cx("cof",None)).unwrap();
-    for limit in 1..complete.metered.examined {
-        e.set_ceilings(Ceilings { examined: limit,..Ceilings::default() });
-        match e.query("newest",cx("cof",None)) {
-            Err(why) => assert_eq!(why.code,"E_SEARCH_OPEN","limit={limit}: {why}"),
-            Ok(page) => assert!(!page.data.as_array().unwrap().is_empty() && page.next.is_some(),"limit={limit}: {page:?}"),
+    for (kind,max) in [("examined",complete.metered.examined),("index",complete.metered.index_entries),("probe",complete.metered.rule_probes)] {
+        let mut drained=0;
+        for limit in 1..max {
+            let mut ceilings=Ceilings::default();
+            match kind { "examined"=>ceilings.examined=limit, "index"=>ceilings.index_entries=limit, _=>ceilings.rule_probes=limit }
+            e.set_ceilings(ceilings);
+            match e.query("newest",cx("cof",None)) {
+                Err(why) => assert_eq!(why.code,"E_SEARCH_OPEN","{kind}={limit}: {why}"),
+                Ok(page) => {
+                    assert!(!page.complete && !page.data.as_array().unwrap().is_empty() && page.next.is_some(),"{kind}={limit}: {page:?}");
+                    drained+=1;
+                    e.set_ceilings(Ceilings::default());
+                    let next=e.query("newest",cx("cof",page.next)).unwrap();
+                    assert!(next.complete,"{next:?}");
+                    let mut both=ids(&page.data); both.extend(ids(&next.data));
+                    assert_eq!(&both[..2],ids(&complete.data),"{kind}={limit}");
+                    assert!(both.windows(2).all(|pair| pair[0]!=pair[1]));
+                }
+            }
         }
+        assert!(drained>0,"{kind} must retain ordinary drain continuations");
     }
 }
 
@@ -169,7 +186,7 @@ fn private_payload_sizes_do_not_select_actual_size_admission() {
     assert_eq!(answers[0],answers[1]);
 }
 
-fn tiny_declared_payload(body: u32, witness: Option<u32>, heaps: &[u64]) {
+fn tiny_payload_engine(body: u32, witness: Option<u32>) -> Engine {
     let mut source = SOURCE.replace("text <=4000", &format!("text <={body}")).replace("  expire at .until\n", "");
     if let Some(witness) = witness { source = source.replace("  principal: principal", &format!("  info: text <={witness}\n  principal: principal")); }
     let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
@@ -184,6 +201,11 @@ fn tiny_declared_payload(body: u32, witness: Option<u32>, heaps: &[u64]) {
         ("messages".into(),object([("id",id("hit")),("room",id("r")),("body",Value::String("coffee".into())),
             ("payload",Value::String("tiny".into())),("at",Value::Int(1)),("tombstone",Value::Bool(false)),("until",Value::Null)])),
     ],100).unwrap();
+    e
+}
+
+fn tiny_declared_payload(body: u32, witness: Option<u32>, heaps: &[u64]) {
+    let mut e = tiny_payload_engine(body,witness);
     // A smaller active ceiling must not be confused with the default. The
     // wide witness still needs its own declared scratch, separately from rows.
     for &heap in heaps {

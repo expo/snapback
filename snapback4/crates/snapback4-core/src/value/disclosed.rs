@@ -4,6 +4,26 @@ use super::Value;
 use crate::engine::authorized_point::RowAuthorization;
 use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 
+impl Table {
+    // @ref LLP 3000.015#1 — this price uses schema literals only, never a
+    // witness's stored values. Protected rule scopes restore internal charges,
+    // so even a public witness must reserve possible adopted defaults up front.
+    pub(crate) fn witness_default_reservation(&self) -> u64 {
+        use crate::rows::word_heap as h;
+        let columns = self.columns.len();
+        let mut bytes = 0_u64;
+        if self.defaults.is_empty() { return 0; }
+        for (name, kind) in &self.columns {
+            if kind.is_optional() { continue; }
+            let Some(ColumnDefault::Literal(value)) = self.defaults.get(name) else { continue };
+            bytes = bytes.saturating_add(h::insertion::<String, Value>(columns) + h::text(name))
+                .saturating_add(super::scalar_copy(value));
+        }
+        if bytes == 0 { 0 } else { bytes.saturating_add(h::slots::<usize>(2) + h::node::<String, Value>() * columns as u64) }
+    }
+
+}
+
 /// A projection plan. The stored image is private, cannot be dereferenced and
 /// cannot enter a row allocation helper. Only visible fields can be inspected.
 /// Consuming the plan builds that image, including its missing-field defaults.
@@ -142,37 +162,42 @@ impl Disclosed<'_> {
     /// Authored results omit engine-recorded attribution; delivery retains it.
     pub fn for_query(mut self) -> Self { self.public = true; self }
 
-    fn field_price(&self, field: &str) -> u64 {
-        if !self.visible(field) { return 0; }
-        self.row.field(field).ok().map_or_else(|| match self.table.defaults.get(field) {
-            Some(ColumnDefault::Literal(value)) => value.retained_heap(), _ => 0,
-        }, Value::retained_heap)
-    }
-
     fn visible(&self, field: &str) -> bool {
         // Captures, deadlines and event slots are stripped by recorded::public_image
         // at emission, so a timeline transition's own reads still see them.
         if self.public && (self.table.recorded.contains_key(field) || self.table.ephemeral.is_some() && field == crate::schema::through::DEADLINE) { return false; }
-        self.system || !self.table.written_by.get(field).is_some_and(|a| !a.audience
-            && !self.viewer.as_ref().is_some_and(|viewer| self.row.field(&a.owner).ok().or_else(|| match self.table.defaults.get(&a.owner) {
-                Some(ColumnDefault::Literal(value)) => Some(value), _ => None,
-            }).and_then(|v|v.as_str().ok()) == Some(viewer.as_str())))
+        if self.system { return true; }
+        let Some(authority) = self.table.written_by.get(field) else { return true; };
+        if authority.audience { return true; }
+        let Some(viewer) = &self.viewer else { return false; };
+        let owner = self.row.as_object().ok().and_then(|row| row.get(&authority.owner)).or_else(|| match self.table.defaults.get(&authority.owner) {
+            Some(ColumnDefault::Literal(value)) => Some(value), _ => None,
+        });
+        matches!(owner, Some(Value::String(value) | Value::Id(value)) if value == viewer)
     }
 
     pub(crate) fn scalar_heap(&self, field: &str, _: &RowAuthorization) -> u64 {
         if !self.visible(field) { return 0; }
-        self.row.field(field).ok().map_or(0, super::scalar_copy)
+        self.row.as_object().ok().and_then(|row| row.get(field)).map_or(0, super::scalar_copy)
     }
 
     pub(crate) fn heap_bytes(&self, _: &RowAuthorization) -> u64 { self.heap_bytes_inner() }
 
     pub(super) fn heap_bytes_inner(&self) -> u64 {
         let Ok(fields) = self.row.as_object() else { return self.row.retained_heap(); };
-        40 + fields.iter().filter(|(name, _)| self.visible(name))
-            .map(|(name, value)| 80 + name.capacity() as u64 + value.retained_heap()).sum::<u64>()
-            + self.table.columns.iter().filter(|(name,kind)| self.visible(name) && !fields.contains_key(*name)
-                && (kind.is_optional() || self.table.defaults.contains_key(*name) || self.table.maintained.contains_key(*name)))
-                .map(|(name,_)|80 + name.len() as u64 + self.field_price(name)).sum::<u64>()
+        let mut bytes = 40;
+        for (name, value) in fields {
+            if self.visible(name) { bytes += 80 + name.capacity() as u64 + value.retained_heap(); }
+        }
+        for (name, kind) in &self.table.columns {
+            if self.visible(name) && !fields.contains_key(name)
+                && (kind.is_optional() || self.table.defaults.contains_key(name) || self.table.maintained.contains_key(name)) {
+                bytes += 80 + name.len() as u64 + match self.table.defaults.get(name) {
+                    Some(ColumnDefault::Literal(value)) => value.retained_heap(), _ => 0,
+                };
+            }
+        }
+        bytes
     }
 
     /// Copy only the disclosed fields. No hidden value's length is inspected.
@@ -180,9 +205,12 @@ impl Disclosed<'_> {
 
     pub(super) fn projection_heap_inner(&self) -> u64 {
         let Ok(fields) = self.row.as_object() else { return 0; };
-        if self.table.written_by.keys().chain(self.table.recorded.keys()).all(|name| self.visible(name)) { return 0; }
-        40 + fields.iter().filter(|(name, _)| self.visible(name))
-            .map(|(name, value)| 80 + name.len() as u64 + value.clone_heap()).sum::<u64>()
+        if self.table.written_by.keys().all(|name| self.visible(name)) && self.table.recorded.keys().all(|name| self.visible(name)) { return 0; }
+        let mut bytes = 40;
+        for (name, value) in fields {
+            if self.visible(name) { bytes += 80 + name.len() as u64 + value.clone_heap(); }
+        }
+        bytes
     }
 
     pub(crate) fn materialization_heap(&self, _: &RowAuthorization) -> u64 { self.materialization_heap_inner() }
@@ -190,12 +218,17 @@ impl Disclosed<'_> {
     pub(super) fn materialization_heap_inner(&self) -> u64 {
         use crate::rows::word_heap as h;
         let Ok(fields) = self.row.as_object() else { return 0; };
-        let missing = self.table.columns.iter().filter(|(name, _)| self.visible(name) && !fields.contains_key(*name));
-        if missing.clone().next().is_none() { return 0; }
-        let mut len = fields.keys().filter(|name| self.visible(name)).count();
-        let mut bytes = h::slots::<usize>(2) + h::node::<String, Value>() * len as u64
-            + fields.iter().filter(|(name, _)| self.visible(name)).map(|(name,v)| h::text(name) + super::scalar_copy(v)).sum::<u64>();
-        for (name, kind) in missing {
+        if !self.table.columns.keys().any(|name| self.visible(name) && !fields.contains_key(name)) { return 0; }
+        let mut len = 0;
+        let mut bytes = h::slots::<usize>(2);
+        for (name, value) in fields {
+            if self.visible(name) {
+                bytes += h::node::<String, Value>() + h::text(name) + super::scalar_copy(value);
+                len += 1;
+            }
+        }
+        for (name, kind) in &self.table.columns {
+            if !self.visible(name) || fields.contains_key(name) { continue; }
             if kind.is_optional() || self.table.defaults.contains_key(name) || self.table.maintained.contains_key(name) {
                 bytes += h::insertion::<String, Value>(len) + h::text(name);
                 if let Some(ColumnDefault::Literal(v)) = self.table.defaults.get(name) { bytes += super::scalar_copy(v); }
@@ -211,28 +244,35 @@ impl Disclosed<'_> {
 
     pub fn charge_copy_internal(&self, meter: &mut crate::engine::InternalMeter<'_>, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
         use crate::rows::word_heap as h;
-        let bytes = self.row.as_object().map_or(0, |fields| h::slots::<usize>(2)
-            + fields.iter().filter(|(name,_)|self.visible(name)).map(|(name,value)|h::node::<String,Value>() + h::text(name) + super::scalar_copy(value)).sum::<u64>());
+        let mut bytes = 0;
+        if let Ok(fields) = self.row.as_object() {
+            bytes = h::slots::<usize>(2);
+            for (name, value) in fields {
+                if self.visible(name) { bytes += h::node::<String, Value>() + h::text(name) + super::scalar_copy(value); }
+            }
+        }
         super::InternalPrice(bytes).charge(meter,scope)
     }
 
     pub fn into_value(self) -> Value {
         let Ok(fields) = self.row.as_object() else { return self.row; };
         let hidden = fields.keys().any(|name| !self.visible(name));
-        let defaults: Vec<_> = self.table.columns.iter().filter(|(name, _)| self.visible(name) && !fields.contains_key(*name))
-            .filter_map(|(name,kind)| {
-                let value = if self.table.maintained.contains_key(name) { Value::Int(0) }
-                    else if kind.is_optional() { Value::Null }
-                    else if let Some(ColumnDefault::Literal(value)) = self.table.defaults.get(name) { value.clone() }
-                    else { return None };
-                Some((name.clone(),value))
-            }).collect();
         let mut row = if hidden {
             let projected = fields.iter().filter(|(name,_)| self.visible(name)).map(|(name,value)|(name.clone(),value.clone())).collect();
             if matches!(self.row,Value::Map(_)) { Value::Map(projected) } else { Value::Row(projected) }
-        } else { self.row };
-        if !defaults.is_empty() && let Value::Row(fields) | Value::Map(fields) = &mut row {
-            fields.extend(defaults);
+        } else { self.row.clone() };
+        // Keep the original image for visibility decisions while filling the
+        // result directly. The materialization prepay already covers its map
+        // copy; no temporary vector of cloned defaults is needed.
+        if let Value::Row(fields) | Value::Map(fields) = &mut row {
+            for (name, kind) in &self.table.columns {
+                if fields.contains_key(name) || !self.visible(name) { continue; }
+                let value = if self.table.maintained.contains_key(name) { Value::Int(0) }
+                    else if kind.is_optional() { Value::Null }
+                    else if let Some(ColumnDefault::Literal(value)) = self.table.defaults.get(name) { value.clone() }
+                    else { continue };
+                fields.insert(name.clone(), value);
+            }
         }
         row
     }

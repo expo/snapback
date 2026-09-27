@@ -1242,17 +1242,22 @@ impl<'r> Runner<'r> {
 
     /// Merge ordered lanes into a page. Seekable uniform lanes use a heap
     /// of heads. Other lanes retain their page scan and stable union sort.
-    pub(super) fn merge(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+    pub(super) fn merge(&mut self, merge: &Merge, charge: impl FnOnce(&mut Self, &[Value]) -> Result<(), RuntimeError>) -> Result<Vec<Value>, RuntimeError> {
         let expiry = self.next_expiry.scope();
+        #[cfg(feature = "server-search")]
+        if !self.device && crate::search_plan::eligible(self.schema, merge) {
+            let rows = self.merge_memberships(merge, charge)?;
+            expiry.emit();
+            return Ok(rows);
+        }
         let rows = self.merge_with_words(merge, None)?;
+        charge(self, &rows)?;
         expiry.emit();
         Ok(rows)
     }
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
         if merge.view.is_some() { return self.merge_view(merge); }
-        #[cfg(feature = "server-search")]
-        if !self.device && word.is_none() && crate::search_plan::eligible(self.schema, merge) { return self.merge_memberships(merge); }
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
         if rules::lazy_merge(self.schema, merge) {

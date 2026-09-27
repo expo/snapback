@@ -7,7 +7,7 @@ pub(super) type Names = BTreeMap<String,String>;
 pub(super) fn expr(schema: &Schema, e: &Expr, names: &Names) -> Option<String> {
     let sub = |e: &Expr| expr(schema,e,names);
     Some(match e {
-        Expr::Literal(Value::String(s) | Value::Id(s)) => format!("'{}'",s.replace('\\',"\\\\").replace('\'',"\\'").replace('\n',"\\n").replace('\t',"\\t")),
+        Expr::Literal(Value::String(s) | Value::Id(s)) if !s.contains('\r') => format!("'{}'",s.replace('\\',"\\\\").replace('\'',"\\'").replace('\n',"\\n").replace('\t',"\\t")),
         Expr::Literal(v @ (Value::Null | Value::Bool(_) | Value::Int(_))) => crate::wire::to_json(v).to_string(),
         Expr::Variable(s) => match names.get(s) {
             Some(value)=>value.clone(), None if !s.starts_with('$')=>s.clone(), _=>return None,

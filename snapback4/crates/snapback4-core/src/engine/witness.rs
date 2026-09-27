@@ -192,7 +192,13 @@ impl Runner<'_> {
             let mark = self.meter.mark();
             let result = self.tx.scan_metered(allowance, table_name, name, key, &Bounds::default(), Dir::Asc, 1, &mut self.meter);
             self.meter.release_heap(mark);
-            return result.map(|mut rows| rows.pop().map(|(mut row,_)| { materialize_optional_fields(&mut row, table); row }));
+            let Some((row,_)) = result?.pop() else { return Ok(None); };
+            // @ref LLP 3000.015#1 — stored public bytes exclude adopted defaults.
+            // Keep their materialization charge while the returned witness lives.
+            let image = self.disclosed_row(table, row);
+            crate::engine::authorized_scan::InternalLedger::with_meter(&mut self.meter, |meter, scope|
+                image.charge_materialization_internal(meter, scope))?;
+            return Ok(Some(image.into_value()));
         }
         if !table.is_expiring() && !self.device_work_active {
             return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
@@ -238,4 +244,37 @@ impl Runner<'_> {
         Ok(crate::key::decode(stored).map(|values| values.into_iter().skip(prefix).collect()))
     }
 
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+mod tests {
+    use super::*;
+    use crate::{meter::Meter, rows::{MemoryRows, Rows}, schema::{ColumnDefault, ColumnType}, value::object};
+
+    #[test]
+    fn public_lookup_prepays_and_retains_an_adopted_default() {
+        let rows=MemoryRows::new();
+        let mut table=crate::schema::public_table([
+            ("id".into(),ColumnType::Id),("note".into(),ColumnType::Text {max:1_000_000}),
+        ].into(),[("byId".into(),Index::of(&["id"],true))].into());
+        table.defaults.insert("note".into(),ColumnDefault::Literal(Value::String("n".repeat(1_000_000))));
+        rows.put("rooms",&table,&object([("id",Value::Id("r".into()))]),None).unwrap();
+        let schema=crate::Schema {tables:[("rooms".into(),table)].into(),..Default::default()};
+        for heap in [64 << 10,3_600_000] {
+            let mut runner=Runner::new(&rows,&schema,crate::Context::new("alice",Default::default()),
+                Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
+            let (result,allocated)=crate::rows::word_heap::tests::measured(|| runner.metered_scan(|runner,scope|
+                runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())])));
+            eprintln!("public default heap={heap}: allocated={allocated}, retained={}, peak={}",runner.meter.used.heap_bytes,runner.meter.heap_peak);
+            if heap==64 << 10 {
+                assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"must refuse before copying the default");
+                assert!(allocated < 64 << 10,"allocated {allocated} bytes before refusal");
+            } else {
+                let row=result.unwrap().unwrap();
+                assert_eq!(row.field("note").unwrap().as_str().unwrap().len(),1_000_000);
+                assert!(runner.meter.used.heap_bytes >= 1_000_000,"witness row is still alive");
+                assert!(runner.meter.heap_peak >= allocated,"allocated={allocated}, peak={}",runner.meter.heap_peak);
+            }
+        }
+    }
 }

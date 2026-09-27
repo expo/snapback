@@ -45,8 +45,8 @@ For that plan, a discovery/opening cut refuses **E_SEARCH_OPEN**, with the autho
 count (a lower bound if discovery was unfinished), meter envelope and grouped
 rewrite. It never returns an unexplained empty dead end. Once all heads are
 established, an examined/index/probe drain cut can return `complete: false`
-with `next` after the last fully shaped hit. Heap exhaustion makes the result
-unavailable; steps/output can refuse. Following a cut does not clear
+with `next` after the last fully shaped hit. A compact page's heap exhaustion
+refuses E_SEARCH_OPEN even after buffering hits; steps/output can refuse. Following a cut does not clear
 `usePage`'s accumulated incompleteness.
 
 Trusted, non-expiring server heads and emitted rows admit their actual decoded

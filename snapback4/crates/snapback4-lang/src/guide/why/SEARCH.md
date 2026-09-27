@@ -18,7 +18,8 @@ with a source site and rewrite:
   separately. Bounded message previews on a membership page are allowed.
 
 **E_SEARCH_OPEN** is an incomplete read with a coded refusal, a site and the
-grouped rewrite. Its membership count includes only authorized discovered
+grouped rewrite when renderable. Heap exhaustion within a compact page also
+refuses after buffering hits: none have reached the caller. Its membership count includes only authorized discovered
 keys. If discovery was cut, it is explicitly a lower bound: learning the
 remaining total would itself exceed the meter. The refusal names the exhausted resource and its ceiling; the card gives the measured fixture envelope. Word width,
 filters, row sizes and decoration can reduce that envelope. No budget rises.

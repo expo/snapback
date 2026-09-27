@@ -44,13 +44,19 @@ impl<'r> Runner<'r> {
             self.meter.heap(crate::rows::word_heap::text(id) + crate::rows::word_heap::slots::<Value>(1))?;
             let key = [Value::Id(id.into())];
             let Some((Some(row),_)) = self.scan_authorized(name,crate::schema::BY_ID,&key,&Default::default(),crate::rows::Dir::Asc,1,true,true,None)?.pop() else { return Ok(None); };
-            self.meter.heap(row.materialization_heap())?;
+            let materialization = row.materialization_heap();
+            let prepay = self.meter.mark();
+            self.meter.heap(materialization)?;
             let expiry = self.next_expiry.scope();
             let row = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[(MeterKind::RuleProbes,super::rules::rule_probes(&table.rules.read))], |runner,_| {
                 let row = runner.authorize_image(name,row.into_value())?;
                 if let Some(row) = &row { runner.next_expiry.inherit(row.expiry()); }
                 Ok(row)
-            })?;
+            });
+            // The value now owns the default. Transfer its prepay to charge(),
+            // keeping only one retained reservation after the recheck.
+            self.meter.release_row_heap(prepay, materialization);
+            let row = row?;
             if row.is_some() { expiry.emit(); }
             return row.map(|row|row.charge(&mut self.meter)).transpose();
         }

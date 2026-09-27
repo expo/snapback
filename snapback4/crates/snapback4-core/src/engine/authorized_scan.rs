@@ -144,7 +144,9 @@ impl Runner<'_> {
     }
 
     pub(super) fn witness_scratch(&self, table: &str) -> u64 {
-        let own = crate::rows::disclosed::admission(&self.schema.tables[table]);
+        let definition = &self.schema.tables[table];
+        let own = crate::rows::disclosed::admission(definition);
+        let own = own.saturating_add(if crate::rows::disclosed::actual_size(definition) { definition.witness_default_reservation() } else { 0 });
         let source = self.schema.maintain_for(table)
             .and_then(|m| self.schema.table(&m.source)).filter(|source| source.is_expiring());
         own.saturating_add(source.map_or(0, crate::rows::disclosed::admission))

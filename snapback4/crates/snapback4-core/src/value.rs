@@ -208,7 +208,11 @@ impl Value {
         match self {
             Self::String(s) | Self::Id(s) => s.len() as u64,
             Self::Bytes(bytes) => bytes.len() as u64,
-            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap).sum::<u64>(),
+            Self::Array(values) => {
+                let mut bytes = values.len() as u64 * std::mem::size_of::<Value>() as u64;
+                for value in values { bytes += value.clone_heap(); }
+                bytes
+            },
             _ => 0,
         }
     }
@@ -226,14 +230,14 @@ impl Value {
             Value::String(s) | Value::Id(s) => s.capacity() as u64,
             Value::Bytes(b) => b.capacity() as u64,
             Value::Array(a) => {
-                a.capacity() as u64 * std::mem::size_of::<Value>() as u64
-                    + a.iter().map(Value::retained_heap).sum::<u64>()
+                let mut bytes = a.capacity() as u64 * std::mem::size_of::<Value>() as u64;
+                for value in a { bytes += value.retained_heap(); }
+                bytes
             }
             Value::Row(m) | Value::Map(m) => {
-                40 + m
-                    .iter()
-                    .map(|(k, v)| 80 + k.capacity() as u64 + v.retained_heap())
-                    .sum::<u64>()
+                let mut bytes = 40;
+                for (key, value) in m.iter() { bytes += 80 + key.capacity() as u64 + value.retained_heap(); }
+                bytes
             }
             _ => 0,
         }
@@ -435,7 +439,11 @@ fn scalar_copy(value: &Value) -> u64 {
     match value {
         Value::String(s) | Value::Id(s) => h::text(s),
         Value::Bytes(b) => h::allocation(b.len()),
-        Value::Array(a) => h::slots::<Value>(a.len()) + a.iter().map(scalar_copy).sum::<u64>(),
+        Value::Array(a) => {
+            let mut bytes = h::slots::<Value>(a.len());
+            for value in a { bytes += scalar_copy(value); }
+            bytes
+        },
         _ => 0,
     }
 }

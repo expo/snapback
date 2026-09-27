@@ -198,6 +198,8 @@ pub struct Runner<'a> {
     pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
+    #[cfg(feature = "server-search")]
+    pub(super) compact_memberships: usize,
     pub(crate) column_heap: u64,
     pub(crate) column_prepaid: bool,
     #[cfg(feature = "sqlite")]
@@ -311,6 +313,8 @@ impl<'a> Runner<'a> {
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,
+            #[cfg(feature = "server-search")]
+            compact_memberships: 0,
             column_prepaid: false,
             #[cfg(feature = "sqlite")]
             assets_prepaid: false,
@@ -371,8 +375,7 @@ impl<'a> Runner<'a> {
             self.meter.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {
-                    let value = self.expr(value)?;
-                    self.meter.heap(expression_heap(&value))?;
+                    let value = self.binding_expr(value)?;
                     self.bind_effect_value(name, value)?;
                     self.consts.insert(name.clone());
                     Flow::Next
@@ -381,8 +384,7 @@ impl<'a> Runner<'a> {
                     if matches!(statement, Stmt::Assign { .. }) && self.consts.contains(name) {
                         return Err(RuntimeError::Input(format!("cannot assign to const binding {name}")));
                     }
-                    let value = self.expr(value)?;
-                    self.meter.heap(expression_heap(&value))?;
+                    let value = self.binding_expr(value)?;
                     self.bind_effect_value(name, value)?;
                     Flow::Next
                 }
@@ -572,6 +574,22 @@ impl<'a> Runner<'a> {
             }
         }
         Ok(Flow::Next)
+    }
+
+    fn binding_expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
+        let value = self.expr(expression)?;
+        let charged = self.meter.heap(expression_heap(&value));
+        // @ref LLP 3000.024#decision — Quarry's search conditional binds the
+        // merge result before returning it. That reservation still belongs to
+        // the compact page and must not turn its buffered hits into heap-null.
+        #[cfg(feature = "server-search")]
+        if matches!(charged, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }))
+            && let Expr::Merge(merge) = expression
+            && !self.device && crate::search_plan::eligible(self.schema, merge) {
+            return Err(self.opening_error(merge, self.compact_memberships, true));
+        }
+        charged?;
+        Ok(value)
     }
 
     fn bind(&mut self, name: &str, value: Value) {
@@ -811,8 +829,7 @@ impl<'a> Runner<'a> {
                 Ok(Value::Array(values))
             }
             Expr::Merge(merge) => {
-                let values = self.merge(merge)?;
-                self.meter.heap(values.iter().map(expression_heap).sum::<u64>())?;
+                let values = self.merge(merge, |runner, values| runner.meter.heap(values.iter().map(expression_heap).sum::<u64>()))?;
                 Ok(Value::Array(values))
             }
         }

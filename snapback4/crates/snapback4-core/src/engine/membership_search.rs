@@ -4,7 +4,7 @@ use super::super::runner::extrema::Aggregate;
 
 
 impl Runner<'_> {
-    fn opening_error(&self, merge: &Merge, count: usize, discovered: bool) -> RuntimeError {
+    pub(in crate::engine) fn opening_error(&self, merge: &Merge, count: usize, discovered: bool) -> RuntimeError {
         let ceilings = self.meter.ceilings;
         let kind = self.meter.capped_at.as_ref().map(|cap|cap.0)
             .or_else(||(self.meter.used.steps > ceilings.steps).then_some(MeterKind::Steps));
@@ -23,12 +23,21 @@ impl Runner<'_> {
 
     // @ref LLP 3000.024#3 — one compact key per membership, one head per scope;
     // every candidate still passes the ordinary row/field/expiry/filter boundary.
-    pub(super) fn merge_memberships(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+    pub(super) fn merge_memberships(&mut self, merge: &Merge, charge: impl FnOnce(&mut Self, &[Value]) -> Result<(), RuntimeError>) -> Result<Vec<Value>, RuntimeError> {
         let mut progress = (0, false, true);
         let depth = self.page_depth;
-        let result = self.membership_page(merge, &mut progress);
+        let result = self.membership_page(merge, &mut progress).and_then(|page| {
+            // Include the expression result's existing reservation in the same
+            // refusal boundary: these buffered rows still have no caller.
+            charge(self, &page)?;
+            Ok(page)
+        });
         self.page_depth = depth;
+        self.compact_memberships = progress.0;
         match result {
+            // @ref LLP 3000.024#decision — buffered hits have not reached the
+            // caller; a heap unwind anywhere in this page must name the refusal.
+            Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }) => Err(self.opening_error(merge, progress.0, progress.1)),
             Err(RuntimeError::Bound { .. } | RuntimeError::AuthorizationBudget { .. }) if progress.2 => Err(self.opening_error(merge, progress.0, progress.1)),
             other => other,
         }
