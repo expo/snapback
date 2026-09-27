@@ -1,5 +1,5 @@
 import type { Refusal } from "./contract.ts";
-import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, retireGroup, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
+import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, retireGroup, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked, type Run } from "./delivery-state.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 
 export interface DeliveryStorage {
@@ -35,11 +35,10 @@ interface Flight { key: string; incarnation: number; epoch: number; attempt: Att
 // @ref LLP 3000.019#4 — delivery belongs to the SDK, independent of mounted screens.
 // @ref LLP 3000.022#4 — receipt success is coverage; uncertain retries retain their persisted id.
 export class DeliveryQueue {
-  // @ref LLP 3000.022#4 — only a new queue grants another session allowance.
-  private boundMints = new Map<string, number>();
-  // If pressure forgets an unresolved bound id, delay the group for this
-  // session instead of issuing fresh initial ids around the replay limit.
-  private boundPending = new Map<string, Set<string>>();
+  // @ref LLP 3000.022#4 — start-only refusals survive debt eviction for this
+  // session, without making them terminal or delaying unrelated coverage.
+  private untilStart = new Map<string, Run[]>();
+  private sessionKey(key: string, fingerprint: string): string { return JSON.stringify([fingerprint, key]); }
   private epoch = 0;
   private stopped = false;
   private paused = false;
@@ -56,6 +55,7 @@ export class DeliveryQueue {
     this.tasks.add(promise); void promise.finally(() => this.tasks.delete(promise)).catch(() => {}); return promise;
   }
   async start(): Promise<void> {
+    this.untilStart.clear();
     // Snapshot only the debt present at startup. New live collections cannot
     // extend this barrier and starve the device's first activation.
     this.startup = await this.options.storage.update(state => Object.entries(state.groups).map(([key, g]) => ({
@@ -117,6 +117,15 @@ export class DeliveryQueue {
         const selected = await this.track(this.options.storage.update(state => {
           if (epoch !== this.epoch || this.stopped) return;
           const idle = Object.entries(state.groups).filter(([key, g]) => !g.saturated && ![...this.flights].some(f => f.key === key));
+          for (const [key, group] of idle) {
+            const held = this.untilStart.get(this.sessionKey(key, group.binding.fingerprint));
+            if (!held) continue;
+            const owed = subtractRuns(group.owed, held);
+            const delayed = subtractRuns(group.owed, owed);
+            group.owed = owed;
+            for (const run of delayed) group.parked.push({ run, kind: "start", at: now });
+            boundDebt(group);
+          }
           const ready = idle.filter(([, g]) => {
             if (!g.owed.length && !g.attempt && !g.parked.some(p => p.kind === "retry" && p.ready)) return false;
             const at = g.attempt?.readyAt ?? 0;
@@ -152,27 +161,13 @@ export class DeliveryQueue {
           if (!group.parked.some(p => p.kind === "full")) group.wake = false;
           // This commit precedes transport, including the local host persistence batch.
           if (!group.attempt) {
-            const sessionKey = JSON.stringify([group.binding.fingerprint, key]);
-            const pending = this.boundPending.get(sessionKey);
-            const lostReplay = pending && [...pending].some(id => !group.parked.some(p => p.attempt?.id === id));
-            const run: [number, number] = [...group.owed[0]!];
-            if ((this.boundMints.get(sessionKey) ?? 0) >= 8 || lostReplay) {
-              group.owed = subtractRuns(group.owed, [run]);
-              group.parked.push({ run, kind: "start", at: now });
-              group.ready = ++state.serial; // A delay takes a scheduling turn too.
-              return { kind: "parked" as const };
-            }
-            group.attempt = { id: this.options.mint(), run, retries: 0, readyAt: 0, recent: [] };
+            group.attempt = { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0, recent: [] };
             group.recent = [];
           }
-          return { kind: "flight" as const, key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
+          return { key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
         }));
         if (!selected) { if (Number.isFinite(nextAt)) this.schedule(Math.max(1, nextAt - this.now())); break; }
         if (epoch !== this.epoch || this.stopped) break;
-        if (selected.kind === "parked") {
-          this.options.onSettled?.();
-          this.schedule(0); break; // New collections cannot keep this pump turn alive forever.
-        }
         const flight: Flight = { ...selected, epoch, controller: new AbortController(), done: Promise.resolve() };
         this.flights.add(flight);
         const [groupArg, fromArg, throughArg] = selected.binding.args;
@@ -186,7 +181,6 @@ export class DeliveryQueue {
   private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown>; delivery: { fingerprint: string } }): Promise<void> {
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let deferred = false;
-    const sessionKey = JSON.stringify([body.delivery.fingerprint, f.key]);
     try {
       const timeout = new Promise<undefined>(resolve => {
         f.controller.signal.addEventListener("abort", () => resolve(undefined), { once: true });
@@ -194,72 +188,47 @@ export class DeliveryQueue {
       });
       let reply: DeliveryReply | undefined;
       try {
-        const sent = this.options.send(mutation, body, f.controller.signal).then(reply => {
-          // @ref LLP 3000.022#4 — every bound outcome requires replay, even if
-          // its debt was evicted, its head is missing, or its flight was fenced.
-          // Observe transport itself so a deadline cannot hide a late bound.
-          const why = (reply.json.why ?? reply.json.denied) as Refusal | undefined;
-          if (!this.stopped && why?.code === "E_BOUND") {
-            const pending = this.boundPending.get(sessionKey) ?? new Set<string>();
-            pending.add(f.attempt.id); this.boundPending.set(sessionKey, pending);
-          }
-          return reply;
-        });
-        reply = await Promise.race([sent, timeout]);
+        reply = await Promise.race([this.options.send(mutation, body, f.controller.signal), timeout]);
       } catch { /* uncertain */ }
       if (!this.current(f)) return;
       if (reply?.deferred) { deferred = true; return; }
       const json = reply?.json;
       const why = (json?.why ?? json?.denied) as Refusal | undefined;
-      if (why?.code === "E_STORE_REPLACED" || why?.code === "E_STORE_RESTORE") { await this.reset(true); return; }
-      // CAS retries reuse this reservation; they cannot debit/mint repeatedly.
-      let replacement: { id: string; delay: number } | undefined;
+      const denied = json?.denied as Refusal | undefined;
+      if ([why?.code, denied?.code].some(code => code === "E_STORE_REPLACED" || code === "E_STORE_RESTORE")) { await this.reset(true); return; }
       const outcome = await this.track(this.options.storage.update(state => {
         if (!this.current(f)) return;
         const group = state.groups[f.key];
         if (!group || group.incarnation !== f.incarnation || group.attempt?.id !== f.attempt.id) return;
-        const effects: { refused?: DeliveryRefused; paused?: boolean; offline?: boolean; boundPending?: string | null } = {};
+        const effects: { refused?: DeliveryRefused; paused?: boolean; offline?: boolean; parked?: Run } = {};
         const attempt = group.attempt, run = attempt.run, now = this.now();
-        if (reply?.accepted && Number.isSafeInteger(json?.head) && Number(json?.head) >= 0
-          && (json?.state === "sent" || (why && !["E_BOUND", "E_AUTH", "E_OFFLINE"].includes(why.code)))) effects.boundPending = null;
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => {
           remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) });
         };
         const retry = (recorded: boolean) => {
-          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; attempt.boundReplay = false; }
+          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; }
           if (attempt.retries >= 8) { park("retry", true); return; }
           attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** attempt.retries++);
         };
+        const ordinaryRefusal = why && !why.retryable && ![
+          "E_AUTH", "E_OFFLINE", "E_DELIVERY_BINDING", "RUNS_FULL", "NOT_MEMBER", "NOT_FOUND", "NOT_A_RUN", "PAST_LAST_MESSAGE",
+        ].includes(why.code);
         group.ready = ++state.serial;
         if (why?.code === "E_AUTH") {
           if (reply?.obsoleteAuth) attempt.readyAt = now;
           else effects.paused = true;
         } else if (why?.code === "E_OFFLINE") effects.offline = true;
+        // A refusal can park debt without a head; it cannot prove coverage or
+        // restore. Transport adapters and the current-attempt check still fence it.
+        else if (ordinaryRefusal && why) {
+          effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+          effects.parked = [...run]; park("start");
+        }
         else if (!reply || !reply.accepted || !Number.isSafeInteger(json?.head) || Number(json?.head) < 0) retry(false);
         else if (why?.code === "E_DELIVERY_BINDING") { dropBinding(state, group.binding); }
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
-        } else if (why?.code === "E_BOUND") {
-          effects.boundPending = attempt.id;
-          // @ref LLP 3000.022#4 — a bare HTTP bound may follow a committed report.
-          // First replay the same id; only its failed receipt permits a new one.
-          if (!attempt.boundReplay || json?.state !== "failed" || (json.why as Refusal | undefined)?.code !== "E_BOUND") {
-            attempt.boundReplay = true; retry(false);
-          } else {
-            const mints = this.boundMints.get(sessionKey) ?? 0;
-            if (!replacement && mints >= 8) { park("start"); effects.boundPending = null; }
-            else {
-              if (!replacement) {
-                this.boundMints.set(sessionKey, mints + 1);
-                replacement = { id: this.options.mint(), delay: Math.min(60_000, 1000 * 2 ** mints) };
-              }
-              attempt.id = replacement.id; attempt.recent = []; group.recent = [];
-              attempt.retries = 0; attempt.boundReplay = false;
-              attempt.readyAt = now + replacement.delay;
-              effects.boundPending = attempt.id;
-            }
-          }
         } else if (why?.code === "RUNS_FULL") park("full");
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {
           const recent = attempt.recent ?? group.recent;
@@ -272,10 +241,6 @@ export class DeliveryQueue {
           if (group.refused.length >= 64) { group.saturated = true; group.owed = []; group.parked = []; }
           effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
         } else if (why?.retryable) retry(json?.state === "failed" || why.code === "E_CONFLICT");
-        else if (why) {
-          effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
-          park("start");
-        }
         else retry(false);
         boundDebt(group);
         return effects;
@@ -283,12 +248,9 @@ export class DeliveryQueue {
       // Local CAS can rerun the edit after a concurrent leave/publication. Only
       // the successfully committed edit may pause dispatch or notify the app.
       if (outcome && this.current(f)) {
-        if (outcome.boundPending !== undefined) {
-          const pending = this.boundPending.get(sessionKey) ?? new Set<string>();
-          pending.delete(f.attempt.id);
-          if (outcome.boundPending !== null) pending.add(outcome.boundPending);
-          if (pending.size) this.boundPending.set(sessionKey, pending);
-          else this.boundPending.delete(sessionKey);
+        if (outcome.parked) {
+          const key = this.sessionKey(f.key, body.delivery.fingerprint);
+          this.untilStart.set(key, mergeRuns([...(this.untilStart.get(key) ?? []), outcome.parked]));
         }
         if (outcome.paused) this.paused = true;
         if (outcome.offline) { this.offline = true; this.options.onOffline?.(); }
@@ -319,7 +281,7 @@ export class DeliveryQueue {
     this.epoch++;
     for (const flight of this.flights) flight.controller.abort();
     this.flights.clear();
-    if (clear) await this.options.storage.clear();
+    if (clear) { this.untilStart.clear(); await this.options.storage.clear(); }
   }
   async stop(wait = false): Promise<void> {
     this.paused = true;

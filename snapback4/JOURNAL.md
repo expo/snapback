@@ -70474,3 +70474,60 @@ publisher remains unbuilt. The supervisor owns review of this follow-up.
 Report and durable verification: experiments/following-adoption/atomic/ROUND5.md
 and ROUND5.verification.json. Raw logs: target/fa-round5/. Local commit carries
 the requested co-author trailer. No push or publication.
+
+## 2026-09-27 — Lane DC round 10: ordinary non-retryable delivery refusals
+
+Discarded the supervisor-stopped round-9 working edits and ROUND9.md, retaining
+committed round 8. Fetched and merged origin/main in 59c730083 before editing;
+both complete journal histories remain (zero missing lines from either parent),
+both guide refusal registries remain, and receipts catch-up/RUNS_FULL guidance
+is combined with SDK-owned reporting. Read the binding prompts, prior reports,
+DC entries and round-8 Astra review; scoped LLP orientation used lane-a5's
+initialized skill because this worktree's link is broken.
+
+Removed all E_BOUND-specific queue machinery: replacement counters, pending
+IDs, replay flags, replay-first, replacement reservations and the late-response
+observer. E_BOUND in why or denied, including headless denial, takes the generic
+non-retryable refusal path: park until start, notify once, new ID next start.
+Exact interval suppression for every ordinary non-retryable refusal survives
+session eviction/recollection without delaying adjacent clean coverage. It
+clears on start or store reset; there are no retry counters, retained IDs or
+terminal bound refusals. Store restore/replacement denials take precedence over
+the original report why. Manifest-only adoption, ready-retry startup barriers,
+held-attempt priority, fingerprint tombstones, synchronous acceptance and
+conditional commits remain. Updated both LLPs, operations and receipts together.
+
+Deleted superseded bound-only tests; retained the three held-attempt witnesses.
+All 21 new refusal tests and six actual-adapter tests fail on the old queue and
+pass now. Removing session suppression fails all eight eviction witnesses,
+including E_INPUT and actual wasm publication. Final affected delivery, codec
+and Chromium checks pass 163/163; delivery subset 128/128. Complete device
+passes 1,367 tests, zero failed, three ignored; whole guide 89/89; consumer
+routes 9/9; artifact serializer-family and absence checks pass. The full run
+also qualifies all 1,367 device tests on the final byte-trim source.
+
+Wasm is 2,019,906 B raw / 585,123 B gzip: 602 raw / 411 gzip bytes below the
+merged baseline, 44 gzip bytes below round 8, and 239 bytes below the accepted
+585,362 B remainder. Equivalent interval decoding and borrowed leave-scope
+slices recover main's extra bytes. SHA-256:
+7462c466f2b4cebfd8001f392daad293d411cdebe30b3e4f6498eff24bd76fab.
+No budget, compiler profile, codec allowance, authorization or meter changed.
+
+Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1554 s`.
+Every failure: wasm build is baseline (unchanged 572,841 B gate); client tests
+has one baseline timing failure, the durable-only dev-adoption legacy poll
+at ephemeral-adoption.test.mjs:28 (1312.982974 ms versus 500 ms, generation 2
+correct). That direct HTTP/schema-watch path is unchanged and instantiates no
+delivery queue/device. Its isolated retest passes; a measured repeat passes
+at 368.604649 ms. Shared-run contention is plausible but unconfirmed. Recorded
+issues/20260927-snapback4-dev-adoption-poll-timing.md; no assertion weakened.
+No lane-owned or environmental full-suite failure identified. Rust 4,107
+passed / 29 ignored; main clients 2,775 passed / one failed / ten skipped;
+extra shards 56/56, wrappers 9/9, models 78/78. Other phases pass. The inherited
+60-second total target remains exceeded. Source and wasm hashes stayed fixed.
+
+No new syntax/API, dependency, persisted format, version, server/comparative
+or crash-witness claim. Conditional-host fallback omission remains. No tool
+installed, no push or publication. Report with file map, examples, exact
+failures and reproductions: reports/20260927-dc-delivery-client/ROUND10.md;
+raw evidence: target/lane-dc-round10/. Commit carries the requested co-author.

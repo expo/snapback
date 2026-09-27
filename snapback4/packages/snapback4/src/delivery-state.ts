@@ -3,7 +3,7 @@ import type { Refusal } from "./contract.ts";
 export type Run = [number, number];
 export interface DeliveryBinding { fingerprint: string; table: string; mutation: string; args: [string, string, string] }
 export interface DeliveryRefused extends DeliveryBinding { group: string; from: number; through: number; why: Refusal }
-export interface Attempt { id: string; run: Run; retries: number; readyAt: number; recent?: Run[]; boundReplay?: boolean }
+export interface Attempt { id: string; run: Run; retries: number; readyAt: number; recent?: Run[] }
 export interface Parked { run: Run; kind: "full" | "start" | "retry"; at: number; ready?: boolean; attempt?: Attempt }
 export interface DeliveryGroup {
   binding: DeliveryBinding; group: string; incarnation: number; collected: number;

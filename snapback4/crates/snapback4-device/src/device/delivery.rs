@@ -70,7 +70,11 @@ fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
     Ok(())
 }
 fn runs(value: &Json) -> Vec<(i64, i64)> {
-    value.as_array().into_iter().flatten().filter_map(|v| Some((v[0].as_i64()?, v[1].as_i64()?))).collect()
+    let mut result = Vec::new();
+    if let Some(values) = value.as_array() { for v in values {
+        if let (Some(a), Some(b)) = (v[0].as_i64(), v[1].as_i64()) { result.push((a,b)); }
+    } }
+    result
 }
 fn covers(value: &Json, n: i64) -> bool { runs(value).iter().any(|&(a,b)| a <= n && n <= b) }
 fn add(value: &mut Json, n: i64) {
@@ -179,11 +183,11 @@ pub(super) fn publish<T: DeviceTx>(tx: &T, schema: &Schema, candidates: &Candida
     for (table, entries) in &groups { for (scope, membership) in entries { if matches!(membership, history::Membership::Left) { left.insert((table.clone(), scope.clone())); } } }
     for (table, scope) in &left {
         let removed: Vec<_> = state["groups"].as_object().unwrap().iter().filter(|(_,g)| g["binding"]["table"] == *table
-            && (scope == "[]" || g["scope"] == *scope || encoded(&vec![g["group"].clone()]).ok().as_ref() == Some(scope))).map(|(k,_)| k.clone()).collect();
+            && (scope == "[]" || g["scope"] == *scope || encoded(&&[&g["group"]][..]).ok().as_ref() == Some(scope))).map(|(k,_)| k.clone()).collect();
         for key in removed { state["groups"].as_object_mut().unwrap().remove(&key); state["retired"].as_object_mut().unwrap().remove(&key); }
         retain(&mut state["retired"], &mut |key,kept| {
             let parts: Vec<String> = decoded(key).unwrap_or_default();
-            !(parts.first() == Some(table) && (scope == "[]" || kept["scope"] == *scope || parts.get(2).is_some_and(|g| encoded(&vec![g]).ok().as_ref() == Some(scope))))
+            !(parts.first() == Some(table) && (scope == "[]" || kept["scope"] == *scope || parts.get(2).is_some_and(|g| encoded(&&[g][..]).ok().as_ref() == Some(scope))))
         });
     }
     let now = expiry_clock::now(tx, local_now.max(tx.meta(ISSUED_FLOOR)?.and_then(|n| n.parse().ok()).unwrap_or(0)))?;

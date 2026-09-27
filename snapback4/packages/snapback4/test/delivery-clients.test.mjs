@@ -97,3 +97,36 @@ test('online one-shot acceptance belongs to its final returned answer',async t=>
  const result=await client.query({kind:'query',name:'inbox'},{});
  assert.equal(accepts,1);assert.equal(result.data,41,'a manifest must not belong to an answer rejected by a later continuation');
 });
+
+for(const tier of ['online','local'])for(const envelope of ['why','denied','headless'])
+test(`${tier} adapter parks E_BOUND ${envelope} once until the next start`,async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {setImmediate:turn}=await import('node:timers/promises');
+ const settle=async()=>{for(let i=0;i<30;i++)await turn();};
+ let value=JSON.stringify({serial:0,groups:{},retired:{}}),success=false,nextId=0;
+ const calls=[],refused=[];
+ const fetch=async(_url,init)=>{calls.push(JSON.parse(init.body));return Response.json(success?
+  {state:'sent',head:10,store_id:'S'}:envelope==='headless'?{denied:{code:'E_BOUND'}}:
+  {state:'failed',[envelope]:{code:'E_BOUND'},head:10,store_id:'S'});};
+ const call=async r=>{
+  if(r.op==='meta')return {ok:'1'};if(r.op==='set_meta')return {ok:null};
+  if(r.action==='write'){if(r.expected!==value)return {ok:false};value=r.value;return {ok:true};}
+  return {ok:{value,more:false}};
+ };
+ const open=()=>tier==='online'?onlineDelivery({url:'http://x',fetch,mint:()=>`adapter-${++nextId}`,
+  ready:()=>true,current:()=>true,headers:()=>({}),revision:()=>0,floor:()=>10,store:()=>'S',
+  observe:()=>{},obsolete:async()=>false,refresh:()=>null,onRefused:e=>refused.push(e)}):
+  localDelivery({viewer:'alice',url:'http://x',fetch,call,collect:(r,current)=>current()?call(r):Promise.resolve({ok:true}),
+   backend:()=>null,ready:()=>true,current:()=>true,credentials:()=>({headers:{},revision:0}),refresh:()=>null,
+   capture:async()=>({watermark:10,send_revision:0,store_id:'S'}),witness:async()=>false,restored:()=>false,
+   replaced:()=>assert.fail('unexpected replacement'),auth:async()=>{},now:()=>0,onRefused:e=>refused.push(e)});
+ let q=open();t.after(()=>q.stop());
+ await q.accept(manifest([['c',41]]));t.mock.timers.tick(250);await settle();
+ assert.equal(calls.length,1);assert.equal(refused.length,1);assert.equal(refused[0].why.code,'E_BOUND');
+ for(let n=0;n<3;n++) {t.mock.timers.tick(660000);await settle();await q.reconnect();await q.accept(manifest([['c',41]]));t.mock.timers.tick(250);await settle();}
+ assert.equal(calls.length,1);assert.equal(refused.length,1);
+ await q.stop();success=true;q=open();
+ if(tier==='online')await q.accept(manifest([['c',41]]));else await q.open();
+ t.mock.timers.tick(250);await settle();assert.equal(calls.length,2);assert.notEqual(calls[0].id,calls[1].id);
+ assert.equal(refused.length,1);
+});

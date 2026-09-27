@@ -201,7 +201,7 @@ for(const kind of ['retry','start'])test(`startup waits for a ready persisted ${
  t.mock.timers.enable({apis:['setTimeout']});
  const responses=[],h=harness(t,{send:()=>{const d=deferred();responses.push(d);return d.promise;}});
  h.ready(false);await h.q.accept(manifest([['c',41]]));
- await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind,run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0,boundReplay:true}}];});
+ await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind,run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0}}];});
  h.advance(30000);await h.q.start();await h.q.accept(manifest([['c',1]]));h.ready(true);await h.flush();
  assert.equal(h.calls[0].args.from,1);assert.equal(await h.q.flushed(),false,'41 is ready but has not dispatched');
  responses[0].resolve(ok);await settle();await h.flush();
@@ -256,4 +256,12 @@ for(const disposition of ['reported','refused'])test(`an older membership retry 
  assert.equal(h.calls.filter(c=>c.args.from===41).length,1,'the older collection boundary cannot re-report settled coverage');
  assert.equal(h.refused.length,disposition==='refused'?1:0);
  assert.deepEqual(groups(await h.state())[0].owed,[]);
+});
+
+for(const wake of ['reconnect','start','timer'])test(`a due full park cannot replace a held attempt on ${wake}`,async t=>{
+ const h=harness(t);await h.q.accept(manifest([['c',41]]));
+ const attempt={id:'committed-1',run:[1,1],retries:1,readyAt:61000};
+ await h.storage.update(s=>{const g=Object.values(s.groups)[0];g.owed=[[1,1]];g.attempt=structuredClone(attempt);g.parked=[{kind:'full',run:[41,41],at:0}];});
+ h.advance(60000);await h.q.wake(wake);await h.flush();assert.equal(h.calls.length,0);assert.deepEqual(groups(await h.state())[0].attempt,attempt);
+ h.advance(1000);await h.flush();assert.equal(h.calls[0].id,'committed-1');await h.flush();assert.equal(h.calls[1].args.from,41);
 });

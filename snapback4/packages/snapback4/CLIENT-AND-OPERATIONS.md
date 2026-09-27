@@ -2290,30 +2290,23 @@ Startup waits only for debt present at startup. Later activation pages wait
 for capacity without evicting debt, retaining outbox priority even during live
 traffic. A failed page resumes its durable cursor with bounded backoff.
 
-`E_BOUND` first replays the same id: an oversized HTTP response can hide a
-committed success, whose replay retires the interval without executing again.
-Only a replayed `failed` receipt with `why.code: "E_BOUND"` permits a new id,
-with 1–60 s backoff. Each queue keeps an in-memory counter keyed by binding
-fingerprint and group key, allowing at most eight replacement ids per session.
-Abandoned persistence reservations consume allowance and can require a restart before eight replacements have actually been dispatched.
-No park, merge, split, eviction, recollection or success resets that counter;
-only a new queue on app start or sign-in does. Once spent, the group's intervals
-wait in `start` parks for the next session. Reconnect and timer wakes grant no
-extra ids. `E_BOUND` never creates a refused entry or calls `onDeliveryRefused`.
-A bare denial stays uncertain on the same id. If eviction loses an id awaiting
-a bound replay, an in-memory pending-id marker delays that group until the next
-session, without restoring evicted debt or refusing clean coverage. If the id
-was evicted, a new session may report recollected coverage with a new id,
-including coverage the server already committed. The counter
-and pending-id set are not persisted; the same-id replay flag stays with its
-persisted attempt.
+`E_BOUND` is an ordinary non-retryable refusal in either the `why` or
+`denied` envelope, including a denial without a head. The interval parks until
+the next start and calls `onDeliveryRefused` once. Reconnect, timer wakes,
+eviction and recollection do not resend it within the session; clean intervals
+in the same group can still report. The next start retries with a new id.
+An expired unswept backlog normally clears before then; if an oversized reply
+hid a committed report, reporting that coverage again is a no-op. Retries are
+bounded by app starts. Start-only suppression applies to every ordinary
+non-retryable refusal, is scoped to fingerprint and group, and clears on start
+or store reset; it creates no terminal refused entry.
 
 Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
 for application refusals. It receives
 `{ table, mutation, args, group, from, through, why }`; `why` is the ordinary
 coded refusal. `NOT_A_RUN` and `PAST_LAST_MESSAGE` enter a remembered refused
 set; other non-retryable application refusals park until restart.
-`E_BOUND`, `RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
+`RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
 this callback. Reports do not appear in `onWrite` or `pendingWrites()`.
 
 Local debt survives closing or sign-out for the same viewer. Online sign-out
