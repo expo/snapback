@@ -67532,3 +67532,64 @@ response, no signing, registry login, push or publication.
 Final reference audit: 515 LLP docs, 9,585 refs, zero errors/unchecked;
 frozen Bun install and diff whitespace checks pass. Every lane commit has
 the requested co-author trailer; changed source files remain under 1,500 lines.
+
+
+### 2026-09-27 — Lane LX round 2: review fixes and repeated Linux qualification
+
+Answered both round-0 reviewers in five local commits: 72a5db71e selects
+exact packed platform dependencies (Astra 2/Grok 1); 0e85d0353 copies and
+verifies private upload snapshots, then rechecks immediately before each
+publish (Astra 1/Grok 2 and 3); 8bd9f6bc6 explicitly pins Cargo's target
+directory (Astra 3); 191baff79 executes both routes' real proof shell bodies
+in the qualifier harness and refuses entrypoint/guard failures (Astra 4/
+Grok 3); 94c05f338 parses packed ELF on the Mac import path and pins SQLite
+flag equality (Grok 4 and its flag observation). A new no-Linux-receipt run
+packs a Darwin-only client from a private package copy, preserving the flow
+without naming an unpublished Linux version. Prepared clients and resumes
+must match the staged platform set. Format-2 resumes still work. Proot is
+retained; the Mac does not execute or rebuild Linux.
+
+All 95 affected tests pass (48 publication, 24 signing, 18 qualifier, 5
+Linux package/parser/resolver/flag tests). Before/after regressions cover
+exact platform selection, all three stage tarballs swapped after proof in
+fresh/resumed runs with zero uploads, private snapshot isolation and upload
+rehashing, redirected Cargo output with a stale binary, forged static-ELF
+receipts and SQLite flag mismatch. Six proof-body mutations (entrypoint,
+override guard and Node pin on each route) all turn success tests red;
+actual failing entrypoints propagate without a receipt on both routes.
+
+At clean implementation head 94c05f338, prepared a fresh common client,
+then ran qualify-linux.mjs once. It ran scripts/test.sh exactly once and
+both real proot roots: exit 0, exact summary `== 0 failure(s) in 1364 s`.
+Failures: ours 0, baseline 0, environmental 0. Rust/doctests 3,809 passed,
+24 ignored, 877 s; whole guide 86/86; client main 2,552 passed, 10 skips,
+all 56 shards passed, 195 s; models 78/78, 256 s; wrappers 9/9. All other
+stages pass. Ephemeral typing and session restore passed in this full run;
+no flake rerun or change. The inherited 60-second suite budget remains
+exceeded; no deadline or budget changed.
+
+Fresh proot Ubuntu 24.04.3 / Node 22.22.0 passed in 13.033 s; Alpine 3.23.3 /
+Node 24.18.1 in 13.702 s, including setup. All cached downloads were checked;
+unchanged production Cargo outputs qualified in 0.05 s. Both roots ran
+version/init/check/dev, a real write/read and a denied cross-persona read
+with no binary override or checkout. Static binary 17,193,248 B, SHA-256
+23e4e408c750d30ca6554c91fbbf04e7c522edd9b6048aff01d21ba16695803e;
+Linux tarball 7,406,320 B; client 840,123 B. All match round 1's merged
+bytes. Both shell/import ELF checks find no interpreter or NEEDED entries.
+Wasm unchanged: 1,980,253 B raw / 571,810 B gzip, SHA-256
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc,
+1,031 B below the unchanged 572,841 B cap.
+
+Reference audit: 515 LLP documents, 9,586 refs, zero errors/unchecked.
+Frozen Bun install and diff whitespace checks pass; changed source files
+are below 1,500 lines. Node 24.13.1, npm 11.8.0, Bun 1.3.14, Rust 1.97.0,
+eight Cargo build jobs, dev/test debug off, incremental off, fd limit 65,536.
+No engine, authorization, disclosure, durability or meter changes. No
+system settings, version bump, actual Mac signing, registry login/write,
+push or publication. Integration owns 0.4.5 and its fresh qualification.
+
+The report and copied round2-receipt.json are under
+reports/20260927-lx-linux-package/; raw evidence and tarballs are under
+ignored target/lane-lx-round2/. The final evidence commit changes only
+documents/receipt after the qualified head. Every commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

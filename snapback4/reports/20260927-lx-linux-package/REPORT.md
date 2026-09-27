@@ -467,7 +467,7 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
 
 ### Commit / finding map
 
-- `Pack the client for the selected publication platforms`: Astra finding 2
+- `72a5db71e` — **Pack the client for the selected publication platforms**: Astra finding 2
   (High), Grok finding 1 (High), round-2 request 1. Fresh no-receipt runs
   pack a Darwin-only client, preserving that supported flow without naming
   an unpublished Linux version. `--prepare-client` still selects both
@@ -481,7 +481,7 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   and resume refusal when a dependency is added with updated artifact SRI.
   Publication/signing tests: 61 passed, 0 failed.
 
-- `Publish only receipt-verified private artifact snapshots`: Astra finding 1
+- `0e85d0353` — **Publish only receipt-verified private artifact snapshots**: Astra finding 1
   (High), Grok finding 2 (Medium) and the publish-fixture part of finding 3,
   round-2 request 2. `publication-registry.mjs` copies all artifacts after
   proof into a private temporary directory, makes copies read-only and
@@ -495,7 +495,7 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   uploaded), and snapshot corruption during registry checks (zero uploads).
   Publication/signing tests: 69 passed, 0 failed.
 
-- `Pin the musl build output to the qualified target directory`: Astra
+- `8bd9f6bc6` — **Pin the musl build output to the qualified target directory**: Astra
   finding 3 (High), round-2 request 3. `build-linux-musl.sh` passes
   `--target-dir "$PWD/target"`. The qualifier harness executes the real
   shell with fake Cargo, a redirected `CARGO_TARGET_DIR`, and a preexisting
@@ -504,7 +504,7 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   both proofs' platform digest all identify the fresh build. Qualifier
   tests: 12 passed, 0 failed.
 
-- `Execute the consumer proof in both qualifier test routes`: Astra finding 4
+- `191baff79` — **Execute the consumer proof in both qualifier test routes**: Astra finding 4
   (Medium), Grok finding 3 (Medium), round-2 request 4. The qualifier harness
   now executes each production shell body with offline guest-tool stand-ins
   and a real Node proof entrypoint. The proot fixture runs the actual
@@ -520,7 +520,7 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   and Node-version check with `true` in each production route: all six
   mutations made the success test fail, unlike round 0's permissive mock.
 
-- `Recheck packed Linux ELF bytes during publication import`: Grok finding 4
+- `94c05f338` — **Recheck packed Linux ELF bytes during publication import**: Grok finding 4
   (Low) and SQLite flag observation, round-2 request 5. `validateLinux` hashes
   and parses the extracted binary with `checkElf` on initial import and
   resume, requiring no interpreter or NEEDED entries without executing it.
@@ -533,3 +533,149 @@ The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
   describes exact platform sets and private upload snapshots.
   All affected tests: **95 passed, 0 failed** (48 publication, 24 signing,
   18 qualifier, 5 Linux package/parser/resolver/flag cases).
+
+
+### Qualification at the implementation head
+
+Qualified clean **`94c05f33820cd4db88c95f1ce27ef0c5be2d4c5f`**, containing all
+five review-response commits. The final evidence commit changes only this
+report, the journal, the LLP note and the copied receipt; it records
+validation for all five findings and makes no further executable change.
+
+`qualify-linux.mjs` ran `scripts/test.sh` **exactly once**, then built the
+musl package and ran both real proot roots. **Exit 0**; exact suite summary:
+
+```text
+== 0 failure(s) in 1364 s
+```
+
+Every suite stage passed. Failure classifications: **ours 0, baseline 0,
+environmental 0**. There was no flaky-test rerun or change. In particular,
+ephemeral typing and session restore passed in the original full run.
+Intentional pre-fix/mutation failures above are regression evidence, not
+failures of this qualified revision.
+
+- Rust tests/doctests: **3,809 passed, 0 failed, 24 ignored**; **877 s**.
+  Whole guide: **86/86**. Rust inventory: 236 binaries, 949 executions.
+- Client main: **2,552 passed, 0 failed, 10 intentional skips**; all seven
+  additional shards: **56/56**. Client phase **195 s**.
+- Seeded models: **78/78**, **256 s**. Fixture wrappers: **9/9**.
+- Cargo build, wasm, docs budget, release guard, package build/typecheck,
+  app check and both app typechecks passed. Frozen Bun install passed.
+- Standalone affected tests: **95/95**, also included in the full suite.
+- Reference audit: **515 LLP documents, 9,586 refs, 0 errors, 0 unchecked**.
+  Diff whitespace passes; every changed source file is below 1,500 lines.
+- The inherited 60-second suite budget is still exceeded; no budget or test
+  deadline was changed.
+
+The successful [round-2 receipt](./round2-receipt.json) retains the exact
+source, suite summary, binary/client/platform digests and every pinned tool
+URL/hash. Both consumers executed `--version`, `init`, `check`, `dev`, a
+real client write/read, and a denied cross-persona read outside the checkout
+with `SNAPBACK4_BIN` absent.
+
+| Real root | Pinned Node | Result, including setup |
+| --- | --- | --- |
+| Ubuntu 24.04.3 | 22.22.0 | Passed, **13.033 s** |
+| Alpine 3.23.3 | 24.18.1 | Passed, **13.702 s** |
+
+Fresh roots reused checksum-verified cached inputs; proot remains 5.4.1.
+The ordinary production build reused current Cargo outputs and completed
+in **0.05 s**. Both consumers requalified those bytes at this head.
+
+- Binary: **17,193,248 B**, SHA-256
+  `23e4e408c750d30ca6554c91fbbf04e7c522edd9b6048aff01d21ba16695803e`.
+  Shell and importer ELF checks pass: no interpreter or NEEDED entries.
+- Linux tarball: **7,406,320 B**, SRI
+  `sha512-nlUk0mr2oBjNyfPJDeEtbKWkQhUC07dGFK2cbFkoSBGj0X5nZNSvt9RuwtgIOXy1bQmbMvL6YXHGuMVtNhYFMQ==`.
+- Freshly prepared common client: **840,123 B**, SRI
+  `sha512-IWHv0j+9F1nmyTUBh9JpMtRVN78Wqf0Daj/O2H6mFt94f24FZRi6gL6cXDhgQiwymJ9CdBZP2pt2vJh7SSiU9w==`.
+- Wasm: **1,980,253 B raw / 571,810 B gzip**, unchanged **572,841 B** cap
+  (1,031 B headroom). SHA-256
+  `324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc`.
+  Binary, package and wasm bytes all match round 1's merged evidence.
+
+Host toolchain: Node 24.13.1, npm 11.8.0, Bun 1.3.14, Rust 1.97.0,
+GCC 13.3.0/musl 1.2.5. Eight Cargo build jobs, dev/test debug information
+off, incremental off and descriptor limit 65,536. No system setting changed.
+
+### Files and exercised forms
+
+| File | Round-2 change |
+| --- | --- |
+| `scripts/prepare-client.mjs` | Select optional dependencies in a private package copy before the single pack; validate the selected set on preparation load. |
+| `scripts/publish.mjs` | Derive the selected platform set from receipt presence; exact manifest validation on resume; upload through verified snapshots. |
+| `scripts/publication-registry.mjs` | Copy/verify the full artifact set in a private directory, then recheck each digest just before upload. |
+| `scripts/build-linux-musl.sh` | Explicit `--target-dir "$PWD/target"`. |
+| `scripts/publication-artifacts.mjs` | Re-derive packed ELF properties on import/resume without running Linux. |
+| `scripts/qualify-linux-proot.mjs` | Injectable download boundary for the offline harness; production defaults retain pinned verification and the same proof. |
+| `packages/snapback4/test/publish-linux.test.mjs` | Exact platform-set, stage/snapshot replacement and forged ELF receipt regressions. |
+| `packages/snapback4/test/qualify-linux.test.mjs` | Actual build-shell redirection regression and actual proof-shell execution/failure coverage on both routes. |
+| `packages/snapback4/test/linux-package.test.mjs` | Shell/receipt SQLite flag equality; reuse ELF fixture. |
+| `packages/snapback4/test/helpers/publish-fixture.mjs` | Preserve packed manifest bytes; inject replacements after proof/during registry checks; require private snapshot uploads. |
+| `packages/snapback4/test/helpers/linux-proof-harness.mjs` | Execute guest shell bodies offline and require Node-pin/install/entrypoint evidence. |
+| `packages/snapback4/test/helpers/elf-fixture.mjs` | Minimal ELF headers shared by parser and publication controls. |
+| `AGENTS.md`, LLP 3000.021 §3.3 | Current publication/qualification behavior. |
+| `JOURNAL.md`, this report and round-2 evidence | Append-only measurements, reviewer-to-commit map and reproduction. |
+
+There are no new Quarry forms or runtime behaviors. Exercised packaging forms:
+
+- Darwin-only: `node scripts/publish.mjs` packs one Darwin dependency; a
+  prepared two-platform client refuses on this path. Verified by fixture.
+- Cross-host: `node scripts/publish.mjs --prepare-client` still selects both
+  packages, then `node scripts/qualify-linux.mjs --client /path/client.tgz
+  --out /path/new-qualification`; the real Linux command was exercised.
+- Two-platform import: `node scripts/publish.mjs --dry-run --linux-receipt
+  /path/receipt.json --linux-tarball /path/linux.tgz`; fresh and resumed
+  (`--resume`) publication ordering/refusals were exercised by fake npm.
+- Static build: `CARGO_TARGET_DIR=/elsewhere bash scripts/build-linux-musl.sh`
+  still inspects/packs the binary under this checkout's explicit target.
+  The redirect regression executes the real shell with a fake compiler.
+
+### Scope, deviations and reproduction
+
+The requested compatibility choice is Darwin-only packing. The common
+cross-host client is never repacked after Linux qualification. An already
+prepared client whose dependency set differs is refused, rather than
+silently replaced. The registry is not used to justify unstaged platforms.
+Old invalid format-3 Darwin-only stages that named both platforms now
+refuse exact manifest validation; format-2 stages remain supported.
+
+Proot's download injection is an internal test seam, not a CLI option;
+ordinary qualification still verifies every cached/downloaded input.
+The unit harness mocks guest tools and proof behavior, and separately
+runs the real shell/Node entrypoint. The real distribution proofs run the
+unchanged consumer script. No Docker/Podman exists on this host, so real
+qualification uses the retained proot route. No actual Mac signing was
+attempted; publication tests use fake npm and Apple tools.
+
+No version/budget bump, changed test deadline, flaky-test repair, source
+runtime change, registry login, authenticated write, push or publication.
+Integration must prepare and qualify fresh 0.4.5 bytes at its release commit.
+The two-host commands above remain the release workflow, with proot
+available automatically when no container runtime is present.
+
+
+No open round-2 defect remains. Reproduce this development qualification
+from clean `94c05f338` on the lane host (choose new output directories if
+these already contain receipts), after the frozen Bun install and musl setup:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+export CARGO_INCREMENTAL=0
+ulimit -n 65536
+unset NPM_TOKEN NODE_AUTH_TOKEN SNAPBACK4_BIN
+node --input-type=module -e 'import { prepareClient } from "./scripts/prepare-client.mjs"; import { resolve } from "node:path"; prepareClient(process.cwd(), "0.4.4", resolve("target/lane-lx-round2/client"));'
+node scripts/qualify-linux.mjs \
+  --client target/lane-lx-round2/client/snapback4-0.4.4.tgz \
+  --out target/lane-lx-round2/qualification
+```
+
+Raw evidence is retained under ignored `target/lane-lx-round2/`:
+`affected.log`, `platform-set-{red,green}.log`, `snapshot-{red,green}.log`,
+`target-dir-{red,green}.log`, `proof-harness.log`, all six
+`proof-mutant-*.log`, `elf-import-red.log`, `sqlite-flags-mutant.log`,
+`prepare.log`, `qualify.log`, `qualification/suite.log`, `ref-check.log`,
+the prepared client and the qualified Linux tarball/receipt. All commits
+carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
