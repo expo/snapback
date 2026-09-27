@@ -45,19 +45,20 @@ function denial(output, code, family) {
 }
 
 async function holdExclusively(t, path) {
+  writeFileSync(path, "");
   const holder = spawn("python3", ["-c", `import fcntl, sys
 with open(sys.argv[1], "a+b") as store:
     fcntl.flock(store, fcntl.LOCK_EX)
     print("locked", flush=True)
     sys.stdin.read()
-`, path]);
+`, `${path}-owner`]);
   const exited = once(holder, "close");
   t.after(async () => { holder.stdin.end(); await exited; });
   const [ready] = await once(holder.stdout, "data", { signal: AbortSignal.timeout(10000) });
   assert.equal(String(ready).trim(), "locked");
 }
 
-test("createLocalClient receives E_STORE_BUSY from a process device with an exclusively held database", async t => {
+test("createLocalClient receives E_STORE_BUSY from a process device with an exclusively held ownership sidecar", async t => {
   const { dir, attempts, device } = fixture(t);
   const path = join(dir, `${storeName}.sqlite`);
   await holdExclusively(t, path);

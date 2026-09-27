@@ -20,9 +20,12 @@ fn database_ownership_preserves_sqlites_posix_locks() {
         let mut owner = command(&path).unwrap();
         let store = owner.open_store(Duration::ZERO).unwrap();
         store.conn().execute_batch(&format!("PRAGMA journal_mode = {mode}; BEGIN IMMEDIATE")).unwrap();
-        // All guard operations after SQLite takes its lock must be stat-only
-        // on the database, and the descriptor must remain alive throughout.
+        // Even rejected ownership attempts must be stat-only on the database:
+        // closing a second raw descriptor would discard its POSIX locks.
         owner.path().unwrap();
+        assert!(command(&path).is_err());
+        assert!(device(&path).is_err());
+        assert!(Store::open_shared(&path).is_err());
         announce(&mut owner, "127.0.0.1:4567".parse().unwrap()).unwrap();
         let run = |busy: bool| {
             let mut child = Command::new(std::env::current_exe().unwrap());
@@ -36,8 +39,25 @@ fn database_ownership_preserves_sqlites_posix_locks() {
         store.conn().execute_batch("ROLLBACK").unwrap();
         run(false); // The ownership flock does not replace SQLite's own locks.
         drop(store);
-        drop(owner); // Never close the raw descriptor while SQLite holds it.
+        drop(owner);
     }
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn sidecar_is_private_and_shared_devices_exclude_backend_owners() {
+    let dir = std::env::temp_dir().join(format!("snapback4-owner-sidecar-{}", std::process::id()));
+    let path = dir.join("store.sqlite");
+    let first = device(&path).unwrap();
+    let sidecar = snapback4_core::private_fs::owner_path(&path);
+    assert_eq!(fs::metadata(&sidecar).unwrap().permissions().mode() & 0o777, 0o600);
+    let second = device(&path).unwrap();
+    assert!(command(&path).is_err());
+    drop(first);
+    assert!(command(&path).is_err());
+    drop(second);
+    drop(command(&path).unwrap());
+    assert!(sidecar.is_file(), "do not unlink a lock file other openers may still hold");
     fs::remove_dir_all(dir).unwrap();
 }
 

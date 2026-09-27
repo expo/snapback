@@ -66970,3 +66970,81 @@ corrected `node scripts/run-rust-tests.mjs` run exits 0: 236 test binaries,
 it was not rerun. Report, exact reproduction and artifact hashes:
 `reports/20260927-lane-a5-list-offline.md`, round 1. Evidence:
 `target/a5-evidence/round1-*`.
+
+### 2026-09-27 — Lane OW: ownership beside SQLite, never on its inode
+
+Moved CLI/backend exclusive ownership and native-device shared ownership to
+`<canonical database filename>-owner`, created 0600 with `O_NOFOLLOW` and
+`O_NONBLOCK`, verified regular and single-linked. The guard retains this
+sidecar and the database's stat-only `(dev, ino)` identity; an existing
+database is never opened/closed by the ownership machinery. A missing
+private database is created and closed before SQLite opens it. The C ABI
+and Expo inherit `Store::open_shared`; no client contract changes. This
+fixes the design's Darwin flock/fcntl conflict without changing
+`E_STORE_BUSY`, the published server address, per-row authority/disclosure,
+or runtime meters. LLP 3000.019 §3.4 and the residency card now describe it.
+
+Where the brief was silent, sidecars remain on disk after unlock, reject
+hard links before opening (a database alias could discard SQLite locks on
+close), and verify their named inode after locking. Address-record readers
+and writers also preflight aliases before opening. The moved-database test
+moves `-owner` with the existing SQLite sidecars. The Python JS owner model
+locks `-owner` while retaining its unchanged-database assertion.
+
+Added regressions for a shared sidecar held through device snapshot commits
+and reopen (120 persisted messages), fresh `init` then ready `dev` with a
+published store identity and committed generation, six invalid sidecar
+kinds refused by both entry points without modifying data, and private
+shared ownership retained until its last handle closes. Strengthened the
+existing DELETE/WAL POSIX-lock witness: rejected command, device CLI and
+native opens must not let an external SQLite writer acquire the lock.
+Affected checks pass: ownership unit tests 5/5, run_admission 25/25,
+residency 5/5, whole guide 86/86, native-opening JS 6/6. Frozen Bun install
+passes. The first package build lacked this fresh worktree's generated
+wasm files (TS2307); the required suite subsequently generated them, and
+package build/typecheck passed. Reference audit: 515 LLP docs, 9,555 refs,
+zero errors or unchecked.
+
+Wasm: 1,980,253 B raw / 571,841 B gzip, byte-identical to the integration
+artifact, SHA-256
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+Delta: 0 B; unchanged budget: 572,841 B gzip. Native-only libc is now a
+direct core dependency for the platform open flags. No language forms,
+diagnostic codes, budget increases, package version changes, push or
+publication. This lane runs on Linux; the supervisor owns the macOS proof
+using the ownership, run_admission and residency Rust tests, the native
+opening JS test, and a fresh init/dev startup. Logs are ignored under
+`target/lane-ow/`. Full-suite result follows in this entry.
+
+Ran `scripts/test.sh` exactly once: `== 1 failure(s) in 1369 s`, exit 1;
+only failing check: `client tests`. Rust tests/doctests: 3,786 passed,
+0 failed, 24 intentional ignores (866 s). All 78 seeded-model tests pass
+(256 s); fixture wrappers and both app typechecks pass. Client main reports
+2,463 passes, 3 failures and 10 skips; the three failures are two assertions
+plus the browser parent test's cascading failure, not three independent
+bugs. Its seven shards pass. No ownership regression failed.
+
+Failure attribution and reproductions:
+
+- **Baseline, intermittent:** `web-admission-review.test.mjs`, “hiding during
+  strict admission releases the session lock before transport and peer
+  logout,” asserts “transport entered under the session lock.” Reproduced
+  with an independently built `0cca900d8` binary: 2/5 focused runs fail;
+  patched binary: 3/5 fail. The complete file's isolated rerun passes 54/54.
+  Repro from snapback4: `SNAPBACK4_WEB_ADMISSION_FOCUS='^hiding during strict admission' node --test packages/snapback4/test/web-admission-review.test.mjs`.
+  `SNAPBACK4_BIN` selects the baseline binary retained under
+  `target/lane-ow/base-source/snapback4/target/debug/snapback4`. The browser
+  parent test's failure has this same baseline cause.
+- **Environmental/intermittent, provisional attribution:**
+  `residency.test.mjs`, “server-class watches run locally first and recover
+  remembered server data offline,” timed out waiting for “offline watch
+  downgrades the remembered answer.” Observed only in the full parallel
+  suite. Focused command: `node --test --test-name-pattern='server-class watches run locally first' packages/snapback4/test/residency.test.mjs`.
+  It passes 6/6 patched reruns and 87/87 baseline runs (55 serial, 32 in
+  batches of 16). Its root cause remains unconfirmed; these passes do not
+  erase the full-suite failure. No watch/session implementation was changed.
+
+The new regression tests, guide, wasm measurement and sidecar implementation
+are unchanged after qualification. No second full-suite run, unrelated
+client fix, push or publication. Darwin verification remains the supervisor's
+next platform proof, not a claim from this Linux lane.
