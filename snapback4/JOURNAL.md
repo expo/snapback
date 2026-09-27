@@ -68247,6 +68247,68 @@ Implementation/witness commits: 440c032cf, f1d8cc991, f524fa5fa, 13210d828.
 File map, exact measurements, open limits and reproductions:
 reports/20260927-ss-sync-scale/REPORT.md and measurements.json. Raw evidence
 and the full-suite log remain under target/lane-ss-evidence/.
+## 2026-09-27 — 0.4.5 lane TK: mint service tokens through the live owner
+
+On `sb4-intent/tk-token-live`, implemented the live-token brief in
+7e85a25a0, corrected refusal wording in 8e8cf4814, and updated the existing
+consumer proof in 9a2533030. Persistent dev and serve accept a private
+`POST /dev/token` only from a loopback socket peer, with a loopback Host,
+no Origin and exactly one per-run store proof. Startup writes 32 OS-random
+bytes as hex to the 0600 `<canonical database>-token` sidecar through the
+existing alias/symlink/hard-link protections; it rotates on every start.
+Discovery uses the existing `serve.lock` address hint, mapping wildcard
+addresses to loopback. `<database>-owner` remains the lifetime lock. The
+request uses the existing bounded writer admission and the owner's engine
+guard, then calls the same identity mint routine as offline token. Service
+validation, session records, wall-clock expiry and stdout are unchanged.
+The CLI never retries or opens another writer after a live request fails;
+an uncertain reply names that uncertainty and gives the offline recovery.
+
+Eight new process tests pass: both hosts' live/offline validation and expiry,
+durability and proof rotation, actual non-loopback refusal with the correct
+proof, missing/wrong/duplicate/browser proofs, bounded invalid requests,
+wildcard/IPv6 discovery, unreachable/wrong-store/older owners, unsafe proof
+files, and the unchanged missing-store/temporary-dev boundary. Existing
+ownership tests pass 27/27, including canonical release aliases. The two
+consumer tests now redeem all 16 offline/live/flags/mode combinations, and
+the whole periphery file passes 19/19. Final whole guide passes 86/86;
+its recovery pin now distinguishes a lost mint reply from unadmitted offline
+work. No new diagnostic code; services, residency, refusals, why and SERVER.md
+describe the new path. Changed source files remain below 1,500 lines.
+
+Ran `scripts/test.sh` exactly once, exit 1. Exact summary:
+`== 1 failure(s) in 1416 s`, `client tests`. Rust passes 3,843, with 24
+intentional ignores, across 238 binaries / 951 executions (903 s). Ordinary
+clients: 2,631 passed, two failed, 10 skipped; seven other shards pass 56/56.
+Both failures are lane-owned old periphery assertions expecting live token
+to return status 2 instead of success; corrected and retested above. Models
+pass 78/78 (279 s), and every other full-suite phase passes. No baseline or
+environmental full-suite failure. The full suite was not repeated after
+the test-only corrections: the evidence is that red run plus affected greens.
+The inherited 60-second suite budget remains exceeded and unchanged.
+
+Additional lane-owned failures found and fixed: the first new tests caught
+invalid service names returning live exit 2 instead of offline exit 1; the
+post-suite guide rerun caught the old unconditional “No work was admitted”
+recovery pin (85/86 before correction, 86/86 afterward). A preliminary wasm
+build hit an environmental Binaryen feature-validation error; the explicit
+PATH recheck and full-suite build pass without the optional optimizer.
+
+Wasm is unchanged before/within the full run: 1,981,512 B raw / 572,053 B
+gzip, delta 0 B, 788 B below the unchanged 572,841 B cap. SHA-256:
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo
+jobs, debug information and incremental compilation off, fd limit 65,536.
+Frozen Bun install, reference audit and diff whitespace checks pass.
+
+No engine, authorization, disclosure, durability, meter, device, SDK, version,
+dependency or budget change; no push or publication. Specific non-loopback
+binds without a loopback listener and temporary dev keep their documented
+refusal/offline paths. No known implementation problem remains; integration
+and blind review belong to the supervisor. File map, engineering choices,
+all failure reproductions and qualification limits:
+`reports/20260927-tk-token-live.md`. Raw evidence stays in ignored
+`target/lane-tk-evidence/`.
 ## 2026-09-27 — 0.4.5 lane QE round 2: compatible joins and review regressions
 
 Read the original lane prompt, both earlier reports/journal entries and both
@@ -68626,3 +68688,64 @@ diagnostic, version, contract reshaping, push or publication.
 File map, examples, controls, exact qualification, deviations and reproductions:
 reports/20260927-ss-sync-scale/ROUND1.md and round1-measurements.json. Raw
 witnesses, mutation controls and full-suite log/exit: target/lane-ss-round1/.
+## 2026-09-27 — Lane TK round 1: mutual live-token proof without a wire secret
+
+Read the round-0 handoff and full Grok READY WITH CHANGES review, then fetched
+and merged origin/main at 880788cc5. Merge 143d4804f preserves both journal
+sides; a line-count comparison confirms neither parent's lines were lost.
+On `sb4-intent/tk-token-live`, 2316fe561 replaces the bearer-secret request
+with fresh client/server nonces and the specified direction-separated
+HMAC-SHA256 proofs. The request binds service, unclamped days and canonical
+store path/device/inode. Both MAC checks use RustCrypto's constant-time
+`verify_slice`. Server nonces expire after 10 monotonic seconds; a capped
+128-entry map consumes each before verification/minting. Existing loopback
+peer, private-file, writer, single-header, no-Origin, no-CORS, no-store and
+uniform refusal guards remain. This private door now requires a literal
+loopback Host and rejects the old secret header. Offline semantics and CLI
+stdout remain unchanged.
+
+Mutual proof alone permits an active forwarding listener to intercept a
+plaintext final bearer. The final reply therefore uses ChaCha20-Poly1305
+under a separately HMAC-derived transcript key, including authenticated
+validation errors. A relay can forward the one intended mint or deny delivery,
+but cannot read its bearer or replay another mint. This adds HMAC 0.12.1 and
+ChaCha20-Poly1305 0.10.1 to the CLI/server only. LLP 3000.019 §3.4 records the
+protocol and this additional protection; services and SERVER.md match it.
+
+Test commit 1e28f5e63 adds real impostor capture and forwarding listeners,
+request-field/direction/replay checks, both-round Host/Origin/CORS checks,
+and actual IPv4-mapped loopback and remote peers on `[::]` dev and serve.
+The impostor test redirects the address hint, reproducing BSD interception
+without requiring Linux's wildcard port to permit a second bind. Temporary
+roots are canonicalized in token and ownership tests for Darwin's `/var`
+aliases. Five deterministic unit tests pin independent MAC vectors, nonce
+expiry/capacity, concurrent one-use consumption and reply integrity. Timing
+was not measured; there is no flaky timing assertion. macOS execution remains
+the supervisor's qualification, not a claim from this Linux host.
+
+Affected checks pass: 5 protocol tests, 13 token process tests, 27 ownership
+tests, 19 consumer periphery tests and all 86 guide tests. Frozen Bun install,
+package build, reference audit and diff whitespace checks pass. One preliminary
+lane-owned E0282 compile error (type inference through a serde match guard)
+was fixed with an explicit Mint type before those tests. No test failure
+needed correction. Changed source files stay below 1,500 lines.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1400 s`. Rust: 3,883 passed / 24 existing ignored across
+244 binaries and 957 executions, 913 s. Ordinary client tests: 2,633 passed /
+10 existing skips, plus all seven extra shards 56/56, 194 s. Client models:
+78/78, 263 s. Fixture wrappers: 9/9. Every other phase passes. No lane-owned,
+baseline or environmental full-suite failure. The inherited 60-second budget
+is still exceeded and unchanged. No product/test source changed during or
+after that run; only the report and this final journal append followed it.
+
+Wasm is byte-identical before/after: 1,981,512 B raw / 572,053 B gzip, delta
+0/0 B, 788 B under the unchanged 572,841 B cap. SHA-256:
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo
+jobs, dev/test debug information and incremental off, fd limit 65,536.
+No tool installation outside the worktree. No engine, device, meter, session
+storage, version or budget change. No push or publication; every commit has
+the requested co-author trailer. Report, file map, deviations, failure
+reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
+Raw evidence remains in ignored target/lane-tk-round1/.
