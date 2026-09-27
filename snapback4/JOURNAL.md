@@ -71651,3 +71651,50 @@ Final root reference audit: 521 LLP docs, 9,742 refs, zero errors/unchecked.
 An initial post-suite invocation from snapback4 used the wrong corpus root;
 that command error was ours and is recorded in ROUND11.md. Running from the
 repository root passes without a source change.
+
+## 2026-09-27 — Lane DC round 12: reconcile refusal guidance and protect suppression
+
+Read the binding prompts through round 11, prior DC reports and journal entries,
+and both complete round-10 READY WITH CHANGES reviews. The runtime queue already
+matches the ruling; this round changes text and tests only. Updated why E_BOUND,
+guide refusals/sequences/bounds and LLP 3000.025 sections 5–7: one
+onDeliveryRefused, park until the next start, new id then, no retry within the
+session, and a committed repeat is a no-op report. The whole-tree replay search
+found no other current guidance for the removed path. Historical Revised text,
+review records, reports and existing journal bytes remain intact.
+
+Added six multi-position eviction cases, covering why, denied and headless
+responses with interval and whole-group pressure: refuse [41,43], recollect
+[41,44], send only [44,44] before start. Added three reset(false) cases and
+strengthened the three actual local adapter cases through fence(), park eviction
+and recollection. The exact singleton-suppression mutation fails all six new
+eviction cases; clearing suppression on every reset fails all six queue/adapter
+fence cases. The guide regression fails against each old card individually and
+also rejects appending old replay copy to otherwise correct text. Guide source
+mutations restore every byte; queue controls use module-load hooks only.
+
+Final checks: affected delivery/queue/browser/census/routing 365 passed;
+approval lifecycle/model/oracle 874 passed with 240 seeds per policy; whole
+guide 91 passed; language delivery/clause/integration/replay 26 passed (one
+existing optional measurement ignored); device delivery 30; core delivery 3;
+HTTP delivery 6. Package/CLI builds, actual why output, source line limits and
+whitespace pass. Root ref-check reports 521 LLPs, 9,742 refs, zero errors/unchecked.
+
+The initial concurrent affected run had 364 passes and one baseline fixture
+race: delivery.test.mjs:184 reads owed after a scheduled later report reused
+NOT_MEMBER and deleted the group. All involved source bytes equal round 11;
+a controlled extra pump reproduces it. The unmodified queue tests pass 59/59
+alone and the complete serialized affected run passes 365/365. The original
+failure remains reported, and the fixture is not changed. Our initial Rust
+assertion array type mismatch and diagnostic-loader match-count error were
+corrected; deliberate mutant failures are recorded separately. No environmental
+failure. ROUND12.md contains all failures, classifications and reproductions.
+
+Remeasured the unchanged round-11 wasm: 2,019,815 B raw / 585,193 B gzip,
+SHA-256 fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1.
+The unchanged 586,193 B integration budget retains 1,000 B slack; no wasm
+rebuild or meter change. Did not run scripts/test.sh: round 11's exact
+`== 0 failure(s) in 1712 s` (exit 0) stands as instructed. No tool installation,
+push or publication. The local commit carries the requested co-author trailer.
+Report and durable evidence: reports/20260927-dc-delivery-client/ROUND12.md
+and round12/ beside it.

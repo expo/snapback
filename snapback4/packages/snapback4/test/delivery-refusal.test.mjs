@@ -48,6 +48,43 @@ for(const [envelope,reply] of Object.entries(replies)) {
   }
   assert.equal(h.calls.length,1);assert.equal(h.refused.length,1);
  });
+ for(const pressure of ['interval','group'])test(`${envelope}: multi-position refusal survives ${pressure} eviction with adjacent clean coverage`,async t=>{
+  const h=fixture(t,reply);await h.collect([41,42,43]);await h.flush();
+  assert.deepEqual(h.calls.map(c=>c.args),[{conversation:'c',from:41,through:43}]);
+  assert.deepEqual(h.refused,[{...binding,group:'c',from:41,through:43,why:{code:'E_BOUND'}}]);
+  if(pressure==='interval'){
+   await h.collect(Array.from({length:256},(_,i)=>100+i*2));
+   assert.deepEqual((await h.group()).parked,[],'the whole refused park was evicted');
+   for(let n=0;n<256;n++)await h.flush();
+  } else {
+   await h.storage.update(s=>acceptManifest(s,[{...binding,rows:[['other',1]]}],1));
+   assert.equal(await h.group(),undefined,'the whole refused group was evicted');
+   await h.flush();
+  }
+  const before=h.calls.length;
+  await h.collect([41,42,43,44]);await h.flush();await h.flush();
+  assert.deepEqual(h.calls.slice(before).map(c=>c.args),[{conversation:'c',from:44,through:44}],
+   'only adjacent clean coverage may send before start');
+  assert.deepEqual((await h.group()).parked.map(p=>[p.kind,p.run]),[['start',[41,43]]]);
+  assert.deepEqual((await h.group()).refused,[]);assert.equal(h.refused.length,1);
+  h.succeed();await h.q.start();await h.flush();
+  assert.deepEqual(h.calls.at(-1).args,{conversation:'c',from:41,through:43});
+  assert.notEqual(h.calls.at(-1).id,h.calls[0].id);assert.equal(h.refused.length,1);
+  assert.deepEqual((await h.group()).parked,[]);
+ });
+ test(`${envelope}: reset(false) preserves refusal suppression until start`,async t=>{
+  const h=fixture(t,reply);await h.collect();await h.flush();
+  await h.q.reset(false);
+  await h.storage.update(s=>acceptManifest(s,[{...binding,rows:[['other',1]]}],1));
+  assert.equal(await h.group(),undefined,'recollection cannot rely on the persisted park');
+  await h.flush();const before=h.calls.length;
+  await h.collect([41,42]);await h.flush();await h.flush();
+  assert.deepEqual(h.calls.slice(before).map(c=>c.args),[{conversation:'c',from:42,through:42}]);
+  assert.equal(h.refused.length,1);h.succeed();await h.q.start();await h.flush();
+  assert.deepEqual(h.calls.at(-1).args,{conversation:'c',from:41,through:41});
+  assert.notEqual(h.calls.at(-1).id,h.calls[0].id);assert.equal(h.refused.length,1);
+  assert.deepEqual((await h.group()).parked,[]);
+ });
  for(const pressure of ['interval','group'])test(`${envelope}: ${pressure} eviction and recollection cannot resend before start`,async t=>{
   const h=fixture(t,reply);await h.collect();await h.flush();
   if(pressure==='interval'){

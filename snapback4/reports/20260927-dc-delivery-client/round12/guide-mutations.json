@@ -1,0 +1,27 @@
+[
+  {
+    "mutation": "codes.rs",
+    "exit": 101,
+    "assertion": "why E_BOUND: missing E_BOUND is an ordinary non-retryable refusal"
+  },
+  {
+    "mutation": "refusals.rs",
+    "exit": 101,
+    "assertion": "refusals: missing E_BOUND is an ordinary non-retryable refusal"
+  },
+  {
+    "mutation": "sequences.md",
+    "exit": 101,
+    "assertion": "sequences: missing E_BOUND is an ordinary non-retryable refusal"
+  },
+  {
+    "mutation": "bounds.rs",
+    "exit": 101,
+    "assertion": "bounds: missing E_BOUND is an ordinary non-retryable refusal"
+  },
+  {
+    "mutation": "obsolete-appended",
+    "exit": 101,
+    "assertion": "why E_BOUND: obsolete replay the same id first"
+  }
+]

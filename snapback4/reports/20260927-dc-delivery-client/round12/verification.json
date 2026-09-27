@@ -1,0 +1,92 @@
+{
+  "base": "a91f8f9d9",
+  "client_initial": {
+    "passed": 364,
+    "failed": 1,
+    "classification": "baseline fixture race"
+  },
+  "client_final": {
+    "passed": 365,
+    "failed": 0
+  },
+  "approval": {
+    "passed": 874,
+    "failed": 0,
+    "seeds_per_policy": 240
+  },
+  "guide": {
+    "passed": 91,
+    "failed": 0
+  },
+  "negative_controls": {
+    "interval_mutant_assertion_failures": 6,
+    "reset_mutant_assertion_failures": 6,
+    "old_guide_assertion_failures": 1,
+    "guide_source_reversions": 4,
+    "obsolete_text_append": 1
+  },
+  "full_suite_rerun": false,
+  "round11_full_summary": "== 0 failure(s) in 1712 s",
+  "native": [
+    {
+      "check": "guide-final",
+      "exit": 0,
+      "results": [
+        "test result: ok. 91 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.52s"
+      ]
+    },
+    {
+      "check": "delivery-lang",
+      "exit": 0,
+      "results": [
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+      ]
+    },
+    {
+      "check": "delivery-device",
+      "exit": 0,
+      "results": [
+        "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s"
+      ]
+    },
+    {
+      "check": "delivery-core",
+      "exit": 0,
+      "results": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 154 filtered out; finished in 0.04s"
+      ]
+    },
+    {
+      "check": "delivery-http",
+      "exit": 0,
+      "results": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 176 filtered out; finished in 0.55s"
+      ]
+    },
+    {
+      "check": "cli-build",
+      "exit": 0,
+      "results": []
+    }
+  ],
+  "wasm": {
+    "raw": 2019815,
+    "gzip": 585193,
+    "sha256": "fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1",
+    "rebuilt": false
+  },
+  "changed_files_sha256": {
+    "llp/3000.025-expiring-mutation-read-prefix.rfc.md": "c43c647ef777d3467ece0cb49b35237ad7c7019b872f96eb912d0f0c507ee664",
+    "snapback4/JOURNAL.md": "f25639b31c487f3f8466b807e3599b77aed46be2e44c707ba2d598e4a59186a0",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "1c3e94db5c46ef689c2a4be526b717d7be7243d1db61e10002a1d60b3d0b5990",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "2b7de43ceb39bd9b900076bef8e1016d71e9cccab96248e2d54260a1af72a24f",
+    "snapback4/crates/snapback4-lang/src/guide/refusals.rs": "5cfdeaad67dafb55dfe457c0678bdb0b7886a6a4b6c79a0ab98219bac588228f",
+    "snapback4/crates/snapback4-lang/src/guide/sequences.md": "a8381aa987b4e9ba7ae829494abddfef459a3febdd98c29e21be6c045742713a",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "fee4fb43d99f3f1c48151c9a23bc71de5fb249d9652bdbf4bdecf65d045bd578",
+    "snapback4/packages/snapback4/test/delivery-clients.test.mjs": "e64b6e3e24843288bbbc0c7954e8d3b3e37d745696b3339ed05f74a68e07df81",
+    "snapback4/packages/snapback4/test/delivery-refusal.test.mjs": "df7e652606a0100d115effef19b3737a113ea910e6a3f3065da5aa619e1c54c0"
+  }
+}

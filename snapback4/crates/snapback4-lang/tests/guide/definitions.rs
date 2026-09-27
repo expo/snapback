@@ -380,3 +380,34 @@ fn expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal() {
     assert!(fanout.contains("mutation cut is `E_BOUND` with no write"), "{fanout}");
     assert!(!fanout.contains("returns false on an already capped answer"));
 }
+
+#[test]
+fn delivery_bound_guidance_requires_start_only_recovery() {
+    let why = explain_code("E_BOUND").unwrap();
+    for (name, text) in [
+        ("why E_BOUND", why.as_str()),
+        ("refusals", card("refusals").unwrap()),
+        ("sequences", card("sequences").unwrap()),
+        ("bounds", card("bounds").unwrap()),
+    ] {
+        let text = text.replace('`', "").split_whitespace().collect::<Vec<_>>().join(" ");
+        for required in [
+            "E_BOUND is an ordinary non-retryable refusal",
+            "calls onDeliveryRefused once",
+            "until the next start",
+            "with a new id",
+            "no retry within the session",
+            "committed report that runs again is a no-op report",
+        ] {
+            assert!(text.contains(required), "{name}: missing {required}");
+        }
+        let lower = text.to_lowercase();
+        for obsolete in [
+            "replay the same id first", "only a recorded failure",
+            "retry a recorded failure with a new id after cleanup",
+            "fresh-id recovery", "bare denied stays uncertain",
+        ] {
+            assert!(!lower.contains(obsolete), "{name}: obsolete {obsolete}");
+        }
+    }
+}

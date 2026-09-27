@@ -112,8 +112,10 @@ merged runs and writes. Mutation scans of expiring tables require
 a write or emit anywhere in an enclosing statement ends it (`guide programs`).
 Expired unswept rows still cost examined work, even with `first 1`; exceeding
 the ceiling refuses `E_BOUND` atomically. A smaller page cannot clear a backlog.
-Replay the same id first; only a recorded failure takes a fresh id after sweeping
-(`why E_BOUND`).
+For delivery reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK
+calls `onDeliveryRefused` once and parks the interval until the next start,
+which retries with a new id. There is no retry within the session. A committed
+report that runs again is a no-op report (`why E_BOUND`, `guide receipts`).
 
 The caller must check authority and validate the received run. Ordinals alone
 do not prove delivery. Keep disjoint runs until they meet the prefix; refuse

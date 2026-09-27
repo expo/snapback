@@ -4,6 +4,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {createClient} from '../dist/client.js';
 import {onlineDelivery} from '../dist/online-delivery.js';
 import {localDelivery} from '../dist/local-delivery.js';
+import {acceptManifest,deliveryKey} from '../dist/delivery-state.js';
 const binding={fingerprint:'fixture:messages',table:'messages',mutation:'delivered',args:['conversation','from','through']};
 const manifest=rows=>[{...binding,rows}];
 const blocked=signal=>new Promise((_,reject)=>{if(signal.aborted)reject(Error('closed'));else signal.addEventListener('abort',()=>reject(Error('closed')),{once:true});});
@@ -125,6 +126,16 @@ test(`${tier} adapter parks E_BOUND ${envelope} once until the next start`,async
  assert.equal(calls.length,1);assert.equal(refused.length,1);assert.equal(refused[0].why.code,'E_BOUND');
  for(let n=0;n<3;n++) {t.mock.timers.tick(660000);await settle();await q.reconnect();await q.accept(manifest([['c',41]]));t.mock.timers.tick(250);await settle();}
  assert.equal(calls.length,1);assert.equal(refused.length,1);
+ if(tier==='local'){
+  q.fence(); // observeIncarnation keeps the device and calls this reset(false) path.
+  const state=JSON.parse(value);
+  acceptManifest(state,manifest([['other',1]]),1);
+  assert.equal(state.groups[deliveryKey(binding,'c')],undefined,'evict the persisted start park');
+  acceptManifest(state,manifest([['c',41]]),1);value=JSON.stringify(state);
+  await q.accept(manifest([['c',41]]));q.available();t.mock.timers.tick(250);await settle();
+  assert.equal(calls.length,1,'a local incarnation fence must keep session suppression');
+  assert.equal(refused.length,1);
+ }
  await q.stop();success=true;q=open();
  if(tier==='online')await q.accept(manifest([['c',41]]));else await q.open();
  t.mock.timers.tick(250);await settle();assert.equal(calls.length,2);assert.notEqual(calls[0].id,calls[1].id);
