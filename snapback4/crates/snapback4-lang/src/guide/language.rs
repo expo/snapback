@@ -287,6 +287,7 @@ query digest(roomId: rooms):
   counter = 0
   for message in page:
     counter = counter + 1                                           -- a local can carry a counter across iterations
+  combined = [0] + [1, 2]
   offsets = []
   for i in range(0, 3):
     if i = 2:
@@ -551,6 +552,8 @@ is unavailable, never a partial answer (even before `?? 2`). A device needs
 complete coverage of the domain. Rules apply before any comparison. `exists` stops
 at a visible match; an unknown domain cannot establish absence.
 
+`ys = xs + [value]`, `[a] + [b]` and `return xs + [value]` concatenate lists;
+item types join and bounds add.
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
 
 `sha256` is for high-entropy capability tokens and content checksums. It hashes

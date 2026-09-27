@@ -372,6 +372,17 @@ impl Binder<'_> {
                 // @ref LLP 3000.007#5.1 — text addition uses the shared, heap-metered concatenation builtin.
                 return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::Text(a.saturating_add(b))));
             }
+            "+" if matches!((&lt, &rt), (Ty::List(..), Ty::List(..))) => {
+                // @ref LLP 3000.019#6 — list construction is an expression, including returns and arguments.
+                // @ref LLP 3000.007#5.1 — join items as in literals; Concat charges the full allocation.
+                let Ty::List(item, _) = self.join(&lt, &rt, left, right)? else { unreachable!() };
+                let (Ty::List(_, a), Ty::List(_, b)) = (lt, rt) else { unreachable!() };
+                return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::List(item, a.saturating_add(b))));
+            }
+            "+" if matches!(lt.required(), Ty::List(..)) || matches!(rt.required(), Ty::List(..)) => {
+                return Err(type_error(site, format!("+ concatenates two lists; got {} and {}", lt.name(), rt.name()),
+                    "use `xs + [x]` to append an item; make both lists present with `xs ?? []` if optional"));
+            }
             "=" | "!=" => {
                 if !lt.comparable(&rt) {
                     return Err(type_error(site, format!("{op} compares {} with {}", lt.name(), rt.name()), "compare values of one type"));

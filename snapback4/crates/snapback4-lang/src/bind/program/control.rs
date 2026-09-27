@@ -208,7 +208,7 @@ impl Binder<'_> {
                 Ok(())
             }
             S::For { name, domain, body, site } => {
-                if self.caller_kind == ProgramKind::Job && self.loops == 0
+                if self.caller_kind == ProgramKind::Job && self.loops + self.caller_loops == 0
                     && matches!(domain, A::If { condition, .. } if super::super::intent_variants::condition(condition).is_some()) {
                     let mut leaf = domain;
                     while let A::If { then, .. } = leaf { leaf = then; }
@@ -222,7 +222,7 @@ impl Binder<'_> {
                 }
                 let before = self.visible_bindings();
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
-                if self.caller_kind == ProgramKind::Job && self.loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
+                if self.caller_kind == ProgramKind::Job && self.loops + self.caller_loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
                     let after = self.visible_bindings();
                     if let Some((name, _)) = before.iter().find(|(name, old)| after.get(*name).is_some_and(|new| old.revision != new.revision)) {
                         return Err(placement(site, format!("automatic sweep carries local {name} across iterations, but chunks commit independently"), format!("declare {name} inside the `for row in table:` body for per-item work, or store cross-chunk progress in a table")).guide("jobs"));
@@ -326,10 +326,12 @@ impl Binder<'_> {
         let mut header = self.visible_bindings();
         let saved = self.scopes.clone();
         let (temps, sites, returns) = (self.temps, self.sites, self.returns.len());
+        let mut growing_list = None;
         // An acyclic dependency among carried slots stabilizes in at most
         // one pass per slot plus the first literal refinement. A cycle that
         // keeps nesting a value inside itself has no finite Quarry type.
         for _ in 0..header.len() + 2 {
+            growing_list = None;
             self.scopes = saved.clone();
             self.scopes.last_mut().expect("a scope").extend(header.clone());
             self.temps = temps;
@@ -352,7 +354,12 @@ impl Binder<'_> {
                 }
                 let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
                 let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
-                changed |= old.ty != ty || old.declared != declared || !old.fields.is_empty();
+                let type_changed = old.ty != ty || old.declared != declared;
+                if type_changed && matches!(ty, Ty::List(..))
+                    && new.origins.iter().any(|(_, source)| matches!(source, A::Binary { op, .. } if op == "+")) {
+                    growing_list.get_or_insert_with(|| local.clone());
+                }
+                changed |= type_changed || !old.fields.is_empty();
                 old.fields.clear();
                 old.ty = ty;
                 old.declared = declared;
@@ -367,6 +374,12 @@ impl Binder<'_> {
             }
         }
         self.scopes = saved;
+        // @ref LLP 3000.007#5.1 — lengths widen to the heap bound, but recursively
+        // nesting a carried list has no finite item type. Offer the fixed-item form.
+        if let Some(local) = growing_list {
+            return Err(type_error(site, format!("this loop keeps growing {local}'s recursive list item type"),
+                format!("use `{local} = {local} + [x]` with x of a fixed item type; do not nest a carried accumulator inside itself")));
+        }
         Err(type_error(site, "this loop keeps growing a recursive value type", "accumulate items of a fixed type rather than nesting an accumulator inside itself"))
     }
 
@@ -519,6 +532,9 @@ impl Binder<'_> {
         let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
         let focal = self.focal.take();
         let loops = std::mem::take(&mut self.loops);
+        // @ref LLP 3000.019#6 — remove the measured helper/inline placement discrepancy.
+        // @ref LLP 3000.007#5.2 — placement inherits caller loops; break/continue stay lexical.
+        self.caller_loops += loops;
         let returns = std::mem::take(&mut self.returns);
         self.depth += 1;
         // @ref LLP 3000.007#5.2 — helpers expand in the caller's placement; a return exits only this expansion.
@@ -542,6 +558,7 @@ impl Binder<'_> {
         self.depth -= 1;
         self.returns = returns;
         self.loops = loops;
+        self.caller_loops -= loops;
         self.scopes = caller;
         self.focal = focal;
         result.map_err(|diagnostic| {
