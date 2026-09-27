@@ -25,6 +25,10 @@ use crate::store::LogEvent;
 #[cfg(feature = "sqlite")]
 mod storage;
 #[cfg(feature = "sqlite")]
+mod counts;
+#[cfg(feature = "sqlite")]
+use counts::delivery_counts;
+#[cfg(feature = "sqlite")]
 pub use storage::{LogSpan, PartitionRows};
 use crate::value::{Value, canonical_json};
 use serde::{Deserialize, Serialize};
@@ -631,17 +635,25 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
         // Delivery owns a separate, unbounded internal ledger. Projection is
         // not a caller-price capability; its reader validates each live row.
         let rows = tx.scan(table_name,&index_name,group,&bounds,dir,batch)?
-            .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)),k)).collect::<Vec<_>>();
+            .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)).into_value(),k)).collect::<Vec<_>>();
         let count = rows.len();
+        let mut certified = if viewer.is_some_and(|(schema, _)| schema.maintain_for(table_name)
+            .is_some_and(|m| m.row_key.is_some() && schema.tables[&m.source].is_expiring())) {
+            let runner = aggregate.as_mut().unwrap();
+            runner.meter.heap(crate::rows::word_heap::slots::<Value>(count)
+                .saturating_add(crate::engine::row_copy_ceiling(table).saturating_mul(count as u64)))?;
+            Some(runner.live_aggregate_batch(table_name,
+                &rows.iter().map(|(row, _)| row.clone()).collect::<Vec<_>>())?.into_iter())
+        } else { None };
         examined += count;
-        for (row, key) in rows {
-            let mut row = row.into_value();
+        for (mut row, key) in rows {
+            let certified = certified.as_mut().map(|batch| batch.next().unwrap());
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
             // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — the horizonless owned walk keeps fully synced kinds only.
             if viewer.is_some_and(|(schema, _)| !crate::schema::timeline::holds_event(schema, table_name, &row)) { continue; }
             if let Some(runner) = &mut aggregate {
-                let Some(live_row) = runner.live_aggregate(table_name, row)? else { continue; };
+                let Some(live_row) = (match certified { Some(row) => row, None => runner.live_aggregate(table_name, row)? }) else { continue; };
                 row = live_row;
             }
             if let Some(reader) = &mut reader {
@@ -940,6 +952,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
     let mut aggregate = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now),
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
+    let certified = delivery_counts(&mut aggregate, schema, &page)?;
     for mut event in page {
         if event.kind != "join" {
             if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)) {
@@ -970,7 +983,12 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                         let (selected, _, _, _) = group_rows_from(tx, &k.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
                         live = selected.iter().any(|(u, _)| u.field("id") == row.field("member"));
                     }
-                    event.data = if live { aggregate.live_aggregate(&event.table, row.clone())? } else { None };
+                    event.data = if live {
+                        match certified.get(&(event.table.clone(), event.id.clone())) {
+                            Some(row) => row.clone(),
+                            None => aggregate.live_aggregate(&event.table, row.clone())?,
+                        }
+                    } else { None };
                 }
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }

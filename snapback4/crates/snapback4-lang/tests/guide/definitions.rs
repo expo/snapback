@@ -115,6 +115,11 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_DELIVERY_BINDING", "a report's binding changed or was removed"),
     ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),
     ("RUNS_FULL", "`RUNS_FULL` refuses a disjoint 65th run"),
+    ("E_SEARCH_OPEN", "Its membership count includes only authorized discovered keys."),
+    ("N_SEARCH_OPEN", "every membership and its authorized head must fit one read"),
+    ("N_SEARCH_UNSCOPED", "the read rule varies within the searched index"),
+    ("N_SEARCH_WORDS", "first-term expansion and further-term misses consume the meters"),
+    ("N_SEARCH_SHAPE", "repeats a group read per hit"),
     ("E_FIELD_AUTHORITY", "E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours."),
     ("E_SEQUENCE_PARENT", "E_SEQUENCE_PARENT names a missing, optional or non-reference parent column"),
     ("E_SEQUENCE_SUPPLIED", "`sequence by` refuses such values with E_SEQUENCE_SUPPLIED, including on updates and upserts."),
@@ -270,16 +275,16 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STORE", "E_STORE means the database operation failed, such as a SQLite writer lock held by another process."),
     ("E_STORE_REPLACED", "The online client permanently denies reads and fails queued and in-flight writes on an identity change (`E_STORE_REPLACED`)"),
     ("E_STORE_RESTORE", "The client adopts `/schema` only when that watermark is a finite, nonnegative integer at or above its retained image-head evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing or invalid head is a retryable failure that neither adopts nor clears the evidence."),
-    ("E_STRUCTURAL_FANOUT", "`matching`, merges and tables with expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`)."),
+    ("E_STRUCTURAL_FANOUT", "`matching` and merges stay refused, and predicting mutations still cannot scan expiring tables."),
     ("E_SYNC", "E_SYNC means the sync declaration cannot deliver exactly its authorized audience."),
     ("E_SYNC_GENERATION", "The client sends its device generation. A mismatch returns HTTP 200 `E_SYNC_GENERATION`"),
-    ("E_TIMELINE_ACTIVATE", "Source events or follows already exist, or an owned name holds application data"),
+    ("E_TIMELINE_ACTIVATE", "Dev adopts automatically. Deploy needs `--allow-feed-adoption`"),
     ("E_TIMELINE_FILTER", "Selection is not stable. Make selection columns immutable; use `.parentId = null and not .removed`"),
     ("E_TIMELINE_FOLLOWS", "The edge key is invalid. Declare the immutable unique follower/followed pair"),
     ("E_TIMELINE_IMPORT", "Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore"),
     ("E_TIMELINE_OWNED", "Derived rows belong to the engine. Write posts, reposts or follows"),
     ("E_TIMELINE_READ", "The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows"),
-    ("E_TIMELINE_REDEFINE", "A materialized declaration changed or experimental reconstruction remains. Original event identities and edge-admission history cannot be reconstructed"),
+    ("E_TIMELINE_REDEFINE", "A declaration changed or experimental reconstruction remains. Retire it, deploy and add with a fresh name"),
     ("E_TIMELINE_REMOVAL", "Removal must be one-way. Insert false, change only false → true and retain the original card"),
     ("E_TIMELINE_SERVER", "The mutation needs server-only state. Queue it without predicted rows"),
     ("E_TIMELINE_SHAPE", "The sources do not fit Following. Keep three distinct public sources and owner rules"),
@@ -311,11 +316,11 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("FEED_AUTHOR_NOT_FOUND", "FEED_PULL_COUNT_MISSING requires a consistent trusted restore of routes/counts; FEED_AUTHOR_NOT_FOUND requires the author's registered profile."),
     ("FEED_CANNOT_FOLLOW_SELF", "Self-follow is refused. Own events already appear without it"),
     ("FEED_EVENT_REMOVED", "A removed event cannot be resurrected. Use a fresh event id"),
-    ("FEED_NOT_AUTHOR", "FEED_ORIGINAL_REQUIRED and FEED_NOT_AUTHOR belong to older recipe operations: pass an original event to their original-event operation and remove only its author's event."),
-    ("FEED_ORIGINAL_REQUIRED", "FEED_ORIGINAL_REQUIRED and FEED_NOT_AUTHOR belong to older recipe operations: pass an original event to their original-event operation and remove only its author's event."),
+    ("FEED_NOT_AUTHOR", "FEED_ORIGINAL_REQUIRED needs an original event; FEED_NOT_AUTHOR needs its author."),
+    ("FEED_ORIGINAL_REQUIRED", "FEED_ORIGINAL_REQUIRED needs an original event; FEED_NOT_AUTHOR needs its author."),
     ("FEED_POST_NOT_FOUND", "A new repost needs a live original. Refresh the source"),
     ("FEED_PROMOTION_PULL_CAP", "FEED_PROMOTION_PULL_CAP means another follower is full: the follow and promotion roll back."),
-    ("FEED_PULL_CAP", "For those installed recipes, FEED_PULL_CAP means the caller uses all 32 shared-author slots."),
+    ("FEED_PULL_CAP", "FEED_PULL_CAP means the caller uses all 32 shared-author slots."),
     ("FEED_PULL_COUNT_MISSING", "FEED_PULL_COUNT_MISSING requires a consistent trusted restore of routes/counts; FEED_AUTHOR_NOT_FOUND requires the author's registered profile."),
     ("NOT_FOUND", "NOT_FOUND means a point write has no target, or a write to an unreadable target was refused without disclosing its existence."),
     ("N_HORIZON_GUARD", "`require not exists notes[id] else DUPLICATE` on an argument id also gets a persistent `N_HORIZON_GUARD` note: remove it only if its purpose is retry dedupe."),
@@ -326,13 +331,14 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_NEVER_COMPLETE", "A page's read rule is checked once when the prefix decides it, else per row, and a page whose rule still depends on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names the missing equality columns and an existing compatible index when one is available)."),
     ("N_NOT_PREDICTABLE", "N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one note per mutation for lost eligibility or an added horizon risk, explicitly distinguishing a call that may queue from an operation that never predicts."),
     ("N_NOW_SERVER", "N_NOW_SERVER names a newly server-run query."),
-    ("N_NO_CURSOR", "A page a query returns without a cursor cannot be continued: an unfiltered page with more rows reads `complete: false` with no `next` (N_NO_CURSOR)"),
+    ("N_NO_CURSOR", "N_NO_CURSOR: a returned page cannot continue"),
     ("N_SYNC_ORDER", "Ascending reads and other indexes have unknown coverage."),
     ("N_NO_HORIZON", "A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`)."),
     ("N_PUBLIC_AGGREGATE_COPY", "N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules allow arbitrary values."),
     ("N_HELD_UNKNOWN", "N_HELD_UNKNOWN means a held query may read a table or view with no `sync`, including a `read through` parent, or `connected[...]` server presence."),
     ("N_SEEK", "N_SEEK is advice for an older explicit-index read whose residual filter can seek."),
-    ("N_SPARSE_FILTER", "A residual predicate may reject many rows. Use the Following view, or pin the deciding columns for another read"),
+    ("N_SPARSE_FILTER", "A residual predicate may reject many rows. Narrow the read; the planned `home` in `guide feeds` can fail closed with `complete: false` and no `next`. Materialized Following can adopt retained sources"),
+    ("N_TIMELINE_ADOPT", "`check` previews automatic dev launch, copies and lock time; deploy requires `--allow-feed-adoption`"),
     ("N_TIMELINE_COMPAT", "`authors` and `size` lines are unused compatibility inputs. Remove them; N_TIMELINE_COMPAT reports their presence"),
     ("N_TIMELINE_PROFILE_CAP", "N_TIMELINE_PROFILE_CAP means an older profile cap is below the declared author count; raise it or keep the intentional application limit."),
     ("N_WIDE_MERGE", "Its uniform lane source runs under the examined meter: `check --cost` prints `lanes ≤ meter`; an explicit `first N` above 50 still emits N_WIDE_MERGE."),
@@ -351,4 +357,26 @@ fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
     for obsolete in ["the pages it has walked", "client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
         assert!(!text.contains(obsolete), "obsolete: {obsolete}");
     }
+}
+
+#[test]
+fn expiring_mutation_programs_card_states_prediction_class() {
+    let programs = card("programs").unwrap();
+    assert!(programs.contains("Mutation scans of expiring tables require `predicts: \"never\"`"));
+    assert!(programs.contains("inferred from server-only work, or declared with `: server`"));
+}
+
+#[test]
+fn expiring_cap_why_states_live_occupancy_and_bounded_recount() {
+    let predict = explain_code("E_PREDICT").unwrap();
+    assert!(predict.contains("live occupancy") && predict.contains("bounded recount"), "{predict}");
+    assert!(!predict.contains("cap counts unswept physical rows"));
+}
+
+#[test]
+fn expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal() {
+    let fanout = explain_code("E_STRUCTURAL_FANOUT").unwrap();
+    assert!(fanout.contains("query cut is an incomplete null"), "{fanout}");
+    assert!(fanout.contains("mutation cut is `E_BOUND` with no write"), "{fanout}");
+    assert!(!fanout.contains("returns false on an already capped answer"));
 }

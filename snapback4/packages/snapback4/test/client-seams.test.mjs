@@ -256,18 +256,29 @@ for (const tier of ["online", "web", "native"]) {
 
   test(`W6d ${tier}: input key order is immaterial and an evicted receipt never readmits on the same client`, { timeout: 60000 }, async t => {
     const f = await callerFixture(t), client = await f.open(), id = mintId();
-    const first = await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id });
+    // A device's foreground wait may return pending under load. Eviction counts
+    // terminal receipts, so follow that same id without submitting another write.
+    const terminal = async (owner, write) => write.state !== "pending" ? write : until(async () => {
+      const known = await owner.write(write.id);
+      return known && known.state !== "pending" ? known : false;
+    });
+    const first = await terminal(client, await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id }));
     assert.equal(first.state, "sent");
     const receipt = { state: "sent", id, seq: first.seq, replayed: true };
     assert.deepEqual(await client.mutate(mutation("answerPair"), { b: 2, a: 1 }, { id }), receipt);
     assert.equal(f.attempts.length, 1);
-    for (let n = 0; n < 256; n++) assert.equal((await client.mutate(mutation("answer"), { n })).state, "sent");
+    for (let n = 0; n < 256; n++) {
+      // Force the pending-return path once on every host, without a clock race.
+      const write = await client.mutate(mutation("answer"), { n }, n === 128 ? { waitSeconds: 0 } : undefined);
+      if (n === 128) assert.equal(write.state, "pending");
+      assert.equal((await terminal(client, write)).state, "sent");
+    }
     assert.equal(await client.write(id), undefined);
     const expired = await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id });
     assert.equal(expired.state, "failed"); assert.equal(expired.why.code, "E_WRITE_RECEIPT_EXPIRED");
     assert.equal(f.attempts.length, 257, "receipt eviction does not enqueue a known id again");
     await client.close(); const reopened = await f.open();
-    assert.deepEqual(await reopened.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id }), receipt);
+    assert.deepEqual(await terminal(reopened, await reopened.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id })), receipt);
     assert.equal(f.attempts.length, 258, "without retained local evidence the server's original outcome wins");
     t.diagnostic(`tier=${tier} retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1`);
   });
@@ -943,7 +954,7 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
 });
 
 for (const tier of ["native", "web"]) {
-  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} incomplete read stays local online`, { timeout: 60000 }, async t => {
+  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} read stays local online`, { timeout: 60000 }, async t => {
     const f = await fixture(t, false, cutSource + "\nquery top():\n  return entries['normal'] last 1 by byRoomTime\n");
     const count = kind === "meter" ? 8200 : 2;
     for (let start = 0; start < count; start += 1000) {
@@ -955,9 +966,9 @@ for (const tier of ["native", "web"]) {
       fetch: (url, init) => { if (String(url).includes("/q/")) requests.push(String(url)); return fetch(url, init); } });
     f.clients.push(client); await client.sync();
     const read = await client.query({ kind: "query", name: kind === "meter" ? "filtered" : "top" }, {});
-    assert.equal(read.complete, false); assert.equal(read.cut, kind === "meter" ? "meter" : null);
+    assert.equal(read.complete, kind === "cursorless"); assert.equal(read.cut, kind === "meter" ? "meter" : null);
     assert.equal(read.data.length, kind === "meter" ? 0 : 1);
-    assert.deepEqual(requests, [], "an incomplete answer with known coverage needs zero /q/ requests");
+    assert.deepEqual(requests, [], "an answer with known coverage needs zero /q/ requests");
     t.diagnostic(`${tier} ${kind}: rows=${read.data.length} complete=${read.complete} /q/=${requests.length}`);
   });
 

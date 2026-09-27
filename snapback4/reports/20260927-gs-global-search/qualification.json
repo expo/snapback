@@ -1,0 +1,36 @@
+{
+  "summary": "== 1 failure(s) in 1296 s",
+  "exit": 1,
+  "full_log_sha256": "f021f4f46e866295794ab4350198a2ed8cdb2fd0a66627d36e254e7066c0db3f",
+  "full_log": "target/lane-gs/full-suite.log",
+  "failed_phase": "client tests",
+  "failures": [
+    {
+      "test": "MQ local branch wasm: retained history and independent held coverage",
+      "classification": "baseline intermittent",
+      "detail": "clock assertion at retained-history.test.mjs:336"
+    },
+    {
+      "test": "MQ local branch watch wasm: retained history and independent held coverage",
+      "classification": "baseline intermittent",
+      "detail": "60000 ms timeout; counted as cancelled"
+    }
+  ],
+  "isolated_rerun": {
+    "passed": 2,
+    "failed": 0,
+    "cancelled": 0
+  },
+  "guide": {
+    "passed": 86,
+    "failed": 0
+  },
+  "runtime_source_unchanged": true,
+  "final_probe": {
+    "calibration_variants": 8,
+    "synthetic_variants": 8,
+    "strict_order_and_disjoint_pages": true,
+    "baseline_meters_match": true,
+    "source_sha256": "4ca2cf65d5d7048e8e56d8ae6ea7168db4106fc97c6100510a6e1e7e68380acd"
+  }
+}

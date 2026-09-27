@@ -1,0 +1,12 @@
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-fa/snapback4/crates/snapback4-lang)
+    Finished `release` profile [optimized] target(s) in 2.51s
+     Running tests/following_atomic_launch.rs (snapback4/target/release/deps/following_atomic_launch-bd2e3d773bdf291e)
+
+running 1 test
+snapback4: atomic feed adoption: view following: 550000 source rows, 490000 events, 60000 follows; 3407033 rows to copy; estimated writer lock 170.35 s at 20000 copies/s (hardware-dependent); ceiling 5000000 copies
+test calibration_atomic_launch_measurement has been running for over 60 seconds
+ATOMIC_RESULT {"activation_wall_s":698.068136903,"copies":3407033,"estimated_row_writes":4937033,"follows":60000,"phases_s":[["key validation",0.000090576],["preflight",620.594787959],["project and index",2.596135456],["cap counts",3e-8],["derived rebuild",0.000304767],["validation",39.745515089],["metadata",0.000495733],["commit",33.730167637]],"posts":480000,"principals":10080,"reposts":10000,"scale":10,"sizes":{"file":9093439488,"indexes":5097593690,"log":187219680,"log_events":550000,"ops":0,"row_count":4997033,"rows":1862925477},"writer_lock_s":696.667497247}
+test calibration_atomic_launch_measurement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 748.28s
+

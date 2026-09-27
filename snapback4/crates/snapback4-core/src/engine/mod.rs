@@ -33,7 +33,7 @@ pub use pages::expression_page_site;
 mod shaping;
 #[cfg(feature = "sqlite")]
 pub(crate) struct ImportInput(());
-pub use pages::returned_page_sites;
+pub use pages::{returned_page_sites, uncontinued_page_sites};
 pub mod read;
 pub(crate) use runner::extrema;
 mod read_auth;
@@ -349,7 +349,7 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut store, &schema, &programs, None, now)?;
+        let generation = Self::activate(&mut store, &schema, &programs, None, now, true)?;
         let dev_effects = store.meta("release")?.is_none();
         store.exclude_ephemeral(&schema);
         Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
@@ -373,14 +373,18 @@ impl Engine {
     /// Activate an immutable source release. Its pointer lives in the same
     /// transaction as rows/programs/generation; the filesystem pointer is a
     /// checked convenience copy, never an independent authority.
-    pub fn new_release(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
+    pub fn new_release(store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
+        Self::new_release_with_feed_adoption(store, schema, programs, release, expected_previous, false)
+    }
+
+    pub fn new_release_with_feed_adoption(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>, allow_feed_adoption: bool) -> Result<Self, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         schema.prepare_delivery_lookup();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms())?;
+        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms(), allow_feed_adoption)?;
         store.exclude_ephemeral(&schema);
         Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
@@ -416,7 +420,7 @@ impl Engine {
         let generation = if stored_schema_hash == schema_hash
             && store.meta("live_sum_candidates")?.as_deref() == Some("1")
             && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { generation }
-            else { Self::activate(&mut store, &schema, &programs, None, now)? };
+            else { Self::activate(&mut store, &schema, &programs, None, now, true)? };
         store.exclude_ephemeral(&schema);
         Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
@@ -532,7 +536,7 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut self.store, &schema, &programs, None, now)?;
+        let generation = Self::activate(&mut self.store, &schema, &programs, None, now, true)?;
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
@@ -540,7 +544,7 @@ impl Engine {
         Ok(generation)
     }
 
-    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64) -> Result<u64, RuntimeError> {
+    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64, allow_feed_adoption: bool) -> Result<u64, RuntimeError> {
         schema.validate_column_owners()?;
         for program in programs.values() {
             crate::schema::ephemeral::admit_program(schema, program)?;
@@ -563,7 +567,7 @@ impl Engine {
                 return Err(RuntimeError::Schema("scheduled work takes periodStart: time and periodEnd: time, or nothing".into()));
             }
         }
-        store.activate_at(schema, Some(programs), false, now, |tx, changed, report| {
+        store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |tx, changed, report| {
             if let Some((release, expected)) = release {
                 use rusqlite::OptionalExtension;
                 let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
@@ -940,7 +944,7 @@ impl Engine {
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
         let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version,
             unavailable: runner.query_unavailable,
-            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending,
+            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),

@@ -168,6 +168,7 @@ impl PostgresEngine {
                 && runner.word_cut_at.is_none()
                 && !runner.non_uniform
                 && !runner.page_overflow
+                && !runner.value_source_incomplete
                 && !runner.page_position_lost(),
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),

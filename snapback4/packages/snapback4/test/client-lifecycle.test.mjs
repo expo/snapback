@@ -237,7 +237,7 @@ test("local startup releases a device when initialization after the protocol pro
 
 test("local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal", async t => {
   const tooLarge = { code: "E_BOUND", family: "bound", message: "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values", guide: "reads" };
-  const expectedLimits = [4000, 2000, 1000, 500, 250, 125, 62, 31, 15, 7, 3, 1];
+  const expectedLimits = [10000, 5000, 2500, 1250, 625, 312, 156, 78, 39, 19, 9, 4, 2, 1];
   for (const fitsAtOne of [true, false]) {
     const device = emptyDevice();
     const requests = [];
@@ -1351,7 +1351,7 @@ for (const tier of ["wasm", "native"]) {
 }
 
 for (const scenario of [
-  { name: "cursorless", cut: null, unknown: false, requests: 0 },
+  { name: "cursorless", complete: true, cut: null, unknown: false, requests: 0 },
   { name: "meter", cut: "meter", unknown: false, requests: 0 },
   { name: "words", cut: "words", unknown: false, requests: 0 },
   { name: "missing fact", cut: null, unknown: true, requests: 1 },
@@ -1364,7 +1364,7 @@ for (const scenario of [
   const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: !!scenario.complete, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
     if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;
@@ -1384,5 +1384,5 @@ for (const scenario of [
   const read = await client.query(query("read"), {});
   assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);
   assert.deepEqual(read.data, scenario.requests ? ["server"] : [{ id: "device" }]);
-  assert.equal(read.complete, !!scenario.requests);
+  assert.equal(read.complete, !!scenario.requests || !!scenario.complete);
 });

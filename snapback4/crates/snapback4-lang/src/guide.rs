@@ -58,7 +58,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -83,6 +83,17 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("media", "assets"), ("image", "assets"), ("video", "assets"),
     ("realtime", "reads"), ("live", "reads"), ("subscribe", "reads"),
     ("order", "writes"), ("ordinal", "writes"), ("arrival", "writes"),
+    ("sequence", "sequences"), ("sequence by", "sequences"),
+    ("receipt gap", "sequences"), ("receipt gaps", "sequences"), ("expiring messages", "sequences"),
+    ("receipt gap expiring messages", "sequences"), ("what did this member miss", "sequences"),
+    ("skip expired gaps in receipts", "sequences"),
+    ("advance delivered prefix over expired messages", "sequences"),
+    ("resume receipts after messages expire", "sequences"),
+    ("move receipt watermark past expired messages", "sequences"),
+    ("disappearing message receipt", "sequences"),
+    ("bounded unique ordinal probes", "sequences"), ("expired ordinal holes", "sequences"),
+    ("mutation page over expiring messages", "sequences"),
+    ("prohibited mutation scan over expiring rows", "sequences"),
 ];
 
 /// The contents of every ```quarry block in a card or a README.
@@ -122,7 +133,8 @@ mod language_card;
 pub use language_card::LANGUAGE;
 
 pub fn card(keyword: &str) -> Option<&'static str> {
-    let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
+    let keyword = ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(keyword)).map(|(_, target)| *target)
+        .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(keyword)))?;
     Some(match keyword {
         "language" => LANGUAGE,
         "ephemeral" => include_str!("guide/ephemeral.md"),
@@ -132,6 +144,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
         "types" => types::CARD,
+        "sequences" => include_str!("guide/sequences.md"),
         "indexes" => indexes::CARD,
         "maintains" => include_str!("guide/maintains.md"),
         "rules" => include_str!("guide/rules.md"),
@@ -241,7 +254,7 @@ If the device host fails during this read, E_STORE at client.residency names
 the failure; restart the device host and reopen the client before retrying.
 
 Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
-fixture, `token`, `deploy`, `rollback`) lock its `-owner` sidecar for their lifetime.
+fixture, offline `token`, `deploy`, `rollback`) lock its `-owner` sidecar for their lifetime.
 Native devices, including embedded C-ABI hosts, share ownership with each other
 and exclude backend writers until their stores close.
 Exclusion holds while `<database>-owner` is left in place. Removing or replacing
@@ -251,8 +264,11 @@ cancel its transactions. Stop all owners before moving the database and its
 sidecars; leave `-owner` in place for the whole ownership lifetime.
 Hard-linked databases refuse E_STORE: copy the store, do not hard-link it.
 A busy probe at a moved store's old path creates no empty database.
-A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the
-command once, then restart it. Another CLI writer also refuses; wait for it.
+A live host causes E_STORE_BUSY before offline work, naming its address when available.
+`token` instead asks the live host over loopback with its private store proof
+(guide services). If unavailable, restore access or stop the host, run token
+offline, then restart it. For other writers, stop the host, run the command once,
+then restart it. Another CLI writer also refuses; wait for it.
 The HTTP /seed development door already runs through the host. `check`, `data`,
 `sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time
@@ -309,6 +325,10 @@ leaves local stores on the next sync. In development, `snapback4 clock advance 1
 runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
+Mutation scans of expiring tables follow guide programs; unswept rows still
+cost examined work, and a backlog can refuse the whole write (why E_BOUND).
+For receipt gaps in expiring messages, use `sequence by` and bounded unique
+ordinal probes: `guide sequences` has the compiled recipe and a row-keyed count.
 Disappearing messages are one field on
 insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
 reads its physical total minus unswept expired contributions under the read

@@ -34,9 +34,11 @@ pub struct IndexWrite<'a> {
 }
 
 pub fn index_write<'a>(name: &str, table: &'a Table, row: &Value, old: Option<&Value>, id: &str) -> Result<Vec<IndexWrite<'a>>, RuntimeError> {
+    let row = crate::schema::row_image(row, table);
+    let old = old.map(|row| crate::schema::row_image(row, table));
     table.indexes.iter().map(|(index_name, index)| {
-        let before = old.map(|row| stored_index_keys(table, index, row, id)).unwrap_or_default();
-        let after = stored_index_keys(table, index, row, id);
+        let before = old.as_ref().map(|row| index_keys(index, row, id)).unwrap_or_default();
+        let after = index_keys(index, &row, id);
         if name.len().saturating_add(index_name.len()) > MAX_INDEX_LABEL_BYTES && before.is_empty() && !after.is_empty() {
             return Err(RuntimeError::Structural { code: "E_INDEX_KEY_BYTES", message: format!("table and index names for {name}.{index_name} exceed {MAX_INDEX_LABEL_BYTES} combined UTF-8 bytes; shorten the names (guide indexes)") });
         }
@@ -250,6 +252,15 @@ pub trait Rows {
     /// Rows under `prefix` in index order, bounded, at most `limit`, each
     /// with its stored key so a cursor can be minted from the last.
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError>;
+    /// Compact search candidates: adapters decode only requested fields where
+    /// possible. The caller reserves the declared decoder bound before access.
+    #[cfg(feature = "server-search")]
+    fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.scan(table, index, prefix, bounds, dir, 1).map(|rows| rows.into_iter().map(|(row,key)| {
+            let selected = fields.iter().filter_map(|name| row.field(name).ok().map(|v|(name.clone(),v.clone()))).collect();
+            (Value::Row(selected), key)
+        }).collect())
+    }
     /// Word expansion cannot bound nominal ID payloads from schema alone. A
     /// store must charge before decoding/cloning its fetched row/key and before
     /// result-vector growth. The default refuses before calling an unpriced store.

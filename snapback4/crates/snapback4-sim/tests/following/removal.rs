@@ -157,12 +157,13 @@ fn following_removal_does_not_observe_or_delete_another_readers_private_rows() {
 
 #[test]
 fn following_removal_measures_the_purge_body_under_unchanged_default_meters() {
-    // JobRun exposes chunks and rows, not meters. Execute the same compiled
-    // job IR through the local interpreter's metered harness over a real
-    // transaction, as the system with all rows held and no horizons. The
-    // ordinary ceilings are stricter than the job's; assert no cap. These
-    // are sweep-body meters, including the harness's null result encoding,
-    // not scheduler bookkeeping. Real scheduled chunks are tested above.
+    use snapback4_core::{engine::runner::Runner, error::MeterKind, meter::{Ceilings, Cut, Meter}};
+    // @ref LLP 3000.025#3-proposed-rule — query entries refuse jobs; instrument the compiled body directly.
+    // JobRun exposes chunks and rows, not meters. Run the same job IR over
+    // a real transaction as the system. Abort at ordinary ceilings, which
+    // are stricter than the job's. Keep the old harness's known null-result
+    // encoding charge, excluding scheduler bookkeeping. Real scheduled
+    // chunks are tested above; no query entry executes this job.
     for followers in [5, 900, 1000] {
         let bound = world::compiled(&world::source());
         let programs: Vec<_> = bound.programs.into_iter().map(|p| p.program).collect();
@@ -175,10 +176,13 @@ fn following_removal_measures_the_purge_body_under_unchanged_default_meters() {
             let copies = case::event_rows(&e, &event);
             let schema = e.schema().clone();
             let tx = e.store_mut().transaction().unwrap();
-            let result = snapback4_core::engine::local::query(&tx, &schema, &measured, Context::system().at(60_000), snapback4_core::meter::Ceilings::default()).unwrap();
-            assert!(result.capped_at.is_none(), "{result:?}");
+            let mut meter = Meter::new(Ceilings::default(), Cut::Abort);
+            assert!(meter.charge(MeterKind::OutputBytes, snapback4_core::json_codec::value_bytes(&Value::Null).unwrap()).unwrap());
+            let mut runner = Runner::new(&tx, &schema, Context::system().at(60_000), meter, 0);
+            assert_eq!(runner.run(&measured).unwrap(), Value::Null);
+            let m = runner.metered();
+            drop(runner);
             tx.commit().unwrap();
-            let m = result.metered;
             assert_eq!(m.rows_written as usize, copies + 1);
             assert_eq!(case::event_rows(&e, &event), 0);
             println!("PURGE_BODY followers={followers} copies={copies} examined={} index={} probes={} steps={} heap={} output={} written={}", m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, m.rows_written);

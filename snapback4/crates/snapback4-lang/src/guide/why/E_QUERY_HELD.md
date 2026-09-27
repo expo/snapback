@@ -41,10 +41,9 @@ Declare `query name(..) held:` for a device-only answer. `check` prints
 the local clients answer from held rows, online or offline, without server
 fallback even at a horizon or cut. With horizon-free sources, `check` reports
 horizon-free source coverage. Answer completeness still depends on runtime
-authorization, limits and continuation; the marker does not acquire rows.
+authorization and limits; the marker does not acquire rows.
 An unscoped search through expiring memberships can remain non-uniform and
-incomplete below every limit. A `first 1` page without a cursor is incomplete
-when its range contains two held rows. Read `complete` on each answer; a held query with an
+incomplete below every limit. A full `first 1` page is complete without a cursor. Read `complete` on each answer; a held query with an
 online-only source or no read sites gets no source-coverage line.
 Sources include reads nested in expressions such as the search text after `matching`.
 For full server history beyond holdings, use the grouped or newest form on the search card.

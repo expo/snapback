@@ -5,6 +5,10 @@
 //! bookkeeping: the catalog of table and index numbers, commits, the
 //! partition log, applied operation ids, principals, sessions, generations.
 
+#[cfg(feature = "server-search")]
+#[path = "store/selected.rs"]
+mod selected;
+
 use crate::error::RuntimeError;
 use crate::key;
 pub use crate::rows::{Bounds, Dir, index_key, index_keys, index_values};
@@ -22,6 +26,7 @@ mod activation_plan;
 #[cfg(test)]
 mod adoption_tests;
 mod event_slots;
+pub mod timeline_launch;
 mod caps;
 mod authority;
 mod successor;
@@ -112,6 +117,18 @@ impl Store {
         let steps = successor::assess(&tx, schema)?;
         tx.rollback()?;
         Ok(steps)
+    }
+
+    /// Preview the same atomic launch admitted by dev, without changing the store.
+    pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> {
+        self.check_timeline_activation_at(schema, crate::now_ms(), true)
+    }
+
+    pub fn check_timeline_activation_at(&mut self, schema: &Schema, now: i64, allow_launch: bool) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> {
+        let tx = self.read_transaction()?;
+        let estimates = timeline_launch::preflight(&tx, schema, now, allow_launch)?;
+        tx.rollback()?;
+        Ok(estimates)
     }
 
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
@@ -900,6 +917,15 @@ impl crate::rows::Rows for Tx<'_> {
         let ti = self.num(&format!("{table}.{index}"))?;
         let key: Option<Vec<u8>> = self.tx.prepare_cached(if dir == Dir::Asc { "SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k LIMIT 1" } else { "SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k DESC LIMIT 1" })?.query_row(params![ti,lo,hi], |row|row.get(0)).optional()?;
         Ok(key.and_then(|key|crate::key::decode(&key)))
+    }
+    #[cfg(feature = "server-search")]
+    fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let Some((lo,hi)) = crate::rows::scan_range(prefix,bounds,dir) else { return Ok(Vec::new()) };
+        let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
+        let mut rows = statement.query(params![self.num(table)?, self.num(&format!("{table}.{index}"))?, lo, hi, 1])?;
+        let Some(row) = rows.next()? else { return Ok(Vec::new()) };
+        let data = row.get_ref(0)?.as_str().map_err(|e|RuntimeError::Store(e.to_string()))?;
+        Ok(vec![(selected::decode(data, fields)?, row.get(1)?)])
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;

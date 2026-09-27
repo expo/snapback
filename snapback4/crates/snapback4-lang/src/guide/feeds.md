@@ -1,13 +1,14 @@
 # Feeds: Global, Following and Trending
 
-Feeds present public originals and reposts as Global, Following or Trending.
-Views define the event stream; a predicate read selects the trending posts.
+Public originals and reposts form Global, Following and Trending feeds.
+Following can start over retained sources; its launch contract is below.
 
 ## Global: a union view
 
 Each original and repost is one event. The union reads each source's rules
 before projection. It stores no extra rows. Equal source ids from different
 branches remain distinct; include the branch's `repost` flag in a list key.
+For a moderate corpus without materialization, use planned `home` below.
 
 ```quarry
 table posts:
@@ -22,17 +23,29 @@ table reposts:
   at: time
   public 'public reposts'
   online only
+table follows:
+  followerId: principal
+  followedId: principal
+  unique followerId, followedId
+  public 'public edges'
+  online only
 view activity:
   posts where not .removed { post: .id, actor: .authorId, at, repost: false }
   reposts { post: .postId, actor: .actorId, at, repost: true }
 query global(c: cursor ?):
   return activity last 20 by .at after c { *, card: posts[.post] }
+query home(c: cursor ?):
+  return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c
 ```
+
+Planned `home` serves server pages over a moderate corpus, with no per-follower
+inbox or offline floor. Behind many newer unrelated posts it can hit the meter
+and fail closed: `complete: false`, no `next`, never a complete empty page.
 
 ## Following: a view for the reader
 
-Declare the view before adding posts, reposts or follows. This standalone
-program includes replies in `posts` but selects only originals for the feed.
+Dev adopts this view over retained sources automatically; deploy needs
+`--allow-feed-adoption`. This program excludes replies.
 The three sources are public and writable only by their owners. Posts and
 reposts acquire the newest 1,000 rows globally on a cold device.
 
@@ -154,10 +167,9 @@ refresh the ranking as time passes. The upper bound excludes future events.
 - Removal hides the event immediately. Removing an original keeps its card and
   independent reposts; a new repost requires a live original.
 
-Following exposes `id`, `post`, `actor`, `at` and `repost`. Key its list by event
-`id`; each repost has its own event id. To include the post card, append
-`{ *, card: posts[.post] }` to the read. Do not hide an independent repost just
-because its original card has `removed: true`.
+Following exposes `id`, `post`, `actor`, `at` and `repost`; key its list by event
+`id`. Shape cards with `{ *, card: posts[.post] }`; retain independent reposts
+even when their original card has `removed: true`.
 
 The source floors are **global and non-sliding**, fixed at acquisition time,
 not per followed author. New arrivals accumulate; nothing evicts older held
@@ -170,8 +182,7 @@ be fully synced, floored, or online only; the feed uses its private owned edges.
 
 An inbox page within its floor needs no posts. A shaped page is complete offline
 only when every card is held too. A recent repost of an old original, or a quiet
-author's old post, may need the server even on the first page. A horizon card
-miss, required online-only card, or inbox scan past its floor withholds the
+author's old post, may need the server even on the first page. A horizon card miss, required online-only card, or inbox scan past its floor withholds the
 **whole query** as `{ loading: true }`, with no data or continuation. Offline,
 while a predictable write remains unobserved, or for a `held` query, it stays
 withheld. Otherwise the client retries the original input cursor on the server;
@@ -182,9 +193,8 @@ A full page ending at the floor is data; its next page is withheld. Pending
 backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains
 unavailable. The server cannot replace a prediction before it is observed.
 
-Render an incomplete result as incomplete. Continue with `next` when present.
-If a meter cut returns no continuation, retry the same cursor after cleanup.
-Cursors are not snapshots: concurrent writes can change what later pages show.
+Render incompleteness; continue with `next`, or retry the same cursor after cleanup.
+Cursors are not snapshots: concurrent writes can change later pages.
 
 Devices predict their own event's own-inbox copy when inputs are held and
 covered. Follow and unfollow queue without prediction. Offline reads use the
@@ -198,42 +208,35 @@ inserts or removes an event of a kind that is not fully synced. Replies and body
 edits still predict. `check` names the aggregate; argument-dependent filters and
 source-slot lookups are decided at runtime. Slot schemas require an event-slot
 capability, so older devices refuse installation or adoption until upgraded.
-Other reads of owned events
-withhold on a missing row or a range that may contain an unheld kind. A key naming
+Other reads of owned events withhold on a missing row or a range that may contain an unheld kind. A key naming
 a fully synced kind keeps ordinary known absence.
 Use the normal pending-write, freshness and completeness state (`guide app`).
 
 ## Boundaries and refusals
 
-Following requires three distinct public source tables,
-owner write rules and immutable actor/time/reference fields. The follow table
-has one declared unique follower/followed principal pair. The originals filter
-uses immutable row-local fields except the one-way removal flag. Private
-sources, expiry and hard deletion of original cards are refused;
-do not widen a private audience to fit this shape.
+Following needs three distinct public sources, owner writes, immutable
+actor/time/reference fields and a unique immutable follower/followed pair.
+The originals filter uses immutable row fields except the one-way removal flag.
+Private sources, expiry and hard deletion of cards are refused; keep private
+audiences private.
 
 Posts and reposts accept `sync public`, `sync public last N by .at`, or
 `online only`. Use the mapped time column; its index must be exactly `(at, id)`.
-Follows accept those public residencies with any admitted horizon order. Online-only cards use the withholding order
-above; writes to those sources queue without prediction. Changing any
-sync choice advances the generation and re-snapshots acquisition; a device
-never trims in place. Returning to full sync re-acquires the whole table.
+Follows accept any admitted public horizon order. Online-only cards withhold as
+above; their writes queue without prediction. Sync changes advance the generation
+and reacquire; returning to full sync reacquires the whole table.
 
-Declare before source events or follows exist; populated profiles are allowed.
-Removing a materialized view retires its owned rows, indexes and delivery work
-and resets or retires dependent aggregates in the same activation transaction.
-Sources and unrelated views survive. Dev needs no flag; deploy requires
-`--allow-destructive`, as for removing a maintained view.
-
-Redefining the predicate or sources cannot reconstruct the original event ids
-and edge-admission history. Remove the view and deploy, then add the new
-definition over empty event and edge tables. Use a planned view for retained
-populated sources. Unchanged adoption, trusted reopen and complete persistence
-restoration preserve ordinary delivery progress. Unfinished experimental
-reconstruction refuses to resume; remove its view to retire that work while
-keeping sources. The old 0.3 format needs its matching engine or a fresh dev store.
-Seed through application mutations or restore a complete trusted persistence
-image; importing mapped or owned rows cannot reconstruct delivery history.
+A first-use view atomically starts the feed now: all retained own
+events and the newest 1,000 live events per current follow, without refill after
+removal. This can include older events a historical inbox never received; repost
+ids are fresh. Writes and syncs wait, detached reads keep the predecessor, and
+devices drop images and reacquire after commit. `check` (also `--store <path>`) notes the launch contract, copies and lock time
+at the view; deploy requires `--allow-feed-adoption`. `serve` attaches the release. Above 5,000,000 copies activation
+refuses before starting: use the planned `home` above. Removing a view needs
+`--allow-destructive` in deploy; re-add with a fresh name. Redefinition stays
+refused. Original ids remain post ids; old edge/delivery history is not restored.
+Measured lock: 46.90 s for 340,697 copies (calibration #22 shape), 696.67 s at 10×
+(3,407,033 copies). Estimates use 7,000 row writes/s; hardware and load vary.
 
 | Code | Meaning and next step |
 |---|---|
@@ -245,22 +248,22 @@ image; importing mapped or owned rows cannot reconstruct delivery history.
 | E_TIMELINE_READ | The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows |
 | E_TIMELINE_OWNED | Derived rows belong to the engine. Write posts, reposts or follows |
 | E_TIMELINE_SERVER | The mutation needs server-only state. Queue it without predicted rows |
-| E_TIMELINE_ACTIVATE | Source events or follows already exist, or an owned name holds application data. Declare before adding event or edge rows, use a planned view over retained sources, or rename the view to preserve application data |
-| E_TIMELINE_REDEFINE | A materialized declaration changed or experimental reconstruction remains. Original event identities and edge-admission history cannot be reconstructed. Remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over retained sources; use the matching engine for a 0.3 store |
+| N_TIMELINE_ADOPT | `check` previews automatic dev launch, copies and lock time; deploy requires `--allow-feed-adoption` |
+| E_TIMELINE_ACTIVATE | Dev adopts automatically. Deploy needs `--allow-feed-adoption`; the refusal prints the copy estimate and lock time. Above 5,000,000 copies use planned `home`; use fresh owned names |
+| E_TIMELINE_REDEFINE | A declaration changed or experimental reconstruction remains. Retire it, deploy and add with a fresh name, or use the planned `home` above; 0.3 stores need their matching engine |
 | E_TIMELINE_IMPORT | Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore |
 | FEED_POST_NOT_FOUND | A new repost needs a live original. Refresh the source |
 | FEED_EVENT_REMOVED | A removed event cannot be resurrected. Use a fresh event id |
 | FEED_CANNOT_FOLLOW_SELF | Self-follow is refused. Own events already appear without it |
 | E_RULE | A non-owner `remove` is refused; remove only your own post |
-| N_SPARSE_FILTER | A residual predicate may reject many rows. Use the Following view, or pin the deciding columns for another read |
+| N_SPARSE_FILTER | A predicate rejects many rows. Narrow the read; the planned `home` can fail closed. Materialized Following can adopt retained sources |
 
 N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules
 allow arbitrary values. Use `likeCount: count likes` for an engine-owned count;
 for another copied value, pin its source in both write rules (`guide maintains`).
 
 `check --cost` reports source and owned-table acquisition floors, full-synced
-dependencies, the unchanged history window and card fallback. A small page
-alone does not bound acquisition or storage. Measure the whole partition with
+dependencies, the unchanged history window and card fallback. Measure the partition with
 `snapback4 test --residency --as <principal>`; inspect dependencies with
 `snapback4 check --residency --verbose`. If a maintained count is synced,
 N_MAINTAINED_COLUMN_STREAM warns that each contributing commit streams the
@@ -281,22 +284,16 @@ or revive an old follow. Reads check the current edge epoch and removal tombston
 for every examined row. Removal purges copies before tombstone retirement.
 `snapback4 doctor` lists pending and parked work.
 
-A merge cursor from generation N can
-continue after compatible adoption; a direct page cursor binds its generation.
+A merge cursor from generation N survives compatible adoption; direct cursors bind it.
 
 ## Older spellings that still compile (do not use in new apps)
 
-The older recipe measurement used 40 events with the newest 20 removed.
-Returning the remaining 20 took 82 examinations, including 41 tombstone probes;
-a 25-examination ceiling returned an incomplete empty page without `next`.
-These are measurements of the older recipe, not the Following view above.
+The older recipe measurement used 40 events with the newest 20 removed. Returning 20 took
+82 examinations (41 tombstone probes); a 25-examination ceiling returned an
+incomplete empty page without `next`. Older recipe only.
 
-FEED_ORIGINAL_REQUIRED and FEED_NOT_AUTHOR belong to older recipe operations:
-pass an original event to their original-event operation and remove only its
-author's event. The current `remove(postId: posts)` instead refuses a non-owner
-with E_RULE; a repost reference does not have the `posts` parameter type.
-
-The older declaration and viewer-keyed read remain accepted:
+FEED_ORIGINAL_REQUIRED needs an original event; FEED_NOT_AUTHOR needs its author.
+Current `remove(postId: posts)` uses E_RULE for non-owners and the `posts` type.
 
 ```quarry
 table oldPosts:
@@ -344,11 +341,9 @@ Do not add sizing or promotion logic to a new application.
 Installed recipes and bridges retain their existing behavior. E_RECIPE_RETIRED
 means the installer wrote nothing; use the new view for a new app. Existing apps
 must follow the [adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md),
-including paused writes and dependency-ordered backfill. There is no in-place
-conversion of populated source tables to a newly declared Following view.
+including paused writes and dependency-ordered backfill. Recipe history is not imported by atomic launch; a new view starts now.
 
-For those installed recipes, FEED_PULL_CAP means the caller uses all 32
-shared-author slots. Unfollow a shared author and retry with a new write ID.
+FEED_PULL_CAP means the caller uses all 32 shared-author slots. Unfollow a shared author and retry with a new write ID.
 FEED_PROMOTION_PULL_CAP means another follower is full: the follow and promotion
 roll back. Every saturated follower must free a slot; freeing only the caller's
 slot cannot repair it. A server-run query over public follows and pullCounts can

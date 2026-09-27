@@ -1,0 +1,77 @@
+{
+  "gsbare": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 122,
+      "heap_bytes": 554978,
+      "index_entries": 101,
+      "output_bytes": 8251,
+      "rows_written": 0,
+      "rule_probes": 100,
+      "steps": 838
+    },
+    "rows": 20,
+    "next": true
+  },
+  "gssender": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 142,
+      "heap_bytes": 734968,
+      "index_entries": 101,
+      "output_bytes": 18271,
+      "rows_written": 0,
+      "rule_probes": 100,
+      "steps": 1522
+    },
+    "rows": 20,
+    "next": true
+  },
+  "gssenderChat": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 162,
+      "heap_bytes": 815748,
+      "index_entries": 101,
+      "output_bytes": 25291,
+      "rows_written": 0,
+      "rule_probes": 120,
+      "steps": 1582
+    },
+    "rows": 20,
+    "next": true
+  },
+  "gsoriginalFixed": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 2142,
+      "heap_bytes": 10985983,
+      "index_entries": 101,
+      "output_bytes": 520591,
+      "rows_written": 0,
+      "rule_probes": 140,
+      "steps": 11662
+    },
+    "rows": 20,
+    "next": true
+  },
+  "searchMessages": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 182,
+      "heap_bytes": 907738,
+      "index_entries": 101,
+      "output_bytes": 25711,
+      "rows_written": 0,
+      "rule_probes": 140,
+      "steps": 2202
+    },
+    "rows": 20,
+    "next": true
+  }
+}

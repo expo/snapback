@@ -16,6 +16,14 @@ use crate::rows::Rows;
 use crate::schema::Schema;
 use crate::value::Value;
 
+// @ref LLP 3000.025#3-proposed-rule — a query entry must not execute a server-only mutation under Cut::Cap.
+pub fn require_query(program: &Program) -> Result<(), RuntimeError> {
+    if program.kind != crate::ir::ProgramKind::Query {
+        return Err(RuntimeError::UnknownOp(format!("{} is not a query; use its mutation, job or action entry", program.name)));
+    }
+    Ok(())
+}
+
 /// A query over the device's rows.
 pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> Result<QueryOutcome, Refusal> {
     query_with_coverage(rows, schema, program, context, ceilings).0
@@ -33,7 +41,7 @@ pub fn query_with_components(rows: &dyn Rows, schema: &Schema, program: &Program
 }
 
 pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>, super::components::Provenance) {
-    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default(), Default::default()); }
+    if let Err(error) = require_query(program) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }
     if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }
     context.row_provenance |= schema.tables.values().any(|t| t.leave == crate::schema::LeavePolicy::DeliveredHistory);
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
@@ -57,7 +65,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
         unavailable: runner.query_unavailable,
-        complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
+        complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),
         word_cut_at: runner.word_cut_at.clone(),
@@ -145,6 +153,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
 
 #[cfg(feature = "wasm-host")]
 pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool, super::components::Provenance) {
+    if let Err(error) = require_query(program) { return (Err(error.refusal()), false, false, Default::default()); }
     if let Err(error) = validate_inputs(schema, program, &mut context.args) {
         return (Err(error.refusal()), false, false, Default::default());
     }

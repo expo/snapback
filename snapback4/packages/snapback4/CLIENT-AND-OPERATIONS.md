@@ -821,7 +821,7 @@ search. If both limits cut, `"meter"` wins.
 Device reads and uniform server reads keep precise reasons.
 Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
 `null` means "not disclosed here", not "not cut"; it also covers a horizon,
-missing coverage or a page without continuation. For `complete: false` with
+missing coverage. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 The precise reason remains in development-only `Read.meter.cut` (`"meter"`,
 `"words"` or null, with `"meter"` winning); `serve` never returns that meter.
@@ -903,16 +903,15 @@ only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
-`complete` says this is everything the query can answer: false when the
-meter cut the page, when a scan's read rule is not decided by its prefix
-(`guide bounds`), when a page declared without a cursor had more rows than
-it holds (declare `c: cursor ?` and page with `after c`; `check` notes
-it), or when a local read passes the horizon. `fresh` says the device has
-everything the server had at the last sync (`since` is the last sync's
+`complete` means the query answered its declared request within known coverage and execution limits.
+Filling `first N` or `last N` is complete, including a composed preview.
+A cursorless page has no `next`; a cursor page may be complete with `next`.
+Meter cuts, a read rule not decided by the scan's prefix (`guide bounds`),
+and a local read past its horizon still make the answer incomplete.
+`fresh` says the device has everything the server had at the last sync (`since` is the last sync's
 time when it does not, and absent when the device has never finished
 one); `next` is the cursor for the next page (pass it as the query's
-`cursor ?` argument); a page with a cursor and more rows is `complete:
-true` with `next`. A row this device wrote and the server has not yet
+`cursor ?` argument). A row this device wrote and the server has not yet
 confirmed carries `pending: true`. A write is `pending` while unsettled, including
 a return at custody, a down link, an expired wait, or when the
 client closes before its response arrives. It is `sent` with the server's
@@ -1833,7 +1832,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
-  assets, client, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
+  assets, client, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
   presence, receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the

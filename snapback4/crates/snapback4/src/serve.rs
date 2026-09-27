@@ -24,6 +24,9 @@ mod actions;
 #[path = "effects.rs"]
 mod effects;
 
+#[path = "serve_token.rs"]
+pub(crate) mod token;
+
 #[path = "serve_routes.rs"]
 mod routes;
 
@@ -377,26 +380,29 @@ const REQUEST_WORKERS: usize = 32;
 // Writer-dependent requests have their own budget: queued behind adoption, they cannot take
 // the slots reads and discovery need, and neither class loses capacity.
 const MUTATION_WORKERS: usize = 32;
+// @ref LLP 3000.026#4-atomic-launch-adoption — sync may wait for atomic launch;
+// reserve its capacity separately even if launch begins after dispatch.
+const SYNC_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
 const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
 
 #[derive(Clone, Copy)]
-enum RequestClass { Short, Mutation, Wait, Route, Registry, Verifier }
+enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
-        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
+        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Sync => SYNC_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
@@ -411,6 +417,7 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
         else if is_waiter(request.method(), path) { RequestClass::Wait }
+        else if request.method() == &Method::Post && path == "/sync" { RequestClass::Sync }
         // @ref LLP 3000.019#3.6 — only writer-independent handlers share the read reservation.
         // Default to the writer budget, so adding a writer door cannot silently
         // consume read slots. Authentication uses the same detached-read policy.
@@ -822,6 +829,7 @@ fn handle(mut request: Request, shared: &Shared) {
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
+    if path == token::ENDPOINT { return token::handle(request, shared); }
     // This exact declared POST path is the only non-loopback development
     // exception. Core doors, mismatched methods and query variants stay fenced.
     if method == Method::Post && let Some((name, route)) = routes::declared(shared, &url) {
@@ -1179,7 +1187,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }

@@ -15,6 +15,8 @@ use crate::value::object;
 // work and basis timestamps belong only to the server storage build.
 mod live;
 mod device;
+#[cfg(feature = "sqlite")]
+mod batch;
 #[cfg(all(test, feature = "sqlite"))]
 mod range_tests;
 
@@ -309,7 +311,7 @@ impl Runner<'_> {
                 let next = (|| {
                     // Source-group authority was proven before recount selection;
                     // the shared candidate boundary also removes private fields before pricing.
-                    let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true)?;
+                    let rows = self.scan_authorized(&m.source, index, &prefix, &bounds, Dir::Asc, 1, true, true, #[cfg(feature = "server-search")] None)?;
                     let Some((stored, position)) = rows.into_iter().next() else { return Ok(None); };
                     let source = match stored {
                         Some(stored) => {
@@ -622,7 +624,7 @@ impl Runner<'_> {
         m: &Maintain,
         row: &Value,
     ) -> Result<Option<Value>, RuntimeError> {
-        self.authorized_member(&m.row_key.as_ref().unwrap().table, row.field("member")?.as_str()?)
+        self.authorized_member(&m.row_key.as_ref().unwrap().table, row.field("member")?.as_str()?, #[cfg(feature = "server-search")] false)
     }
     // A pure witness has no row payload. Reserve the key's admitted width,
     // then expose only existence/lifetime from the internal ledger.

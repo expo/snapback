@@ -6,16 +6,25 @@ use snapback4_lang::{Diagnostic, Site};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&String>) -> Result<Vec<Diagnostic>, String> {
+pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&String>) -> Result<(Vec<Diagnostic>, Vec<Diagnostic>), String> {
     let path = explicit.map(PathBuf::from).unwrap_or_else(|| project.store_path());
-    if explicit.is_none() && !path.exists() { return Ok(Vec::new()); }
+    if explicit.is_none() && !path.exists() { return Ok((Vec::new(), Vec::new())); }
     let mut store = Store::open_read_only(&path).map_err(|e| e.to_string())?;
+    let (estimates, timeline_error) = match store.check_timeline_activation(schema) {
+        Ok(estimates) => (estimates, None),
+        Err(error @ snapback4_core::RuntimeError::Structural { .. }) => (Vec::new(), Some(error)),
+        Err(error) => return Err(error.to_string()),
+    };
     let steps = store.successor(schema).map_err(|e| e.to_string())?;
-    if !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok(Vec::new()); }
+    if estimates.iter().all(|e| e.sources == 0) && timeline_error.is_none() && !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok((Vec::new(), Vec::new())); }
     let mut sites = BTreeMap::new();
     for (file, source) in project.sources().map_err(|e| e.to_string())? {
         let (document, _) = snapback4_lang::parse_document(&file, &source);
+        for view in document.views { sites.insert(format!("timelines.{}", view.name), view.site); }
+        for view in document.feed_views { sites.insert(format!("timelines.{}", view.name), view.site); }
+        for timeline in document.timelines { sites.insert(format!("timelines.{}", timeline.name), timeline.site); }
         for maintain in document.maintains {
+            sites.insert(format!("timelines.{}", maintain.name), maintain.site.clone());
             if let Some(position) = schema.maintains.iter().position(|m| m.target == maintain.name) {
                 sites.insert(format!("maintains[{position}]"), maintain.site);
             }
@@ -27,11 +36,24 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
             for index in table.indexes { sites.insert(format!("{path}.indexes.{}", index.name), index.site); }
         }
     }
-    Ok(steps.iter().filter(|s| s.change == Change::Narrowing).map(|step| {
+    let mut diagnostics: Vec<_> = steps.iter().filter(|s| s.change == Change::Narrowing).map(|step| {
         let table = step.path.split('.').take(2).collect::<Vec<_>>().join(".");
         let site = sites.get(&step.path).or_else(|| sites.get(&table)).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
         Diagnostic::new(&site, "E_ADOPT", &step.message, step.rewrite(schema)).guide("types")
-    }).collect())
+    }).collect();
+    // @ref LLP 3000.026#4-atomic-launch-adoption — locate the shared launch verdict at the declaration; successful dev launch is advice.
+    if let Some(snapback4_core::RuntimeError::Structural { code, message }) = timeline_error {
+        let name = message.strip_prefix("view ").and_then(|s| s.split_once(':')).map(|(name, _)| name);
+        let site = name.and_then(|name| sites.get(&format!("timelines.{name}"))).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
+        diagnostics.push(Diagnostic::new(&site, code, message,
+            snapback4_core::store::timeline_launch::ALTERNATIVE).guide("feeds"));
+    }
+    let notes = estimates.iter().filter(|e| e.sources != 0).map(|estimate| {
+        let site = sites.get(&format!("timelines.{}", estimate.name)).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
+        Diagnostic::new(&site, "N_TIMELINE_ADOPT", format!("{}; dev will atomically start this feed now: all retained own events and newest 1,000 live events per current follow, no refill on removal; fresh repost ids, no recovered delivery history. Writes and syncs wait; devices reacquire", estimate.summary()),
+            "dev adopts automatically; deploy requires --allow-feed-adoption. Use planned home in guide feeds to avoid the launch lock").guide("feeds")
+    }).collect();
+    Ok((diagnostics, notes))
 }
 
 // @ref LLP 3000.019#3.7 — persisted discovery uses store ownership's address; temporary hosts need --url.

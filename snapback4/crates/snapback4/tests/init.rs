@@ -432,7 +432,7 @@ fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
     files.sort(); files
 }
 
-const RETIRED: &str = "E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  declare before event and edge data exists; see snapback4 guide feeds\n";
+const RETIRED: &str = "E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  use a fresh feed name; dev adopts retained sources and deploy requires --allow-feed-adoption; see snapback4 guide feeds\n";
 const RECIPE_OPTIONS: [[&str; 2]; 7] = [
     ["--prefix", "feed"], ["--authors", "1008"], ["--edges", "5921"],
     ["--public-profiles", "profiles:principal"], ["--public-posts", "posts:authorId:at"],

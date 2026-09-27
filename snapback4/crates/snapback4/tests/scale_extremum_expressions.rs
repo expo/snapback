@@ -91,13 +91,18 @@ fn list_fixtures_price_every_projection_at_the_source_bound() {
 const COLLECTION_TABLES: &str = "table t:\n  n: int\n  target: id\n  public\n  sync public\ntable secrets:\n  n: int\n  public\n  online only\n";
 
 fn check_collections(queries: &str, expected: &[(&str, u64)]) {
+    let receipts = expected.iter().map(|&(name, bound)| (name, bound, bound)).collect::<Vec<_>>();
+    check_collection_receipts(queries, &receipts);
+}
+
+fn check_collection_receipts(queries: &str, expected: &[(&str, u64, u64)]) {
     let b = snapback4_lang::compile(&[("schema.q".into(), format!("{COLLECTION_TABLES}{queries}"))]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let mut engine = Engine::memory(b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap();
     engine.seed(["a", "b", "c"].map(|id| ("t".into(), object([
         ("id", Value::Id(id.into())), ("n", Value::Int(1)), ("target", Value::Id("g".into())),
     ]))).into_iter().chain([("secrets".into(), object([("id", Value::Id("g".into())), ("n", Value::Int(9))]))])).unwrap();
-    for &(name, examinations) in expected {
+    for &(name, examinations, receipt) in expected {
         let program = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
         let certificate = analyze(&b.schema, program);
         assert_eq!(certificate.class, Class::Constant, "{name}: {certificate:?}");
@@ -107,13 +112,13 @@ fn check_collections(queries: &str, expected: &[(&str, u64)]) {
         let result = engine.query(name, Context::new("alice", args)).unwrap();
         assert_eq!(result.data, Value::Int(9), "{name}: {result:?}");
         assert!(result.metered.examined <= examinations, "{name}: {result:?} exceeds {certificate:?}");
-        if examinations < 1_000_000 { assert_eq!(result.metered.examined, examinations, "{name}: {result:?}"); }
+        if examinations < 1_000_000 { assert_eq!(result.metered.examined, receipt, "{name}: {result:?}"); }
     }
 }
 
 #[test]
-fn shaped_page_prices_the_same_five_examinations_as_its_unshaped_twin() {
-    check_collections("query shaped():\n  rows = t where .target = 'g' first 2 by .id { n, target }\n  return min(rows, secrets[.target].n ?? 0)\nquery unshaped():\n  rows = t where .target = 'g' first 2 by .id\n  return min(rows, secrets[.target].n ?? 0)\n", &[("shaped", 5), ("unshaped", 5)]);
+fn shaped_and_plain_cursorless_pages_keep_conservative_certificates() {
+    check_collection_receipts("query shaped():\n  rows = t where .target = 'g' first 2 by .id { n, target }\n  return min(rows, secrets[.target].n ?? 0)\nquery unshaped():\n  rows = t where .target = 'g' first 2 by .id\n  return min(rows, secrets[.target].n ?? 0)\n", &[("shaped", 5, 4), ("unshaped", 5, 4)]);
 }
 
 #[test]

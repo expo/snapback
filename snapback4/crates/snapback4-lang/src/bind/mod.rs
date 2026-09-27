@@ -160,10 +160,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         }
     }
     if diagnostics.is_empty() {
-        programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
+        programs.retain(|bound| match snapback4_core::engine::admission::check_detail_with_statements(&schema, &bound.program, &bound.statement_ends) {
             Ok(()) => true,
             Err(error) => {
-                if let Some(diagnostic) = bound.constraint_diagnostic(&schema, &error) {
+                if let Some(diagnostic) = bound.expiry_gap_diagnostic(&schema, &error).or_else(|| bound.constraint_diagnostic(&schema, &error)) {
                     diagnostics.push(diagnostic);
                     return false;
                 }
@@ -335,7 +335,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
     for bound in programs {
         // Follow the same return/alias/shape provenance as continuations.
         // A consumed loop is not a page the caller needs to continue.
-        let returned = snapback4_core::engine::returned_page_sites(&bound.program);
+        let returned = snapback4_core::engine::uncontinued_page_sites(&bound.program);
         let mut noted = std::collections::BTreeSet::new();
         for page in snapback4_core::ir::scans(&bound.program) {
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
@@ -347,23 +347,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             });
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
-                let cap = if !pinned.is_empty() && schema.group_bound(table, &pinned).is_none() && page.merge_site.is_none() && schema.maintain_for(table).is_none() && schema.tables[table].indexes[&page.index].is_plain() {
-                    let limit = take.min(snapback4_core::Ceilings::default().examined);
-                    let by = format!(" by {}", pinned.join(", "));
-                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read `{table} where {}` without a page clause; other metered work can still cut the read", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and "))
-                } else if !pinned.is_empty() {
-                    "read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
-                } else if let Some((columns, max)) = schema.tables[table].constraints.iter().find_map(|constraint| match constraint {
-                    snapback4_core::schema::Constraint::Cap { by, max } if !by.is_empty() => Some((by, max)),
-                    _ => None,
-                }) {
-                    let predicate = columns.iter().map(|column| format!(".{column} = {column}")).collect::<Vec<_>>().join(" and ");
-                    let by = columns.join(", ");
-                    format!("or use a narrower key: `{table} where {predicate}` uses the declared cap `cap {max} by {by}`; omit the page clause when that cap fits the examined ceiling, otherwise the narrowed page still needs continuation")
-                } else {
-                    format!("or use a narrower key: `{table}[id]` for one row; a group page still needs continuation unless its schema cap fits the page and examined ceiling")
-                };
-                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order; {cap}", bound.program.name)).guide("reads"));
+                // @ref LLP 3000.027#3 — continuation advice does not question a top-N answer's completeness.
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor, so the page cannot continue", bound.program.kind.word(), bound.program.name), format!("if the screen pages, declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order", bound.program.name)).guide("reads"));
             }
         }
         // Wide merges still pay for lane discovery and authorization, even
@@ -486,45 +471,7 @@ fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, tabl
 }
 
 /// Every merge a program's body evaluates.
-pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Merge> {
-    use snapback4_core::ir::{Expr, Stmt};
-    fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a snapback4_core::ir::Merge>) {
-        match expr {
-            Expr::Merge(merge) => out.push(merge),
-            Expr::Block { body, value } => {
-                in_stmts(body, out);
-                in_expr(value, out);
-            }
-            Expr::Field { base, .. } => in_expr(base, out),
-            Expr::Array(items) | Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
-            Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),
-            Expr::Binary { left, right, .. } => {
-                in_expr(left, out);
-                in_expr(right, out);
-            }
-            Expr::Unary { value, .. } => in_expr(value, out),
-            _ => {}
-        }
-    }
-    fn in_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a snapback4_core::ir::Merge>) {
-        for stmt in stmts {
-            match stmt {
-                Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => in_expr(value, out),
-            Stmt::Emit { payload: value, once, .. } => { in_expr(value, out); if let Some(value) = once { in_expr(value, out); } },
-                Stmt::If { condition, then_body, else_body } => {
-                    in_expr(condition, out);
-                    in_stmts(then_body, out);
-                    in_stmts(else_body, out);
-                }
-                Stmt::For { body, .. } => in_stmts(body, out),
-                _ => {}
-            }
-        }
-    }
-    let mut out = Vec::new();
-    in_stmts(stmts, &mut out);
-    out
-}
+pub use snapback4_core::search_plan::merges;
 
 // Admission rewrites remove the rejected page bound, retaining its exact pins.
 fn whole_group_rewrite(catalog: &Catalog, source: &str, scan: &snapback4_core::ir::Scan) -> String {

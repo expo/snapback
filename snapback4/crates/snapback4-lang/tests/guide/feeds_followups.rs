@@ -27,7 +27,9 @@ fn all(e: &mut Engine, op: &str, now: i64) -> Vec<Value> {
 #[test]
 fn published_global_filters_originals_and_preserves_independent_reposts() {
     let source = quarry(card("feeds").unwrap()).into_iter().find(|s| s.contains("query global(")).unwrap();
-    let mut e = engine(&source, false);
+    let b = super::super::clean("populated-source feed", &source);
+    assert!(b.schema.timelines.is_empty(), "the planned query needs no materialization");
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     for (table, json) in [
         ("posts", serde_json::json!({"id":"shared","authorId":"author","at":10,"removed":false})),
         ("posts", serde_json::json!({"id":"removed","authorId":"author","at":20,"removed":true})),
@@ -47,6 +49,12 @@ fn published_global_filters_originals_and_preserves_independent_reposts() {
     assert_eq!(rows[1].field("actor").unwrap(), &id("author"));
     assert_eq!(rows[1].field("repost").unwrap(), &Value::Bool(false));
     assert_eq!(rows[1].field("card").unwrap().field("removed").unwrap(), &Value::Bool(false));
+    let edge = wire::row_from_json(e.schema().table("follows").unwrap(),
+        &serde_json::json!({"id":"edge","followerId":"reader","followedId":"author"})).unwrap();
+    e.seed_at(vec![("follows".into(), edge)], 100).unwrap();
+    let home = all(&mut e, "home", 100);
+    assert_eq!(home.len(), 1, "the planned query filters retained events by current follows");
+    assert_eq!(home[0].field("post").unwrap(), &id("shared"));
 }
 
 #[test]

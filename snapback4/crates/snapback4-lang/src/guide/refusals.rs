@@ -26,6 +26,8 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+For expiring server scans, `E_BOUND` includes unswept rows; replay the same
+id first and retry a recorded failure with a new id after cleanup (why E_BOUND).
 
 `unique handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
 constraint's user-facing code and message. Render `message`; `detail` retains
@@ -128,9 +130,13 @@ store, preserve that store and the diagnostic for investigation; deleting
 application data is not a schema repair.
 
 E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database.
-Stop the named host (the message includes its address), run the command once,
-then restart it; for another CLI, wait for it to finish. No work was admitted.
-The presence of an old lock file alone does not refuse work.
+`token` normally asks a live dev/serve owner to mint over loopback with its
+private store proof. Its E_STORE_BUSY means that path is unavailable: restore
+access to the named server and proof, or stop it, mint offline, then restart.
+After a lost mint reply, an unused session may remain until expiry.
+Other offline writers admit no work: stop the named host (the message includes
+its address), run the command once, then restart it; for another CLI, wait for
+it to finish. The presence of an old lock file alone does not refuse work.
 Leave `<database>-owner` in place: deleting or replacing it while a process runs
 ends exclusion and can admit a second owner without stopping the first.
 

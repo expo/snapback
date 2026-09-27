@@ -115,7 +115,7 @@ fn exists_modifiers_and_rule_probes_keep_their_boundaries() {
 }
 
 #[test]
-fn mutation_exists_is_admitted_only_for_uniform_plain_nonexpiring_prefixes() {
+fn mutation_exists_requires_uniform_plain_prefixes_and_server_expiry_phase() {
     let good = "mutation checkPrefix():\n  return exists members[principal = viewer] by byPrincipalRoom\n";
     checked(&format!("{}\n{good}", schema()));
     let private = schema().split("table messages:").next().unwrap().replace("read <- exists members[.roomId, viewer]", "read <- .unread = 0").replace("sync to members[.roomId]", "online only");
@@ -123,7 +123,13 @@ fn mutation_exists_is_admitted_only_for_uniform_plain_nonexpiring_prefixes() {
     checked(&format!("{private}\n{}", good.replace("mutation", "query")));
     for body in ["mutation bad(roomId: rooms):\n  return exists messages[roomId = roomId]\n", "mutation bad(roomId: rooms, q: text <=100):\n  return exists (messages[roomId = roomId] matching q)\n"] {
         let error = rejected(schema(), body, "E_STRUCTURAL_FANOUT");
-        assert!(error.rewrite.contains("query"));
+        if body.contains("matching") {
+            assert!(error.rewrite.contains("query"));
+            rejected(schema(), &body.replace("):", "): server"), "E_STRUCTURAL_FANOUT");
+        } else {
+            assert!(error.rewrite.contains(": server") && !error.rewrite.contains("selected ids"));
+            checked(&format!("{}\n{}", schema(), body.replace("):", "): server")));
+        }
         checked(&format!("{}\n{}", schema(), body.replace("mutation", "query")));
     }
 }

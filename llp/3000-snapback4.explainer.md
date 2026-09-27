@@ -1861,3 +1861,13 @@ measurement-first sequence and stopping conditions. Historical research links
 3000.000 and 3000.001 leave the current overlay to make room; the documents
 remain. Package publication and mutation of the frozen benchmark are outside
 this commission.
+
+## 2026-09-27 — Global search beyond one read
+
+Lane GS reproduced the global-search boundary and stopped at a design handoff.
+The supervisor narrowed 0.4.6 to compact, bounded one-read membership search;
+[LLP 3000.024](./3000.024-global-search-beyond-one-read.rfc.md) records the
+Decision, implementation, measurements and explicit grouped-search refusal
+beyond its envelope. The retained-session and stateless multi-pass contracts
+remain future RFC work. Budgets, disclosure rules and the no-query-cache
+exclusion are unchanged; round 1's report records qualification failures.

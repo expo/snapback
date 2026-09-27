@@ -46,7 +46,7 @@ fn check_change(dir: &Path, previous: Option<u64>, bound: &snapback4_lang::Bound
     }
     Ok(())
 }
-fn activate(dir: &Path, owner: &Owner, release: u64, previous: Option<u64>, bound: snapback4_lang::Bound, rollback: bool) -> Result<(), String> {
+fn activate(dir: &Path, owner: &Owner, release: u64, previous: Option<u64>, bound: snapback4_lang::Bound, rollback: bool, allow_feed_adoption: bool) -> Result<(), String> {
     let pointer = dir.join("current");
     // Check required filesystem writes before changing the database. A
     // later crash can leave this copy stale; current() reads the DB first.
@@ -59,7 +59,7 @@ fn activate(dir: &Path, owner: &Owner, release: u64, previous: Option<u64>, boun
         let prepared = json!({"at": snapback4_core::now_ms(), "release": release, "previous": previous, "rollback": rollback, "state": "prepared"});
         writeln!(ledger, "{prepared}").and_then(|_| ledger.sync_all()).map_err(|e| e.to_string())?;
         let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
-        let engine = snapback4_core::Engine::new_release(store, bound.schema, bound.programs.into_iter().map(|p| p.program), release, previous).map_err(|e| e.to_string())?;
+        let engine = snapback4_core::Engine::new_release_with_feed_adoption(store, bound.schema, bound.programs.into_iter().map(|p| p.program), release, previous, allow_feed_adoption).map_err(|e| e.to_string())?;
         std::fs::rename(&staged, &pointer).map_err(|e| format!("release {release} activated in the database, but current copy could not be updated: {e}"))?;
         let activated = json!({"at": snapback4_core::now_ms(), "release": release, "previous": previous, "rollback": rollback, "generation": engine.generation(), "state": "activated"});
         writeln!(ledger, "{activated}").and_then(|_| ledger.sync_all()).map_err(|e| format!("release activated, but ledger completion failed: {e}"))?;
@@ -114,7 +114,7 @@ pub fn deploy(options: &Options) -> i32 {
         let staged_bound = bound_at(stage.clone())?;
         if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
         std::fs::rename(&stage, &final_dir).map_err(|e| e.to_string())?;
-        activate(&dir, &_deployment, n, previous, staged_bound, false)?;
+        activate(&dir, &_deployment, n, previous, staged_bound, false, options.flags.contains_key("allow-feed-adoption"))?;
         println!("deploy: release {n} is current in {} — `snapback4 serve {}` runs it", dir.display(), dir.display());
         Ok(())
     })())
@@ -128,7 +128,7 @@ pub fn rollback(options: &Options) -> i32 {
         let previous = (1..active).rev().find(|n| dir.join("releases").join(n.to_string()).join("snapback/schema.q").is_file()).ok_or("nothing to roll back to")?;
         let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
         check_change(&dir, Some(active), &bound, options)?;
-        activate(&dir, &_deployment, previous, Some(active), bound, true)?;
+        activate(&dir, &_deployment, previous, Some(active), bound, true, options.flags.contains_key("allow-feed-adoption"))?;
         println!("rollback: release {previous} is current (was {active})");
         Ok(())
     })())

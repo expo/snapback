@@ -830,27 +830,29 @@ impl<S: DeviceStore> Device<S> {
         touched.extend(predictions::restore(&tx, &self.schema)?);
         if replacing {
             let groups = history::load(&tx, history::STAGED_GROUPS)?;
-            tx.clear_rows()?;
             touched.extend(self.schema.tables.keys().cloned());
-            let mut after = String::new();
-            loop {
-                let rows = tx.staged_after(&after, 500)?;
-                for (key, table_name, data) in &rows {
-                    let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {table_name}")))?;
-                    let staged: snapshot::Staged = decoded(data)?;
-                    after = key.clone();
-                    if !staged.acquired && !history::is_left(&groups, table_name, &history::row_key(table, &staged.row)?) { continue; }
-                    tx.put(table_name, table, &staged.row, None)?;
-                    if staged.acquired {
-                        media::remember(&tx, table_name, table, &staged.row, self.generation)?;
-                    } else {
-                        media::forget(&tx, table_name, table, &staged.row)?;
+            tx.replace_rows(|| {
+                let mut after = String::new();
+                loop {
+                    let rows = tx.staged_after(&after, 500)?;
+                    for (key, table_name, data) in &rows {
+                        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {table_name}")))?;
+                        let staged: snapshot::Staged = decoded(data)?;
+                        after = key.clone();
+                        if !staged.acquired && !history::is_left(&groups, table_name, &history::row_key(table, &staged.row)?) { continue; }
+                        tx.put(table_name, table, &staged.row, None)?;
+                        if staged.acquired {
+                            media::remember(&tx, table_name, table, &staged.row, self.generation)?;
+                        } else {
+                            media::forget(&tx, table_name, table, &staged.row)?;
+                        }
+                    }
+                    if rows.len() < 500 {
+                        break;
                     }
                 }
-                if rows.len() < 500 {
-                    break;
-                }
-            }
+                Ok(())
+            })?;
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             expiry_clock::publish(&tx)?;
@@ -913,6 +915,8 @@ impl<S: DeviceStore> Device<S> {
         let mut provenance = Default::default();
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
+            // @ref LLP 3000.025#3-proposed-rule — refuse mutation/job observation before any device or native execution.
+            local::require_query(program)?;
             let tx = self.store.read_transaction()?;
             let context = Context::new(viewer, typed_args(&program, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation);
             if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {

@@ -1,9 +1,24 @@
 # Programs — E_STRUCTURAL_FANOUT
 
+For receipt gaps, `guide sequences` pairs `sequence by conversationId` with
+a server mutation reading its blocker before effects. The compiler gives that
+repair first, then a unique parent/ordinal probe helper as fallback. Require authority over the
+whole conversation and a validated received run; hidden rows do not prove
+holes. Resume after the bound, preserving disjoint runs. Counts answer badges,
+not individual receipt coverage. General processing can use query-selected ids
+or a job sweep.
+
+Example: declare `cap 50 by room` on members, then iterate
+`for m in members where .room = room:`; put the condition and row write inside
+that loop.
+
 A mutation with `predicts: "never"` (a server site or `: server`) may pass
 over a bounded plain prefix page whose read rule is uniform over its prefix,
-without a complete schema-capped group. `matching`, merges and tables with
-expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
+without a complete schema-capped group. A `: server` mutation may scan an
+expiring table only in its initial read-only statement prefix (guide programs);
+its pages still need a uniform plain prefix, `matching` and merges stay refused,
+and predicting mutations still cannot scan expiring tables. Move the scan into
+that phase, or use a job sweep, which may read a table with expiry. A predicting mutation
 keeps the complete-group requirement for page loops: `for row in t where .owner = viewer:`
 uses the schema cap, without restating it. An explicit `first N` remains legal;
 an explicit bound below the cap still fails that proof. A job's inner loop may
@@ -23,13 +38,15 @@ constraint every writer obeys, or a readable availability audience if the
 product permits it; `guide writes` has a per-night booking example. A hidden
 unique collision stays E_RULE; only a readable collision can use its named code.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
-prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
+prints the examined ceiling and, for expiry, the unswept-row backlog and
+atomic `E_BOUND` outcome rather than a first-N-rows price.
 For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
 A program's prefix `exists` is a top-1 scan below the page: no cursor and no
 page overflow. Expired siblings still cost examined rows, and `matching` pays
 word discovery. A positive held row proves existence on a device regardless of
-its horizon; only a negative answer past that horizon needs coverage. A cut
-before finding a row returns false on an already capped answer. Mutation prefix
-existence tests require a uniform, plain, non-expiring prefix. Rule probes keep
+its horizon; only a negative answer past that horizon needs coverage. A
+query cut is an incomplete null; a mutation cut is `E_BOUND` with no write.
+Mutation prefix existence tests require a uniform plain prefix and the same
+expiry admission as other scans (guide programs). Rule probes keep
 exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor.
