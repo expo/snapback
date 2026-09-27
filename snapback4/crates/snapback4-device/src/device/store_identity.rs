@@ -66,7 +66,7 @@ pub struct StoreObservation {
 }
 
 // @ref LLP 3000.007#18.2 — replacement discards the old partition, never an unsent write or a known receipt.
-pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: bool) -> Result<StoreObservation, RuntimeError> {
+pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: bool, snapshot_owner: Option<&str>) -> Result<StoreObservation, RuntimeError> {
     let mut revision = meta_u64(tx, SEND_REVISION)?;
     let previous = tx.meta(STORE_ID)?;
     if page.send_revision.is_some_and(|expected| expected != revision) {
@@ -82,34 +82,32 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     if page.captured_watermark.is_some_and(|expected| expected != watermark) {
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
-    // @ref LLP 3000.019#3.5 — continuations retain their first page's cut, not the server head.
-    // Reject before either restore proof: an owner can capture newer published
-    // progress while still holding its older snapshot's continuation.
-    if page.snapshot && page.after.is_some() && page.watermark < watermark {
-        return Err(RuntimeError::Generation("published acquisition overtook this snapshot continuation; retry sync".into()));
+    // @ref LLP 3000.019#3.5 — a continuation must still own its staged snapshot, even during observation.
+    if !publish_first && page.snapshot && page.after.is_some()
+        && (snapshot_owner.is_none() || page.after.as_deref() == Some("")
+            || tx.meta(SNAPSHOT_OWNER)?.as_deref() != snapshot_owner
+            || tx.meta(SNAPSHOT_NEXT)? != page.after || meta_u64(tx, SNAPSHOT_WATERMARK)? != page.watermark) {
+        return Err(RuntimeError::Generation("snapshot continuation was superseded; restart at its first page".into()));
     }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
     let transfer_identity = tx.meta(deferred::IDENTITY)?;
     let receipt_identity = previous.as_ref().or(transfer_identity.as_ref());
     let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
     let same_identity = page.store_id.is_some() && (!identity_changed || private_identity);
-    // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — private progress is restore evidence, never publication authority.
-    let transfer = restore_cursor(tx)?.unwrap_or(watermark);
-    let captured = page.captured_restore_watermark.or(page.requested_watermark);
-    let private_restore = if let Some(cut) = captured {
-        // Only evidence that existed when this request left can condemn its
-        // response. Legacy local callers attest only their request cursor;
-        // never substitute a subsequently retained image head for an absent echo.
-        // Pending declarations govern applying effects, not this head proof:
-        // a newer declaration cannot erase evidence this request already held.
-        let floor = page.captured_watermark.unwrap_or(0).max(cut).max(page.captured_restore_images_at.unwrap_or(0));
-        page.images_at.or((!page.more).then_some(page.watermark)).is_some_and(|head| head < floor)
-            || (page.requested_watermark == Some(cut) && page.watermark < cut)
-    } else { false };
-    // @ref LLP 3000.019#3.5 — an upgrade requests from zero without lowering its published restore floor.
-    let published_restore = page.watermark < watermark
-        && ((page.snapshot && page.after.is_none()) || page.requested_watermark.is_none_or(|requested| page.watermark < requested));
-    if same_identity && (published_restore || private_restore) {
+    // @ref LLP 3000.019#3.5 — compare a fresh head only with evidence captured before its request.
+    // A snapshot continuation has no head: even its terminal watermark is
+    // pinned to the first page. Other owners cannot change these request facts.
+    // Legacy callers without capture echoes attest only their request cursor;
+    // never borrow a published cut, private cursor or image head from metadata.
+    let floor = page.captured_watermark.unwrap_or(0)
+        .max(page.captured_restore_watermark.or(page.requested_watermark).unwrap_or(0))
+        .max(page.captured_restore_images_at.unwrap_or(0));
+    let head = if page.snapshot {
+        page.after.is_none().then_some(page.watermark)
+    } else {
+        page.images_at.or((!page.more || page.requested_watermark.is_some_and(|from| page.watermark < from)).then_some(page.watermark))
+    };
+    if same_identity && head.is_some_and(|head| head < floor) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }
     // A halt belongs to the incarnation, even when rows are cleared, a
@@ -120,6 +118,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     // Healthy but obsolete evidence authorizes neither a send nor adoption.
     // Check after the captured restore proof: a private advance cannot erase
     // a restore already demonstrated against the older request's own evidence.
+    let transfer = restore_cursor(tx)?.unwrap_or(watermark);
     let captured_progress = page.captured_restore_watermark;
     let images_at = restore_images_at(tx)?;
     if !publish_first && (captured_progress.is_some_and(|cut| cut != transfer)
@@ -178,7 +177,7 @@ impl<S: DeviceStore> Device<S> {
     /// or acquiring pages. A replacement is durable even if acquisition fails.
     pub fn observe_store(&mut self, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
         let tx = self.store.transaction()?;
-        let mut observed = match observe(&tx, page, false) {
+        let mut observed = match observe(&tx, page, false, self.snapshot_owner.as_deref()) {
             Ok(observed) => observed,
             Err(error) => { tx.rollback()?; let _ = self.reject_sync_capture(page); return Err(error); }
         };

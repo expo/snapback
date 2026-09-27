@@ -640,7 +640,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
           adoptionCapture = observation.adoption_capture;
-          backendRequired = !!observation.backend_required;
+          // Observation reports shared metadata; keep this interpreter's adoption requirement.
+          backendRequired ||= !!observation.backend_required;
           if (observation.reset) {
             // call() already invalidated the retired incarnation synchronously.
             // Discard this round's old cursors before inspecting the new store.

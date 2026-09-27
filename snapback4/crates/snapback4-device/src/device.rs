@@ -707,7 +707,7 @@ impl<S: DeviceStore> Device<S> {
 
     fn apply_publication_inner(&mut self, page: &StreamPage, first: bool) -> Result<(Vec<String>, bool), RuntimeError> {
         let tx = self.store.transaction()?;
-        let observed = store_identity::observe(&tx, page, false)?;
+        let observed = store_identity::observe(&tx, page, false, self.snapshot_owner.as_deref())?;
         if observed.restore_refused {
             tx.commit()?;
             return Err(store_identity::restore_error());
@@ -816,7 +816,7 @@ impl<S: DeviceStore> Device<S> {
         }
         // Only publication promotes the first authenticated identity/revision.
         // Resolve it before consuming the slot, including an omitted page id.
-        store_identity::observe(&tx, page, true)?;
+        store_identity::observe(&tx, page, true, self.snapshot_owner.as_deref())?;
         let owner_store = tx.meta(STORE_ID)?;
         let mut acknowledgements = page.acknowledged.clone();
         if replacing {

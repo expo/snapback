@@ -218,10 +218,10 @@ fn upgrade_restore<H: Host>(h: &mut H) {
 #[test] fn media_upgrade_restore_memory() { upgrade_restore(&mut Memory::new()); }
 #[test] fn media_upgrade_restore_sqlite() { upgrade_restore(&mut Sqlite::new("media-upgrade-restore")); }
 
-// @ref LLP 3000.019#3.5 — B's publication can overtake A's pinned continuation.
-fn overtaken_snapshot<H: Host>(h: &mut H) {
-    for terminal in [false, true] {
-        let name = format!("overtaken-{terminal}");
+// @ref LLP 3000.019#3.5 — staged or published progress can supersede a pinned continuation.
+fn overtaken_snapshot<H: Host>(h: &mut H, staged: bool) {
+    for terminal in [true, false] {
+        let name = format!("overtaken-{staged}-{terminal}");
         let schema = "table notes:\n  body: text\n  public 'snapshot owners'\n  sync\nquery all():\n  return notes first 10 by byId\n";
         let (mut engine, backend) = compile(schema);
         engine.seed((0..4).map(|n| ("notes".into(), snapback4_core::value::object([
@@ -237,7 +237,7 @@ fn overtaken_snapshot<H: Host>(h: &mut H) {
         let mut a = h.open(&name, Some(backend.clone())).unwrap();
         a.apply(&first, true).unwrap();
         assert!(!a.sync_state_read().unwrap().acquired);
-        // Persist A's staging, then let B publish to the same named device.
+        // Persist A's staging, then let B stage or publish in the same device.
         // Memory owners exchange commits through their persistence host.
         h.close(&name, a);
         engine.seed([("notes".into(), snapback4_core::value::object([
@@ -246,14 +246,18 @@ fn overtaken_snapshot<H: Host>(h: &mut H) {
         let mut b = h.open(&name, None).unwrap();
         for (n, mut page) in snapshot_pages(&mut engine, "alice", 100).into_iter().enumerate() {
             page.store_id = Some(store_id.clone());
+            page.stage_snapshot = staged;
             b.apply(&page, n == 0).unwrap();
         }
-        assert_eq!(b.sync_state_read().unwrap().watermark, 2);
-        assert!(b.sync_state_read().unwrap().acquired);
+        let published = if staged { 0 } else { 2 };
+        assert_eq!(b.sync_state_read().unwrap().watermark, published);
+        assert_eq!(b.sync_state_read().unwrap().acquired, !staged);
         h.close(&name, b);
         let mut a = h.open(&name, None).unwrap();
         let capture = a.sync_state().unwrap();
-        assert_eq!(capture.watermark, 2, "capture happens AFTER B published");
+        assert_eq!(capture.watermark, published, "capture happens AFTER B advances");
+        assert_eq!(capture.restore_watermark, 2);
+        if staged { assert_eq!(capture.restore_images_at, 2); }
         let page = engine.snapshot_acquisition_page_at("alice", Some(&after), if terminal { 100 } else { 1 }, 1).unwrap();
         assert_eq!(page.watermark, 1, "the real server continuation pins A's first cut");
         assert_eq!(page.next.is_none(), terminal);
@@ -268,18 +272,50 @@ fn overtaken_snapshot<H: Host>(h: &mut H) {
         assert_eq!(a.observe_store(&continuation).unwrap_err().refusal().code, "E_GENERATION");
         assert_eq!(a.apply(&continuation, false).unwrap_err().refusal().code, "E_GENERATION");
         let state = a.sync_state_read().unwrap();
-        assert_eq!(state.watermark, 2);
+        assert_eq!(state.watermark, published);
         assert!(state.restore_refusal.is_none());
-        assert!(state.acquired);
-        assert_eq!(a.query("all", "alice", &json!({}), 1).unwrap().data.as_array().unwrap().len(), 5);
+        assert_eq!(state.acquired, !staged);
+        if !staged { assert_eq!(a.query("all", "alice", &json!({}), 1).unwrap().data.as_array().unwrap().len(), 5); }
         h.close(&name, a);
         let mut reopened = h.open(&name, None).unwrap();
         assert!(reopened.sync_state_read().unwrap().restore_refusal.is_none(), "no durable halt");
+        if staged {
+            for (n, mut page) in snapshot_pages(&mut engine, "alice", 100).into_iter().enumerate() {
+                page.store_id = Some(store_id.clone());
+                reopened.apply(&page, n == 0).unwrap();
+            }
+        }
         assert_eq!(reopened.query("all", "alice", &json!({}), 1).unwrap().data.as_array().unwrap().len(), 5);
         let healthy = stream_page(&mut engine, "alice", 2);
         reopened.apply(&healthy, false).unwrap();
         h.close(&name, reopened);
     }
 }
-#[test] fn overtaken_snapshot_memory() { overtaken_snapshot(&mut Memory::new()); }
-#[test] fn overtaken_snapshot_sqlite() { overtaken_snapshot(&mut Sqlite::new("overtaken-snapshot")); }
+#[test] fn overtaken_snapshot_memory() { overtaken_snapshot(&mut Memory::new(), false); }
+#[test] fn overtaken_snapshot_sqlite() { overtaken_snapshot(&mut Sqlite::new("overtaken-snapshot"), false); }
+
+#[test] fn staged_overtaken_snapshot_memory() { overtaken_snapshot(&mut Memory::new(), true); }
+#[test] fn staged_overtaken_snapshot_sqlite() { overtaken_snapshot(&mut Sqlite::new("staged-overtaken-snapshot"), true); }
+
+// A legacy response without request evidence cannot borrow another owner's
+// newly published watermark to prove a restore.
+fn uncaptured_snapshot<H: Host>(h: &mut H) {
+    let (_, backend) = compile(&source("[image <=100] <=4 ?"));
+    let mut d = h.open("uncaptured", Some(backend)).unwrap();
+    apply(&mut d, "put", row(json!([facts("a")])), true);
+    apply(&mut d, "put", row(json!([facts("a")])), false);
+    let obsolete: StreamPage = serde_json::from_value(json!({
+        "snapshot":true,"store_id":"media-store","watermark":1,
+        "requested_watermark":0,"more":false,"events":[]
+    })).unwrap();
+    assert_ne!(d.observe_store(&obsolete).err().map(|e| e.refusal().code).as_deref(), Some("E_STORE_RESTORE"));
+    assert_eq!(d.apply(&obsolete, true).unwrap_err().refusal().code, "E_GENERATION");
+    assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
+    h.close("uncaptured", d);
+    let mut d = h.open("uncaptured", None).unwrap();
+    assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
+    assert_eq!(home(&mut d, "a", 1)["row"], "post");
+    h.close("uncaptured", d);
+}
+#[test] fn uncaptured_snapshot_memory() { uncaptured_snapshot(&mut Memory::new()); }
+#[test] fn uncaptured_snapshot_sqlite() { uncaptured_snapshot(&mut Sqlite::new("uncaptured-snapshot")); }

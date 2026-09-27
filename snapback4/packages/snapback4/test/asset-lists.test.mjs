@@ -590,23 +590,24 @@ for (const tier of ["native", "wasm"]) test(`${tier}: a paged upgrade restore ha
 });
 
 // A stays open while B acquires through the same native store. The continuation
-// is requested only after A has captured B's publication, as in Astra's report.
-test("native: initial acquisition rejects an overtaken snapshot continuation without a durable restore halt", { timeout: 40000 }, async t => {
+// is requested only after A captures B's staged or published progress.
+for (const staged of [false, true]) for (const terminal of [false, true]) test(`native: initial acquisition rejects an overtaken ${terminal ? "terminal" : "nonterminal"} snapshot continuation after B ${staged ? "stages" : "publishes"}`, { timeout: 40000 }, async t => {
   const f = await fixture(t);
   const device = processDevice({ binary, dir: join(f.dir, "shared-device") });
-  let core, overtaken = false, continuation, observed, published, offline = false;
+  let core, overtaken = false, continuation, observed, published, advanced, offline = false;
   const options = { url: f.url, persona: "bob", waitSeconds: 1,
     device: { async open(name, backend) {
       core = await device.open(name, backend);
       return { ...core, async call(request) {
         const answer = await core.call(request);
-        if (request.op === "observe_store" && request.page.after && request.page.watermark < published) {
+        if (request.op === "observe_store" && request.page.after && request.page.watermark < advanced) {
           continuation = request.page;
           observed = answer;
         }
         if (request.op === "apply" && request.page.snapshot && request.page.more && !overtaken) {
           assert.ok(answer.ok, JSON.stringify(answer));
           overtaken = true;
+          assert.equal(request.page.watermark, 2);
           assert.equal((await f.alice.mutate(mutation("touch"), { id: f.id })).state, "sent");
           const b = await device.open(name);
           try {
@@ -614,10 +615,15 @@ test("native: initial acquisition rejects an overtaken snapshot continuation wit
             const page = await reply.json();
             assert.equal(page.snapshot, true); assert.equal(page.more, false);
             assert.equal(page.watermark, request.page.watermark + 1);
-            assert.ok((await b.call({ op: "apply", first: true, page })).ok);
+            assert.ok((await b.call({ op: "apply", first: true, page: { ...page, stage_snapshot: staged } })).ok);
             const state = (await b.call({ op: "sync_state", capture: false })).ok;
-            assert.equal(state.acquired, true);
+            assert.equal(state.acquired, !staged);
             published = state.watermark;
+            advanced = page.watermark;
+            assert.equal(advanced, 3);
+            assert.equal(published, staged ? 0 : advanced);
+            assert.equal(state.restore_watermark, advanced);
+            if (staged) assert.equal(state.restore_images_at, advanced);
           } finally { await b.close(); }
         }
         return answer;
@@ -627,8 +633,9 @@ test("native: initial acquisition rejects an overtaken snapshot continuation wit
       if (offline) throw Error("offline");
       if (String(input).endsWith("/sync")) {
         const body = JSON.parse(init.body);
-        // Small real HTTP pages keep A's first continuation nonterminal.
-        if (!overtaken || body.after) body.limit = 1;
+        // One row starts A's snapshot; vary whether its continuation finishes.
+        if (!overtaken) body.limit = 1;
+        else if (body.after) body.limit = terminal ? 100 : 1;
         return fetch(input, { ...init, body: JSON.stringify(body) });
       }
       return fetch(input, init);
@@ -637,18 +644,21 @@ test("native: initial acquisition rejects an overtaken snapshot continuation wit
   const local = await createLocalClient(options); f.clients.push(local);
   await local.sync();
   assert.equal(overtaken, true);
-  assert.ok(continuation, "A requested its old continuation after B published");
-  assert.equal(continuation.more, true);
+  assert.ok(continuation, "A requested its old continuation after B advanced");
+  assert.equal(continuation.more, !terminal);
   assert.equal(continuation.requested_watermark, 0);
   assert.equal(continuation.captured_watermark, published);
-  assert.equal(continuation.captured_restore_watermark, published);
-  assert.equal(continuation.watermark, published - 1);
+  assert.equal(continuation.captured_restore_watermark, advanced);
+  if (staged) assert.equal(continuation.captured_restore_images_at, advanced);
+  assert.equal(continuation.watermark, advanced - 1);
   assert.equal(observed.denied?.code, "E_GENERATION");
   await local.sync();
   const state = (await core.call({ op: "sync_state", capture: false })).ok;
   assert.equal(state.restore_refusal, undefined);
-  assert.notEqual((await local.query(query, {})).denied?.code, "E_STORE_RESTORE");
+  assert.equal(state.backend_required, false, "the open owner adopts the published identity");
+  assert.equal(state.acquired, true);
   offline = true;
+  assert.equal((await local.query(query, {})).data?.[0].caption, "touched", "the still-open owner answers offline");
   await local.close();
   const reopened = await createLocalClient(options); f.clients.push(reopened);
   assert.equal((await reopened.query(query, {})).data[0].caption, "touched");

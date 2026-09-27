@@ -148,7 +148,7 @@ for (const type of ["image/png", "video/mp4"]) test(`native ${type} bytes surviv
   assert.deepEqual(urls.created, [], "native retained files need no Blob URL");
 });
 
-for (const receipt of ["valid", "absent", "malformed"]) test(`once responses with ${receipt} receipts remove stale ordinary bytes without reading or storing the once Blob`, async t => {
+for (const receipt of ["valid", "absent", "malformed", "incomplete"]) test(`once responses with ${receipt} receipts remove stale ordinary bytes without reading or storing the once Blob`, async t => {
   const readers = installReader(t), urls = installUrls(t), files = await deviceFiles(t);
   files.homes.set("photo", home("image/png"));
   const { core, cache } = await files.open();
@@ -160,6 +160,7 @@ for (const receipt of ["valid", "absent", "malformed"]) test(`once responses wit
   const reply = response(once, "none");
   if (receipt === "absent") reply.headers.delete("x-snapback-asset-home");
   if (receipt === "malformed") reply.headers.set("x-snapback-asset-home", "%not-json");
+  if (receipt === "incomplete") reply.headers.set("x-snapback-asset-home", encodeURIComponent(JSON.stringify({ store_id: "old-store" })));
   const result = await fetchAsset("https://assets.invalid", {}, async () => reply, "photo", viewed);
   assert.equal(readers.length, 1, "once bytes must not enter byte extraction");
   assert.deepEqual(files.writes, ["photo"]);
