@@ -68749,3 +68749,63 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+
+## 2026-09-27 — lane SS round 2: profile and reduce 1,000-conversation device work
+
+Merged `origin/main` to `941a3698c` before editing. Profiled the unchanged
+110,088-row/30-response/42-MB fixture first with Node V8 CPU sampling,
+wasm-symbol stacks, JSON/call timers and physical fake-IDB transaction
+instrumentation. Index construction/insertion dominated apply; repeated
+bucket JSON/byte work and text-only media markers inflated persistence.
+
+Reused row images across indexes, grouped memory indexes by namespace,
+kept one old index tree as replacement undo, moved owned values, and omitted
+empty media home markers. Counts stay immediate; terminal publication and
+strict IDB commit remain atomic. Increased the initial page from 4,000 to
+the existing 10,000-row server ceiling, preserving byte refusal/halving.
+Reuse existing bucket JSON byte sizes and exact ASCII byte accounting.
+Added replacement rollback/index equivalence, memory+SQLite optional/nested
+media, and staged-page reopen/terminal persistence fault tests. Distinguished
+membership ids from principals in both self-send fixtures; substituting id
+for principal fails both tests, and restored scalar comparisons pass.
+
+Final Node 1,000 acquisition is **21.854 → 16.324 s memory**, **41.477 →
+21.036 s fake-IDB**: improvements, but the **8/12 s targets are not met**.
+Apply excluding persistence is **16.709 → 11.483 s** and **18.339 → 12.036 s**;
+fake-IDB saves **18.309 → 4.507 s**. Responses **30 → 13**. Diagnostic
+physical IDB work falls **102 → 50 transactions**, **115,000 → 18,570 puts**,
+**1.302 GB → 627 MB** of serialized put bytes. Reports separate diagnostic
+observer overhead from uninstrumented timing and retain per-page profiles.
+
+Added a real Chromium/IndexedDB companion while preserving both existing
+Node witnesses. At 100 conversations browser acquisition **7.336 → 4.186 s**,
+during/after live p95 **2.449/0.729 s** after. At 1,000, **84.898 → 27.327 s**,
+during/after p95 **13.158/0.754 s**, zero final timeouts. The baseline had one
+>31 s timeout among 40 during samples; final has 19, so its p95 selects the
+maximum. Do not confuse that sample-count effect with disappearance of the
+terminal main-thread pause. Final browser acquisition-only JS peaks are
+92.1/186.3 MiB for 100/1,000; wasm heaps 65.4/749.1 MiB. Total replica memory
+cannot be sublinear in independent retained rows, and fake-IDB retains
+completed transaction history. The report includes Node JS/external/RSS and
+browser JS/wasm separately. Real-browser navigation after 9,922 staged rows
+shows zero published rows and acquired=false, then reacquires successfully.
+
+Whole guide **86/86**, affected checks pass (one initial new durability
+fixture omission corrected), principal mutants fail as required. Ran the
+whole `scripts/test.sh` **once**, exact **`== 1 failure(s) in 1285 s`**, exit 1:
+client tests had two stale 4,000-row policy expectations (plus their enclosing
+parent failure), **all lane-owned**. Updated only those expectations and
+reran both affected files, **67/67 pass**. No baseline/environmental suite
+failure. Full Rust **3,910 passed / 24 ignored**; serial client models **78/78**.
+No full rerun. Final wasm **1,981,590 raw / 572,590 gzip**, 251 bytes below the
+unchanged 572,841-byte budget. No source exceeds 1,500 lines.
+
+The detailed file map, commands, full compressed log and measurements are
+in `reports/20260927-ss-sync-scale/ROUND2.md` and its companions. Remaining
+targets are recorded in
+`issues/20260927-snapback4-1000-conversation-acquisition-budget.md`. No new
+syntax/API, auth/expiry/meter weakening, original GS store writes, shared
+path tool installation, push or publication. Binaryen experimentation stayed
+under this worktree's target directory and was not adopted. Local commits
+carry the required co-author trailer.
