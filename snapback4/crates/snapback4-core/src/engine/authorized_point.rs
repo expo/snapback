@@ -44,6 +44,7 @@ impl<'r> Runner<'r> {
             self.meter.heap(crate::rows::word_heap::text(id) + crate::rows::word_heap::slots::<Value>(1))?;
             let key = [Value::Id(id.into())];
             let Some((Some(row),_)) = self.scan_authorized(name,crate::schema::BY_ID,&key,&Default::default(),crate::rows::Dir::Asc,1,true,true,None)?.pop() else { return Ok(None); };
+            self.meter.heap(row.materialization_heap())?;
             let expiry = self.next_expiry.scope();
             let row = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[(MeterKind::RuleProbes,super::rules::rule_probes(&table.rules.read))], |runner,_| {
                 let row = runner.authorize_image(name,row.into_value())?;
@@ -231,6 +232,39 @@ impl<'r> Runner<'r> {
             self.withhold_unheld_card(&read.table);
         } else if self.device && self.schema.maintain_for(&read.table).and_then(|m|m.row_key.as_ref()).is_some_and(|k|self.schema.tables[&k.table].sync.as_ref().is_none_or(|s|s.horizon.is_some())) {
             self.unknown_fact(&read.table, &read.index, key, &read.site);
+        }
+    }
+}
+
+#[cfg(all(test, feature = "sqlite", feature = "server-search"))]
+mod tests {
+    use super::*;
+    use crate::{Context, Schema, rows::{MemoryRows, Rows}, schema::{ColumnDefault, ColumnType, Index}, value::object};
+
+    #[test]
+    fn trusted_search_member_prepays_missing_defaults() {
+        let rows = MemoryRows::new();
+        let mut table = crate::schema::public_table([
+            ("id".into(),ColumnType::Id), ("payload".into(),ColumnType::Text {max:1_000_000}),
+        ].into(),[("byId".into(),Index::of(&["id"],true))].into());
+        table.defaults.insert("payload".into(),ColumnDefault::Literal(Value::String("x".repeat(1_000_000))));
+        // Existing storage can omit a subsequently adopted default. Authority
+        // is public here, so this exercises only its materialization admission.
+        rows.put("records",&table,&object([("id",Value::Id("hit".into()))]),None).unwrap();
+        let schema = Schema { tables:[("records".into(),table)].into(),..Default::default() };
+        for heap in [64 << 10,16 << 20] {
+            let mut runner = Runner::new(&rows,&schema,Context::new("alice",Default::default()),
+                Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
+            let (result,allocated) = crate::rows::word_heap::tests::measured(||runner.authorized_member("records","hit",true));
+            eprintln!("heap={heap}: allocated={allocated}, peak={}",runner.meter.heap_peak);
+            if heap == 64 << 10 {
+                assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"{result:?}");
+                assert!(allocated < 64 << 10,"refused before copying the million-byte default: allocated={allocated}");
+            } else {
+                let row = result.unwrap().unwrap();
+                assert_eq!(row.field("payload").unwrap().as_str().unwrap().len(),1_000_000);
+                assert!(allocated <= runner.meter.heap_peak,"allocated={allocated}, peak={}",runner.meter.heap_peak);
+            }
         }
     }
 }

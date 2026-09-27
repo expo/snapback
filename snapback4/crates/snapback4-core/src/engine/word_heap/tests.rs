@@ -39,7 +39,7 @@ unsafe impl std::alloc::GlobalAlloc for CountingAllocator {
     }
 }
 #[global_allocator] static ALLOCATOR: CountingAllocator = CountingAllocator;
-fn measured<T>(f: impl FnOnce() -> T) -> (T, u64) {
+pub(crate) fn measured<T>(f: impl FnOnce() -> T) -> (T, u64) {
     ALLOCATED.with(|n| n.set(Some(0)));
     let value = f();
     let bytes = ALLOCATED.with(|n| n.replace(None).unwrap());
