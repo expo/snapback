@@ -1,0 +1,6364 @@
+{
+  "mergeCommit": "47ea5918b",
+  "host": "expo-build-1000; Linux x86_64; shared 96-core host",
+  "notes": [
+    "Memory/IndexedDB-shaped are Node SDK + wasm; IDB is fake-indexeddb 6.2.5, not browser or disk evidence.",
+    "Cadence trials use an isolated built-package copy with 100 ms instead of 250 ms; production is unchanged.",
+    "Peak heap is sampled heapUsed; external includes wasm. GC checkpoints after close are separate from peak timing.",
+    "SS_FAKE_RECLAIM is a diagnostic control removing only finished fake transactions after each save; not a production SDK fix.",
+    "Full-suite compilation overlaps the diagnostic experiments. Raw payloads remain under target/lane-ss-round1.",
+    "heap-final runs put acquisition in a completed async function so its lexical locals are released before post-close GC; earlier heap runs are retained as exploratory evidence."
+  ],
+  "duringSummary": {
+    "during-memory": {
+      "trials": 4,
+      "samples": 33,
+      "p95Ms": 1118.912942,
+      "maxMs": 1241.5039459999998
+    },
+    "during-idb": {
+      "trials": 4,
+      "samples": 31,
+      "p95Ms": 1398.2950079999998,
+      "maxMs": 1489.644618
+    },
+    "cadence-memory": {
+      "trials": 4,
+      "samples": 28,
+      "p95Ms": 1157.752725,
+      "maxMs": 1159.331348
+    },
+    "cadence-idb": {
+      "trials": 4,
+      "samples": 31,
+      "p95Ms": 1565.9478579999995,
+      "maxMs": 1805.3131660000004
+    }
+  },
+  "runs": {
+    "during-idb-1": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2741.235967,
+      "loginMs": 36.867039,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 89030992,
+      "peakHeap": 138947792,
+      "peakExternal": 114794720,
+      "peakRss": 431648768,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-idb-1.json",
+      "rawSha256": "f486773bb4f886eaf49f9db273ba4bf053c8f13f39483e789aaed37d52a24900",
+      "live": [
+        {
+          "phase": "during",
+          "at": 496.036898,
+          "ms": 19.786157000000003,
+          "commitMs": 8.32221400000003,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 521.18375,
+          "ms": 155.87444700000003,
+          "commitMs": 45.69899799999996,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 681.264361,
+          "ms": 144.44752000000005,
+          "commitMs": 32.879673000000025,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 826.965359,
+          "ms": 220.42627200000004,
+          "commitMs": 51.16224599999998,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1049.702865,
+          "ms": 256.66036299999996,
+          "commitMs": 14.577980999999909,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1308.723736,
+          "ms": 318.15050900000006,
+          "commitMs": 17.71359099999995,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1630.164687,
+          "ms": 254.80792500000007,
+          "commitMs": 14.840494000000035,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1889.2777549999998,
+          "ms": 1393.0288410000003,
+          "commitMs": 21.42123800000013,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 499.798617,
+          "ms": 33.19593599999996,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 666.5233870000001,
+          "ms": 26.579519000000005,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 815.846714,
+          "ms": 31.379282999999987,
+          "rows": 3901,
+          "bytes": 1368106,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1038.746473,
+          "ms": 371.1746559999999,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1614.405996,
+          "ms": 374.78970400000003,
+          "rows": 312,
+          "bytes": 77063,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 18.21925899999985,
+          "maxMs": 11.350612999999612,
+          "persistenceMs": 12.659494999999765
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.8830840000000535,
+          "maxMs": 0.6305650000000469,
+          "persistenceMs": 0.918997000000104
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.4123299999999972,
+          "maxMs": 0.16652000000010503,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 3.4565970000002153,
+          "maxMs": 0.9069990000000416,
+          "persistenceMs": 1.195311999999717
+        },
+        "set_meta": {
+          "calls": 17,
+          "totalMs": 416.6632669999999,
+          "maxMs": 294.32733099999996,
+          "persistenceMs": 337.7968859999994
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10010999999997239,
+          "maxMs": 0.10010999999997239,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 62.05569300000013,
+          "maxMs": 42.88644199999999,
+          "persistenceMs": 0.3009809999997515
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 93.82884800000011,
+          "maxMs": 29.565205000000105,
+          "persistenceMs": 3.2009879999998248
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1255.8002900000001,
+          "maxMs": 747.8631450000003,
+          "persistenceMs": 469.72628199999974
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1992.1580609999999,
+        "ms": 747.8631450000003,
+        "persistenceMs": 238.0627169999998
+      },
+      "largestEventLoopGap": {
+        "at": 1985.63968,
+        "ms": 471.338839
+      }
+    },
+    "during-idb-2": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2824.699723,
+      "loginMs": 38.95416800000001,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 87627384,
+      "peakHeap": 137200184,
+      "peakExternal": 114769658,
+      "peakRss": 445526016,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-idb-2.json",
+      "rawSha256": "6d32a66dfb1e15ffa0d9e020b6bc9335b0488db69b9856749c13f8cbca68f0d0",
+      "live": [
+        {
+          "phase": "during",
+          "at": 511.650282,
+          "ms": 180.80256099999997,
+          "commitMs": 12.175599000000034,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 692.677249,
+          "ms": 145.20829000000003,
+          "commitMs": 33.70657200000005,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 838.01348,
+          "ms": 221.6334119999999,
+          "commitMs": 6.292462,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1061.015243,
+          "ms": 257.624728,
+          "commitMs": 16.327252000000044,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1320.872037,
+          "ms": 311.73919899999987,
+          "commitMs": 15.978630000000067,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1633.328261,
+          "ms": 258.710376,
+          "commitMs": 15.324769999999944,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1895.3068150000001,
+          "ms": 1489.644618,
+          "commitMs": 17.166119999999864,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 515.504028,
+          "ms": 33.06608200000005,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 682.7429179999999,
+          "ms": 22.476440000000025,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 828.9488839999999,
+          "ms": 31.72261800000001,
+          "rows": 3901,
+          "bytes": 1368141,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1050.6054000000001,
+          "ms": 379.32472199999984,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1618.293155,
+          "ms": 384.600099,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 19.756303999999886,
+          "maxMs": 12.716129999999794,
+          "persistenceMs": 14.281459000000154
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.87996899999996,
+          "maxMs": 0.6385669999999664,
+          "persistenceMs": 0.9522969999999304
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.4024529999999231,
+          "maxMs": 0.16517799999996896,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 3.3593239999999014,
+          "maxMs": 0.9690319999999701,
+          "persistenceMs": 1.2568049999997584
+        },
+        "set_meta": {
+          "calls": 18,
+          "totalMs": 466.21192399999995,
+          "maxMs": 341.15289699999994,
+          "persistenceMs": 390.3195440000004
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10151199999995697,
+          "maxMs": 0.10151199999995697,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 72.09635399999922,
+          "maxMs": 47.330071999999745,
+          "persistenceMs": 0.2991190000001325
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 83.63709199999971,
+          "maxMs": 24.657869000000005,
+          "persistenceMs": 2.406827000000476
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1316.8712099999998,
+          "maxMs": 802.8707260000001,
+          "persistenceMs": 520.9892590000003
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2008.336643,
+        "ms": 802.8707260000001,
+        "persistenceMs": 284.3164160000001
+      },
+      "largestEventLoopGap": {
+        "at": 2007.7679710000002,
+        "ms": 474.73687299999983
+      }
+    },
+    "during-idb-3": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2820.556908,
+      "loginMs": 39.12410199999999,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 88826992,
+      "peakHeap": 183880000,
+      "peakExternal": 114769062,
+      "peakRss": 435011584,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-idb-3.json",
+      "rawSha256": "8c359f03e332db690f8cc5ed48c1b2a5f0b0154cf7e4024532323a5db97a5ae5",
+      "live": [
+        {
+          "phase": "during",
+          "at": 539.3512029999999,
+          "ms": 18.69003399999997,
+          "commitMs": 11.42696699999999,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 561.395194,
+          "ms": 167.90757299999996,
+          "commitMs": 10.190093000000047,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 729.432742,
+          "ms": 148.94216600000004,
+          "commitMs": 5.994964999999979,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 878.561238,
+          "ms": 224.96682799999996,
+          "commitMs": 20.48242999999991,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1103.732442,
+          "ms": 259.8571750000001,
+          "commitMs": 18.188282000000072,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1367.930984,
+          "ms": 338.845239,
+          "commitMs": 18.784286000000066,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1709.5638310000002,
+          "ms": 255.97629799999982,
+          "commitMs": 15.912510999999995,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1968.0161,
+          "ms": 1398.2950079999998,
+          "commitMs": 24.22747400000003,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 546.108491,
+          "ms": 34.89257999999995,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 720.587464,
+          "ms": 20.651163999999994,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 869.6381429999999,
+          "ms": 32.1309500000001,
+          "rows": 3901,
+          "bytes": 1368181,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1094.2573200000002,
+          "ms": 383.5575469999999,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1694.840653,
+          "ms": 375.777836,
+          "rows": 312,
+          "bytes": 77063,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 15.26589300000012,
+          "maxMs": 7.624909000000116,
+          "persistenceMs": 9.01193899999987
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 3.9026190000000724,
+          "maxMs": 3.538444000000027,
+          "persistenceMs": 3.832074000000034
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.587921999999935,
+          "maxMs": 0.2599199999999655,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 3.7584850000000642,
+          "maxMs": 0.9563429999999471,
+          "persistenceMs": 1.280828000000156
+        },
+        "set_meta": {
+          "calls": 17,
+          "totalMs": 434.8329359999998,
+          "maxMs": 284.3244789999999,
+          "persistenceMs": 331.5338499999997
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.13284900000007838,
+          "maxMs": 0.13284900000007838,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 63.56651899999997,
+          "maxMs": 44.77035500000011,
+          "persistenceMs": 0.2948430000001281
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 97.78300499999978,
+          "maxMs": 32.49562700000001,
+          "persistenceMs": 1.9785250000001042
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1264.9775710000001,
+          "maxMs": 743.8037039999999,
+          "persistenceMs": 465.1291730000004
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2073.760458,
+        "ms": 743.8037039999999,
+        "persistenceMs": 232.7846370000002
+      },
+      "largestEventLoopGap": {
+        "at": 2064.886627,
+        "ms": 475.8852960000004
+      }
+    },
+    "during-idb-4": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2739.924184,
+      "loginMs": 42.32626200000001,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 87604416,
+      "peakHeap": 175533144,
+      "peakExternal": 114820448,
+      "peakRss": 442601472,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-idb-4.json",
+      "rawSha256": "29f78b714f9bccbacc666c1c490995b7cbdc85c6687f65df10cce3873abc9b63",
+      "live": [
+        {
+          "phase": "during",
+          "at": 479.52068499999996,
+          "ms": 15.32146499999999,
+          "commitMs": 9.485037000000034,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 500.197327,
+          "ms": 170.28505700000005,
+          "commitMs": 54.82522600000004,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 674.724322,
+          "ms": 145.237975,
+          "commitMs": 30.35479799999996,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 820.143719,
+          "ms": 217.0279989999999,
+          "commitMs": 17.79190799999992,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1038.4305450000002,
+          "ms": 259.391157,
+          "commitMs": 21.47706100000005,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1299.1499620000002,
+          "ms": 331.34664,
+          "commitMs": 25.42906599999992,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1632.333075,
+          "ms": 258.94469700000013,
+          "commitMs": 10.516693000000032,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1893.689998,
+          "ms": 1375.0684259999998,
+          "commitMs": 9.786759000000075,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 483.33250799999996,
+          "ms": 34.03998200000001,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 660.6025549999999,
+          "ms": 21.983430999999996,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 810.149108,
+          "ms": 32.305953000000045,
+          "rows": 3901,
+          "bytes": 1368221,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1027.653311,
+          "ms": 378.38268100000005,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1618.004347,
+          "ms": 374.51703699999985,
+          "rows": 312,
+          "bytes": 77063,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 13.802747999999383,
+          "maxMs": 6.6995319999996354,
+          "persistenceMs": 8.146921999999904
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.8955919999999651,
+          "maxMs": 0.6471500000000106,
+          "persistenceMs": 0.9619020000000091
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.3879890000001751,
+          "maxMs": 0.15978900000004614,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 3.834840000000213,
+          "maxMs": 0.8872690000000603,
+          "persistenceMs": 1.360700999999949
+        },
+        "set_meta": {
+          "calls": 17,
+          "totalMs": 421.3377229999992,
+          "maxMs": 285.8526589999997,
+          "persistenceMs": 328.31972499999983
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09554300000002058,
+          "maxMs": 0.09554300000002058,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 62.27887700000031,
+          "maxMs": 42.675655000000006,
+          "persistenceMs": 0.3653070000002572
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 103.56258699999967,
+          "maxMs": 32.35162100000002,
+          "persistenceMs": 2.982260000000224
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1256.7040619999998,
+          "maxMs": 749.3237989999998,
+          "persistenceMs": 462.62321899999995
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1995.6395180000002,
+        "ms": 749.3237989999998,
+        "persistenceMs": 233.31964900000003
+      },
+      "largestEventLoopGap": {
+        "at": 1977.905547,
+        "ms": 487.54743599999983
+      }
+    },
+    "during-memory-1": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 3978.333081,
+      "loginMs": 48.312434,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 72054936,
+      "peakHeap": 132347728,
+      "peakExternal": 114199142,
+      "peakRss": 367165440,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-memory-1.json",
+      "rawSha256": "cbc55c6e5a05921e82d21d407d3a878c3d807fb446ac7e04f548e06507cf1b34",
+      "live": [
+        {
+          "phase": "during",
+          "at": 529.724729,
+          "ms": 278.028499,
+          "commitMs": 17.259779999999978,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 808.1550400000001,
+          "ms": 253.66224699999987,
+          "commitMs": 16.739980999999943,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1063.134211,
+          "ms": 115.02781199999981,
+          "commitMs": 17.81372999999985,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1179.436403,
+          "ms": 361.4258500000001,
+          "commitMs": 16.483036000000084,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1546.317991,
+          "ms": 252.255498,
+          "commitMs": 7.833842000000004,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1800.019667,
+          "ms": 258.117886,
+          "commitMs": 22.57635899999991,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2060.678792,
+          "ms": 256.05606499999976,
+          "commitMs": 25.920590999999604,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2318.015877,
+          "ms": 256.8929390000003,
+          "commitMs": 9.162854000000152,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2578.213319,
+          "ms": 163.2945279999999,
+          "commitMs": 29.681669000000056,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2746.1591789999998,
+          "ms": 253.95595700000013,
+          "commitMs": 8.292539000000033,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 3003.55382,
+          "ms": 256.62966499999993,
+          "commitMs": 20.25003199999992,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 3260.542724,
+          "ms": 1241.5039459999998,
+          "commitMs": 27.856483000000026,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 532.914389,
+          "ms": 357.683452,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1051.461224,
+          "ms": 41.06021400000009,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1167.96603,
+          "ms": 221.17483199999992,
+          "rows": 3901,
+          "bytes": 1367941,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1532.7937,
+          "ms": 1079.0344539999999,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 2733.753825,
+          "ms": 735.7218930000004,
+          "rows": 468,
+          "bytes": 115499,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 5.900854999999751,
+          "maxMs": 2.8451450000000023,
+          "persistenceMs": 0.04317299999979696
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.32805100000007315,
+          "maxMs": 0.15805699999998524,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.40120299999989584,
+          "maxMs": 0.13427200000000994,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 51,
+          "totalMs": 3.426270000000045,
+          "maxMs": 0.8349419999999554,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 21,
+          "totalMs": 3.691154999999412,
+          "maxMs": 0.572497999999996,
+          "persistenceMs": 0.28930200000138484
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09830699999997705,
+          "maxMs": 0.09830699999997705,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 13,
+          "totalMs": 34.99291000000039,
+          "maxMs": 30.952534000000014,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 129.56471100000044,
+          "maxMs": 48.370942000000014,
+          "persistenceMs": 0.1371169999997619
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 833.0733000000001,
+          "maxMs": 546.08356,
+          "persistenceMs": 15.687343999999484
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 3477.5361589999998,
+        "ms": 546.08356,
+        "persistenceMs": 11.67286699999977
+      },
+      "largestEventLoopGap": {
+        "at": 3460.382708,
+        "ms": 628.0568969999995
+      }
+    },
+    "during-memory-2": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2322.01121,
+      "loginMs": 39.95701,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 72797256,
+      "peakHeap": 132577616,
+      "peakExternal": 113913002,
+      "peakRss": 377634816,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-memory-2.json",
+      "rawSha256": "7e7ce9671b2f95051b4c3428f0c7381a2910ea9b3e0a33e3c2cbe28d2cc8201c",
+      "live": [
+        {
+          "phase": "during",
+          "at": 531.513792,
+          "ms": 161.19845600000008,
+          "commitMs": 17.409084000000007,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 692.928542,
+          "ms": 95.52081399999997,
+          "commitMs": 88.89014499999996,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 791.726578,
+          "ms": 177.15153800000007,
+          "commitMs": 15.985018999999966,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 973.855616,
+          "ms": 254.8743649999999,
+          "commitMs": 7.715163999999959,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1232.0387,
+          "ms": 229.426471,
+          "commitMs": 12.835348999999951,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1461.670429,
+          "ms": 260.23791400000005,
+          "commitMs": 17.00861400000008,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1725.448589,
+          "ms": 1102.805025,
+          "commitMs": 16.012399999999843,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 534.684104,
+          "ms": 36.956372999999985,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 681.43167,
+          "ms": 23.77767999999992,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 780.125529,
+          "ms": 38.05990699999995,
+          "rows": 3901,
+          "bytes": 1367996,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 953.942178,
+          "ms": 373.244367,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1451.185664,
+          "ms": 368.992483,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 6.102457999999956,
+          "maxMs": 2.856492000000003,
+          "persistenceMs": 0.036653999999884945
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.35918999999989865,
+          "maxMs": 0.1515079999999216,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.37075499999991735,
+          "maxMs": 0.1226729999999634,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.3342130000002044,
+          "maxMs": 0.8151520000000119,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 14,
+          "totalMs": 2.3971039999995583,
+          "maxMs": 0.5668299999999817,
+          "persistenceMs": 0.19599300000061248
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10454700000002504,
+          "maxMs": 0.10454700000002504,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 27.900199000000043,
+          "maxMs": 24.3278949999999,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 105.77443199999993,
+          "maxMs": 32.597579999999994,
+          "persistenceMs": 0.05295900000010079
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 809.217404,
+          "maxMs": 533.1767049999999,
+          "persistenceMs": 15.62502900000004
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1825.188096,
+        "ms": 533.1767049999999,
+        "persistenceMs": 11.738154000000122
+      },
+      "largestEventLoopGap": {
+        "at": 1816.291891,
+        "ms": 599.470491
+      }
+    },
+    "during-memory-3": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2240.155462,
+      "loginMs": 38.420978,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 73114432,
+      "peakHeap": 132611008,
+      "peakExternal": 113847571,
+      "peakRss": 391462912,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-memory-3.json",
+      "rawSha256": "7cbf9984618cba442f9ed0a569cf1c209a7aad4b3414472732d524e8986c746e",
+      "live": [
+        {
+          "phase": "during",
+          "at": 489.54696,
+          "ms": 161.34637799999996,
+          "commitMs": 18.01487199999997,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 653.2480069999999,
+          "ms": 95.625,
+          "commitMs": 87.24262600000009,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 751.3228389999999,
+          "ms": 158.5593100000001,
+          "commitMs": 14.620394000000033,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 913.6645689999999,
+          "ms": 254.9296270000001,
+          "commitMs": 11.828619000000003,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1172.03939,
+          "ms": 198.866356,
+          "commitMs": 12.70328100000006,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1373.140976,
+          "ms": 258.0767450000001,
+          "commitMs": 14.971291000000065,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1634.772629,
+          "ms": 1092.650727,
+          "commitMs": 12.27343699999983,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 492.86470299999996,
+          "ms": 37.51680299999998,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 640.8833539999999,
+          "ms": 22.574567000000002,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 738.69423,
+          "ms": 37.27840600000002,
+          "rows": 3901,
+          "bytes": 1368031,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 895.908294,
+          "ms": 372.2411129999999,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1361.624254,
+          "ms": 371.41175999999996,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 6.2744029999996656,
+          "maxMs": 2.9976930000000266,
+          "persistenceMs": 0.04612800000018069
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3771550000000161,
+          "maxMs": 0.16466700000000856,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.5901040000001103,
+          "maxMs": 0.3097450000000208,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.6260719999999083,
+          "maxMs": 0.8705750000000307,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 14,
+          "totalMs": 2.62878099999989,
+          "maxMs": 0.615273000000002,
+          "persistenceMs": 0.20027999999956592
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10462700000005043,
+          "maxMs": 0.10462700000005043,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 28.43644200000017,
+          "maxMs": 24.7595409999999,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 82.5198650000001,
+          "maxMs": 24.91906000000006,
+          "persistenceMs": 0.057015999999975975
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 809.9139999999996,
+          "maxMs": 533.5977159999998,
+          "persistenceMs": 16.41317200000026
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1738.002819,
+        "ms": 533.5977159999998,
+        "persistenceMs": 12.419295000000147
+      },
+      "largestEventLoopGap": {
+        "at": 1724.882423,
+        "ms": 605.2962129999999
+      }
+    },
+    "during-memory-4": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2300.72385,
+      "loginMs": 46.46813900000001,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 73103040,
+      "peakHeap": 182036872,
+      "peakExternal": 113847676,
+      "peakRss": 358809600,
+      "liveP95": null,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/during-memory-4.json",
+      "rawSha256": "ae44e773a1c38e40f721942ff52d43e901c15e5058761e03333f89473b991914",
+      "live": [
+        {
+          "phase": "during",
+          "at": 547.943399,
+          "ms": 157.89118899999994,
+          "commitMs": 21.086546,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 708.152913,
+          "ms": 93.27870299999995,
+          "commitMs": 85.86668299999997,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 804.664081,
+          "ms": 155.086235,
+          "commitMs": 18.725626999999918,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 963.439095,
+          "ms": 256.45940099999996,
+          "commitMs": 12.885182999999984,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1220.424534,
+          "ms": 211.3041290000001,
+          "commitMs": 19.171786999999995,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1433.970553,
+          "ms": 255.63141999999993,
+          "commitMs": 14.751471000000038,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1689.8424340000001,
+          "ms": 1118.912942,
+          "commitMs": 11.416441999999961,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 551.4446969999999,
+          "ms": 35.23508300000003,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 695.15496,
+          "ms": 22.79752099999996,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 792.309323,
+          "ms": 37.81533999999999,
+          "rows": 3901,
+          "bytes": 1368066,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 947.321297,
+          "ms": 377.7253529999999,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1422.183696,
+          "ms": 381.10953700000005,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 6.29925100000014,
+          "maxMs": 3.261848999999984,
+          "persistenceMs": 0.03504299999997329
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.4064090000000533,
+          "maxMs": 0.15850799999998344,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.40039999999999054,
+          "maxMs": 0.1449479999999994,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.4193199999997432,
+          "maxMs": 0.8991169999999329,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 16,
+          "totalMs": 2.6386650000005147,
+          "maxMs": 0.6053170000000136,
+          "persistenceMs": 0.17434199999945577
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.1057580000000371,
+          "maxMs": 0.1057580000000371,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 27.88263099999972,
+          "maxMs": 24.418229999999767,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 82.49279600000011,
+          "maxMs": 24.17992300000003,
+          "persistenceMs": 0.08728000000007796
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 808.9559949999999,
+          "maxMs": 533.115084,
+          "persistenceMs": 16.644316000000572
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1809.4470660000002,
+        "ms": 533.115084,
+        "persistenceMs": 12.646265000000312
+      },
+      "largestEventLoopGap": {
+        "at": 1784.073855,
+        "ms": 615.0698339999999
+      }
+    },
+    "cadence-idb-1": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2848.177376,
+      "loginMs": 46.45261,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 87463176,
+      "peakHeap": 167952040,
+      "peakExternal": 114630562,
+      "peakRss": 460423168,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-idb-1.json",
+      "rawSha256": "815eca5128b2a30208af3fdf05647064603cf123568fd16b808d23c72826241e",
+      "live": [
+        {
+          "phase": "during",
+          "at": 515.939393,
+          "ms": 184.693038,
+          "commitMs": 12.936722000000032,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 704.910193,
+          "ms": 146.71489999999994,
+          "commitMs": 76.79731599999991,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 851.837802,
+          "ms": 226.28446100000008,
+          "commitMs": 18.960249999999974,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1078.9909249999998,
+          "ms": 258.568945,
+          "commitMs": 19.965728000000126,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1344.0431979999998,
+          "ms": 351.6373000000001,
+          "commitMs": 15.928816999999981,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1697.507247,
+          "ms": 255.681065,
+          "commitMs": 26.76982699999985,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1957.465874,
+          "ms": 1456.2032719999997,
+          "commitMs": 22.898664999999937,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 520.228662,
+          "ms": 32.60125800000003,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 690.5144740000001,
+          "ms": 21.845264999999927,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 842.220816,
+          "ms": 30.578125999999997,
+          "rows": 3901,
+          "bytes": 1368396,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1068.132118,
+          "ms": 388.3414579999999,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1682.9290549999998,
+          "ms": 378.480147,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 9.498376999999891,
+          "maxMs": 3.1439530000000104,
+          "persistenceMs": 3.560394999999744
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 1.1092120000000705,
+          "maxMs": 0.8192970000000059,
+          "persistenceMs": 1.1295229999999492
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.4379949999998871,
+          "maxMs": 0.17388999999991483,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 3.731224000000225,
+          "maxMs": 0.9958730000000742,
+          "persistenceMs": 1.2218930000001365
+        },
+        "set_meta": {
+          "calls": 17,
+          "totalMs": 433.3147829999996,
+          "maxMs": 276.60203599999977,
+          "persistenceMs": 327.21968899999933
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10897299999999177,
+          "maxMs": 0.10897299999999177,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 62.19125099999951,
+          "maxMs": 42.76885899999979,
+          "persistenceMs": 0.3261169999998401
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 100.01741300000026,
+          "maxMs": 33.88381099999992,
+          "persistenceMs": 2.435520999999653
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1321.7844829999995,
+          "maxMs": 795.9040689999997,
+          "persistenceMs": 470.05885899999987
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2067.017929,
+        "ms": 795.9040689999997,
+        "persistenceMs": 228.998419
+      },
+      "largestEventLoopGap": {
+        "at": 2047.8923299999997,
+        "ms": 540.1571740000004
+      }
+    },
+    "cadence-idb-2": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 3247.039068,
+      "loginMs": 39.39911800000001,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 87432584,
+      "peakHeap": 169077904,
+      "peakExternal": 114722831,
+      "peakRss": 438591488,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-idb-2.json",
+      "rawSha256": "4fc1bb22af457fff177609dc353db84d3c7ab94113ffa21edd50a0ad23141a1f",
+      "live": [
+        {
+          "phase": "during",
+          "at": 531.4468380000001,
+          "ms": 15.531010000000038,
+          "commitMs": 9.044276999999965,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 551.426757,
+          "ms": 177.58263,
+          "commitMs": 54.00439099999994,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 732.238016,
+          "ms": 153.79358100000002,
+          "commitMs": 79.78056800000002,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 886.4159030000001,
+          "ms": 218.55617699999993,
+          "commitMs": 16.049146999999948,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1105.187503,
+          "ms": 259.605779,
+          "commitMs": 24.30902900000001,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1370.039286,
+          "ms": 389.0974520000002,
+          "commitMs": 20.734009000000015,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1762.759618,
+          "ms": 257.9844489999998,
+          "commitMs": 30.787268999999924,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2021.0295549999998,
+          "ms": 1805.3131660000004,
+          "commitMs": 9.333581000000322,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 535.4589920000001,
+          "ms": 33.79232300000001,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 718.393454,
+          "ms": 22.668389000000047,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 875.467582,
+          "ms": 31.053538000000003,
+          "rows": 3901,
+          "bytes": 1368436,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1096.159731,
+          "ms": 383.60801400000014,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1740.476697,
+          "ms": 484.3971829999998,
+          "rows": 312,
+          "bytes": 77063,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 9.767051000000151,
+          "maxMs": 2.901038999999969,
+          "persistenceMs": 3.9189670000001797
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.944646000000148,
+          "maxMs": 0.6738000000000284,
+          "persistenceMs": 0.9856270000000222
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.4121980000002168,
+          "maxMs": 0.1649480000000949,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 4.3278739999996105,
+          "maxMs": 0.9491720000000896,
+          "persistenceMs": 1.432066000000077
+        },
+        "set_meta": {
+          "calls": 17,
+          "totalMs": 594.1915140000008,
+          "maxMs": 409.61989500000027,
+          "persistenceMs": 496.29659900000047
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.1103249999999889,
+          "maxMs": 0.1103249999999889,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 55.62706300000002,
+          "maxMs": 33.40152699999999,
+          "persistenceMs": 0.46184400000026926
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 99.00549499999954,
+          "maxMs": 32.010111999999936,
+          "persistenceMs": 2.990845999999806
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1599.8747510000003,
+          "maxMs": 1028.4214550000002,
+          "persistenceMs": 637.129193
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2229.574456,
+        "ms": 1028.4214550000002,
+        "persistenceMs": 363.44076399999994
+      },
+      "largestEventLoopGap": {
+        "at": 2223.2685739999997,
+        "ms": 626.4326390000001
+      }
+    },
+    "cadence-idb-3": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 3804.706094,
+      "loginMs": 44.249568999999994,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 87387128,
+      "peakHeap": 168069856,
+      "peakExternal": 114657415,
+      "peakRss": 437780480,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-idb-3.json",
+      "rawSha256": "6bbb4b1161ce57f3279505469f2bd5b324e43422db3f4f36211e4e5664ba58ea",
+      "live": [
+        {
+          "phase": "during",
+          "at": 761.959088,
+          "ms": 169.83877200000006,
+          "commitMs": 153.89915900000005,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 932.170168,
+          "ms": 229.44364799999994,
+          "commitMs": 11.721699999999942,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1162.013965,
+          "ms": 257.5903579999999,
+          "commitMs": 46.21316200000001,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1419.971604,
+          "ms": 414.8965840000001,
+          "commitMs": 16.521645000000035,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1836.435658,
+          "ms": 260.15862800000014,
+          "commitMs": 11.21629299999995,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2098.650248,
+          "ms": 401.6524019999997,
+          "commitMs": 29.664275999999973,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2500.54234,
+          "ms": 260.701051,
+          "commitMs": 9.643354999999701,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2766.496505,
+          "ms": 1565.9478579999995,
+          "commitMs": 12.93313599999965,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 917.099307,
+          "ms": 51.329341,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1145.9055990000002,
+          "ms": 27.971898999999894,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1405.831739,
+          "ms": 44.61602800000014,
+          "rows": 3901,
+          "bytes": 1368476,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1821.1953330000001,
+          "ms": 407.22659799999997,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 2484.572541,
+          "ms": 409.3414779999998,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 114.9270930000007,
+          "maxMs": 62.078504000000066,
+          "persistenceMs": 44.784690999999725
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 96.18313699999999,
+          "maxMs": 95.81939999999997,
+          "persistenceMs": 96.46385599999996
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 4.134638000000109,
+          "maxMs": 3.7488389999999754,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 39,
+          "totalMs": 45.23132399999929,
+          "maxMs": 40.9665379999999,
+          "persistenceMs": 41.19738200000006
+        },
+        "set_meta": {
+          "calls": 18,
+          "totalMs": 764.7008809999998,
+          "maxMs": 275.44981000000007,
+          "persistenceMs": 593.6990939999993
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.18850299999996878,
+          "maxMs": 0.18850299999996878,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 13,
+          "totalMs": 83.11472799999956,
+          "maxMs": 48.11116700000002,
+          "persistenceMs": 0.3680409999999483
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 118.42419300000006,
+          "maxMs": 34.69168200000013,
+          "persistenceMs": 3.0029410000001917
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1766.2361219999996,
+          "maxMs": 914.20532,
+          "persistenceMs": 612.5117030000004
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2898.2780909999997,
+        "ms": 914.20532,
+        "persistenceMs": 229.7614840000001
+      },
+      "largestEventLoopGap": {
+        "at": 2897.8375499999997,
+        "ms": 640.721599
+      }
+    },
+    "cadence-idb-4": {
+      "persistence": "idb",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 3003.001732,
+      "loginMs": 49.1741,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 87422456,
+      "peakHeap": 167911296,
+      "peakExternal": 114601339,
+      "peakRss": 441724928,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-idb-4.json",
+      "rawSha256": "99a1a27eea80a0251e337d78e2039fd6cb42443c97550a3d63447417957b175b",
+      "live": [
+        {
+          "phase": "during",
+          "at": 617.374332,
+          "ms": 21.179847999999993,
+          "commitMs": 9.46160199999997,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 643.0979,
+          "ms": 207.119645,
+          "commitMs": 73.47215199999994,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 852.521839,
+          "ms": 175.259458,
+          "commitMs": 101.65858299999991,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1028.058302,
+          "ms": 235.4544780000001,
+          "commitMs": 19.851036000000022,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1263.797537,
+          "ms": 259.1481140000001,
+          "commitMs": 19.286530000000084,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1524.23992,
+          "ms": 334.4093680000001,
+          "commitMs": 19.07135799999992,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1861.079831,
+          "ms": 257.12306899999976,
+          "commitMs": 27.144518999999946,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 2121.470127,
+          "ms": 1438.603626,
+          "commitMs": 11.499977999999828,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 621.430452,
+          "ms": 39.56835100000001,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 838.3748929999999,
+          "ms": 24.485333000000082,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1019.0360679999999,
+          "ms": 35.48790500000018,
+          "rows": 3901,
+          "bytes": 1368516,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1253.296646,
+          "ms": 387.07778600000006,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1841.20479,
+          "ms": 389.00390300000004,
+          "rows": 312,
+          "bytes": 77063,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 9.925259000000324,
+          "maxMs": 2.936411000000021,
+          "persistenceMs": 4.269416999999862
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.9676909999999452,
+          "maxMs": 0.7031650000000127,
+          "persistenceMs": 1.0112460000000283
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.4146810000002006,
+          "maxMs": 0.1594590000000835,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 35,
+          "totalMs": 5.356413000000771,
+          "maxMs": 0.9690530000000308,
+          "persistenceMs": 2.3599470000001475
+        },
+        "set_meta": {
+          "calls": 18,
+          "totalMs": 414.1308389999999,
+          "maxMs": 275.36627499999986,
+          "persistenceMs": 334.08268900000087
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09971899999993639,
+          "maxMs": 0.09971899999993639,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 11,
+          "totalMs": 65.98552100000018,
+          "maxMs": 45.85456400000021,
+          "persistenceMs": 0.44701900000006844
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 109.4592249999996,
+          "maxMs": 40.87625200000002,
+          "persistenceMs": 3.664151999999717
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 1366.280816,
+          "maxMs": 794.734199,
+          "persistenceMs": 481.30700200000024
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2234.955277,
+        "ms": 794.734199,
+        "persistenceMs": 232.08433600000035
+      },
+      "largestEventLoopGap": {
+        "at": 2224.694958,
+        "ms": 531.606248
+      }
+    },
+    "cadence-memory-1": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2562.399317,
+      "loginMs": 57.240590999999995,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 71685680,
+      "peakHeap": 174528016,
+      "peakExternal": 113782710,
+      "peakRss": 369709056,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-memory-1.json",
+      "rawSha256": "b46b6c7131590b6db1398649e49f0244263d7708c878fa0d84dd706b35f7abd7",
+      "live": [
+        {
+          "phase": "during",
+          "at": 679.62545,
+          "ms": 181.12398700000006,
+          "commitMs": 39.5333280000001,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 862.101804,
+          "ms": 100.66010499999993,
+          "commitMs": 92.97328300000004,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 965.0545350000001,
+          "ms": 178.6152669999999,
+          "commitMs": 163.49039500000003,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1147.508396,
+          "ms": 255.47363399999995,
+          "commitMs": 9.021882999999889,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1406.310289,
+          "ms": 249.88734,
+          "commitMs": 8.24357699999996,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1657.45879,
+          "ms": 257.84984600000007,
+          "commitMs": 16.674463999999944,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1917.915233,
+          "ms": 1159.331348,
+          "commitMs": 17.26477900000009,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 683.8392660000001,
+          "ms": 43.85002899999995,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 850.2231280000001,
+          "ms": 23.86462199999994,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 953.259054,
+          "ms": 35.94069400000012,
+          "rows": 3901,
+          "bytes": 1368256,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1126.742659,
+          "ms": 389.14290800000003,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1645.803359,
+          "ms": 388.10264899999993,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 6.688515000000052,
+          "maxMs": 3.2305529999999862,
+          "persistenceMs": 0.03920999999979813
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.37937799999997424,
+          "maxMs": 0.16551800000002004,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.5832939999999098,
+          "maxMs": 0.21490200000005188,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.497744999999668,
+          "maxMs": 0.8877909999999929,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 15,
+          "totalMs": 3.795269999999391,
+          "maxMs": 1.4417209999999159,
+          "persistenceMs": 0.18323399999940193
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10224400000004152,
+          "maxMs": 0.10224400000004152,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 28.58201199999951,
+          "maxMs": 24.983898999999838,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 102.45521699999995,
+          "maxMs": 31.193457999999964,
+          "persistenceMs": 0.0707870000001094
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 871.3517479999996,
+          "maxMs": 566.4295929999998,
+          "persistenceMs": 16.833403000000203
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 2037.262079,
+        "ms": 566.4295929999998,
+        "persistenceMs": 12.381540000000314
+      },
+      "largestEventLoopGap": {
+        "at": 2027.6958989999998,
+        "ms": 635.9579040000003
+      }
+    },
+    "cadence-memory-2": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2331.869425,
+      "loginMs": 43.00007500000001,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 73110432,
+      "peakHeap": 182270520,
+      "peakExternal": 113717279,
+      "peakRss": 356470784,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-memory-2.json",
+      "rawSha256": "dcd4eea93df51f38341858d3d14710d5b903ac86c0d9fe0acbfb2f30e2556611",
+      "live": [
+        {
+          "phase": "during",
+          "at": 478.54164399999996,
+          "ms": 167.85706000000005,
+          "commitMs": 21.01883600000008,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 647.766034,
+          "ms": 99.23572999999999,
+          "commitMs": 89.41410799999994,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 747.224428,
+          "ms": 165.644364,
+          "commitMs": 10.97250699999995,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 917.242508,
+          "ms": 255.70262700000012,
+          "commitMs": 11.504954999999995,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1175.434316,
+          "ms": 264.653826,
+          "commitMs": 12.436893000000055,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1440.3581060000001,
+          "ms": 258.03526399999987,
+          "commitMs": 16.846652999999833,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1701.872575,
+          "ms": 1151.9237159999998,
+          "commitMs": 17.521533999999974,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 481.88534599999997,
+          "ms": 38.763745000000085,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 636.004584,
+          "ms": 22.471123000000034,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 735.4036289999999,
+          "ms": 36.503647,
+          "rows": 3901,
+          "bytes": 1368291,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 899.342977,
+          "ms": 389.3030590000001,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1429.812318,
+          "ms": 379.04014600000005,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 6.489797000000067,
+          "maxMs": 3.2429009999999607,
+          "persistenceMs": 0.0430949999998802
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3795990000000984,
+          "maxMs": 0.16128200000002835,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.40677100000004884,
+          "maxMs": 0.14193299999999454,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.618903000000614,
+          "maxMs": 0.8991280000000188,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 14,
+          "totalMs": 2.53026399999942,
+          "maxMs": 0.6075709999998935,
+          "persistenceMs": 0.1900269999999864
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09877800000003845,
+          "maxMs": 0.09877800000003845,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 28.668003999999655,
+          "maxMs": 25.124179999999797,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 104.42195400000014,
+          "maxMs": 34.74065500000006,
+          "persistenceMs": 0.06462599999997565
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 847.7088500000001,
+          "maxMs": 549.4815189999999,
+          "persistenceMs": 16.30118499999969
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1814.067401,
+        "ms": 549.4815189999999,
+        "persistenceMs": 12.096491999999671
+      },
+      "largestEventLoopGap": {
+        "at": 1791.233033,
+        "ms": 631.1347640000001
+      }
+    },
+    "cadence-memory-3": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2380.779621,
+      "loginMs": 46.33866,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 72961760,
+      "peakHeap": 182285176,
+      "peakExternal": 113717384,
+      "peakRss": 362061824,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-memory-3.json",
+      "rawSha256": "d7c730eb6bec4a5dcbb4200e2f4d387fa470b6c3907c8553461c837f84bed252",
+      "live": [
+        {
+          "phase": "during",
+          "at": 590.177562,
+          "ms": 172.71781600000008,
+          "commitMs": 37.82395600000007,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 765.093944,
+          "ms": 99.75928500000009,
+          "commitMs": 91.97461600000008,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 868.691442,
+          "ms": 151.99514499999998,
+          "commitMs": 144.6891629999999,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1026.705559,
+          "ms": 251.26888199999985,
+          "commitMs": 9.729824999999892,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1281.28927,
+          "ms": 251.27143499999988,
+          "commitMs": 18.983835,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1533.8776389999998,
+          "ms": 258.0432860000001,
+          "commitMs": 15.317851000000019,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1792.188056,
+          "ms": 1136.4613789999999,
+          "commitMs": 13.413266000000021,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 593.539942,
+          "ms": 42.52043600000002,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 751.990593,
+          "ms": 24.937189999999987,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 855.307661,
+          "ms": 35.06234699999993,
+          "rows": 3901,
+          "bytes": 1368326,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1011.601419,
+          "ms": 383.36260400000015,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1522.37036,
+          "ms": 381.3384410000001,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 6.457080999999675,
+          "maxMs": 3.198515000000043,
+          "persistenceMs": 0.056316000000265376
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.37443100000007234,
+          "maxMs": 0.16336499999999887,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.41553399999997964,
+          "maxMs": 0.15173700000002555,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.455081999999834,
+          "maxMs": 0.8871000000000322,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 16,
+          "totalMs": 2.78233000000057,
+          "maxMs": 0.608180999999945,
+          "persistenceMs": 0.20060799999976098
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10464699999999993,
+          "maxMs": 0.10464699999999993,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 28.572647999999845,
+          "maxMs": 24.872391999999763,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 97.3026319999999,
+          "maxMs": 30.588530999999875,
+          "persistenceMs": 0.09168699999986529
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 825.898339,
+          "maxMs": 538.517165,
+          "persistenceMs": 16.2764880000002
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1908.970408,
+        "ms": 538.517165,
+        "persistenceMs": 11.971655000000283
+      },
+      "largestEventLoopGap": {
+        "at": 1885.9669159999999,
+        "ms": 619.5216479999999
+      }
+    },
+    "cadence-memory-4": {
+      "persistence": "memory",
+      "mode": "during",
+      "node": "v24.13.1",
+      "acquisitionMs": 2510.049643,
+      "loginMs": 42.774217,
+      "acquisitionPages": 5,
+      "heapAfterAcquisition": 71516168,
+      "peakHeap": 182244704,
+      "peakExternal": 113717489,
+      "peakRss": 369041408,
+      "liveP95": null,
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/cadence-memory-4.json",
+      "rawSha256": "059a77520329c61d573eb114c2bc75af64d65de3316e5a301377c1768a079372",
+      "live": [
+        {
+          "phase": "during",
+          "at": 611.925972,
+          "ms": 179.77934200000004,
+          "commitMs": 32.04400200000009,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 792.0617080000001,
+          "ms": 118.06102899999996,
+          "commitMs": 109.50417199999993,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 911.4067510000001,
+          "ms": 176.14806899999996,
+          "commitMs": 19.42345499999999,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1093.422356,
+          "ms": 255.33594799999992,
+          "commitMs": 9.442273000000114,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1351.121096,
+          "ms": 255.22102599999994,
+          "commitMs": 17.19140900000002,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1608.673847,
+          "ms": 256.6203740000001,
+          "commitMs": 17.247894000000088,
+          "acquiredAtSend": false,
+          "timedOut": false
+        },
+        {
+          "phase": "during",
+          "at": 1868.721198,
+          "ms": 1157.752725,
+          "commitMs": 17.234724000000142,
+          "acquiredAtSend": false,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 615.429293,
+          "ms": 37.896885999999995,
+          "rows": 3999,
+          "bytes": 1225652,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 779.341661,
+          "ms": 26.611790000000042,
+          "rows": 4000,
+          "bytes": 892503,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 899.1434790000001,
+          "ms": 40.125025999999934,
+          "rows": 3901,
+          "bytes": 1368361,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1076.958427,
+          "ms": 383.75308999999993,
+          "rows": 3688,
+          "bytes": 1169553,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 1587.223123,
+          "ms": 374.603977,
+          "rows": 260,
+          "bytes": 64251,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 11,
+          "totalMs": 7.48446899999999,
+          "maxMs": 3.3694209999999885,
+          "persistenceMs": 0.03562200000010307
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.366149000000064,
+          "maxMs": 0.16443700000002082,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.6669590000001335,
+          "maxMs": 0.35871799999995346,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 31,
+          "totalMs": 2.5915070000003197,
+          "maxMs": 0.9062089999999898,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 16,
+          "totalMs": 3.40099900000007,
+          "maxMs": 0.6905150000000049,
+          "persistenceMs": 0.22199299999954292
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09792700000002696,
+          "maxMs": 0.09792700000002696,
+          "persistenceMs": 0
+        },
+        "query": {
+          "calls": 8,
+          "totalMs": 29.288461999999754,
+          "maxMs": 24.582888999999795,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 5,
+          "totalMs": 99.6066760000001,
+          "maxMs": 31.77253500000006,
+          "persistenceMs": 0.07191699999987122
+        },
+        "apply": {
+          "calls": 5,
+          "totalMs": 903.4957930000003,
+          "maxMs": 576.3609320000003,
+          "persistenceMs": 18.11271099999999
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 1964.352545,
+        "ms": 576.3609320000003,
+        "persistenceMs": 12.611794999999802
+      },
+      "largestEventLoopGap": {
+        "at": 1960.362985,
+        "ms": 639.2421879999999
+      }
+    },
+    "heap-1000-idb-control": {
+      "persistence": "idb",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 42033.146481,
+      "loginMs": 47.91074599999999,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 513004000,
+      "peakHeap": 849194424,
+      "peakExternal": 1514653415,
+      "peakRss": 2422960128,
+      "liveP95": 788.2706790000011,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 1948209152,
+          "heapTotal": 361816064,
+          "heapUsed": 206583696,
+          "external": 1367798169,
+          "arrayBuffers": 2126413
+        },
+        {
+          "label": "finished-fake-transactions-released-gc",
+          "rss": 1948209152,
+          "heapTotal": 361816064,
+          "heapUsed": 206560680,
+          "external": 1367798169,
+          "arrayBuffers": 2126413
+        },
+        {
+          "label": "fake-databases-deleted-gc",
+          "rss": 1943678976,
+          "heapTotal": 357851136,
+          "heapUsed": 202601992,
+          "external": 1367798169,
+          "arrayBuffers": 2126413
+        }
+      ],
+      "fakeTransactions": [
+        {
+          "name": "snapback4-wasm",
+          "total": 0,
+          "finished": 0,
+          "rollbackEntries": 0
+        },
+        {
+          "name": "snapback4-http%3A%2F%2F127.0.0.1%3A49372%3Auser%3A01M3GT3FPQGRMD803E1A4BPK07",
+          "total": 0,
+          "finished": 0,
+          "rollbackEntries": 0
+        }
+      ],
+      "reclaimFakeTransactions": true,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-1000-idb-control.json",
+      "rawSha256": "4744c54ffbc3301136966c9156db2f4bfdd4f080dd3720dccaff3daf43dace1a",
+      "live": [
+        {
+          "phase": "warmup",
+          "at": 42124.831162,
+          "ms": 644.3522969999976,
+          "commitMs": 39.83786500000133,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 42769.415267000004,
+          "ms": 626.6494620000012,
+          "commitMs": 19.317205999999715,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 43396.268334,
+          "ms": 599.4772220000013,
+          "commitMs": 18.6677520000012,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 43995.958696,
+          "ms": 628.6550380000044,
+          "commitMs": 18.358078000004753,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 44624.860474,
+          "ms": 582.1943260000044,
+          "commitMs": 18.702444000002288,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 45207.272366000005,
+          "ms": 578.2121469999984,
+          "commitMs": 17.964737999995123,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 45785.716120000005,
+          "ms": 590.7228199999954,
+          "commitMs": 17.5366869999998,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 46376.683507,
+          "ms": 681.3434560000023,
+          "commitMs": 56.371649000000616,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47058.268035,
+          "ms": 610.0008769999986,
+          "commitMs": 28.80399600000237,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47668.488411000006,
+          "ms": 630.165172999994,
+          "commitMs": 17.38986699999805,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 48298.880835,
+          "ms": 576.1912680000023,
+          "commitMs": 18.335423999997147,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 48875.261978,
+          "ms": 591.1863749999975,
+          "commitMs": 17.59837900000275,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 49466.654662,
+          "ms": 584.6356760000053,
+          "commitMs": 17.156827999999223,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50051.528916,
+          "ms": 588.670524000001,
+          "commitMs": 18.043515999997908,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50640.418639,
+          "ms": 601.1176919999998,
+          "commitMs": 18.943685999998706,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 51241.722791,
+          "ms": 650.0829490000033,
+          "commitMs": 17.418209000003117,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 51892.074292000005,
+          "ms": 824.8503999999957,
+          "commitMs": 27.026812999996764,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 52717.172664000005,
+          "ms": 761.3171349999975,
+          "commitMs": 20.32359400000132,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53478.69246300001,
+          "ms": 672.2005329999956,
+          "commitMs": 39.963933999999426,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 54151.11448800001,
+          "ms": 682.1139029999977,
+          "commitMs": 18.16676199999347,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 54833.440629000004,
+          "ms": 788.2706790000011,
+          "commitMs": 18.02013199999783,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 55621.968393,
+          "ms": 629.0995170000024,
+          "commitMs": 19.146330000003218,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 56251.33516,
+          "ms": 667.85484,
+          "commitMs": 18.62749299999996,
+          "acquiredAtSend": true,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 485.59394,
+          "ms": 47.85581300000001,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 697.97674,
+          "ms": 20.684355000000096,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 846.141942,
+          "ms": 30.919576000000006,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1036.058566,
+          "ms": 52.11053100000004,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1320.649153,
+          "ms": 51.924031000000014,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1640.935164,
+          "ms": 50.311635000000024,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1961.473754,
+          "ms": 51.811153000000104,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2319.13529,
+          "ms": 50.97244499999988,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2700.880626,
+          "ms": 51.93615,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3095.852258,
+          "ms": 50.62488400000029,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3530.926231,
+          "ms": 50.88640600000008,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3978.053531,
+          "ms": 50.01949700000023,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4441.750529000001,
+          "ms": 57.94281299999966,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4971.152695000001,
+          "ms": 50.852294999999685,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5501.980568000001,
+          "ms": 51.43217399999958,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6090.586057,
+          "ms": 52.71355500000027,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6677.136947000001,
+          "ms": 54.0497579999992,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7331.840934,
+          "ms": 68.96188099999927,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7992.890122999999,
+          "ms": 50.680498000000625,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 8674.340583,
+          "ms": 50.518293999999514,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9345.806476,
+          "ms": 50.72870999999941,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 10085.601902,
+          "ms": 50.11224599999878,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 10796.219992999999,
+          "ms": 49.420648000001165,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 11578.333111,
+          "ms": 50.70620599999893,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12369.134402,
+          "ms": 50.803893000000244,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 13161.014792,
+          "ms": 50.36157900000035,
+          "rows": 3901,
+          "bytes": 1607359,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 13927.205484,
+          "ms": 24.532461999999214,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 14548.206092999999,
+          "ms": 1323.9700460000004,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 16491.780626,
+          "ms": 360.83223999999973,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 17082.731703,
+          "ms": 3.10809899999731,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 10.13750399999958,
+          "maxMs": 1.1046159999999645,
+          "persistenceMs": 4.571823999998514
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3114659999998821,
+          "maxMs": 0.16227299999991374,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.4227529999998296,
+          "maxMs": 0.16647899999998117,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.21016599999984464,
+          "maxMs": 0.12213299999996252,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 1.1410819999967998,
+          "maxMs": 0.5065499999982421,
+          "persistenceMs": 0.6847370000032242
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10316499999998996,
+          "maxMs": 0.10316499999998996,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 919.4333920000049,
+          "maxMs": 47.22378700000081,
+          "persistenceMs": 24.81459799999925
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 37383.28374299999,
+          "maxMs": 25032.118276999998,
+          "persistenceMs": 18838.682004
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 17087.797717,
+        "ms": 25032.118276999998,
+        "persistenceMs": 9793.945536999996
+      },
+      "largestEventLoopGap": {
+        "at": 17078.649494,
+        "ms": 14655.885845999997
+      }
+    },
+    "heap-1000-idb-live": {
+      "persistence": "idb",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 42226.212634999996,
+      "loginMs": 45.74681100000001,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 1301476200,
+      "peakHeap": 1861952752,
+      "peakExternal": 1514653185,
+      "peakRss": 3387858944,
+      "liveP95": 618.7610679999998,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 3258535936,
+          "heapTotal": 1751158784,
+          "heapUsed": 1579488808,
+          "external": 1367798169,
+          "arrayBuffers": 2126413
+        },
+        {
+          "label": "finished-fake-transactions-released-gc",
+          "rss": 2101207040,
+          "heapTotal": 396414976,
+          "heapUsed": 206670984,
+          "external": 1367798169,
+          "arrayBuffers": 2126413
+        },
+        {
+          "label": "fake-databases-deleted-gc",
+          "rss": 2097090560,
+          "heapTotal": 359944192,
+          "heapUsed": 202712936,
+          "external": 1367798169,
+          "arrayBuffers": 2126413
+        }
+      ],
+      "fakeTransactions": [
+        {
+          "name": "snapback4-wasm",
+          "total": 2,
+          "finished": 2,
+          "rollbackEntries": 4
+        },
+        {
+          "name": "snapback4-http%3A%2F%2F127.0.0.1%3A49372%3Auser%3A01M3GT3FPQGRMD803E1A4BPK07",
+          "total": 220,
+          "finished": 220,
+          "rollbackEntries": 129710
+        }
+      ],
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-1000-idb-live.json",
+      "rawSha256": "bc95545fbfd159f9dd9302dfc56c96671084857e9325191e5c9e9cabab6a4e6d",
+      "live": [
+        {
+          "phase": "warmup",
+          "at": 42324.559859999994,
+          "ms": 1360.6302350000042,
+          "commitMs": 36.90405699999974,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 43685.429304,
+          "ms": 575.0622739999963,
+          "commitMs": 18.059880000000703,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 44260.694341999995,
+          "ms": 605.8852170000027,
+          "commitMs": 17.13439400000061,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 44866.773469,
+          "ms": 604.859749999996,
+          "commitMs": 17.013121999996656,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 45471.829462999995,
+          "ms": 599.6284390000001,
+          "commitMs": 19.991987000001245,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 46071.714256,
+          "ms": 605.8888220000008,
+          "commitMs": 16.7247389999975,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 46677.812212,
+          "ms": 611.1708300000028,
+          "commitMs": 16.503117000000202,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47289.199446,
+          "ms": 615.7530389999956,
+          "commitMs": 19.485327999995206,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47905.132764999995,
+          "ms": 608.208709999999,
+          "commitMs": 16.655515999998897,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 48513.532741999996,
+          "ms": 580.9177419999978,
+          "commitMs": 17.06006200000411,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 49094.633589,
+          "ms": 618.7610679999998,
+          "commitMs": 16.277709000001778,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 49713.614746,
+          "ms": 577.6226739999984,
+          "commitMs": 21.207268999998632,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50291.433613999994,
+          "ms": 633.513982000004,
+          "commitMs": 16.15157000000181,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50925.249719,
+          "ms": 590.3260259999952,
+          "commitMs": 24.734584999998333,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 51515.781463,
+          "ms": 605.1884429999991,
+          "commitMs": 18.188602999995055,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 52121.153972,
+          "ms": 608.1641649999947,
+          "commitMs": 15.916017999996257,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 52729.508261999996,
+          "ms": 611.5082770000008,
+          "commitMs": 16.27802900000097,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53341.193143,
+          "ms": 600.4415890000018,
+          "commitMs": 16.15402400000312,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53941.838698,
+          "ms": 599.2154709999959,
+          "commitMs": 16.02754399999685,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 54541.255509999995,
+          "ms": 605.9557849999983,
+          "commitMs": 15.881014999999024,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 55147.428930999995,
+          "ms": 585.9673030000049,
+          "commitMs": 17.05409299999883,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 55733.885207,
+          "ms": 603.6766179999977,
+          "commitMs": 16.18006299999979,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 56337.749626,
+          "ms": 614.3097269999998,
+          "commitMs": 16.089296999998624,
+          "acquiredAtSend": true,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 566.794704,
+          "ms": 48.825665999999956,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 785.9049239999999,
+          "ms": 21.44419400000004,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 939.600723,
+          "ms": 28.77539200000001,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1109.65353,
+          "ms": 50.50685599999997,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1412.252003,
+          "ms": 63.331228999999894,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1739.36426,
+          "ms": 51.96670499999982,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2070.7583560000003,
+          "ms": 49.223211999999876,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2423.7084330000002,
+          "ms": 50.614236999999775,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2778.8463290000004,
+          "ms": 51.009799999999814,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3164.057953,
+          "ms": 50.28683600000022,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3583.634638,
+          "ms": 49.039286000000175,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4012.501028,
+          "ms": 48.49942699999974,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4482.318991,
+          "ms": 50.466605999999956,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4963.041971,
+          "ms": 53.172701999999845,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5500.083987999999,
+          "ms": 50.14552499999991,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6054.7229019999995,
+          "ms": 48.59929700000066,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6615.981119,
+          "ms": 48.86992199999986,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7217.653263,
+          "ms": 49.410391999999774,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7849.783561,
+          "ms": 49.70331199999964,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 8504.946244,
+          "ms": 50.00350199999957,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9160.588466000001,
+          "ms": 51.704690999999,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9891.177157,
+          "ms": 53.76926600000115,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 10639.166521000001,
+          "ms": 50.35591999999997,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 11358.989586000002,
+          "ms": 47.80606799999987,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12116.519701000001,
+          "ms": 49.843041000000085,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12894.011027,
+          "ms": 48.45953700000064,
+          "rows": 3901,
+          "bytes": 1607244,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 13648.369578,
+          "ms": 26.136928000001717,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 14278.164178,
+          "ms": 1239.9779120000003,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 16124.876434,
+          "ms": 348.78742800000146,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 16727.946395,
+          "ms": 2.7107230000001437,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 25.881444000000783,
+          "maxMs": 7.734874000000218,
+          "persistenceMs": 20.45446899999854
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.31635499999993044,
+          "maxMs": 0.16036099999996623,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.41814800000008745,
+          "maxMs": 0.1724690000000919,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.20768099999997958,
+          "maxMs": 0.12126200000000154,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 0.9332289999961176,
+          "maxMs": 0.3561939999999595,
+          "persistenceMs": 0.6031840000033526
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.11139700000001085,
+          "maxMs": 0.11139700000001085,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 885.5066830000003,
+          "maxMs": 45.028895000001285,
+          "persistenceMs": 34.33403399999736
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 37635.84492100001,
+          "maxMs": 25589.111591000004,
+          "persistenceMs": 18336.723752
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 16731.964878,
+        "ms": 25589.111591000004,
+        "persistenceMs": 9458.112585000003
+      },
+      "largestEventLoopGap": {
+        "at": 16718.793235,
+        "ms": 15231.97438
+      }
+    },
+    "heap-1000-idb": {
+      "persistence": "idb",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 44733.86674500001,
+      "loginMs": 57.276019000000005,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 1301889440,
+      "peakHeap": 1320670320,
+      "peakExternal": 1514653185,
+      "peakRss": 2868830208,
+      "liveP95": null,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 2781073408,
+          "heapTotal": 1253052416,
+          "heapUsed": 1087656184,
+          "external": 1367798159,
+          "arrayBuffers": 2126403
+        },
+        {
+          "label": "finished-fake-transactions-released-gc",
+          "rss": 2113167360,
+          "heapTotal": 393781248,
+          "heapUsed": 205586104,
+          "external": 1367798159,
+          "arrayBuffers": 2126403
+        },
+        {
+          "label": "fake-databases-deleted-gc",
+          "rss": 2108964864,
+          "heapTotal": 356261888,
+          "heapUsed": 201627464,
+          "external": 1367798159,
+          "arrayBuffers": 2126403
+        }
+      ],
+      "fakeTransactions": [
+        {
+          "name": "snapback4-wasm",
+          "total": 2,
+          "finished": 2,
+          "rollbackEntries": 4
+        },
+        {
+          "name": "snapback4-http%3A%2F%2F127.0.0.1%3A49372%3Auser%3A01M3GT3FPQGRMD803E1A4BPK07",
+          "total": 99,
+          "finished": 99,
+          "rollbackEntries": 128303
+        }
+      ],
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-1000-idb.json",
+      "rawSha256": "999261579ec51a13451fd046a9eb660d7234baa379ae2350a0e21b54d10ffcd0",
+      "live": [],
+      "pages": [
+        {
+          "at": 605.7353089999999,
+          "ms": 383.631223,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1144.112767,
+          "ms": 35.37102699999991,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1308.806161,
+          "ms": 50.415436,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1501.5918820000002,
+          "ms": 368.27558799999997,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2091.067831,
+          "ms": 240.012968,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2583.358731,
+          "ms": 174.23848099999987,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3066.773237,
+          "ms": 126.8753499999998,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3490.575633,
+          "ms": 96.1421849999997,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3921.7170979999996,
+          "ms": 86.26036300000032,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4365.052722,
+          "ms": 89.68228199999976,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4833.4666640000005,
+          "ms": 69.7857899999999,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5281.088643,
+          "ms": 66.77696999999989,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5762.597353,
+          "ms": 61.81058600000051,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6269.346435,
+          "ms": 61.00737200000003,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6792.868618,
+          "ms": 60.61873999999989,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7374.585819,
+          "ms": 61.61085700000058,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7970.846338,
+          "ms": 74.33009099999981,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 8605.582006999999,
+          "ms": 57.86360000000059,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9247.163356,
+          "ms": 63.59267800000089,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9915.931927,
+          "ms": 59.50234599999931,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 10580.123716999999,
+          "ms": 58.67234200000166,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 11291.488494,
+          "ms": 58.750019000000975,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12008.799202999999,
+          "ms": 60.08317700000043,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12751.976993999999,
+          "ms": 58.22189799999978,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 13511.784490999999,
+          "ms": 59.88124500000049,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 14297.446011,
+          "ms": 242.75122399999964,
+          "rows": 3901,
+          "bytes": 1607244,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 15237.110372,
+          "ms": 66.61003999999957,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 15870.138183,
+          "ms": 1588.4634730000016,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 18067.917305000003,
+          "ms": 949.124872999997,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 19272.696543000002,
+          "ms": 2.3647649999984424,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 12.115893000000142,
+          "maxMs": 3.379875999999058,
+          "persistenceMs": 6.700000000005502
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3082410000000664,
+          "maxMs": 0.159087999999997,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.45054700000014236,
+          "maxMs": 0.16216300000007777,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.2062500000000682,
+          "maxMs": 0.11957900000004429,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 1.2582260000039014,
+          "maxMs": 0.5882320000018808,
+          "persistenceMs": 0.7829929999991236
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10224299999993036,
+          "maxMs": 0.10224299999993036,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 864.8202469999976,
+          "maxMs": 47.697322999998505,
+          "persistenceMs": 17.025051000006442
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 37568.634303,
+          "maxMs": 25569.320667,
+          "persistenceMs": 18497.639849000014
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 19276.37096,
+        "ms": 25569.320667,
+        "persistenceMs": 9593.680009000003
+      },
+      "largestEventLoopGap": {
+        "at": 19261.902274,
+        "ms": 15379.614150000001
+      }
+    },
+    "heap-1000-memory": {
+      "persistence": "memory",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 26979.159695,
+      "loginMs": 50.094089,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 218675408,
+      "peakHeap": 218947936,
+      "peakExternal": 1384217140,
+      "peakRss": 1795792896,
+      "liveP95": null,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 1783713792,
+          "heapTotal": 256843776,
+          "heapUsed": 118968088,
+          "external": 1367732623,
+          "arrayBuffers": 2126403
+        }
+      ],
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-1000-memory.json",
+      "rawSha256": "d34cc00b741abf418ec98673eac2c91bbe3ee741de0f6a0275da83ae2a286e46",
+      "live": [],
+      "pages": [
+        {
+          "at": 528.1884849999999,
+          "ms": 54.7070040000001,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 741.1627659999999,
+          "ms": 32.868157999999994,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 863.8368099999999,
+          "ms": 60.91836400000011,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1015.1098929999999,
+          "ms": 90.66730699999994,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1382.428821,
+          "ms": 87.63872700000002,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1649.798088,
+          "ms": 54.86444000000006,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1964.468898,
+          "ms": 56.67734699999983,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2210.4514870000003,
+          "ms": 71.67391699999962,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2458.230449,
+          "ms": 56.33235000000013,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2716.437683,
+          "ms": 54.154865999999856,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2961.772661,
+          "ms": 52.09331599999996,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3255.009142,
+          "ms": 60.870934000000034,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3500.780535,
+          "ms": 56.79509400000006,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3747.5835540000003,
+          "ms": 55.02742399999988,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3988.243605,
+          "ms": 81.52148799999986,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4244.700976,
+          "ms": 60.97711199999958,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4488.803427,
+          "ms": 62.511272000000645,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4802.512315,
+          "ms": 55.3564379999998,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5076.389137,
+          "ms": 96.73960999999963,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5398.5331,
+          "ms": 55.33467400000063,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5673.028789,
+          "ms": 57.301102999999785,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6012.229619,
+          "ms": 66.09380300000066,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6253.1105720000005,
+          "ms": 51.97670099999959,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6531.701069,
+          "ms": 81.72422200000074,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6816.666202,
+          "ms": 62.82473299999947,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7136.899451,
+          "ms": 86.75968999999986,
+          "rows": 3901,
+          "bytes": 1607474,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7431.276462,
+          "ms": 26.17826100000002,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7599.073074,
+          "ms": 1320.3602449999998,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9018.218565,
+          "ms": 360.0312640000011,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 9384.12761,
+          "ms": 2.44544599999972,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 6.14081199999805,
+          "maxMs": 1.0724370000000363,
+          "persistenceMs": 0.33545900000115125
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3282729999999674,
+          "maxMs": 0.20207300000004125,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.38248299999986557,
+          "maxMs": 0.1256590000000415,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.1953729999999041,
+          "maxMs": 0.12579799999991792,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 0.3927880000009054,
+          "maxMs": 0.1638249999996333,
+          "persistenceMs": 0.02713099999834867
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09517300000004525,
+          "maxMs": 0.09517300000004525,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 1084.42053,
+          "maxMs": 54.904279999999744,
+          "persistenceMs": 0.49471200000175486
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 21588.894105000003,
+          "maxMs": 17670.043935,
+          "persistenceMs": 272.98501499999907
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 9387.599835,
+        "ms": 17670.043935,
+        "persistenceMs": 204.71869700000025
+      },
+      "largestEventLoopGap": {
+        "at": 115.021112,
+        "ms": 414.494032
+      }
+    },
+    "heap-final-idb-live": {
+      "persistence": "idb",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 41466.713383,
+      "loginMs": 46.93342199999999,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 1302354848,
+      "peakHeap": 1859336240,
+      "peakExternal": 1514653645,
+      "peakRss": 3407376384,
+      "liveP95": 611.2769709999993,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 3024023552,
+          "heapTotal": 1590054912,
+          "heapUsed": 1555600464,
+          "external": 1365816657,
+          "arrayBuffers": 144901
+        },
+        {
+          "label": "finished-fake-transactions-released-gc",
+          "rss": 1868029952,
+          "heapTotal": 235958272,
+          "heapUsed": 183854312,
+          "external": 1365816657,
+          "arrayBuffers": 144901
+        },
+        {
+          "label": "fake-databases-deleted-gc",
+          "rss": 1864761344,
+          "heapTotal": 198963200,
+          "heapUsed": 179896408,
+          "external": 1365816657,
+          "arrayBuffers": 144901
+        }
+      ],
+      "fakeTransactions": [
+        {
+          "name": "snapback4-wasm",
+          "total": 2,
+          "finished": 2,
+          "rollbackEntries": 4
+        },
+        {
+          "name": "snapback4-http%3A%2F%2F127.0.0.1%3A49372%3Auser%3A01M3GT3FPQGRMD803E1A4BPK07",
+          "total": 216,
+          "finished": 216,
+          "rollbackEntries": 129708
+        }
+      ],
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-final-idb-live.json",
+      "rawSha256": "baa898b3fa2a40ab13acd39345138b58d5c12ad8afe19fb053afbf06c918e202",
+      "live": [
+        {
+          "phase": "warmup",
+          "at": 41557.372119,
+          "ms": 632.2733729999964,
+          "commitMs": 37.65920099999494,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 42189.863698999994,
+          "ms": 575.2713680000015,
+          "commitMs": 18.135375000005297,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 42765.318172,
+          "ms": 605.6054179999992,
+          "commitMs": 17.61338199999591,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 43371.115226999995,
+          "ms": 608.2591570000004,
+          "commitMs": 17.750268000003416,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 43979.553903,
+          "ms": 604.8098869999958,
+          "commitMs": 19.81942899999558,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 44584.567465,
+          "ms": 590.920736,
+          "commitMs": 17.557998999996926,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 45175.692207,
+          "ms": 605.6205419999969,
+          "commitMs": 16.937679999995453,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 45781.515873,
+          "ms": 611.2769709999993,
+          "commitMs": 17.094405000003462,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 46392.993985,
+          "ms": 612.1321029999963,
+          "commitMs": 16.98449999999866,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47005.296212999994,
+          "ms": 605.0297660000069,
+          "commitMs": 16.9303990000044,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47610.510515999995,
+          "ms": 602.1369900000063,
+          "commitMs": 16.88105400000495,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 48212.820896,
+          "ms": 604.0507389999984,
+          "commitMs": 16.678600999999617,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 48817.064093,
+          "ms": 603.9615149999954,
+          "commitMs": 17.1747749999995,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 49421.228151999996,
+          "ms": 603.8648299999986,
+          "commitMs": 16.952321000004304,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50025.274064,
+          "ms": 607.3019619999977,
+          "commitMs": 16.526001999998698,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50632.769605999994,
+          "ms": 607.1905460000053,
+          "commitMs": 16.761977000001934,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 51240.169174999995,
+          "ms": 604.4326819999987,
+          "commitMs": 16.73385500000586,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 51844.777781,
+          "ms": 599.0848860000042,
+          "commitMs": 16.387665000002016,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 52444.040573,
+          "ms": 600.5434519999981,
+          "commitMs": 16.36068499999965,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53044.765396999996,
+          "ms": 584.7179099999994,
+          "commitMs": 16.58155600000464,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53629.657908,
+          "ms": 608.824987,
+          "commitMs": 16.42352899999969,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 54238.686389999995,
+          "ms": 598.6079000000027,
+          "commitMs": 16.709277000001748,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 54837.48736,
+          "ms": 602.0350980000003,
+          "commitMs": 16.179372999999032,
+          "acquiredAtSend": true,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 570.30009,
+          "ms": 47.432560999999964,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 774.347945,
+          "ms": 20.01962900000001,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 920.116379,
+          "ms": 30.390866000000074,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1098.381275,
+          "ms": 51.893798999999944,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1376.5752539999999,
+          "ms": 49.606228999999985,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1675.464774,
+          "ms": 51.0540289999999,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2024.814704,
+          "ms": 49.37064599999985,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2361.7127689999998,
+          "ms": 49.946038000000044,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2740.837982,
+          "ms": 48.92506800000001,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3136.571841,
+          "ms": 50.97896600000013,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3570.0185,
+          "ms": 51.38683899999978,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4021.516529,
+          "ms": 49.840509999999995,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4493.820445,
+          "ms": 50.085377000000335,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4987.209879,
+          "ms": 50.12719900000047,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5501.901253,
+          "ms": 49.020691000000625,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6050.023179000001,
+          "ms": 50.626468999999815,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6638.042472,
+          "ms": 48.026701000000685,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7248.0079510000005,
+          "ms": 49.36768099999972,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7863.111051000001,
+          "ms": 51.89429899999959,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 8509.615773,
+          "ms": 48.9310260000002,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9168.495734,
+          "ms": 49.092789000000266,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9876.787983999999,
+          "ms": 48.888292999999976,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 10591.503122,
+          "ms": 50.97584199999983,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 11339.212248,
+          "ms": 50.60524599999917,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12091.276181,
+          "ms": 48.61707700000079,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12866.236146,
+          "ms": 46.89832999999999,
+          "rows": 3901,
+          "bytes": 1607474,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 13609.828029999999,
+          "ms": 25.128247000000556,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 14227.781604,
+          "ms": 1235.675842999999,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 16084.90596,
+          "ms": 377.99168499999905,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 16711.016582,
+          "ms": 3.139085000002524,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 11.56920599999853,
+          "maxMs": 3.0106019999993805,
+          "persistenceMs": 6.313011000001211
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3290230000000065,
+          "maxMs": 0.18108100000006289,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.407463000000007,
+          "maxMs": 0.15973000000008142,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.2129889999999932,
+          "maxMs": 0.122983999999974,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 0.904706000006513,
+          "maxMs": 0.339469000002282,
+          "persistenceMs": 0.5799090000018623
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.09979999999995925,
+          "maxMs": 0.09979999999995925,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 846.9288449999989,
+          "maxMs": 36.87686799999938,
+          "persistenceMs": 17.922176999998555
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 36934.458478,
+          "maxMs": 24838.373591999996,
+          "persistenceMs": 18415.736221
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 16715.472872000002,
+        "ms": 24838.373591999996,
+        "persistenceMs": 9457.063382
+      },
+      "largestEventLoopGap": {
+        "at": 16699.164115,
+        "ms": 14713.677343000003
+      }
+    },
+    "heap-final-idb-control": {
+      "persistence": "idb",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 42236.238957,
+      "loginMs": 46.710488999999995,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 515335984,
+      "peakHeap": 844204776,
+      "peakExternal": 1514588339,
+      "peakRss": 2528591872,
+      "liveP95": 653.9620839999989,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 1939619840,
+          "heapTotal": 331382784,
+          "heapUsed": 183837072,
+          "external": 1365751121,
+          "arrayBuffers": 144901
+        },
+        {
+          "label": "finished-fake-transactions-released-gc",
+          "rss": 1939619840,
+          "heapTotal": 331382784,
+          "heapUsed": 183820024,
+          "external": 1365751121,
+          "arrayBuffers": 144901
+        },
+        {
+          "label": "fake-databases-deleted-gc",
+          "rss": 1935622144,
+          "heapTotal": 327680000,
+          "heapUsed": 179861480,
+          "external": 1365751121,
+          "arrayBuffers": 144901
+        }
+      ],
+      "fakeTransactions": [
+        {
+          "name": "snapback4-wasm",
+          "total": 0,
+          "finished": 0,
+          "rollbackEntries": 0
+        },
+        {
+          "name": "snapback4-http%3A%2F%2F127.0.0.1%3A49372%3Auser%3A01M3GT3FPQGRMD803E1A4BPK07",
+          "total": 0,
+          "finished": 0,
+          "rollbackEntries": 0
+        }
+      ],
+      "reclaimFakeTransactions": true,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-final-idb-control.json",
+      "rawSha256": "60ad7d528b174390257e2ca2ab1ce7d4641dbcbfb3eb0af277dd279e5e1a6638",
+      "live": [
+        {
+          "phase": "warmup",
+          "at": 42326.853257999996,
+          "ms": 653.4872000000032,
+          "commitMs": 41.40806999999768,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 42980.649981999995,
+          "ms": 629.2407450000028,
+          "commitMs": 21.068412000000535,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "warmup",
+          "at": 43610.11231,
+          "ms": 611.9470419999998,
+          "commitMs": 18.575204000000667,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 44222.266922999996,
+          "ms": 649.304882000004,
+          "commitMs": 17.765330000001995,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 44871.824883999994,
+          "ms": 584.6743110000025,
+          "commitMs": 19.762665000002016,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 45456.726083999994,
+          "ms": 602.1261410000006,
+          "commitMs": 17.36779500000557,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 46059.058554999996,
+          "ms": 631.518259000004,
+          "commitMs": 16.566021999999066,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 46690.829433,
+          "ms": 589.1377709999942,
+          "commitMs": 17.412921999995888,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47280.190439,
+          "ms": 608.9642810000005,
+          "commitMs": 17.91006699999707,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 47889.370954,
+          "ms": 621.266131999997,
+          "commitMs": 17.940883999996004,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 48510.831036999996,
+          "ms": 577.4761100000032,
+          "commitMs": 16.849177000003692,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 49088.51480899999,
+          "ms": 605.2873000000036,
+          "commitMs": 16.283359000000928,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 49694.010881999995,
+          "ms": 622.3115190000026,
+          "commitMs": 16.505912000000535,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50316.520877999996,
+          "ms": 583.9787490000017,
+          "commitMs": 16.40356900000188,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 50900.713186999994,
+          "ms": 606.0435230000003,
+          "commitMs": 17.72234600000229,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 51506.956319,
+          "ms": 583.0236969999969,
+          "commitMs": 16.346433999999135,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 52090.189119999995,
+          "ms": 596.7722760000033,
+          "commitMs": 17.159262000001036,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 52687.166303,
+          "ms": 639.1283679999979,
+          "commitMs": 16.478931999998167,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53326.475551999996,
+          "ms": 629.1844229999988,
+          "commitMs": 18.68208500000037,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 53955.837500999995,
+          "ms": 653.9620839999989,
+          "commitMs": 16.44729400000506,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 54610.005252999996,
+          "ms": 612.9512089999989,
+          "commitMs": 16.86565200000041,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 55223.145915999994,
+          "ms": 612.0013550000003,
+          "commitMs": 17.22172500000306,
+          "acquiredAtSend": true,
+          "timedOut": false
+        },
+        {
+          "phase": "after",
+          "at": 55835.332418,
+          "ms": 678.1162919999988,
+          "commitMs": 21.92901200000051,
+          "acquiredAtSend": true,
+          "timedOut": false
+        }
+      ],
+      "pages": [
+        {
+          "at": 517.715924,
+          "ms": 46.54037400000004,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 718.458436,
+          "ms": 20.618156999999997,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 862.8299489999999,
+          "ms": 29.282304000000067,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1039.107398,
+          "ms": 51.55333899999982,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1314.452219,
+          "ms": 48.249886999999944,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1621.480734,
+          "ms": 50.07486199999994,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1938.827877,
+          "ms": 75.58263799999986,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2432.389293,
+          "ms": 53.27187499999991,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2882.6533980000004,
+          "ms": 63.91252499999973,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3309.921041,
+          "ms": 55.811031000000185,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3769.660079,
+          "ms": 52.89420800000016,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4218.871105,
+          "ms": 51.87955799999963,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4691.9166190000005,
+          "ms": 50.57657399999971,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5246.505717,
+          "ms": 49.143206000000646,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5761.212171,
+          "ms": 50.23312900000019,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6375.882821,
+          "ms": 50.15046499999971,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6980.637176,
+          "ms": 51.78358399999979,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7620.363054,
+          "ms": 53.10624600000028,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 8263.405193,
+          "ms": 51.41035399999964,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 8953.97099,
+          "ms": 50.87416099999973,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 9622.064682,
+          "ms": 52.148450000000594,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 10343.574054,
+          "ms": 51.226087999999436,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 11071.404881,
+          "ms": 49.927010999999766,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 11833.851178,
+          "ms": 50.0789079999995,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 12591.207134,
+          "ms": 50.923634000000675,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 13366.921889000001,
+          "ms": 47.987913999999364,
+          "rows": 3901,
+          "bytes": 1607589,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 14115.624564,
+          "ms": 24.00991100000101,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 14817.562008,
+          "ms": 1259.5131009999986,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 16735.064435,
+          "ms": 355.60187700000097,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 17324.173229,
+          "ms": 2.4601570000013453,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 24.095599000002267,
+          "maxMs": 12.740687999999864,
+          "persistenceMs": 18.483353999996552
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.30275299999993877,
+          "maxMs": 0.1533000000000584,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.41329000000007454,
+          "maxMs": 0.16520700000000943,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.2067179999999098,
+          "maxMs": 0.12110099999995327,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 0.9544910000005302,
+          "maxMs": 0.39785699999993085,
+          "persistenceMs": 0.6040850000026694
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.11217799999997169,
+          "maxMs": 0.11217799999997169,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 883.4689880000027,
+          "maxMs": 49.24379599999975,
+          "persistenceMs": 16.13477700000044
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 37635.760967999995,
+          "maxMs": 24995.437691999996,
+          "persistenceMs": 18929.327040999997
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 17327.897011,
+        "ms": 24995.437691999996,
+        "persistenceMs": 9684.561138000001
+      },
+      "largestEventLoopGap": {
+        "at": 17327.319846,
+        "ms": 14660.606385000003
+      }
+    },
+    "heap-final-memory": {
+      "persistence": "memory",
+      "mode": "cold",
+      "node": "v24.13.1",
+      "acquisitionMs": 26892.898121000002,
+      "loginMs": 46.401045999999994,
+      "acquisitionPages": 30,
+      "heapAfterAcquisition": 161550288,
+      "peakHeap": 161810312,
+      "peakExternal": 1382750828,
+      "peakRss": 1786155008,
+      "liveP95": null,
+      "heapAttribution": [
+        {
+          "label": "closed-sdk-gc",
+          "rss": 1747488768,
+          "heapTotal": 147996672,
+          "heapUsed": 10670424,
+          "external": 1365685575,
+          "arrayBuffers": 144891
+        }
+      ],
+      "reclaimFakeTransactions": false,
+      "ok": true,
+      "rawWitness": "target/lane-ss-round1/heap-final-memory.json",
+      "rawSha256": "2558972608bf7304d57ac75e8e5cce9d0c8b94b49c3761173438f3f094fb3374",
+      "live": [],
+      "pages": [
+        {
+          "at": 474.75394,
+          "ms": 52.02860099999998,
+          "rows": 3999,
+          "bytes": 1352443,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 680.7206560000001,
+          "ms": 22.744144000000006,
+          "rows": 4000,
+          "bytes": 876663,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 777.040831,
+          "ms": 31.680578999999966,
+          "rows": 4000,
+          "bytes": 1030235,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 895.0818750000001,
+          "ms": 59.36017099999992,
+          "rows": 4000,
+          "bytes": 1534846,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1147.034885,
+          "ms": 51.662462000000005,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1359.100673,
+          "ms": 57.715416000000005,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1582.7427349999998,
+          "ms": 51.40972300000021,
+          "rows": 4000,
+          "bytes": 1604397,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 1799.4881679999999,
+          "ms": 50.89795700000013,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2026.15889,
+          "ms": 55.20778599999994,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2257.4054800000004,
+          "ms": 50.1144119999999,
+          "rows": 4000,
+          "bytes": 1604530,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2472.1672000000003,
+          "ms": 50.23853799999961,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2685.317935,
+          "ms": 50.39808700000003,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 2902.683618,
+          "ms": 50.45765600000004,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3120.921589,
+          "ms": 50.63557300000002,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3338.600992,
+          "ms": 49.97645499999999,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3557.303739,
+          "ms": 50.50728100000015,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 3797.86944,
+          "ms": 49.53211900000042,
+          "rows": 4000,
+          "bytes": 1603830,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4023.509717,
+          "ms": 51.7188070000002,
+          "rows": 4000,
+          "bytes": 1604363,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4247.869103,
+          "ms": 49.29550500000005,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4474.177422,
+          "ms": 50.65663400000085,
+          "rows": 4000,
+          "bytes": 1604430,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4689.969506,
+          "ms": 49.875723999999536,
+          "rows": 4000,
+          "bytes": 1604263,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 4924.568532,
+          "ms": 51.80556700000034,
+          "rows": 4000,
+          "bytes": 1604097,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5142.109969,
+          "ms": 49.38136300000042,
+          "rows": 4000,
+          "bytes": 1604630,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5385.095146000001,
+          "ms": 51.691806999999244,
+          "rows": 4000,
+          "bytes": 1604230,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5608.490318,
+          "ms": 66.28738499999963,
+          "rows": 4000,
+          "bytes": 1604130,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 5871.557398,
+          "ms": 49.12572,
+          "rows": 3901,
+          "bytes": 1607704,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6081.670479,
+          "ms": 24.2347979999995,
+          "rows": 3023,
+          "bytes": 1066273,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 6208.116703000001,
+          "ms": 1244.9422009999998,
+          "rows": 2978,
+          "bytes": 768302,
+          "snapshot": true,
+          "more": true
+        },
+        {
+          "at": 7544.234807,
+          "ms": 351.58902600000056,
+          "rows": 187,
+          "bytes": 42507,
+          "snapshot": true,
+          "more": false
+        },
+        {
+          "at": 7907.145985,
+          "ms": 3.2704219999995985,
+          "rows": 0,
+          "bytes": 192,
+          "snapshot": false,
+          "more": false
+        }
+      ],
+      "acquisitionCalls": {
+        "sync_state": {
+          "calls": 36,
+          "totalMs": 6.02696999999489,
+          "maxMs": 1.1038640000000441,
+          "persistenceMs": 0.198214999999891
+        },
+        "state": {
+          "calls": 4,
+          "totalMs": 0.3402720000000272,
+          "maxMs": 0.1744419999999991,
+          "persistenceMs": 0
+        },
+        "meta": {
+          "calls": 5,
+          "totalMs": 0.43369000000006963,
+          "maxMs": 0.15693499999997584,
+          "persistenceMs": 0
+        },
+        "queued": {
+          "calls": 3,
+          "totalMs": 0.22368600000004335,
+          "maxMs": 0.13364000000001397,
+          "persistenceMs": 0
+        },
+        "set_meta": {
+          "calls": 3,
+          "totalMs": 0.5518469999979061,
+          "maxMs": 0.2046569999984058,
+          "persistenceMs": 0.10495700000137731
+        },
+        "next_submission": {
+          "calls": 1,
+          "totalMs": 0.10796200000004319,
+          "maxMs": 0.10796200000004319,
+          "persistenceMs": 0
+        },
+        "observe_store": {
+          "calls": 30,
+          "totalMs": 859.707259,
+          "maxMs": 35.30353000000014,
+          "persistenceMs": 0.45320099999878494
+        },
+        "apply": {
+          "calls": 30,
+          "totalMs": 22373.085419000003,
+          "maxMs": 19043.264147,
+          "persistenceMs": 354.9473930000004
+        }
+      },
+      "largestApply": {
+        "op": "apply",
+        "at": 7911.443477,
+        "ms": 19043.264147,
+        "persistenceMs": 301.0749759999999
+      },
+      "largestEventLoopGap": {
+        "at": 97.549447,
+        "ms": 378.50472199999996
+      }
+    }
+  },
+  "mutationControls": [
+    {
+      "mutation": "cap",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "capped_batch_admission",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "log": "target/lane-ss-round1/mutation-cap-0.log"
+    },
+    {
+      "mutation": "tombstone",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "fifty_members_share_one_live_walk",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "log": "target/lane-ss-round1/mutation-tombstone-0.log"
+    },
+    {
+      "mutation": "tombstone",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "sync_count_batch",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "log": "target/lane-ss-round1/mutation-tombstone-1.log"
+    },
+    {
+      "mutation": "self-send",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "fifty_members_share_one_live_walk",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "log": "target/lane-ss-round1/mutation-self-send-0.log"
+    },
+    {
+      "mutation": "self-send",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "sync_count_batch",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "log": "target/lane-ss-round1/mutation-self-send-1.log"
+    }
+  ],
+  "wasm": {
+    "rawBytes": 1981512,
+    "gzipBytes": 572049,
+    "deltaRawBytes": 0,
+    "deltaGzipBytes": 0,
+    "budgetGzipBytes": 572841,
+    "sha256": "1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928"
+  },
+  "tests": {
+    "rowViews": {
+      "passed": 18
+    },
+    "syncDelivery": {
+      "passed": 1
+    },
+    "sdkAffected": {
+      "passed": 198
+    },
+    "guide": {
+      "passed": 86
+    },
+    "fullSuite": {
+      "summary": "== 0 failure(s) in 1057 s",
+      "exit": 0,
+      "runs": 1,
+      "failures": {
+        "laneOwned": [],
+        "baseline": [],
+        "environmental": []
+      },
+      "rustPassed": 3888,
+      "rustIgnored": 24,
+      "clientPassed": 2638,
+      "clientSkipped": 10,
+      "clientShardPassed": 56,
+      "fixturePassed": 9,
+      "modelsPassed": 78,
+      "log": "target/lane-ss-round1/full-suite.log"
+    }
+  }
+}

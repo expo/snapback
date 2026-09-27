@@ -68180,6 +68180,73 @@ change. No push. Supervisor owns integration and blind reviews. Full file map,
 reproduction, limitations and evidence: reports/20260927-fx-flakes/REPORT.md;
 raw logs/controls under target/lane-fx-evidence/ and durable result hashes in
 reports/20260927-fx-flakes/qualification.json. This is the single journal append.
+### 2026-09-27 — Lane SS: acquisition and live messages at scale
+
+Implemented bounded server certification of expiring row-keyed counts for
+snapshot and stream delivery. Up to 256 authorized member images share one
+live source walk per parent; repeated puts use a transaction-local certified
+image. Every source still crosses its row/field authorization boundary, and
+scratch, output, examined work and per-member predicate steps remain metered.
+The SDK refreshes mounted server-backed watches every 250 ms while cold
+acquisition owns the follow loop, using the existing read fences. Staged
+rows remain private; publication and persistence remain atomic.
+
+Reproduced calibration #23 using Node 24.13.1, the local SDK and wasm on a
+private copy of its store on expo-build-1000. The original debug server took
+33.68 s to acquire and one message timed out at 31 s. Original optimized
+server plus original SDK: 7.858 s acquisition / 6.252 s steady-state message
+p95. Fixed optimized server: 1.858 s acquisition with memory persistence,
+2.348 s with production indexedDbStore over fake-indexeddb; login-inclusive
+1.905/2.384 s. Five responses deliver 15,588 rows, about 4.655 MB. Sync response
+time falls from 6.426 s to 0.480 s; fixed device apply excluding saves is
+0.756/0.757 s, saves 0.016/0.504 s. Inter-page idle time is zero. Steady-state
+message p95 is 0.427/0.454 s (20 samples each after three warm-ups).
+
+The one-second target throughout acquisition remains open. Initial five-send
+probes measured 0.257/0.320 s p95 but missed terminal publication. Extending
+four probes per persistence mode until acquisition finishes gives 28/30
+samples and 1.092/1.397 s p95, maximum 1.124/1.410 s. A concrete boundary
+message committed after the terminal response's cut waits behind the
+556 ms memory / 760 ms IDB-shaped atomic apply and the next ~366 ms sync
+response. Returning staged rows or claiming that later message in the
+terminal watermark would break the publication contract; neither was done.
+The witness now includes this boundary, and the report records the miss.
+
+Extended a second private copy with 900 two-member conversations and 100
+messages each. The 1,000-membership acquisition delivers 110,088 rows,
+about 41.967 MB in 30 responses: memory 21.378 s, IDB-shaped 41.580 s.
+Sampled peak JS heap is 207.7/1,866.8 MB; external memory 1,375.3/1,514.7 MB;
+RSS 1,798.8/3,412.8 MB. IDB simulation stores its data in JS and is not a
+Chromium/disk measurement. Largest atomic apply: 13.83/25.24 s including
+persistence; one-second visibility throughout that publication is not
+established. Steady-state p95 afterward is 0.483/0.973 s. No original GS
+store or WAL write; their recorded hashes still match.
+
+Four new engine tests pin scalar equality, authorization/revocation,
+expiry/current basis and meter exhaustion. A partition test pins one source
+walk through actual snapshot/stream delivery, including 250 repeated puts.
+Two SDK tests hold terminal catch-up and prove consecutive sends/deletion
+reach a watch with zero device publications, with refresh cleanup on
+acquisition and unmount. Row-view tests 17/17, partition regression 1/1,
+adjacent SDK tests 54/54, whole guide 86/86, typecheck/build and reference
+audit pass. One complete scripts/test.sh run: `== 0 failure(s) in 1431 s`,
+exit 0; no lane-owned, baseline or environmental failures in that run.
+Ordinary client tests: 2,635 passed, ten skipped; serial models: 78 passed.
+The inherited 60 s budget remains exceeded; no budget/timeout was raised.
+
+Wasm raw 1,981,512 B before/after; gzip 572,053 -> 572,049 B (-4), below the
+unchanged 572,841 B budget. Host wasm-opt 108 rejects sign-extension
+instructions; both measurements and the full suite use the supported
+no-optimizer path via an isolated PATH, without changing global tools or
+build scripts. No new syntax/diagnostics, contract reshaping, publication
+redesign, browser qualification, version bump, push or package publication.
+Supervisor owns integration and blind reviews. No new design LLP: this
+optimizes the existing live-count and staged-publication contracts.
+
+Implementation/witness commits: 440c032cf, f1d8cc991, f524fa5fa, 13210d828.
+File map, exact measurements, open limits and reproductions:
+reports/20260927-ss-sync-scale/REPORT.md and measurements.json. Raw evidence
+and the full-suite log remain under target/lane-ss-evidence/.
 ## 2026-09-27 — 0.4.5 lane QE round 2: compatible joins and review regressions
 
 Read the original lane prompt, both earlier reports/journal entries and both
@@ -68496,3 +68563,66 @@ Implementation commits: `c207ca6c90` (canonical paths), `bda34d344b`
 (atomic readiness), `1e5cf1cee8` (terminal receipt assertions), and
 `891f76572a` (round-trip fixture root). This entry
 is the single dated journal append. No push or publication.
+### 2026-09-27 — Lane SS round 1: acquisition refresh recovery and heap attribution
+
+Fetched and merged origin/main at 47ea5918b before changing the lane; both
+sides of the journal append conflict are preserved. An unpublished background
+read no longer clears the last accepted server answer's origin. Only the
+fenced publication branch sets `serverRead`; failures, queued predictions
+and expiry-withheld replies retain the 250 ms acquisition polling cadence.
+The background call still supplies no watch to `runLocal`, preserving
+ReadObservation.fetch's publication/finally contract.
+
+Three wasm SDK regressions hold terminal catch-up, publish once, inject a
+503, a real persisted predictable outbox entry, or an expired reply, then
+observe another session's message and deletion before acquisition finishes.
+All three fail with the old assignment and pass with the fix. Tombstones and
+self-sends now appear in both fifty-member batch equivalence and actual
+snapshot/stream delivery, with scalar comparisons and work counts intact.
+A finite Cut::Cap test exhausts examined after its one readable member;
+source admission refuses rather than certifying zero. Five Rust mutation
+runs reject removal of require_uncapped and both predicate corruptions.
+No engine production code changed.
+
+During-acquisition remeasurement remains above the one-second target:
+33 memory samples give 1.119 s p95, 31 IDB-shaped samples 1.398 s, across
+four acquisitions per mode. An isolated 100 ms poll experiment gives
+1.158/1.566 s p95, so the production cadence stays 250 ms. Device applies
+already rerun watches. A later message after terminal catch-up's database
+cut still waits through atomic publication and the next sync: one memory
+witness has a 533 ms apply, a 363 ms following response and a 615 ms event-loop
+gap. No clear safe timing improvement was established; publication and all
+read fences remain intact.
+
+The 1,000-member IDB-shaped replay reproduces 1.859 GB sampled JS heap.
+After SDK close and GC, fake-indexeddb 6.2.5 retains 1.556 GB. Releasing only
+its 218 completed transactions (129,712 rollback entries), with live records
+unchanged, releases 1.372 GB and leaves 183.85 MB. A diagnostic control doing
+this after each save peaks at 844 MB and finishes acquisition in 42.236 s
+versus the ordinary 41.467 s. This attributes most of round 0's 1.87 GB JS
+heap to the fake's retained transaction history; it is not a browser memory
+claim or a production SDK change. The remaining ~180 MB after simulated
+store deletion is not fully attributed. The memory-persistence control
+returns to 10.67 MB JS heap after close. Real SDK scale cost remains:
+external memory peaks at 1.383/1.515 GB (memory/IDB-shaped), with about
+1.366 GB retained by the process-global wasm runtime after close. Largest
+atomic applies are 19.043/24.838 s on this shared host. The original GS
+database and WAL hashes still match.
+
+Affected checks pass: row views 18/18, sync delivery 1/1, adjacent SDK 198/198,
+whole guide 86/86, typecheck/build, reference audit and whitespace checks.
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1057 s`, exit 0.
+Every failure classified: none (lane-owned 0, baseline 0, environmental 0).
+Rust 3,888 passed / 24 existing ignored; main SDK 2,638 passed / 10 existing
+skips, seven additional shards 56/56, serial models 78/78, fixtures 9/9.
+The inherited 60 s budget is still exceeded; no budget or timeout changed.
+Wasm remains 1,981,512 B raw / 572,049 B gzip, delta 0 B, 792 B below the
+unchanged budget; SHA-256
+1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928.
+The supported no-optimizer build again avoids the host's old wasm-opt through
+existing worktree-local PATH symlinks. No tool installation, new syntax,
+diagnostic, version, contract reshaping, push or publication.
+
+File map, examples, controls, exact qualification, deviations and reproductions:
+reports/20260927-ss-sync-scale/ROUND1.md and round1-measurements.json. Raw
+witnesses, mutation controls and full-suite log/exit: target/lane-ss-round1/.

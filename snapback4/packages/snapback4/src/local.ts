@@ -948,7 +948,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function armPresence(watch: Watch) {
     // A closed client or a dead session keeps no interval, whichever read settles last.
     if (unavailable()) watch.presenceEvery = undefined;
-    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, watch.presenceEvery, () => {
+    // @ref LLP 3000.019#3.3 — a live fallback must not wait behind cold snapshot publication.
+    // Reuse the bounded background read while sync owns the change-follow loop.
+    const interval = !unavailable() && syncing && !acquired && watch.serverRead
+      ? Math.min(watch.presenceEvery ?? 250, 250) : watch.presenceEvery;
+    watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, interval, () => {
       watch.presenceRefresh = null;
       void refreshPresence(watch);
     });
@@ -967,6 +971,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (watch.snapshot !== shown || watch.running) return;
       // An answer the server gave, current for this store, authority and ephemeral state, is published whatever it says.
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
+        watch.serverRead = true;
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.tables = tables;
         if (!(watch.keep && "data" in watch.snapshot && "loading" in read)) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
@@ -1001,6 +1006,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       ephemeralReads.incomplete(watch, "data" in read && !read.complete);
       watch.incarnation = revision;
       watch.tables = tables;
+      watch.serverRead = served === true;
       // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
       if (served) watch.presenceEvery = after;
       armPresence(watch);
