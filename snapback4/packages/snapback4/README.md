@@ -171,7 +171,7 @@ their durable outbox. Pending writes stay with their original account. A termina
 `failed` carries the refusal.
 
 Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged
-arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time, for row IDs too:
+arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time (it sorts before minted IDs):
 
 ```ts
 import { mintId, idFrom } from "snapback4/client";

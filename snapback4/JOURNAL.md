@@ -67415,9 +67415,11 @@ This dated entry is included in the merge commit with
 Two builders on two releases (the 0.4.3 comparative's Grok, and calibration
 #23's Astra on 0.4.4) hit `E_WRITE_ID` with fixture strings and wrote the same
 workaround: a hash of the label into the `mintId()` form. `snapback4/client`
-now exports `idFrom(label)`, which is that mapping. It takes the first 128
-bits of SHA-256 over `["snapback4:id:v1", label]` in 26 Crockford digits, with
-the first digit 0–7. It is synchronous on every host, through a small
+now exports `idFrom(label)`, which is that mapping. It puts the first 80 bits
+of SHA-256 over `["snapback4:id:v1", label]` under a zero time, in 26
+Crockford digits. A derived id sorts before every minted id, as if minted at
+the epoch. With all 128 bits hashed, most ids decoded as future times, and
+seeded rows would have crowded a `by .id` sync window (Grok's review). It is synchronous on every host, through a small
 portable SHA-256 (`src/sha256.ts`), because Web Crypto's digest is
 asynchronous and Hermes has no `node:crypto`.
 
@@ -67429,5 +67431,5 @@ asynchronous and Hermes has no `node:crypto`.
 
 The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
-never capabilities, and this is a name, not a secret. Unlike `mintId()`'s,
-derived ids do not sort by creation time.
+never capabilities, and this is a name, not a secret. The operations manual
+calls it in a type-checked block, which the public-function census requires.

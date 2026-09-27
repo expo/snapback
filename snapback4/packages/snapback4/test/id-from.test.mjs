@@ -10,7 +10,7 @@ const idForm = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 function reference(label) {
   const digest = createHash("sha256").update(JSON.stringify(["snapback4:id:v1", label])).digest();
   let value = 0n;
-  for (const byte of digest.subarray(0, 16)) value = (value << 8n) | BigInt(byte);
+  for (const byte of digest.subarray(0, 10)) value = (value << 8n) | BigInt(byte);
   let id = "";
   for (let i = 0; i < 26; i++) { id = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"[Number(value & 31n)] + id; value >>= 5n; }
   return id;
@@ -41,6 +41,8 @@ test("idFrom names a stable, valid id for a label", () => {
   }
   assert.equal(seen.size, 10_000);
   assert.match(mintId(), idForm, "idFrom shares mintId's form");
+  assert.match(id, /^0{10}/, "a derived id carries a zero time");
+  for (let i = 0; i < 100; i++) assert.ok(idFrom(`fixture-${i}`) < mintId(), "a derived id sorts before every id minted now");
   assert.throws(() => idFrom(""), /non-empty string/);
   assert.throws(() => idFrom(17), /non-empty string/);
 });

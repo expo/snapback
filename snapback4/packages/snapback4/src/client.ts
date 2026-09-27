@@ -120,15 +120,16 @@ export function mintId(now = Date.now()): string {
 
 /** The id a stable key names, in the `mintId()` form: the same key gives the
  * same id on every client and host. For fixtures, seeds and replays keyed by a
- * label (`idFrom("post-17")`), as a write id or a row id. It is a name, not a
- * secret: anyone who knows the key knows the id. Unlike mintId's, derived ids
- * do not sort by creation time. */
+ * label (`idFrom("seed:post-17")`), as a write id or a fixture row's id. It is a
+ * name, not a secret: anyone who knows the key knows the id. A derived id sorts
+ * before every minted id, as if minted at the epoch. */
 export function idFrom(key: string): string {
   if (typeof key !== "string" || key === "") throw new TypeError("idFrom: the key must be a non-empty string");
   const digest = sha256(utf8(JSON.stringify(["snapback4:id:v1", key])));
-  // 128 bits fill 26 base32 digits with the first digit 0–7, as mintId's do.
+  // 80 bits of hash under a zero time: a derived row never crowds a `by .id`
+  // window of minted rows, and the first ten digits read as zeros.
   let value = 0n;
-  for (let i = 0; i < 16; i++) value = (value << 8n) | BigInt(digest[i]!);
+  for (let i = 0; i < 10; i++) value = (value << 8n) | BigInt(digest[i]!);
   let out = "";
   for (let i = 0; i < 26; i++) {
     out = ALPHABET[Number(value & 31n)] + out;

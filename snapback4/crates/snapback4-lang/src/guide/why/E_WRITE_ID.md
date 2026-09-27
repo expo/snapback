@@ -3,7 +3,7 @@
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent, or name a fixture label with `idFrom("post-17")`: the same label
 gives the same valid id on every client and host, so a replay needs no ledger.
-`idFrom` also names row ids. It is a name, not a secret.
+`idFrom` also names fixture rows; derived ids sort before every minted id.
 Pass it as `{ id }`; a retry returns the original outcome and never applies twice:
 `client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:
 26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with
