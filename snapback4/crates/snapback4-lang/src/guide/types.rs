@@ -19,8 +19,6 @@ mutation createProfile(name: text 1..80):
 Columns are required unless their type ends in `?`; omitted optional values are null.
 A table name means a typed reference id, and `text` means `text <=10000`.
 `default` fills an omitted insert value; an explicit value wins.
-`owner` is an identity, `name` is bounded text, and `createdAt` uses the writing host's clock.
-The complete example in Details names every scalar type, asset and bounded list form.
 
 ## Limits
 
@@ -67,6 +65,28 @@ query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take 
 
 Types describe the values a column or argument accepts.
 They also set limits on text, lists and uploaded assets.
+
+Null guards narrow repeated pure `fn` calls with identical arguments: lexical
+names, snapshot field paths, literals, or such calls. Pure helpers read no
+tables or clocks and write nothing. Reassigning any argument root invalidates
+the fact. Other calls keep the bind-once rewrite. Both calls remain metered.
+
+See `expiryTtl` in `guide language`.
+
+Mixed-table references need explicit generic ids: `[exposedId(x), exposedId(y)]`.
+For nested `[].id` conflicts, widen each projected field with `exposedId(row.id)`.
+
+```quarry
+table a:
+  public
+table b:
+  public
+fn exposedId(value: id): value
+query ids(x: a, y: b):
+  return [exposedId(x), exposedId(y)]
+query nestedIds(x: a, y: b):
+  return [{ id: exposedId(x) }, { id: exposedId(y) }]
+```
 
 `text` defaults to `text <=10000` characters in columns, arguments and helper
 parameters. Write `text <=N` or `text M..N` when the bound is a product rule;

@@ -234,11 +234,15 @@ query chips(postId: posts, c: cursor ?):
 
 fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
 shape messageCard = { *, room: rooms[.roomId], count: messageCounts[.roomId] }
-shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
-fn messageBody(m: messages): m.body                                  -- a row argument keeps its fields at this call site
-fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- a reference argument stays a reference
-fn isBrief(ttl: int ?): ttl != null                                  -- a helper expression, expanded where it is called
-fn stamp(roomId: rooms):                                             -- a helper body, expanded with its caller's write authority
+shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- named shape: `.` denotes the row; use `row card` or `page card`
+fn messageBody(m: messages): m.body                                  -- row arguments keep their fields
+fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- reference arguments keep their ids
+fn expiryTtl(setting: text): 60000 if setting = 'short' else null
+query expiration(setting: text):
+  return now + expiryTtl(setting) if expiryTtl(setting) != null else null  -- repeated pure calls narrow (guide types)
+
+fn isBrief(ttl: int ?): ttl != null                                  -- expanded at each call
+fn stamp(roomId: rooms):                                             -- inherits caller write authority
   update rooms[roomId] { createdAt: now }
   return
 fn tally(n: int):
@@ -261,32 +265,33 @@ query spreadChoice(h: text 3..20 format handle, flag: bool):
 query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
   return rooms[roomId] card
 
-query room(roomId: rooms):            -- a query reads; its result type is inferred onto api.ts
-  return rooms[roomId] card           -- one row by a unique key: null when absent or hidden; then the named shape
+query room(roomId: rooms):            -- result type inferred onto api.ts
+  return rooms[roomId] card           -- unique lookup, null if absent/hidden; applies card
 
 query helperRows(messageId: messages):
   m = messages[messageId] ! else NOT_FOUND
   return { body: messageBody(m), byId: messageById(messageId) }
 
-query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
-  require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
+query thread(roomId: rooms, c: cursor ?):                            -- optional page cursor; omitted means null
+  require exists members[roomId, viewer] else NOT_MEMBER              -- application refusal code
   return messages where .roomId = roomId and .body != null and exists members[.roomId, viewer] last 50 by .at after c messageCard   -- messageCard shapes the page after authorization
 
 query inbox(c: cursor ?):
   return members where .principal = viewer first 50 by .roomId after c { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
 query ancestors(roomId: rooms):
-  chain = walk rooms[roomId] up .parentId depth 8                   -- the seed row plus at most eight parent hops
+  chain = walk rooms[roomId] up .parentId depth 8                   -- seed plus at most eight parents
   return chain { id, name }
 
 query digest(roomId: rooms):
   require exists members[roomId, viewer] else NOT_MEMBER
-  page = messages where .roomId = roomId and .at >= now - 1d last 100 by .at                     -- a page bound to a name; count, sum, slice, sort and shapes take it
-  (weeks, days) = divmod(count(page), 7)                             -- divmod binds quotient and remainder at once
+  page = messages where .roomId = roomId and .at >= now - 1d last 100 by .at                     -- named page for aggregates, slices, sorting and shapes
+  (weeks, days) = divmod(count(page), 7)                             -- quotient and remainder
   (lo, hi) = sorted(weeks, days)                                     -- two values in order
   counter = 0
   for message in page:
-    counter = counter + 1                                           -- a local can carry a counter across iterations
+    counter = counter + 1                                           -- loop-carried counter
+  combined = [0] + [1, 2]
   offsets = []
   for i in range(0, 3):
     if i = 2:
@@ -296,11 +301,11 @@ query digest(roomId: rooms):
     offsets = offsets + [i]                                         -- append in place, under the heap meter
   label = lower(trim(' DIGEST ')) + ': ' + join(['room', 'messages'], ' / ')
   quotient = counter / 7
-  doubled = tally(counter)                                          -- a helper body also yields a value in an expression
+  doubled = tally(counter)                                          -- helper result in an expression
   remainder = counter % 7                                          -- the same Euclidean parts as divmod; zero refuses E_DIV_ZERO
   head = first(page)
   if head != null and head.body != null:
-    bodySize = count(head.body)                                     -- a null guard narrows the snapshot field through the rest of this block
+    bodySize = count(head.body)                                     -- guard narrows this snapshot field
   sum = sum(page, .at)
   earliest = min(page, .at)
   latest = max(page, .at)
@@ -331,13 +336,13 @@ query memberTotal():
   return n
 
 query hasMessages(roomId: rooms):
-  return exists messages where .roomId = roomId                                  -- a prefix existence scan: first visible match, no page or cursor
+  return exists messages where .roomId = roomId                                  -- first visible match; no page/cursor
 
 query groupedMessages(q: text <=100, c: cursor ?):
   return members where .principal = viewer and exists (messages[roomId = .roomId] matching q) first 20 by .roomId after c { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at }
 
 query online(p: principal):
-  return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
+  return connected[p]                 -- server connection count; `exists connected[p]` tests (guide presence)
 
 mutation pagePass(roomId: rooms): server
   n = 0
@@ -349,14 +354,14 @@ mutation registerProfile(handle: text 3..20 format handle):
   return insert profiles { principal: viewer, handle }
 
 mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
-  room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints an id; omit `id` and one is minted anyway
+  room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints; omitting id also mints
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
-  upsert rooms[room.id] { createdAt: now }                            -- patches the existing room; name, owner, kind and tags stay
+  upsert rooms[room.id] { createdAt: now }                            -- patches createdAt; other fields stay
   return room card
 
 mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   require exists members[roomId, viewer] else NOT_MEMBER
-  row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- a conditional value: the arm not taken never runs, and `ttl` is present in the taken one
+  row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- lazy conditional; ttl narrows in the present arm
   recipients = []
   for m in members where .roomId = roomId:
     if m.principal != viewer:
@@ -364,13 +369,13 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   for p in recipients:                                              -- bounded derived lists may read and emit; row writes still need the complete-group proof
     if not exists connected[p]:
       emit notify { targetUserId: p, roomId, senderHandle: profiles[principal = viewer].handle, preview: slice(body ?? '', 0, 80) }   -- the profile read feeds only the effect: server-only, still predicts
-  return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
+  return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` supplies the null fallback
 
 mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:
   msg = messages[messageId] ! else NOT_FOUND                         -- the row, or refuse with the code; `msg` is present from here on
   require msg.authorId = viewer else NOT_AUTHOR
   update messages[msg] { body, editedAt: now } if .body = expected    -- a row as the key; `if` makes the update conditional: E_CONFLICT with the current row when false
-  return null                                                        -- a bare `return` is the same
+  return null                                                        -- same as bare `return`
 
 mutation join(roomId: rooms, principal: principal):
   require exists members[roomId = roomId, principal = viewer, role = 'admin'] else NOT_ADMIN
@@ -551,6 +556,8 @@ is unavailable, never a partial answer (even before `?? 2`). A device needs
 complete coverage of the domain. Rules apply before any comparison. `exists` stops
 at a visible match; an unknown domain cannot establish absence.
 
+`ys = xs + [value]`, `[a] + [b]` and `return xs + [value]` concatenate lists;
+item types join and bounds add.
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
 
 `sha256` is for high-entropy capability tokens and content checksums. It hashes
