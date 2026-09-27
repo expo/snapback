@@ -55,7 +55,7 @@ fn language_operation_classes() {
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
     // The receipt example has no state-ordered index, so its extrema scan.
-    pin_backlog(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+    pin_backlog(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "expiration", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
         &["hasMessages"],
         &["digest", "everywhere", "groupedMessages", "inbox", "memberTotal", "personalizeNative", "receiptStatus", "rescoreNative", "roomHour", "roomWindow", "search", "thread", "intentDaily", "intentSearch"]);
 }

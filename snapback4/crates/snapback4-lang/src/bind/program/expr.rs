@@ -46,7 +46,7 @@ impl Binder<'_> {
         }
     }
 
-    fn strict_args(&mut self, args: &[A], out: &mut setup::Body) -> Fallible<Vec<(Expr, Ty)>> {
+    pub(super) fn strict_args(&mut self, args: &[A], out: &mut setup::Body) -> Fallible<Vec<(Expr, Ty)>> {
         let mut values = Vec::<(Expr, Ty)>::new();
         let mut failed = None;
         for arg in args {
@@ -92,7 +92,7 @@ impl Binder<'_> {
                 let origins: Vec<_> = args.iter().zip(items).map(|((_, ty), source)| (ty.clone(), source.clone())).collect();
                 for (e, t) in args {
                     item_ty = Some(match item_ty {
-                        Some(j) => j.join(&t).map_err(|error| self.join_error_many(error.at("[]"), &origins))?,
+                        Some(j) => j.join_item(&t).map_err(|error| self.join_error_many(error.at("[]"), &origins))?,
                         None => t,
                     });
                     exprs.push(e);
@@ -137,7 +137,11 @@ impl Binder<'_> {
                 let (value, ty) = self.member(e, t, name, site)?;
                 Ok((value, self.field_refinement(expr).unwrap_or(ty)))
             }
-            A::Call { name, args, .. } => self.call(name, args, site, out),
+            A::Call { name, args, .. } => {
+                let (value, ty) = self.call(name, args, site, out)?;
+                self.record_call(expr, &ty);
+                Ok((value, self.call_refinement(expr).unwrap_or(ty)))
+            },
             A::Read(read) if read.table == "connected" && !self.catalog.tables.contains_key("connected") => self.connected(read, out),
             A::Read(read) => self.read(read, out),
             A::Merge(merge) => self.merge(merge, out),
@@ -371,6 +375,17 @@ impl Binder<'_> {
                 let (Ty::Text(a), Ty::Text(b)) = (lt, rt) else { unreachable!() };
                 // @ref LLP 3000.007#5.1 — text addition uses the shared, heap-metered concatenation builtin.
                 return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::Text(a.saturating_add(b))));
+            }
+            "+" if matches!((&lt, &rt), (Ty::List(..), Ty::List(..))) => {
+                // @ref LLP 3000.019#6 — list construction is an expression, including returns and arguments.
+                // @ref LLP 3000.007#5.1 — join items as in literals; Concat charges the full allocation.
+                let Ty::List(item, _) = self.join(&lt, &rt, left, right)? else { unreachable!() };
+                let (Ty::List(_, a), Ty::List(_, b)) = (lt, rt) else { unreachable!() };
+                return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::List(item, a.saturating_add(b))));
+            }
+            "+" if matches!(lt.required(), Ty::List(..)) || matches!(rt.required(), Ty::List(..)) => {
+                return Err(type_error(site, format!("+ concatenates two lists; got {} and {}", lt.name(), rt.name()),
+                    "use `xs + [x]` to append an item; make both lists present with `xs ?? []` if optional"));
             }
             "=" | "!=" => {
                 if !lt.comparable(&rt) {

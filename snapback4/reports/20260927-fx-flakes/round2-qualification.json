@@ -1,0 +1,696 @@
+{
+  "date": "2026-09-27",
+  "branch": "sb4-intent/fx-flakes-2",
+  "base": "f39598de7febb1f3ddea45ae350b79e0bec50104",
+  "merged_main": "f39598de7",
+  "merge_result": "Already up to date.",
+  "tools": {
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "rust": "1.97.0"
+  },
+  "diagnosis": "Test clock-control error: a revision discards the old request midpoint bias; offset += TTL does not imply client.now() >= row deadline.",
+  "controlled_schedule": {
+    "initial_wall": 1000,
+    "initial_offset": 90000000,
+    "first_request_delay_ms": 40,
+    "initial_midpoint_bias_ms": 20,
+    "later_request_delay_ms": 0,
+    "bob_deadline": 90121560,
+    "after_old_advance": 90121540,
+    "after_exact_deadline_sample": 90121560
+  },
+  "test_sources": [
+    {
+      "path": "packages/snapback4/test/react.test.mjs",
+      "sha256": "4ca8e25f691edf22bbb1030e2a57df614c60ca3641456129780ed667f006fd7a"
+    },
+    {
+      "path": "packages/snapback4/test/helpers/react-harness.mjs",
+      "sha256": "8133b0942155e57cd29f315ed330973a84d3667071aef8c361a4e1e70b0a1388"
+    }
+  ],
+  "repetitions": {
+    "react": {
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "load": [
+        23.140625,
+        16.77880859375,
+        16.97509765625
+      ],
+      "workers": 8,
+      "runs": [
+        {
+          "run": 0,
+          "exit": 0,
+          "seconds": 5.929,
+          "log": "target/lane-fx-evidence/round2-react-00.log",
+          "sha256": "72c3c06e1e1c86f1068c4ba2bb68f360448d869aa9d8c762be4baf12a266db7d",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 1,
+          "exit": 0,
+          "seconds": 5.277,
+          "log": "target/lane-fx-evidence/round2-react-01.log",
+          "sha256": "67afa2ec3a2fdd7c59ac8a5bd48256d2f73988c43ab31dc86983f875948da4a5",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 2,
+          "exit": 0,
+          "seconds": 6.179,
+          "log": "target/lane-fx-evidence/round2-react-02.log",
+          "sha256": "3cfdff4a9484152ac263aed63f04264c0a978d4e30dac79d987987418cb334da",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 3,
+          "exit": 0,
+          "seconds": 5.176,
+          "log": "target/lane-fx-evidence/round2-react-03.log",
+          "sha256": "7aeb74f42770501e0278a117ca8bf367beb0ad9589105aa86772481aa06f8e7c",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 4,
+          "exit": 0,
+          "seconds": 6.177,
+          "log": "target/lane-fx-evidence/round2-react-04.log",
+          "sha256": "efa365a2aafbfbaa3d6c9af22b1abd13de571214bcf628563e0fc2abffc49d89",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 5,
+          "exit": 0,
+          "seconds": 6.18,
+          "log": "target/lane-fx-evidence/round2-react-05.log",
+          "sha256": "47991e2e11d6afe31c352743277a840912b1fdace0e29aa8a7a1176f953abd23",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 6,
+          "exit": 0,
+          "seconds": 5.979,
+          "log": "target/lane-fx-evidence/round2-react-06.log",
+          "sha256": "ea909a92956dd3156aae200b763ef2bc7012c5ca81beb06c02c02478943f3e2a",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 7,
+          "exit": 0,
+          "seconds": 5.728,
+          "log": "target/lane-fx-evidence/round2-react-07.log",
+          "sha256": "42f0d889a65b161c0988808c62d56fef87438823b77f1747909b0ba6031c4d84",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 8,
+          "exit": 0,
+          "seconds": 5.929,
+          "log": "target/lane-fx-evidence/round2-react-08.log",
+          "sha256": "6d9e6ab295c3c298d7fc7701dff4a782bed87887c18abfd0fc2a1cc98a45ab52",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 9,
+          "exit": 0,
+          "seconds": 6.028,
+          "log": "target/lane-fx-evidence/round2-react-09.log",
+          "sha256": "aef3d0cdfa354c73c94b6ea25635cbad8c8f550db499d07b743f14cd4d1caa04",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 10,
+          "exit": 0,
+          "seconds": 6.383,
+          "log": "target/lane-fx-evidence/round2-react-10.log",
+          "sha256": "448323dfcd57228b3f602aa90610050572f4a906346049926fff408b06b02042",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 11,
+          "exit": 0,
+          "seconds": 5.678,
+          "log": "target/lane-fx-evidence/round2-react-11.log",
+          "sha256": "17c995bb9023c18ed00ee6e3e7de2ba2cbc401428d08a290bf1d7fca57b5e516",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 12,
+          "exit": 0,
+          "seconds": 6.33,
+          "log": "target/lane-fx-evidence/round2-react-12.log",
+          "sha256": "1b60058f8d391b702b2d25a88b58c139c34d1e08a39dd9afc851a2821c203513",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 13,
+          "exit": 0,
+          "seconds": 6.38,
+          "log": "target/lane-fx-evidence/round2-react-13.log",
+          "sha256": "ebcff4002ec57d1db45758e3f14e39154052e2b41443f1939ef8801447cbe498",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 14,
+          "exit": 0,
+          "seconds": 5.427,
+          "log": "target/lane-fx-evidence/round2-react-14.log",
+          "sha256": "690185d983bd6fbf400c6445e59b3942ad48cebb76b25eed76efbe11faaf27ce",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 15,
+          "exit": 0,
+          "seconds": 5.777,
+          "log": "target/lane-fx-evidence/round2-react-15.log",
+          "sha256": "a13cf462e8a80b8a5209ea027c53c7621035e2fcc1c01f1b6d91005c4b1a1c43",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 16,
+          "exit": 0,
+          "seconds": 5.727,
+          "log": "target/lane-fx-evidence/round2-react-16.log",
+          "sha256": "ad437723049dfa8d5d752f2fdc2f7117e4b616ec24cb546e62f948e4df51bc60",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 17,
+          "exit": 0,
+          "seconds": 6.227,
+          "log": "target/lane-fx-evidence/round2-react-17.log",
+          "sha256": "8c003e509a6e2fca3952d3a038d63091e3e7ad0bd1c4ed4cd30197640aeb3270",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 18,
+          "exit": 0,
+          "seconds": 5.976,
+          "log": "target/lane-fx-evidence/round2-react-18.log",
+          "sha256": "a338ba060fa14227af95e694a820a8c19e53b7b4cd32b5dcf876a88bb6424258",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 19,
+          "exit": 0,
+          "seconds": 6.076,
+          "log": "target/lane-fx-evidence/round2-react-19.log",
+          "sha256": "81b6ca27122446326892ae282e0543847261af22903a188119d0f36d5bb9204a",
+          "test_summary": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ]
+    }
+  },
+  "controls": {
+    "round2-old-assumption": {
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "load": [
+        11.296875,
+        14.36767578125,
+        16.27099609375
+      ],
+      "workers": 8,
+      "runs": [
+        {
+          "run": 0,
+          "exit": 1,
+          "seconds": 6.279,
+          "log": "target/lane-fx-evidence/round2-old-assumption-00.log",
+          "sha256": "75524dfe00798e9b5d2c8d6f6dee280bd6802eba306427f06879db8907b98ecd",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 1,
+          "exit": 1,
+          "seconds": 5.528,
+          "log": "target/lane-fx-evidence/round2-old-assumption-01.log",
+          "sha256": "da3c5d0eef93fa270c78dc5806751a2ba8ceadc71d53836344d616921c853961",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 2,
+          "exit": 1,
+          "seconds": 6.278,
+          "log": "target/lane-fx-evidence/round2-old-assumption-02.log",
+          "sha256": "67e80955476c1198f202fd7e2574b0fea071e2b2a26508aabdc0f035bc758fec",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 3,
+          "exit": 1,
+          "seconds": 5.576,
+          "log": "target/lane-fx-evidence/round2-old-assumption-03.log",
+          "sha256": "eecf16b3838dc87df79b1df1aa5cf5836d43429c52650bf20508d26c6db9fb87",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 4,
+          "exit": 1,
+          "seconds": 5.977,
+          "log": "target/lane-fx-evidence/round2-old-assumption-04.log",
+          "sha256": "6a775841aa707179fa61f8e09e829dd2a2e199ddbed87cdf72af36d34fd948db",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ]
+    },
+    "round2-mut-deadline-tick": {
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "load": [
+        12.234375,
+        14.51123046875,
+        16.3076171875
+      ],
+      "workers": 8,
+      "runs": [
+        {
+          "run": 0,
+          "exit": 1,
+          "seconds": 6.73,
+          "log": "target/lane-fx-evidence/round2-mut-deadline-tick-00.log",
+          "sha256": "ab1efa1ecfcfc1b4090923b65bcbdfbb6a5438fd0e3ea36bda0bef98560a222e",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 1,
+          "exit": 1,
+          "seconds": 5.978,
+          "log": "target/lane-fx-evidence/round2-mut-deadline-tick-01.log",
+          "sha256": "c572e0105a0675a01c417c82fcc8dab741ec278b20ef54f85b569be75f79008c",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 2,
+          "exit": 1,
+          "seconds": 6.679,
+          "log": "target/lane-fx-evidence/round2-mut-deadline-tick-02.log",
+          "sha256": "8658535d788fa75f04c3c56cc44f7cb8c9b1c3eb8295ef05f0467e482bf33db2",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 3,
+          "exit": 1,
+          "seconds": 6.177,
+          "log": "target/lane-fx-evidence/round2-mut-deadline-tick-03.log",
+          "sha256": "64008ebb524954733524f93cbe1729773dfb92b06314c24d89a09204265a83a5",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 4,
+          "exit": 1,
+          "seconds": 6.68,
+          "log": "target/lane-fx-evidence/round2-mut-deadline-tick-04.log",
+          "sha256": "1ba51dda8da4e9718903d0b0d7273f483ec38f034a89138ec92b541bf59fe1bf",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ]
+    },
+    "round2-mut-clock-tick": {
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "load": [
+        15.04296875,
+        15.05126953125,
+        16.46533203125
+      ],
+      "workers": 8,
+      "runs": [
+        {
+          "run": 0,
+          "exit": 1,
+          "seconds": 5.727,
+          "log": "target/lane-fx-evidence/round2-mut-clock-tick-00.log",
+          "sha256": "8cdfe0dd7bc6c51aab2aa0fb27284b70ecef938940b4c299e95beef3af8cf0e3",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 1,
+          "exit": 1,
+          "seconds": 5.225,
+          "log": "target/lane-fx-evidence/round2-mut-clock-tick-01.log",
+          "sha256": "e047b1a4ae65ec51934c3146514fee5a62460706372bd138027893c830962b0b",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 2,
+          "exit": 1,
+          "seconds": 6.579,
+          "log": "target/lane-fx-evidence/round2-mut-clock-tick-02.log",
+          "sha256": "d9fabedb7aedf5fc009a1f5b54222a8cfa7e0bbb190ceb8560bc2ae6d987d984",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 3,
+          "exit": 1,
+          "seconds": 6.477,
+          "log": "target/lane-fx-evidence/round2-mut-clock-tick-03.log",
+          "sha256": "8e5816ec73d9f524246df2a6c9efbeafed74f9dc9084fa5b9679edf0bee5ad84",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "run": 4,
+          "exit": 1,
+          "seconds": 6.477,
+          "log": "target/lane-fx-evidence/round2-mut-clock-tick-04.log",
+          "sha256": "c48e3ecb3c3b7078f6b1e96833fd1db3851e13f7b38d9176c521a8f5923bc598",
+          "test_summary": {
+            "tests": 48,
+            "pass": 46,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ]
+    }
+  },
+  "guide": {
+    "command": "CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 cargo test -p snapback4-lang --test guide",
+    "exit": 0,
+    "summary": "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.60s",
+    "sha256": "76db69704a222863936598734d3cfa1c982d68847b35f0a337968e600d4f81f4"
+  },
+  "smoke": {
+    "exit": 0,
+    "tests": 48,
+    "pass": 48,
+    "sha256": "e6a749b8ee2161bbf5cc4816b225a8ba26763947c91e08b11d5834bf8d8a2edb"
+  },
+  "setup": {
+    "frozen_install": "passed, no changes",
+    "package_build": "passed",
+    "initial_control_launch": "Attempted from repository root; log redirection failed before any test or mutation. Relaunched from snapback4."
+  },
+  "kg_integration": {
+    "reviewed_branch": "sb4-intent/kg-kept-through-authority",
+    "reviewed_commit": "a5a6d534f1b89c4b2ac7f6e158ae54f64f2bed10",
+    "useNow_byte_identical": true,
+    "product_lines_changed": []
+  },
+  "full_suite": {
+    "run": false,
+    "reason": "Test-only final change; round-2 user instruction forbids scripts/test.sh unless product code changed. Temporary negative mutations were restored byte-for-byte.",
+    "historical_round0_summary": "== 0 failure(s) in 1436 s"
+  },
+  "wasm": {
+    "raw_bytes": 1981512,
+    "gzip_9_bytes": 572053,
+    "budget_bytes": 572841,
+    "device_code_delta_bytes": 0,
+    "sha256": "5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969"
+  },
+  "unloaded_control": {
+    "exit": 1,
+    "log": "target/lane-fx-evidence/round2-old-assumption-unloaded.log",
+    "sha256": "c6a1e03ef2a512278bafa83c73e1de6906a6d5fa6cbea4c964bf02c8054a5374",
+    "test_summary": {
+      "tests": 48,
+      "pass": 46,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "result": "Only useNow and its enclosing parent fail with the original bob signature."
+  },
+  "ref_check": {
+    "exit": 0,
+    "summary": "ref-check: ok \u2014 517 LLP docs, 9618 refs in 27250 files, 0 errors, 0 unchecked",
+    "sha256": "271be1514ed1ed806b036ada60ae1dd6fe85f0f87837187f71bdc3cf93107cf5"
+  }
+}

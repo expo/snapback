@@ -550,7 +550,7 @@ fn the_language_card_compiles_and_runs() {
     let source = in_context(&quarry(LANGUAGE).into_iter().find(|block| block.contains("action summarizeRoom(")).unwrap());
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("intent")).collect();
-    assert_eq!(names, ["receiptStatus", "daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["receiptStatus", "daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "expiration", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest", "intentDigest"]);
     assert!(bound.server);
     assert_eq!(bound.schema.schedules.len(), 2);
@@ -561,6 +561,11 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let (alice, bob) = ("dev:alice", "dev:bob");
+    for (setting, expected) in [("short", Value::Int(60_100)), ("off", Value::Null)] {
+        let result = engine.query("expiration", Context::new(alice, args(&[("setting", Value::String(setting.into()))])).at(100)).unwrap();
+        assert!(result.complete);
+        assert_eq!(result.data, expected);
+    }
 
     engine.seed((0..4).map(|h| ("roomEntries".into(), snapback4_core::value::object([
         ("id", id(&format!("entry{h}"))), ("roomId", id("calendar-room")), ("at", Value::Int(h * 3_600_000)),
