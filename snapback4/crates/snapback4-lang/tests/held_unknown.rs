@@ -36,21 +36,58 @@ fn guide_histories_are_bare_pages_without_membership_requirements() {
     }
 }
 
-#[test]
-fn held_read_through_child_notes_only_an_unsynced_parent() {
+fn check_held_parent_note(read: &str, pins_parent: bool) {
     for sync in ["", "  online only\n", "  sync\n", "  sync last 10 by .id\n"] {
-        for read in ["files[id]", "exists files[id]", "files last 10 by .id after c"] {
-            let source = format!("table folders:\n  name: text <=40\n  public 'folders are public'\n{sync}table files:\n  folder: folders\n  name: text <=80\n  immutable folder\n  read through .folder\n  sync\nquery heldFile(id: files, c: cursor ?) held:\n  return {read}\n");
-            let bound = bound(&source);
-            assert!(bound.schema.tables["files"].sync.is_some());
-            let notes = notes(&bound);
-            if sync.contains("sync") { assert!(notes.is_empty(), "{notes:?}"); }
-            else {
-                assert_eq!(notes.len(), 1, "{notes:?}");
-                assert!(notes[0].message.contains("folders has no sync"));
-                assert_eq!(source.lines().nth(notes[0].site.line as usize - 1).unwrap(), format!("  return {read}"));
-                assert_eq!(notes[0].rewrite, "move the read to its own query, or drop `held`");
-            }
+        let source = format!("table folders:\n  name: text <=40\n  public 'folders are public'\n{sync}table files:\n  folder: folders\n  name: text <=80\n  immutable folder\n  read through .folder\n  sync\nquery heldFile(id: files, folder: folders, c: cursor ?) held:\n  return {read}\n");
+        let bound = bound(&source);
+        assert!(bound.schema.tables["files"].sync.is_some());
+        let notes = notes(&bound);
+        if !pins_parent || sync.contains("sync") { assert!(notes.is_empty(), "{read}: {notes:?}"); }
+        else {
+            assert_eq!(notes.len(), 1, "{read}: {notes:?}");
+            assert!(notes[0].message.contains("folders has no sync"));
+            assert_eq!(source.lines().nth(notes[0].site.line as usize - 1).unwrap(), format!("  return {read}"));
+            assert_eq!(notes[0].rewrite, "move the read to its own query, or drop `held`");
+        }
+    }
+}
+
+#[test]
+fn held_read_through_point_does_not_note_parent() {
+    check_held_parent_note("files[id]", false);
+}
+
+#[test]
+fn held_read_through_exists_does_not_note_parent() {
+    check_held_parent_note("exists files[id]", false);
+}
+
+#[test]
+fn held_read_through_unpinned_pages_do_not_note_parent() {
+    for read in ["files last 10 by .id after c", "files last 10 by .folder, .id after c"] {
+        check_held_parent_note(read, false);
+    }
+}
+
+#[test]
+fn held_parent_pinned_page_notes_only_an_unsynced_parent() {
+    check_held_parent_note("files where .folder = folder last 10 by .id after c", true);
+}
+
+#[test]
+fn held_parent_key_aggregate_notes_only_an_unsynced_parent() {
+    for sync in ["", "  online only\n", "  sync\n", "  sync last 10 by .id\n"] {
+        let source = format!("table folders:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n{sync}table files:\n  folder: folders\n  immutable folder\n  read through .folder\n  sync\nview counts: count files by .folder\nquery heldCount(folder: folders) held:\n  return counts[folder]\n");
+        let bound = bound(&source);
+        assert!(bound.schema.tables["files"].sync.is_some());
+        assert!(bound.schema.maintain_for("counts").unwrap().parent_key.is_some());
+        // The view's own unsynced-source advice must not hide a missing parent note.
+        let notes: Vec<_> = notes(&bound).into_iter().filter(|note| note.message.contains("folders has no sync")).collect();
+        if sync.contains("sync") { assert!(notes.is_empty(), "{notes:?}"); }
+        else {
+            assert_eq!(notes.len(), 1, "{notes:?}");
+            assert_eq!(source.lines().nth(notes[0].site.line as usize - 1).unwrap(), "  return counts[folder]");
+            assert_eq!(notes[0].rewrite, "move the read to its own query, or drop `held`");
         }
     }
 }

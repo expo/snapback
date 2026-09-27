@@ -386,3 +386,104 @@ Full run: `target/lane-gn-round1/full.log`. Restored checks:
 `following-name-client.log`, `decoration-gates-history-client.log`.
 All are under `target/lane-gn-round1/`, alongside `imports-build.log` and
 `imports-browser.log` and the exact scratch browser probe.
+
+## Round 2 — 2026-09-27 (final)
+
+Read the lane prompt, both prior report/journal entries, and both complete
+round-1 reviews (`gn-r1.astra.md`, `gn-r1.grok.md`, both READY WITH CHANGES).
+Fixed their one shared finding. This section corrects round 1's claim that
+every held child read needs an unsynced-parent note: point, `exists` and
+unpinned pages use the synced child's captured authority without resolving
+the parent. The note now follows the lowered read's actual dependency.
+
+### File-by-file changes
+
+Paths are relative to `snapback4/`.
+
+| File | Round-2 change |
+| --- | --- |
+| `crates/snapback4-lang/src/bind/held.rs` | Add a read-through parent only when a lowered scan's equality prefix contains the parent reference, matching `engine/read.rs::parent_pinned`, or when a point reads a parent-key aggregate, matching `engine/read_point.rs`. The `connected` arm is unchanged. |
+| `crates/snapback4-lang/tests/held_unknown.rs` | Replace the false-positive regression with independent point, `exists` and unpinned-page silence controls, plus parent-pinned page and parent-key aggregate positives. |
+| `JOURNAL.md` | Append one dated round-2 entry. |
+| `reports/20260927-gn-guide-note/REPORT.md` | Append this section; preserve the prior-round record. |
+
+### Forms and assertions exercised
+
+With a synced `files` child declaring `read through .folder`, these held
+bodies compile with the following parent advice:
+
+| Body | Unsynced parent | Synced or horizoned parent |
+| --- | --- | --- |
+| `files[id]` | Silent | Silent |
+| `exists files[id]` | Silent | Silent |
+| `files last 10 by .id after c` | Silent | Silent |
+| `files last 10 by .folder, .id after c` | Silent | Silent |
+| `files where .folder = folder last 10 by .id after c` | `N_HELD_UNKNOWN` names `folders` | Silent |
+| `counts[folder]`, for `view counts: count files by .folder` | `N_HELD_UNKNOWN` names `folders` | No parent note |
+
+The aggregate uses an owner-authorized parent and asserts its `parent_key`
+classification. Its existing unsynced-view note is separate; the test requires
+the named `folders` note so that the view's own advice cannot conceal a lost
+parent dependency. All cases cover omitted sync, explicit `online only`,
+full sync and a sync horizon. Positive assertions check the source location
+and the rewrite, "move the read to its own query, or drop `held`". The second
+unpinned page checks that merely ordering by the parent column does not pin it.
+The existing presence, horizon, word-search and guide-held tests remain green.
+This is a compiler-advice correction; execution and routing are unchanged.
+
+### Mutation evidence
+
+Applied each mutation to the compiler, ran the complete `held_unknown` test,
+and restored the source in a `finally` block before final qualification.
+
+| Mutation | Observed result |
+| --- | --- |
+| Restore round 1's parent dependency for every child read | Exit 101: point, `exists` and unpinned-page controls all fail; 11 passed, 3 failed. |
+| Drop the parent from the note's dependency iterator | Exit 101: both parent-pinned page and parent-key aggregate positives fail; 12 passed, 2 failed. |
+
+Logs: `target/lane-gn-round2/all-child-parent-mutation.log` and
+`target/lane-gn-round2/missing-parent-mutation.log`. These are intentional
+negative runs. An initial fixture construction inherited public sync onto a
+parent-key aggregate whose generated rule is deny, producing `E_SYNC`;
+that test-input error was corrected by using the existing owner-authorized
+aggregate form before the recorded mutation runs. No product change was
+made for that fixture error.
+
+### Qualification and remaining scope
+
+Final restored command, run from `snapback4/`, exit 0:
+
+```sh
+cargo test -p snapback4-lang --test held_unknown --test guide --test ephemeral_compat --test read_through --test read_through_sync
+```
+
+**116 passed, 0 failed:** 14 held-note tests, the whole guide's 86 tests,
+1 frozen compatibility test, 10 read-through tests and 5 read-through sync
+tests. Every guide and README Quarry example still compiles without notes;
+no example or exception was changed. Log:
+`target/lane-gn-round2/affected-rust.log`.
+
+`./ref-check --verbose` passed: 515 LLP documents, 9,567 references, zero
+errors or unchecked references (`target/lane-gn-round2/ref-check.log`).
+`git diff --check` passed. Changed source files are 41 and 197 lines.
+
+As instructed, `scripts/test.sh` was not rerun. Round 1's green run remains
+the qualifying full-suite result, exit 0, with exact summary:
+
+```text
+== 0 failure(s) in 997 s
+```
+
+There were no introduced, baseline or environmental failures in that run or
+the restored round-2 tests. The two mutation failures above were expected.
+The compiler-only change has no device wasm input change. Rechecked the
+existing artifact rather than rebuilding it: **1,980,253 B raw / 571,841 B
+gzip**, **0 / 0 B delta**, 1,000 B below the unchanged 572,841 B budget;
+SHA-256 `61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+
+No deviation from the round-2 brief and no open round-2 finding. The prior
+rounds' import, Following, history acceptance and rendering work is untouched.
+The round-0 retained-members fixture policy and reproduction remain recorded
+above. No runtime, client, guide, version or budget change; no new comparative
+or device-runtime witness is claimed. Commit on `sb4-intent/gn-guide-note`
+with the requested GPT-6 Astra co-author trailer. No push or publication.

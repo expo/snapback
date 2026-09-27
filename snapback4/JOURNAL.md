@@ -67068,3 +67068,36 @@ or frozen fixture change; no full comparative or Apple UI rerun. No push or
 publication. The original retained-members policy remains the round-0
 fixture's policy. Report: reports/20260927-gn-guide-note/REPORT.md, Round 1.
 Exact logs and the browser import probe: target/lane-gn-round1/.
+
+### 2026-09-27 — Lane GN round 2: note only reads that pin the parent
+
+Read the lane prompt, prior reports and journal entries, and both complete
+round-1 READY WITH CHANGES reviews. Corrected their shared parent-note
+finding: a synced child's held point, exists and unpinned page use captured
+authority and do not need the parent. The compiler now adds the read-through
+parent only when the scan's equality prefix includes its reference, matching
+the engine's parent_pinned test, or for a parent-key aggregate point. The
+connected arm is unchanged. This corrects the round-1 entry's broad parent
+claim; no runtime behavior changed.
+
+Replaced the old false-positive test with three independent silent controls
+and two positive tests. The unpinned pages include ordering by the parent
+without filtering it. All cases cover omitted sync, online only, sync and
+sync horizons; the aggregate checks the parent note separately from its own
+unsynced-view advice. Restoring the overbroad parent walk fails all three
+controls (11 pass, 3 fail); dropping the parent dependency fails both
+positives (12 pass, 2 fail). Restored the compiler before qualification.
+
+Affected checks passed: held_unknown 14, whole guide 86, frozen compatibility
+1, read_through 10 and read_through_sync 5 — 116 passed, zero failed. Guide
+held examples remain silent. Reference audit: 515 LLP docs, 9,567 refs, zero
+errors/unchecked. As instructed, did not rerun scripts/test.sh: round 1's
+qualifying result is `== 0 failure(s) in 997 s`, exit 0. Rechecked the existing
+wasm artifact without rebuilding: 1,980,253 B raw / 571,841 B gzip, zero delta,
+1,000 B below the unchanged budget; SHA-256
+61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c.
+
+No deviation or open round-2 finding. Changed only the compiler note, its
+test, this append and the report's round-2 section. No runtime/client, guide,
+version or budget change, push or publication. Report:
+reports/20260927-gn-guide-note/REPORT.md; logs: target/lane-gn-round2/.
