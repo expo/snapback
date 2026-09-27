@@ -5,6 +5,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { guardClient } from "../dist/app-client.js";
+import { createApp } from "../dist/app.js";
+import { keepSession, memorySessionStore } from "../dist/auth.js";
 import { answerObservation } from "../dist/read-observation.js";
 import { peekObservation } from "../dist/observe-watch.js";
 import { ServerClock } from "../dist/clock.js";
@@ -21,7 +23,7 @@ async function until(check) {
   for (let n = 0; n < 500; n++) { if (check()) return; await delay(2); }
   assert.fail("lifecycle boundary did not settle");
 }
-async function fixture(t, tier) {
+async function fixture(t, tier, appFacade = false) {
   let wall = 1000, failing = false, held = false, holdDevice = false, queries = 0, discovering = false;
   let data = "private A", nextExpiry = 5000;
   const loss = Promise.withResolvers(), deviceGate = Promise.withResolvers();
@@ -41,7 +43,8 @@ async function fixture(t, tier) {
       return Response.json(backend);
     }
     if (path === "/sync") return Response.json(modelPage(1, JSON.parse(init.body)));
-    if (path === "/probe") return parked(init.signal);
+    if (path === "/probe") return appFacade
+      ? Response.json({ ok: true, principal: "alice", store_id: "session-model-store", seq: 1 }) : parked(init.signal);
     if (path === "/changes") {
       const event = await Promise.race([loss.promise, parked(init.signal)]);
       if (event === "offline") throw Error("controlled link loss");
@@ -53,13 +56,51 @@ async function fixture(t, tier) {
     if (held) return parked(init.signal);
     return Response.json({ data, complete: true, tables: ["remote"], seq: 1, nextExpiry });
   }) };
-  const raw = tier === "online" ? createClient(options) : await createLocalClient(options);
-  t.after(async () => { deviceGate.resolve(); await raw.close(); });
+  let app, raw;
+  if (appFacade) {
+    const sessionStore = memorySessionStore();
+    await keepSession(options.url, { token: "alice", principal: "alice", kind: "guest", expiresAt: Date.now() + 30 * 86400_000 }, sessionStore);
+    app = createApp({ url: options.url, fetch: options.fetch, sessionStore, ...(tier === "wasm" ? { device } : {}) });
+    assert.equal((await app.ready).ok, true);
+    raw = app.client;
+  } else raw = tier === "online" ? createClient(options) : await createLocalClient(options);
+  t.after(async () => { deviceGate.resolve(); await (app ? app.close() : raw.close()); });
   if (raw.sync) await raw.sync();
   return { raw, wall(n) { wall = n; }, queries: () => queries, discovering: () => discovering,
     answer(value, expiry) { data = value; nextExpiry = expiry; },
     holdDevice() { holdDevice = true; }, fail() { failing = true; },
     trigger(boundary) { held = true; if (boundary === "close") return raw.close(); if (boundary === "sign-out") return raw.signOut(); loss.resolve(boundary); } };
+}
+
+for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]) for (const livePeer of [false, true]) {
+  test(`${tier} ${mode}: closed withdrawing facade honors row expiry, live peer=${livePeer}`, async t => {
+    const f = await fixture(t, tier, mode === "createApp");
+    const facade = mode === "guard" ? guardClient(f.raw, async () => true, () => true,
+      () => ({ code: "E_AUTH", family: "auth", message: "closed" })) : undefined;
+    t.after(() => facade?.fence()());
+    const client = facade?.client ?? f.raw, options = { keep: false };
+    const closed = client.observe(q, {}, options);
+    await until(() => closed.getSnapshot().data === "private A");
+    const peer = livePeer ? client.observe(q, {}, options) : undefined;
+    if (peer) {
+      await until(() => peer.getSnapshot().data === "private A");
+      await delay(0); // The peek is immediate; let opening authority attach the raw subscription.
+    }
+    closed.close();
+    const seen = [];
+    peer?.subscribe(() => seen.push(closed.getSnapshot()));
+    f.holdDevice(); f.wall(5000);
+    if (peer) {
+      assert.deepEqual(peer.getSnapshot(), { loading: true });
+      assert.ok(seen.length > 0, "the live peer's expiry notifies");
+      for (const read of seen) assert.deepEqual(read, { loading: true }, "the closed facade is withdrawn inside peer callbacks");
+    }
+    const loading = closed.getSnapshot();
+    assert.deepEqual(loading, { loading: true }, "a detached facade still consults its raw handle's deadlines");
+    f.wall(1000);
+    assert.equal(closed.getSnapshot(), loading, "rollback does not restore the private snapshot");
+    peer?.close();
+  });
 }
 
 for (const tier of ["online", "wasm"]) for (const keep of [undefined, false, true]) for (const detached of [false, true]) {
@@ -149,8 +190,11 @@ for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" 
         first = client.observe(q, {}, options);
         assert.equal(first.getSnapshot().data, "private A");
       }
+      let closing = false;
+      const close = f.raw.close.bind(f.raw);
+      t.mock.method(f.raw, "close", () => { closing = true; return close(); });
       const seen = [];
-      const inspect = kind => seen.push({ kind, raw: owners.map(owner => owner.snapshot),
+      const inspect = kind => seen.push({ kind, closing, raw: owners.map(owner => owner.snapshot),
         reads: [first.getSnapshot(), peer.getSnapshot()],
         peek: peekObservation(client, peerQuery, {}, peerOptions) });
       first.subscribe(() => inspect("first")); peer.subscribe(() => inspect("peer"));
@@ -166,8 +210,18 @@ for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" 
         for (const read of [...event.raw, ...event.reads, event.peek].filter(Boolean)) {
           assert.ok(!("data" in read), `${event.kind} callback must see every peer withdrawn: ${JSON.stringify(read)}`);
         }
+        if (tier === "wasm" && mode === "guard" && boundary === "sign-out") {
+          for (const read of [...event.raw, ...event.reads]) assert.equal(read.denied?.code, event.closing ? "E_CLOSED" : "E_AUTH",
+            `${event.kind} callback must deny with E_AUTH until signOut calls close`);
+        }
       }
       assert.ok(!peer.getSnapshot().data, "the second peer was also withdrawn");
+      if (tier === "wasm" && mode === "guard" && boundary === "sign-out") {
+        assert.ok(seen.some(event => !event.closing), "sign-out delivered its denial before closing");
+        assert.ok(seen.some(event => event.closing), "close delivered the terminal denial");
+        assert.equal(first.getSnapshot().denied?.code, "E_CLOSED");
+        assert.equal(peer.getSnapshot().denied?.code, "E_CLOSED");
+      }
     });
   }
 }

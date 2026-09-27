@@ -76,9 +76,10 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
       let refused: Read<R> | undefined;
       let held: ApprovedAnswer | undefined, refreshVersion = 0;
+      let announced: Read<unknown> | undefined;
       const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
-      const emit = () => { for (const listener of listeners) notify(listener); };
+      const emit = () => { announced = held?.snapshot ?? snapshot; for (const listener of listeners) notify(listener); };
       const attach = (answer: ApprovedAnswer | undefined) => {
         held?.listeners.delete(emit); held = answer; held?.listeners.add(emit);
       };
@@ -95,7 +96,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
 
         }
       };
-      const detach = () => { held?.listeners.delete(emit); stop?.(); source?.close(); source = undefined; stop = undefined; };
+      // @ref LLP 3000.023#3.4 — detached facades still consult the raw handle's deadline latch.
+      const detach = () => { held?.listeners.delete(emit); stop?.(); source?.close(); stop = undefined; };
       cleanups.add(detach); invalidations.add(emit);
       const refresh = async () => {
         const version = ++refreshVersion;
@@ -105,7 +107,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         if (!closed && read && ("loading" in read || "denied" in read)) {
           snapshot = valid() ? read : denied();
           if (held) reject(snapshot);
-          emit();
+          // Shared approval delivery may already have announced this exact withdrawal.
+          if (announced !== snapshot) emit();
           return;
         }
         if (!closed && read && "data" in snapshot) {

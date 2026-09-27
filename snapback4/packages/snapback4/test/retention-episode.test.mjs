@@ -5,7 +5,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { ReadObservation, answerIdentity } from "../dist/read-observation.js";
 import { episodeDeadline } from "../dist/read-episode.js";
 import { LocalReads } from "../dist/local-reads.js";
-import { bindWatchPeek, observeWatch, observationKey, peekObservation } from "../dist/observe-watch.js";
+import { bindWatchPeek, closeWatchAnswers, observeWatch, observationKey, peekObservation } from "../dist/observe-watch.js";
+import { deferReadNotifications } from "../dist/read-notifications.js";
 import { fixture } from "./helpers/authority-fixture.mjs";
 const q = { kind: "query", name: "read" };
 const ready = data => ({ data, complete: true, cut: null, fresh: false, since: 500, next: null });
@@ -192,4 +193,72 @@ test("an early episode timer rearms to the original deadline without accessor he
   wall = 2000; t.mock.timers.tick(500);
   assert.deepEqual(watch.snapshot, { loading: true });
   assert.equal(notifications, 1);
+});
+
+for (const keep of [undefined, false, true]) test(`facade withdrawal notifies once, including an opening remount, keep=${keep}`, async t => {
+  let wall = 1000;
+  t.mock.method(Date, "now", () => wall);
+  const f = fixture(t, keep ?? "default"), options = keep === undefined ? undefined : { keep };
+  const watch = f.client.observe(q, {}, options);
+  await until(() => f.owner());
+  f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+  f.hold();
+  const opening = f.client.observe(q, {}, options), seen = [], joined = [];
+  watch.subscribe(() => seen.push(watch.getSnapshot()));
+  opening.subscribe(() => joined.push(opening.getSnapshot()));
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  if (keep === undefined) {
+    f.owner().reload();
+    assert.equal(watch.getSnapshot().revalidating, true);
+    assert.equal(opening.getSnapshot().revalidating, true);
+    seen.length = 0; joined.length = 0;
+    wall = 2000; t.mock.timers.tick(1000);
+  } else {
+    f.owner().publish({ loading: true });
+    for (const subscriber of f.owner().subscribers) subscriber();
+  }
+  assert.deepEqual(seen, [{ loading: true }], "one facade callback for one withdrawal");
+  if (keep !== false) assert.deepEqual(joined, [{ loading: true }], "the opening remount still receives the shared withdrawal");
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  opening.close(); watch.close();
+});
+
+test("closeWatchAnswers notifies each raw subscriber exactly once after withdrawing every peer", () => {
+  const watches = new Map(), handles = [undefined, false, true].map(keep => {
+    const key = observationKey(q, {}, { keep });
+    return observeWatch(watches, key, () => Object.assign(new ReadObservation(keep), {
+      key, subscribers: new Set(), presenceRefresh: null,
+    }), watch => watch.publish(ready("A")), () => {}, () => null);
+  });
+  const seen = handles.map(() => [[], []]);
+  handles.forEach((handle, i) => seen[i].forEach(events => handle.subscribe(() => events.push(handles.map(peer => peer.getSnapshot())))));
+  const denied = { code: "E_CLOSED", family: "client", message: "closed" };
+  const deliver = closeWatchAnswers(watches, denied);
+  assert.deepEqual(seen, handles.map(() => [[], []]), "close collects notifications until its caller delivers");
+  deliver();
+  for (const listeners of seen) for (const events of listeners) {
+    assert.deepEqual(events, [handles.map(() => ({ denied }))], "each subscriber receives one complete withdrawal");
+  }
+  handles.forEach(handle => handle.close());
+});
+
+test("an episode due inside a grouped commit waits until the settled peer is revalidating", t => {
+  let wall = 1000, phase = "before";
+  t.mock.method(Date, "now", () => wall);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const watches = new Map(), handles = ["A", "B"].map(name => {
+    const key = observationKey(q, { name });
+    return observeWatch(watches, key, () => Object.assign(new ReadObservation(), {
+      key, subscribers: new Set(), presenceRefresh: null,
+    }), watch => watch.publish(ready(name)), () => {}, () => null);
+  });
+  const [a, b] = [...watches.values()], seen = [];
+  a.reload();
+  handles[0].subscribe(() => seen.push({ phase, first: a.snapshot, peer: b.snapshot }));
+  wall = 2000; phase = "inside";
+  const deliver = deferReadNotifications(() => new LocalReads().committed(watches.values(), "apply"));
+  assert.deepEqual(seen, [], "episode expiry must not notify in the middle of the commit loop");
+  phase = "after"; deliver();
+  assert.deepEqual(seen, [{ phase: "after", first: { loading: true }, peer: { ...ready("B"), revalidating: true } }]);
+  handles.forEach(handle => handle.close());
 });

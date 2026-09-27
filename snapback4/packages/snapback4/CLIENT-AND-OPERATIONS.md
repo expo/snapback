@@ -1219,7 +1219,11 @@ Grouped withdrawals change every affected raw snapshot and shared approval befor
 delivering read or link callbacks, including callbacks from lingering remounts.
 Facade snapshots honor their source's loading or denial even before their own
 subscription callback runs, including with `keep: false`; data still waits for
-the facade's authority check.
+the facade's authority check. A closed facade keeps consulting its detached raw
+handle, so its private snapshot cannot outlive that handle's deadlines. Shared
+approval and raw subscription delivery announce the same withdrawal only once.
+An episode expiring during a grouped commit notifies after every affected watch
+has reloaded, so callbacks also see peers' revalidation marks.
 
 For all three options, a failed whole re-read, expired candidate, refusal,
 expiry, sign-out, credential or viewer change, store replacement or adoption,

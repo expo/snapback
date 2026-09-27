@@ -38,7 +38,7 @@ export class ReadObservation<T> {
     owners.set(this.snapshot, this);
     this.kept = false;
     this.deliver("answer")();
-    this.onWithdrawal();
+    deliverReadNotifications([this.onWithdrawal]);
   });
   retire(): void { this.episode.stop(); this.deliver("reset")(); }
 
