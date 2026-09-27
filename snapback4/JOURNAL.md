@@ -67409,3 +67409,54 @@ No second full-suite run, focused failure rerun, unrelated fix, push or
 publication. All tested source bytes remained unchanged through qualification.
 This dated entry is included in the merge commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### 2026-09-27 — Lane QE: helper loop placement and list expressions
+
+Implemented the 0.4.5 Quarry ergonomics brief on
+`sb4-intent/qe-quarry-ergonomics` from `9473e0a34`. Commit `3f15449c4`
+separates caller loop placement from helper-local break/continue scopes;
+helpers inside a recipient sweep now accumulate like inline loops, while a
+top-level helper still refuses cross-chunk local state. List `+` now works
+in expressions through the existing metered Concat builtin, joins item types
+and adds bounds. Self-append keeps Push; stable loop-carried item types keep
+heap-bound widening; recursive list item growth gets a self-append rewrite.
+No new diagnostic code. Updated the language, jobs and programs cards and
+LLP 3000.007 sections 5.1–5.2 in the same implementation commit.
+
+Added seven compiler helper tests, nine list tests and an engine regression.
+The latter runs helper and inline digests over 130 recipients, across multiple
+committed chunks, and compares all 104 expected effects and their exact totals.
+The IR comparison removes only helper temporaries and alpha-renames slots.
+Temporarily disabling the two fixes makes the positive compiler regressions
+and engine regression fail; restored source passes. The comparative's three
+accumulations, reconstructed from its final schema and actual modules, now
+compile without E_QUARRY_BOUND or E_QUARRY_PLACEMENT. The original failed
+first-pass source is unavailable. A separate unbounded optional-filter domain
+still produces E_QUARRY_BOUND identically in helper and inline forms; the
+report gives the reproduction and an inner-if rewrite preserving full totals.
+
+Whole guide 86/86, helper placement 7/7, list expressions 9/9, joined shapes
+17/17, optional-variant review 9/9 and helper engine 1/1 pass. Every guide
+block compiles without a diagnostic or note, and the existing fact/word budgets
+remain unchanged. The frozen Bun install and package build pass. On Rust
+1.97.0 / Node 24.13.1 / Bun 1.3.14, with eight Cargo jobs, dev/test debug info
+and incremental compilation disabled, and fd limit 65,536, ran scripts/test.sh
+once. Exact summary: **`== 1 failure(s) in 1436 s`**, exit **1**; failed check
+**`cargo test`**. Rust: **3,825 passed / 1 failed / 24 ignored**, 928 s.
+The sole failure was **ours**: ephemeral_compat's frozen top-level fixture
+inventory included the newly added helper-sweep.q. Commit `5b81caff1` moves
+that fixture under fixtures/qe without changing its contents or any baseline.
+Targeted compatibility 1/1, helper compiler 7/7 and helper engine 1/1 pass
+following the move. No baseline/environmental failure or unresolved failure.
+Did not rerun the full suite after this fixture-only correction.
+
+Client main **2,481 passed / 0 failed / 10 skipped**, plus **56/56** across
+seven shards, in 197 s. All **78/78** seeded models pass, 258 s. Fixture wrappers
+9/9, native/wasm builds, docs budget, release guard, package build/typecheck,
+chat check and both app typechecks pass. Same-worktree build-wasm.sh before and
+after: **1,980,253 B raw / 571,810 B gzip**, **0 B delta**, byte-identical
+SHA-256 `324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc`.
+The unchanged 572,841 B budget leaves 1,031 B. No runtime, authorization,
+disclosure, durability, IR-format or meter-ceiling change; no push or package
+publication. Report: reports/20260927-qe-quarry-ergonomics/REPORT.md. Logs:
+target/lane-qe/.
