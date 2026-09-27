@@ -15,6 +15,8 @@ use crate::value::object;
 // work and basis timestamps belong only to the server storage build.
 mod live;
 mod device;
+#[cfg(feature = "sqlite")]
+mod batch;
 #[cfg(all(test, feature = "sqlite"))]
 mod range_tests;
 
