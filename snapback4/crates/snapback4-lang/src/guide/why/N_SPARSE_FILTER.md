@@ -10,14 +10,14 @@
 | E_TIMELINE_READ | The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows |
 | E_TIMELINE_OWNED | Derived rows belong to the engine. Write posts, reposts or follows |
 | E_TIMELINE_SERVER | The mutation needs server-only state. Queue it without predicted rows |
-| E_TIMELINE_ACTIVATE | Source events or follows already exist, or an owned name holds application data. Declare before adding event or edge rows, use a planned view over retained sources, or rename the view to preserve application data |
-| E_TIMELINE_REDEFINE | A materialized declaration changed or experimental reconstruction remains. Original event identities and edge-admission history cannot be reconstructed. Remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over retained sources; use the matching engine for a 0.3 store |
+| E_TIMELINE_ACTIVATE | Source events or follows already exist, or an owned name holds application data. Use the planned `home` query in `guide feeds` for retained sources, or rename a colliding view to preserve application data |
+| E_TIMELINE_REDEFINE | A materialized declaration changed or experimental reconstruction remains. Original ids are post ids; repost ids require their slots and edge-admission history is not retained. Remove the view and deploy, then add the new definition over empty event and edge tables, or use the planned `home` query in `guide feeds`; use the matching engine for a 0.3 store |
 | E_TIMELINE_IMPORT | Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore |
 | FEED_POST_NOT_FOUND | A new repost needs a live original. Refresh the source |
 | FEED_EVENT_REMOVED | A removed event cannot be resurrected. Use a fresh event id |
 | FEED_CANNOT_FOLLOW_SELF | Self-follow is refused. Own events already appear without it |
 | E_RULE | A non-owner `remove` is refused; remove only your own post |
-| N_SPARSE_FILTER | A residual predicate may reject many rows. Use the Following view, or pin the deciding columns for another read |
+| N_SPARSE_FILTER | A residual predicate may reject many rows. Narrow the read; the planned `home` in `guide feeds` can fail closed with `complete: false` and no `next`. Materialized Following requires empty sources |
 
 Finite ranked windows enumerate inclusive UTC buckets:
 `bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still

@@ -3,7 +3,7 @@
 use crate::{
     error::RuntimeError,
     rows::{Bounds, Dir, Rows},
-    schema::{RuleExpr, Schema, through::PARENT_DEADLINE},
+    schema::{RuleExpr, Schema, Table, through::PARENT_DEADLINE},
     value::Value,
 };
 
@@ -96,6 +96,37 @@ fn correspondence(
     .then_some(map)
 }
 
+/// The retirement phase shared by activation and its read-only occupancy
+/// preview. Selection and the predecessor deadline predicate live here once;
+/// checking a candidate must not count a row this phase would remove.
+pub(crate) struct Retirement<'a> {
+    affected: Vec<(String, &'a Table)>,
+    now: i64,
+}
+
+impl<'a> Retirement<'a> {
+    pub(crate) fn new(next: &Schema, previous: &'a Schema, now: i64) -> Self {
+        let affected = next.through_order().into_iter().filter_map(|name| {
+            let next = &next.tables[&name];
+            let old = previous.table(&name)?;
+            (next.through != old.through || next.through.is_some()
+                && (next.expire != old.expire || next.expire.as_ref().is_some_and(|field|
+                    old.defaults.get(field) != next.defaults.get(field))))
+                .then_some((name, old))
+        }).collect();
+        Self { affected, now }
+    }
+
+    pub(crate) fn affects(&self, name: &str) -> bool {
+        self.affected.iter().any(|(table, _)| table == name)
+    }
+
+    pub(crate) fn retires(&self, name: &str, row: &Value) -> bool {
+        self.affected.iter().find(|(table, _)| table == name)
+            .is_some_and(|(_, old)| old.expired(row, self.now))
+    }
+}
+
 /// Capture barrier for an authoritative adapter's uncommitted generation.
 pub fn activate(
     tx: &dyn Rows,
@@ -109,32 +140,17 @@ pub fn activate(
     };
     // Previous indexes and row images still exist. Every affected expired row
     // retires under its old deadline, before a new default or capture can revive it.
-    let affected: Vec<_> = next
-        .through_order()
-        .into_iter()
-        .filter(|name| {
-            let next = &next.tables[name];
-            let old = previous.table(name);
-            next.through != old.and_then(|t| t.through.clone())
-                || next.through.is_some()
-                    && (next.expire.as_ref() != old.and_then(|t| t.expire.as_ref())
-                        || next.expire.as_ref().is_some_and(|field| {
-                            old.is_some_and(|t| t.defaults.get(field) != next.defaults.get(field))
-                        }))
-        })
-        .collect();
-    for name in affected.iter().rev() {
-        if let Some(old) = previous.table(name) {
-            rows(tx, name, |row| {
-                if old.expired(&row, now) {
-                    tx.delete(name, old, &row)?;
-                }
-                Ok(())
-            })?;
-        }
+    let retirement = Retirement::new(next, previous, now);
+    for (name, old) in retirement.affected.iter().rev() {
+        rows(tx, name, |row| {
+            if retirement.retires(name, &row) {
+                tx.delete(name, old, &row)?;
+            }
+            Ok(())
+        })?;
     }
     // Compare all predecessor images before any ancestor is recaptured.
-    for name in &affected {
+    for (name, _) in &retirement.affected {
         let Some(t) = &next.tables[name].through else {
             continue;
         };

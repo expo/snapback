@@ -68604,6 +68604,120 @@ No multi-request continuation, saved work state, cursor or meter budget change,
 original calibration-store access, push or publication. Existing device and
 legacy-plan opening limits remain documented. Full file map, examples, negative
 controls, exact failure and hashes: reports/20260927-gs-global-search-round2/.
+### 2026-09-27 — Calibration 23: receipt gaps and Following adoption are discoverable
+
+Calibration 23's M5 run log records `E_STRUCTURAL_FANOUT` for a mutation
+page over expiring messages. The supplied export retains the repaired program
+but omits the referenced diagnostic file and rejected source; the regression
+is explicitly a minimal reconstruction, not a historical quote. The builder's
+bounded unique ordinal probes are already the paved gap traversal. Its manual
+`lastOrdinal` read/update is the weaker allocation form: `sequence by` removes
+that application protocol and enforces assignment and immutability. It does
+not make a long gap constant cost (LLP 3000.015 §2).
+
+Added the compiled `sequences` card with both allocators, a receipt-hole helper,
+a row-keyed missed count, shared membership positions, expiry before physical
+sweeping, live-message blockers and bounded resumption. Writes, expiry,
+maintains and the receipts opening point to it. Diary/run-log intent aliases
+include `receipt gap expiring messages`, which previously returned no card
+(nearest: receipts, ephemeral, expire) and now returns the recipe directly.
+The expiry diagnostic emits a pasteable top-level helper using the actual
+parent and ordinal columns. It is a non-mechanical rewrite: integrate it into
+the delivered-run merge, preserving disjoint runs. Parent-scope visibility is
+required so hidden messages cannot be mistaken for holes. Kept generic scan
+advice, the existing capped-loop example and the bounded `why` output.
+
+Chose Following option (b). Slot-fill upgrades an existing declaration from
+its owned event rows; a bounded activation walk cannot reconstruct missing
+event identities or edge-admission history from bare sources (LLP 3000.016
+§2.1a). The feeds opening states the ordering rule and reason. `check` now
+shares adoption's read-only preflight and reports `E_TIMELINE_ACTIVATE` at
+the declaration for populated post, repost or follow sources. It suggests
+declaring first in a new store or retaining data with a planned view, and
+states that no source-history backfill exists. Actual adoption refusal and
+atomic retirement are unchanged. The builder's M2 restart is evidence of
+adoption, not a captured wrong-order refusal; its diary says it followed the
+already documented rule.
+
+Five receipt regressions and two added Following regressions cover the
+published examples, pasteable diagnostic helpers, aliases, authority,
+expiry/probe behavior on memory and SQLite, long-gap resumption, declaration
+sites, read-only store bytes and valid empty/unchanged adoption. Updated the
+exact four-entry online-only authoring census and guide keyword inventories.
+The full suite passes: `== 0 failure(s) in 3050 s`, exit 0; Rust 3,842 passed
+with 24 existing ignored, client 2,690 passed with 9 existing skips, models
+78 passed, fixture wrappers 9 passed. Guide tests pass 86/86. The first run
+caught guide/example issues that were fixed; its 17 package-fixture failures
+were macOS temporary-path aliases. The final run uses Node 24.18.0 and a
+canonical TMPDIR, without exclusions or timeout changes.
+
+Wasm measures 1,981,740 B raw / 572,430 B gzip before and after: delta 0 B.
+The 572,841 B ratchet is unchanged, with 411 B headroom; all new production
+work is compiler/server-side. The root inventory audit reports untouched
+Snapback 1 drift and missing generated leaves; its diagnostic roots exclude
+Snapback 4. No root guide page changed. Logs and before/after routing are in
+`target/data-modeling-cal23/`; report:
+`/Users/ccheever/projects/snapback-sb5-program/data-modeling-cal23.final.md`.
+Work stays on `sb4/data-modeling-cal23`; no push.
+
+### 2026-09-27 — Data-modeling review: activation agreement and receipt resumption
+
+Read Astra's blocking review and Grok's later review in full. Following's
+read-only adoption preview now shares the runtime retirement plan and the
+predecessor-expiry predicate. It excludes exactly the affected rows retired
+before runtime occupancy checks; runtime does not reapply old expiry after
+recapture. The generated eight-cell matrix compares CLI check, preview API,
+and adoption for expired-unswept/live rows, read-through changes/no change,
+and new/existing Following. It also checks unchanged database/WAL bytes and
+physical retirement. Existing-Following expiring predecessors are explicit
+stored-schema fixtures because current Quarry rejects that source shape.
+Disabling the preview plan reproduces the reviewer's E_TIMELINE_ACTIVATE
+false positive while adoption succeeds.
+
+The expiry diagnostic selects the refused scan's ordering coordinate and a
+covering unique key with its pinned required reference, in either key order.
+Execution tests cover the external-number distractor, reversed key, unrelated
+parent keys, and no covering key. Both diagnostic and sequences card explicitly
+condition receipt advancement on the caller's authority check. Uniformity is
+not readability; a caller-dependent rule alone cannot prove a successful,
+dominating check. Membership, deny and read-through fixtures exercise the
+qualified advice and checked integrations.
+
+The compiled card now shows a delivered-run merge that saves partial progress
+and lets an already-recorded run reach the helper again. Integrated into the
+actual calibration-23 builder, repeating [1027,1027] advances 1024 then 1027
+and preserves a disjoint run. Restoring the old held-run guard fails the second
+call. Added all four requested receipt-intent aliases, Grok's disappearing
+message phrase, and case-insensitive card/alias lookup. Old routing and key
+selection fail their regression controls. All mutated production files were
+restored byte-for-byte before qualification. Updated LLP 3000.015 and 3000.016.
+
+Full qualification: `== 0 failure(s) in 3064 s`, exit 0. Rust: 3,912 passed,
+zero failed, 24 existing ignores. Client: 2,694 passed, zero failed, nine existing skips. Models: 78 passed, zero failed.
+All 86 guide, 10 receipt and 12 Following-adoption tests pass. The first full
+run was `== 1 failure(s) in 3007 s`: it caught the new delivered mutation's
+missing online-only authoring-census entry, now added, and an unchanged worker
+setup timeout already seen in publication evidence. That worker test passed
+1/1 in isolation (0.61 s) and in the final full run. No claim that its
+intermittency is fixed. The React hooks suite, including useNow, passed in both runs; no isolated
+React rerun was required and its code and timeouts remain untouched.
+
+The final run uses Node 24.18.0, canonical /private/tmp, eight build jobs and
+four Rust test processes; the required serial-client command is unchanged.
+All Cargo commands disable incremental compilation and dev/test debuginfo.
+No test exclusions or timeout changes. Shortened the writes opening and the
+receipt cross-link to fit the rebased guide's unchanged total-word ceiling;
+preserved its Details facts and compiled blocks. The new online-only card
+mutation adds one census occurrence, retaining all 55 private-write sites.
+
+Wasm: 1,981,740 B raw / 572,430 B gzip before and after, delta 0 B. The
+572,841 B ceiling remains unchanged with 411 B headroom; these changes add no
+device bytes. Final reference audit: zero errors and zero unchecked. Diff whitespace check passes.
+Logs and mutation controls: target/data-modeling-r2/. Per-finding report:
+/Users/ccheever/projects/snapback-sb5-program/data-modeling-r2.final.md.
+Work remains on sb4/data-modeling-cal23. No push, stash, other worktree,
+remote machine or spawned agent.
+
 
 ### 2026-09-27 — Lane FX round 2: useNow flake is a clock-fixture error
 
@@ -68942,3 +69056,82 @@ or changed. No tool installation, push or publication. File map, runnable
 forms, tradeoffs, exact qualification and control evidence:
 reports/20260927-gs-global-search-round3/REPORT.md, qualification.json and
 controls.json. Raw logs remain in ignored target/lane-gs-round3/.
+### 2026-09-27 — Lane FA round 1: expose the populated-store query; revise adoption
+
+Merged origin/main first (86c50df51), preserving every line of both journal
+parents. Read the round-0 prompt, LLP 3000.026, research entry and both complete
+NOT READY reviews. Part A exposes the existing planned home query in the first
+feeds-card example, with its moderate-corpus server scope, no inbox/offline floor,
+and sparse-page failure (complete false, no continuation). Activation and why
+name the same program and distinguish post ids from missing repost slots and
+edge-admission history. The empty-source guard remains. Trimmed repeated boundary
+and compatibility prose: feeds.md 18,011 → 17,708 bytes, 2,701 → 2,639 words,
+364 → 362 lines.
+
+The whole guide passes: cargo test -p snapback4-lang --test guide, 86 passed,
+0 failed, 0 ignored, 2.81 s test execution. Its exact planned card block must emit
+one N_SPARSE_FILTER note; no other note exemption was added. The existing Global
+witness also seeds a follow and executes home over retained rows, asserting no
+materialized declaration. Earlier runs exposed that deliberate note and obsolete
+editorial pins (4 failures, then 1); updated those pins to the revised recovery
+text. No compiler behavior was changed. Whitespace check passes. Rust checks
+only; no JavaScript tests or full suite were needed for this documentation delta.
+
+## 2026-09-27 — lane SS round 2: profile and reduce 1,000-conversation device work
+
+Merged `origin/main` to `941a3698c` before editing. Profiled the unchanged
+110,088-row/30-response/42-MB fixture first with Node V8 CPU sampling,
+wasm-symbol stacks, JSON/call timers and physical fake-IDB transaction
+instrumentation. Index construction/insertion dominated apply; repeated
+bucket JSON/byte work and text-only media markers inflated persistence.
+
+Reused row images across indexes, grouped memory indexes by namespace,
+kept one old index tree as replacement undo, moved owned values, and omitted
+empty media home markers. Counts stay immediate; terminal publication and
+strict IDB commit remain atomic. Increased the initial page from 4,000 to
+the existing 10,000-row server ceiling, preserving byte refusal/halving.
+Reuse existing bucket JSON byte sizes and exact ASCII byte accounting.
+Added replacement rollback/index equivalence, memory+SQLite optional/nested
+media, and staged-page reopen/terminal persistence fault tests. Distinguished
+membership ids from principals in both self-send fixtures; substituting id
+for principal fails both tests, and restored scalar comparisons pass.
+
+Final Node 1,000 acquisition is **21.854 → 16.324 s memory**, **41.477 →
+21.036 s fake-IDB**: improvements, but the **8/12 s targets are not met**.
+Apply excluding persistence is **16.709 → 11.483 s** and **18.339 → 12.036 s**;
+fake-IDB saves **18.309 → 4.507 s**. Responses **30 → 13**. Diagnostic
+physical IDB work falls **102 → 50 transactions**, **115,000 → 18,570 puts**,
+**1.302 GB → 627 MB** of serialized put bytes. Reports separate diagnostic
+observer overhead from uninstrumented timing and retain per-page profiles.
+
+Added a real Chromium/IndexedDB companion while preserving both existing
+Node witnesses. At 100 conversations browser acquisition **7.336 → 4.186 s**,
+during/after live p95 **2.449/0.729 s** after. At 1,000, **84.898 → 27.327 s**,
+during/after p95 **13.158/0.754 s**, zero final timeouts. The baseline had one
+>31 s timeout among 40 during samples; final has 19, so its p95 selects the
+maximum. Do not confuse that sample-count effect with disappearance of the
+terminal main-thread pause. Final browser acquisition-only JS peaks are
+92.1/186.3 MiB for 100/1,000; wasm heaps 65.4/749.1 MiB. Total replica memory
+cannot be sublinear in independent retained rows, and fake-IDB retains
+completed transaction history. The report includes Node JS/external/RSS and
+browser JS/wasm separately. Real-browser navigation after 9,922 staged rows
+shows zero published rows and acquired=false, then reacquires successfully.
+
+Whole guide **86/86**, affected checks pass (one initial new durability
+fixture omission corrected), principal mutants fail as required. Ran the
+whole `scripts/test.sh` **once**, exact **`== 1 failure(s) in 1285 s`**, exit 1:
+client tests had two stale 4,000-row policy expectations (plus their enclosing
+parent failure), **all lane-owned**. Updated only those expectations and
+reran both affected files, **67/67 pass**. No baseline/environmental suite
+failure. Full Rust **3,910 passed / 24 ignored**; serial client models **78/78**.
+No full rerun. Final wasm **1,981,590 raw / 572,590 gzip**, 251 bytes below the
+unchanged 572,841-byte budget. No source exceeds 1,500 lines.
+
+The detailed file map, commands, full compressed log and measurements are
+in `reports/20260927-ss-sync-scale/ROUND2.md` and its companions. Remaining
+targets are recorded in
+`issues/20260927-snapback4-1000-conversation-acquisition-budget.md`. No new
+syntax/API, auth/expiry/meter weakening, original GS store writes, shared
+path tool installation, push or publication. Binaryen experimentation stayed
+under this worktree's target directory and was not adopted. Local commits
+carry the required co-author trailer.

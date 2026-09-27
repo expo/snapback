@@ -237,7 +237,7 @@ test("local startup releases a device when initialization after the protocol pro
 
 test("local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal", async t => {
   const tooLarge = { code: "E_BOUND", family: "bound", message: "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values", guide: "reads" };
-  const expectedLimits = [4000, 2000, 1000, 500, 250, 125, 62, 31, 15, 7, 3, 1];
+  const expectedLimits = [10000, 5000, 2500, 1250, 625, 312, 156, 78, 39, 19, 9, 4, 2, 1];
   for (const fitsAtOne of [true, false]) {
     const device = emptyDevice();
     const requests = [];

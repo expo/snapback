@@ -1,4 +1,5 @@
 import type { Change } from "./web.ts";
+import { utf8Size } from "./utf8-size.ts";
 
 // Fixed caps bound a one-row update independently of accumulated store size.
 // Once a bucket spills, new keys stay per-row; no growing shard directory or
@@ -14,22 +15,23 @@ export function bucket(s: string, key: string): string {
 }
 export const unpack = (change: Change): Change[] => change.s === "$format" ? [] : change.s === "$bucket"
   ? (JSON.parse(change.v!) as [string, string][]).map(([k, v]) => ({ s: change.k.slice(0, 1), k, v })) : [change];
-const encoder = new TextEncoder();
-const pairBytes = (key: string, value: string) => encoder.encode(JSON.stringify([key, value])).byteLength;
+const pairBytes = (key: string, value: string) => utf8Size(JSON.stringify([key, value]));
 
 /** Runs in the caller's strict readwrite transaction. No ordinary update
  * reads, parses or rewrites another bucket or an overflow row. */
 export function writeBucket(store: IDBObjectStore, key: string, saved: Bucket | undefined, delta: Change[]): void {
   const s = key.slice(0, 1);
   const rows = new Map<string, string>(saved ? JSON.parse(saved.v!) : []);
-  const sizes = new Map([...rows].map(([k, v]) => [k, pairBytes(k, v)]));
-  let bytes = 2 + [...sizes.values()].reduce((a, b) => a + b, 0) + Math.max(0, rows.size - 1);
+  // The saved JSON is already the exact bounded representation. Measure it
+  // once; only changed pairs need escaping/encoding again.
+  let bytes = saved ? utf8Size(saved.v!) : 2;
   let spill = saved?.spill ?? false, dirty = !saved;
   for (const change of delta) {
-    const prior = sizes.get(change.k);
+    const previous = rows.get(change.k);
+    const prior = previous === undefined ? undefined : pairBytes(change.k, previous);
     if (prior !== undefined) {
       bytes -= prior + (rows.size > 1 ? 1 : 0);
-      rows.delete(change.k); sizes.delete(change.k); dirty = true;
+      rows.delete(change.k); dirty = true;
     }
     if (change.v === null) {
       if (prior === undefined && spill) store.delete([s, change.k]);
@@ -37,7 +39,7 @@ export function writeBucket(store: IDBObjectStore, key: string, saved: Bucket | 
     }
     const size = pairBytes(change.k, change.v), nextBytes = bytes + size + (rows.size ? 1 : 0);
     if ((prior !== undefined || !spill) && rows.size < BUCKET_ENTRIES && nextBytes <= BUCKET_BYTES) {
-      rows.set(change.k, change.v); sizes.set(change.k, size); bytes = nextBytes; dirty = true;
+      rows.set(change.k, change.v); bytes = nextBytes; dirty = true;
     } else {
       if (!spill) { spill = true; dirty = true; }
       store.put(change);

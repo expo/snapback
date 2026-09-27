@@ -1,0 +1,12 @@
+file:///Users/ccheever/projects/snapback-pub-045/snapback4/scripts/prepare-client.mjs:8
+  if (existsSync(receiptPath)) throw new Error(`prepared client already exists at ${receiptPath}; reuse it or bump the release version`);
+                                     ^
+
+Error: prepared client already exists at /Users/ccheever/projects/snapback-pub-045/snapback4/target/publication/client-0.4.5/prepare.json; reuse it or bump the release version
+    at prepareClient (file:///Users/ccheever/projects/snapback-pub-045/snapback4/scripts/prepare-client.mjs:8:38)
+    at file:///Users/ccheever/projects/snapback-pub-045/snapback4/scripts/publish.mjs:27:20
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0

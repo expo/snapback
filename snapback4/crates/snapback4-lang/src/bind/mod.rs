@@ -160,7 +160,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
             Ok(()) => true,
             Err(error) => {
-                if let Some(diagnostic) = bound.constraint_diagnostic(&schema, &error) {
+                if let Some(diagnostic) = bound.expiry_gap_diagnostic(&schema, &error).or_else(|| bound.constraint_diagnostic(&schema, &error)) {
                     diagnostics.push(diagnostic);
                     return false;
                 }
