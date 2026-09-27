@@ -1,6 +1,59 @@
 use super::*;
 
 #[test]
+fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
+    let directory = ReaderTestDirectory::new();
+    let next = include_str!("../../../snapback4-lang/tests/fixtures/following-view.q");
+    let before = next.replace("view feed: activity where .actor = viewer or exists follows[viewer, .actor]\n", "")
+        .replace("return feed last", "return activity last")
+        .replace("{ *, post: posts[.post] }", "{ * }");
+    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("feed.sqlite")).unwrap(), &before);
+    let headers = "x-snapback-persona: alice\r\n";
+    assert_eq!(body(&host.request("POST", "/m/post", headers, r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FA0","args":{"postId":"p","parentId":null}}"#))["state"], "sent");
+    let old = *lock(&host.shared.generation);
+    let (entered, waiting) = mpsc::channel(); let (resume, resumed) = mpsc::channel();
+    {
+        let engine = lock(&host.shared.engine);
+        engine.store().conn().commit_hook(Some(move || {
+            entered.send(()).unwrap(); resumed.recv_timeout(Duration::from_secs(10)).unwrap(); false
+        })).unwrap();
+    }
+    let shared = host.shared.clone();
+    let task = thread::spawn(move || {
+        let b = snapback4_lang::compile(&[("schema.q".into(),next.into())]);
+        let mut engine = lock(&shared.engine);
+        let (generation, _) = adoption::adopt_candidate(&shared, &mut engine, &b, || panic!("unexpected reopen")).unwrap();
+        engine.store().conn().commit_hook(None::<fn()->bool>).unwrap();
+        lock(&shared.readers).replace(&engine);
+        *lock(&shared.bound) = b; *lock(&shared.generation) = generation;
+    });
+    waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+    // Real predecessor reads still execute while slot bytes exist uncommitted.
+    let query = host.request("POST", "/q/home", headers, r#"{"args":{"c":null}}"#);
+    assert_eq!(status(&query),200,"{query}"); assert!(!query.contains("$timeline:"));
+    assert_eq!(body(&query)["data"].as_array().unwrap().len(),1);
+    let request = |path: &'static str, payload: String| {
+        let address=host.address; let (sent,received)=mpsc::channel();
+        let handle=thread::spawn(move || {
+            let response=exchange(address,&format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\nx-snapback-persona: alice\r\n\r\n{payload}",payload.len()));
+            sent.send(response).unwrap();
+        }); (received,handle)
+    };
+    let (sync, sync_thread)=request("/sync",format!(r#"{{"generation":{old},"from":0,"limit":100}}"#));
+    let (write, write_thread)=request("/m/post",r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FA1","args":{"postId":"after","parentId":null}}"#.into());
+    assert!(sync.recv_timeout(Duration::from_millis(100)).is_err());
+    assert!(write.recv_timeout(Duration::from_millis(100)).is_err());
+    resume.send(()).unwrap(); task.join().unwrap();
+    let sync=sync.recv_timeout(Duration::from_secs(3)).unwrap();
+    assert!(!sync.contains("$timeline:")); assert_eq!(body(&sync)["denied"]["code"],"E_SYNC_GENERATION");
+    let write=write.recv_timeout(Duration::from_secs(3)).unwrap(); assert_eq!(body(&write)["state"],"sent","{write}");
+    sync_thread.join().unwrap(); write_thread.join().unwrap();
+    let retry=host.request("POST","/m/post",headers,r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FA1","args":{"postId":"after","parentId":null}}"#);
+    assert_eq!(body(&retry)["state"],"sent");
+    assert_eq!(lock(&host.shared.engine).store().count("posts").unwrap(),2,"same-id retry crosses adoption once");
+}
+
+#[test]
 fn a2_adoption_fences_supervised_claims_before_the_old_child_stops() {
     let schema = "use server\naction work() returns { n: int } <- allow\neffect mail\nmutation emitMail():\n  emit mail {n: 1}\n";
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), schema);

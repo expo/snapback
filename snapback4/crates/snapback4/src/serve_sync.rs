@@ -31,6 +31,10 @@ fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: 
 }
 
 pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
+    // @ref LLP 3000.026#4-atomic-launch-adoption — sync joins the ordinary
+    // writer lock during launch; detached queries keep reading the predecessor.
+    let launching = lock(&shared.readers).launching_feed();
+    if launching { drop(lock(&shared.engine)); }
     // This is also the page path's request authorization. Partition rules
     // filter unreadable rows/groups; they add no whole-request refusal.
     let principal = match principal_of(&request, shared) {

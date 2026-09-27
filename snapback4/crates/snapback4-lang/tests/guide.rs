@@ -76,7 +76,7 @@ fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
         ("E_RECIPE_RETIRED", vec!["view following: activity", "the engine chooses delivery bounds"]),
         ("E_TIMELINE_FILTER", vec!["view activity", "posts where .parentId = null and not .removed"]),
         ("E_TIMELINE_READ", vec!["following last 20 by .at after c"]),
-        ("E_TIMELINE_ACTIVATE", vec!["query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", "Original event ids are post ids", "no repost identity slots or edge-admission history"]),
+        ("E_TIMELINE_ACTIVATE", vec!["query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", "Original event ids are post ids", "--allow-feed-adoption", "5,000,000 copies"]),
         ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
         ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
     ] {

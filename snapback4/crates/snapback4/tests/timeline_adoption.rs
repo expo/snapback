@@ -80,6 +80,41 @@ impl Dir {
 impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
 #[test]
+fn atomic_launch_dev_is_automatic_and_deploy_prints_estimate_and_requires_opt_in() {
+    let dir = Dir::new();
+    dir.source(&without_view(&source()));
+    assert!(dir.command(&["deploy", "release"]).status.success());
+    let release = dir.0.join("release/store.sqlite");
+    let mut e = Engine::open(Store::open(&release).unwrap()).unwrap();
+    post(&mut e, "author", "p", Value::Null, 1); follow(&mut e, "reader", "author"); drop(e);
+    dir.source(&source());
+    let refused = dir.command(&["deploy", "release"]);
+    assert!(!refused.status.success());
+    let error = String::from_utf8_lossy(&refused.stderr);
+    for text in ["E_TIMELINE_ACTIVATE", "--allow-feed-adoption", "2 rows to copy", "estimated writer lock", "planned home query"] {
+        assert!(error.contains(text), "{error}");
+    }
+    let allowed = dir.command(&["deploy", "release", "--allow-feed-adoption"]);
+    assert!(allowed.status.success(), "{allowed:?}");
+    assert!(String::from_utf8_lossy(&allowed.stderr).contains("2 rows to copy"));
+    let mut e = Engine::open(Store::open(&release).unwrap()).unwrap();
+    assert_eq!(pages(&mut e,"reader").len(),1); drop(e);
+
+    let dev = Dir::new(); fs::create_dir(dev.0.join(".snapback4")).unwrap();
+    let path = dev.0.join(".snapback4/store.sqlite"); let b = compile(&without_view(&source()));
+    let mut e=Engine::new(Store::open(&path).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    post(&mut e,"author","p",Value::Null,1); follow(&mut e,"reader","author"); drop(e);
+    dev.source(&source());
+    let mut child=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dev.0).args(["dev","--no-watch","--port","0"])
+        .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    let mut address=String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut address).unwrap();
+    child.kill().unwrap(); let output=child.wait_with_output().unwrap();
+    assert!(address.starts_with("http://"),"{address}: {output:?}");
+    assert!(String::from_utf8_lossy(&output.stderr).contains("2 rows to copy"));
+    let mut e=Engine::open(Store::open(&path).unwrap()).unwrap(); assert_eq!(pages(&mut e,"reader").len(),1);
+}
+
+#[test]
 fn dev_removes_populated_view_and_preserves_sources_and_other_views() {
     let s = format!("{}\nview totals: count posts by .authorId\n  online only\nview other: activity where .actor = viewer or exists follows[viewer, .actor]\nview ownedTotals: count followingPosts by .actorId\n  online only\n", source());
     let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
@@ -199,7 +234,7 @@ fn redefinition_refuses_atomically_and_delivery_keeps_running() {
         let b = compile(&revised);
         let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
         assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
-        for word in ["following", "event identities", "remove the view and deploy, then add the new definition", "empty", "planned view"] {
+        for word in ["following", "changed", "retire", "fresh view name", "planned home query"] {
             assert!(error.to_string().contains(word), "{error}");
         }
         assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
@@ -288,10 +323,10 @@ fn unfinished_experimental_rebuild_is_fenced_but_can_be_removed() {
 }
 
 #[test]
-fn two_step_replacement_over_empty_sources_is_supported() {
+fn two_step_replacement_uses_a_fresh_owned_namespace() {
     let mut e = engine(&source());
     adopt(&mut e, &without_view(&source()));
-    adopt(&mut e, &source().replace(".parentId = null and not .removed", "not .removed"));
+    adopt(&mut e, &source().replace(".parentId = null and not .removed", "not .removed").replace("following", "replacement"));
     follow(&mut e, "reader", "author");
     post(&mut e, "author", "p", Value::Null, 1);
     post(&mut e, "author", "reply", id("p"), 2);

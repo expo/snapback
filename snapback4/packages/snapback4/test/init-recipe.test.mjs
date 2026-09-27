@@ -12,7 +12,7 @@ const retired = `E_RECIPE_RETIRED: the Following recipe installer is retired; no
     events posts by authorId, at removed by removed
     reposts reposts by actorId, postId, at
     edges follows by followerId, followedId
-  declare before event and edge data exists; see snapback4 guide feeds
+  use a fresh feed name; dev adopts retained sources and deploy requires --allow-feed-adoption; see snapback4 guide feeds
 `;
 const options = [
   ["--prefix", "feed"], ["--authors", "1008"], ["--edges", "5921"],

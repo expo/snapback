@@ -68847,3 +68847,75 @@ Part A; Part B changes documentation only. Reference audit passes: 518 LLPs,
 reference audit caught a renamed §5 anchor; restored its existing heading so
 the research probe's @ref remains valid. All work committed locally with the
 requested co-author trailer; no push or publication.
+
+### 2026-09-27 — Lane FA round 2: atomic launch over retained Following sources
+
+Read both prior prompts, LLP 3000.026, the lane journal and both complete round-1
+NOT READY reviews. Followed the supervisor's smaller contract: start this feed
+now in one activation transaction under the writer lock. First-use owned/slot
+names only; originals retain post ids, repost ids include a fresh adoption
+incarnation. Fill all slots, create done births, retain every own event, copy the
+newest 1,000 live events per existing follow, build dependent state and publish
+the generation atomically. Removal prunes without refill. Source history cannot
+restore old epochs/delivery, and launch can include older events never delivered
+before. No chunks, fence, staging image, reservations, manifest or roster tasks.
+
+Activation work uses the existing metered walker and bounded copy scratch. The
+read-only estimate refuses above 5,000,000 total copies before starting, then
+rechecks under the writer lock before candidate writes. Dev adopts automatically;
+deploy and applicable rollback need --allow-feed-adoption, print counts and the
+measured-rate lock estimate, and refuse with E_TIMELINE_ACTIVATE plus planned
+home otherwise. The flag cannot override the ceiling. Serve only attaches an
+already committed release. Detached queries continue on the predecessor; syncs
+join the ordinary writer lock. Process death before commit leaves source rows,
+slots, sequence, catalog and generation unchanged, and restart succeeds. Native
+and memory devices drop predecessor images and reacquire; no device protocol or
+implementation change. Final validation is retained while avoiding a duplicate
+rebuild of the four freshly constructed owned-table indexes.
+
+Measured actual release-profile Engine::adopt on the round-0 calibration-#22
+shape (48,000 posts, 1,000 reposts, 6,000 follows, 1,008 principals) and at 10×,
+one serial sample per final scale. Writer lock: 46.901456848 / 696.667497247 s;
+wall: 47.037331693 / 698.068136903 s; copies: 340,697 / 3,407,033; logical row
+writes including slots: 493,697 / 4,937,033. Estimate uses 7,000 row writes/s,
+rounded down from the slower observation. The initial duplicate-index build's
+101.639 s sample remains recorded; this is a code improvement, not best-of-run
+selection. The report records removal of one unused metadata write after timing.
+No online-fence or production load SLO is claimed. Benchmark DBs were removed
+only after preserving JSON and logs.
+
+LLP 3000.026 keeps the losses and every rejected-option counterexample. Its
+atomic section describes the shipped contract; the unbuilt online future keeps
+both reviews' requirements, including Astra's five-second fence gate. Both
+round-1 reviews are retained byte-for-byte. LLP 3000.013's stale empty-source
+paragraph is corrected. Feeds/why/codes explain adoption and the planned query;
+feeds.md shrinks from 17,708 to 17,695 bytes, including the measured lock times.
+
+Affected launch/history/ordering/removal, crash, reader/sync isolation, CLI,
+activation equivalence and generation reacquisition tests pass. Device package:
+1,321 passed, zero failed, three existing ignored; codec census 26/26; whole
+guide 86/86. Wasm: 1,981,512 B raw / 572,049 B gzip, 792 B below the unchanged
+572,841 B budget. No meter, test timeout or budget was raised.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+`== 2 failure(s) in 1212 s` (cargo test; client tests). Every failing test is
+lane-owned: Rust init's orphan_and_invalid_recipe_options_keep_the_clear_retirement_refusal
+and retired_feed_installer_and_all_its_options_refuse_without_writes, and the
+JavaScript "Retired Following installer and orphan options preserve fresh and
+existing directory trees". All three expected the old recipe refusal text.
+Corrected the two constants; no no-write/directory-preservation assertion was
+removed. Final affected reruns: Rust init 21/21, deployment/adoption 10/10,
+atomic launch 7/7, whole guide 86/86, JavaScript init 4/4. The full run otherwise
+passed 3,920 Rust tests (28 ignored), 2,699 client tests (10 skipped), 78 client
+models and nine fixture tests. No baseline/environmental full-suite failure.
+The inherited 60-second suite budget remains exceeded. Earlier development
+failures and fixes are classified in the report, including the existing 1 ms
+rollback-test assumption fixed by requesting one whole metered chunk; the
+production worker is unchanged.
+
+Evidence and reproduction: experiments/following-adoption/atomic/REPORT.md,
+measurement JSONs, verification.json and ignored target/fa-round2/ logs. Node
+24.13.1, Bun 1.3.14, Rust 1.97.0; eight full-suite Cargo build jobs, fd limit
+65,536. No tool installation was needed; dependencies/build outputs stayed in
+this worktree. Local commit with the requested co-author trailer; no push or
+publication.

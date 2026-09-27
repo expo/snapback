@@ -245,13 +245,11 @@ fn counterexamples_and_planned_escape() {
     assert!(page.complete);
     assert_eq!(page.data.as_array().unwrap().len(), 1);
     let b = bound(Q);
-    assert_eq!(
-        retained
-            .adopt(b.schema, b.programs.into_iter().map(|p| p.program))
-            .unwrap_err()
-            .code(),
-        "E_TIMELINE_ACTIVATE"
-    );
+    let mut launched = memory(&bare());
+    post(&mut launched, "author", "old", 1);
+    follow(&mut launched, "reader", "author");
+    launched.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    assert_eq!(query(&mut launched, "home", "reader").data.as_array().unwrap().len(), 1);
     // A globally newest unrelated suffix cuts the residual before the wanted row.
     retained
         .seed((0..9000).map(|n| {

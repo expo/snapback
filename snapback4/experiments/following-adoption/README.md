@@ -1,5 +1,9 @@
 # Following adoption research (lane FA)
 
+Round 2 implements atomic launch adoption. Its product-path measurements and
+verification are in [atomic/REPORT.md](atomic/REPORT.md); the replay experiments
+below remain historical evidence, not the current activation cost.
+
 **Round-0 experiment record.** Measurements and probe code below are unchanged.
 Round 1 shipped only the card/refusal fix (661c013dc); it built no publisher and
 ran no new adoption benchmark. [LLP 3000.026 §4](../../../llp/3000.026-following-over-a-populated-store.rfc.md#4-execution-publication-and-the-simpler-alternative)

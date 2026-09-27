@@ -22,6 +22,7 @@ mod activation_plan;
 #[cfg(test)]
 mod adoption_tests;
 mod event_slots;
+pub mod timeline_launch;
 mod caps;
 mod authority;
 mod successor;

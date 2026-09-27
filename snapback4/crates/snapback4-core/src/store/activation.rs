@@ -60,6 +60,15 @@ impl Store {
     }
 
     pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        self.activate_at_with_launch(schema, programs, reset, now, true, build)
+    }
+
+    pub(crate) fn activate_at_with_launch(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        if programs.is_some() {
+            let estimates = self.timeline_launch_estimate(schema)?;
+            super::timeline_launch::admission(&estimates, allow_launch)?;
+            for estimate in estimates.iter().filter(|e| e.sources != 0) { eprintln!("snapback4: atomic feed adoption: {}", estimate.summary()); }
+        }
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
         self.check_ownership()?;
@@ -96,6 +105,15 @@ impl Store {
         let changed = schema_changed || activation_hash.as_ref().is_some_and(|hash| before.1.as_ref() != Some(hash));
         let mut catalog: BTreeMap<String, i64> = sql.prepare("SELECT name, num FROM _catalog")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
+        // Repeat source-count admission under the writer lock, before any candidate writes.
+        let preflight_catalog = catalog.clone();
+        let (launches, sql) = {
+            let preflight = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
+            let launches = if programs.is_some() { super::timeline_launch::estimate(&preflight, schema)? } else { Vec::new() };
+            super::timeline_launch::admission(&launches, allow_launch)?;
+            let Tx { tx: sql, .. } = preflight;
+            (launches, sql)
+        };
         let mut next = catalog.values().copied().max().unwrap_or(0) + 1;
         for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
             for full in std::iter::once(name.clone()).chain(table.indexes.keys().map(|index| format!("{name}.{index}"))) {
@@ -128,6 +146,7 @@ impl Store {
         }
         if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
         if schema_changed && programs.is_some() {
+            super::timeline_launch::build(&tx, schema, &launches, now)?;
             super::event_slots::fill(&tx, schema, now)?;
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                 return Err(step.refusal(schema));
@@ -154,6 +173,12 @@ impl Store {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let t = catalog[name];
                 let plan = &plans[name];
+                // Launch put() already built these fresh indexes under the
+                // complete candidate schema. Keep the final invariant pass,
+                // but do not delete and reconstruct the same entries again.
+                if launches.iter().any(|launch| schema.timelines.iter().any(|timeline|
+                    timeline.name == launch.name && ["Posts", "Work", "Edges", "Feed"].iter()
+                        .any(|suffix| timeline.table(suffix) == *name))) { continue; }
                 if !plan.project && plan.indexes.is_empty() { continue; }
                 for index in &plan.indexes { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
