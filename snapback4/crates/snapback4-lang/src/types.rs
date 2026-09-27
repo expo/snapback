@@ -239,6 +239,16 @@ impl Ty {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
             (Ty::Unknown, other) | (other, Ty::Unknown) if !strict && !other.contains_row() => other.clone(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
+            // @ref LLP 3000.007#5.1 — compatible items keep their common representation;
+            // assignment's literal-enum and Unknown exceptions are not joins.
+            (Ty::Enum(variants), Ty::Text(max)) | (Ty::Text(max), Ty::Enum(variants))
+                if Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) => {
+                let longest = variants.iter().map(|v| u32::try_from(v.chars().count()).unwrap_or(u32::MAX)).max().unwrap_or(0);
+                Ty::Text((*max).max(longest))
+            }
+            (Ty::Id, Ty::Ref(_) | Ty::Principal) | (Ty::Ref(_) | Ty::Principal, Ty::Id) => Ty::Id,
+            (Ty::Int, Ty::Decimal(scale)) | (Ty::Decimal(scale), Ty::Int) => Ty::Decimal(*scale),
+            (Ty::Int, Ty::Money(currency, scale)) | (Ty::Money(currency, scale), Ty::Int) => Ty::Money(currency.clone(), *scale),
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => Ty::Int,
             (Ty::Object(a), Ty::Object(b)) | (Ty::RowShape(a), Ty::RowShape(b)) | (Ty::RowObject(a), Ty::RowObject(b)) => {
                 let mut fields = BTreeMap::new();
@@ -278,6 +288,7 @@ impl Ty {
             // No row-derived value, even in a container, may disappear into
             // Unknown and later acquire a different kind from another arm.
             _ if self.contains_row() || other.contains_row() => return Err(conflict()),
+            (Ty::Json, other) | (other, Ty::Json) if *other != Ty::Unknown => Ty::Json,
             _ if strict => return Err(JoinError { incompatible_items: true, ..conflict() }),
             _ => Ty::Unknown,
         })
