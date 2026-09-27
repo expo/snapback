@@ -217,23 +217,34 @@ impl Ty {
     /// The type both branches can share. Row-kind conflicts are errors at
     /// their first join, including inside objects and collections.
     pub fn join(&self, other: &Ty) -> Result<Ty, JoinError> {
+        self.join_inner(other, false)
+    }
+
+    /// Nonempty list items must never erase a conflict into Unknown: a later
+    /// item could otherwise recover a type the earlier values do not have.
+    // @ref LLP 3000.007#5.1 — literals and concatenation share sound item joins.
+    pub(crate) fn join_item(&self, other: &Ty) -> Result<Ty, JoinError> {
+        self.join_inner(other, true)
+    }
+
+    fn join_inner(&self, other: &Ty, strict: bool) -> Result<Ty, JoinError> {
         if self == other { return Ok(self.clone()); }
         // Absence adds nullability; it supplies no competing wildcard kind.
         if *self == Ty::Null { return Ok(other.clone().optional()); }
         if *other == Ty::Null { return Ok(self.clone().optional()); }
-        if let Ty::Optional(a) = self { return Ok(a.join(&other.required())?.optional()); }
-        if let Ty::Optional(b) = other { return Ok(self.required().join(b)?.optional()); }
-        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new() };
+        if let Ty::Optional(a) = self { return Ok(a.join_inner(&other.required(), strict)?.optional()); }
+        if let Ty::Optional(b) = other { return Ok(self.required().join_inner(b, strict)?.optional()); }
+        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new(), incompatible_items: false };
         Ok(match (self, other) {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
-            (Ty::Unknown, other) | (other, Ty::Unknown) if !other.contains_row() => other.clone(),
+            (Ty::Unknown, other) | (other, Ty::Unknown) if !strict && !other.contains_row() => other.clone(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => Ty::Int,
             (Ty::Object(a), Ty::Object(b)) | (Ty::RowShape(a), Ty::RowShape(b)) | (Ty::RowObject(a), Ty::RowObject(b)) => {
                 let mut fields = BTreeMap::new();
                 for (name, ty) in a {
                     fields.insert(name.clone(), match b.get(name) {
-                        Some(other) => ty.join(other).map_err(|error| error.at(name))?,
+                        Some(other) => ty.join_inner(other, strict).map_err(|error| error.at(name))?,
                         None => ty.clone().optional(),
                     });
                 }
@@ -251,7 +262,7 @@ impl Ty {
             (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => {
                 for (name, ty) in a {
                     if let Some(other) = b.get(name) {
-                        ty.join(other).map_err(|error| error.at(name))?;
+                        ty.join_inner(other, strict).map_err(|error| error.at(name))?;
                     }
                 }
                 return Err(conflict());
@@ -267,6 +278,7 @@ impl Ty {
             // No row-derived value, even in a container, may disappear into
             // Unknown and later acquire a different kind from another arm.
             _ if self.contains_row() || other.contains_row() => return Err(conflict()),
+            _ if strict => return Err(JoinError { incompatible_items: true, ..conflict() }),
             _ => Ty::Unknown,
         })
     }
@@ -323,6 +335,7 @@ pub struct JoinError {
     pub left: String,
     pub right: String,
     pub path: String,
+    pub(crate) incompatible_items: bool,
 }
 
 impl JoinError {
@@ -337,7 +350,7 @@ impl JoinError {
 // An empty sequence supplies no arm to compare, including the initial []
 // of a collector. Unknown in a nonempty value never gets this exemption.
 fn join_items(a: &Ty, am: u32, b: &Ty, bm: u32) -> Result<Ty, JoinError> {
-    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join(b).map_err(|error| error.at("[]")) }
+    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join_item(b).map_err(|error| error.at("[]")) }
 }
 
 pub fn scalar_to_column(scalar: &ScalarType) -> ColumnType {

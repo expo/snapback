@@ -97,6 +97,10 @@ fn description(kind: &str) -> &str {
 
 fn refusal(error: JoinError, site: &Site, rewrite: String) -> Diagnostic {
     let path = if error.path.is_empty() { String::new() } else { format!(" at field path {}", error.path) };
+    if error.incompatible_items {
+        return type_error(site, format!("cannot join list items{path}: {} and {}", error.left, error.right),
+            "use compatible item types in one list; keep different types or references to different tables in separate lists");
+    }
     Diagnostic::new(site, "E_QUARRY_SHAPE_JOIN",
         format!("cannot join{}: arm A is {}, arm B is {}; make both arms the same kind (spread both row arms, or shape both with the same shape)", path, description(&error.left), description(&error.right)),
         rewrite).guide("shapes")

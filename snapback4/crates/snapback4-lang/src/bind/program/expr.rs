@@ -92,7 +92,7 @@ impl Binder<'_> {
                 let origins: Vec<_> = args.iter().zip(items).map(|((_, ty), source)| (ty.clone(), source.clone())).collect();
                 for (e, t) in args {
                     item_ty = Some(match item_ty {
-                        Some(j) => j.join(&t).map_err(|error| self.join_error_many(error.at("[]"), &origins))?,
+                        Some(j) => j.join_item(&t).map_err(|error| self.join_error_many(error.at("[]"), &origins))?,
                         None => t,
                     });
                     exprs.push(e);

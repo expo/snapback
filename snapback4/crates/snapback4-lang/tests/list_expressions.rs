@@ -121,3 +121,33 @@ fn conflicting_row_kinds_keep_the_literal_join_refusal() {
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_SHAPE_JOIN"
         && d.message.contains("[]")), "{:?}", bound.diagnostics);
 }
+
+#[test]
+fn incompatible_nonempty_items_refuse_before_a_later_item_can_erase_the_conflict() {
+    let tables = "table a:\n  n: int\n  public\ntable b:\n  n: int\n  public\n";
+    for expression in [
+        "([1] + ['x']) + [2]", "[1, 'x', 2]",
+        "([x] + [y]) + [x]", "[x, y, x]",
+        "[[1], ['x'], [2]]", "[{ n: 1 }, { n: 'x' }, { n: 2 }]",
+        "[unknown, 1]",
+    ] {
+        let source = format!("{tables}query run(x: a, y: b, flag: bool):\n  unknown = 1 if flag else 'x'\n  return {expression}\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        let error = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_TYPE")
+            .unwrap_or_else(|| panic!("{expression}: {:?}", bound.diagnostics));
+        assert!(error.message.contains("[]"), "{error:?}");
+        assert!(error.rewrite.contains("compatible"), "{error:?}");
+        assert_eq!(error.site.line, 9);
+    }
+    let bound = compile(&[("schema.q".into(), "query run():\n  total = 0\n  for x in ([1] + ['x']) + [2]:\n    total = total + x\n  return total\n".into())]);
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"));
+}
+
+#[test]
+fn empty_lists_and_same_table_optional_references_keep_their_item_types() {
+    let source = "table a:\n  n: int\n  public\nquery run(x: a, y: a ?):\n  return ([] + [x]) + [y] + []\n";
+    assert_eq!(checked(source).programs[0].result,
+        Ty::List(Box::new(Ty::Ref("a".into()).optional()), 2));
+    assert_eq!(run("query run():\n  return [[], [1]] + [[]]\n"),
+        Value::Array(vec![Value::Array(vec![]), Value::Array(vec![Value::Int(1)]), Value::Array(vec![])]));
+}
