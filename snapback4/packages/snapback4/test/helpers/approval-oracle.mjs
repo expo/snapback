@@ -39,6 +39,7 @@ export function approvalOracle(t, keep) {
     },
   });
   const currentOwner = () => owners.get(f.owner());
+  const sourceRead = owner => owner?.copy ?? owner?.raw;
   const associate = owner => {
     for (const record of records) if (!record.closed && !record.source && currentOwner() === owner) record.associated = owner;
   };
@@ -58,7 +59,7 @@ export function approvalOracle(t, keep) {
   const latch = () => {
     for (const owner of owners.values()) {
       if (owner.retired) continue;
-      if (rowDue(owner.raw) || episodeDue(owner.raw)) {
+      if (rowDue(sourceRead(owner)) || episodeDue(sourceRead(owner))) {
         owner.raw = loading(); withdraw(owner);
         for (const record of records) if (!record.closed && record.source === owner) record.latest = undefined;
       } else if (rowDue(owner.approved) || episodeDue(owner.approved)) {
@@ -79,16 +80,17 @@ export function approvalOracle(t, keep) {
         if (owner) {
           // Live source withdrawals have synchronous precedence over a late
           // authority refusal; an opening on a retired source has no such peer.
-          const sourceWins = owner.raw.kind !== "data" && records.some(peer => !peer.closed && peer.source === owner);
-          withdraw(owner, sourceWins ? owner.raw : value);
+          const raw = sourceRead(owner);
+          const sourceWins = raw.kind !== "data" && records.some(peer => !peer.closed && peer.source === owner);
+          withdraw(owner, sourceWins ? raw : value);
         }
         else record.private = value;
       } else if (!record.closed && !fenced) {
         if (gate.opening) record.opened = true; // Acquisition starts another check; this is not approval.
         else if (gate.eligible && record.latest === gate && gate.owner.epoch === gate.epoch) {
           const owner = gate.owner;
-          if (owner.raw.kind === "data") {
-            owner.approved = { ...owner.raw }; owner.registered = true; associate(owner);
+          if (sourceRead(owner).kind === "data") {
+            owner.approved = { ...sourceRead(owner) }; owner.registered = true; associate(owner);
           }
         }
       }
@@ -128,17 +130,22 @@ export function approvalOracle(t, keep) {
   const expected = record => {
     if (fenced) return auth;
     if (!record.closed) {
-      if (record.source && record.source.raw.kind !== "data") return record.source.raw;
+      if (record.source && sourceRead(record.source).kind !== "data") return sourceRead(record.source);
       return record.associated?.approved ?? record.private;
     }
     let value = record.frozen;
-    const source = record.source ?? currentOwner();
+    const source = sourceRead(record.source ?? currentOwner());
     if (value.kind === "denied") return value;
     if (value.kind === "loading") return value;
-    if (source?.raw.kind === "denied") return record.frozen = source.raw;
-    if (!source || source.raw.kind !== "data" || value.kind !== "data" || source.raw.id !== value.id || episodeDue(value))
+    if (source?.kind === "denied") return record.frozen = source;
+    if (!source || source.kind !== "data" || value.kind !== "data" || source.id !== value.id)
       return record.frozen = loading();
-    return source.raw;
+    // A closed facade observes copies, but the earliest observed episode belongs
+    // to its captured identity even if a subsequent copy omits that metadata.
+    for (const copy of [value, source]) if (copy.episode !== undefined)
+      record.episode = Math.min(record.episode ?? Infinity, copy.episode);
+    if (record.episode !== undefined && host >= record.episode) return record.frozen = loading();
+    return source;
   };
   const assertRead = (record, read, phase) => {
     const want = expected(record), label = `${phase}, facade ${record.number}: ${trace.join(" / ")}`;
@@ -185,6 +192,7 @@ export function approvalOracle(t, keep) {
     }
     f.publish(value.id, deadlines);
     value.identity = answerIdentity(f.owner().snapshot);
+    owner.original = { ...value }; owner.originalCopy = f.owner().snapshot;
   };
   const reload = () => {
     latch(); const owner = currentOwner(); trace.push("reload");
@@ -201,6 +209,16 @@ export function approvalOracle(t, keep) {
   const recheck = () => {
     trace.push("recheck"); for (const notify of f.owner().subscribers) notify();
   };
+  const sourceWithoutEpisode = () => {
+    const owner = currentOwner();
+    assert.equal(owner.raw.id, owner.original.id, "the alternate copy keeps the same source identity");
+    trace.push("source returns original copy without episode");
+    owner.copy = { ...owner.original };
+    // Deliberate input fault, matching the captured-episode regression: bypass
+    // the raw accessor so only the facade's saved deadline can withdraw it.
+    const read = t.mock.method(owner.rawHandle, "read", () => owner.originalCopy);
+    return () => { read.mock.restore(); delete owner.copy; };
+  };
   const sourceDenial = () => {
     const owner = currentOwner(); trace.push("source denial");
     owner.raw = { ...auth, message: `raw refusal ${++serial}` }; withdraw(owner, owner.raw);
@@ -214,7 +232,7 @@ export function approvalOracle(t, keep) {
   };
   const close = record => {
     latch(); trace.push(`close f${record.number}`);
-    record.frozen = { ...expected(record) }; record.closed = true;
+    record.frozen = { ...expected(record) }; record.episode = record.frozen.episode; record.closed = true;
     if (!keep && record.source && !records.some(peer => !peer.closed && peer.source === record.source)) retire(record.source);
     record.watch.close(); record.closedCalls = record.events.length;
     if (record.source && !f.owner()) retire(record.source);
@@ -241,6 +259,6 @@ export function approvalOracle(t, keep) {
     for (const record of records) { record.closed = true; record.watch.close(); }
     for (const gate of pending) gate.resolve(true);
   });
-  return { open, publish, complete, settle, close, reload, reset, recheck, sourceDenial, time, expireLinger, fence, pending, records, trace,
+  return { open, publish, complete, settle, close, reload, reset, recheck, sourceDenial, sourceWithoutEpisode, time, expireLinger, fence, pending, records, trace,
     currentOwner, clocks: () => ({ host, server, device }) };
 }

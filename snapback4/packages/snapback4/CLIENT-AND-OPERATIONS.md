@@ -1219,6 +1219,8 @@ receive notifications for approval, withdrawal and each distinct denial. An
 opening keeps its last raw-owner association if that owner retires while its
 check waits, so an opening refusal still reaches the attached slot exactly once.
 This also applies when the opening first joined through a peer's notification.
+While a raw owner is present, opening getters and notifications apply its current
+loading or denial before returning or delivering, just as sourced getters do.
 A live facade stays attached after a transient authority error, so a peer's later
 approval reaches it too. Expiry and follower registrations release on rejection;
 notification ownership ends only on close or a facade fence.
@@ -1237,9 +1239,11 @@ subscription callback runs, including with `keep: false`; new data still needs
 authority. For all three policies, a closed facade keeps consulting its detached
 raw handle but never adopts a new identity. While its last identity is still the source's and its own row and episode
 deadlines hold, it returns the source's current copy of that identity, including
-its revalidating mark. Closing preserves any earlier captured episode deadline. After that it returns one stable `loading` snapshot, or its denial, even
+its revalidating mark. It preserves the earliest episode it observed, whether
+before or after close, even if a later copy omits the deadline. After that it returns one stable `loading` snapshot, or its denial, even
 when the replacement has identical data. A closed facade has no listeners and
-never notifies. Once its loading snapshot latches, a later source denial does
+never notifies. Loading captured at close is already latched, without another
+getter call. Once its loading snapshot latches, a later source denial does
 not replace it; an explicit facade fence still revokes the entire handle.
 Closing a standalone `keep: false` facade removes its raw owner
 and cancels its subscriptions and timers. Shared approval and raw subscription delivery

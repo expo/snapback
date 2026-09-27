@@ -98,7 +98,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       // Notification ownership precedes even the creation of the raw watch.
       const unlisten = kept.listen(key, () => {
         const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
-        if (current) { associated = current; attach(kept.get(current, key)); }
+        if (current) {
+          associated = current; attach(kept.get(current, key));
+          // @ref LLP 3000.023#3.6 — normalize opening callbacks to the same raw withdrawal as sourced getters.
+          if ("loading" in current || "denied" in current) {
+            snapshot = current;
+            if (held && held.snapshot !== current) kept.reject(current, current);
+          }
+        }
         emit();
       });
       const reject = (read: Read<R>) => {
@@ -166,11 +173,11 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const getSnapshot = (): Read<R> => {
         if (!valid()) return denied();
         // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
-        const read = source?.getSnapshot() ?? (closed ? peekObservation(raw, op, args, options) : undefined);
+        const read = source?.getSnapshot() ?? (closed || held ? peekObservation(raw, op, args, options) : undefined);
         // @ref LLP 3000.023#3.4 — closed facades keep only their final identity, under its original deadlines.
         if (closed) {
           if ("denied" in snapshot) return snapshot;
-          if (snapshot === loading) return snapshot;
+          if ("loading" in snapshot) return snapshot;
           if (read && "denied" in read) return snapshot = read;
           const deadline = episodeDeadline(snapshot);
           if (deadline !== undefined) closedDeadline = Math.min(closedDeadline ?? Infinity, deadline);

@@ -17,6 +17,35 @@ function events(watch) {
 
 for (const keep of [undefined, false, true]) {
   const opts = keep === undefined ? undefined : { keep };
+  test(`second opening creates loading before first opening refuses, keep=${keep}`, async t => {
+    const f = fixture(t, keep ?? "default"), [firstOpen, secondOpen] = gates(t, f, 2);
+    const first = f.client.observe(q, {}, opts), second = f.client.observe(q, {}, opts);
+    const firstSeen = events(first), secondSeen = events(second);
+    secondOpen.resolve(true); await settle();
+    const loading = second.getSnapshot();
+    assert.deepEqual(loading, { loading: true });
+    firstOpen.reject(Error("opening refused")); await settle();
+    assert.equal(first.getSnapshot(), loading);
+    assert.deepEqual(firstSeen, [loading], "the opening never announces an intermediate denial");
+    assert.deepEqual(secondSeen, [loading], "the sourced peer already announced this loading object");
+    first.close(); second.close();
+  });
+
+  test(`close captures source loading without polling before source denial, keep=${keep}`, async t => {
+    const f = fixture(t, keep ?? "default");
+    const closed = f.client.observe(q, {}, opts), peer = f.client.observe(q, {}, opts);
+    await settle(); f.publish("A"); await settle();
+    f.owner().reset({ loading: true }); for (const notify of f.owner().subscribers) notify();
+    const loading = f.owner().snapshot, seen = events(closed);
+    closed.close();
+    f.owner().publish({ denied: { code: "E_AUTH", message: "source refused" } });
+    for (const notify of f.owner().subscribers) notify();
+    assert.equal(closed.getSnapshot(), loading, "source loading captured by close is already latched");
+    assert.equal(closed.getSnapshot(), loading);
+    assert.deepEqual(seen, []);
+    peer.close();
+  });
+
   for (const beforeOwner of [false, true]) test(`opening refusal after raw retirement (peer attachment=${beforeOwner}), keep=${keep}`, async t => {
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const f = fixture(t, keep ?? "default");
@@ -172,15 +201,16 @@ for (const keep of [undefined, true]) test(`release fences pending authority bef
   watch.close();
 });
 
-test("closed captured episode enforces its deadline even when the source copy has none", async t => {
+for (const closeBeforeReload of [false, true]) test(`closed captured episode enforces its deadline even when the source copy has none (close before=${closeBeforeReload})`, async t => {
   let host = 1000; t.mock.method(Date, "now", () => host);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const f = fixture(t, "default"), watch = f.client.observe(q, {}), peer = f.client.observe(q, {});
   await settle(); f.publish("A"); await settle();
   const original = f.owner().snapshot;
+  if (closeBeforeReload) watch.close();
   f.hold(); f.owner().reload(); for (const notify of f.owner().subscribers) notify();
   assert.equal(episodeDeadline(watch.getSnapshot()), 2000);
-  watch.close();
+  if (!closeBeforeReload) watch.close();
   // Isolate the facade's cap: the detached source supplies an earlier copy of the
   // same identity with no episode. No source accessor or timer can mask the check.
   t.mock.method(f.owner(), "read", () => original);

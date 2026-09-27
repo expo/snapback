@@ -2,8 +2,31 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { approvalOracle } from "./helpers/approval-oracle.mjs";
 
-async function start(m) {
+async function start(m, pick, coverage) {
   const first = m.open(), peer = m.open();
+  if (pick) {
+    const openingGates = m.pending.filter(gate => gate.record === first || gate.record === peer);
+    const survivor = [first, peer][pick(2)];
+    const completeGroup = async (gates, opening) => {
+      let completed = 0;
+      while (gates.length) {
+        const count = 1 + pick(gates.length);
+        if (count > 1) coverage.set(opening ? "batched-openings" : "batched-replacements", true);
+        for (let i = 0; i < count; i++) {
+          const [gate] = gates.splice(pick(gates.length), 1);
+          if (completed++ === 0) coverage.set(`${opening ? "opening" : "replacement"}-${gate.record === first ? "first" : "second"}-first`, true);
+          const refuse = opening && gate.record !== survivor && pick(3) === 0;
+          if (refuse) coverage.set("opening-refusal", true);
+          m.complete(gate, refuse ? "setup opening refused" : undefined);
+        }
+        await m.settle();
+      }
+    };
+    await completeGroup(openingGates, true);
+    m.publish();
+    await completeGroup(m.pending.filter(gate => gate.record === first || gate.record === peer), false);
+    return [survivor, survivor === first ? peer : first];
+  }
   m.complete(m.pending.find(gate => gate.record === first)); await m.settle();
   m.complete(m.pending.find(gate => gate.record === peer)); await m.settle();
   m.publish();
@@ -12,7 +35,41 @@ async function start(m) {
   return [first, peer];
 }
 
+for (const closeBeforeReload of [false, true]) test(`oracle preserves captured episode after source omits it (close before=${closeBeforeReload})`, async t => {
+  const m = approvalOracle(t, undefined), [closed] = await start(m);
+  if (closeBeforeReload) m.close(closed);
+  m.reload(); await m.settle(); // The closed facade first observes deadline 2000 here.
+  if (!closeBeforeReload) m.close(closed);
+  const restore = m.sourceWithoutEpisode();
+  m.time("host", 500); await m.settle();
+  m.time("host", 500); await m.settle();
+  m.time("host", -1000); await m.settle();
+  restore(); await m.settle();
+});
+
 for (const keep of [undefined, false, true]) {
+  test(`oracle checks second opening success before first opening refusal, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), first = m.open(), second = m.open();
+    m.complete(m.pending.find(gate => gate.record === second)); await m.settle();
+    m.complete(m.pending.find(gate => gate.record === first), "opening refused"); await m.settle();
+  });
+
+  test(`oracle preserves source loading captured at close without polling, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [closed] = await start(m);
+    m.reset(); await m.settle();
+    m.close(closed); m.sourceDenial(); await m.settle();
+  });
+
+  test(`oracle checks raw expiry from an opening getter before its sourced peer, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), opening = m.open(), peer = m.open();
+    m.complete(m.pending.find(gate => gate.record === peer)); await m.settle();
+    m.publish(); m.complete(m.pending.find(gate => gate.record === peer)); await m.settle();
+    m.publish({ server: 2000 });
+    m.complete(m.pending.find(gate => gate.record === peer), "replacement refused"); await m.settle();
+    m.time("server", 1000); await m.settle(); // Opening is read before the sourced peer.
+    m.close(opening);
+  });
+
   test(`oracle requires same-answer recovery for every live facade, keep=${keep}`, async t => {
     const m = approvalOracle(t, keep), [first, peer] = await start(m);
     m.publish();
@@ -114,17 +171,30 @@ for (const keep of [undefined, false, true]) {
 
   test(`seeded independent shared approval oracle, keep=${keep}`, async t => {
     const coverage = new Map();
-    for (let seed = 1; seed <= 60; seed++) await t.test(`seed ${seed}`, async t => {
+    const seeds = Number(process.env.SNAPBACK4_APPROVAL_MODEL_SEEDS ?? 120);
+    assert.ok(Number.isSafeInteger(seeds) && seeds > 0, "positive seed count");
+    for (let seed = 1; seed <= seeds; seed++) await t.test(`seed ${seed}`, async t => {
       const m = approvalOracle(t, keep);
       let random = seed;
-      const pick = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random % n; };
-      let [anchor] = await start(m);
+      const pick = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return Math.floor(random / 0x100000000 * n); };
+      let [anchor, probe] = await start(m, pick, coverage);
+      if (keep === undefined) {
+        const closeBeforeReload = !!pick(2);
+        if (closeBeforeReload) m.close(probe);
+        m.reload(); await m.settle();
+        if (!closeBeforeReload) m.close(probe);
+        const restore = m.sourceWithoutEpisode();
+        m.time("host", 1 + pick(999)); await m.settle();
+        m.time("host", 2000 - m.clocks().host); await m.settle();
+        restore(); await m.settle();
+        coverage.set(`captured-episode-${closeBeforeReload ? "after" : "before"}-close`, true);
+      }
       for (let step = 0; step < 240; step++) {
         if (step === 120) {
           for (const record of m.records) if (!record.closed) m.close(record);
           if (keep) m.expireLinger();
           await m.settle();
-          [anchor] = await start(m);
+          [anchor] = await start(m, pick, coverage);
           coverage.set("recreate-owner", (coverage.get("recreate-owner") ?? 0) + 1);
         }
         const live = m.records.filter(record => !record.closed && record !== anchor);
@@ -168,7 +238,11 @@ for (const keep of [undefined, false, true]) {
       coverage.set("complete-after-fence", (coverage.get("complete-after-fence") ?? 0) + 1);
     });
     for (const action of ["publish", "publish-device", "approve", "reject", "batch", "several-completions", "open", "close",
-      "host", "server", "device", "rollback", "reload", "reset", "recheck", "source-denial", "recreate-owner", "fence", "complete-after-fence"])
+      "host", "server", "device", "rollback", "reload", "reset", "recheck", "source-denial", "recreate-owner", "fence", "complete-after-fence",
+      "opening-first-first", "opening-second-first", "replacement-first-first", "replacement-second-first",
+      "batched-openings", "batched-replacements", "opening-refusal"])
       assert.ok(coverage.get(action) > 0, `${action} is exercised`);
+    if (keep === undefined) for (const timing of ["before", "after"])
+      assert.ok(coverage.get(`captured-episode-${timing}-close`), `episode first observed ${timing} close`);
   });
 }
