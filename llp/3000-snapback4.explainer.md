@@ -1861,3 +1861,12 @@ measurement-first sequence and stopping conditions. Historical research links
 3000.000 and 3000.001 leave the current overlay to make room; the documents
 remain. Package publication and mutation of the frozen benchmark are outside
 this commission.
+
+## 2026-09-27 — Global search beyond one read
+
+The 0.4.5 lane GS commission supplies the application need for globally ordered
+search beyond a single membership-discovery read. The baseline reproduction,
+heap attribution, proposed bounded access plan and unresolved continuation
+contract are [LLP 3000.024](./3000.024-global-search-beyond-one-read.rfc.md).
+This records a design handoff, not implementation or a change to the budgets,
+disclosure rules or the no-query-cache exclusion.

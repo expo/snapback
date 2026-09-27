@@ -1,0 +1,114 @@
+{
+  "gsOriginal": {
+    "complete": false,
+    "cut": null,
+    "metered": {
+      "examined": 1,
+      "heap_bytes": 36,
+      "index_entries": 33,
+      "output_bytes": 12,
+      "rows_written": 0,
+      "rule_probes": 55,
+      "steps": 23
+    },
+    "next": false,
+    "dataCount": 0,
+    "cli_ms": 95994.93407970294
+  },
+  "gsbare": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 122,
+      "heap_bytes": 554978,
+      "index_entries": 101,
+      "output_bytes": 8251,
+      "rows_written": 0,
+      "rule_probes": 100,
+      "steps": 838
+    },
+    "next": true,
+    "dataCount": 20,
+    "cli_ms": 151.02426428347826
+  },
+  "gssender": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 142,
+      "heap_bytes": 734968,
+      "index_entries": 101,
+      "output_bytes": 18271,
+      "rows_written": 0,
+      "rule_probes": 100,
+      "steps": 1522
+    },
+    "next": true,
+    "dataCount": 20,
+    "cli_ms": 147.9143318720162
+  },
+  "gschat": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 142,
+      "heap_bytes": 693498,
+      "index_entries": 101,
+      "output_bytes": 15271,
+      "rows_written": 0,
+      "rule_probes": 120,
+      "steps": 1522
+    },
+    "next": true,
+    "dataCount": 20,
+    "cli_ms": 150.0306846573949
+  },
+  "gspeers": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 2102,
+      "heap_bytes": 10734723,
+      "index_entries": 101,
+      "output_bytes": 503551,
+      "rows_written": 0,
+      "rule_probes": 120,
+      "steps": 11462
+    },
+    "next": true,
+    "dataCount": 20,
+    "cli_ms": 294.9258512817323
+  },
+  "gsoriginalFixed": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 2142,
+      "heap_bytes": 10985983,
+      "index_entries": 101,
+      "output_bytes": 520591,
+      "rows_written": 0,
+      "rule_probes": 140,
+      "steps": 11662
+    },
+    "next": true,
+    "dataCount": 20,
+    "cli_ms": 288.0282597616315
+  },
+  "searchMessages": {
+    "complete": true,
+    "cut": null,
+    "metered": {
+      "examined": 182,
+      "heap_bytes": 907738,
+      "index_entries": 101,
+      "output_bytes": 25711,
+      "rows_written": 0,
+      "rule_probes": 140,
+      "steps": 2202
+    },
+    "next": true,
+    "dataCount": 20,
+    "cli_ms": 150.78502614051104
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "source": "54099bc882c529713f6e6204c5f51181f696a8ef",
+  "binary_sha256": "93e92a1c1f3ec52cab41f0e9b9d86f910ee9aa3c5da5761363cc54d00fd9af18",
+  "binary_profile": "debug; default SQLite flags; not packaged production flags",
+  "clock_ms": 1790493000000,
+  "query_term": "coffee",
+  "latency": "in-process Engine::query; 3 warmups, 20 measured calls; p50 sorted[9], p95 sorted[18]; Linux x86_64 shared expo-build-1000",
+  "wasm": {
+    "raw_bytes": 1981512,
+    "gzip_bytes": 572053,
+    "budget_bytes": 572841,
+    "runtime_source_delta_bytes": 0
+  }
+}
