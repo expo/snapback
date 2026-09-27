@@ -234,7 +234,8 @@ impl Ty {
         if *other == Ty::Null { return Ok(self.clone().optional()); }
         if let Ty::Optional(a) = self { return Ok(a.join_inner(&other.required(), strict)?.optional()); }
         if let Ty::Optional(b) = other { return Ok(self.required().join_inner(b, strict)?.optional()); }
-        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new(), incompatible_items: false };
+        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new(), incompatible_items: false,
+            mixed_references: matches!((self, other), (Ty::Ref(a), Ty::Ref(b)) if a != b) };
         Ok(match (self, other) {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
             (Ty::Unknown, other) | (other, Ty::Unknown) if !strict && !other.contains_row() => other.clone(),
@@ -347,6 +348,7 @@ pub struct JoinError {
     pub right: String,
     pub path: String,
     pub(crate) incompatible_items: bool,
+    pub(crate) mixed_references: bool,
 }
 
 impl JoinError {
