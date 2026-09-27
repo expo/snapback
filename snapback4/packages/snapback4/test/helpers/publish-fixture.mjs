@@ -47,7 +47,8 @@ cp.execFileSync = (cmd, args, opts = {}) => {
   if (cmd === "tar") {
     if (args[2] === "package/snapback4") return readFileSync(args[1]);
     const name = args[1].includes("client.tgz") ? "snapback4" : args[1].includes("linux") ? "snapback4-linux-x64" : platform;
-    return JSON.stringify({ name, version: "0.0.0", ...(name === "snapback4" ? { optionalDependencies: scenario.deps ?? { [platform]: "0.0.0", "snapback4-linux-x64": "0.0.0" } } : name.endsWith("linux-x64") ? { os: ["linux"], cpu: ["x64"] } : {}) });
+    if (name === "snapback4") return JSON.stringify({ ...JSON.parse(readFileSync(args[1], "utf8")), ...(scenario.deps ? { optionalDependencies: scenario.deps } : {}) });
+    return JSON.stringify({ name, version: "0.0.0", ...(name.endsWith("linux-x64") ? { os: ["linux"], cpu: ["x64"] } : {}) });
   }
   if (cmd === "bash") { if (scenario.suiteRed) throw Error("suite red"); return ""; }
   if (cmd === "cargo") return JSON.stringify({ reason: "compiler-artifact", target: { name: "snapback4", kind: ["bin"] }, executable: binary, profile: {} });
@@ -73,7 +74,7 @@ cp.execFileSync = (cmd, args, opts = {}) => {
   }
   if (cmd === "npm" && args[0] === "pack") {
     const filename = opts.cwd.includes(platform) ? "platform.tgz" : "client.tgz";
-    writeFileSync(join(args.at(-1), filename), filename === "platform.tgz" ? readFileSync(join(opts.cwd, "snapback4")) : "package");
+    writeFileSync(join(args.at(-1), filename), readFileSync(join(opts.cwd, filename === "platform.tgz" ? "snapback4" : "package.json")));
     return JSON.stringify([{ filename, entryCount: 1 }]);
   }
   if (cmd === "npm" && args[0] === "install") {

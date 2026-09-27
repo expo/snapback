@@ -458,3 +458,25 @@ Final reference audit: **515 LLP documents, 9,585 refs, 0 errors, 0 unchecked**.
 Frozen Bun installation and diff whitespace checks passed; all changed source
 files remain below 1,500 lines. Every lane commit has the requested co-author
 trailer.
+
+
+## Round 2 — review response (2026-09-27)
+
+This section supersedes the round-0/1 publication limitations where stated.
+The version remains 0.4.4; integration owns the 0.4.5 bump and qualification.
+
+### Commit / finding map
+
+- `Pack the client for the selected publication platforms`: Astra finding 2
+  (High), Grok finding 1 (High), round-2 request 1. Fresh no-receipt runs
+  pack a Darwin-only client, preserving that supported flow without naming
+  an unpublished Linux version. `--prepare-client` still selects both
+  platforms for cross-host qualification. A private package copy receives
+  the selected dependencies before the single pack; source stays unchanged.
+  Preparation loading and stage resume require exact dependency names and
+  versions for the staged set. Existing two-platform preparations cannot
+  silently enter a Darwin-only stage. Format-2 resumes still pass.
+  Three new tests failed before the fix and pass after it: Darwin-only
+  packed manifest/registry/resume, incompatible prepared client refusal,
+  and resume refusal when a dependency is added with updated artifact SRI.
+  Publication/signing tests: 61 passed, 0 failed.

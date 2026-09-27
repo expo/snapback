@@ -21,6 +21,31 @@ function prepared(t) {
 }
 const publications = r => r.commands.filter(c => c.cmd === "npm" && c.args[0] === "publish");
 
+test("a new Darwin-only publication packs only its staged dependency and resumes", t => {
+  const r = publish(t, { real: true }); assert.equal(r.status, 0, r.stderr);
+  const dir = join(r.root, `target/publication/${darwin}-0.0.0`);
+  assert.deepEqual(json(join(dir, "client.tgz")).optionalDependencies, { [darwin]: "0.0.0" });
+  assert.deepEqual(Object.keys(json(join(r.root, "registry.json"))).sort(), ["snapback4@0.0.0", `${darwin}@0.0.0`].sort());
+  assert.deepEqual(json(join(r.root, "packages/snapback4/package.json")).optionalDependencies, { [darwin]: "0.0.0", [linux]: "0.0.0" }, "source manifest stays unchanged");
+  const resumed = publish(t, { resume: true, real: true }, r.root);
+  assert.equal(resumed.status, 0, resumed.stderr); assert.equal(publications(resumed).length, 0);
+});
+
+test("a prepared two-platform client cannot enter a Darwin-only publication", t => {
+  const f = prepared(t), r = publish(t, { real: true }, f.root);
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /optionalDependencies must be exactly/);
+  assert.equal(publications(r).length, 0);
+});
+
+test("resume refuses a client advertising a platform outside its staged set", t => {
+  const first = publish(t); assert.equal(first.status, 0, first.stderr);
+  const dir = join(first.root, `target/publication/${darwin}-0.0.0`), path = join(dir, "client.tgz");
+  const m = json(path); m.optionalDependencies[linux] = "0.0.0"; writeFileSync(path, JSON.stringify(m));
+  const stage = json(join(dir, "resume.json")); stage.client = artifact(path, "snapback4", "0.0.0"); writeFileSync(join(dir, "resume.json"), JSON.stringify(stage));
+  const r = publish(t, { resume: true, real: true }, first.root);
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /optionalDependencies must be exactly/); assert.equal(publications(r).length, 0);
+});
+
 test("prepare rebuilds wasm then clean client and packs it once, without signing/publishing", t => {
   const { prepared: r } = prepared(t);
   const wasm = r.commands.findIndex(c => c.cmd === "bash" && c.args[0].endsWith("build-wasm.sh"));

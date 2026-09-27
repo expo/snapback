@@ -42,7 +42,7 @@ function loadStage() {
   if (r.qualification?.suite !== "passed") throw new Error("publication resume does not carry a recorded successful source-suite qualification");
   r.client = verifyArtifact(r.client, stateDirectory, version);
   r.platforms = r.platforms.map(p => verifyArtifact(p, stateDirectory, version));
-  clientManifest(r.client.tarball, version, legacy ? [platformName] : platforms);
+  clientManifest(r.client.tarball, version, r.platforms.map(p => p.name));
   const darwin = r.platforms[0];
   manifest(darwin.tarball, platformName, version);
   if (!/^[a-f0-9]{64}$/.test(darwin.binarySha256 ?? "") || darwin.binaryVersion !== `snapback4 ${version}` || !darwin.signing?.signingAuthority || !darwin.signing?.signingTeamId) throw new Error("publication resume has incomplete Darwin binary qualification");
@@ -65,7 +65,8 @@ if (existsSync(receiptPath)) {
   console.log("== the suite");
   try { run("bash", [join(root, "scripts/test.sh")], { cwd: root, env: buildEnv, stdio: "inherit" }); }
   catch { throw new Error(`publish: the suite is red; snapback4@${version} is not published`); }
-  const prepared = existsSync(join(preparedDirectory, "prepare.json")) ? loadPrepared(preparedDirectory, version) : prepareClient(root, version, preparedDirectory);
+  const selectedPlatforms = values.has("--linux-receipt") ? platforms : [platformName];
+  const prepared = existsSync(join(preparedDirectory, "prepare.json")) ? loadPrepared(preparedDirectory, version, selectedPlatforms) : prepareClient(root, version, preparedDirectory, selectedPlatforms);
   if (prepared.source !== source) throw new Error("prepared client source differs from release source; prepare at the same commit");
   let linuxReceipt;
   if (values.has("--linux-receipt")) linuxReceipt = validateLinux(json(values.get("--linux-receipt")), values.get("--linux-tarball"), prepared.client, source);
