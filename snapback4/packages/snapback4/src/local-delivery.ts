@@ -51,7 +51,7 @@ export function localDelivery(env: Environment) {
     send: async (mutation, body, signal) => {
       if (env.refresh()) await env.refresh();
       const credentials = env.credentials(), capture = await env.capture();
-      if (!capture || !env.ready() || signal.aborted || credentials.revision !== env.credentials().revision) throw new Error("delivery dispatch deferred");
+      if (!capture || !env.ready() || signal.aborted || credentials.revision !== env.credentials().revision) return { json: {}, accepted: false, deferred: true };
       const id = capture.transfer_store_id ?? capture.store_id;
       if (!id) throw new Error("delivery needs an observed store identity");
       const response = await env.fetch(`${env.url}/m/${encodeURIComponent(mutation)}`, { method: "POST", headers: credentials.headers, body: JSON.stringify({ ...body, store_id: id }), signal });

@@ -145,3 +145,34 @@ fn retained<H:Host>(h:&mut H) {
 #[test]fn deferred_retarget_sqlite(){deferred_and_retarget(&mut Sqlite::new("delivery-deferred"))}
 #[test]fn retained_memory(){retained(&mut Memory::new())}
 #[test]fn retained_sqlite(){retained(&mut Sqlite::new("delivery-retained"))}
+
+fn horizon<H:Host>(h:&mut H) {
+    let source=SOURCE.replace("expire at .expires\n  sync public", "expire at .expires\n  by byOrdinal: ordinal\n  sync public last 2 by byOrdinal");
+    let (_,mut b)=compile(&source);b.schema.delivery=backend().schema.delivery;
+    let mut d=h.open("horizon",Some(b)).unwrap();request(&mut d,"read");
+    let floor=snapback4_core::value::encode_bytes_hex(&snapback4_core::key::encode(&[snapback4_core::value::Value::Int(10),id("m10")]));
+    let mut first=page(true,vec![event(10),event(11)],1);
+    first.acquisitions=serde_json::from_value(json!([
+        {"at":0,"table":"messages","index":"byOrdinal","group":[],"floor":null},
+        {"at":2,"table":"messages","index":"byOrdinal","group":[],"floor":floor}
+    ])).unwrap();
+    d.apply(&first,true).unwrap();reset_debt(&mut d);
+    d.apply(&page(false,vec![event(1),event(12)],2),false).unwrap();
+    assert_eq!(owed(&state(&mut d),"messages"),json!([[12,12]]),"horizon rejects never become candidates");
+    assert_eq!(d.query("message","dev:alice",&json!({"id":"m1"}),20).unwrap().data,snapback4_core::value::Value::Null);
+}
+fn bounded_attempt<H:Host>(h:&mut H) {
+    let mut d=h.open("bounded",Some(backend())).unwrap();request(&mut d,"read");
+    d.apply(&page(true,vec![event(1)],1),true).unwrap();
+    let raw=request(&mut d,"read");let mut s:Json=serde_json::from_str(raw["value"].as_str().unwrap()).unwrap();
+    let g=s["groups"].as_object_mut().unwrap().values_mut().next().unwrap();
+    g["attempt"]=json!({"id":"attempt","run":[1,1],"retries":2,"readyAt":0});
+    d.delivery(&json!({"viewer":"dev:alice","action":"write","expected":raw["value"],"value":s.to_string()})).unwrap();
+    d.apply(&page(false,(0..256).map(|n|event(10+n*2)).collect(),2),false).unwrap();
+    let s=state(&mut d);let g=s["groups"].as_object().unwrap().values().next().unwrap();
+    assert_eq!(g["owed"].as_array().unwrap().len(),256);assert!(g.get("attempt").is_none(),"evicted debt cannot survive in an uncertain attempt");
+}
+#[test]fn horizon_memory(){horizon(&mut Memory::new())}
+#[test]fn horizon_sqlite(){horizon(&mut Sqlite::new("delivery-horizon"))}
+#[test]fn bounded_attempt_memory(){bounded_attempt(&mut Memory::new())}
+#[test]fn bounded_attempt_sqlite(){bounded_attempt(&mut Sqlite::new("delivery-bound"))}

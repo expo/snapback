@@ -189,7 +189,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let networkWork = 0;
   function network<T>(body: () => Promise<T>): Promise<T> {
     networkWork++;
-    const result = networkTail.then(body).finally(() => { networkWork--; deliveryQueue?.available(); });
+    const result = networkTail.then(body);
+    const release = () => { networkWork--; deliveryQueue?.available(); };
+    void result.then(release, release);
     networkTail = result.catch(() => {});
     return result;
   }

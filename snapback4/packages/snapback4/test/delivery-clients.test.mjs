@@ -38,3 +38,16 @@ test('local acceptance persists before dispatch, waits for witness and idle outb
  t.after(()=>q.stop());await q.accept(manifest([['c',41]]));assert.deepEqual(Object.values(JSON.parse(value).groups)[0].owed,[[41,41]]);await delay(270);assert.equal(calls.length,0);
  witness=true;q.available();await delay(10);assert.equal(calls.length,0);busy=false;q.available();await until(()=>restored);await until(()=>Object.keys(JSON.parse(value).groups).length===0);assert.equal(calls.length,1);
 });
+test('online sign-out clears the viewer immediately while giving an active report its bounded drain',async t=>{
+ let finish,signal;
+ const client=createClient({url:'http://delivery.test',persona:'bob',fetch:async(url,init)=>{
+  if(url.includes('/changes'))return blocked(init.signal);
+  if(url.endsWith('/probe'))return Response.json({ok:true,viewer:'dev:bob',store_id:'S',seq:10});
+  if(url.includes('/m/')){signal=init.signal;return new Promise(resolve=>{finish=()=>resolve(Response.json({state:'sent',head:10,seq:10,store_id:'S'}));});}
+  return Response.json({data:{text:'last'},complete:true,tables:['messages'],seq:10,store_id:'S',delivery:manifest([['c',41]])});
+ }});t.after(()=>client.close());
+ await client.query({kind:'query',name:'inbox'},{});await until(()=>signal);
+ const ending=client.signOut();assert.equal(client.viewer(),null);assert.equal(client.link(),'signed-out');
+ await delay(20);assert.equal(signal.aborted,false,'drain does not abort the report at sign-out');
+ finish();await ending;assert.equal(client.viewer(),null);
+});

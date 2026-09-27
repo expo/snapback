@@ -1,5 +1,5 @@
 import type { Refusal } from "./contract.ts";
-import { acceptManifest, emptyDelivery, mergeRuns, subtractRuns, type Attempt, type DeliveryGroup, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
+import { acceptManifest, boundDebt, emptyDelivery, mergeRuns, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 
 export interface DeliveryStorage {
@@ -13,6 +13,8 @@ export function memoryDelivery(): DeliveryStorage {
 export interface DeliveryReply {
   json: Record<string, unknown>;
   obsoleteAuth?: boolean;
+  /** The serial chain became busy before transport; no call was dispatched. */
+  deferred?: boolean;
   /** Identity observation has passed, against this call's captured floor. */
   accepted: boolean;
 }
@@ -46,18 +48,20 @@ export class DeliveryQueue {
     this.tasks.add(promise); void promise.finally(() => this.tasks.delete(promise)).catch(() => {}); return promise;
   }
   async start(): Promise<void> {
-    await this.wake("start"); this.slowTimer();
+    await this.wake("start");
+    if (await this.options.storage.update(state => Object.keys(state.groups).length > 0)) this.slowTimer();
   }
   async accept(manifest: unknown): Promise<void> {
     if (this.stopped) return;
     const epoch = this.epoch;
-    await this.track(this.options.storage.update(state => {
-      if (epoch === this.epoch && !this.stopped) acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
+    const changed = await this.track(this.options.storage.update(state => {
+      if (epoch === this.epoch && !this.stopped) return acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
     }));
+    if (changed && !this.slow) this.slowTimer();
     this.schedule(250);
   }
   /** Device publication already persisted the collection and its wake flag. */
-  published(): void { this.schedule(250); }
+  published(): void { if (!this.slow) this.slowTimer(); this.schedule(250); }
   available(): void { this.schedule(0); }
   async reconnect(): Promise<void> { this.offline = false; await this.wake("reconnect"); }
   private slowTimer(): void {
@@ -151,6 +155,7 @@ export class DeliveryQueue {
   private current(f: Flight): boolean { return !this.stopped && f.epoch === this.epoch; }
   private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown> }): Promise<void> {
     let deadline: ReturnType<typeof setTimeout> | undefined;
+    let deferred = false;
     try {
       const timeout = new Promise<undefined>(resolve => {
         f.controller.signal.addEventListener("abort", () => resolve(undefined), { once: true });
@@ -159,14 +164,15 @@ export class DeliveryQueue {
       let reply: DeliveryReply | undefined;
       try { reply = await Promise.race([this.options.send(mutation, body, f.controller.signal), timeout]); } catch { /* uncertain */ }
       if (!this.current(f)) return;
+      if (reply?.deferred) { deferred = true; return; }
       const json = reply?.json;
       const why = (json?.why ?? json?.denied) as Refusal | undefined;
       if (why?.code === "E_STORE_REPLACED" || why?.code === "E_STORE_RESTORE") { await this.reset(true); return; }
-      let refused: DeliveryRefused | undefined;
-      await this.track(this.options.storage.update(state => {
+      const outcome = await this.track(this.options.storage.update(state => {
         if (!this.current(f)) return;
         const group = state.groups[f.key];
         if (!group || group.incarnation !== f.incarnation || group.attempt?.id !== f.attempt.id) return;
+        const effects: { refused?: DeliveryRefused; paused?: boolean; offline?: boolean } = {};
         const attempt = group.attempt, run = attempt.run, now = this.now();
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => { remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) }); };
@@ -178,8 +184,8 @@ export class DeliveryQueue {
         group.ready = ++state.serial;
         if (why?.code === "E_AUTH") {
           if (reply?.obsoleteAuth) attempt.readyAt = now;
-          else this.paused = true;
-        } else if (why?.code === "E_OFFLINE") this.offline = true;
+          else effects.paused = true;
+        } else if (why?.code === "E_OFFLINE") effects.offline = true;
         else if (!reply || !reply.accepted || !Number.isSafeInteger(json?.head) || Number(json?.head) < 0) retry(false);
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
@@ -192,17 +198,25 @@ export class DeliveryQueue {
         } else if (why?.code === "NOT_A_RUN" || why?.code === "PAST_LAST_MESSAGE") {
           remove(); group.refused = mergeRuns([...group.refused, run]);
           if (group.refused.length >= 64) { group.saturated = true; group.owed = []; group.parked = []; }
-          refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+          effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
         } else if (why?.retryable) retry(json?.state === "failed" || why.code === "E_CONFLICT");
-        else if (why) { park("start"); refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why }; }
+        else if (why) { park("start"); effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why }; }
         else retry(false);
+        boundDebt(group);
+        return effects;
       }));
-      if (refused && this.current(f)) this.options.onRefused?.(refused);
+      // Local CAS can rerun the edit after a concurrent leave/publication. Only
+      // the successfully committed edit may pause dispatch or notify the app.
+      if (outcome && this.current(f)) {
+        if (outcome.paused) this.paused = true;
+        if (outcome.offline) this.offline = true;
+        if (outcome.refused) this.options.onRefused?.(outcome.refused);
+      }
     } finally {
       if (deadline) clearTimeout(deadline);
       // Old-incarnation completions release their slot even when they adopt nothing.
       this.flights.delete(f);
-      this.schedule(0);
+      this.schedule(deferred ? 250 : 0);
     }
   }
   /** Store/generation changes fence every callback. Sign-out keeps local debt. */

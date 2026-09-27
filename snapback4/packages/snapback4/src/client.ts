@@ -1017,14 +1017,17 @@ export function createClient(options: ClientOptions): Client {
       return revoked;
     },
     async signOut() {
-      await delivery?.stop(true);
+      const draining = delivery?.stop(true);
+      // Stop ordinary work synchronously; only delivery's own signals receive
+      // the bounded grace period. endCredentials/close must not abort them.
+      delivery = undefined;
       const bearer = headers.authorization?.slice("Bearer ".length);
       endCredentials();
       // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
       if (bearer) void logout(base, bearer, doFetch);
-      await closing;
+      await Promise.all([closing, draining]);
     },
     close() {
       if (closing) return closing;

@@ -41,7 +41,7 @@ fn load(tx: &dyn crate::store::StreamTx, viewer: &str) -> Result<Json, RuntimeEr
 }
 fn save(tx: &dyn crate::store::StreamTx, viewer: &str, state: &Json) -> Result<(), RuntimeError> { tx.set_meta(&key(viewer), &encoded(state)?) }
 fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
-    let bindings = snapback4_core::json_codec::to_value(&schema.delivery).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    let bindings: Json = decoded(&encoded(&schema.delivery)?)?;
     if state["bindings"] == bindings { return Ok(()); }
     let old = state["bindings"].as_array().cloned().unwrap_or_default();
     for binding in old {
@@ -104,6 +104,13 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
         let parked = debt["parked"].as_array().unwrap().iter().enumerate().min_by_key(|(_,p)| p["run"][0].as_i64()).map(|(i,p)| (i,p["run"][0].as_i64().unwrap()));
         if let Some((i, first)) = parked && debt["owed"][0][0].as_i64().is_none_or(|n| first < n) { debt["parked"].as_array_mut().unwrap().remove(i); }
         else { debt["owed"].as_array_mut().unwrap().remove(0); }
+    }
+    if let Some(attempt) = debt.get("attempt") {
+        let a = attempt["run"][0].as_i64().unwrap_or(0);
+        let b = attempt["run"][1].as_i64().unwrap_or(0);
+        if !runs(&debt["owed"]).iter().any(|&(x,y)| x <= a && b <= y) {
+            debt.as_object_mut().unwrap().remove("attempt");
+        }
     }
     Ok(())
 }
@@ -196,7 +203,7 @@ impl<S: DeviceStore> Device<S> {
                 }
                 if let Some((_,key_bytes)) = rows.last() {
                     let values = snapback4_core::key::decode(key_bytes).ok_or_else(|| RuntimeError::Store("invalid delivery index cursor".into()))?;
-                    state["cursors"][&key] = json!({"after": snapback4_core::json_codec::to_value(&values).map_err(|e| RuntimeError::Store(e.to_string()))?, "done": rows.len() < 500});
+                    state["cursors"][&key] = json!({"after": decoded::<Json>(&encoded(&values)?)?, "done": rows.len() < 500});
                 } else { state["cursors"][&key] = json!({"done":true}); }
                 more = true; // Another bounded turn discovers all bindings' done markers.
                 break;

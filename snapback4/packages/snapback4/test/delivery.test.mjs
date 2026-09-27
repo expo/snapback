@@ -58,7 +58,7 @@ test('refused manifests and eviction cannot recreate debt; saturation survives r
  await h.q.stop();const reopened=harness(t,{storage});await reopened.q.start();await reopened.q.accept(manifest([['c',1000]]));await reopened.flush();assert.equal(reopened.calls.length,0);
 });
 test('stale group callback releases slot and cannot erase rejoin',async t=>{
- const pending=deferred(),h=harness(t,{local:true,send:async()=>pending.promise});await h.q.accept(manifest([['c',1]]));await h.flush();await h.storage.update(s=>{delete s.groups[deliveryKey(binding,'c')];});await h.q.accept(manifest([['c',3]]));pending.resolve({accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}});await settle();assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);await h.flush();assert.equal(h.calls.length,2);
+ const pending=deferred();let dispatched=0;const h=harness(t,{local:true,send:async()=>++dispatched===1?pending.promise:new Promise(()=>{})});await h.q.accept(manifest([['c',1]]));await h.flush();await h.storage.update(s=>{delete s.groups[deliveryKey(binding,'c')];});await h.q.accept(manifest([['c',3]]));pending.resolve({accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}});await settle();assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);await h.flush();assert.equal(h.calls.length,2);
 });
 test('online membership refusal preserves post-dispatch collections',async t=>{
  const pending=deferred(),h=harness(t,{send:async()=>pending.promise});await h.q.accept(manifest([['c',1]]));await h.flush();await h.q.accept(manifest([['c',3]]));pending.resolve({accepted:true,json:{head:10,denied:{code:'NOT_MEMBER'}}});await settle();assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);
@@ -93,4 +93,40 @@ test('new owed work in any group precedes a parked retry',async t=>{
  const h=harness(t,{send:async c=>c.args.conversation==='a'?{accepted:true,json:{head:10,why:{code:'RUNS_FULL'}}}:ok});
  await h.q.accept(manifest([['a',1]]));await h.flush();h.advance(30000);await h.q.wake('timer');await h.q.accept(manifest([['b',9]]));await h.flush();
  assert.equal(h.calls[1].args.conversation,'b');
+});
+for(const code of ['NOT_A_RUN','E_AUTH','E_OFFLINE'])test(`CAS retry discards abandoned ${code} callback effects`,async t=>{
+ let state=emptyDelivery(),race=false;
+ const storage={async clear(){state=emptyDelivery();},async update(edit){
+  if(race){race=false;edit(structuredClone(state));delete state.groups[deliveryKey(binding,'c')];acceptManifest(state,manifest([['c',3]]),1024);}
+  return edit(state);
+ }};
+ const pending=deferred();let sent=0;
+ const h=harness(t,{storage,send:async()=>++sent===1?pending.promise:ok});
+ await h.q.accept(manifest([['c',1]]));await h.flush();race=true;
+ pending.resolve({accepted:true,json:{head:10,why:{code}}});await settle();await h.flush();
+ assert.deepEqual(h.refused,[]);assert.equal(h.calls.length,2);
+ assert.deepEqual(groups(await h.state())[0].reported,[[3,3]]);
+});
+test('an outcome splitting a collected interval still enforces the debt cap',async t=>{
+ const pending=deferred();let sent=0;
+ const h=harness(t,{send:async()=>++sent===1?pending.promise:new Promise(()=>{})});
+ await h.q.accept(manifest([['c',41]]));await h.flush();
+ await h.q.accept(manifest([['c',40],['c',42],...Array.from({length:255},(_,i)=>['c',100+i*2])]));
+ assert.equal(groups(await h.state())[0].owed.length,256);
+ pending.resolve(ok);await settle();const g=groups(await h.state())[0];
+ assert.equal(g.owed.length+g.parked.length,256);assert.deepEqual(g.owed[0],[42,42]);assert.deepEqual(g.reported,[[41,41]]);
+});
+test('evicting lowest debt also fences its persisted uncertain attempt',async t=>{
+ const pending=deferred(),h=harness(t,{send:async()=>pending.promise});
+ await h.q.accept(manifest([['c',1]]));await h.flush();
+ await h.q.accept(manifest(Array.from({length:256},(_,i)=>['c',10+i*2])));
+ assert.equal(groups(await h.state())[0].attempt,undefined);
+ pending.resolve({accepted:true,json:{head:10,why:{code:'NOT_A_RUN'}}});await settle();
+ assert.deepEqual(h.refused,[]);assert.deepEqual(groups(await h.state())[0].refused,[]);
+});
+test('a pre-transport serial gate race spends no retry and keeps its persisted id',async t=>{
+ let calls=0;const h=harness(t,{send:async()=>++calls===1?{json:{},accepted:false,deferred:true}:ok});
+ await h.q.accept(manifest([['c',1]]));await h.flush();
+ assert.equal(groups(await h.state())[0].attempt.retries,0);
+ await h.flush();assert.equal(h.calls[0].id,h.calls[1].id);assert.deepEqual(groups(await h.state())[0].reported,[[1,1]]);
 });

@@ -40,7 +40,7 @@ export function subtractRuns(runs: Run[], covered: Run[]): Run[] {
 }
 export function groupFor(state: DeliveryState, binding: DeliveryBinding, group: string, cap: number): DeliveryGroup {
   const key = deliveryKey(binding, group);
-  let value = state.groups[key];
+  let value: DeliveryGroup | undefined = state.groups[key];
   if (value && JSON.stringify(value.binding.args) !== JSON.stringify(binding.args)) {
     delete state.groups[key]; delete state.retired[key]; value = undefined;
   }
@@ -64,12 +64,18 @@ export function collectRuns(state: DeliveryState, value: DeliveryGroup, runs: Ru
   const fresh = subtractRuns(mergeRuns(runs), [...value.reported, ...value.refused, ...value.parked.map(p => p.run)]);
   value.owed = mergeRuns([...value.owed, ...fresh]);
   value.recent = mergeRuns([...value.recent, ...fresh]).slice(-256);
+  boundDebt(value);
+}
+/** Collection and outcomes can both split intervals; enforce the same bound. */
+export function boundDebt(value: DeliveryGroup): void {
   // Parked runs count towards the same debt bound. Lowest positions are lost first.
   while (value.owed.length + value.parked.length > 256) {
     const p = value.parked.reduce((min, item, i, all) => item.run[0] < all[min]!.run[0] ? i : min, 0);
     if (!value.parked.length || (value.owed[0]?.[0] ?? Infinity) < value.parked[p]!.run[0]) value.owed.shift();
     else value.parked.splice(p, 1);
   }
+  // An evicted uncertain interval cannot survive secretly in the attempt.
+  if (value.attempt && subtractRuns([value.attempt.run], value.owed).length) delete value.attempt;
 }
 export function acceptManifest(state: DeliveryState, manifest: unknown, cap: number): boolean {
   if (!Array.isArray(manifest)) return false;

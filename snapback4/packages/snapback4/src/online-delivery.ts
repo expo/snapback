@@ -16,7 +16,7 @@ export function onlineDelivery(env: {
     ready: env.ready, onRefused: event => env.onRefused?.(event),
     send: async (mutation, body, signal) => {
       if (env.refresh()) await env.refresh();
-      if (!env.ready() || signal.aborted) throw new Error("delivery dispatch deferred");
+      if (!env.ready() || signal.aborted) return { json: {}, accepted: false, deferred: true };
       const revision = env.revision(), floor = env.floor(), store = env.store();
       const response = await env.fetch(`${env.url}/m/${encodeURIComponent(mutation)}`, {
         method: "POST", headers: env.headers(), body: JSON.stringify({ ...body, store_id: store }), signal,
