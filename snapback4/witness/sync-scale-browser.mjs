@@ -1,0 +1,156 @@
+// Real Chromium/IndexedDB companion; the Node witnesses keep their own costs.
+// node witness/sync-scale-browser.mjs URL OUTPUT
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve, join, extname } from 'node:path';
+import { createRequire } from 'node:module';
+import { chromium } from 'playwright-core';
+import { login } from '../packages/snapback4/dist/auth.js';
+import { createClient } from '../packages/snapback4/dist/client.js';
+let writer;
+import { chromiumExecutable, root } from './lib.mjs';
+const [api, output] = process.argv.slice(2);
+assert.ok(api && output, 'URL and OUTPUT are required; serve only a private fixture copy');
+const harness = resolve(root, 'target/lane-ss-browser');
+mkdirSync(harness, { recursive: true });
+const sdk = resolve(root, 'packages/snapback4/src');
+writeFileSync(join(harness, 'index.html'), '<!doctype html><title>Sync scale</title><script type="module" src="/entry.js"></script>');
+writeFileSync(join(harness, 'entry.js'), `
+import { login } from '${sdk}/auth.ts';
+import { createClient, mintId } from '${sdk}/client.ts';
+import { createLocalClient } from '${sdk}/local.ts';
+import { prepareClient } from '${sdk}/client-start.ts';
+import { webDevice, indexedDbPersistence } from '${sdk}/web.ts';
+window.sdk = { login, createClient, mintId, createLocalClient, prepareClient, webDevice, indexedDbPersistence };
+`);
+const require = createRequire(join(root, 'apps/chat/package.json'));
+const { build } = await import(require.resolve('vite'));
+await build({ root: harness, logLevel: 'silent', build: { target: 'es2022', minify: false, assetsInlineLimit: 0 } });
+const server = createServer((req, res) => {
+  const path = new URL(req.url, 'http://localhost').pathname;
+  try {
+    const file = join(harness, 'dist', path === '/' ? 'index.html' : path);
+    res.setHeader('Content-Type', { '.js': 'text/javascript', '.wasm': 'application/wasm', '.html': 'text/html' }[extname(file)] ?? 'application/octet-stream');
+    res.end(readFileSync(file));
+  } catch { res.writeHead(404).end(); }
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const browser = await chromium.launch({ executablePath: process.env.SS_CHROMIUM ?? chromiumExecutable(), headless: true,
+  args: ['--enable-precise-memory-info'] });
+const errors = [];
+let result;
+try {
+  const context = await browser.newContext(); // no cache or IndexedDB from another acquisition
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  await page.exposeFunction('openPeer', async handle => {
+    const answer = await login(api, `${handle}@example.com`, 'CliqueScale!20260808');
+    assert.ok(answer.ok); await writer?.close(); writer = createClient({ url: api, session: answer.session });
+  });
+  await page.exposeFunction('sendPeer', args => writer.mutate({ kind: 'mutation', name: 'messaging.send' }, args));
+  await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await page.waitForFunction(() => window.sdk);
+  const runInPage = async ({ api, interrupt }) => {
+    const { login, createClient, mintId, createLocalClient, prepareClient, webDevice, indexedDbPersistence } = window.sdk;
+    const now = () => performance.now(), sleep = ms => new Promise(r => setTimeout(r, ms));
+    const q = name => ({ kind: 'query', name });
+    const signIn = async handle => {
+      const answer = await login(api, `${handle}@example.com`, 'CliqueScale!20260808');
+      if (!answer.ok) throw new Error(JSON.stringify(answer));
+      return answer.session;
+    };
+    const session = await signIn('u0500'), reader = createClient({ url: api, session });
+    const group = await reader.query(q('messaging.groupByTitle'), { title: 'Busy Group 0001' });
+    const conversation = group.data.id;
+    const roster = await reader.query(q('messaging.roster'), { conversation });
+    const peer = roster.data.find(row => row.principal !== session.principal && row.profile?.handle?.startsWith('u'));
+    await window.openPeer(peer.profile.handle);
+    await reader.close();
+    const out = { pages: [], calls: [], saves: [], live: [], peakHeap: 0, heapAfterAcquisition: 0 };
+    const sample = () => { out.peakHeap = Math.max(out.peakHeap, performance.memory.usedJSHeapSize); };
+    const sampler = setInterval(sample, 20);
+    const persistence = indexedDbPersistence();
+    const device = webDevice({ persist: { ...persistence, async save(name, changes) {
+      const at = now(); await persistence.save(name, changes);
+      out.saves.push({ ms: now() - at, changes: changes.length }); sample();
+    } } });
+    let syncRequests = 0;
+    window.scalePersistence = persistence;
+    const options = { url: api, session, device: { async open(...args) {
+      window.scaleStore = args[0];
+      const core = await device.open(...args);
+      return { ...core, async call(request, committed) {
+        const at = now(), saved = out.saves.length;
+        try { return await core.call(request, committed); }
+        finally { out.calls.push({ op: request.op, ms: now() - at,
+          persistenceMs: out.saves.slice(saved).reduce((n, s) => n + s.ms, 0) }); sample(); }
+      } };
+    } }, async fetch(input, init) {
+      if (interrupt && new URL(input).pathname === '/sync' && ++syncRequests === 2) {
+        window.crashReady = true; await new Promise(() => {});
+      }
+      const at = now(), response = await fetch(input, init);
+      if (new URL(input).pathname !== '/sync') return response;
+      const body = await response.text(), page = JSON.parse(body);
+      out.pages.push({ ms: now() - at, rows: page.events?.length ?? 0, bytes: new TextEncoder().encode(body).length });
+      return new Response(body, { status: response.status, headers: response.headers });
+    } };
+    const at = now();
+    const prepared = await prepareClient(options, () => createLocalClient(options));
+    const client = prepared.client; window.scaleClient = client;
+    let acquired = false;
+    const done = prepared.start().then(() => {
+      acquired = client.acquired; out.acquisitionMs = now() - at;
+      out.acquisitionPages = out.pages.length; out.acquisitionCalls = out.calls.length;
+      out.acquisitionSaves = out.saves.length;
+      out.heapAfterAcquisition = performance.memory.usedJSHeapSize; sample(); out.peakAcquisitionHeap = out.peakHeap;
+    });
+    const watch = client.observe(q('messaging.history'), { conversation }), seen = new Map();
+    const stop = watch.subscribe(() => {
+      for (const row of watch.getSnapshot().data ?? []) if (!seen.has(row.id)) seen.set(row.id, now());
+    });
+    const send = async phase => {
+      const id = mintId(), at = now();
+      const write = await window.sendPeer({ id, conversation, text: `SS browser ${id}` });
+      if (write.state !== 'sent') throw new Error(JSON.stringify(write));
+      while (!seen.has(id) && now() - at < 31000) await sleep(5);
+      out.live.push({ phase, ms: seen.has(id) ? seen.get(id) - at : null });
+    };
+    try {
+      for (let n = 0; n < 200 && !acquired; n++) await send('during');
+      await done;
+      for (let n = 0; n < 23; n++) await send(n < 3 ? 'warmup' : 'after');
+      out.ok = acquired && out.live.every(s => s.ms !== null);
+      out.residency = await client.residency();
+      return out;
+    } finally { clearInterval(sampler); sample(); stop(); await client.close(); }
+  };
+  let crash;
+  if (process.env.SS_CRASH === '1') {
+    const interrupted = page.evaluate(runInPage, { api, interrupt: true }).catch(error => error.message);
+    await page.waitForFunction(() => window.crashReady, undefined, { timeout: 120000 });
+    crash = await page.evaluate(async () => {
+      const saved = await scalePersistence.load(scaleStore);
+      return { acquired: scaleClient.acquired, publishedRows: saved.filter(c => c.s === 'r').length,
+        stagedRows: saved.filter(c => c.s === 's').length };
+    });
+    assert.equal(crash.acquired, false); assert.equal(crash.publishedRows, 0); assert.ok(crash.stagedRows > 0);
+    // Navigation destroys the owner and releases its Web Lock with acquisition in flight.
+    await page.reload(); await interrupted;
+    await page.waitForFunction(() => window.sdk);
+  }
+  result = await page.evaluate(runInPage, { api, interrupt: false });
+  if (crash) result.crashRecovery = crash;
+  result.chromium = browser.version();
+  result.errors = errors;
+  for (const phase of ['during', 'after']) {
+    const times = result.live.filter(s => s.phase === phase).map(s => s.ms ?? Infinity).sort((a, b) => a - b);
+    result[`${phase}Timeouts`] = times.filter(ms => !Number.isFinite(ms)).length;
+    result[`${phase}P95`] = times[Math.ceil(times.length * .95) - 1] ?? null;
+  }
+  writeFileSync(output, JSON.stringify(result, null, 2));
+  console.log(JSON.stringify({ output, acquisitionMs: result.acquisitionMs, duringP95: result.duringP95,
+    afterP95: result.afterP95, peakHeap: result.peakHeap, ok: result.ok, errors }));
+  assert.ok(result.ok && !errors.length);
+} finally { await writer?.close(); await browser.close(); await new Promise(resolve => server.close(resolve)); }

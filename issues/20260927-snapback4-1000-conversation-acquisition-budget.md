@@ -1,0 +1,48 @@
+# Snapback 4: 1,000-conversation acquisition and publication pause exceed targets
+
+Status: Open
+Date: 2026-09-27
+Owner: Snapback 4 performance lane
+
+Lane SS round 2 reduces the calibration #23 synthetic extension's cold
+acquisition from 21.854 to 16.324 s with memory persistence, and from 41.477
+to 21.036 s with fake-indexeddb. Both still exceed the 8/12 s targets.
+There are 110,088 received rows, about 42 MB JSON and 13 responses after
+the change, versus 30 before. The final normal wasm fits the unchanged
+572,841-byte gzip budget at 572,590 bytes.
+
+Real Chromium/IndexedDB improves from 84.898 to 27.327 s at 1,000
+conversations. The final during-acquisition live p95 is 13.158 s (19 samples,
+zero timeouts); after-acquisition p95 is 0.754 s (20 samples). At 100,
+acquisition is 4.186 s but during p95 is 2.449 s (five samples). The inherited
+one-second during-acquisition target is unresolved. The baseline 1,000 run
+had one >31 s timeout among 40 during samples; its low p95 hid that tail.
+
+The profile locates remaining cost in terminal row/index publication, then
+strict persistence. Chromium terminal apply is 7.012 s and its save 5.197 s.
+The wasm call remains synchronous on the watch's thread. Larger bounded
+pages, namespace-grouped indexes, one replacement index undo image, shared
+row-image construction, sparse empty-media markers and cached bucket byte
+sizes are already included. Sorted bulk indexes and alternative comparisons
+did not achieve the targets within the unchanged wasm budget.
+
+Evidence, full per-phase before/after tables, raw timed pages, sampled CPU
+categories, physical transactions/puts/bytes, tool commands and memory
+limits: [round-2 report](../snapback4/reports/20260927-ss-sync-scale/ROUND2.md)
+and [measurements](../snapback4/reports/20260927-ss-sync-scale/round2-measurements.json).
+
+Reproduce from `snapback4/` after the normal wasm/package builds, serving
+only a private `scale1000` fixture with `snapback4 dev --replay --no-watch`
+on 49372:
+
+```sh
+SS_SAMPLES=0 node witness/sync-scale.mjs http://127.0.0.1:49372 target/memory.json memory
+SS_SAMPLES=0 node witness/sync-scale.mjs http://127.0.0.1:49372 target/idb.json idb
+node witness/sync-scale-browser.mjs http://127.0.0.1:49372 target/browser.json
+```
+
+Keep atomic publication, durable staged restart, authorization, expiry,
+meters and the wasm budget. A lower sample p95 caused only by collecting
+more successful sends before one stalled publication is not closure.
+Resolve with repeatable acquisition evidence meeting 8/12 s and the live
+target, or an explicit author-approved disposition of the remaining limits.

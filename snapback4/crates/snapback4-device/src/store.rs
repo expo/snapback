@@ -60,6 +60,13 @@ pub trait DeviceTx: Rows {
     fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError>;
     /// Every row and index entry goes.
     fn clear_rows(&self) -> Result<(), RuntimeError>;
+    /// Replace the partition in this transaction. The loader only puts rows
+    /// and edits metadata: no index reads, deletes or savepoints until return.
+    /// Memory can keep one index undo image; SQLite keeps ordinary puts.
+    fn replace_rows(&self, load: impl FnOnce() -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+        self.clear_rows()?;
+        load()
+    }
 
     /// A new outbox entry; a duplicate submission number or id is refused.
     fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError>;

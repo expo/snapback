@@ -254,7 +254,7 @@ If the device host fails during this read, E_STORE at client.residency names
 the failure; restart the device host and reopen the client before retrying.
 
 Store-writing CLI commands (`run`, including jobs/backfills, `test` without a
-fixture, `token`, `deploy`, `rollback`) lock its `-owner` sidecar for their lifetime.
+fixture, offline `token`, `deploy`, `rollback`) lock its `-owner` sidecar for their lifetime.
 Native devices, including embedded C-ABI hosts, share ownership with each other
 and exclude backend writers until their stores close.
 Exclusion holds while `<database>-owner` is left in place. Removing or replacing
@@ -264,8 +264,11 @@ cancel its transactions. Stop all owners before moving the database and its
 sidecars; leave `-owner` in place for the whole ownership lifetime.
 Hard-linked databases refuse E_STORE: copy the store, do not hard-link it.
 A busy probe at a moved store's old path creates no empty database.
-A live host causes E_STORE_BUSY before work, naming its address when available. Stop it, run the
-command once, then restart it. Another CLI writer also refuses; wait for it.
+A live host causes E_STORE_BUSY before offline work, naming its address when available.
+`token` instead asks the live host over loopback with its private store proof
+(guide services). If unavailable, restore access or stop the host, run token
+offline, then restart it. For other writers, stop the host, run the command once,
+then restart it. Another CLI writer also refuses; wait for it.
 The HTTP /seed development door already runs through the host. `check`, `data`,
 `sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time

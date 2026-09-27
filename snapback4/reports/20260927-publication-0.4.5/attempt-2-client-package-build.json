@@ -1,0 +1,15 @@
+{
+  "step": "client-package-build",
+  "command": [
+    "bun",
+    "run",
+    "--cwd",
+    "packages/snapback4",
+    "build"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-045/snapback4",
+  "start": 1790505632.753303,
+  "end": 1790505633.7269812,
+  "seconds": 0.974,
+  "exit": 0
+}

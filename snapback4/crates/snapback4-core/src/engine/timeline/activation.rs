@@ -31,7 +31,7 @@ pub(crate) fn check_no_rebuilds(tx: &Tx<'_>, schema: &Schema) -> Result<(), Runt
         ]);
         let exists: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1) AND id = ?2)", [&t.table("Work"), &id], |row| row.get(0))?;
         if exists {
-            return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: an unfinished experimental reconstruction cannot preserve original event identities or prove complete history; remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over the retained sources", t.name)));
+            return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: an unfinished experimental reconstruction cannot prove repost identities or complete history; remove the view and deploy, then add the new definition over empty event and edge tables, or use the planned home query in guide feeds over the retained sources", t.name)));
         }
     }
     Ok(())
@@ -46,7 +46,7 @@ pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema, retiremen
     for old in &previous.timelines {
         if let Some(new) = schema.timelines.iter().find(|new| old.name == new.name) {
             if !old.same_declaration(new) {
-                return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: changing its predicate or sources requires reconstructing event identities and edge-admission history that the source rows do not retain; remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over the retained sources", old.name)));
+                return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: changing its predicate or sources cannot recover edge-admission history or repost identities without their declaration-specific slots; original event ids are post ids; remove the view and deploy, then add the new definition over empty event and edge tables, or use the planned home query in guide feeds over the retained sources", old.name)));
             }
         }
     }
@@ -61,7 +61,7 @@ pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema, retiremen
         }
         for table in new.event_tables() {
             if populated(tx, table, retirement.as_ref())? {
-                return Err(refusal("E_TIMELINE_ACTIVATE", format!("view {}: source table {table} is populated, but source rows do not retain the event identities and edge-admission history needed to build a materialized view; declare the view over empty event and edge tables before writing them, or use a planned view over these retained sources", new.name)));
+                return Err(refusal("E_TIMELINE_ACTIVATE", format!("view {}: source table {table} is populated; original event ids are post ids, but this new declaration has no repost identity slots or edge-admission history. Use the planned query from guide feeds: query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", new.name)));
             }
         }
     }

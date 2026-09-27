@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { digest, json, member, sqliteBuildFlags, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
@@ -90,7 +90,7 @@ import { runProofShell } from ${JSON.stringify(new URL("./helpers/linux-proof-ha
 import { prootDistributions } from './scripts/linux-proof-inputs.mjs';
 const original = cp.execFileSync, root = ${JSON.stringify(root)}, scenario = ${JSON.stringify(scenario)};
 os.homedir = () => root;
-Object.defineProperty(process, "platform", {value:"linux"}); Object.defineProperty(process,"arch",{value:"x64"});
+Object.defineProperty(process, "platform", {value:scenario.platform ?? "linux"}); Object.defineProperty(process,"arch",{value:scenario.arch ?? "x64"});
 const log = (cmd,args) => appendFileSync(join(root,"commands.jsonl"), JSON.stringify({cmd,args})+"\\n");
 let context, proofIndex = 0;
 cp.execFileSync = (cmd,args,opts={}) => {
@@ -151,10 +151,22 @@ syncBuiltinESMExports();
   // host values may enter that subprocess, never this runner's credentials.
   const env = scenario.proot ? { PATH: process.env.PATH, HOME: root } : { ...process.env };
   delete env.NPM_TOKEN; delete env.NODE_AUTH_TOKEN; delete env.SNAPBACK4_BIN;
-  const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), join(root, "scripts/qualify-linux.mjs"), "--client", client, "--out", join(root, "out")], { encoding: "utf8", env });
+  // Node canonicalizes import.meta.url, including Darwin's /var -> /private/var.
+  // Exercise that entrypoint distinction on every host, with the real CLI guard.
+  const entry = join(root, "qualify-link.mjs");
+  symlinkSync(join(root, "scripts/qualify-linux.mjs"), entry);
+  const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), entry, "--client", client, "--out", join(root, "out")], { encoding: "utf8", env });
   const receiptPath = join(root, "out/receipt.json");
   return { ...result, root, client, binary, receipt: existsSync(receiptPath) ? json(receiptPath) : null, commands: existsSync(join(root, "commands.jsonl")) ? readFileSync(join(root, "commands.jsonl"), "utf8").trim().split("\n").map(JSON.parse) : [] };
 }
+for (const [platform, arch] of [["darwin", "arm64"], ["linux", "arm64"]])
+  test(`qualification refuses ${platform}-${arch} before invoking tools`, t => {
+    const r = qualify(t, { platform, arch });
+    assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+    assert.match(r.stderr, /Linux qualification requires a linux-x64 host/);
+    assert.deepEqual(r.commands, []);
+  });
+
 test("Linux qualification receipt binds source, toolchain, suite, both container proofs, ELF and both digests", t => {
   const r = qualify(t); assert.equal(r.status, 0, r.stderr);
   const tarball = join(r.root, "out", r.receipt.platform.filename);
