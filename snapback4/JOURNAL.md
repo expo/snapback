@@ -68847,3 +68847,72 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+## 2026-09-27 — Lane ER round 2: accepted expiring mutation reads
+
+Read both revision-1 design reviews in full and applied the supervisor's
+acceptance of LLP 3000.025, retaining its Accepted status. First fetched and
+merged origin/main at 941a3698c; merge 1e57bc386 preserves both sides of the
+append-only journal conflict. The review record records the three final
+changes: full receipt slots refuse RUNS_FULL before prefix update/insertion;
+the DC amendment replays the same id first, retires sent debt, and permits
+fresh ids only for recorded failed/why.code outcomes, with eight 1–60 s
+retries then bounded wakes at least 30 s apart; expiring domain-count cost
+leads with the examined ceiling and atomic E_BOUND. Bare denied remains
+uncertain; the engine's E_BOUND is unchanged. DC owns the queue and its test.
+
+Promoted the reviewed initial read-only statement rule and device/local
+query guards to production. An enclosing write or emit, even untaken, ends
+the phase before that whole statement. Predicting scans, nonuniform scans,
+matching and merges retain their refusals. Programs, prediction, expiry,
+bounds, refusal and why cards agree; LLP 3000.007 §21.9 gains the narrower
+replacement while retaining its attacks. Two named page_admission legacy
+expectations now follow the accepted rule and exact effect boundary. No
+meter, clock, receipt format, dependency, version or budget change.
+
+Default acceptance checks cover the 24-case matrix, IR identity/serialization,
+helpers and hidden effects, denied/expired-row behavior, a lost-success
+replay with no body work or historical scalar, and backlog/sweep/fresh-id
+server recovery. The combined fixture fills all 64 receipt slots and proves
+RUNS_FULL cannot falsely claim coverage; freeing a slot requires another
+fresh id. Instrumented memory and native devices execute no body on admit,
+reopen, real server generation advances or replay and preserve the exact
+pending entry even when the caller requests prediction.
+
+Ran scripts/test.sh once, exit 1: `== 1 failure(s) in 3593 s` (cargo test).
+Rust: 3,917 passed / 4 failed / 25 ignored. All device targets within that
+run pass: 1,323 passed / 3 ignored. Clients: 2,700 passed / 10 existing
+skips; models 78/78; fixtures 9/9. All other script phases pass. Every
+full-suite failure is lane-owned; baseline 0, environmental 0:
+
+- intent_review's blanket-expiry assertion now covers direct/projected
+  views, server/predicting modes and preceding effects.
+- work_intent's blanket-expiry count assertion now covers admitted initial
+  counts, nonuniform/effect refusals, live totals and atomic meter cuts.
+- Following's purge meter harness now runs job IR directly with Runner and
+  Cut::Abort, retaining default ceilings and null-output encoding charge;
+  jobs cannot use the guarded query entry.
+- The why fanout card regains its cap-50 example within the existing budget.
+
+After those repairs: whole guide 86/86, view/admission 7/7, work-intent 12/12,
+purge 1/1, CLI check 72/72 and final focused why 1/1. Earlier affected checks:
+language acceptance 9 passed / 1 optional benchmark ignored; prefix reads
+10/10; page admission 15/15; device acceptance 4/4; wasm census/family/absence/
+budget 40/40. Standalone device testing found one lane-owned authoring-census
+miss: add only annotateNotes, 329 to 330 occurrences, preserving 55 predicting
+private-write sites. Readauth then passes 81/81 and the full run passes all
+device targets. Intermediate fixture/import and fact-inventory failures are
+all corrected and enumerated in the report. The full script is not rerun;
+there is no green full-suite claim for the repaired final tree. The inherited
+60-second suite budget remains exceeded and unchanged.
+
+Wasm: 1,981,686 B raw / 571,984 B gzip, 857 B below the unchanged 572,841 B
+budget. A same-toolchain merged-main control is 1,981,512 / 572,049 B:
+whole-artifact delta +174 raw / -65 gzip. Admission analysis stays outside
+the web device; the required runtime query guard is included. No independent
+per-function size attribution. SHA-256:
+7bcfdf149c6b467809d33b21607abe0ab09916e03914c0f14ce27b184926bba0.
+No tools installed, no shared paths changed, no push or publication. Lane
+commits carry the requested co-author trailer. Findings, complete program,
+rejected options, historical measurement limits, every failure and checks:
+reports/20260927-er-round2.md. Raw logs: target/lane-er-round2/.

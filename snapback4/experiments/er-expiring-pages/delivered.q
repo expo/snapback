@@ -91,7 +91,8 @@ mutation delivered(conversation: conversations, from: int, through: int): server
     delete runs[run]
   if low <= prefix + 1:
     update members[me] { deliveredOrdinal: high }
-  else if count(runs where .conversation = conversation and .principal = viewer) < 64:
+  else:
+    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
     if prefix > me.deliveredOrdinal:
       update members[me] { deliveredOrdinal: prefix }
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }

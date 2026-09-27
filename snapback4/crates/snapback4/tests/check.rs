@@ -1452,6 +1452,10 @@ fn er_expiry_cost_names_backlog_attempt_and_atomic_refusal() {
         assert!(text.contains("scan attempt also costs one examined unit"),"{text}");
         assert!(text.contains("E_BOUND, with no write"),"{text}");
         assert!(!text.contains("a pass over the first"),"{text}");
-        println!("ER_ROUND1_COST {text}");
+        assert!(text.contains("scale: examined ceiling 8192; E_BOUND, with no write, if exceeded"), "{text}");
+        if read.starts_with("count(") {
+            assert!(!text.contains("sort/group/sum/count consume this page"), "{text}");
+            assert!(text.contains("no partial total"), "{text}");
+        }
     }
 }

@@ -90,7 +90,7 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         require_uniform_mutation_pages(schema, &scans)?;
         // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
         if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
-        // @ref LLP 3000.025#3-proposed-rule — research prototype: an entire read-only statement prefix precedes every effect, including hidden and indirect writes.
+        // @ref LLP 3000.025#3-proposed-rule — an entire read-only statement prefix precedes every effect, including hidden and indirect writes.
         let prefix_len = program.body.iter().take_while(|stmt| super::read_only::statements::<false>(std::slice::from_ref(stmt))).count();
         let (prelude, _) = crate::ir::body_read_structure(&program.body[..prefix_len]);
         let never = schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never"));

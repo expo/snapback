@@ -2,23 +2,24 @@
 
 Design: [LLP 3000.025](../../../llp/3000.025-expiring-mutation-read-prefix.rfc.md).
 Base: `f39598de7febb1f3ddea45ae350b79e0bec50104`, branch
-`sb4-intent/er-expiring-pages`. Research and a small admission prototype,
-not a shippable implementation. No package was published or branch pushed.
+`sb4-intent/er-expiring-pages`. Rounds 0–1 were research and a small admission prototype. Round 2 implements
+the accepted design; see `../../reports/20260927-er-round2.md` for qualification.
+No package was published or branch pushed. Historical logs below are unchanged.
 
 Run from `snapback4/`:
 
 ```sh
 export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
 CARGO_BUILD_JOBS=8 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 \
-  cargo test -p snapback4-lang --test er_expiry_research \
+  cargo test -p snapback4-lang --test expiring_mutations \
   -- --ignored --nocapture --test-threads=1
 ```
 
-The round-0 seven explicit research tests are ignored in ordinary suites. The
-instrument is `crates/snapback4-lang/tests/er_expiry_research.rs`. No JS tests
-or Bun dependency install are needed. Build output is local `target/` (337 MiB
-after the initial experiment); disk was checked before building. No full
-Cargo suite ran and no other lane's output was deleted.
+The latency instrument remains opt-in. Admission, disclosure, receipt and
+full-slot checks now run in the normal `expiring_mutations` test target;
+the device has a same-named custody and query-entry target. Round-0 build
+output was local `target/` (337 MiB); no full suite ran in that round.
+Round-2 logs are under `target/lane-er-round2/`.
 
 Files:
 

@@ -30,6 +30,9 @@ prints the examined ceiling and, for expiry, the unswept-row backlog and
 atomic `E_BOUND` outcome rather than a first-N-rows price.
 For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
+Example: on a non-expiring table with a uniform read rule, `cap 50 by room`
+admits the complete loop `for row in messages where .room = room:`.
+
 A program's prefix `exists` is a top-1 scan below the page: no cursor and no
 page overflow. Expired siblings still cost examined rows, and `matching` pays
 word discovery. A positive held row proves existence on a device regardless of

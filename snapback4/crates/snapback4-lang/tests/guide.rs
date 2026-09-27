@@ -433,8 +433,8 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     for (k, n) in (342..=468).step_by(2).enumerate() { deliver(&mut engine, 6_700 + k as i64, n, n); }
     assert_eq!(stored(&progress(&mut engine, "bob", 6_800, "win")).len(), 64);
     let full = engine.mutate("delivered", None, at("bob", 6_810, &run(win(), 472, 472))).unwrap();
-    sent(&full);
-    assert_eq!((full.events, states(&every(&mut engine), 472, 472)), (0, ["sent"].into()), "a sixty-fifth run waits, unrecorded, without a refusal");
+    assert_eq!(failed(&full), "RUNS_FULL", "success must mean the interval was recorded");
+    assert_eq!((full.events, states(&every(&mut engine), 472, 472)), (0, ["sent"].into()), "a sixty-fifth run refuses and stays unrecorded");
     deliver(&mut engine, 6_820, 343, 345);
     assert_eq!(stored(&progress(&mut engine, "bob", 6_825, "win")).len(), 62, "a merge frees room");
     deliver(&mut engine, 6_830, 472, 472);

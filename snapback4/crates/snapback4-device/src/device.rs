@@ -913,6 +913,7 @@ impl<S: DeviceStore> Device<S> {
         let mut provenance = Default::default();
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
+            // @ref LLP 3000.025#3-proposed-rule — refuse mutation/job observation before any device or native execution.
             local::require_query(program)?;
             let tx = self.store.read_transaction()?;
             let context = Context::new(viewer, typed_args(&program, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation);

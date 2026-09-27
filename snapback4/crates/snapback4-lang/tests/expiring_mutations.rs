@@ -1,5 +1,5 @@
-//! Lane ER research instrument; no product claim or default-suite burden.
-//! Run: cargo test -p snapback4-lang --test er_expiry_research -- --ignored --nocapture --test-threads=1
+//! Expiring mutation admission, disclosure and receipts (LLP 3000.025).
+//! Only the latency instrument is opt-in; acceptance and attack witnesses run normally.
 use snapback4_core::{Context, Engine, Value, WriteState, RuntimeError};
 use snapback4_core::engine::runner::Runner;
 use snapback4_core::ir::{Program, Stmt, Expr};
@@ -23,8 +23,7 @@ fn compiled(source: &str) -> snapback4_lang::Bound {
 const ACK: &str = "\ntable acknowledgements:\n  owner: principal\n  ordinal: int\n  unique owner\n  read <- .owner = viewer\n  update <- .owner = viewer\n  sync to .owner\n\nmutation natural(conversation: principal, low: int, high: int): server\n  blocker = first(messages where .conversation = conversation and .ordinal >= low and .ordinal <= high first 1 by .ordinal)\n  prefix = blocker.ordinal - 1 if blocker != null else high\n  update acknowledgements[owner = viewer] { ordinal: prefix }\n  return prefix\n";
 
 #[test]
-#[ignore = "lane ER prototype, explicit only"]
-fn prototype_admits_natural_program_and_preserves_receipts() {
+fn backlog_bound_sweeps_fresh_id_recovers_and_lost_response_replays() {
     let b=compiled(&format!("{MODEL}{ACK}"));
     assert_eq!(b.schema.operations["natural"].predicts.as_deref(),Some("never"));
     let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
@@ -71,14 +70,18 @@ fn prototype_admits_natural_program_and_preserves_receipts() {
 }
 
 #[test]
-#[ignore = "lane ER prototype, explicit only"]
-fn prototype_refuses_effects_including_serialized_ir_and_site_aliases() {
+fn refuses_effects_including_serialized_ir_and_site_aliases() {
     let b=compiled(&format!("{MODEL}{ACK}"));
     let p=b.programs.iter().find(|p|p.program.name=="natural").unwrap().program.clone();
     let write=p.body.iter().find(|s|matches!(s,Stmt::WriteTarget{..})).unwrap().clone();
     let scan_pos=p.body.iter().position(|stmt| {let mut single=p.clone();single.body=vec![stmt.clone()];!snapback4_core::ir::scans(&single).is_empty()}).unwrap();
     let write_pos=p.body.iter().position(|s|matches!(s,Stmt::WriteTarget{..})).unwrap();
-    let check=|program:&Program|snapback4_core::engine::admission::check(&b.schema,program);
+    let check=|program:&Program| {
+        let json = serde_json::to_string(program).unwrap();
+        let decoded: Program = snapback4_core::json_codec::from_text(&json).unwrap();
+        assert_eq!(program, &decoded);
+        snapback4_core::engine::admission::check(&b.schema,&decoded)
+    };
     assert!(check(&p).is_ok());
     let mut before=p.clone(); before.body.insert(0,write.clone());
     assert!(check(&before).is_err());
@@ -110,7 +113,6 @@ fn prototype_refuses_effects_including_serialized_ir_and_site_aliases() {
 }
 
 #[test]
-#[ignore = "lane ER counterexample, explicit only"]
 fn removing_only_the_expiry_guard_discloses_a_retained_ordinal() {
     let body="\nmutation attack(): server\n  update messages['target'] { conversation: viewer, expiresAt: now - 1 }\n  p = first(messages where .conversation = viewer and .ordinal >= 1 and .ordinal <= 1 first 1 by .ordinal)\n  require false else STOP\n  return null\n";
     // Deliberately compile under the non-expiring schema, then use the real
@@ -149,9 +151,9 @@ impl Rows for Counted<'_> {
     fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError> {let r=self.inner.get(t,id)?; self.seen(usize::from(r.is_some())); Ok(r)}
     fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError> {let r=self.inner.lookup(t,n,i,k)?; self.seen(usize::from(r.is_some())); Ok(r)}
     fn scan(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError> {let r=self.inner.scan(t,n,p,b,d,l)?; self.seen(r.len()); Ok(r)}
-    fn count_prefix(&self,t:&str,n:&str,p:&[Value],l:u64)->Result<u64,RuntimeError> {self.inner.count_prefix(t,n,p,l)}
-    fn put(&self,t:&str,d:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError> {self.inner.put(t,d,r,o)}
-    fn delete(&self,t:&str,d:&Table,r:&Value)->Result<u64,RuntimeError> {self.inner.delete(t,d,r)}
+    fn count_prefix(&self,t:&str,n:&str,p:&[Value],l:u64)->Result<u64,RuntimeError> {self.seen(0); self.inner.count_prefix(t,n,p,l)}
+    fn put(&self,t:&str,d:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError> {self.seen(0); self.inner.put(t,d,r,o)}
+    fn delete(&self,t:&str,d:&Table,r:&Value)->Result<u64,RuntimeError> {self.seen(0); self.inner.delete(t,d,r)}
 }
 fn measure(store:&str, rows:&dyn Rows, schema:&Schema, program:&Program, backlog:usize, cut:Cut, ceiling:u64) {
     let mut samples=Vec::new();
@@ -197,8 +199,7 @@ fn backlog_measurements() {
 }
 
 #[test]
-#[ignore = "lane ER instrument, explicit only"]
-fn current_admission_matrix_and_live_cap() {
+fn admission_matrix_and_live_cap() {
     for cap in [false,true] {
         let model=MODEL.replace("  read <- .conversation = viewer", &format!("{}  read <- .conversation = viewer",if cap {"  cap 4 by conversation\n"} else {""}));
         for server in [false,true] {
@@ -212,6 +213,12 @@ fn current_admission_matrix_and_live_cap() {
             ] {
                 let source=format!("{model}\nmutation subject(){}\n{body}\n",if server {": server"} else {":"});
                 let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+                let expected = if shape == "whole" && !cap { Some("E_QUARRY_PLACEMENT") }
+                    else if !server && shape != "point" { Some("E_STRUCTURAL_FANOUT") } else { None };
+                match expected {
+                    Some(code) => assert!(b.diagnostics.iter().any(|d| d.code == code), "cap={cap} server={server} shape={shape}: {:?}", b.diagnostics),
+                    None => assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics),
+                }
                 println!("ER_ADMISSION {}",serde_json::json!({"cap":cap,"server":server,"shape":shape,"codes":b.diagnostics.iter().map(|d|d.code.clone()).collect::<Vec<_>>() }));
             }
         }
@@ -229,7 +236,6 @@ fn current_admission_matrix_and_live_cap() {
 }
 
 #[test]
-#[ignore = "lane ER semantic witnesses, explicit only"]
 fn expired_is_absent_and_denied_prefix_cost_is_population_independent() {
     let b=compiled(&format!("{MODEL}\nmutation one():\n  return exists messages[viewer, 1]\n"));
     let p=&b.programs.iter().find(|p|p.program.name=="one").unwrap().program;
@@ -259,7 +265,6 @@ fn expired_is_absent_and_denied_prefix_cost_is_population_independent() {
 }
 
 #[test]
-#[ignore = "lane ER calibration rewrite, explicit only"]
 fn calibration_delivered_rewrite_compiles_and_advances_over_expired_messages() {
     let b=compiled(include_str!("../../../experiments/er-expiring-pages/delivered.q"));
     assert_eq!(b.schema.operations["delivered"].predicts.as_deref(),Some("never"));
@@ -278,7 +283,6 @@ fn calibration_delivered_rewrite_compiles_and_advances_over_expired_messages() {
 }
 
 #[test]
-#[ignore = "lane ER round-1 prototype, explicit only"]
 fn expiry_refusals_name_the_statement_boundary_and_never_selected_ids() {
     for (body, expected) in [
         ("  emit notify {}\n  p = first(messages where .conversation = viewer first 1 by .ordinal)\n", "after `emit notify`"),
@@ -300,4 +304,59 @@ fn expiry_refusals_name_the_statement_boundary_and_never_selected_ids() {
     let refusal=bound.diagnostics.iter().find(|d|d.code=="E_STRUCTURAL_FANOUT").unwrap();
     assert!(refusal.message.contains("may predict"));
     assert_eq!(refusal.rewrite,"Make `inspect` `: server`.");
+}
+
+// @ref LLP 3000.025#7-implementation-acceptance — clearing expiry backlog must never turn full slots into false coverage.
+#[test]
+fn delivered_backlog_then_full_slots_refuses_until_interval_can_be_recorded() {
+    use serde_json::json;
+    use snapback4_core::wire;
+    let source = format!("{}\nmutation freeSlot(): server\n  delete runs['r0']\n", include_str!("../../../experiments/er-expiring-pages/delivered.q"));
+    let bound = compiled(&source);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut rows = vec![
+        ("members", json!({"id":"me","conversation":"c","principal":"alice","role":"member","joinedOrdinal":0,"deliveredOrdinal":0,"seenOrdinal":0})),
+        ("conversations", json!({"id":"c","title":null,"description":"","color":"blue","background":null,"disappearing":"off","kind":"group","creatorId":"alice","lastOrdinal":40000})),
+    ];
+    rows.extend((1..=10001).map(|n| ("messages", json!({"id":format!("m{n}"),"conversation":"c","sender":"alice","ordinal":n,"recipients":1,"text":"message","expiresAt":if n<=10000 {1000} else {9000},"at":0,"oncePhoto":null,"photo":null,"video":null,"quote":null,"edited":false,"tombstone":false}))));
+    rows.extend((0..64).map(|n| ("runs", json!({"id":format!("r{n}"),"conversation":"c","principal":"alice","fromOrdinal":20001+2*n,"throughOrdinal":20001+2*n}))));
+    let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(engine.schema().table(table).unwrap(), &row).unwrap())).collect::<Vec<_>>();
+    engine.load_trusted(rows).unwrap();
+    let ctx = || Context::new("alice", [("conversation".into(),id("c")),("from".into(),Value::Int(10003)),("through".into(),Value::Int(10003))].into()).at(2000);
+    let bounded = engine.mutate("delivered", Some("backlog"), ctx()).unwrap();
+    assert!(matches!(&bounded.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"));
+    let mut swept = 0;
+    while swept < 10000 { swept += engine.sweep_expired(2000, 2000).unwrap(); }
+    let replay = engine.mutate("delivered", Some("backlog"), ctx()).unwrap();
+    assert!(replay.replayed);
+    assert_eq!(bounded.receipt(Some("backlog")), replay.receipt(Some("backlog")));
+    let full = engine.mutate("delivered", Some("full"), ctx()).unwrap();
+    assert!(matches!(&full.state, WriteState::Failed { why, .. } if why.code == "RUNS_FULL"), "{:?}", full.state);
+    // In particular the computed prefix 10000 cannot commit on refusal.
+    assert_eq!(engine.store().rows("members").unwrap()[0].field("deliveredOrdinal"), Ok(&Value::Int(0)));
+    assert_eq!(engine.store().rows("runs").unwrap().len(), 64);
+    let freed = engine.mutate("freeSlot", Some("free"), Context::new("alice", BTreeMap::new()).at(2000)).unwrap();
+    assert!(matches!(freed.state, WriteState::Sent { .. }));
+    let still_full = engine.mutate("delivered", Some("full"), ctx()).unwrap();
+    assert!(still_full.replayed);
+    assert_eq!(full.receipt(Some("full")), still_full.receipt(Some("full")));
+    let success = engine.mutate("delivered", Some("recorded"), ctx()).unwrap();
+    assert!(matches!(success.state, WriteState::Sent { .. }), "{:?}", success.state);
+    assert_eq!(engine.store().rows("members").unwrap()[0].field("deliveredOrdinal"), Ok(&Value::Int(10000)));
+    let runs = engine.store().rows("runs").unwrap();
+    assert_eq!(runs.len(), 64);
+    assert!(runs.iter().any(|run| run.field("fromOrdinal") == Ok(&Value::Int(10003)) && run.field("throughOrdinal") == Ok(&Value::Int(10003))));
+}
+
+#[test]
+fn helper_expansion_cannot_hide_the_first_effect() {
+    let helper = "fn hiddenEffect():\n  if false:\n    update messages['target'] { body: 'unused' }\n  return true\n";
+    for body in [
+        "  hiddenEffect()\n  p = first(messages where .conversation = viewer first 1 by .ordinal)\n",
+        "  if hiddenEffect():\n    p = first(messages where .conversation = viewer first 1 by .ordinal)\n",
+    ] {
+        let source = format!("{MODEL}\n{helper}\nmutation inspect(): server\n{body}  return null\n");
+        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(b.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"), "{:?}", b.diagnostics);
+    }
 }
