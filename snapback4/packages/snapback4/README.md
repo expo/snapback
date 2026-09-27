@@ -174,7 +174,7 @@ Explicit write IDs must use the accepted form (26 Crockford base32 characters, s
 arguments:
 
 ```ts
-import { mintId } from "snapback4";
+import { mintId } from "snapback4/client";
 const intent = { id: mintId(), args: { handle: "alice" } };
 await client.mutate(api.saveProfile, intent.args, { id: intent.id });
 ```
@@ -251,7 +251,7 @@ answer, such as the all-chat word search above. It has no server fallback; HTTP 
 limits: the engine chooses its own execution bounds, and `sync last 500` bounds acquisition, not how many messages may
 exist.
 
-When adding Following, `view following` owns that name. Name its reader `query homeFeed`, as `npx snapback4 guide feeds` shows; a query also named `following` collides with the view.
+When adding Following, `view following` owns that name. Name its reader `query home`, as `npx snapback4 guide feeds` shows; a query also named `following` collides with the view.
 
 ## The whole model
 

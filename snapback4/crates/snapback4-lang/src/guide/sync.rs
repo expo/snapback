@@ -77,8 +77,9 @@ loads or refuses must not take the page with it.
 
 Use `held` only for a read the server cannot answer, such as `searchHeld`
 over every chat this device holds. It never falls back, even online.
-N_HELD_UNKNOWN names a held query's read of a table or view with no `sync`,
-including reads inside helpers and shapes: move the read to its own query,
+N_HELD_UNKNOWN names a held query's read of a table, view or `read through`
+parent with no `sync`, or `connected[...]` server presence, including reads
+inside helpers and shapes: move the read to its own query,
 or drop `held`. A horizon or word index alone does not cause this note.
 
 ```text

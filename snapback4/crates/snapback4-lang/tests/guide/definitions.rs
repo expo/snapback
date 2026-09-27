@@ -327,7 +327,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_SYNC_ORDER", "Ascending reads and other indexes have unknown coverage."),
     ("N_NO_HORIZON", "A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`)."),
     ("N_PUBLIC_AGGREGATE_COPY", "N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules allow arbitrary values."),
-    ("N_HELD_UNKNOWN", "N_HELD_UNKNOWN means a held query may read a table or view with no `sync`."),
+    ("N_HELD_UNKNOWN", "N_HELD_UNKNOWN means a held query may read a table or view with no `sync`, including a `read through` parent, or `connected[...]` server presence."),
     ("N_SEEK", "N_SEEK is advice for an older explicit-index read whose residual filter can seek."),
     ("N_SPARSE_FILTER", "A residual predicate may reject many rows. Use the Following view, or pin the deciding columns for another read"),
     ("N_TIMELINE_COMPAT", "`authors` and `size` lines are unused compatibility inputs. Remove them; N_TIMELINE_COMPAT reports their presence"),

@@ -21,6 +21,31 @@ const until = async (read, label) => {
   assert.fail(`timed out: ${label}`);
 };
 
+test("README first-account package imports execute through public exports", async () => {
+  const imports = blocks.filter(block => block[1] !== "quarry").flatMap(block =>
+    [...block[2].matchAll(/^import \{([^}]+)\} from "(snapback4(?:\/[^\"]+)?|react)";/gm)]);
+  assert.equal(imports.length, 6);
+  for (const [, names, specifier] of imports) {
+    const module = await import(specifier);
+    for (const name of names.split(",").map(name => name.trim())) assert.equal(typeof module[name], "function", `${specifier}: ${name}`);
+  }
+  const intent = blocks.find(block => block[2].includes("const intent ="))[2];
+  const body = intent.replace(/^import .+;\n/m, "");
+  // Execute the exact kept-intent example with the actual export and capture its call.
+  const { mintId } = await import(imports.find(([, names]) => names.includes("mintId"))[2]);
+  let submitted;
+  const client = { mutate: async (...args) => { submitted = args; } }, api = { saveProfile: { kind: "mutation", name: "saveProfile" } };
+  await new Function("mintId", "client", "api", `return (async () => { ${body} })();`)(mintId, client, api);
+  assert.equal(submitted[0], api.saveProfile); assert.deepEqual(submitted[1], { handle: "alice" });
+  assert.match(submitted[2].id, /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/);
+});
+
+test("README Following reader matches the feeds card", () => {
+  const name = readme.match(/Name its reader `query (\w+)`/)[1];
+  const feeds = readFileSync(resolve(pkg, "../../crates/snapback4-lang/src/guide/feeds.md"), "utf8");
+  assert.ok(feeds.includes(`query ${name}(`), name);
+});
+
 // The only application inputs are README blocks and the named init --expo starter.
 // No handwritten Query/Mutation declarations or alternate account schema can mask a broken path.
 for (const tier of ["online", "local"]) test(`README first account: ${tier}, generated API, password, avatar, reopen and denied read`, { timeout: 120_000 }, async t => {

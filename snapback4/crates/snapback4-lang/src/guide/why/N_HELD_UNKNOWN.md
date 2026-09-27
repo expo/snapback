@@ -1,6 +1,7 @@
 # Sync — N_HELD_UNKNOWN
 
-N_HELD_UNKNOWN means a held query may read a table or view with no `sync`. That read is unavailable
+N_HELD_UNKNOWN means a held query may read a table or view with no `sync`,
+including a `read through` parent, or `connected[...]` server presence. That read is unavailable
 on a device, and `held` prevents server fallback. The note names the source
 and read site, including reads inside helpers, shapes, conditions and nested
 expressions. It is conservative: the branch need not run on every call.

@@ -1,6 +1,7 @@
 -- Messaging excerpt of the 0.4.3 comparative Grok builder's snapback/schema.q.
 -- Profiles, DM/group creation, membership, messages, receipts and reactions keep
--- their original rules and write bodies. Feed/media/typing/digest features are
+-- their original rules and write bodies, including image/edit/delete acceptance.
+-- Feed/video-send/typing/digest features are
 -- outside this acceptance fixture; the comparative packet is never modified.
 -- @ref LLP 3000.021#3.1 — history is bare; decorations have their own queries.
 -- @ref LLP 3000.021#3.4 — retain the conversation and pin its own query.
@@ -282,5 +283,44 @@ mutation seen(conversation: conversations, through: int):
   require through <= chat.lastOrdinal else PAST_LAST_MESSAGE
   if through > me.seenOrdinal:
     update members[me] { seenOrdinal: through }
+  return null
+
+
+mutation sendImage(id: id, conversation: conversations, photo: image <=10000000, caption: text <=500 ?, viewOnce: bool):
+  require exists members[conversation, viewer] else NOT_MEMBER
+  chat = conversations[conversation] ! else NOT_FOUND
+  me = profiles[principal = viewer]
+  ordinal = chat.lastOrdinal + 1
+  recipients = 0
+  for member in members where .conversation = conversation:
+    if member.principal != viewer:
+      recipients = recipients + 1
+  update conversations[chat] { lastOrdinal: ordinal }
+  ttl = ttlMs(chat.disappearing)
+  m = insert messages { id, conversation, sender: viewer, ordinal, recipients, kind: 'image', caption, photo: photo if not viewOnce else null, photoOnce: photo if viewOnce else null, at: now, expiresAt: now + ttl if ttl != null else null }
+  for member in members where .conversation = conversation:
+    if member.principal != viewer and not exists connected[member.principal]:
+      emit notify { targetUserId: member.principal, chatId: conversation, senderDisplayName: me.displayName, preview: 'Photo' }
+  return m.id
+
+
+mutation editMessage(messageId: messages, text: text <=2000 ?, caption: text <=500 ?):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.sender = viewer else NOT_AUTHOR
+  require not msg.tombstone else DELETED
+  require now <= msg.at + 60000 else EDIT_WINDOW
+  if msg.kind = 'text':
+    update messages[msg] { text, editedAt: now }
+  else:
+    update messages[msg] { caption, editedAt: now }
+  return null
+
+
+mutation deleteMessage(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.sender = viewer else NOT_AUTHOR
+  require not msg.tombstone else DELETED
+  require now <= msg.at + 120000 else DELETE_WINDOW
+  update messages[msg] { tombstone: true, text: null, caption: null, photo: null, photoOnce: null, clip: null }
   return null
 

@@ -1,4 +1,4 @@
-//! Advice only: a held query cannot fall back for an unsynced read.
+//! Advice only: a held query cannot fall back for a read unavailable on a device.
 use super::BoundProgram;
 use crate::diag::Diagnostic;
 use snapback4_core::{ir, schema::Schema};
@@ -10,11 +10,22 @@ pub(super) fn notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnosti
         if !schema.operations.get(&bound.program.name).is_some_and(|fact| fact.held) { continue; }
         for read in ir::read_sites(&bound.program) {
             let Some(table) = schema.tables.get(&read.table) else { continue; };
-            // A horizon or a word index does not make a source unsynced.
-            if table.sync.is_some() { continue; }
             let location = bound.sources.get(&read.site).map_or(&bound.site, |(site, _)| site);
+            // A horizon or a word index does not make a source unsynced.
+            let parent = table.through.as_ref()
+                .or_else(|| schema.maintain_for(&read.table).and_then(|view| view.parent_key.as_ref()));
+            for source in std::iter::once(read.table.as_str()).chain(parent.map(|parent| parent.parent.as_str())) {
+                if schema.tables.get(source).is_none_or(|table| table.sync.is_some()) { continue; }
+                notes.push(Diagnostic::new(location, "N_HELD_UNKNOWN",
+                    format!("held query {} may read {} at {}: this query may read data unavailable on a device; when that read is needed, `held` prevents server fallback ({} has no sync)", bound.program.name, source, read.site, source),
+                    "move the read to its own query, or drop `held`").guide("sync"));
+            }
+        }
+        // Connected has no table read in the IR. Binding records each expanded
+        // presence occurrence, including helpers and shapes, at its source site.
+        for (_, (location, name)) in bound.sources.iter().filter(|(key, _)| key.starts_with("presence/")) {
             notes.push(Diagnostic::new(location, "N_HELD_UNKNOWN",
-                format!("held query {} may read {} at {}: this query may read data unavailable on a device; when that read is needed, `held` prevents server fallback ({} has no sync)", bound.program.name, read.table, read.site, read.table),
+                format!("held query {} may read {name}: this query may read data unavailable on a device; when that read is needed, `held` prevents server fallback (connected is server presence)", bound.program.name),
                 "move the read to its own query, or drop `held`").guide("sync"));
         }
     }

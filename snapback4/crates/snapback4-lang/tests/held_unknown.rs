@@ -1,5 +1,6 @@
 //! @ref LLP 3000.021#3.1 — a conservative note, not a dispatch or authorization change.
 use snapback4_lang::{Bound, compile, guide};
+use snapback4_core::ir::{Expr, Stmt};
 
 const COMPARATIVE: &str = include_str!("history/comparative.q");
 const TABLES: &str = "table rows:\n  owner: principal\n  text: text <=100\n  search text\n  public 'held rows'\n  sync last 10 by .id\ntable remote:\n  owner: principal\n  target: rows ?\n  unique owner\n  text: text <=100\n  public 'remote rows'\n";
@@ -20,6 +21,58 @@ fn comparative_bare_history_and_separate_decorations_compile_without_notes() {
     assert!(bound.schema.operations["searchHeld"].held);
     let history = &bound.programs.iter().find(|p| p.program.name == "history").unwrap().program;
     assert!(snapback4_core::ir::read_sites(history).iter().all(|read| read.table == "messages"));
+    assert!(matches!(history.body.as_slice(), [Stmt::Return(Expr::Scan(_))]), "history must return the bare stored rows: {:?}", history.body);
+}
+
+#[test]
+fn guide_histories_are_bare_pages_without_membership_requirements() {
+    for (card, query) in [("app", "thread"), ("sync", "history"), ("receipts", "history")] {
+        let source = guide::quarry(guide::card(card).unwrap()).into_iter()
+            .find(|source| source.contains(&format!("query {query}("))).unwrap();
+        let bound = bound(&source);
+        assert!(!bound.schema.operations[query].held, "{card}");
+        let history = &bound.programs.iter().find(|p| p.program.name == query).unwrap().program;
+        assert!(matches!(history.body.as_slice(), [Stmt::Return(Expr::Scan(_))]), "{card}: {:?}", history.body);
+    }
+}
+
+#[test]
+fn held_read_through_child_notes_only_an_unsynced_parent() {
+    for sync in ["", "  online only\n", "  sync\n", "  sync last 10 by .id\n"] {
+        for read in ["files[id]", "exists files[id]", "files last 10 by .id after c"] {
+            let source = format!("table folders:\n  name: text <=40\n  public 'folders are public'\n{sync}table files:\n  folder: folders\n  name: text <=80\n  immutable folder\n  read through .folder\n  sync\nquery heldFile(id: files, c: cursor ?) held:\n  return {read}\n");
+            let bound = bound(&source);
+            assert!(bound.schema.tables["files"].sync.is_some());
+            let notes = notes(&bound);
+            if sync.contains("sync") { assert!(notes.is_empty(), "{notes:?}"); }
+            else {
+                assert_eq!(notes.len(), 1, "{notes:?}");
+                assert!(notes[0].message.contains("folders has no sync"));
+                assert_eq!(source.lines().nth(notes[0].site.line as usize - 1).unwrap(), format!("  return {read}"));
+                assert_eq!(notes[0].rewrite, "move the read to its own query, or drop `held`");
+            }
+        }
+    }
+}
+
+#[test]
+fn held_connected_reads_note_presence_in_helpers_shapes_and_branches() {
+    for body in [
+        "query q(p: principal) held:\n  return connected[p]\n",
+        "query q(p: principal) held:\n  return exists connected[p]\n",
+        "fn online(p: principal):\n  return connected[p]\nquery q(p: principal) held:\n  return online(p)\n",
+        "shape online = { *, connections: connected[.owner] }\nquery q(key: rows) held:\n  return rows[key] online\n",
+        "query q(p: principal, readIt: bool) held:\n  if readIt:\n    return connected[p]\n  return 0\n",
+    ] {
+        let source = format!("{TABLES}{body}");
+        let bound = bound(&source);
+        let notes = notes(&bound);
+        assert_eq!(notes.len(), 1, "{source}\n{notes:?}");
+        assert!(notes[0].message.contains("connected is server presence"));
+        assert!(source.lines().nth(notes[0].site.line as usize - 1).unwrap().contains("connected["));
+        assert_eq!(notes[0].rewrite, "move the read to its own query, or drop `held`");
+        assert!(self::notes(&self::bound(&source.replace(" held:", ":"))).is_empty());
+    }
 }
 
 #[test]
