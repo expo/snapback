@@ -19,7 +19,10 @@ pub(super) fn open(owner: &crate::store_owner::Owner, bound: &snapback4_lang::Bo
             Err(error) if locked(&error) && !crate::lifecycle::stopping() => {
                 let reason = error.to_string();
                 if reported.as_ref() != Some(&reason) {
-                    eprintln!("snapback4 dev: startup schema adoption failed: {reason}; no requests, jobs or sweeps are running; retrying automatically");
+                    // One write per line: stderr is unbuffered, so `eprintln!` would emit each
+                    // format piece separately and a reader could see half a line.
+                    let line = format!("snapback4 dev: startup schema adoption failed: {reason}; no requests, jobs or sweeps are running; retrying automatically\n");
+                    let _ = std::io::Write::write_all(&mut std::io::stderr().lock(), line.as_bytes());
                     reported = Some(reason);
                 }
                 std::thread::sleep(Duration::from_millis(400));

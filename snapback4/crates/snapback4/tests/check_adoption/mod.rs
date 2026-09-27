@@ -75,7 +75,8 @@ fn w8c_startup_waits_for_the_adoption_lock_to_clear() {
     let child = Command::new(BIN).current_dir(&p.0).args(["dev", "--port", "0", "--no-watch"])
         .stdout(std::process::Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
     let mut host = AdoptionHost { child, address: String::new(), log };
-    wait_adoption(|| host.logs().contains("startup schema adoption failed") || host.child.try_wait().unwrap().is_some());
+    // Wait for the whole line: a partial read of the log must not end the wait.
+    wait_adoption(|| host.logs().contains("no requests, jobs or sweeps are running; retrying automatically") || host.child.try_wait().unwrap().is_some());
     conn.execute_batch("COMMIT").unwrap();
     assert!(host.logs().contains("no requests, jobs or sweeps are running; retrying automatically"), "{}", host.logs());
     let mut line = String::new(); BufReader::new(host.child.stdout.take().unwrap()).read_line(&mut line).unwrap();
