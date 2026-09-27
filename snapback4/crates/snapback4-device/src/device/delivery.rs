@@ -50,7 +50,9 @@ fn reconcile(state: &mut Json, schema: &Schema) -> Result<(), RuntimeError> {
     if state["bindings"] == bindings { return Ok(()); }
     let old = state["bindings"].take();
     for binding in old.as_array().into_iter().flatten() {
-        if bindings.as_array().is_some_and(|b| b.contains(binding)) { continue; }
+        // A manifest first supplies only the wire fields; the fingerprint also
+        // identifies its later compiled binding (which adds group and position).
+        if schema.delivery.iter().any(|b| binding["fingerprint"] == b.fingerprint) { continue; }
         let table = binding["table"].as_str().unwrap_or("");
         let mutation = binding["mutation"].as_str().unwrap_or("");
         retain(&mut state["groups"], &mut |_, group| group["binding"]["table"] != table || group["binding"]["mutation"] != mutation);

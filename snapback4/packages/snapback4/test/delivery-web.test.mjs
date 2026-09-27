@@ -1,6 +1,7 @@
 // Real wasm: debt shares the publication's host persistence batch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {acceptManifest,emptyDelivery} from '../dist/delivery-state.js';
 import {webDevice,memoryPersistence} from '../dist/web.js';
 import {wasm,backend,snapshot} from './helpers/delivery-fixture.mjs';
 const ok=r=>{assert.ok(!r.denied,JSON.stringify(r));return r.ok;};
@@ -23,4 +24,18 @@ test('wasm activation excludes predictions and withdrawal persists only restored
  ok(await core.call(snapshot));ok(await core.call({op:'predict',name:'edit',viewer:'dev:alice',args:{messageId:'m',body:'pending'},now:100}));
  ok(await core.call({op:'delivery',viewer:'dev:alice',action:'enumerate',now:100}));assert.deepEqual(owed(await debt(core)),[]);
  ok(await core.call({op:'withdraw',predicted:['messages/m']}));assert.deepEqual(owed(await debt(core)),[[[41,41]]]);
+});
+
+test('client manifest-only binding keeps its fallback debt through device adoption',async t=>{
+ const initial=structuredClone(backend);initial.schema.delivery=[];
+ const core=await webDevice({wasm,persist:memoryPersistence()}).open('manifest-adoption',initial);t.after(()=>core.close());
+ const read=ok(await core.call({op:'delivery',viewer:'dev:alice',action:'read'}));
+ const state=emptyDelivery();acceptManifest(state,[{...backend.schema.delivery[0],rows:[['c1',41]]}],4096);
+ assert.equal(state.bindings[0].group,undefined,'the manifest representation has no compiled columns');
+ ok(await core.call({op:'delivery',viewer:'dev:alice',action:'write',expected:read.value,value:JSON.stringify(state)}));
+ ok(await core.call({op:'adopt',backend}));
+ const adopted=await debt(core);assert.deepEqual(adopted.groups,state.groups);
+ assert.equal(adopted.bindings[0].group,'conversationId');
+ ok(await core.call({...snapshot,page:{...snapshot.page,events:[]}}));
+ assert.deepEqual((await debt(core)).groups,state.groups);
 });

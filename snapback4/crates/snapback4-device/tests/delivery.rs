@@ -201,3 +201,21 @@ fn fingerprint_reconcile<H:Host>(h:&mut H) {
     let mut extra=value.clone();extra["args"]=json!(["g","a","b","c"]);assert!(serde_json::from_value::<DeliveryBinding>(extra).is_err());
     assert!(serde_json::from_str::<DeliveryBinding>(r#"{"table":"t","table":"u","group":"g","position":"p","mutation":"m","fingerprint":"f","args":["g","a","b"]}"#).is_err());
 }
+
+fn manifest_adoption<H:Host>(h:&mut H) {
+    let mut initial=backend();initial.schema.delivery.clear();
+    let mut d=h.open("manifest-adoption",Some(initial)).unwrap();
+    let raw=request(&mut d,"read");let mut s:Json=serde_json::from_str(raw["value"].as_str().unwrap()).unwrap();
+    let binding=json!({"table":"messages","mutation":"delivered_messages","fingerprint":"fixture:messages","args":["conversation","from","through"]});
+    s["bindings"]=json!([binding]);
+    s["groups"]["[\"messages\",\"delivered_messages\",\"r\"]"]=json!({"binding":binding,"group":"r","incarnation":1,"owed":[[41,41]],"reported":[[3,3]],"refused":[[5,5]]});
+    let groups=s["groups"].clone();
+    d.delivery(&json!({"viewer":"dev:alice","action":"write","expected":raw["value"],"value":s.to_string()})).unwrap();
+    d.adopt(backend()).unwrap();
+    let adopted=state(&mut d);assert_eq!(adopted["groups"],groups,"manifest-only rows survive compiled binding adoption");
+    assert_eq!(adopted["bindings"][0]["group"],"room");
+    d.apply(&page(true,vec![],1),true).unwrap();
+    assert_eq!(state(&mut d)["groups"],groups,"later publications keep the adopted debt");
+}
+#[test]fn manifest_adoption_memory(){manifest_adoption(&mut Memory::new())}
+#[test]fn manifest_adoption_sqlite(){manifest_adoption(&mut Sqlite::new("delivery-manifest-adoption"))}
