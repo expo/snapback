@@ -4,6 +4,7 @@ import { holdReadExpiry } from "./read-expiry.ts";
 
 export interface ApprovedAnswer {
   snapshot: Read<unknown>;
+  read(): Read<unknown>;
   listeners: Set<() => void>;
 }
 
@@ -14,7 +15,7 @@ export class ReadApprovals {
   private readonly releases = new Set<() => void>();
 
   peek(read: Read<unknown>): Read<unknown> | undefined {
-    return this.get(read)?.snapshot;
+    return this.get(read)?.read();
   }
 
   get(read: Read<unknown>): ApprovedAnswer | undefined {
@@ -33,27 +34,29 @@ export class ReadApprovals {
     }
     // Each slot owns exactly one timer and one source follower.
     this.drop(owner);
-    answer ??= { snapshot: read, listeners: new Set() };
+    answer ??= { snapshot: read, read: () => read, listeners: new Set() };
     answer.snapshot = read;
     const held = answer, since = owner.since;
     const notify = () => { for (const listener of held.listeners) listener(); };
-    const releaseExpiry = holdReadExpiry(owner, () => {
+    const expiry = holdReadExpiry(owner, () => {
       held.snapshot = { loading: true };
       return notify;
     });
+    held.read = () => { expiry.check(); return held.snapshot; };
     const follow: Parameters<typeof owner.followers.add>[0] = change => {
       if (change === "expiry") return; // Our own deadline participates in the same sweep.
       const next = owner.snapshot;
       if (change === "reset" || "denied" in next) {
         held.snapshot = "data" in next ? { loading: true } : next;
         release();
+        return notify;
       } else if ("data" in next) {
         held.snapshot = answerIdentity(next) === answerIdentity(held.snapshot)
           ? next : staleAnswer(held.snapshot, since);
       }
     };
     const release = () => {
-      releaseExpiry();
+      expiry.release();
       owner.followers.delete(follow);
       this.releases.delete(release);
       this.answers.delete(owner);

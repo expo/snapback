@@ -29,7 +29,7 @@ export class ReadObservation<T> {
   expiryTimer: ReturnType<typeof setTimeout> | null = null;
   since: number | undefined;
   // @ref LLP 3000.019#3.3 — facade holds belong to this live watch and end with its scope.
-  readonly followers = new Set<(change: "answer" | "reset" | "expiry") => void>();
+  readonly followers = new Set<(change: "answer" | "reset" | "expiry") => (() => void) | void>();
   private revision = 0;
 
   read(denied: Refusal | null): Read<T> {
@@ -105,7 +105,8 @@ export class ReadObservation<T> {
     this.kept = false;
     // Freshness age uses wall time even when row deadlines use issued device time.
     this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
-    for (const follow of this.followers) follow(change);
+    const deliveries = [...this.followers].map(follow => follow(change));
+    for (const deliver of deliveries) deliver?.();
   }
 
   reset(read: Read<T>): void { this.resetVersion++; this.replace(read, "reset"); }

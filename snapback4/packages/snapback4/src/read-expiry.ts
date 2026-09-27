@@ -19,9 +19,9 @@ const expiryOwners = new WeakMap<ExpiringRead, {
 }>();
 
 // @ref LLP 3000.019#3.3 — a facade's approved answer participates in its raw watch's expiry sweep.
-export function holdReadExpiry(owner: ExpiringRead, withdraw: () => () => void): () => void {
+export function holdReadExpiry(owner: ExpiringRead, withdraw: () => () => void): { check(): void; release(): void } {
   const context = expiryOwners.get(owner), original = owner.deadlines;
-  if (!context || !original) return () => {};
+  if (!context || !original) return { check() {}, release() {} };
   // A local wakeup reobserves remembered server data; it does not expire that data.
   const deadlines = { ...original, device: original.localWakeup ? null : original.device };
   const held: HeldExpiry = { deadlines, expiryTimer: null, withdraw };
@@ -29,11 +29,16 @@ export function holdReadExpiry(owner: ExpiringRead, withdraw: () => () => void):
   if (!group) heldExpiries.set(owner, group = new Set());
   group.add(held);
   armReadExpiry(held, deadlines, context.clock, context.current, context.expired);
-  return () => {
+  return { check() {
+    const d = held.deadlines;
+    if (!d || !context.current()) return;
+    const serverDue = d.server !== null && context.clock.serverDelay(d.server) === 0;
+    if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)) context.expired(serverDue);
+  }, release() {
     if (held.expiryTimer) clearTimeout(held.expiryTimer);
     held.expiryTimer = null;
     group.delete(held);
-  };
+  } };
 }
 
 // @ref LLP 3000.019#3.3 — timers and clock corrections withdraw every due answer before any subscriber can roll time back.
@@ -90,7 +95,7 @@ export function armReadExpiry(watch: ExpiringRead, deadlines: ReadDeadlines | un
     if (!current()) return;
     const deviceDue = device !== null && clock.deviceDelay(device) === 0;
     const serverDue = server !== null && clock.serverDelay(server) === 0;
-    if (!deviceDue && !serverDue) { armReadExpiry(watch, deadlines, clock, current, expired); return; }
+    if (!deviceDue && !serverDue) { armReadExpiry(watch, deadlines, clock, current, expired, withdrawHeld); return; }
     // The sweep must still see this deadline when it captures all due watches.
     expired(serverDue);
   }, delay);

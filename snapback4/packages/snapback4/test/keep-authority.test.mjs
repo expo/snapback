@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { guardClient } from "../dist/app-client.js";
 import { ReadObservation } from "../dist/read-observation.js";
-import { armReadExpiry, correctReadExpiries } from "../dist/read-expiry.js";
+import { armReadExpiry, correctReadExpiries, holdReadExpiry } from "../dist/read-expiry.js";
 import { bindWatchPeek, observeWatch, peekObservation } from "../dist/observe-watch.js";
+import { RememberedAnswers } from "../dist/local-reads.js";
 import { ServerClock } from "../dist/clock.js";
 
 const q = { kind: "query", name: "read" }, options = { keep: true };
@@ -16,10 +17,11 @@ async function until(check) {
 }
 
 function fixture(t) {
-  let wall = 1000, hold = false, allow = true;
+  let wall = 1000, hold = false, allow = true, checks;
+  const memory = new RememberedAnswers();
   const gate = Promise.withResolvers(), clock = new ServerClock(() => wall), watches = new Map();
   const notify = watch => { for (const listener of watch.subscribers) listener(); };
-  const arm = (watch, d) => armReadExpiry(watch, d, clock, () => watches.get(watch.key) === watch, sweep);
+  const arm = (watch, d) => armReadExpiry(watch, d, clock, () => watches.get(watch.key) === watch, sweep, (due, now) => { if (due) memory.expire("read", now); });
   function sweep() {
     correctReadExpiries(watches.values(), clock, watch => {
       watch.expire(); return () => notify(watch);
@@ -34,6 +36,7 @@ function fixture(t) {
   } };
   bindWatchPeek(raw, watches, () => null);
   const facade = guardClient(raw, async () => {
+    if (checks?.length) return await checks.shift().promise;
     if (hold) await gate.promise;
     if (allow === "error") throw Error("session storage failed");
     return allow;
@@ -46,7 +49,7 @@ function fixture(t) {
     arm(watch, { device: null, server: null, localWakeup: false, ...deadlines });
     watch.publish(ready(data)); notify(watch);
   };
-  return { client, owner, publish, clock, facade, setWall: n => { wall = n; },
+  return { client, owner, publish, clock, facade, memory, gateChecks: gates => { checks = gates; }, setWall: n => { wall = n; },
     hold: () => { hold = true; }, release: (ok = true) => { allow = ok; hold = false; gate.resolve(); } };
 }
 
@@ -157,4 +160,85 @@ test("a remount's initial authority error withdraws the held answer for every su
   assert.ok(seen.some(read => read.denied?.code === "E_CLIENT"));
   assert.equal(peekObservation(f.client, q, {}, options), undefined);
   watch.close(); remount.close();
+});
+
+for (const domain of ["device", "server"]) for (const access of ["snapshot", "peek"]) {
+  test(`held ${domain} deadline is latched by ${access} before timer delivery`, async t => {
+    const f = fixture(t), watch = f.client.observe(q, {}, options);
+    await until(() => f.owner());
+    f.publish("A", { [domain]: 1100 }); await until(() => watch.getSnapshot().data === "A");
+    f.hold(); f.publish("B", { [domain]: 2000 });
+    const ticket = f.memory.begin(), old = { read: ready("A"), nextExpiry: 1100, at: 1000, tables: new Set() };
+    f.memory.set("read", { ...old, read: ready("C"), nextExpiry: 3000 }, { seq: 2, ticket: f.memory.begin() });
+    f.setWall(1100);
+    const read = access === "snapshot" ? watch.getSnapshot() : peekObservation(f.client, q, {}, options);
+    assert.deepEqual(read, { loading: true });
+    f.setWall(1000);
+    assert.equal(watch.getSnapshot(), read, "one stable withdrawal survives rollback");
+    if (domain === "server") {
+      f.memory.set("read", old, { seq: 100, ticket });
+      assert.equal(f.memory.get("read").read.data, "C", "accessor installs the memory barrier before notification");
+    }
+    watch.close();
+  });
+}
+
+for (const withdrawal of ["reset", "denied", "retire"]) test(`opening remount is notified on ${withdrawal}`, async t => {
+  const f = fixture(t), watch = f.client.observe(q, {}, options);
+  await until(() => f.owner());
+  f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+  f.hold(); f.publish("B"); watch.close();
+  const remount = f.client.observe(q, {}, options), seen = [];
+  remount.subscribe(() => seen.push(remount.getSnapshot()));
+  assert.equal(remount.getSnapshot().data, "A");
+  if (withdrawal === "reset") f.owner().reset({ loading: true });
+  if (withdrawal === "denied") f.owner().publish({ denied: why });
+  if (withdrawal === "retire") f.owner().linger.close();
+  assert.equal(seen.length, 1);
+  assert.ok(!("data" in seen[0]));
+  remount.close();
+});
+
+for (const order of ["B-first", "C-refuses"]) test(`independent authority completions preserve the newest check: ${order}`, async t => {
+  const f = fixture(t), watch = f.client.observe(q, {}, options);
+  await until(() => f.owner());
+  f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+  const b = Promise.withResolvers(), c = Promise.withResolvers();
+  f.gateChecks([b, c]);
+  f.publish("B"); f.publish("C");
+  if (order === "B-first") {
+    b.resolve(true); await delay(0);
+    assert.equal(watch.getSnapshot().data, "A", "B's approval must not publish unchecked C");
+    c.resolve(true); await until(() => watch.getSnapshot().data === "C");
+  } else {
+    c.resolve(false); await until(() => watch.getSnapshot().denied);
+    b.resolve(true); await delay(0);
+    assert.equal(watch.getSnapshot().denied?.code, "E_AUTH", "older success cannot undo newer refusal");
+  }
+  watch.close();
+});
+
+test("an early expiry timer rearm preserves the held-answer memory fence", t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let wall = 1000;
+  const clock = new ServerClock(() => wall), owner = new ReadObservation(true), memory = new RememberedAnswers();
+  const old = { read: ready("A"), nextExpiry: 1500, at: 1000, tables: new Set() }, ticket = memory.begin();
+  const arm = (watch, d) => armReadExpiry(watch, d, clock, () => true, sweep,
+    (due, now) => { if (due) memory.expire("read", now); });
+  function sweep() {
+    correctReadExpiries([owner], clock, () => () => {}, arm, () => {});
+  }
+  arm(owner, { device: null, server: 1500, localWakeup: false });
+  let withdrawn = false;
+  const held = holdReadExpiry(owner, () => { withdrawn = true; return () => {}; });
+  arm(owner, { device: null, server: 1100, localWakeup: false });
+  wall = 1099; t.mock.timers.tick(100);
+  wall = 1100; t.mock.timers.tick(1);
+  memory.set("read", { ...old, read: ready("C"), nextExpiry: 3000 }, { seq: 2, ticket: memory.begin() });
+  wall = 1500; t.mock.timers.tick(400);
+  assert.equal(withdrawn, true);
+  wall = 1000;
+  memory.set("read", old, { seq: 100, ticket });
+  assert.equal(memory.get("read").read.data, "C");
+  held.release();
 });

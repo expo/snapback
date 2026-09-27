@@ -138,7 +138,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       }).catch(() => { reject(denied()); emit(); });
       return {
         getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading
-          : held ? held.snapshot as Read<R> : snapshot) : denied(),
+          : held ? held.read() as Read<R> : snapshot) : denied(),
         subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
