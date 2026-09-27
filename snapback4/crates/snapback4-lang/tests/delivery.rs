@@ -383,5 +383,10 @@ fn map_backed_authorized_source_images_are_tracked_too() {
         unreachable!()
     };
     e.load([("messages".into(), Value::Map(fields))]).unwrap();
-    assert_eq!(rows(&mut e, "raw"), json!([["c1", 1]]));
+    let answer = e.query("raw", context("alice")).unwrap();
+    assert_eq!(
+        serde_json::to_value(&answer.delivery).unwrap()[0]["rows"],
+        json!([["c1", 1]]),
+        "{answer:?}"
+    );
 }

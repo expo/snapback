@@ -79,6 +79,7 @@ impl Ledger {
                     .saturating_sub(self.used.output_bytes)
         {
             self.partial = true;
+            self.stamping_stopped = true;
             return false;
         }
         self.used.steps += steps;
@@ -138,6 +139,9 @@ pub(super) struct Tracking {
     ledger: Option<Ledger>,
     pub last: Option<Origin>,
     variables: BTreeMap<String, (Origin, Lease)>,
+    // Removing an entry need not free its BTree node. Retain node charges
+    // until the whole map is dropped; individual leases own only the names.
+    variable_nodes: Option<Lease>,
 }
 
 impl Tracking {
@@ -264,7 +268,7 @@ impl Runner<'_> {
             heap: Some(ledger.lease(0)),
         };
         for key in fields.keys() {
-            // Runtime flags and id are not stored columns of the authored table.
+            // Runtime flags are not stored columns; the schema includes the implicit id.
             if !self.schema.tables[table].columns.contains_key(key) {
                 continue;
             }
@@ -325,12 +329,14 @@ impl Runner<'_> {
     pub(super) fn bind_delivery(&mut self, name: &str) {
         self.clear_delivery_variable(name);
         if let Some(origin) = self.delivery.last.take() {
-            let bytes = crate::rows::word_heap::insertion::<String, (Origin, Lease)>(
+            let nodes = crate::rows::word_heap::insertion::<String, (Origin, Lease)>(
                 self.delivery.variables.len(),
-            ) + name.len() as u64;
+            );
             let ledger = self.delivery_ledger();
-            if ledger.reserve(1, bytes, 0) {
-                let lease = ledger.lease(bytes);
+            if ledger.reserve(1, nodes + name.len() as u64, 0) {
+                let lease = ledger.lease(name.len() as u64);
+                let node_lease = ledger.lease(0);
+                self.delivery.variable_nodes.get_or_insert(node_lease).bytes += nodes;
                 self.delivery.variables.insert(name.into(), (origin, lease));
             }
         }
@@ -339,6 +345,7 @@ impl Runner<'_> {
         self.delivery.variables.remove(name);
         if self.delivery.variables.is_empty() {
             self.delivery.variables = BTreeMap::new();
+            self.delivery.variable_nodes = None;
         }
     }
     pub(super) fn delivery_fields(
