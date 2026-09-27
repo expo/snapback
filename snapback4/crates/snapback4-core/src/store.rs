@@ -264,6 +264,7 @@ impl Store {
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.check_ownership()?;
         // The write lock and identity check are one boundary: an engine
         // opened before another process activated a successor cannot write
         // or read with its stale schema/catalog.
@@ -276,6 +277,7 @@ impl Store {
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
     pub fn read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.check_ownership()?;
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
@@ -286,6 +288,7 @@ impl Store {
     /// One deferred snapshot for an authority walk from an API that only
     /// borrows the engine. Writer operations pass their existing `Tx` instead.
     pub(crate) fn authority_transaction(&self) -> Result<Tx<'_>, RuntimeError> {
+        self.check_ownership()?;
         let tx = self.conn.unchecked_transaction()?;
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
@@ -295,6 +298,7 @@ impl Store {
 
     /// An independent read connection, bound to this catalog and identity.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
+        self.check_ownership()?;
         let path = self.conn.path().filter(|path| !path.is_empty())
             .ok_or_else(|| RuntimeError::Store("an in-memory store has no independent reader".into()))?;
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -319,10 +323,12 @@ impl Store {
         self.catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
     }
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
+        self.check_ownership()?;
         Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
 
     pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
+        self.check_ownership()?;
         self.conn.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
         Ok(())
     }
@@ -333,11 +339,13 @@ impl Store {
 
     /// The last committed sequence number.
     pub fn seq(&self) -> Result<u64, RuntimeError> {
+        self.check_ownership()?;
         Ok(self.conn.prepare_cached("SELECT COALESCE(MAX(seq), 0) FROM _commits")?.query_row([], |row| row.get::<_, i64>(0))? as u64)
     }
 
     /// Every row of a table, for fixtures, `data`, and tests.
     pub fn rows(&self, table: &str) -> Result<Vec<Value>, RuntimeError> {
+        self.check_ownership()?;
         let Some(t) = self.catalog.get(table) else { return Ok(Vec::new()) };
         let mut statement = self.conn.prepare("SELECT data FROM r WHERE t = ?1 ORDER BY id")?;
         let rows = statement.query_map([t], |row| row.get::<_, String>(0))?;
@@ -346,6 +354,7 @@ impl Store {
 
     /// A bounded administrative table listing, including whether another row exists.
     pub fn rows_limited(&self, table: &str, limit: usize) -> Result<(Vec<Value>, bool), RuntimeError> {
+        self.check_ownership()?;
         let t = self.catalog.get(table).ok_or_else(|| RuntimeError::Schema(format!("no table {table}")))?;
         let mut statement = self.conn.prepare_cached("SELECT data FROM r WHERE t = ?1 ORDER BY id LIMIT ?2")?;
         let rows = statement.query_map(params![t, limit.saturating_add(1).min(i64::MAX as usize) as i64], |row| row.get::<_, String>(0))?;
@@ -358,14 +367,17 @@ impl Store {
     /// How many client-minted operation ids have been applied (sent or failed).
     /// The recorded outcome of a client-minted op, if it applied.
     pub fn applied_outcome(&self, principal: &str, id: &str) -> Result<Option<String>, RuntimeError> {
+        self.check_ownership()?;
         Ok(self.conn.prepare_cached("SELECT outcome FROM _ops WHERE principal = ?1 AND id = ?2")?.query_row(params![principal, id], |row| row.get::<_, String>(0)).optional()?)
     }
 
     pub fn applied_ops(&self) -> Result<u64, RuntimeError> {
+        self.check_ownership()?;
         Ok(self.conn.prepare_cached("SELECT COUNT(*) FROM _ops WHERE outcome LIKE '%\"state\":\"sent\"%'")?.query_row([], |row| row.get::<_, i64>(0))? as u64)
     }
 
     pub fn count(&self, table: &str) -> Result<u64, RuntimeError> {
+        self.check_ownership()?;
         let Some(t) = self.catalog.get(table) else { return Ok(0) };
         Ok(self.conn.prepare_cached("SELECT COUNT(*) FROM r WHERE t = ?1")?.query_row([t], |row| row.get::<_, i64>(0))? as u64)
     }
@@ -375,6 +387,7 @@ impl Store {
     /// and the file. `doctor` prints it; the log's ratio to the rows is the
     /// amplification the per-recipient log costs.
     pub fn sizes(&self) -> Result<Sizes, RuntimeError> {
+        self.check_ownership()?;
         let sum = |sql: &str| -> Result<u64, RuntimeError> { Ok(self.conn.query_row(sql, [], |row| row.get::<_, Option<i64>>(0))?.unwrap_or(0).max(0) as u64) };
         // Read-only inspection also works before the next writer migrates _ops.
         let columns: Vec<String> = self.conn.prepare("SELECT name FROM pragma_table_info('_ops')")?

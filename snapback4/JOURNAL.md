@@ -66956,3 +66956,94 @@ The new regression tests, guide, wasm measurement and sidecar implementation
 are unchanged after qualification. No second full-suite run, unrelated
 client fix, push or publication. Darwin verification remains the supervisor's
 next platform proof, not a claim from this Linux lane.
+
+### 2026-09-27 — Lane OW round 1: ownership survives refused filesystem mutations
+
+Merged `origin/main` at `dde688548` by fast-forward, then addressed all four
+findings in the full Grok round-0 review. `private_fs` now lstats the database
+and auxiliary name before opening either `-owner` or `serve.lock`, then compares
+the descriptor against both pre-open and current database metadata. A suspect
+post-open descriptor is intentionally forgotten without flock, chmod, read,
+write, unlock or close, preserving SQLite's process-wide POSIX locks. The
+same helper protects address lookup on a busy refusal. Empty owner files and
+at-most-128-byte address records are the only admitted forms: these stat-only
+size checks also reject a populated database renamed to an auxiliary name
+when the database path no longer exists.
+
+Both CLI ownership and native `Store::open_shared` lock the sidecar before
+creating a database. A busy probe at a moved store's old path leaves that path
+absent. Database link counts are checked without opening in acquisition,
+native open and `Owner::path`; `nlink != 1` refuses with `E_STORE` and the
+rewrite “copy the store, do not hard-link it.” Existing owners recheck their
+sidecar's named inode. Native opens recheck before returning. Backend stores
+and detached readers now retain the same sidecar Arc, and ordinary store
+reads, writes, activation and authority transactions validate ownership too:
+checking only `Owner::path` would not stop an already-open server connection.
+This is the necessary extension beyond the brief's named call sites, confined
+to the requested ownership hardening. No new language forms or diagnostic
+codes; normal `init`/`dev`, `run`, shared devices and published busy addresses
+keep their existing spellings and meanings.
+
+Eight new regressions cover: (1) deterministic post-open hard-link/rename
+aliases retaining the descriptor and SQLite's external POSIX exclusion;
+(2) command/device/native busy opens creating no missing database; (3) same-
+and cross-directory hard links refusing both paths and an existing owner;
+(4) database renames to either auxiliary name retaining SQLite exclusion;
+(5) removed/replaced sidecars revoking old guards and live connections;
+(6) two real dev processes after unlink, with old reads/writes refused and
+only the new server's mutation committed; (7) real-process busy probes at a
+moved store's old path; (8) live native-device revocation and replacement-owner
+success. Two existing invalid-file tests now expect the earlier database
+hard-link refusal, keeping their unchanged-bytes assertions. The initial
+post-open test used unsafe fd probes, which the core test policy rejected;
+it now uses stat-only `/dev/fd` inspection and an external Python POSIX-lock
+probe, with no unsafe Rust test code.
+
+Affected checks: ownership 9/9; private_fs 1/1; run_admission 27/27;
+native residency 6/6; whole guide 86/86; native-opening JS 6/6. Frozen Bun
+install and package build pass. Reference audit: 515 LLP docs, 9,557 refs,
+zero errors or unchecked. Evidence is under `target/lane-ow-r1/` (ignored).
+The full suite rebuilt wasm at **1,980,253 B raw / 571,841 B gzip**, SHA-256
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`:
+byte-identical to round 0, **0 B delta**, 1,000 B below the unchanged budget.
+
+LLP 3000.019 §3.4 and the residency guide now say exclusion holds while
+`<database>-owner` is left in place. Unlink/replacement permits a new sidecar
+owner and causes old ordinary store work to fail closed; it does not cancel
+an already-admitted transaction or provide atomic exclusion against arbitrary
+concurrent filesystem mutation. Stop owners before moving their files.
+The two new implementation choices are stat-only auxiliary size bounds (to
+recognize the renamed-database case with its original name absent) and retaining
+ownership in existing store connections (to revoke actual running work).
+No runtime meter, authorization, disclosure, version or budget changes. This
+host is Linux; macOS/iOS execution remains the supervisor's platform proof.
+No push or publication. The one required full-suite result follows below.
+
+Ran `scripts/test.sh` **exactly once**: **`== 1 failure(s) in 1137 s`**, exit 1.
+The sole failed check is **`client tests`**. Rust tests/doctests passed:
+**3,793 passed / 0 failed / 24 intentional ignores**, 624 s. Client main:
+**2,464 passed / 2 failed / 10 skipped**, with all seven additional shards
+passing. All **78 seeded-model tests passed**, 263 s. Build, wasm budget,
+docs budget, release guard, package build/typecheck, both app typechecks and
+fixture wrappers all passed. No ownership regression failed.
+
+Both reported client failures are **baseline, intermittent**, not introduced:
+`web-admission-review.test.mjs`, “hiding during strict admission releases the
+session lock before transport and peer logout,” asserts “transport entered
+under the session lock”; its parent, “web admission review: recovery and
+transport respect the session boundary,” fails consequentially. This is the
+same assertion recorded in round 0. After the complete suite finished, the
+first focused run with the retained independent `0cca900d8` binary reproduced
+the exact assertion and parent failure (exit 1). Its three ownership source
+files were checked against `git show 0cca900d8` and match. Reproduction from
+`snapback4/` (omit `SNAPBACK4_BIN` to select this round's binary):
+
+```sh
+SNAPBACK4_BIN="$PWD/target/lane-ow/base-source/snapback4/target/debug/snapback4" \
+SNAPBACK4_WEB_ADMISSION_FOCUS='^hiding during strict admission' \
+node --test packages/snapback4/test/web-admission-review.test.mjs
+```
+
+No second full-suite run or unrelated client fix. The remaining browser failure
+and the explicitly documented filesystem-mutation boundary are the open limits;
+all four requested OW findings have regression coverage and pass on this host.

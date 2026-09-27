@@ -184,3 +184,24 @@ fn incomplete_counter_installation_is_rebuilt_before_the_next_read_or_write() {
         assert_eq!(report_without_row_reads(&mut Device::open(&path, None).unwrap())["tables"], repaired["tables"]);
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn removed_sidecar_revokes_live_native_device_before_new_owner_work() {
+    let (_, backend) = server();
+    let host = Sqlite::new("residency-unlinked-owner");
+    let path = host.path("store");
+    let mut first = Device::open(&path, Some(backend)).unwrap();
+    std::fs::remove_file(snapback4_core::private_fs::owner_path(&path)).unwrap();
+    for op in ["residency", "clear_rows"] {
+        let refused = call(&mut first, json!({"op": op}));
+        assert_eq!(refused["denied"]["code"], "E_STORE", "{refused}");
+        assert!(refused["denied"]["message"].as_str().unwrap().contains("sidecar"), "{refused}");
+    }
+    let mut second = Device::open(&path, None).unwrap();
+    check_rows(&mut second);
+    let cleared = call(&mut second, json!({"op":"clear_rows"}));
+    assert!(cleared.get("denied").is_none(), "{cleared}");
+    let refused = call(&mut first, json!({"op":"clear_rows"}));
+    assert_eq!(refused["denied"]["code"], "E_STORE", "{refused}");
+}

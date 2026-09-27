@@ -62,6 +62,7 @@ impl Store {
     pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
+        self.check_ownership()?;
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
