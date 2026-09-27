@@ -84,6 +84,9 @@ pub struct Runner<'a> {
     /// and while that allowance is active (nested checks share the same meter).
     pub(super) device_allowance: Option<Meter>,
     pub(super) device_work_active: bool,
+    /// Caller ceiling and public reservations inside a restoring rule scope.
+    /// Private internal charges never advance this public admission ledger.
+    pub(super) caller_heap_ceiling: Option<(u64, u64)>,
     pub(crate) env: BTreeMap<String, Value>,
     pub(crate) consts: BTreeSet<String>,
     /// Rows this transaction inserted, by (table, index, encoded key).
@@ -244,6 +247,7 @@ impl<'a> Runner<'a> {
             meter,
             device_allowance: None,
             device_work_active: false,
+            caller_heap_ceiling: None,
             env,
             consts: BTreeSet::new(),
             created: BTreeMap::new(),
@@ -339,6 +343,16 @@ impl<'a> Runner<'a> {
             for value in self.context.args.values() { self.meter.heap(value.expression_copy(ExpressionAccess(())))?; }
             self.statements(&program.body, &program.name)
         })();
+        // @ref LLP 3000.024#decision — the page plan follows the generated
+        // result binding through return. Keep the final copy charge, and use
+        // the original IR only on refusal rather than cloning it per execution.
+        #[cfg(feature = "server-search")]
+        if matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }))
+            && let Some(returned) = self.page_plan.returns.get(&self.statement_site)
+            && let Some(Some(count)) = self.page_plan.compact.get(&returned.page)
+            && let Some(merge) = crate::search_plan::merges(&program.body).into_iter().find(|merge| merge.site == returned.page) {
+            return Err(self.opening_error(merge, *count, true));
+        }
         match result {
             Ok(Flow::Return(value)) => Ok(value),
             Ok(_) => Ok(Value::Null),
@@ -544,10 +558,18 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Return(value) => {
-                    let value = match value {
-                        Expr::Object(fields) if component_return => self.component_record(fields, value)?,
-                        _ => self.expr(value)?,
+                    let result = match value {
+                        Expr::Object(fields) if component_return => self.component_record(fields, value),
+                        _ => self.expr(value),
                     };
+                    // A nested expression can change statement_site. Preserve
+                    // this return's origin when its final copy unwinds to run().
+                    #[cfg(feature = "server-search")]
+                    if matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })) {
+                        self.statement_site = site;
+                        return result.map(Flow::Return);
+                    }
+                    let value = result?;
                     let returned = self.page_plan.returns.get(&site);
                     self.page_owner = returned.map(|returned| returned.page.clone());
                     let shaped = returned.into_iter().flat_map(|returned| &returned.shapes)

@@ -468,48 +468,7 @@ fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, tabl
 }
 
 /// Every merge a program's body evaluates.
-pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Merge> {
-    use snapback4_core::ir::{Expr, Stmt};
-    fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a snapback4_core::ir::Merge>) {
-        match expr {
-            Expr::Merge(merge) => out.push(merge),
-            Expr::Block { body, value } => {
-                in_stmts(body, out);
-                in_expr(value, out);
-            }
-            Expr::Field { base, .. } => in_expr(base, out),
-            Expr::Array(items) | Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
-            Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),
-            Expr::Binary { left, right, .. } => {
-                in_expr(left, out);
-                in_expr(right, out);
-            }
-            Expr::Unary { value, .. } => in_expr(value, out),
-            _ => {}
-        }
-    }
-    fn in_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a snapback4_core::ir::Merge>) {
-        for stmt in stmts {
-            match stmt {
-                Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => in_expr(value, out),
-            Stmt::Emit { payload: value, once, .. } => { in_expr(value, out); if let Some(value) = once { in_expr(value, out); } },
-                Stmt::If { condition, then_body, else_body } => {
-                    in_expr(condition, out);
-                    in_stmts(then_body, out);
-                    in_stmts(else_body, out);
-                }
-                Stmt::For { domain, body, .. } => {
-                    if let snapback4_core::ir::LoopDomain::DerivedArray { value, .. } = domain { in_expr(value, out); }
-                    in_stmts(body, out);
-                }
-                _ => {}
-            }
-        }
-    }
-    let mut out = Vec::new();
-    in_stmts(stmts, &mut out);
-    out
-}
+pub use snapback4_core::search_plan::merges;
 
 // Admission rewrites remove the rejected page bound, retaining its exact pins.
 fn whole_group_rewrite(catalog: &Catalog, source: &str, scan: &snapback4_core::ir::Scan) -> String {

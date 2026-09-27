@@ -4,26 +4,6 @@ use super::Value;
 use crate::engine::authorized_point::RowAuthorization;
 use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 
-impl Table {
-    // @ref LLP 3000.015#1 — this price uses schema literals only, never a
-    // witness's stored values. Protected rule scopes restore internal charges,
-    // so even a public witness must reserve possible adopted defaults up front.
-    pub(crate) fn witness_default_reservation(&self) -> u64 {
-        use crate::rows::word_heap as h;
-        let columns = self.columns.len();
-        let mut bytes = 0_u64;
-        if self.defaults.is_empty() { return 0; }
-        for (name, kind) in &self.columns {
-            if kind.is_optional() { continue; }
-            let Some(ColumnDefault::Literal(value)) = self.defaults.get(name) else { continue };
-            bytes = bytes.saturating_add(h::insertion::<String, Value>(columns) + h::text(name))
-                .saturating_add(super::scalar_copy(value));
-        }
-        if bytes == 0 { 0 } else { bytes.saturating_add(h::slots::<usize>(2) + h::node::<String, Value>() * columns as u64) }
-    }
-
-}
-
 /// A projection plan. The stored image is private, cannot be dereferenced and
 /// cannot enter a row allocation helper. Only visible fields can be inspected.
 /// Consuming the plan builds that image, including its missing-field defaults.
@@ -257,22 +237,23 @@ impl Disclosed<'_> {
     pub fn into_value(self) -> Value {
         let Ok(fields) = self.row.as_object() else { return self.row; };
         let hidden = fields.keys().any(|name| !self.visible(name));
+        // Decide visibility on the original image, then move its owned map.
+        // The caller has already prepaid these defaults and insertion scratch.
+        let mut defaults = Vec::new();
+        for (name, kind) in &self.table.columns {
+            if fields.contains_key(name) || !self.visible(name) { continue; }
+            let value = if self.table.maintained.contains_key(name) { Value::Int(0) }
+                else if kind.is_optional() { Value::Null }
+                else if let Some(ColumnDefault::Literal(value)) = self.table.defaults.get(name) { value.clone() }
+                else { continue };
+            defaults.push((name.clone(), value));
+        }
         let mut row = if hidden {
             let projected = fields.iter().filter(|(name,_)| self.visible(name)).map(|(name,value)|(name.clone(),value.clone())).collect();
             if matches!(self.row,Value::Map(_)) { Value::Map(projected) } else { Value::Row(projected) }
-        } else { self.row.clone() };
-        // Keep the original image for visibility decisions while filling the
-        // result directly. The materialization prepay already covers its map
-        // copy; no temporary vector of cloned defaults is needed.
+        } else { self.row };
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
-            for (name, kind) in &self.table.columns {
-                if fields.contains_key(name) || !self.visible(name) { continue; }
-                let value = if self.table.maintained.contains_key(name) { Value::Int(0) }
-                    else if kind.is_optional() { Value::Null }
-                    else if let Some(ColumnDefault::Literal(value)) = self.table.defaults.get(name) { value.clone() }
-                    else { continue };
-                fields.insert(name.clone(), value);
-            }
+            for (name, value) in defaults { fields.insert(name, value); }
         }
         row
     }
@@ -283,6 +264,25 @@ mod tests {
     use super::*;
     use crate::schema::{ColumnType,FieldAuthority,public_table};
     use std::collections::BTreeMap;
+    #[test]
+    #[cfg(feature = "sqlite")]
+    fn uniquely_owned_materialization_moves_stored_payload() {
+        for literal in [false,true] {
+            let mut table=public_table(BTreeMap::from([
+                ("id".into(),ColumnType::Id),("title".into(),ColumnType::Text {max:2_000_000}),
+                ("note".into(),if literal {ColumnType::Text {max:1_000_000}} else {ColumnType::Optional(Box::new(ColumnType::Int))}),
+            ]),BTreeMap::new());
+            if literal {table.defaults.insert("note".into(),ColumnDefault::Literal(Value::String("n".repeat(1_000_000))));}
+            let row=super::super::object([("id",Value::Id("r".into())),("title",Value::String("t".repeat(1_500_000)))]);
+            let original=row.field("title").unwrap().as_str().unwrap().as_ptr();
+            let (row,allocated)=crate::rows::word_heap::tests::measured(||table.project_fields(row,Some("alice")).into_value());
+            assert_eq!(row.field("title").unwrap().as_str().unwrap().as_ptr(),original,"stored title must move without a deep copy");
+            assert!(allocated < if literal {1_100_000} else {64 << 10},"allocated {allocated}");
+            if literal {assert_eq!(row.field("note").unwrap().as_str().unwrap().len(),1_000_000);}
+            else {assert_eq!(row.field("note").unwrap(),&Value::Null);}
+        }
+    }
+
     #[test]
     fn projection_defaults_and_physical_private_omission_are_stable() {
         let mut table = public_table(BTreeMap::from([("id".into(),ColumnType::Id),("owner".into(),ColumnType::Principal),

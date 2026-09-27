@@ -122,3 +122,47 @@ pub fn bare(schema: &Schema, merge: &Merge, bindings: &Bindings) -> Option<Strin
     text.push_str(&format!("exists {}[{}]",source.table,pins.join(", ")));
     Some(format!("return {text}"))
 }
+
+/// Every merge a program evaluates; shared by the return plan and diagnostics.
+pub fn merges(stmts: &[crate::ir::Stmt]) -> Vec<&crate::ir::Merge> {
+    use crate::ir::{Expr, Stmt};
+    fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a crate::ir::Merge>) {
+        match expr {
+            Expr::Merge(merge) => out.push(merge),
+            Expr::Block { body, value } => {
+                in_stmts(body, out);
+                in_expr(value, out);
+            }
+            Expr::Field { base, .. } => in_expr(base, out),
+            Expr::Array(items) | Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
+            Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),
+            Expr::Binary { left, right, .. } => {
+                in_expr(left, out);
+                in_expr(right, out);
+            }
+            Expr::Unary { value, .. } => in_expr(value, out),
+            _ => {}
+        }
+    }
+    fn in_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a crate::ir::Merge>) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => in_expr(value, out),
+            Stmt::Emit { payload: value, once, .. } => { in_expr(value, out); if let Some(value) = once { in_expr(value, out); } },
+                Stmt::If { condition, then_body, else_body } => {
+                    in_expr(condition, out);
+                    in_stmts(then_body, out);
+                    in_stmts(else_body, out);
+                }
+                Stmt::For { domain, body, .. } => {
+                    if let crate::ir::LoopDomain::DerivedArray { value, .. } = domain { in_expr(value, out); }
+                    in_stmts(body, out);
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut out = Vec::new();
+    in_stmts(stmts, &mut out);
+    out
+}

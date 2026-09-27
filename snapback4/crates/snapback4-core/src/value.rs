@@ -447,3 +447,35 @@ fn scalar_copy(value: &Value) -> u64 {
         _ => 0,
     }
 }
+
+#[cfg(test)]
+mod pricing_tests {
+    use super::*;
+
+    #[test]
+    fn owned_nested_lists_price_recursive_copies_and_retained_capacity() {
+        let mut text=String::with_capacity(128);text.push_str("nested!");
+        let mut bytes=Vec::with_capacity(64);bytes.extend_from_slice(&[1,2,3]);
+        let mut inner=Vec::with_capacity(7);inner.push(Value::String(text));inner.push(Value::Bytes(bytes));
+        let mut outer=Vec::with_capacity(5);outer.push(Value::Array(inner));outer.push(Value::Id("id".into()));
+        let value=Value::Array(outer);
+        let slot=std::mem::size_of::<Value>() as u64;
+        assert_eq!(value.clone_heap(),4*slot+7+3+2);
+        assert_eq!(value.retained_heap(),12*slot+128+64+2);
+        let word=std::mem::size_of::<usize>() as u64;
+        assert_eq!(scalar_copy(&value),4*slot+3*word);
+    }
+
+    #[test]
+    fn spare_capacity_strings_price_tight_copies_and_full_retention() {
+        for len in [0,3,100] {
+            for id in [false,true] {
+                let mut text=String::with_capacity(256);text.extend(std::iter::repeat_n('x',len));
+                let value=if id {Value::Id(text)} else {Value::String(text)};
+                assert_eq!(value.retained_heap(),256);
+                assert_eq!(value.clone_heap(),len as u64);
+                assert_eq!(scalar_copy(&value),if len==0 {0}else{len.max(std::mem::size_of::<usize>()) as u64});
+            }
+        }
+    }
+}

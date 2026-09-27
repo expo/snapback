@@ -34,6 +34,7 @@ impl Runner<'_> {
         });
         self.page_depth = depth;
         self.compact_memberships = progress.0;
+        if let Some(count) = self.page_plan.compact.get_mut(&merge.site) { *count = Some(progress.0); }
         match result {
             // @ref LLP 3000.024#decision — buffered hits have not reached the
             // caller; a heap unwind anywhere in this page must name the refusal.
