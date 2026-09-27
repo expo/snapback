@@ -230,7 +230,10 @@ fn c_abi_open_cannot_initialize_or_clear_a_running_server_store() {
     let reason: serde_json::Value = serde_json::from_str(&reason_text).unwrap();
     assert_eq!(reason["denied"]["code"], "E_STORE_BUSY", "{reason}");
     assert_eq!(reason["denied"]["family"], "store");
-    assert_eq!(reason["denied"]["site"], p.store().to_str().unwrap());
+    // The refusal names the resolved store path; on macOS the temp directory
+    // is itself a symlink (/var -> /private/var).
+    let site = std::fs::canonicalize(p.store()).unwrap();
+    assert_eq!(reason["denied"]["site"], site.to_str().unwrap());
     assert!(reason["denied"]["rewrite"].as_str().unwrap().contains("stop"));
     let conn = p.conn();
     assert_eq!(conn.query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
