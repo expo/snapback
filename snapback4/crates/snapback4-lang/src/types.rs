@@ -235,13 +235,27 @@ impl Ty {
         if let Ty::Optional(a) = self { return Ok(a.join_inner(&other.required(), strict)?.optional()); }
         if let Ty::Optional(b) = other { return Ok(self.required().join_inner(b, strict)?.optional()); }
         let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new(), incompatible_items: false,
-            mixed_references: matches!((self, other), (Ty::Ref(a), Ty::Ref(b)) if a != b) };
+            mixed_references: matches!((self, other), (Ty::Ref(a), Ty::Ref(b)) if a != b),
+            enum_items: matches!(self, Ty::Enum(_)) || matches!(other, Ty::Enum(_)) };
         Ok(match (self, other) {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
             (Ty::Unknown, other) | (other, Ty::Unknown) if !strict && !other.contains_row() => other.clone(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
             // @ref LLP 3000.007#5.1 — compatible items keep their common representation;
             // assignment's literal-enum and Unknown exceptions are not joins.
+            (Ty::Enum(a), Ty::Enum(b)) => {
+                // Keep an existing superset's order; otherwise form the union
+                // in encounter order. Every enum value stays the same string.
+                if b.iter().all(|v| a.contains(v)) { Ty::Enum(a.clone()) }
+                else if a.iter().all(|v| b.contains(v)) { Ty::Enum(b.clone()) }
+                else {
+                    let mut variants = a.clone();
+                    for variant in b {
+                        if !variants.contains(variant) { variants.push(variant.clone()); }
+                    }
+                    Ty::Enum(variants)
+                }
+            }
             (Ty::Enum(variants), Ty::Text(max)) | (Ty::Text(max), Ty::Enum(variants))
                 if Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) => {
                 let longest = variants.iter().map(|v| u32::try_from(v.chars().count()).unwrap_or(u32::MAX)).max().unwrap_or(0);
@@ -349,6 +363,7 @@ pub struct JoinError {
     pub path: String,
     pub(crate) incompatible_items: bool,
     pub(crate) mixed_references: bool,
+    pub(crate) enum_items: bool,
 }
 
 impl JoinError {

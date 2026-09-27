@@ -91,7 +91,7 @@ impl Binder<'_> {
                     let mut origins = binding.origins.clone();
                     origins.push((Ty::List(Box::new(ty.clone()), 1), value.clone()));
                     let joined = if *max == 0 { ty.clone() } else { item.join_item(&ty).map_err(|error| self.assignment_type_error(self.join_error_many(error.at("[]"), &origins), name, value, site))? };
-                    if !ty.assignable_to(item) && !item.assignable_to(&ty) {
+                    if !ty.assignable_to(&joined) || !item.assignable_to(&joined) {
                         return Err(self.assignment_type_error(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"), name, value, site));
                     }
                     // @ref LLP 3000.007#5.1 — append in place; the heap meter is the accumulated list's bound.
@@ -685,18 +685,22 @@ fn has_concat(value: &A) -> bool {
 }
 
 fn recursive_concat(value: &A, name: &str) -> bool {
-    if !has_concat(value) { return false; }
-    let mut nested = false;
-    super::super::intent_walk::expression(&mut value.clone(), &mut |value| {
-        if let A::Array { items, .. } = value {
-            for item in items {
-                super::super::intent_walk::expression(item, &mut |value| {
-                    nested |= matches!(value, A::Name { name: source, .. } if source == name);
-                });
-            }
+    // Follow returned container values, not arbitrary references: count(xs)
+    // and even count([xs]) consume the accumulator without embedding it.
+    fn embeds(value: &A, name: &str, nested: bool) -> bool {
+        match value {
+            A::Name { name: source, .. } => nested && source == name,
+            A::Array { items, .. } => items.iter().any(|item| embeds(item, name, true)),
+            A::Object { fields, .. } => fields.iter().any(|field| field.value.as_ref()
+                .map_or(nested && field.name == name, |value| embeds(value, name, nested))),
+            A::If { then, otherwise, .. } => embeds(then, name, nested) || embeds(otherwise, name, nested),
+            A::Binary { op, left, right, .. } if op == "+" || op == "??" =>
+                embeds(left, name, nested) || embeds(right, name, nested),
+            A::Assert { value, .. } => embeds(value, name, nested),
+            _ => false,
         }
-    });
-    nested
+    }
+    has_concat(value) && embeds(value, name, false)
 }
 
 fn recursive_list_error(site: &Site, local: &str) -> Diagnostic {

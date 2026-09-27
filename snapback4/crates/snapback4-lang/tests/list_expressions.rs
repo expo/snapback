@@ -180,3 +180,23 @@ fn ill_typed_concat_reports_only_the_operand_error() {
     }
     assert_eq!(run("query run():\n  xs = [1]\n  for i in [1, 2]:\n    xs = xs + [i + 1]\n  return xs\n"), Value::Array(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
 }
+
+#[test]
+fn scalar_consumption_of_an_accumulator_keeps_the_item_conflict() {
+    for item in ["count(xs)", "count(xs) + 1", "count(xs) if true else 0", "count([xs])"] {
+        for expression in [format!("xs + [{item}]"), format!("[{item}] + xs")] {
+            let source = format!("query run():\n  xs = ['a']\n  for i in [1, 2]:\n    xs = {expression}\n  return xs\n");
+            let bound = compile(&[("schema.q".into(), source)]);
+            assert_eq!(bound.diagnostics.len(), 1, "{expression}: {:?}", bound.diagnostics);
+            let error = &bound.diagnostics[0];
+            assert_eq!(error.code, "E_QUARRY_TYPE");
+            assert!(error.message.contains("cannot join list items at field path []"), "{error:?}");
+            assert!(error.message.contains("int") && error.message.contains("text <=1"), "{error:?}");
+            assert!(!error.message.contains("growing"), "{error:?}");
+            assert!(error.rewrite.contains("compatible item types"), "{error:?}");
+            assert_eq!(error.site.line, 4);
+        }
+    }
+    assert_eq!(run("query run():\n  xs = [0]\n  for i in [1, 2]:\n    xs = xs + [count(xs)]\n  return xs\n"),
+        Value::Array(vec![Value::Int(0), Value::Int(1), Value::Int(2)]));
+}

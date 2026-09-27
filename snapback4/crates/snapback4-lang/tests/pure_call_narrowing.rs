@@ -90,6 +90,22 @@ fn exists_cannot_narrow_across_deleting_the_observed_row() {
 }
 
 #[test]
+fn argument_order_is_part_of_a_pure_calls_identity() {
+    refused("fn f(a: int, b: int): 1 if a > b else null\nquery run():\n  return f(1, 2) + 1 if f(2, 1) != null else null\n");
+    checked("fn f(a: int, b: int): 1 if a > b else null\nquery run():\n  return f(2, 1) + 1 if f(2, 1) != null else null\n");
+}
+
+#[test]
+fn table_count_cannot_narrow_across_deleting_the_observed_row() {
+    refused("table notes:\n  n: int\n  public\nfn countNotes(): count(notes)\nfn f(): 1 if countNotes() > 0 else null\nmutation run(key: notes):\n  if f() != null:\n    delete notes[key]\n    return f() + 1\n  return null\n");
+}
+
+#[test]
+fn helper_page_loop_cannot_narrow_across_deleting_the_observed_row() {
+    refused("table notes:\n  n: int\n  public\nfn f():\n  found = 0\n  for row in notes first 1:\n    found = 1\n  return 1 if found > 0 else null\nmutation run(key: notes):\n  if f() != null:\n    delete notes[key]\n    return f() + 1\n  return null\n");
+}
+
+#[test]
 fn direct_and_transitive_minted_ids_do_not_narrow() {
     for helpers in [
         "fn f(target: id): 1 if new = target else null\n",

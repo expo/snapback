@@ -68189,3 +68189,48 @@ final reference audit passes: 517 LLP documents,
 requested Astra co-author. No push or publication. File map, tests, exact
 failure list and limits: reports/20260927-qe-quarry-ergonomics/ROUND2.md;
 ignored logs and reproducible controls: target/lane-qe-r2/.
+
+## 2026-09-27 — Lane QE round 3: enum unions and mutation-proven narrowing guards
+
+Read the binding lane prompt, rounds 0–2 reports/journal entries and both
+round-2 reviews. Fetched and merged origin/main 10f69a744 as d3d891a9c before
+editing; no conflicts. All four final-round assignments are addressed.
+Enum pairs now join to their variant union in literals, concatenation and
+self-append, covering subsets, reordered equal sets and disjoint/overlapping
+sets. Both append types must fit the joined type. Enum refusals teach the
+value-preserving `fn state(v: enum('on', 'off')): v` repair with all variants.
+The recursive-list diagnostic follows returned containers, so consuming xs
+in count(xs), count(xs) + 1 or count([xs]) retains the ordinary item conflict.
+Direct, conditional and mutual recursive-growth regressions still pass.
+
+Six new tests include the review's reversed-argument expression, transitive
+count(notes) across delete, and a helper whose only read is for row in notes
+first 1. Three implementation tests fail before their fixes. Each narrowing
+regression kills its exact single mutation: sorting Stable::Call keys,
+classifying Expr::Scan as pure, or classifying LoopDomain::Page as pure.
+Every mutation is restored byte-for-byte; production purity is unchanged.
+Updated LLP 3000.007 §5.1 in the same change. No new diagnostic code.
+
+Final affected compiler/guide run passes 171/171, including the entire guide
+86/86. Frozen install, docs budget and both demo TypeScript checks pass.
+Compiled all 31 Quarry files across Chat and Astra calibrations 0.3.0–0.4.4
+with merged-baseline and fixed compilers: operation names, diagnostics and
+notes match exactly. Only 0.3.0 retains refusals, its same 11 baseline errors.
+No app, calibration source, generated API or test outside the language crate
+changed. Did not rerun scripts/test.sh, as the round-3 instruction permits.
+The latest full run remains round 2's historical `== 1 failure(s) in 1393 s`,
+client tests: one baseline journal-admission timeout and its enclosing test.
+No round-3 affected failure. Prior optional-filter and unassigned
+principal/reference limitations retain their reproductions in ROUND3.md.
+
+Production wasm rebuild remains byte-identical: 1,981,512 B raw / 572,053 B
+gzip, delta 0/0; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Unchanged cap 572,841 B, headroom 788 B. No engine, authorization, disclosure,
+durability, IR-format, meter, version, dependency or budget change. Changed
+source files stay under 1,500 lines (maximum 709). Reference audit passes:
+517 LLP documents, 9,617 references, zero errors/unchecked. Every commit carries
+the requested Astra co-author. No push or publication. Full file map, examples,
+failing-before and mutation evidence, exact historical suite failure list and
+scope: reports/20260927-qe-quarry-ergonomics/ROUND3.md. Ignored logs and
+repeatable probes: target/lane-qe-r3/.

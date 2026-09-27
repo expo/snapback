@@ -100,6 +100,8 @@ fn refusal(error: JoinError, site: &Site, rewrite: String) -> Diagnostic {
     if error.incompatible_items {
         let rewrite = if error.mixed_references {
             "use compatible item types; to expose references as generic ids, declare `fn exposedId(value: id): value` and use `[exposedId(x), exposedId(y)]`; for projected IDs (including field path [].id), use `exposedId(row.id)` in each id field"
+        } else if error.enum_items {
+            "use compatible item types; if every value is an enum variant, declare a typed helper such as `fn state(v: enum('on', 'off')): v` with all variants and use `[state(a), state(b)]` (or wrap each conflicting field); this preserves values without conversion; keep other incompatible types in separate lists"
         } else {
             "use compatible item types in one list; keep different types in separate lists"
         };

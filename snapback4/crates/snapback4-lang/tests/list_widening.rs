@@ -18,11 +18,15 @@ fn widening(params: &str, left: Value, right: Value, item: Ty) {
             let bound = compile(&[("schema.q".into(), source.clone())]);
             assert!(bound.diagnostics.is_empty(), "{source}\n{:?}", bound.diagnostics);
             let (actual, max) = bound.programs[0].result.sequence().unwrap();
+            if matches!(item, Ty::Enum(_)) {
+                assert!(matches!(actual, Ty::Enum(_)) && actual.assignable_to(&item) && item.assignable_to(&actual),
+                    "{source}: {actual:?}");
+            }
             if body.contains("for i") {
                 assert!(item.assignable_to(&actual), "{source}: {actual:?}");
                 assert!(format!("{:?}", bound.programs[0].program).contains("Push"));
             } else {
-                assert_eq!(actual, item, "{source}");
+                if !matches!(item, Ty::Enum(_)) { assert_eq!(actual, item, "{source}"); }
                 assert_eq!(max, 2);
             }
             let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -31,6 +35,55 @@ fn widening(params: &str, left: Value, right: Value, item: Ty) {
             assert!(read.complete);
             assert_eq!(read.data, Value::Array(values.clone()), "{source}");
         }
+    }
+}
+
+#[test]
+fn enum_pairs_join_subsets_reordered_sets_and_unions() {
+    for (a, b, left, right, variants) in [
+        ("enum('on')", "enum('on', 'off')", "on", "off", vec!["on", "off"]),
+        ("enum('on', 'off')", "enum('off', 'on')", "on", "off", vec!["on", "off"]),
+        ("enum('on')", "enum('off')", "on", "off", vec!["on", "off"]),
+        ("enum('on', 'off')", "enum('off', 'maybe')", "on", "maybe", vec!["on", "off", "maybe"]),
+        // Enum values need not fit the text character domain to join each other.
+        ("enum('\0')", "enum('on')", "\0", "on", vec!["\0", "on"]),
+    ] {
+        widening(&format!("a: {a}, b: {b}"), Value::String(left.into()), Value::String(right.into()),
+            Ty::Enum(variants.into_iter().map(String::from).collect()));
+    }
+    let bound = compile(&[("schema.q".into(), "query run(a: enum('on'), b: enum('off') ?):\n  return [{ state: a }, { state: b }]\n".into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(bound.programs[0].result, Ty::List(Box::new(Ty::Object(BTreeMap::from([
+        ("state".into(), Ty::Enum(vec!["on".into(), "off".into()]).optional()),
+    ]))), 2));
+}
+
+#[test]
+fn enum_item_conflicts_teach_a_value_preserving_typed_helper() {
+    // This enum cannot widen to text. The text value can be kept as an enum
+    // variant by the typed helper; no conversion or truncation is involved.
+    let params = "a: enum('on', 'off', '\0'), b: text <=3";
+    for expression in ["[a, b]", "[a] + [b]", "[{ state: a }, { state: b }]"] {
+        let bound = compile(&[("schema.q".into(), format!("query run({params}):\n  return {expression}\n"))]);
+        assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+        let error = &bound.diagnostics[0];
+        assert_eq!(error.code, "E_QUARRY_TYPE");
+        assert_eq!(error.site.line, 2);
+        assert!(error.rewrite.contains("fn state(v: enum('on', 'off')): v"), "{error:?}");
+        assert!(error.rewrite.contains("all variants"), "{error:?}");
+        assert!(error.rewrite.contains("state(a)") && error.rewrite.contains("state(b)"), "{error:?}");
+    }
+    for (params, helper, values) in [
+        (params, "fn state(v: enum('on', 'off', '\0')): v", ["\0", "off"]),
+        ("a: enum('on'), b: enum('on', 'off')", "fn state(v: enum('on', 'off')): v", ["on", "off"]),
+    ] {
+        let source = format!("{helper}\nquery run({params}):\n  return [state(a), state(b)]\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let [a, b] = values.map(|v| Value::String(v.into()));
+        let args = BTreeMap::from([("a".into(), a.clone()), ("b".into(), b.clone())]);
+        assert_eq!(engine.query("run", Context::new("alice", args)).unwrap().data, Value::Array(vec![a, b]));
     }
 }
 
