@@ -217,23 +217,59 @@ impl Ty {
     /// The type both branches can share. Row-kind conflicts are errors at
     /// their first join, including inside objects and collections.
     pub fn join(&self, other: &Ty) -> Result<Ty, JoinError> {
+        self.join_inner(other, false)
+    }
+
+    /// Nonempty list items must never erase a conflict into Unknown: a later
+    /// item could otherwise recover a type the earlier values do not have.
+    // @ref LLP 3000.007#5.1 — literals and concatenation share sound item joins.
+    pub(crate) fn join_item(&self, other: &Ty) -> Result<Ty, JoinError> {
+        self.join_inner(other, true)
+    }
+
+    fn join_inner(&self, other: &Ty, strict: bool) -> Result<Ty, JoinError> {
         if self == other { return Ok(self.clone()); }
         // Absence adds nullability; it supplies no competing wildcard kind.
         if *self == Ty::Null { return Ok(other.clone().optional()); }
         if *other == Ty::Null { return Ok(self.clone().optional()); }
-        if let Ty::Optional(a) = self { return Ok(a.join(&other.required())?.optional()); }
-        if let Ty::Optional(b) = other { return Ok(self.required().join(b)?.optional()); }
-        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new() };
+        if let Ty::Optional(a) = self { return Ok(a.join_inner(&other.required(), strict)?.optional()); }
+        if let Ty::Optional(b) = other { return Ok(self.required().join_inner(b, strict)?.optional()); }
+        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new(), incompatible_items: false,
+            mixed_references: matches!((self, other), (Ty::Ref(a), Ty::Ref(b)) if a != b),
+            enum_items: matches!(self, Ty::Enum(_)) || matches!(other, Ty::Enum(_)) };
         Ok(match (self, other) {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
-            (Ty::Unknown, other) | (other, Ty::Unknown) if !other.contains_row() => other.clone(),
+            (Ty::Unknown, other) | (other, Ty::Unknown) if !strict && !other.contains_row() => other.clone(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
+            // @ref LLP 3000.007#5.1 — compatible items keep their common representation;
+            // assignment's literal-enum and Unknown exceptions are not joins.
+            (Ty::Enum(a), Ty::Enum(b)) => {
+                // Keep an existing superset's order; otherwise form the union
+                // in encounter order. Every enum value stays the same string.
+                if b.iter().all(|v| a.contains(v)) { Ty::Enum(a.clone()) }
+                else if a.iter().all(|v| b.contains(v)) { Ty::Enum(b.clone()) }
+                else {
+                    let mut variants = a.clone();
+                    for variant in b {
+                        if !variants.contains(variant) { variants.push(variant.clone()); }
+                    }
+                    Ty::Enum(variants)
+                }
+            }
+            (Ty::Enum(variants), Ty::Text(max)) | (Ty::Text(max), Ty::Enum(variants))
+                if Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) => {
+                let longest = variants.iter().map(|v| u32::try_from(v.chars().count()).unwrap_or(u32::MAX)).max().unwrap_or(0);
+                Ty::Text((*max).max(longest))
+            }
+            (Ty::Id, Ty::Ref(_) | Ty::Principal) | (Ty::Ref(_) | Ty::Principal, Ty::Id) => Ty::Id,
+            (Ty::Int, Ty::Decimal(scale)) | (Ty::Decimal(scale), Ty::Int) => Ty::Decimal(*scale),
+            (Ty::Int, Ty::Money(currency, scale)) | (Ty::Money(currency, scale), Ty::Int) => Ty::Money(currency.clone(), *scale),
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => Ty::Int,
             (Ty::Object(a), Ty::Object(b)) | (Ty::RowShape(a), Ty::RowShape(b)) | (Ty::RowObject(a), Ty::RowObject(b)) => {
                 let mut fields = BTreeMap::new();
                 for (name, ty) in a {
                     fields.insert(name.clone(), match b.get(name) {
-                        Some(other) => ty.join(other).map_err(|error| error.at(name))?,
+                        Some(other) => ty.join_inner(other, strict).map_err(|error| error.at(name))?,
                         None => ty.clone().optional(),
                     });
                 }
@@ -251,7 +287,7 @@ impl Ty {
             (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => {
                 for (name, ty) in a {
                     if let Some(other) = b.get(name) {
-                        ty.join(other).map_err(|error| error.at(name))?;
+                        ty.join_inner(other, strict).map_err(|error| error.at(name))?;
                     }
                 }
                 return Err(conflict());
@@ -267,6 +303,8 @@ impl Ty {
             // No row-derived value, even in a container, may disappear into
             // Unknown and later acquire a different kind from another arm.
             _ if self.contains_row() || other.contains_row() => return Err(conflict()),
+            (Ty::Json, other) | (other, Ty::Json) if *other != Ty::Unknown => Ty::Json,
+            _ if strict => return Err(JoinError { incompatible_items: true, ..conflict() }),
             _ => Ty::Unknown,
         })
     }
@@ -323,6 +361,9 @@ pub struct JoinError {
     pub left: String,
     pub right: String,
     pub path: String,
+    pub(crate) incompatible_items: bool,
+    pub(crate) mixed_references: bool,
+    pub(crate) enum_items: bool,
 }
 
 impl JoinError {
@@ -337,7 +378,7 @@ impl JoinError {
 // An empty sequence supplies no arm to compare, including the initial []
 // of a collector. Unknown in a nonempty value never gets this exemption.
 fn join_items(a: &Ty, am: u32, b: &Ty, bm: u32) -> Result<Ty, JoinError> {
-    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join(b).map_err(|error| error.at("[]")) }
+    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join_item(b).map_err(|error| error.at("[]")) }
 }
 
 pub fn scalar_to_column(scalar: &ScalarType) -> ColumnType {

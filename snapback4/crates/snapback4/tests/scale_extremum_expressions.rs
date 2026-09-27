@@ -173,7 +173,7 @@ query openRange(n: int):
     rows = rows + [i]
   copy = rows
   return min(copy, secrets['g'].n ?? 0)
-"#, &[("reassigned", steps), ("appended", steps), ("openRange", steps)]);
+"#, &[("reassigned", steps), ("appended", 2), ("openRange", steps)]);
 }
 
 #[test]
@@ -245,10 +245,26 @@ query loopReads(n: int):
   for value in rows:
     result = secrets['g'].n ?? 0
   return result
-"#, &[("copied", steps), ("shaped", steps), ("selfAppend", steps), ("loopReads", steps)]);
+"#, &[("copied", steps), ("shaped", 2), ("selfAppend", steps), ("loopReads", steps)]);
 }
 
 #[test]
 fn declared_argument_maximum_is_a_contract_even_at_u32_max() {
     check_collections("query argument(values: [int] <=4294967295):\n  rows = []\n  for n in values:\n    rows = rows + [n]\n  return max(rows, secrets['g'].n ?? 0)\n", &[("argument", u64::from(u32::MAX))]);
+}
+
+#[test]
+fn prepend_and_bulk_append_certificates_cover_the_actual_examinations() {
+    check_collections(r#"query prepended():
+  rows = [0]
+  for i in range(0, 5):
+    rows = [i] + rows
+  return max(rows, secrets['g'].n ?? 0)
+query bulk():
+  rows = []
+  for i in range(0, 2):
+    for j in range(0, 3):
+      rows = rows + [i, j]
+  return min(rows, secrets['g'].n ?? 0)
+"#, &[("prepended", 6), ("bulk", 12)]);
 }

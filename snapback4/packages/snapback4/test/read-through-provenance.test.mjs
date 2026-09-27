@@ -46,10 +46,14 @@ query nested(parent: parents):
 query page(parent: parents):
   children where .parent = parent first 10 by .id {roomId: .parent, body}
 
+-- These heterogeneous rows deliberately expose generic IDs; provenance
+-- still comes from each source envelope, including when the strings match.
+fn exposedId(value: id): value
+
 fn mixedRows(parent: parents):
   history = reactions where .parent = parent first 10 by .id
-  c = children['x'] {id, kind: 'comment', body}
-  r = reactions['x'] {id, kind: 'reaction', body}
+  c = children['x'] {id: exposedId(.id), kind: 'comment', body}
+  r = reactions['x'] {id: exposedId(.id), kind: 'reaction', body}
   if count(history) > 0 and c != null and r != null:
     return [c, r]
   if c != null:
