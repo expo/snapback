@@ -156,7 +156,11 @@ fn address_symlinks_and_nonregular_files_are_refused_without_truncation() {
         let out = p.run(&["run", "put"]);
         assert!(!out.status.success(), "{kind}: {out:?}");
         let error = String::from_utf8_lossy(&out.stderr);
-        assert!(error.contains("E_STORE") && error.contains("serve.lock") && error.contains("retry"), "{kind}: {error}");
+        if kind == "hardlink" {
+            assert!(error.contains("E_STORE") && error.contains("copy the store, do not hard-link it"), "{error}");
+        } else {
+            assert!(error.contains("E_STORE") && error.contains("serve.lock") && error.contains("retry"), "{kind}: {error}");
+        }
         assert_eq!(fs::read(p.store()).unwrap(), database_before, "{kind}");
         assert_eq!(fs::read_to_string(&unrelated).unwrap(), "keep this unrelated file intact\n");
         assert_eq!(fs::metadata(&unrelated).unwrap().permissions().mode() & 0o777, 0o644, "{kind}: refusal changed the mode");
@@ -188,7 +192,11 @@ fn owner_sidecar_aliases_and_nonregular_files_are_refused_before_sqlite() {
         let out = p.run(&["run", "put"]);
         assert!(!out.status.success(), "{kind}: {out:?}");
         let error = String::from_utf8_lossy(&out.stderr);
-        assert!(error.contains("E_STORE") && error.contains("store.sqlite-owner") && error.contains("retry"), "{kind}: {error}");
+        if kind == "hardlink" {
+            assert!(error.contains("E_STORE") && error.contains("copy the store, do not hard-link it"), "{error}");
+        } else {
+            assert!(error.contains("E_STORE") && error.contains("store.sqlite-owner") && error.contains("retry"), "{kind}: {error}");
+        }
         assert!(Store::open_shared(&p.store()).is_err(), "native device accepted {kind}");
         assert_eq!(fs::read(p.store()).unwrap(), database_before, "{kind}");
         assert_eq!(fs::read_to_string(&unrelated).unwrap(), "keep this unrelated file intact\n");
@@ -300,4 +308,35 @@ fn multiple_device_processes_share_ownership_and_exclude_backend_writers() {
     assert_owner_refusal(&p, &["run", "put"], "E_STORE_BUSY");
     drop(devices);
     assert!(p.run(&["run", "put"]).status.success());
+}
+
+#[test]
+fn unlinking_sidecar_admits_second_owner_documented_boundary() {
+    let p = Project::new(); p.initialize();
+    let mut first = server(&p, "unlinked-first");
+    fs::remove_file(snapback4_core::private_fs::owner_path(&p.store())).unwrap();
+    // @ref LLP 3000.019#3.4 — unlinking ends exclusion; it does not revoke the first process.
+    let second = server(&p, "unlinked-second");
+    let written = http(&second, "/m/put", Some(r#"{"args":{}}"#));
+    assert!(written.get("denied").is_none(), "{written}");
+    let written = http(&first, "/m/put", Some(r#"{"args":{}}"#));
+    assert!(written.get("denied").is_none(), "{written}");
+    let read = http(&first, "/q/rows", Some(r#"{"args":{}}"#));
+    assert!(read.get("denied").is_none(), "{read}");
+    assert_eq!(read["data"].as_array().unwrap().len(), 3, "{read}");
+    assert!(first.child.try_wait().unwrap().is_none(), "the old process is still alive");
+    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 3);
+}
+
+#[test]
+fn moved_store_busy_process_probes_leave_old_path_absent() {
+    let p = Project::new(); p.initialize();
+    let _host = server(&p, "moved-first");
+    fs::rename(p.store(), p.0.join("moved.sqlite")).unwrap();
+    for args in [vec!["run", "put"], vec!["dev", "--port", "0", "--no-watch"]] {
+        assert_owner_refusal(&p, &args, "E_STORE_BUSY");
+        assert!(!p.store().exists());
+    }
+    assert!(matches!(Store::open_shared(&p.store()), Err(snapback4_core::RuntimeError::StoreBusy { .. })));
+    assert!(!p.store().exists());
 }

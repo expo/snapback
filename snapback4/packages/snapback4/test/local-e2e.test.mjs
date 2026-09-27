@@ -191,7 +191,9 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     assert.ok(isReady(inbox) && inbox.data.length === 0 && inbox.complete && inbox.fresh, JSON.stringify(inbox));
     await first.close();
     // The next start restores the same principal without asking anyone.
-    const again = await createLocalClient({ url: url2, device: kept, sessionStore: sessions, waitSeconds: 1 });
+    // Its logout lands late, as it can under load.
+    const lateLogout = (input, init) => (String(input).endsWith("/auth/logout") ? sleep(300) : Promise.resolve()).then(() => fetch(input, init));
+    const again = await createLocalClient({ url: url2, device: kept, sessionStore: sessions, waitSeconds: 1, fetch: lateLogout });
     assert.equal(again.viewer(), principal);
     // Sign-out tells whoever holds the token that it ended, before the client closes.
     const ended = [];
@@ -199,10 +201,16 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     await again.signOut();
     assert.deepEqual(ended, [null]);
     assert.equal(again.session(), null);
-    // Signed out: no session to restore, and the old token is dead on the server.
+    // Signed out: no session to restore, and the old token dies on the server.
+    // Remote logout is best effort, so sign-out completes without waiting for
+    // it (local-signout.test.mjs); the server refuses the token once it lands.
     await assert.rejects(createLocalClient({ url: url2, device: kept, sessionStore: sessions, waitSeconds: 1 }), /no session/);
-    const dead = await fetch(`${url2}/q/inbox`, { method: "POST", headers: { authorization: `Bearer ${first.session()?.token ?? "x"}`, "content-type": "application/json" }, body: "{}" }).then((r) => r.json());
-    assert.equal(dead.denied?.code, "E_AUTH");
+    let dead;
+    await until(async () => {
+      dead = await fetch(`${url2}/q/inbox`, { method: "POST", headers: { authorization: `Bearer ${first.session()?.token ?? "x"}`, "content-type": "application/json" }, body: "{}" }).then((r) => r.json());
+      return dead.denied?.code === "E_AUTH";
+    }).catch(() => {});
+    assert.equal(dead.denied?.code, "E_AUTH", JSON.stringify(dead));
     const fresh = await createLocalClient({ url: url2, guest: true, device: kept, sessionStore: sessions, waitSeconds: 1 });
     assert.notEqual(fresh.viewer(), principal);
     await fresh.close();

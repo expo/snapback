@@ -136,7 +136,7 @@ pub enum RuntimeError {
     #[error("E_STORE: {0}")]
     Sql(#[from] rusqlite::Error),
     #[cfg(feature = "sqlite")]
-    #[error("E_STORE_BUSY at {path}: a backend writer owns this database; no device work was admitted")]
+    #[error("E_STORE_BUSY at {path}: a backend writer owns this database; no device work was admitted. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process")]
     StoreBusy { path: String },
     #[cfg(feature = "postgres")]
     #[error("E_STORE: {0}")]

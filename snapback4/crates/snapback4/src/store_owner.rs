@@ -1,11 +1,11 @@
 //! Ownership locks the database's sidecar; stat pins its inode. `serve.lock` is only an address hint.
-use std::{fs::{self, File, OpenOptions}, io::{Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}, time::Duration};
+use std::{fs::{self, File}, io::{Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}, time::Duration};
 use snapback4_core::{Engine, RuntimeError, Store};
 #[cfg(unix)]
-use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::MetadataExt;
 
 pub(crate) struct Owner {
-    _sidecar: File,
+    _sidecar: std::sync::Arc<File>,
     identity: (u64, u64),
     path: PathBuf,
     record: Option<File>,
@@ -51,25 +51,9 @@ fn failure(path: &Path, reason: impl std::fmt::Display) -> String {
 fn same_file(a: &fs::Metadata, b: &fs::Metadata) -> bool { a.dev() == b.dev() && a.ino() == b.ino() }
 
 #[cfg(unix)]
-fn regular(path: &Path, create: bool, database: Option<&fs::Metadata>) -> Result<File, String> {
-    // Do not open an address alias to a database SQLite may already have locked.
-    if let Ok(meta) = fs::symlink_metadata(path) {
-        if !meta.is_file() || database.is_some_and(|db| meta.nlink() != 1 || same_file(&meta, db)) {
-            return Err(failure(path, "address record must be a regular file, not a symlink or hard link"));
-        }
-    }
-    let file = OpenOptions::new().read(true).write(true).create(create).truncate(false)
-        .mode(0o600).custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK).open(path)
-        .map_err(|e| failure(path, e))?;
-    let meta = file.metadata().map_err(|e| failure(path, e))?;
-    if !meta.is_file() {
-        return Err(failure(path, "expected a regular file"));
-    }
-    if database.is_some_and(|db| meta.nlink() != 1 || same_file(&meta, db)) {
-        return Err(failure(path, "address record must not be a hard link"));
-    }
-    file.set_permissions(fs::Permissions::from_mode(0o600)).map_err(|e| failure(path, e))?;
-    Ok(file)
+fn regular(path: &Path, create: bool, database: &Path) -> Result<File, String> {
+    snapback4_core::private_fs::auxiliary_file(database, path, create, 128)
+        .map_err(|e| failure(path, e))
 }
 
 // @ref LLP 3000.019#3.4 — sidecar flocks fence backend writers and share device ownership without locking SQLite.
@@ -82,26 +66,28 @@ fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
         let path = resolve(store)?;
         snapback4_core::private_fs::directory(path.parent().ok_or("store path has no parent")?)
             .map_err(|e| failure(&path, e))?;
-        // An existing database is never opened/closed outside SQLite. A new
-        // file is created and closed before any SQLite connection can exist.
-        snapback4_core::private_fs::database_file(&path).map_err(|e| failure(&path, e))?;
-        let database = fs::metadata(&path).map_err(|e| failure(&path, e))?;
+        // Stat before opening either auxiliary file; a refused probe creates
+        // no database. Only the sidecar lock grants permission to create one.
+        let before = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path, e))?;
         let sidecar = snapback4_core::private_fs::owner_file(&path)
             .map_err(|e| failure(&snapback4_core::private_fs::owner_path(&path), e))?;
         let locked = if shared { sidecar.try_lock_shared() } else { sidecar.try_lock() };
-        if !snapback4_core::private_fs::owner_is_named(&path, &sidecar)
-            || !fs::metadata(&path).is_ok_and(|m| same_file(&database, &m)) { continue; }
         locked.map_err(|error| match error {
             fs::TryLockError::WouldBlock => busy(&path),
             fs::TryLockError::Error(error) => failure(&path, error),
         })?;
+        if !snapback4_core::private_fs::owner_is_named(&path, &sidecar) { continue; }
+        snapback4_core::private_fs::database_file(&path).map_err(|e| failure(&path, e))?;
+        let database = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path, e))?
+            .ok_or_else(|| failure(&path, "database disappeared during ownership acquisition"))?;
+        if before.as_ref().is_some_and(|old| !same_file(old, &database)) { continue; }
         let record = if shared { None } else {
             let record_path = path.with_file_name("serve.lock");
-            let file = regular(&record_path, true, Some(&database))?;
+            let file = regular(&record_path, true, &path)?;
             file.set_len(0).map_err(|e| failure(&record_path, e))?;
             Some(file)
         };
-        return Ok(Owner { _sidecar: sidecar, identity: (database.dev(), database.ino()), path, record });
+        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record });
     }
     Err(failure(store, "database path kept changing during ownership acquisition"))
 }
@@ -111,7 +97,7 @@ fn acquire(store: &Path, _: bool) -> Result<Owner, String> { Err(failure(store, 
 
 fn busy(path: &Path) -> String {
     let owner = address(path).unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
-    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server", path.display())
+    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display())
 }
 
 #[cfg(unix)]
@@ -119,12 +105,7 @@ fn address(path: &Path) -> Option<String> {
     // A missing/replaced address record cannot grant ownership. Never follow
     // a symlink (including one to the database), nor block on a FIFO.
     let record = path.with_file_name("serve.lock");
-    let named = fs::symlink_metadata(&record).ok()?;
-    if !named.is_file() || named.nlink() != 1 { return None; }
-    let file = OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
-        .open(record).ok()?;
-    let metadata = file.metadata().ok()?;
-    if !metadata.is_file() || metadata.nlink() != 1 { return None; }
+    let file = regular(&record, false, path).ok()?;
     let mut text = String::new();
     file.take(1024).read_to_string(&mut text).ok()?;
     let mut lines = text.lines();
@@ -138,14 +119,19 @@ fn address(_: &Path) -> Option<String> { None }
 impl Owner {
     pub(crate) fn path(&self) -> Result<&Path, RuntimeError> {
         #[cfg(unix)]
-        if fs::metadata(&self.path).is_ok_and(|m| (m.dev(), m.ino()) == self.identity) {
-            return Ok(&self.path);
+        {
+            let meta = snapback4_core::private_fs::database_metadata(&self.path)
+                .map_err(|e| RuntimeError::Store(failure(&self.path, e)))?;
+            if meta.is_some_and(|m| (m.dev(), m.ino()) == self.identity) { return Ok(&self.path); }
         }
         Err(RuntimeError::Store(failure(&self.path, "owned database moved or was replaced; stop and reopen its current path")))
     }
 
     pub(crate) fn open_store(&self, timeout: Duration) -> Result<Store, RuntimeError> {
-        Store::open_with_busy_timeout(self.path()?, timeout)
+        let mut store = Store::open_with_busy_timeout(self.path()?, timeout)?;
+        #[cfg(unix)]
+        store.retain_ownership(self._sidecar.clone())?;
+        Ok(store)
     }
 
     pub(crate) fn open_engine(&self, bound: &snapback4_lang::Bound, timeout: Duration, now: i64) -> Result<Engine, RuntimeError> {
