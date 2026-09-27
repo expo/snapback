@@ -9,7 +9,7 @@ mod work;
 #[cfg(feature = "sqlite")]
 mod activation;
 #[cfg(feature = "sqlite")]
-pub(crate) use activation::{check_activation, check_no_rebuilds};
+pub(crate) use activation::{check_activation, check_activation_read_only, check_no_rebuilds};
 use crate::{RuntimeError, Value};
 use crate::{ir::{self, Expr, IndexKeyExpr, KeyProvenance, Read, Scan}, schema::timeline::Timeline, value::object};
 

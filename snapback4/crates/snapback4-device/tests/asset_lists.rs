@@ -83,6 +83,34 @@ fn lifecycle<H: Host>(h: &mut H) {
 #[test] fn list_lifecycle_memory() { lifecycle(&mut Memory::new()); }
 #[test] fn list_lifecycle_sqlite() { lifecycle(&mut Sqlite::new("list-lifecycle")); }
 
+fn sparse_markers<H: Host>(h: &mut H) {
+    for (kind, empty, full) in [
+        ("image <=100 ?", Json::Null, facts("a")),
+        ("[image <=100] <=4 ?", json!([]), json!([facts("a")])),
+        ("[[image <=100] <=2] <=2 ?", json!([[], []]), json!([[facts("a")]])),
+    ] {
+        let (_, backend) = compile(&source(kind));
+        let mut d = h.open(kind, Some(backend)).unwrap();
+        let image = |photos: Json| { let mut image = row(photos); image["secrets"] = Json::Null; image };
+        let marker = "device:media-row:[\"posts\",\"post\"]";
+        apply(&mut d, "put", image(empty.clone()), true);
+        assert_eq!(d.store().meta(marker).unwrap(), None, "empty media costs no per-row marker");
+        assert_eq!(home(&mut d, "a", 1), Json::Null);
+        apply(&mut d, "put", image(full.clone()), false);
+        assert!(d.store().meta(marker).unwrap().is_some());
+        assert_eq!(home(&mut d, "a", 1)["row"], "post");
+        apply(&mut d, "put", image(empty), false);
+        assert_eq!(d.store().meta(marker).unwrap(), None, "clear retires prior custody");
+        h.close(kind, d);
+        let mut d = h.open(kind, None).unwrap();
+        assert_eq!(home(&mut d, "a", 1), Json::Null, "clear survives reopen");
+        apply(&mut d, "put", image(full), false);
+        assert_eq!(home(&mut d, "a", 1)["row"], "post", "confirmed reacquisition restores custody");
+    }
+}
+#[test] fn sparse_media_markers_memory() { sparse_markers(&mut Memory::new()); }
+#[test] fn sparse_media_markers_sqlite() { sparse_markers(&mut Sqlite::new("sparse-media")); }
+
 fn generation<H: Host>(h: &mut H) {
     let (_, mut backend)=compile(&source("[image <=100] <=4 ?"));
     let mut d=h.open("generation",Some(backend.clone())).unwrap();

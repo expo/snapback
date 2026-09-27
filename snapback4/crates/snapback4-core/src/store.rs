@@ -114,6 +114,14 @@ impl Store {
         Ok(steps)
     }
 
+    /// Preview Following adoption without filling slots or retiring any rows.
+    pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<(), RuntimeError> {
+        let tx = self.read_transaction()?;
+        crate::engine::timeline::check_activation_read_only(&tx, schema, Some(crate::now_ms()))?;
+        tx.rollback()?;
+        Ok(())
+    }
+
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         Self::open_with_busy_timeout(path, std::time::Duration::from_secs(5))
     }

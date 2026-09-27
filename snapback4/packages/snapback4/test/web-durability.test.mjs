@@ -80,6 +80,42 @@ test("failed snapshot publication and backend adoption preserve acknowledged sta
   assert.deepEqual((await query(f.core)).map(row => row.body), ["confirmed"], "confirmed base survives failed replacement and later withdrawal");
 });
 
+test("private snapshot pages survive disposal and failed publication without exposing a partial partition", async t => {
+  const memory = memoryPersistence(), name = 'interrupted-snapshot';
+  let fail = false;
+  const persist = { ...memory, async save(name, changes) {
+    if (fail) { fail = false; throw new Error('publication aborted'); }
+    await memory.save(name, changes);
+  } };
+  const opener = webDevice({ wasm, persist });
+  let core = await opener.open(name, backend);
+  t.after(() => core.close());
+  const first = { op: 'apply', first: true, page: { snapshot: true, stage_snapshot: true, generation: 1,
+    watermark: 5, more: true, next: 'second', events: events.slice(0, 2) } };
+  const second = { op: 'apply', page: { snapshot: true, stage_snapshot: true, generation: 1,
+    watermark: 5, more: false, after: 'second', events: events.slice(2) } };
+  const terminal = { op: 'apply', page: { snapshot: false, snapshot_catchup: true, generation: 1, watermark: 5, more: false, events: [] } };
+  const privateOnly = async () => {
+    const saved = await memory.load(name);
+    assert.ok(saved.some(c => c.s === 's'));
+    assert.equal(saved.filter(c => c.s === 'r').length, 0);
+    assert.equal(ok(await core.call({ op: 'sync_state' })).acquired, false);
+  };
+  ok(await core.call(first)); await privateOnly();
+  await core.close(); core = await opener.open(name);
+  await privateOnly();
+  // A new owner resumes acquisition by restarting the fenced snapshot.
+  ok(await core.call(first)); ok(await core.call(second)); await privateOnly();
+  fail = true;
+  await assert.rejects(async () => ok(await core.call(terminal)), /publication aborted/);
+  await privateOnly();
+  await core.close(); core = await opener.open(name);
+  ok(await core.call(first)); ok(await core.call(second)); ok(await core.call(terminal));
+  assert.equal(ok(await core.call({ op: 'sync_state' })).acquired, true);
+  assert.equal((await memory.load(name)).filter(c => c.s === 's').length, 0);
+  assert.deepEqual((await query(core)).map(row => row.id), ['confirmed']);
+});
+
 test("recovery read failures block calls until durable state can be reopened", async t => {
   const f = await fixture(t);
   f.failSave();
