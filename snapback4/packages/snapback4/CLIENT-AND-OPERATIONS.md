@@ -1215,8 +1215,11 @@ corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
 immediately, including failure, link loss, and a replacement's earlier expiry.
 Opening remounts register for the watch before its raw owner or first approval exists and
-receive notifications for approval, withdrawal and each distinct denial. A live
-facade stays attached after a transient authority error, so a peer's later
+receive notifications for approval, withdrawal and each distinct denial. An
+opening keeps its last raw-owner association if that owner retires while its
+check waits, so an opening refusal still reaches the attached slot exactly once.
+This also applies when the opening first joined through a peer's notification.
+A live facade stays attached after a transient authority error, so a peer's later
 approval reaches it too. Expiry and follower registrations release on rejection;
 notification ownership ends only on close or a facade fence.
 A refusal invalidates authority checks already in flight across all facades of

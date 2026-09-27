@@ -17,6 +17,38 @@ function events(watch) {
 
 for (const keep of [undefined, false, true]) {
   const opts = keep === undefined ? undefined : { keep };
+  for (const beforeOwner of [false, true]) test(`opening refusal after raw retirement (peer attachment=${beforeOwner}), keep=${keep}`, async t => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const f = fixture(t, keep ?? "default");
+    let first, remount, opening;
+    if (beforeOwner) {
+      const pending = gates(t, f, 2); opening = pending[1];
+      first = f.client.observe(q, {}, opts);
+      remount = f.client.observe(q, {}, opts);
+      assert.equal(f.owner(), undefined, "the remount has no initial slot");
+      pending[0].resolve(true); await settle();
+    } else {
+      first = f.client.observe(q, {}, opts); await settle();
+    }
+    f.publish("A"); await settle();
+    if (!beforeOwner) {
+      [opening] = gates(t, f, 1);
+      remount = f.client.observe(q, {}, opts);
+    }
+    assert.equal(remount.getSnapshot().data, "A");
+    const seen = events(remount);
+    first.close();
+    if (keep) t.mock.timers.tick(30_000);
+    assert.equal(f.owner(), undefined, "the raw-map peek has disappeared");
+    seen.length = 0;
+    opening.reject(Error("opening failed")); await settle();
+    const denial = remount.getSnapshot();
+    assert.equal(denial.denied?.code, "E_CLIENT");
+    assert.match(denial.denied.message, /opening failed/);
+    assert.deepEqual(seen, [denial], "the attached retired slot delivers exactly one refusal");
+    remount.close();
+  });
+
   test(`opening before any raw owner hears approval and source denial, keep=${keep}`, async t => {
     const f = fixture(t, keep ?? "default"), [firstOpen, peerOpen] = gates(t, f, 2);
     const first = f.client.observe(q, {}, opts), peer = f.client.observe(q, {}, opts), seen = events(peer);

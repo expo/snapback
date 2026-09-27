@@ -92,17 +92,19 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const attach = (answer: ApprovedAnswer | undefined) => {
         held = answer;
       };
-      const initial = peekObservation(raw, op, args, options);
+      let associated = peekObservation(raw, op, args, options);
+      const initial = associated;
       if (initial) attach(kept.get(initial, key));
       // Notification ownership precedes even the creation of the raw watch.
       const unlisten = kept.listen(key, () => {
         const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
-        if (current) attach(kept.get(current, key));
+        if (current) { associated = current; attach(kept.get(current, key)); }
         emit();
       });
       const reject = (read: Read<R>) => {
         snapshot = read;
-        const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
+        // @ref LLP 3000.023#3.6 — an opening refusal still addresses its shared slot after raw retirement.
+        const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options) ?? associated;
         if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
       };
       // @ref LLP 3000.023#3.4 — detached facades still consult the raw handle's deadline latch.
