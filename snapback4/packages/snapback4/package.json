@@ -71,7 +71,8 @@
     "CLIENT-AND-OPERATIONS.md"
   ],
   "optionalDependencies": {
-    "snapback4-darwin-arm64": "0.4.4"
+    "snapback4-darwin-arm64": "0.4.4",
+    "snapback4-linux-x64": "0.4.4"
   },
   "dependencies": {
     "openid-client": "6.8.8",
