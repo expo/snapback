@@ -68829,3 +68829,62 @@ syntax/API, auth/expiry/meter weakening, original GS store writes, shared
 path tool installation, push or publication. Binaryen experimentation stayed
 under this worktree's target directory and was not adopted. Local commits
 carry the required co-author trailer.
+
+## 2026-09-27 — lane SS round 3: index copies and measured Worker follow-up
+
+First fetched and merged main to `09e55ad98`, preserving the supervisor's
+round-2 corrections. Profiles still put index construction and insertion
+first. Removed ordinary column/id value copies during key encoding and
+moved validated owned keys into the memory index. Persistent key bytes,
+atomic terminal publication, strict host saves, undo, crash recovery and
+cross-tab journal code remain unchanged. A sorted bulk-index prototype gave
+a 13.635 s memory trial but exceeded the unchanged wasm budget by 1,121 B;
+removed it. No shadow-index protocol was introduced.
+
+Two normal 1,000-conversation samples each: memory acquisition
+**16.287/16.617 → 15.689/15.998 s**, IDB-shaped
+**21.253/21.373 → 21.132/21.108 s**. Terminal apply falls
+**8.450/8.927 → 8.188/8.137 s** memory and
+**9.192/9.343 → 9.105/8.976 s** IDB-shaped. Real Chromium terminal apply
+falls **7.098/7.129 → 6.730/6.603 s**, but slower persistence leaves total
+**27.529/27.080 → 28.445/27.749 s** and during-live p95
+**13.245/12.723 → 14.393/13.680 s**; all runs have 19 during samples,
+zero timeouts. After p95 is 0.879/0.868 s. **8/12-second acquisition and
+sub-second browser acquisition-live targets remain unmet.** Observed
+wasm/external high-water memory increases; no memory improvement is claimed.
+
+Added optional Chromium CPU/wasm/JSON/IDB profiling. Final diagnostic sees
+8.405 s synchronous wasm apply, 2.217/1.462 s JSON stringify/parse during
+saves, 1.326 s synchronous IDB put issuance and a 6.647 s longest main-thread
+task. The bounded Worker plan is recorded in `ROUND3.md`; implementation
+does not fit this round because page-local synchronous admission/exit-send
+custody and device-queued prediction/read fences require a coordinated
+ownership protocol and fault qualification. No Worker, new API or native/
+Node opener change is shipped. Existing Node witnesses remain unchanged.
+
+Added the mixed `photos = [[asset_a], []]` marker lifecycle including reopen
+on both stores, and overwrite/savepoint/failed-replacement/drop rollback
+assertions for entries and export. Last-element-only media and skipped-older-
+entry-undo mutants fail as requested. Added persisted index-byte equivalence.
+Affected tests pass: 48 device library, 484 integrations (1 existing ignored),
+6 focused core tests, 46 SDK tests, whole guide 86. Real Chromium navigation
+after 9,922 staged/zero published rows reopens and reacquires successfully.
+
+Ran `scripts/test.sh` exactly once: **`== 2 failure(s) in 1510 s`**, exit 1.
+Three failures across Rust and client phases: two baseline timeline tests
+still assert superseded diagnostic wording, and the inherited native media
+test fails `real home is gone`. Ten ordinary single-test repetitions pass
+on each binary; a delayed pre-revocation response reproduces that assertion
+on both the preserved main and changed binaries. The full-suite schedule
+itself was not traced. Filed separate timeline and explicit-sync tickets;
+did not weaken assertions or alter unrelated runtime code. Full Rust:
+3,909 passed/2 failed/24 ignored; clients 2,644 passed/1 failed/10 skipped;
+models 78/78; wrappers 9/9. No other suite failure.
+
+Final wasm **1,981,913 raw / 572,786 gzip**, **+323/+196 B**, **55 B below**
+the unchanged 572,841-byte budget. Detailed two-sample phase tables, memory,
+experiments, Worker plan, control patch, hashes and exact full-suite log are
+in `reports/20260927-ss-sync-scale/ROUND3.md` and its companions. Existing
+acquisition ticket remains open. No tool installation, shared-path writes,
+original GS store writes, push or publication. Commit carries the required
+co-author trailer.

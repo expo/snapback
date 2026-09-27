@@ -1,0 +1,53 @@
+--- a/snapback4/packages/snapback4/test/asset-lists.test.mjs
++++ b/snapback4/packages/snapback4/test/asset-lists.test.mjs
+@@ -206,10 +206,23 @@
+     store.close();
+     assert.deepEqual(JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home"))), { store_id: storeId, table: "posts", row: f.id, column: "images" });
+     await response.arrayBuffer();
+-    let offline = false;
++    let offline = false, armed = false, heldOne = false;
++    const held = Promise.withResolvers(), released = Promise.withResolvers();
++    t.after(() => released.resolve());
+     const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
+       : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
+-    const options = { url, persona: "bob", device, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: (...args) => offline ? Promise.reject(Error("offline")) : fetch(...args) };
++    const options = { url, persona: "bob", device, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: async (...args) => {
++      if (offline) throw Error("offline");
++      if (armed && String(args[0]).endsWith("/sync")) {
++        if (heldOne) throw Error("next sync unavailable in controlled schedule");
++        heldOne = true;
++        const reply = await fetch(...args), bytes = await reply.arrayBuffer();
++        held.resolve();
++        await released.promise;
++        return new Response(bytes, { status: reply.status, headers: reply.headers });
++      }
++      return fetch(...args);
++    } };
+     let local = await createLocalClient(options); f.clients.push(local); await local.sync();
+     // An actual later put for B makes the false-home overwrite deterministic.
+     assert.equal((await bob.mutate(mutation("touch"), { id: legacy.result.id })).state, "sent");
+@@ -219,7 +232,11 @@
+     local = await createLocalClient(options); f.clients.push(local);
+     const retained = await local.asset(f.a.id); assert.ok("url" in retained, JSON.stringify(retained));
+     assert.deepEqual(Buffer.from(await (await fetch(retained.url)).arrayBuffer()), png); retained.revoke();
+-    offline = false;
++    // Finish the offline round, then hold an authorized pre-revocation reply.
++    await local.sync();
++    offline = false; armed = true;
++    const preRevocation = local.sync();
++    await held.promise;
+     if (ending === "revoke") {
+       // The review's exact combined mutation: lose A and touch B together.
+       assert.equal((await bob.mutate(mutation("revokeAndTouch"), { id: legacy.result.id })).state, "sent");
+@@ -229,7 +246,10 @@
+       assert.equal(out.state, "sent");
+       assert.equal((await bob.mutate(mutation("touch"), { id: legacy.result.id })).state, "sent");
+     }
+-    await local.sync();
++    // An explicit post-mutation sync joins the already-running old round.
++    const postRevocation = local.sync();
++    released.resolve();
++    await Promise.all([preRevocation, postRevocation]);
+     await served(url, f.a.id, "bob", 404);
+     offline = true;
+     const rows = (await local.query(query, {})).data;

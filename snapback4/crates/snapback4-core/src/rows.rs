@@ -144,9 +144,24 @@ pub fn scan_range(prefix: &[Value], bounds: &Bounds, dir: Dir) -> Option<(Vec<u8
 /// The stored key of one index entry of a plain index: the components,
 /// then the id. A `words(..)` index has one entry per token: `index_keys`.
 pub fn index_key(index: &Index, row: &Value, id: &str) -> Vec<u8> {
-    let mut components = index_values(index, row);
-    components.push(Value::Id(id.to_owned()));
-    key::encode(&components)
+    use crate::schema::IndexComponent;
+    let mut out = if matches!(index.components.first(), Some(IndexComponent::Contribution(_))) {
+        key::encode(&index_values(index, row))
+    } else {
+        let mut out = Vec::with_capacity((index.components.len() + 1) * 12);
+        // @ref LLP 3000.019#3.3 — publication builds the same index bytes;
+        // borrow ordinary column values instead of cloning them.
+        for component in &index.components {
+            match component {
+                IndexComponent::Column(column) => key::encode_one(row.field(column).unwrap_or(&Value::Null), &mut out),
+                IndexComponent::Calendar(calendar) => key::encode_one(&calendar.value(row), &mut out),
+                _ => {}
+            }
+        }
+        out
+    };
+    key::encode_id(id, &mut out);
+    out
 }
 
 /// Every stored key of a row in an index: one for a plain index; for an
@@ -192,6 +207,29 @@ pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
         return values;
     }
     index.components.iter().filter_map(|component| component.value(row)).collect()
+}
+
+#[cfg(test)]
+mod index_encoding_tests {
+    use super::*;
+    use crate::{maintain::CalendarKey, schema::IndexComponent, value::object};
+
+    #[test]
+    fn borrowed_columns_keep_the_persisted_composite_key_bytes() {
+        let mut index = Index::of(&["value", "absent"], false);
+        index.components.push(IndexComponent::Calendar(CalendarKey {
+            function: "hour".into(), column: "at".into(), millis: 3_600_000, offset: 1000,
+        }));
+        for value in [Value::Null, Value::Bool(false), Value::Bool(true), Value::Int(i64::MIN),
+            Value::Int(i64::MAX), Value::String("\0é🦀\0".into()), Value::Id("id\0tail".into()),
+            Value::Bytes(vec![0, 255, 0]), Value::Array(vec![Value::Int(1)])] {
+            let row = object([("value", value.clone()), ("at", Value::Int(-1))]);
+            // Independent expected tuple: optional missing column is null,
+            // the offset hour is -1, and the suffix is an Id, not a String.
+            let expected = key::encode(&[value, Value::Null, Value::Int(-1), Value::Id("row\0é".into())]);
+            assert_eq!(index_key(&index, &row, "row\0é"), expected);
+        }
+    }
 }
 
 /// The store as the interpreter sees it.

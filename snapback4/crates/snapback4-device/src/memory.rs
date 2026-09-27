@@ -534,8 +534,8 @@ impl Rows for MemoryTx<'_> {
                 self.set_entry((ti.clone(), key.clone()), None);
                 written += 1;
             }
-            for key in after.iter().filter(|key| !before.contains(key)) {
-                self.set_entry((ti.clone(), key.clone()), Some(id.clone()));
+            for key in after.into_iter().filter(|key| !before.contains(key)) {
+                self.set_entry((ti.clone(), key), Some(id.clone()));
                 written += 1;
             }
         }

@@ -46,3 +46,25 @@ meters and the wasm budget. A lower sample p95 caused only by collecting
 more successful sends before one stalled publication is not closure.
 Resolve with repeatable acquisition evidence meeting 8/12 s and the live
 target, or an explicit author-approved disposition of the remaining limits.
+
+## Round 3, 2026-09-27
+
+Still open. Two repetitions after removing index-value/key copies acquire
+1,000 conversations in 15.689/15.998 s memory and 21.132/21.108 s IDB-shaped.
+Browser terminal apply falls from 7.098/7.129 s to 6.730/6.603 s, but its
+strict terminal save rises from 5.107/4.601 s to 6.567/6.010 s. Browser total
+28.445/27.749 s and during p95 14.393/13.680 s do not improve the target.
+All four normal browser runs have 19 during samples and no timeouts.
+Observed wasm/external high-water memory also increases and remains reported.
+Final wasm 572,786 B gzip fits the same budget by 55 B.
+
+A bulk-index prototype gives a 13.635 s memory trial but exceeds the wasm
+budget by 1,121 B and is removed. Browser instrumentation measures the
+synchronous wasm pause separately from JSON during saves and IDB request
+issuance. A Worker is the proposed execution location, but journal capture,
+exit-send fencing and server-read prediction checks must retain authority
+without queuing behind that Worker. A simple asynchronous call proxy is
+insufficient. The requested plan, experiments, both repetitions, mutation
+controls and qualification are in [ROUND3](../snapback4/reports/20260927-ss-sync-scale/ROUND3.md),
+including its [Worker follow-up](../snapback4/reports/20260927-ss-sync-scale/ROUND3.md#worker-decision-and-bounded-follow-up).
+No Worker or changed acquisition protocol is shipped in this round.

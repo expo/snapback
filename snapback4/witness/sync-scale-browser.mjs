@@ -22,7 +22,8 @@ import { createClient, mintId } from '${sdk}/client.ts';
 import { createLocalClient } from '${sdk}/local.ts';
 import { prepareClient } from '${sdk}/client-start.ts';
 import { webDevice, indexedDbPersistence } from '${sdk}/web.ts';
-window.sdk = { login, createClient, mintId, createLocalClient, prepareClient, webDevice, indexedDbPersistence };
+import { WebDevice } from '${sdk}/wasm/snapback4_device.js';
+window.sdk = { login, createClient, mintId, createLocalClient, prepareClient, webDevice, indexedDbPersistence, WebDevice };
 `);
 const require = createRequire(join(root, 'apps/chat/package.json'));
 const { build } = await import(require.resolve('vite'));
@@ -51,7 +52,7 @@ try {
   await page.exposeFunction('sendPeer', args => writer.mutate({ kind: 'mutation', name: 'messaging.send' }, args));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(() => window.sdk);
-  const runInPage = async ({ api, interrupt }) => {
+  const runInPage = async ({ api, interrupt, profile }) => {
     const { login, createClient, mintId, createLocalClient, prepareClient, webDevice, indexedDbPersistence } = window.sdk;
     const now = () => performance.now(), sleep = ms => new Promise(r => setTimeout(r, ms));
     const q = name => ({ kind: 'query', name });
@@ -68,11 +69,41 @@ try {
     await window.openPeer(peer.profile.handle);
     await reader.close();
     const out = { pages: [], calls: [], saves: [], live: [], peakHeap: 0, heapAfterAcquisition: 0 };
+    // Diagnostic only: wall time inside synchronous wasm/JSON/IDB request
+    // issuance, separate from the asynchronous strict transaction lifetime.
+    const diagnostic = { wasm: [], json: {}, idb: {}, longTasks: [] }, undo = [];
+    let phase = 'host';
+    const wrap = (object, method, run) => {
+      const original = object[method]; object[method] = function (...args) { return run.call(this, original, args); };
+      undo.push(() => { object[method] = original; });
+    };
+    if (profile) {
+      for (const method of ['parse', 'stringify']) wrap(JSON, method, function (original, args) {
+        const at = now();
+        try { return original.apply(this, args); }
+        finally { const m = diagnostic.json[`${phase}.${method}`] ??= { count: 0, ms: 0 }; m.count++; m.ms += now() - at; }
+      });
+      for (const method of ['call', 'drain']) wrap(window.sdk.WebDevice.prototype, method, function (original, args) {
+        const request = method === 'call' ? JSON.parse(args[0]) : {}, at = now();
+        try { return original.apply(this, args); }
+        finally { diagnostic.wasm.push({ op: request.op ?? method, at, ms: now() - at, rows: request.page?.events?.length }); }
+      });
+      for (const method of ['put', 'get', 'delete']) wrap(IDBObjectStore.prototype, method, function (original, args) {
+        const at = now();
+        try { return original.apply(this, args); }
+        finally { const m = diagnostic.idb[method] ??= { count: 0, ms: 0 }; m.count++; m.ms += now() - at; }
+      });
+    }
+    const observer = new PerformanceObserver(list => {
+      for (const task of list.getEntries()) diagnostic.longTasks.push({ at: task.startTime, ms: task.duration });
+    });
+    observer.observe({ type: 'longtask', buffered: false });
     const sample = () => { out.peakHeap = Math.max(out.peakHeap, performance.memory.usedJSHeapSize); };
     const sampler = setInterval(sample, 20);
     const persistence = indexedDbPersistence();
     const device = webDevice({ persist: { ...persistence, async save(name, changes) {
-      const at = now(); await persistence.save(name, changes);
+      const at = now(); phase = 'persistence';
+      try { await persistence.save(name, changes); } finally { phase = 'host'; }
       out.saves.push({ ms: now() - at, changes: changes.length }); sample();
     } } });
     let syncRequests = 0;
@@ -123,8 +154,9 @@ try {
       for (let n = 0; n < 23; n++) await send(n < 3 ? 'warmup' : 'after');
       out.ok = acquired && out.live.every(s => s.ms !== null);
       out.residency = await client.residency();
+      out.diagnostic = diagnostic;
       return out;
-    } finally { clearInterval(sampler); sample(); stop(); await client.close(); }
+    } finally { clearInterval(sampler); sample(); stop(); await client.close(); observer.disconnect(); for (const restore of undo.reverse()) restore(); }
   };
   let crash;
   if (process.env.SS_CRASH === '1') {
@@ -140,7 +172,10 @@ try {
     await page.reload(); await interrupted;
     await page.waitForFunction(() => window.sdk);
   }
-  result = await page.evaluate(runInPage, { api, interrupt: false });
+  const cdp = process.env.SS_PROFILE ? await context.newCDPSession(page) : null;
+  if (cdp) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.start'); }
+  result = await page.evaluate(runInPage, { api, interrupt: false, profile: !!process.env.SS_PROFILE });
+  if (cdp) { const { profile } = await cdp.send('Profiler.stop'); writeFileSync(`${output}.cpuprofile`, JSON.stringify(profile)); }
   if (crash) result.crashRecovery = crash;
   result.chromium = browser.version();
   result.errors = errors;
