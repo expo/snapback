@@ -37,14 +37,7 @@ impl Binder<'_> {
     }
 
     pub(super) fn statement(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
-        let result = self.statement_inner(statement, out, completes).map_err(|error| {
-            if self.loops > 0 && error.code == "E_QUARRY_TYPE"
-                && let S::Bind { names, value, site } = statement
-                && names.len() == 1 && recursive_concat(value, &names[0]) {
-                return recursive_list_error(site, &names[0]);
-            }
-            error
-        });
+        let result = self.statement_inner(statement, out, completes);
         if let Err(error) = &result {
             self.record_error(error.clone());
             if let S::Bind { names, .. } = statement {
@@ -58,6 +51,14 @@ impl Binder<'_> {
             }
         }
         result
+    }
+
+    // @ref LLP 3000.007#5.1 — recursive growth is an assignment failure;
+    // an ill-typed value keeps its original expression diagnostic.
+    fn assignment_type_error(&self, error: Diagnostic, name: &str, value: &A, site: &Site) -> Diagnostic {
+        if self.loops > 0 && error.code == "E_QUARRY_TYPE" && recursive_concat(value, name) {
+            recursive_list_error(site, name)
+        } else { error }
     }
 
     fn statement_inner(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
@@ -89,9 +90,9 @@ impl Binder<'_> {
                     let (element, ty) = self.value_of(&items[0], out)?;
                     let mut origins = binding.origins.clone();
                     origins.push((Ty::List(Box::new(ty.clone()), 1), value.clone()));
-                    let joined = if *max == 0 { ty.clone() } else { item.join_item(&ty).map_err(|error| self.join_error_many(error.at("[]"), &origins))? };
+                    let joined = if *max == 0 { ty.clone() } else { item.join_item(&ty).map_err(|error| self.assignment_type_error(self.join_error_many(error.at("[]"), &origins), name, value, site))? };
                     if !ty.assignable_to(item) && !item.assignable_to(&ty) {
-                        return Err(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"));
+                        return Err(self.assignment_type_error(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"), name, value, site));
                     }
                     // @ref LLP 3000.007#5.1 — append in place; the heap meter is the accumulated list's bound.
                     binding.ty = Ty::List(Box::new(joined), u32::MAX);
@@ -112,9 +113,9 @@ impl Binder<'_> {
                 if let Some(mut binding) = self.binding(name).cloned() {
                     let mut origins = binding.origins.clone();
                     origins.push((ty.clone(), value.clone()));
-                    let joined = binding.declared.join(&ty).map_err(|error| self.assignment_join_error(error, name, &origins))?;
+                    let joined = binding.declared.join(&ty).map_err(|error| self.assignment_type_error(self.assignment_join_error(error, name, &origins), name, value, site))?;
                     if ty != Ty::Null && binding.declared != Ty::Null && !ty.assignable_to(&binding.declared) && !binding.declared.assignable_to(&ty) {
-                        return Err(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"));
+                        return Err(self.assignment_type_error(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"), name, value, site));
                     }
                     binding.declared = if self.loops > 0 { joined.rebound() } else { joined };
                     binding.ty = if self.loops > 0 { ty.rebound() } else { ty };

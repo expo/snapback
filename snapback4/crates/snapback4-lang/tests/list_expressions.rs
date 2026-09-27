@@ -165,3 +165,18 @@ fn direct_and_conditional_recursive_growth_get_the_self_append_rewrite() {
         assert!([3, 4].contains(&error.site.line), "{error:?}");
     }
 }
+
+#[test]
+fn ill_typed_concat_reports_only_the_operand_error() {
+    for assignment in ["xs = [xs + 1]", "xs = [xs + 1] + [xs]", "xs = [xs + 1] if flag else xs", "xs = [xs] + 1"] {
+        let source = format!("query run(flag: bool):\n  xs = [1]\n  for i in [1, 2]:\n    {assignment}\n  return xs\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert_eq!(bound.diagnostics.len(), 1, "{assignment}: {:?}", bound.diagnostics);
+        let error = &bound.diagnostics[0];
+        assert_eq!(error.code, "E_QUARRY_TYPE");
+        assert!(error.message.contains("+ concatenates two lists"), "{error:?}");
+        assert!(error.rewrite.contains("xs + [x]"), "{error:?}");
+        assert_eq!(error.site.line, 4);
+    }
+    assert_eq!(run("query run():\n  xs = [1]\n  for i in [1, 2]:\n    xs = xs + [i + 1]\n  return xs\n"), Value::Array(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+}
