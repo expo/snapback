@@ -125,7 +125,7 @@ fn w9r1a_temporary_audience_coverage_does_not_promise_completeness() {
 
 #[test]
 fn w9r1a_truncated_held_page_coverage_does_not_promise_completeness() {
-    held_coverage_case("full", "firstHeld", false, 1, true);
+    held_coverage_case("full", "firstHeld", true, 1, true);
 }
 
 #[test]

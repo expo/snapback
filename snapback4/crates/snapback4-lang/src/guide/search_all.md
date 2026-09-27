@@ -80,7 +80,7 @@ Runtime meter cuts, the non-uniform scope's 32-word limit and page continuation 
 sync freshness.
 Expiring memberships require runtime audience checks; an unscoped matching
 read can remain non-uniform and `complete: false` below every meter and word
-limit. A page bound without continuation can also make an answer incomplete.
+limit. Filling a declared page bound is complete without continuation.
 For the non-expiring membership shape above, a full scan of acquired rows
 without a cut is complete. The source-coverage line alone promises no answer's
 completeness and is absent for a horizon, an online-only source or zero read sites.

@@ -110,7 +110,7 @@ fn filtered_merge_engine_withholds_cut_predicates() { filtered_merges(false); }
 fn filtered_merge_header_admits_metered_predicates() { filtered_merges(true); }
 
 #[test]
-fn filtered_merge_without_cursor_keeps_its_existing_incomplete_word() {
+fn filtered_merge_without_cursor_is_complete_at_its_bound() {
     let source = source().replace("after c last 2 by byOwnerTime:", "last 2 by byOwnerTime where .body != '':");
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -119,7 +119,7 @@ fn filtered_merge_without_cursor_keeps_its_existing_incomplete_word() {
     engine.seed((0..3).map(|n| ("inbox".into(), object([("id", Value::Id(format!("r{n}"))), ("owner", Value::Id("dev:a".into())), ("at", Value::Int(n)), ("body", Value::String("live".into()))])))).unwrap();
     let page = engine.query("page", Context::new("dev:a", Default::default())).unwrap();
     assert_eq!(page.data.as_array().unwrap().len(), 2);
-    assert!(!page.complete);
+    assert!(page.complete);
     assert!(page.next.is_none());
     assert!(page.capped_at.is_none());
 }

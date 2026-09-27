@@ -528,14 +528,14 @@ fn w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read() {
                 assert_eq!(refusal.message, "E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.0 cannot finish: the 8,192-row meter was spent at programs.feed.1 before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape");
                 assert_eq!(refusal.guide.as_deref(), Some("reads"));
             } else {
-                // The truncated prelude count stays incomplete, but no longer starves either shape.
-                assert_eq!((first.complete, first.cut), (false, None));
+                // The bounded prelude counts its declared page and leaves room for both shapes.
+                assert_eq!((first.complete, first.cut), (true, None));
                 assert_eq!(ids(&first), ["a"]);
                 assert_eq!(first.data.as_array().unwrap()[0].field("preview").unwrap().as_array().unwrap().len(), 2);
                 let second = q("feed", ctx(Some(first.next.expect("the bounded prelude leaves room for a's shape")))).unwrap();
                 assert_eq!(ids(&second), ["b"]);
                 assert_eq!(second.data.as_array().unwrap()[0].field("preview").unwrap().as_array().unwrap().len(), 2);
-                assert!(!second.complete && second.cut.is_none() && second.next.is_none());
+                assert!(second.complete && second.cut.is_none() && second.next.is_none());
             }
         });
     } } }
