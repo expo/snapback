@@ -1170,13 +1170,18 @@ with the `fresh` and `since` that snapshot has. After 30 seconds without a
 subscriber, the watch closes. React remounts see that answer in their first
 committed render, including when the lingering answer became stale during a re-read.
 The app facade reuses a live answer it already authorized across freshness changes.
-When the source replaces that answer, the facade withdraws it synchronously; the
-replacement waits for its authority check. Sign-out, credential or viewer changes, store
+With `keep: true`, it also keeps that approved answer, marked `fresh: false` with
+its original `since`, while the replacement waits for its authority check. The
+held answer's own device or server deadline still withdraws it, including across
+a clock correction; a local reobservation wakeup does not expire remembered
+server data. A remount sees the held answer in its first commit. Without `keep`,
+the facade withdraws the superseded answer immediately. Sign-out, credential or viewer changes, store
 replacement or adoption, and client `close` end a lingering watch at once.
 `clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
 schema installation reset lingering observations just as they reset active
-ones, before notifying subscribers. There is no separate store of retired
-answers. A lingering local watch re-runs on commits; both clients keep the
+ones, before notifying subscribers. The facade's held answer and expiry belong
+to the live raw watch and end with it; there is no separate retention window.
+A lingering local watch re-runs on commits; both clients keep the
 watch's normal reads, timers and change-feed interest running for those 30
 seconds. This costs observation memory and background work while unmounted.
 

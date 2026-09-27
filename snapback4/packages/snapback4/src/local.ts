@@ -939,7 +939,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (serverDue) answers.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
     // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before asynchronous recovery.
     const denied = unavailable(), reset = denied || !d.localWakeup || serverDue;
-    if (reset) watch.reset(denied ? { denied } : { loading: true });
+    if (denied) watch.reset({ denied });
+    else if (reset) watch.expire();
     else scheduleExpiry(watch, null, d.server, d.localWakeup); // A local wakeup preserves the server deadline.
     return () => { if (reset && watches.get(watch.key) === watch) notify(watch); };
   }

@@ -6,6 +6,7 @@ import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 import { peekObservation, registerObservationPeek } from "./observe-watch.ts";
 import { answerIdentity } from "./read-observation.ts";
+import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
@@ -15,6 +16,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   let active = true;
   const valid = () => active && validScope();
   const approved = new WeakSet<object>();
+  const kept = new ReadApprovals();
   const cleanups = new Set<() => void>(), invalidations = new Set<() => void>();
   const notify = (listener: () => void) => { try { listener(); } catch (error) { console.error("snapback4 client listener:", error); } };
   const refusal = async (): Promise<Refusal | undefined> => {
@@ -73,30 +75,51 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const loading: Read<R> = { loading: true };
       let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
       let refused: Read<R> | undefined;
+      let held: ApprovedAnswer | undefined, refreshVersion = 0;
       const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
       const emit = () => { for (const listener of listeners) notify(listener); };
-      const detach = () => { stop?.(); source?.close(); source = undefined; stop = undefined; };
+      const attach = (answer: ApprovedAnswer | undefined) => {
+        held?.listeners.delete(emit); held = answer; held?.listeners.add(emit);
+      };
+      const initial = options?.keep ? peekObservation(raw, op, args, options) : undefined;
+      if (initial) attach(kept.get(initial));
+      const detach = () => { held?.listeners.delete(emit); stop?.(); source?.close(); source = undefined; stop = undefined; };
       cleanups.add(detach); invalidations.add(emit);
       const refresh = async () => {
+        const version = ++refreshVersion;
         // @ref LLP 3000.019#3.3 — withdrawal cannot wait for storage; only data publication needs authority.
         const read = source?.getSnapshot();
+        if (read && options?.keep && kept.get(read)) attach(kept.get(read));
         if (!closed && read && ("loading" in read || "denied" in read)) {
           snapshot = valid() ? read : denied();
           emit();
           return;
         }
         if (!closed && read && "data" in snapshot) {
-          // The source now owns the replacement's deadline. Retire the superseded
-          // answer before storage can wait past its deadline; staleness keeps identity.
-          snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read : loading) : denied();
+          // @ref LLP 3000.019#3.3 — keep spans replacement authority under the approved answer's own expiry.
+          snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read
+            : options?.keep ? (kept.peek(read) as Read<R> | undefined) ?? loading : loading) : denied();
           emit();
         }
         const refused = await refusal();
-        if (closed) return;
+        if (closed || version !== refreshVersion) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
-        if ("data" in snapshot) approved.add(answerIdentity(snapshot));
-        emit();
+        if ("denied" in snapshot && held) {
+          held.snapshot = snapshot;
+          const read = source?.getSnapshot();
+          if (read) { approved.delete(answerIdentity(read)); kept.reject(read, snapshot); }
+          held.listeners.delete(emit);
+          held = undefined;
+        }
+        if ("data" in snapshot) {
+          approved.add(answerIdentity(snapshot));
+          if (options?.keep) {
+            attach(kept.approve(snapshot));
+          }
+        }
+        if (held) for (const listener of held.listeners) listener();
+        else emit();
       };
       void refusal().then(refused => {
         if (closed) return;
@@ -109,7 +132,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         return refresh();
       }).catch(() => { snapshot = denied(); emit(); });
       return {
-        getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading : snapshot) : denied(),
+        getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading
+          : held ? held.snapshot as Read<R> : snapshot) : denied(),
         subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
@@ -178,11 +202,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     },
   };
   guardAcquisition(client, raw, valid);
-  // Reuse the live answer this facade authorized, including freshness-only copies.
-  // A new answer still waits for authority; the weak identity retains no answer.
+  // @ref LLP 3000.019#3.3 — remount sees the held approved answer while its replacement awaits authority.
   registerObservationPeek(client, (op, args, options) => {
     if (!valid()) return undefined;
     const read = peekObservation(raw, op, args, options);
+    if (read && options?.keep) {
+      const held = kept.peek(read);
+      if (held) return held;
+    }
     return read && (!("data" in read) || approved.has(answerIdentity(read))) ? read : undefined;
   });
   // LocalClient's existing runtime helper also crosses the data boundary.
@@ -191,6 +218,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   return { client, fence() {
     if (!active) return () => {};
     active = false;
+    kept.close();
     for (const cleanup of cleanups) cleanup();
     cleanups.clear();
     // The app publishes its new view before notifying retired subscriptions.

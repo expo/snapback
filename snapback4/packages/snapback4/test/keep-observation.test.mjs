@@ -103,8 +103,14 @@ test("facade approval follows freshness identity but never a new publication or 
     for (const notify of listeners) notify();
     assert.notEqual(answerIdentity(source.snapshot), identity, "even the identical payload and Read object need new authority");
     assert.equal(answerIdentity(original), identity, "old snapshot identity is immutable");
-    assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
-    assert.deepEqual(watch.getSnapshot(), { loading: true });
+    if (source.resetVersion === 0) {
+      assert.equal(watch.getSnapshot().data, data, "the last approval stays while a publication waits");
+      assert.equal(watch.getSnapshot().fresh, false);
+      assert.equal(peekObservation(facade.client, q, {}, { keep: true }), watch.getSnapshot());
+    } else {
+      assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
+      assert.deepEqual(watch.getSnapshot(), { loading: true }, "a scope reset still drops the approval");
+    }
   }
   authority.resolve(true);
   await until(() => watch.getSnapshot().data === data);
@@ -358,7 +364,7 @@ test("createApp forwards source expiry while sessionStore.get is held", async t 
   assert.ok(snapshots.some(read => read.loading), "the source withdrawal notifies the app subscriber before storage resumes");
 });
 
-test("createApp withdraws a superseded answer while replacement authority is held", async t => {
+for (const keep of [true, false]) test(`createApp ${keep ? "keeps" : "withdraws"} a superseded answer while replacement authority is held`, async t => {
   const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
   const clock = new ServerClock(() => wall), memory = memorySessionStore(), held = deferred();
   const session = { kind: "user", token: "kept", principal: "alice", expiresAt: wall + 90 * 86400000 };
@@ -382,17 +388,27 @@ test("createApp withdraws a superseded answer while replacement authority is hel
   }) });
   t.after(async () => { holding = false; held.resolve(); replacement.resolve(); await app.close(); });
   assert.equal((await app.ready).ok, true);
-  const watch = app.client.observe(q, {}, { keep: true }), snapshots = [];
+  const watch = app.client.observe(q, {}, { keep }), snapshots = [];
   watch.subscribe(() => snapshots.push(watch.getSnapshot()));
   await until(() => watch.getSnapshot().data === "A" && watch.getSnapshot().fresh);
   await until(() => queries === 2); // Raw background read is already past session storage.
   holding = true; snapshots.length = 0;
   replacement.resolve();
   await until(() => blocked > 0);
+  if (keep) {
+    assert.equal(watch.getSnapshot().data, "A");
+    assert.equal(watch.getSnapshot().fresh, false);
+    assert.ok(Number.isFinite(watch.getSnapshot().since));
+    assert.ok(snapshots.every(read => read.data === "A"));
+    const remount = app.client.observe(q, {}, { keep: true });
+    assert.equal(remount.getSnapshot(), watch.getSnapshot(), "remount starts with A while B waits");
+    remount.close();
+  } else assert.deepEqual(watch.getSnapshot(), { loading: true });
+  snapshots.length = 0;
   clock.sample(deadline + 1, wall, wall, "server:1");
   await delay(10);
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "superseded A cannot remain visible past its own deadline");
-  assert.ok(snapshots.some(read => read.loading), "replacement withdraws A and notifies before authority resumes");
+  if (keep) assert.ok(snapshots.some(read => read.loading), "A's own expiry notifies before authority resumes");
   assert.ok(snapshots.every(read => !("data" in read)), "B still needs authority");
   holding = false; held.resolve();
   await until(() => watch.getSnapshot().data === "B");

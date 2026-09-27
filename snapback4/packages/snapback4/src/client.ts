@@ -576,7 +576,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   function withdrawExpiry(watch: Watch): () => void {
-    watch.reset({ loading: true });
+    watch.expire();
     return () => { if (watches.get(watch.key) === watch) notify(watch); };
   }
 
