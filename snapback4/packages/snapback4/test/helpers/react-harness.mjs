@@ -10,6 +10,7 @@ import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth"
 import { onlineCustody } from "test-online-custody";
 import { identifyDispatch } from "test-online-dispatch";
 import { guardClient } from "test-guard-client";
+import { ServerClock } from "test-server-clock";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -372,44 +373,102 @@ const cases = {
     await unmount();
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
-    let offset = 90000000, revision = 0;
-    const client = createClient({ url: "https://clock.invalid", persona: "alice", fetch: async (input, init) => {
+    let wall = 1000, offset = 90000000, revision = 0, requestDelay = 40;
+    const clock = new ServerClock(() => wall);
+    const client = createClient({ url: "https://clock.invalid", persona: "alice", fetch: clock.wrap(async (input, init) => {
       if (String(input).includes("/changes")) return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      // Force dispatch-to-stamp latency without sleeping: the midpoint estimate
+      // starts 20 ms ahead. Later revisions have zero request latency.
+      wall += requestDelay;
       return Response.json({ ok: true, data: [], tables: [], seq: 0, store_id: "clock-react" }, { headers: {
-        "x-snapback-time": String(Date.now() + offset), "x-snapback-clock": "react:" + revision,
+        "x-snapback-time": String(wall + offset), "x-snapback-clock": "react:" + revision,
       } });
-    } });
-    await client.query(query, {});
-    function Typing({ rows }) { return h("span", null, useExpiringRows(rows).map(row => row.principal).join(",")); }
-    await mount(h(Typing, { rows: [{ principal: "alice", expiresAt: client.now() + 200 }] }), client);
-    equal(host.textContent, "alice", "the server-clock deadline begins live");
-    const extended = client.now() + 500;
-    await render(h(Typing, { rows: [{ principal: "alice", expiresAt: extended }] }), client);
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
-    equal(host.textContent, "alice", "a replacement answer cancels its old deadline");
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, Math.max(0, extended - client.now()) + 50)); });
-    equal(host.textContent, "", "the published hook owns the replacement deadline render");
+    }) });
     const timers = new Map(), schedule = window.setTimeout, cancel = window.clearTimeout;
-    window.setTimeout = (fn, delay, ...args) => { const id = schedule(fn, delay, ...args); if (delay > 100000) timers.set(id, delay); return id; };
-    window.clearTimeout = id => { timers.delete(id); cancel(id); };
-    await render(h(Typing, { rows: [{ principal: "bob", expiresAt: client.now() + 120000 }] }), client);
-    equal(host.textContent, "bob", "new server answer begins live");
-    equal(timers.size, 1, "one future render timer");
-    offset += 120000; revision++;
-    await act(async () => { await client.query(query, {}); });
-    equal(host.textContent, "", "clock advance repaints without another row answer");
-    equal(timers.size, 0, "clock advance cancels the old deadline");
-    await render(h(Typing, { rows: [{ principal: "carol", expiresAt: client.now() + 120000 }] }), client);
-    equal(timers.size, 1, "the replacement answer installs its timer");
-    const issued = client.now();
-    offset -= 120000; revision++;
-    await act(async () => { await client.query(query, {}); });
-    check(client.now() >= issued, "a shrinking offset never moves device time backward");
-    check([...timers.values()][0] > 239000, "a frozen clock schedules at the estimated deadline without repeated early wakes");
-    await unmount();
-    equal(timers.size, 0, "unmount cancels the replacement timer");
-    window.setTimeout = schedule; window.clearTimeout = cancel;
-    await client.close();
+    let nextTimer = -1, rowAnswers = 0;
+    function Typing({ rows }) { return h("span", null, useExpiringRows(rows).map(row => row.principal).join(",")); }
+    const answer = (principal, expiresAt) => { rowAnswers++; return h(Typing, { rows: [{ principal, expiresAt }] }); };
+    const onlyTimer = () => {
+      equal(timers.size, 1, "one future render timer");
+      return [...timers.values()][0];
+    };
+    const advanceWall = async to => {
+      wall = to;
+      await act(async () => {
+        for (const [id, timer] of [...timers]) if (timer.at <= wall) {
+          timers.delete(id);
+          timer.fire();
+        }
+      });
+    };
+    const sample = async () => {
+      revision++;
+      await act(async () => { await client.query(query, {}); });
+    };
+    try {
+      await client.query(query, {});
+      requestDelay = 0;
+      equal(client.now(), wall + offset + 20, "the injected request latency biases the initial estimate by 20 ms");
+      await unmount();
+      window.setTimeout = (fn, delay, ...args) => {
+        const id = nextTimer--;
+        timers.set(id, { at: wall + delay, delay, fire: () => fn(...args) });
+        return id;
+      };
+      window.clearTimeout = id => { timers.delete(id); if (id >= 0) cancel(id); };
+      const initial = client.now() + 200;
+      await mount(answer("alice", initial), client);
+      equal(host.textContent, "alice", "the server-clock deadline begins live");
+      equal(onlyTimer().delay, 200, "the first timer targets the deadline");
+      const oldTimer = [...timers.keys()][0], extended = client.now() + 500;
+      await render(answer("alice", extended), client);
+      check(!timers.has(oldTimer), "a replacement answer cancels its old deadline timer");
+      equal(onlyTimer().delay, 500, "the replacement timer targets its own deadline");
+      await advanceWall(wall + 200);
+      equal(client.now(), initial, "visit the old deadline exactly");
+      equal(host.textContent, "alice", "a replacement answer cancels its old deadline");
+      await advanceWall(wall + 299);
+      equal(client.now(), extended - 1, "visit one millisecond before the replacement deadline");
+      equal(host.textContent, "alice", "the replacement row is still live before its deadline");
+      await advanceWall(wall + 1);
+      equal(client.now(), extended, "visit the replacement deadline exactly");
+      equal(host.textContent, "", "the published hook owns the replacement deadline render");
+      equal(rowAnswers, 2, "expiry needed no further row answer");
+      equal(timers.size, 0, "expiry leaves no render timer");
+
+      const bobDeadline = client.now() + 120000;
+      await render(answer("bob", bobDeadline), client);
+      equal(host.textContent, "bob", "new server answer begins live");
+      equal(onlyTimer().delay, 120000, "one future render timer");
+      // The old test assumed this offset jump also advanced client.now() by
+      // 120000. A faster revision drops the prior midpoint bias instead.
+      offset += 120000;
+      await sample();
+      equal(client.now(), bobDeadline - 20, "the new estimate is still 20 ms short of the row deadline");
+      equal(host.textContent, "bob", "a clock advance cannot expire a still-live row");
+      equal(onlyTimer().delay, 20, "the hook reschedules the remaining lifetime");
+      offset += 20;
+      await sample();
+      equal(client.now(), bobDeadline, "the next clock sample reaches the exact deadline");
+      equal(host.textContent, "", "clock advance repaints without another row answer");
+      equal(rowAnswers, 3, "clock advances needed no further row answer");
+      equal(timers.size, 0, "clock advance cancels the old deadline");
+
+      await render(answer("carol", client.now() + 120000), client);
+      equal(onlyTimer().delay, 120000, "the replacement answer installs its timer");
+      const issued = client.now();
+      offset -= 120000;
+      await sample();
+      equal(client.now(), issued, "a shrinking offset never moves device time backward");
+      equal(host.textContent, "carol", "the replacement row remains live during clock rollback");
+      equal(onlyTimer().delay, 240000, "a frozen clock schedules at the estimated deadline without repeated early wakes");
+      await unmount();
+      equal(timers.size, 0, "unmount cancels the replacement timer");
+    } finally {
+      await unmount();
+      window.setTimeout = schedule; window.clearTimeout = cancel;
+      await client.close();
+    }
   },
   async "AppProvider switches real clients, resets account state and routes existing mutation/query hooks"() {
     const seen = [];
