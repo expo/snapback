@@ -68413,3 +68413,65 @@ driver: target/lane-fx-evidence/round1-*.
 Final reference audit: 517 LLP documents, 9,618 references, zero errors and
 zero unchecked. Diff whitespace check passes. Final one-minute host loads
 were 29.88 (expiry) and 51.26 (React).
+
+### 2026-09-27 — Lane GS round 2: device budget and review regressions
+
+Read rounds 0–1, both binding prompts, LLP 3000.024's Decision and both full
+reviews. First fetched/merged origin/main as c86450e6d; the sole conflict was
+this journal. Both parent histories remain verbatim and in order, verified
+before committing. Implementation ad4ad7cf6 addresses the six review findings.
+
+The compact one-read evaluator, selected decoder/adapter, key/head consumers
+and refusal are behind server-search; the device build omits that feature.
+Device dispatch stays on the existing evaluator even when native test Cargo
+features unify. Oversized declared decode reservations use the permitted
+existing metered-plan fallback: one tiny message under body text <=2000000
+now completes and matches the explicit merge. Compact selected heads and
+emitted-point reads still use their declared reservations. No actual-size
+private-row admission or meter relaxation was introduced.
+
+Runtime/certificate share eligibility. Grouped refusals and notes derive
+actual table/column/argument bindings and preserve scalar pins and residual
+filters in both existence and preview. Deleted-only chats and deleted previews
+are excluded. Unscoped repairs preserve direction, order, take and filters;
+only roster reads under message hits get the decoration warning. Bounded
+explicit merges describe their existing heap-null/no-next cut. The source
+renderer withholds unsupported expressions instead of fabricating a repair.
+
+Affected checks: runtime 10/10, certificate 6/6, shared server search 17/17,
+shared device search 50/50, device authorization/census 81/81, merge 11/11,
+whole guide 86/86. Complete shared device pages and cursor tokens are directly
+compared with server results. Eight negative controls all fail their intended
+assertions: device routing, declaration fallback, hard-coded rewrite, dropped
+tombstone, zero count, lost lower-bound wording, first-word-only head, and old
+certificate. Source is restored byte-for-byte after each. Runtime/certificate
+pass again after restoration. Ten emitted rewrites pass the rebuilt CLI's
+check --cost --json without compiler diagnostics/notes; grouped repairs have
+no search advice, while scoped/bare global repairs retain independent costs.
+
+Wasm passes twice at 1,983,444 raw / 572,699 gzip B, under unchanged 572,841
+by 142 B: −8,178 gzip B from round 1, +646 from the recorded same-host baseline.
+SHA-256 48ff5cd876c24533943ed9811fa85744387552585072863866c7da0995c54d43.
+No shared-path tool installation. Rust 1.97.0, Node 24.13.1, Bun 1.3.14;
+eight Cargo jobs, debug/incremental off, fd limit 65,536. Source files stay
+below 1,500 lines (maximum changed file: engine/read.rs, 1,444).
+
+The single full suite is `== 1 failure(s) in 1585 s`, exit 1. Rust passes
+3,947 with 24 existing ignored (244 binaries, 957 executions plus doctests,
+1,062 s). Client main: 2,636 pass / one fail / 10 existing skips; all seven
+shards pass 56/56 (197 s phase). All nine wrappers, both app typechecks, earlier
+gates and all 78 models (265 s) pass. Only failure is baseline intermittent:
+residency.test.mjs's server-class remembered-data watch did not observe offline
+fresh=false within its unchanged 8-second wait. The identical assertion is in
+the earlier lane O round-3 report; client/test sources are unchanged, and its
+query uses no search. No lane-owned or confirmed environmental full-suite
+failure. A single focused follow-up passes 1/1 (180.598508 ms); this does not
+replace the red full result or establish a cause. Filed
+issues/20260927-snapback4-server-watch-offline-freshness-flaky.md. No unrelated
+client fix, timeout change, or second full run. The inherited 60-second target
+remains exceeded and unchanged.
+
+No multi-request continuation, saved work state, cursor or meter budget change,
+original calibration-store access, push or publication. Existing device and
+legacy-plan opening limits remain documented. Full file map, examples, negative
+controls, exact failure and hashes: reports/20260927-gs-global-search-round2/.
