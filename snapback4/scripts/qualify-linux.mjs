@@ -7,12 +7,13 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, linuxTarget, nodeVersion, platforms, refuseCredentials, run, save, sqliteBuildFlags, sri, validateLinux } from "./publication-artifacts.mjs";
 import { checkElf } from "./check-elf.mjs";
-export function containerRuntime() {
+import { prootProof } from "./qualify-linux-proot.mjs";
+export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"], { stdio: "ignore", timeout: 15_000 })) {
   for (const name of ["docker", "podman"]) {
-    const probe = spawnSync(name, ["info"], { stdio: "ignore", timeout: 15_000 });
+    const probe = probeRuntime(name);
     if (probe.status === 0) return name;
   }
-  throw new Error("Linux consumer proof needs a working Docker or Podman; install/enable a runtime, then rerun qualify-linux.mjs (no receipt was written)");
+  return "proot";
 }
 export function containerProof(runtime, client, platform, version, work) {
   const context = join(work, "container"); mkdirSync(context);
@@ -20,6 +21,7 @@ export function containerProof(runtime, client, platform, version, work) {
   copyFileSync(new URL("./publication-roundtrip.mjs", import.meta.url), join(context, "roundtrip.mjs"));
   const proofs = [];
   for (const base of ["ubuntu:22.04", "alpine"]) {
+    const started = Date.now();
     const dockerfile = base === "alpine"
       ? `FROM node:${nodeVersion}-alpine AS node\nFROM alpine:3.23\nCOPY --from=node /usr/local /usr/local\nRUN apk add --no-cache libstdc++ ca-certificates\n`
       : `FROM node:${nodeVersion}-bookworm-slim AS node\nFROM ubuntu:22.04\nCOPY --from=node /usr/local /usr/local\nRUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 ca-certificates && rm -rf /var/lib/apt/lists/*\n`;
@@ -32,7 +34,7 @@ export function containerProof(runtime, client, platform, version, work) {
       // home, npmrc, binary override or host credentials enter the container.
       run(runtime, ["run", "--rm", "--name", tag, "--platform", "linux/amd64", tag, "sh", "-ec",
         `test -z "\${SNAPBACK4_BIN+x}"; test "$(node -v)" = v${nodeVersion}; printf '{"private":true,"type":"module"}' > package.json; npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz; cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}`], { stdio: "inherit", timeout: 300_000 });
-      proofs.push({ base, image, runtime, node: nodeVersion, status: "passed", clientIntegrity: sri(client), platformIntegrity: sri(platform) });
+      proofs.push({ base, image, runtime, route: runtime, elapsedMs: Date.now() - started, node: nodeVersion, status: "passed", clientIntegrity: sri(client), platformIntegrity: sri(platform) });
     } finally {
       spawnSync(runtime, ["rm", "--force", tag], { stdio: "ignore", timeout: 30_000 });
       spawnSync(runtime, ["image", "rm", tag], { stdio: "ignore", timeout: 30_000 });
@@ -62,7 +64,7 @@ export function qualify(args = process.argv.slice(2)) {
   try { result = spawnSync("bash", [join(root, "scripts/test.sh")], { cwd: root, env, stdio: ["ignore", fd, fd] }); }
   finally { closeSync(fd); }
   const summary = readFileSync(log, "utf8").match(/^== \d+ failure\(s\) in \d+ s$/m)?.[0];
-  if (result.status !== 0 || !summary?.startsWith("== 0 ")) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}`);
+  const suitePassed = result.status === 0 && summary?.startsWith("== 0 ");
   run("bash", [join(root, "scripts/build-linux-musl.sh")], { cwd: root, env, stdio: "inherit" });
   const binary = join(root, `target/${linuxTarget}/production/snapback4`), binarySha256 = digest(binary), elf = checkElf(readFileSync(binary));
   if (run(binary, ["--version"]).trim() !== `snapback4 ${version}`) throw new Error("Linux built binary version differs from client");
@@ -73,9 +75,13 @@ export function qualify(args = process.argv.slice(2)) {
     copyFileSync(binary, join(pkg, "snapback4"));
     const [packed] = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", work], { cwd: pkg }));
     const tarball = join(work, packed.filename), platform = artifact(tarball, platforms[1], version);
-    const proofs = containerProof(runtime, client, tarball, version, work);
+    const proofs = runtime === "proot" ? prootProof(client, tarball, version) : containerProof(runtime, client, tarball, version, work);
+    // Keep executed consumer evidence on a red suite, without a success receipt.
+    // An isolated flake rerun cannot turn the original suite into a release pass.
+    save(join(out, "proofs.json"), { source, route: runtime, proofs, suite: { exitCode: result.status, summary } });
+    if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
-    const receipt = { format: 1, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, elf, platform, binarySha256, clientIntegrity };
+    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, elf, platform, binarySha256, clientIntegrity };
     if (cleanSource(root) !== source || sri(client) !== clientIntegrity) throw new Error("release source or client changed during Linux qualification");
     validateLinux(receipt, tarball, { version, integrity: clientIntegrity }, source);
     copyFileSync(tarball, join(out, packed.filename));

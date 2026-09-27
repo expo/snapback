@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
+import { matchesPinnedProof } from "./linux-proof-inputs.mjs";
 export const sqliteBuildFlags = "-USQLITE_ENABLE_MEMORY_MANAGEMENT";
 export const platforms = ["snapback4-darwin-arm64", "snapback4-linux-x64"];
 export const linuxTarget = "x86_64-unknown-linux-musl";
@@ -63,8 +64,13 @@ export function validateLinux(receipt, tarball, client, source) {
   if (receipt.clientIntegrity !== client.integrity) throw new Error("Linux receipt proved a different client SRI");
   if (sri(tarball) !== receipt.platform.integrity) throw new Error("Linux tarball does not match receipt SRI");
   const proofs = receipt.proofs;
-  if (!Array.isArray(proofs) || proofs.length !== 2 || !["ubuntu:22.04", "alpine"].every(base => proofs.some(p => p.base === base && p.status === "passed" && p.node === nodeVersion && /^(docker|podman)$/.test(p.runtime) && p.image && p.clientIntegrity === client.integrity && p.platformIntegrity === receipt.platform.integrity)))
-    throw new Error("Linux receipt needs successful Ubuntu 22.04 and Alpine proofs bound to both artifacts and pinned Node");
+  const proot = receipt.route === "proot";
+  const bases = proot ? ["ubuntu:24.04", "alpine"] : ["ubuntu:22.04", "alpine"];
+  if (!Array.isArray(proofs) || proofs.length !== 2 || !bases.every(base => proofs.some(p =>
+    p.base === base && p.status === "passed" && p.clientIntegrity === client.integrity && p.platformIntegrity === receipt.platform.integrity
+    && (proot ? p.runtime === "proot" && p.route === "proot" && matchesPinnedProof(p)
+      : p.node === nodeVersion && /^(docker|podman)$/.test(p.runtime) && p.image && (!receipt.route || receipt.route === p.runtime)))))
+    throw new Error(`Linux receipt needs successful Ubuntu ${proot ? "24.04" : "22.04"} and Alpine proofs bound to both artifacts and pinned Node/runtimes/root filesystems`);
   if (receipt.elf?.status !== "passed" || receipt.elf.machine !== "x86_64" || receipt.elf.interpreter !== null || !Array.isArray(receipt.elf.needed) || receipt.elf.needed.length)
     throw new Error("Linux receipt must record ELF with no interpreter and no NEEDED entries");
   const m = manifest(tarball, platforms[1], client.version);

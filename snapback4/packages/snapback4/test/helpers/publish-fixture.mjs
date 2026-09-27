@@ -17,7 +17,7 @@ export function publish(t, scenario = {}, previousRoot) {
   if (!previousRoot) {
     t.after(() => rmSync(root, { recursive: true, force: true }));
     for (const dir of ["scripts", "packages/snapback4", `packages/${platform}`, "target/production"]) mkdirSync(join(root, dir), { recursive: true });
-    for (const file of ["publish.mjs", "signing.mjs", "publication-artifacts.mjs", "publication-consumer.mjs", "publication-roundtrip.mjs", "publication-registry.mjs", "prepare-client.mjs"]) if (existsSync(new URL(file, scripts))) copyFileSync(new URL(file, scripts), join(root, "scripts", file));
+    for (const file of ["publish.mjs", "signing.mjs", "publication-artifacts.mjs", "linux-proof-inputs.mjs", "publication-consumer.mjs", "publication-roundtrip.mjs", "publication-registry.mjs", "prepare-client.mjs"]) if (existsSync(new URL(file, scripts))) copyFileSync(new URL(file, scripts), join(root, "scripts", file));
     for (const dir of ["snapback4", platform]) writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ name: dir, version: "0.0.0", ...(dir === "snapback4" ? { optionalDependencies: { "snapback4-darwin-arm64": "0.0.0", "snapback4-linux-x64": "0.0.0" } } : {}) }));
     writeFileSync(join(root, "target/production/snapback4"), "unsigned");
     writeFileSync(join(root, "packages", platform, "THIRD-PARTY-NOTICES"), "notices");

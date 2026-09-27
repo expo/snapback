@@ -93,7 +93,8 @@ Gotchas you cannot derive from the code:
 - Cross-host publication (LLP 3000.021 §3.3): prepare the common client once
   from clean release source, qualify that tarball on Linux, and import the
   Linux tarball plus its receipt on the Mac. Source commit, client SRI and
-  Linux SRI must agree. Linux requires a working Docker/Podman and refuses
+  Linux SRI must agree. Linux prefers working Docker/Podman, otherwise uses checksum-pinned proot
+  with clean Ubuntu 24.04/Alpine root filesystems in a user cache, and refuses
   `NPM_TOKEN` or `NODE_AUTH_TOKEN`, even when empty. It never signs or packs
   the client. The Mac never rebuilds or executes Linux; `--resume` rechecks
   its copied receipt. No receipt keeps the Darwin-only publication flow.
