@@ -49,9 +49,9 @@ with `next` after the last fully shaped hit. Heap exhaustion makes the result
 unavailable; steps/output can refuse. Following a cut does not clear
 `usePage`'s accumulated incompleteness.
 
-The device keeps the existing metered evaluator. So do server schemas whose
-declared row decode reservation exceeds the default heap ceiling; tiny stored
-payloads still use actual-size admission there. Other explicit merges keep
+Trusted, non-expiring server heads and emitted rows admit their actual decoded
+size; wide declarations alone do not force a fallback. Private and expiring
+images retain declared admission. The device and other explicit merges keep
 their existing opening cuts, which can lack `next` and E_SEARCH_OPEN.
 
 **Measured server envelope.** On the Linux calibration host, default meters complete

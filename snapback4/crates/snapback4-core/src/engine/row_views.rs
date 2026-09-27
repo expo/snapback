@@ -624,7 +624,7 @@ impl Runner<'_> {
         m: &Maintain,
         row: &Value,
     ) -> Result<Option<Value>, RuntimeError> {
-        self.authorized_member(&m.row_key.as_ref().unwrap().table, row.field("member")?.as_str()?)
+        self.authorized_member(&m.row_key.as_ref().unwrap().table, row.field("member")?.as_str()?, #[cfg(feature = "server-search")] false)
     }
     // A pure witness has no row payload. Reserve the key's admitted width,
     // then expose only existence/lifetime from the internal ledger.

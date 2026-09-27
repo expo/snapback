@@ -31,8 +31,28 @@ impl RowAuthorization {
 
 impl<'r> Runner<'r> {
     // @ref LLP 3000.015#1 — member reads share the row-read and field-disclosure capability.
-    pub(super) fn authorized_member(&mut self, name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+    pub(super) fn authorized_member(&mut self, name: &str, id: &str, #[cfg(feature = "server-search")] trusted: bool) -> Result<Option<Value>, RuntimeError> {
         let table = &self.schema.tables[name];
+        // @ref LLP 3000.024#decision — this id came from an authorized head in
+        // this read-only transaction. Price its public image before decoding,
+        // then recheck the rule with a separate witness reservation. Neither
+        // hidden/expired images nor private fields can select actual-size admission.
+        #[cfg(feature = "server-search")]
+        if trusted && !self.device && !table.is_expiring() && table.recorded.is_empty()
+            && table.through.is_none() && table.written_by.values().all(|a|a.audience) {
+            if !self.read_charge(MeterKind::Examined,1)? { return Ok(None); }
+            self.meter.heap(crate::rows::word_heap::text(id) + crate::rows::word_heap::slots::<Value>(1))?;
+            let key = [Value::Id(id.into())];
+            let Some((Some(row),_)) = self.scan_authorized(name,crate::schema::BY_ID,&key,&Default::default(),crate::rows::Dir::Asc,1,true,true,None)?.pop() else { return Ok(None); };
+            let expiry = self.next_expiry.scope();
+            let row = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[(MeterKind::RuleProbes,super::rules::rule_probes(&table.rules.read))], |runner,_| {
+                let row = runner.authorize_image(name,row.into_value())?;
+                if let Some(row) = &row { runner.next_expiry.inherit(row.expiry()); }
+                Ok(row)
+            })?;
+            if row.is_some() { expiry.emit(); }
+            return row.map(|row|row.charge(&mut self.meter)).transpose();
+        }
         let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
         let expiry = self.next_expiry.scope();
         let row = self.authorized_scratch(bytes, &[(MeterKind::Examined, 1), (MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, scope| {
@@ -70,9 +90,10 @@ impl<'r> Runner<'r> {
         let table = &self.schema.tables[name];
         // A public, non-expiring image is authorized before accessing storage.
         // No hidden candidate can influence its actual-size decoder admission.
-        #[cfg(not(feature = "server-search"))]
-        let fields: Option<&[String]> = None;
-        if fields.is_none() && (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
+        // Trusted selected heads may use the same actual-size adapter. It
+        // decodes a full transient image; the streaming consumer retains only
+        // its ordering key. Selection remains useful in the private decoder.
+        if (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
             let rows = if metered {
                 self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
                 self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?

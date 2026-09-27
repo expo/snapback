@@ -15,9 +15,6 @@ pub fn eligible(schema: &crate::schema::Schema, merge: &Merge) -> bool {
         // Retained read-through rows can have a denied live parent. Their word
         // enumeration keeps the existing private/retained evaluator.
         && schema.tables[&lane.scan.table].through.is_none()
-        // Oversized declarations keep the old actual-size metered evaluator
-        // until both compact head and emitted-row admission support it.
-        && crate::rows::disclosed::decode_reservation(&schema.tables[&lane.scan.table]) <= crate::Ceilings::default().heap_bytes
         && rules::scan_visibility(schema, source).uniform
         && rules::scan_visibility(schema, &lane.scan).uniform
         && matches!(lane.scan.prefix.first(), Some(IndexKeyExpr::Scalar(Expr::Field { base, name: field }))

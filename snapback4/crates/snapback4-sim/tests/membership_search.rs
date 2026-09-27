@@ -29,7 +29,10 @@ mutation leave(id: id):
 "#;
 fn id(s: &str) -> Value { Value::Id(s.into()) }
 fn setup(groups: usize, words: usize) -> Engine {
-    let b = snapback4_lang::compile(&[("schema.q".into(),SOURCE.into())]);
+    setup_source(groups,words,SOURCE)
+}
+fn setup_source(groups: usize, words: usize, source: &str) -> Engine {
+    let b = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     let mut engine = Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     let mut rows = Vec::new();
@@ -101,11 +104,13 @@ fn drain_cut_keeps_a_cursor_after_fully_emitted_hits() {
 }
 #[test]
 fn membership_revocation_between_pages_rechecks_authority() {
-    let mut e = setup(3,1);
-    let p = e.query("newest",cx("cof",None)).unwrap();
-    e.mutate("leave",None,Context::new("alice",[("id".into(),id("r002"))].into())).unwrap();
-    let next = e.query("newest",cx("cof",p.next)).unwrap();
-    assert!(next.data.as_array().unwrap().iter().all(|r|r.field("room").unwrap()!=&id("r002")));
+    for source in [SOURCE.to_owned(),SOURCE.replace("  expire at .until\n", "")] {
+        let mut e = setup_source(3,1,&source);
+        let p = e.query("newest",cx("cof",None)).unwrap();
+        e.mutate("leave",None,Context::new("alice",[("id".into(),id("r002"))].into())).unwrap();
+        let next = e.query("newest",cx("cof",p.next)).unwrap();
+        assert!(next.data.as_array().unwrap().iter().all(|r|r.field("room").unwrap()!=&id("r002")));
+    }
 }
 
 #[test]
@@ -123,21 +128,75 @@ fn every_examined_cut_either_explains_opening_or_advances() {
 
 #[test]
 fn oversized_declaration_with_tiny_payload_keeps_existing_complete_answer() {
-    let source = SOURCE.replace("text <=4000", "text <=2000000").replace("  expire at .until\n", "");
+    // Both sides of Grok's admission boundary and the old 16/24 MiB cutoffs.
+    for bound in [1_023_556, 1_023_557, 1_026_000, 1_027_327, 1_027_328, 1_551_615, 1_551_616, 2_000_000] {
+        tiny_declared_payload(bound, None, &[16 << 20]);
+    }
+}
+
+#[test]
+fn message_and_rule_witness_declarations_do_not_share_a_decode_reservation() {
+    tiny_declared_payload(600_000, Some(600_000), &[16 << 20, 10 << 20]);
+}
+
+#[test]
+fn actual_size_admission_uses_the_active_heap_ceiling() {
+    for bound in [1_023_556,1_023_557,1_026_000,2_000_000] {
+        tiny_declared_payload(bound,None,&[128 << 10]);
+    }
+}
+
+#[test]
+fn private_payload_sizes_do_not_select_actual_size_admission() {
+    let source = SOURCE.replace("  expire at .until\n", "")
+        .replace("  payload: text <=20000", "  owner: principal\n  payload: text <=20000 default '' written by .owner");
+    let mut answers = Vec::new();
+    for size in [0,20_000] {
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        e.seed_at(vec![
+            ("members".into(),object([("id",id("m")),("room",id("r")),("principal",id("alice"))])),
+            ("messages".into(),object([("id",id("hit")),("room",id("r")),("body",Value::String("coffee".into())),
+                ("owner",id("bob")),("payload",Value::String("x".repeat(size))),("at",Value::Int(1)),("tombstone",Value::Bool(false)),("until",Value::Null)])),
+        ],100).unwrap();
+        let page=e.query("newest",cx("cof",None)).unwrap();
+        assert!(page.complete,"{page:?}");
+        assert_eq!(ids(&page.data),["hit"]);
+        assert!(page.data.as_array().unwrap()[0].field("payload").is_err());
+        answers.push(serde_json::to_value(page).unwrap());
+    }
+    assert_eq!(answers[0],answers[1]);
+}
+
+fn tiny_declared_payload(body: u32, witness: Option<u32>, heaps: &[u64]) {
+    let mut source = SOURCE.replace("text <=4000", &format!("text <={body}")).replace("  expire at .until\n", "");
+    if let Some(witness) = witness { source = source.replace("  principal: principal", &format!("  info: text <={witness}\n  principal: principal")); }
     let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let newest = &b.programs.iter().find(|p|p.program.name == "newest").unwrap().program;
+    assert!(snapback4_lang::bind::merges(&newest.body).iter().any(|m|snapback4_core::search_plan::eligible(&b.schema,m)), "wide declarations still use compact admission");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut member = object([("id",id("m")),("room",id("r")),("principal",id("alice"))]);
+    if witness.is_some() { if let Value::Row(fields) = &mut member { fields.insert("info".into(),Value::String("tiny".into())); } }
     e.seed_at(vec![
-        ("members".into(),object([("id",id("m")),("room",id("r")),("principal",id("alice"))])),
+        ("members".into(),member),
         ("messages".into(),object([("id",id("hit")),("room",id("r")),("body",Value::String("coffee".into())),
             ("payload",Value::String("tiny".into())),("at",Value::Int(1)),("tombstone",Value::Bool(false)),("until",Value::Null)])),
     ],100).unwrap();
-    let old = e.query("control",cx("cof",None)).unwrap();
-    let new = e.query("newest",cx("cof",None)).unwrap();
-    assert!(old.complete && new.complete);
-    assert_eq!(ids(&new.data), ["hit"]);
-    assert_eq!(old.data,new.data);
-    assert!(new.metered.heap_bytes < 100_000, "{:?}", new.metered);
+    // A smaller active ceiling must not be confused with the default. The
+    // wide witness still needs its own declared scratch, separately from rows.
+    for &heap in heaps {
+        e.set_ceilings(Ceilings { heap_bytes: heap,..Ceilings::default() });
+        let old = e.query("control",cx("cof",None)).unwrap();
+        let new = e.query("newest",cx("cof",None)).unwrap();
+        assert!(old.complete && new.complete, "body={body} witness={witness:?} heap={heap}: old={old:?} new={new:?}");
+        assert_eq!(ids(&new.data), ["hit"]);
+        assert_eq!(old.data,new.data);
+        assert_eq!(old.next,new.next);
+        assert!(new.metered.heap_bytes < 100_000, "{:?}", new.metered);
+        eprintln!("body={body} witness={witness:?} heap={heap}: complete hit; old_heap={} compact_heap={}",old.metered.heap_bytes,new.metered.heap_bytes);
+    }
 }
 
 #[test]
@@ -190,8 +249,9 @@ fn later_word_head_can_win_in_either_output_direction() {
 #[test]
 fn refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches() {
     for (membership, messages, room) in [("members","messages","room"),("roster","posts","roomId")] {
+      for predicate in [".at > 0", "count(.body) > 3 and .at > 0", "(.body + 'x') != 'hidden' and .at > 0"] {
         let source = SOURCE.replace("members",membership).replace("messages",messages).replace("room",room)
-            .replace("not .tombstone and exists", "not .tombstone and .at > 0 and exists");
+            .replace("not .tombstone and exists", &format!("not .tombstone and {predicate} and exists"));
         let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
         assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
         let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
@@ -204,9 +264,14 @@ fn refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches() {
         // A deleted candidate in the live chat must also be absent from preview.
         rows.push((messages.into(),object([("id",id("deleted-preview")),(room,id("live")),("body",Value::String("coffee".into())),
             ("payload",Value::String("tiny".into())),("at",Value::Int(1000)),("tombstone",Value::Bool(true)),("until",Value::Null)])));
+        for n in 1..=3 {
+            rows.push((messages.into(),object([("id",id(&format!("preview{n}"))),(room,id("live")),("body",Value::String("coffee".into())),
+                ("payload",Value::String("tiny".into())),("at",Value::Int(n)),("tombstone",Value::Bool(false)),("until",Value::Null)])));
+        }
         e.seed_at(rows.clone(),100).unwrap();e.set_ceilings(Ceilings {index_entries:1,..Ceilings::default()});
         let why=e.query("newest",cx("cof",None)).unwrap_err();
         let rewrite=why.rewrite.unwrap();
+        assert!(rewrite.contains("last 3 by .at"),"{rewrite}");
         let source=source.split("query newest").next().unwrap();
         let repaired=format!("{source}\nquery repaired(q: text <=100, c: cursor ?):\n  {rewrite}\n");
         let b=snapback4_lang::compile(&[("schema.q".into(),repaired)]);
@@ -217,6 +282,7 @@ fn refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches() {
         assert!(page.complete,"{page:?}");
         let groups=page.data.as_array().unwrap();assert_eq!(groups.len(),1,"{rewrite}\n{page:?}");
         assert_eq!(groups[0].field(room).unwrap(),&id("live"));
-        assert_eq!(ids(groups[0].field("hits").unwrap()),["live"]);
+        assert_eq!(ids(groups[0].field("hits").unwrap()),["live","preview3","preview2"]);
+      }
     }
 }

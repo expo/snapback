@@ -89,7 +89,7 @@ impl Runner<'_> {
             // Only an emitted hit materializes a result row/shape. Authorization
             // is checked again by the normal point boundary in this transaction.
             let id = head.key.last().unwrap().as_str()?;
-            let Some(row) = self.authorized_member(&scan.table, id)? else {
+            let Some(row) = self.authorized_member(&scan.table, id, true)? else {
                 drain_cut = self.read_capped();
                 if drain_cut && page.is_empty() { return Err(self.opening_error(merge, count, true)); }
                 break;

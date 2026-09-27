@@ -73,6 +73,7 @@ fn grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview() {
         let fixed=compile(&format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {rewrite}\n"));
         assert!(classify(&fixed.schema,&fixed.programs[0].program).is_empty(),"{rewrite}\n{:?}",classify(&fixed.schema,&fixed.programs[0].program));
         assert!(rewrite.contains("hits:"));
+        assert!(rewrite.contains("last 3 by .sent"),"{rewrite}");
         assert_eq!(rewrite.matches("tombstone").count(),2,"{rewrite}");
         assert_eq!(rewrite.matches("sender").count(),2,"{rewrite}");
         assert!(!rewrite.contains('$'),"{rewrite}");
@@ -139,13 +140,32 @@ fn certificate_uses_every_runtime_eligibility_condition() {
             "declaration"=>{schema.tables.get_mut("posts").unwrap().columns.insert("body".into(),snapback4_core::schema::ColumnType::Text {max:2_000_000});},
             _=>{},
         }
-        assert_eq!(snapback4_core::search_plan::eligible(&schema,&merge),case=="eligible","{case}");
+        let eligible = matches!(case,"eligible" | "declaration");
+        assert_eq!(snapback4_core::search_plan::eligible(&schema,&merge),eligible,"{case}");
         // Give the extracted merge its original needle binding.
         let mut p=program.clone();p.body=vec![
             Stmt::Let {name:"$intentNeedle1".into(),value:Expr::Variable("needle".into())},
             Stmt::Return(Expr::Merge(merge)),
         ];
         let notes=classify(&schema,&p);
-        assert_eq!(notes.iter().any(|n|n.code=="N_SEARCH_OPEN"),case=="eligible","{case}: {notes:?}");
+        assert_eq!(notes.iter().any(|n|n.code=="N_SEARCH_OPEN"),eligible,"{case}: {notes:?}");
+    }
+}
+
+#[test]
+fn builtin_repairs_use_quarry_spellings_on_the_originating_schema() {
+    // Every builtin the printer emits: count/concat were IR names, while the
+    // existing lower, trim, slice and calendar spellings also round-trip here.
+    for predicate in ["count(.body) > 3", "(.body + 'x') != 'hidden'", "lower(.body) != 'hidden'",
+        "trim(.body) != 'hidden'", "slice(.body, 0, 3) != 'hid'", "hour(.sent) >= 0", "hour(.sent, 30m) >= 0",
+        "day(.sent) >= 0", "day(.sent, 8h) >= 0", "bucket(.sent, 2m, 1s) >= 0"] {
+        let b=compile(&format!("{SCHEMA}\nquery newest(needle: text <=100, position: cursor ?):\n  return posts matching needle where {predicate} and exists roster[.roomId, viewer] last 7 by .sent after position\n"));
+        let notes=classify(&b.schema,&b.programs[0].program);
+        assert!(notes.iter().any(|n|n.code=="N_SEARCH_OPEN"),"{predicate}: {notes:?}");
+        for note in notes {
+            assert!(note.rewrite.contains("last 3 by .sent"),"{note:?}");
+            let fixed=compile(&format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {}\n",note.rewrite));
+            assert!(classify(&fixed.schema,&fixed.programs[0].program).is_empty(),"{note:?}");
+        }
     }
 }

@@ -25,9 +25,29 @@ pub(super) fn expr(schema: &Schema, e: &Expr, names: &Names) -> Option<String> {
             format!("{}{}[{}]",if matches!(e,Expr::Exists(_)) {"exists "}else{""},r.table,keys.join(", "))
         }
         Expr::Builtin { builtin,args } => {
+            if *builtin == Builtin::Concat {
+                let [left,right] = args.as_slice() else { return None };
+                return Some(format!("({} + {})",sub(left)?,sub(right)?));
+            }
+            if let Builtin::Calendar { millis } = builtin {
+                let (value,offset) = match args.as_slice() {
+                    [value] => (value,0),
+                    [value,Expr::Literal(Value::Int(offset))] => (value,*offset),
+                    _ => return None,
+                };
+                if *millis <= 0 || offset < 0 || offset >= *millis { return None; }
+                let mut call = match millis {
+                    3_600_000 => format!("hour({}",sub(value)?),
+                    86_400_000 => format!("day({}",sub(value)?),
+                    _ => format!("bucket({}, {millis}ms",sub(value)?),
+                };
+                if offset != 0 { call.push_str(&format!(", {offset}ms")); }
+                return Some(format!("{call})"));
+            }
             let name=match builtin {
-                Builtin::Len=>"len",Builtin::Lower=>"lower",Builtin::Trim=>"trim",Builtin::Concat=>"concat",Builtin::Slice=>"slice",
-                Builtin::Calendar { millis: 3_600_000 }=>"hour",Builtin::Calendar { millis: 86_400_000 }=>"day",
+                Builtin::Len=>"count",Builtin::Lower=>"lower",Builtin::Trim=>"trim",Builtin::Slice=>"slice",
+                // Other IR builtins have no renderer here: withhold a repair
+                // rather than emit an internal name or discard its predicate.
                 _=>return None,
             };
             format!("{name}({})",args.iter().map(sub).collect::<Option<Vec<_>>>()?.join(", "))
