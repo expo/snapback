@@ -78,13 +78,13 @@ async function fixture(t, tier, appFacade = false) {
     trigger(boundary) { held = true; if (boundary === "close") return raw.close(); if (boundary === "sign-out") return raw.signOut(); loss.resolve(boundary); } };
 }
 
-for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]) for (const livePeer of [false, true]) {
-  test(`${tier} ${mode}: closed withdrawing facade honors row expiry, live peer=${livePeer}`, async t => {
+for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]) for (const livePeer of [false, true]) for (const keep of [undefined, false, true]) {
+  test(`${tier} ${mode}: closed facade honors row expiry, live peer=${livePeer}, keep=${keep}`, async t => {
     const f = await fixture(t, tier, mode === "createApp");
     const facade = mode === "guard" ? guardClient(f.raw, async () => true, () => true,
       () => ({ code: "E_AUTH", family: "auth", message: "closed" })) : undefined;
     t.after(() => facade?.fence()());
-    const client = facade?.client ?? f.raw, options = { keep: false };
+    const client = facade?.client ?? f.raw, options = keep === undefined ? undefined : { keep };
     const closed = client.observe(q, {}, options);
     await until(() => closed.getSnapshot().data === "private A");
     const peer = livePeer ? client.observe(q, {}, options) : undefined;
@@ -92,7 +92,10 @@ for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]
       await until(() => peer.getSnapshot().data === "private A");
       await delay(0); // The peek is immediate; let opening authority attach the raw subscription.
     }
+    const a = closed.getSnapshot();
     closed.close();
+    if (livePeer || tier === "wasm" || keep === true) assert.equal(closed.getSnapshot(), a,
+      "a closed facade keeps its last answer while the same source identity remains valid");
     const seen = [];
     peer?.subscribe(() => seen.push(closed.getSnapshot()));
     f.holdDevice(); f.wall(5000);
@@ -111,7 +114,7 @@ for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]
 
 for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]) {
   for (const keep of [false, undefined, true]) for (const replacement of ["private B", "private A"]) {
-    test(`${tier} ${mode}: closed facade keeps A's deadline after peer republishes ${replacement}, keep=${keep}`, async t => {
+    test(`${tier} ${mode}: closed facade withdraws when peer republishes ${replacement}, keep=${keep}`, async t => {
       const f = await fixture(t, tier, mode === "createApp");
       t.mock.method(Date, "now", () => 1000); // Isolate the row deadline from the host-time episode cap.
       const facade = mode === "guard" ? guardClient(f.raw, async () => true, () => true,
@@ -125,6 +128,8 @@ for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]
       await delay(0); // Attach the peer's raw subscription after its opening peek.
       assert.equal(answerObservation(closed.getSnapshot()), answerObservation(peer.getSnapshot()));
       const approved = closed.getSnapshot();
+      let callbacks = 0;
+      closed.subscribe(() => callbacks++);
       closed.close();
       assert.equal(closed.getSnapshot(), approved, "the same still-live raw answer remains valid after detach");
       f.answer(replacement, 8000);
@@ -133,23 +138,16 @@ for (const tier of ["online", "wasm"]) for (const mode of ["guard", "createApp"]
         && answerIdentity(peer.getSnapshot()) !== answerIdentity(approved) && !peer.getSnapshot().revalidating);
       // Do not inspect the closed facade during the intervening raw loading state.
       const replaced = peer.getSnapshot();
-      if (keep !== false) {
-        f.wall(4999);
-        const retained = closed.getSnapshot();
-        assert.notEqual(retained, replaced, "a closed facade cannot adopt its peer's approval");
-        assert.equal(answerIdentity(retained), answerIdentity(approved), "A keeps its own identity even on a same-body republish");
-        assert.equal(retained.data, "private A");
-        assert.equal(retained.revalidating, true);
-        assert.equal(retained.fresh, approved.fresh);
-        assert.equal(retained.since, approved.since);
-      }
+      const loading = closed.getSnapshot();
+      assert.deepEqual(loading, { loading: true }, "every closed policy withdraws as soon as the source identity differs, even with identical data");
+      f.wall(4999);
+      assert.equal(closed.getSnapshot(), loading);
       f.wall(5000);
       assert.equal(peer.getSnapshot(), replaced, "the replacement remains live past A's deadline");
-      const loading = closed.getSnapshot();
-      assert.deepEqual(loading, { loading: true }, "B's deadlines cannot validate cached A");
-      assert.equal(closed.getSnapshot(), loading, "withdrawal has one stable snapshot");
+      assert.equal(closed.getSnapshot(), loading, "A's deadline preserves the same loading snapshot");
       f.wall(1000);
       assert.equal(closed.getSnapshot(), loading, "rollback cannot restore A or adopt unchecked B");
+      assert.equal(callbacks, 0, "closed facades never notify");
       peer.close();
     });
   }

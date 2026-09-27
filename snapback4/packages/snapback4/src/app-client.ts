@@ -6,6 +6,7 @@ import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 import { peekObservation, registerObservationPeek } from "./observe-watch.ts";
 import { answerIdentity } from "./read-observation.ts";
+import { episodeDeadline } from "./read-episode.ts";
 import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
 
@@ -145,20 +146,34 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         }
         return refresh();
       }).catch(() => { reject(denied()); emit(); });
+      const getSnapshot = (): Read<R> => {
+        if (!valid()) return denied();
+        // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
+        const read = source?.getSnapshot() ?? (closed ? peekObservation(raw, op, args, options) : undefined);
+        // @ref LLP 3000.023#3.4 — closed facades keep only their final identity, under its original deadlines.
+        if (closed) {
+          if ("denied" in snapshot) return snapshot;
+          if (read && "denied" in read) return snapshot = read;
+          const deadline = episodeDeadline(snapshot);
+          if (!read || !("data" in read) || !("data" in snapshot)
+            || answerIdentity(read) !== answerIdentity(snapshot)
+            || (deadline !== undefined && Date.now() >= deadline)) snapshot = loading;
+          return snapshot;
+        }
+        if (read && ("loading" in read || "denied" in read)) return snapshot = read;
+        return opening ? peekObservation(client, op, args, options) ?? loading
+          : held ? held.read() as Read<R> : snapshot;
+      };
       return {
-        getSnapshot() {
-          if (!valid()) return denied();
-          // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
-          const read = source?.getSnapshot();
-          if (read && ("loading" in read || "denied" in read)) return snapshot = read;
-          // @ref LLP 3000.023#3.4 — a replacement's deadlines cannot validate a detached facade's old answer.
-          if (closed && options?.keep === false && read && "data" in snapshot
-            && answerIdentity(read) !== answerIdentity(snapshot)) snapshot = loading;
-          return opening ? peekObservation(client, op, args, options) ?? loading
-            : held ? held.read() as Read<R> : snapshot;
+        getSnapshot,
+        subscribe(listener) { if (!closed) listeners.add(listener); return () => { listeners.delete(listener); }; },
+        close() {
+          if (closed) return;
+          listeners.clear();
+          snapshot = getSnapshot(); closed = true;
+          detach(); attach(undefined);
+          cleanups.delete(detach); invalidations.delete(emit);
         },
-        subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-        close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
     },
     mutate: routeMutations((op, args) => {

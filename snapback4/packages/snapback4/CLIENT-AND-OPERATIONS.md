@@ -1206,8 +1206,9 @@ and sees its current snapshot in the first committed render. This costs
 observation memory and background work while unmounted. A subscriber joining
 an already-active default watch also sees its current answer immediately.
 
-The app facade reuses a live answer it already authorized. Every retaining
-watch keeps that approved answer, marked `revalidating`, while the replacement
+The app facade shares one approval per raw watch. A peer's successful authority
+check moves every live facade of that watch to the approved replacement.
+Every retaining watch keeps the previous approved answer, marked `revalidating`, while the replacement
 waits for its authority check. It inherits the same episode deadline by value
 and tracks the held answer's own device and server deadlines through clock
 corrections. A local reobservation wakeup does not expire remembered server
@@ -1217,16 +1218,13 @@ An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
 delivering read or link callbacks, including callbacks from lingering remounts.
 Facade snapshots honor their source's loading or denial even before their own
-subscription callback runs, including with `keep: false`; data still waits for
-the facade's authority check. A closed facade keeps consulting its detached raw
-handle. If a live peer replaces the source answer, a closed `keep: false`
-facade withdraws its cached answer to stable `loading`; the replacement's
-deadlines cannot validate the old answer, and close grants no authority to
-adopt new data. A closed retaining facade keeps its own approved answer,
-marked `revalidating`, until that answer's row or episode deadline or a source
-withdrawal. A peer's approval of a replacement changes neither its identity nor
-its deadlines, even when the replacement has identical data. The same holds
-for a facade still awaiting its own replacement-authority check.
+subscription callback runs, including with `keep: false`; new data still needs
+authority. For all three policies, a closed facade keeps consulting its detached
+raw handle but never adopts a new identity. It returns its last answer only
+while that identity is still the source's and its own row and episode deadlines
+hold. After that it returns one stable `loading` snapshot, or its denial, even
+when the replacement has identical data. A closed facade has no listeners and
+never notifies.
 Closing a standalone `keep: false` facade removes its raw owner
 and cancels its subscriptions and timers. Shared approval and raw subscription delivery
 announce the same withdrawal only once, including an authority refusal during

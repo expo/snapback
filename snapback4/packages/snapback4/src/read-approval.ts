@@ -9,7 +9,7 @@ export interface ApprovedAnswer {
   listeners: Set<() => void>;
 }
 
-// @ref LLP 3000.023#3.6 — one approval per facade/live source, with A's own row and episode deadlines.
+// @ref LLP 3000.023#3.6 — one shared approval per raw watch, with A's own row and episode deadlines.
 export class ReadApprovals {
   private readonly answers = new WeakMap<ReadObservation<unknown>, ApprovedAnswer>();
   private readonly releases = new Set<() => void>();
@@ -24,13 +24,16 @@ export class ReadApprovals {
   approve(read: Read<unknown>): ApprovedAnswer | undefined {
     const owner = answerObservation(read);
     if (!owner || !("data" in read)) return undefined;
-    const answer = this.answers.get(owner);
+    let answer = this.answers.get(owner);
     if (answer && answerIdentity(answer.snapshot) === answerIdentity(read)) {
       // A source revalidation copy already updated the shared episode by value.
       return answer;
     }
-    // A peer's approval cannot replace another facade's identity or deadlines.
-    const held: ApprovedAnswer = { snapshot: read, read: () => read, listeners: new Set() };
+    // Swap registrations without an intermediate loading notification.
+    this.drops.get(owner)?.({ loading: true });
+    answer ??= { snapshot: read, read: () => read, listeners: new Set() };
+    answer.snapshot = read;
+    const held = answer;
     const notify = () => { for (const listener of held.listeners) listener(); };
     const withdraw = () => {
       held.snapshot = { loading: true };
@@ -59,10 +62,8 @@ export class ReadApprovals {
       expiry.release(); episode.clear();
       owner.followers.delete(follow);
       this.releases.delete(release);
-      if (this.answers.get(owner) === held) {
-        this.answers.delete(owner);
-        this.drops.delete(owner);
-      }
+      this.answers.delete(owner);
+      this.drops.delete(owner);
     };
     const drop = (read: Read<unknown>) => { held.snapshot = read; release(); return notify; };
     this.answers.set(owner, held);

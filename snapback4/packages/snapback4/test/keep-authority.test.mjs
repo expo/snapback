@@ -52,7 +52,119 @@ for (const keep of [undefined, false, true]) {
 }
 
 for (const keep of [undefined, true]) {
-  test(`a facade awaiting authority keeps A when its peer approves B, keep=${keep}`, async t => {
+  for (const stage of ["opening", "waiting"]) test(`closing an ${stage} facade captures its last shared answer, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const peer = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A", { server: 5000 }); await until(() => peer.getSnapshot().data === "A");
+    const pending = Promise.withResolvers(), successful = Promise.withResolvers();
+    t.after(() => { pending.resolve(true); successful.resolve(true); });
+    if (stage === "opening") f.gateChecks([pending]);
+    const closed = f.client.observe(q, {}, opts);
+    if (stage === "waiting") {
+      await until(() => f.owner().subscribers.size === 2); await delay(0);
+      f.gateChecks([successful, pending]);
+    }
+    f.publish("B", { server: 8000 }); successful.resolve(true);
+    await until(() => peer.getSnapshot().data === "B");
+    const b = closed.getSnapshot();
+    assert.equal(b, peer.getSnapshot());
+    let calls = 0; closed.subscribe(() => calls++);
+    closed.close(); closed.close();
+    assert.equal(closed.getSnapshot(), b, "close captures visible B, even while private authority still waits");
+    closed.subscribe(() => calls++); // A closed handle cannot acquire listeners again.
+    f.hold(); f.publish("C", { server: 9000 });
+    const loading = closed.getSnapshot();
+    assert.deepEqual(loading, { loading: true }, "a closed handle drops B as soon as the source moves to C");
+    f.release(); pending.resolve(true);
+    await until(() => peer.getSnapshot().data === "C"); await delay(0);
+    assert.equal(closed.getSnapshot(), loading, "late opening/replacement authority cannot revive a closed facade");
+    assert.equal(f.owner().subscribers.size, 1, "only the live peer remains subscribed");
+    assert.equal(calls, 0);
+    peer.close();
+  });
+
+  test(`one shared approval survives 100 replacements, keep=${keep}`, async t => {
+    t.mock.method(Date, "now", () => 1000);
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A", { server: 5000 }); await until(() => watch.getSnapshot().data === "A");
+    for (let n = 0; n < 100; n++) {
+      f.publish(`B${n}`, { server: 8000 + n });
+      await until(() => watch.getSnapshot().data === `B${n}`);
+    }
+    const latest = watch.getSnapshot();
+    assert.equal(f.owner().subscribers.size, 1);
+    assert.equal(f.owner().followers.size, 1, "superseded approval followers are released");
+    f.setWall(5000); f.clock.sample(5000);
+    assert.equal(watch.getSnapshot(), latest, "old row expiry cannot withdraw the current approval");
+    t.mock.method(Date, "now", () => 2001);
+    assert.equal(watch.getSnapshot(), latest);
+    assert.equal(f.owner().followers.size, 1, "old episode expiry cannot leave abandoned approvals");
+    watch.close();
+  });
+
+  test(`opening remount getter and notifications follow shared replacements, keep=${keep}`, async t => {
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A"); await until(() => watch.getSnapshot().data === "A");
+    const opening = Promise.withResolvers();
+    t.after(() => opening.resolve(true));
+    f.gateChecks([opening]);
+    const remount = f.client.observe(q, {}, opts), seen = [];
+    remount.subscribe(() => seen.push(remount.getSnapshot()));
+    for (const body of ["B", "C"]) {
+      seen.length = 0;
+      f.publish(body);
+      await until(() => watch.getSnapshot().data === body);
+      assert.equal(f.owner().subscribers.size, 1, "opening authority is still blocked");
+      assert.equal(remount.getSnapshot(), watch.getSnapshot());
+      assert.equal(seen.length, 2, "one revalidation and one replacement notification");
+      assert.equal(seen[0].revalidating, true);
+      assert.equal(seen[1], remount.getSnapshot(), "the getter never advances without its notification");
+    }
+    remount.close(); watch.close();
+  });
+
+  test(`rejection clears the shared approval and notifies all live facades once, keep=${keep}`, async t => {
+    t.mock.method(Date, "now", () => 1000);
+    const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
+    const watch = f.client.observe(q, {}, opts);
+    await until(() => f.owner());
+    f.publish("A", { server: 5000 }); await until(() => watch.getSnapshot().data === "A");
+    const peer = f.client.observe(q, {}, opts);
+    await until(() => f.owner().subscribers.size === 2); await delay(0);
+    const waiting = Promise.withResolvers(), successful = Promise.withResolvers(), opening = Promise.withResolvers();
+    t.after(() => { waiting.resolve(true); successful.resolve(true); opening.resolve(true); });
+    f.gateChecks([waiting, successful]); f.publish("B", { server: 8000 });
+    successful.resolve(true); await until(() => peer.getSnapshot().data === "B");
+    f.gateChecks([opening]);
+    const remount = f.client.observe(q, {}, opts), facades = [watch, peer, remount];
+    const seen = facades.map(handle => {
+      const events = []; handle.subscribe(() => events.push(handle.getSnapshot())); return events;
+    });
+    opening.reject(Error("session storage failed"));
+    await until(() => remount.getSnapshot().denied); await delay(0);
+    const denial = remount.getSnapshot();
+    assert.equal(denial.denied.code, "E_CLIENT");
+    for (let n = 0; n < facades.length; n++) {
+      assert.equal(facades[n].getSnapshot(), denial, "no older facade retains an answer after shared rejection");
+      assert.deepEqual(seen[n], [denial], "each live facade receives exactly one denial");
+    }
+    assert.equal(f.owner().followers.size, 0, "rejection releases the shared follower");
+    assert.equal(peekObservation(f.client, q, {}, opts), undefined, "the refused answer cannot be peeked");
+    f.setWall(5000); f.clock.sample(5000);
+    t.mock.method(Date, "now", () => 2001);
+    for (let n = 0; n < facades.length; n++) {
+      assert.equal(facades[n].getSnapshot(), denial, "retired A's deadlines cannot replace denial");
+      assert.deepEqual(seen[n], [denial]);
+      facades[n].close();
+    }
+  });
+
+  test(`a live waiting facade holds A until its peer approves shared B, keep=${keep}`, async t => {
     const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
     const watch = f.client.observe(q, {}, opts);
     await until(() => f.owner());
@@ -64,8 +176,18 @@ for (const keep of [undefined, true]) {
     t.after(() => { first.resolve(true); second.resolve(true); });
     f.gateChecks([first, second]);
     f.publish("B", { server: 8000 });
+    assert.deepEqual(watch.getSnapshot(), { ...a, revalidating: true }, "A stays under its own deadlines before any check approves B");
+    assert.equal(peer.getSnapshot(), watch.getSnapshot());
+    const seen = [];
+    watch.subscribe(() => seen.push(watch.getSnapshot()));
     second.resolve(true); await until(() => peer.getSnapshot().data === "B");
-    assert.deepEqual(watch.getSnapshot(), { ...a, revalidating: true }, "the peer's authority cannot approve B for this facade");
+    assert.equal(watch.getSnapshot(), peer.getSnapshot(), "the peer's successful check authorizes B for every live facade");
+    assert.deepEqual(seen, [peer.getSnapshot()], "the waiting facade is notified once while its own check is blocked");
+    f.hold(); f.owner().reload();
+    for (const notify of f.owner().subscribers) notify();
+    assert.equal(watch.getSnapshot().data, "B", "another invalidation keeps the shared approved identity");
+    assert.equal(watch.getSnapshot().revalidating, true);
+    assert.equal(watch.getSnapshot(), peer.getSnapshot());
     first.resolve(true); await until(() => watch.getSnapshot().data === "B");
     assert.equal(watch.getSnapshot(), peer.getSnapshot());
     watch.close(); peer.close();
