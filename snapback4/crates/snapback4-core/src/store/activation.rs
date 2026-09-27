@@ -65,8 +65,7 @@ impl Store {
 
     pub(crate) fn activate_at_with_launch(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
         if programs.is_some() {
-            let estimates = self.timeline_launch_estimate(schema)?;
-            super::timeline_launch::admission(&estimates, allow_launch)?;
+            let estimates = self.check_timeline_activation_at(schema, now, allow_launch)?;
             for estimate in estimates.iter().filter(|e| e.sources != 0) { eprintln!("snapback4: atomic feed adoption: {}", estimate.summary()); }
         }
         let mut report = super::adoption_report::AdoptionReport::default();
@@ -109,8 +108,7 @@ impl Store {
         let preflight_catalog = catalog.clone();
         let (launches, sql) = {
             let preflight = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
-            let launches = if programs.is_some() { super::timeline_launch::estimate(&preflight, schema)? } else { Vec::new() };
-            super::timeline_launch::admission(&launches, allow_launch)?;
+            let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
             let Tx { tx: sql, .. } = preflight;
             (launches, sql)
         };

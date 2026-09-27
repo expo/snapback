@@ -115,6 +115,18 @@ impl Store {
         Ok(steps)
     }
 
+    /// Preview the same atomic launch admitted by dev, without changing the store.
+    pub fn check_timeline_activation(&mut self, schema: &Schema) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> {
+        self.check_timeline_activation_at(schema, crate::now_ms(), true)
+    }
+
+    pub fn check_timeline_activation_at(&mut self, schema: &Schema, now: i64, allow_launch: bool) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> {
+        let tx = self.read_transaction()?;
+        let estimates = timeline_launch::preflight(&tx, schema, now, allow_launch)?;
+        tx.rollback()?;
+        Ok(estimates)
+    }
+
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         Self::open_with_busy_timeout(path, std::time::Duration::from_secs(5))
     }

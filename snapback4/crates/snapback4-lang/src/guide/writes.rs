@@ -1,8 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Writes
 
-Mutations insert, update and delete rows in one transaction.
-Rules and constraints apply before that transaction commits.
+Mutations change rows atomically, enforcing rules and constraints.
 
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
@@ -20,6 +19,8 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 `upsert` inserts or patches, and `delete` removes the named row.
 Any refusal rolls back the entire mutation.
 Keep one minted write id with each intent when retrying.
+
+Receipt gaps over expiring messages: `guide sequences`.
 
 ## Limits
 

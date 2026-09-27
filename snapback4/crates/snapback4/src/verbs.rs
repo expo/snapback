@@ -168,7 +168,7 @@ pub fn check(options: &Options) -> i32 {
     }
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store")) {
-        Ok(problems) => bound.diagnostics.extend(problems),
+        Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
         Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
     }
     if !bound.diagnostics.is_empty() {

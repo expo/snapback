@@ -330,6 +330,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_HELD_UNKNOWN", "N_HELD_UNKNOWN means a held query may read a table or view with no `sync`, including a `read through` parent, or `connected[...]` server presence."),
     ("N_SEEK", "N_SEEK is advice for an older explicit-index read whose residual filter can seek."),
     ("N_SPARSE_FILTER", "A residual predicate may reject many rows. Narrow the read; the planned `home` in `guide feeds` can fail closed with `complete: false` and no `next`. Materialized Following can adopt retained sources"),
+    ("N_TIMELINE_ADOPT", "`check` previews automatic dev launch, copies and lock time; deploy requires `--allow-feed-adoption`"),
     ("N_TIMELINE_COMPAT", "`authors` and `size` lines are unused compatibility inputs. Remove them; N_TIMELINE_COMPAT reports their presence"),
     ("N_TIMELINE_PROFILE_CAP", "N_TIMELINE_PROFILE_CAP means an older profile cap is below the declared author count; raise it or keep the intentional application limit."),
     ("N_WIDE_MERGE", "Its uniform lane source runs under the examined meter: `check --cost` prints `lanes ≤ meter`; an explicit `first N` above 50 still emits N_WIDE_MERGE."),

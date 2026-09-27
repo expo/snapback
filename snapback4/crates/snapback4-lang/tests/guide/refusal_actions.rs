@@ -224,6 +224,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_HELD_UNKNOWN", &["Move the read to its own query, or drop `held`.", "A horizon or a word index alone does not cause this note."]),
     ("N_SEEK", &["write `messages where .roomId = roomId and .at >= start first 20 by .at after c`", "the planner makes that comparison a seek"]),
     ("N_SPARSE_FILTER", &["Narrow the read; the planned `home` in `guide feeds` can fail closed with `complete: false` and no `next`. Materialized Following can adopt retained sources"]),
+    ("N_TIMELINE_ADOPT", &["deploy requires `--allow-feed-adoption`"]),
     ("N_TIMELINE_COMPAT", &["`authors` and `size` lines are unused compatibility inputs", "Remove them"]),
     ("N_TIMELINE_PROFILE_CAP", &["raise it or keep the intentional application limit"]),
     ("N_WIDE_MERGE", &["Use the grouped form, which pages memberships and includes each chat's hits, when opening all rooms cannot fit", "an opening cut or a word-limit cut", "Following that cursor does not clear the earlier page's incompleteness"]),

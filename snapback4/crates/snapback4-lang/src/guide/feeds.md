@@ -1,14 +1,14 @@
 # Feeds: Global, Following and Trending
 
 Public originals and reposts form Global, Following and Trending feeds.
-Views define events; a predicate read selects trending posts.
+Following can start over retained sources; its launch contract is below.
 
 ## Global: a union view
 
 Each original and repost is one event. The union reads each source's rules
 before projection. It stores no extra rows. Equal source ids from different
 branches remain distinct; include the branch's `repost` flag in a list key.
-Already have posts and follows? Use `home` below over retained sources.
+For a moderate corpus without materialization, use planned `home` below.
 
 ```quarry
 table posts:
@@ -38,15 +38,14 @@ query home(c: cursor ?):
   return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c
 ```
 
-This planned `home` serves server pages over a moderate corpus: no per-follower
-inbox and no offline floor. It scans past unrelated events. A wanted page behind
-many newer unrelated posts can hit the meter and fail closed: `complete: false`,
-no `next`, never a complete empty page. It is not a scalable inbox.
+Planned `home` serves server pages over a moderate corpus, with no per-follower
+inbox or offline floor. Behind many newer unrelated posts it can hit the meter
+and fail closed: `complete: false`, no `next`, never a complete empty page.
 
 ## Following: a view for the reader
 
-Declare this view on a new or populated store. Dev adopts retained sources
-automatically; deployment needs `--allow-feed-adoption`. This program excludes replies.
+Dev adopts this view over retained sources automatically; deploy needs
+`--allow-feed-adoption`. This program excludes replies.
 The three sources are public and writable only by their owners. Posts and
 reposts acquire the newest 1,000 rows globally on a cold device.
 
@@ -223,18 +222,16 @@ audiences private.
 
 Posts and reposts accept `sync public`, `sync public last N by .at`, or
 `online only`. Use the mapped time column; its index must be exactly `(at, id)`.
-Follows accept those public residencies with any admitted horizon order. Online-only cards use the withholding order
-above; writes to those sources queue without prediction. Changing any
-sync choice advances the generation and re-snapshots acquisition; a device
-never trims in place. Returning to full sync re-acquires the whole table.
+Follows accept any admitted public horizon order. Online-only cards withhold as
+above; their writes queue without prediction. Sync changes advance the generation
+and reacquire; returning to full sync reacquires the whole table.
 
-Adding a first-use view in dev atomically starts the feed now: all retained own
+A first-use view atomically starts the feed now: all retained own
 events and the newest 1,000 live events per current follow, without refill after
 removal. This can include older events a historical inbox never received; repost
 ids are fresh. Writes and syncs wait, detached reads keep the predecessor, and
-devices drop images and reacquire after commit. Deploy requires
-`--allow-feed-adoption` and prints source counts and estimated lock time;
-`serve` attaches the deployed generation. Above 5,000,000 copies activation
+devices drop images and reacquire after commit. `check` (also `--store <path>`) notes the launch contract, copies and lock time
+at the view; deploy requires `--allow-feed-adoption`. `serve` attaches the release. Above 5,000,000 copies activation
 refuses before starting: use the planned `home` above. Removing a view needs
 `--allow-destructive` in deploy; re-add with a fresh name. Redefinition stays
 refused. Original ids remain post ids; old edge/delivery history is not restored.
@@ -251,6 +248,7 @@ Measured lock: 46.90 s for 340,697 copies (calibration #22 shape), 696.67 s at 1
 | E_TIMELINE_READ | The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows |
 | E_TIMELINE_OWNED | Derived rows belong to the engine. Write posts, reposts or follows |
 | E_TIMELINE_SERVER | The mutation needs server-only state. Queue it without predicted rows |
+| N_TIMELINE_ADOPT | `check` previews automatic dev launch, copies and lock time; deploy requires `--allow-feed-adoption` |
 | E_TIMELINE_ACTIVATE | Dev adopts automatically. Deploy needs `--allow-feed-adoption`; the refusal prints the copy estimate and lock time. Above 5,000,000 copies use planned `home`; use fresh owned names |
 | E_TIMELINE_REDEFINE | A declaration changed or experimental reconstruction remains. Retire it, deploy and add with a fresh name, or use the planned `home` above; 0.3 stores need their matching engine |
 | E_TIMELINE_IMPORT | Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore |

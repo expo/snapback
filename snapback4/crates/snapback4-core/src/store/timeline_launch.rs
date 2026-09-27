@@ -27,13 +27,15 @@ impl Estimate {
 fn refuse(message: impl Into<String>) -> RuntimeError {
     RuntimeError::Structural { code: "E_TIMELINE_ACTIVATE", message: message.into() }
 }
-const ALTERNATIVE: &str = "Use the planned home query in guide feeds: query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c";
+pub const ALTERNATIVE: &str = "Use the planned home query in guide feeds: query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c";
 
 impl Store {
     /// Read-only preflight, before taking the activation writer lock.
     pub fn timeline_launch_estimate(&mut self, schema: &Schema) -> Result<Vec<Estimate>, RuntimeError> {
         let tx = self.read_transaction()?;
-        let estimates = estimate(&tx, schema)?;
+        let now = crate::now_ms();
+        let previous = crate::engine::timeline::check_activation_read_only(&tx, schema, Some(now))?;
+        let estimates = estimate(&tx, schema, &previous, now)?;
         tx.rollback()?;
         Ok(estimates)
     }
@@ -51,11 +53,15 @@ pub(super) fn admission(estimates: &[Estimate], allow: bool) -> Result<(), Runti
     Ok(())
 }
 
-fn previous(tx: &Tx<'_>) -> Result<Schema, RuntimeError> {
-    tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0))
-        .optional()?.map(|s| crate::json_codec::from_text(&s).map_err(|e| RuntimeError::Store(e.to_string())))
-        .transpose().map(Option::unwrap_or_default)
+/// The CLI and both runtime admission checks share this read-only verdict.
+// @ref LLP 3000.026#4-atomic-launch-adoption — preview and launch use the same retirement-aware estimate and ceiling.
+pub(super) fn preflight(tx: &Tx<'_>, schema: &Schema, now: i64, allow: bool) -> Result<Vec<Estimate>, RuntimeError> {
+    let previous = crate::engine::timeline::check_activation_read_only(tx, schema, Some(now))?;
+    let estimates = estimate(tx, schema, &previous, now)?;
+    admission(&estimates, allow)?;
+    Ok(estimates)
 }
+
 fn walk(tx: &Tx<'_>, table: &str, work: Work, visit: impl FnMut(&str, Value, &mut Meter) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
     if let Some(num) = tx.catalog.get(table) {
         super::activation_walk::walk_metered(tx, *num, work, |_| crate::value::InternalPrice::zero(), visit)?;
@@ -71,30 +77,36 @@ fn live(t: &Timeline, row: &Value, meter: &mut Meter) -> Result<bool, RuntimeErr
 
 /// Exact copy count from retained events per actor, with bounded preflight memory.
 /// No source image or per-reader roster is retained. Repeat under the writer lock.
-pub(super) fn estimate(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Estimate>, RuntimeError> {
-    let previous = previous(tx)?;
+fn estimate(tx: &Tx<'_>, schema: &Schema, previous: &Schema, now: i64) -> Result<Vec<Estimate>, RuntimeError> {
+    let retirement = crate::engine::through_activation::Retirement::new(schema, previous, now);
     let mut estimates = Vec::new();
     for t in &schema.timelines {
         if previous.timelines.iter().any(|old| old.same_declaration(t)) { continue; }
-        if previous.timelines.iter().any(|old| old.name == t.name) {
-            return Err(RuntimeError::Structural { code: "E_TIMELINE_REDEFINE", message: format!("view {} changed; retire it and use a fresh view name, or the planned home query in guide feeds", t.name) });
-        }
         // Catalog ordinals survive retirement. A literal-default addition cannot
         // accidentally authorize same-name device-image preservation.
         if t.owned.iter().any(|name| tx.catalog.contains_key(name))
             || [false, true].iter().any(|&r| previous.table(t.source(r)).is_some_and(|s| s.columns.contains_key(&t.slot(r)))) {
-            return Err(refuse(format!("view {} requires first-use owned and slot names ({:?}); rename the view to preserve existing data and force device reacquisition. {ALTERNATIVE}", t.name, t.owned)));
+            return Err(refuse(format!("view {}: requires first-use owned and slot names ({:?}); rename the view to preserve existing data and force device reacquisition. {ALTERNATIVE}", t.name, t.owned)));
         }
         let mut e = Estimate { name: t.name.clone(), ..Default::default() };
         let mut actors = BTreeMap::<String, u64>::new();
         let mut retained = Meter::new(Ceilings::job(), Cut::Abort);
         retained.at("adopt actor counts");
         for repost in [false, true] {
-            walk(tx, t.source(repost), Work::DECODE, |_, mut row, meter| {
+            walk(tx, t.source(repost), Work { examined: 2, ..Work::DECODE }, |id, mut row, meter| {
+                if retirement.retires(t.source(repost), &row) { return Ok(()); }
                 crate::schema::materialize_optional_fields(&mut row, &schema.tables[t.source(repost)]);
                 meter.heap(retained.used.heap_bytes)?;
                 e.sources += 1;
                 if !repost && !live(t, &row, meter)? { return Ok(()); }
+                if repost {
+                    meter.charge(MeterKind::Examined, 1)?;
+                    meter.heap(crate::engine::row_copy_ceiling(&schema.tables[&t.posts[0]]).saturating_mul(4))?;
+                    let card = tx.get(&t.posts[0], row.field(&t.reposts[2])?.as_str()?)?;
+                    if card.as_ref().is_none_or(|card| retirement.retires(&t.posts[0], card)) {
+                        return Err(refuse(format!("view {}: retained repost {id} has no original card; restore the card or remove the repost", t.name)));
+                    }
+                }
                 let actor = row.field(if repost { &t.reposts[1] } else { &t.posts[1] })?.as_str()?;
                 if !actors.contains_key(actor) {
                     let bytes = actor.len() as u64 + 256;
@@ -108,6 +120,7 @@ pub(super) fn estimate(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Estimate>, Ru
         }
         e.copies = e.events;
         walk(tx, &t.edges[0], Work::DECODE, |_, row, meter| {
+            if retirement.retires(&t.edges[0], &row) { return Ok(()); }
             meter.heap(retained.used.heap_bytes)?;
             e.sources += 1;
             e.edges += 1;

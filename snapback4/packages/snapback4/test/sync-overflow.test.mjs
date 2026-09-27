@@ -17,7 +17,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const ceiling = 16 << 20, count = 44, width = 400000;
-const limits = [4000, 2000, 1000, 500, 250, 125, 62, 31, 15, 7, 3, 1];
+const limits = [10000, 5000, 2500, 1250, 625, 312, 156, 78, 39, 19, 9, 4, 2, 1];
 const source = `use personas alice
 table items:
   body: text <=400000
@@ -187,7 +187,7 @@ test("oversized sync identity, indivisible-commit snapshot recovery, and wedged 
     assert.equal(device.pages[0].page.denied?.code, "E_SYNC_GENERATION", "the stale generation is discovered before building the oversized page");
     assert.deepEqual(device.trace.slice(0, 3), ["/sync", "/schema", "/sync"], "adopt before retrying the undeliverable position");
     assert.equal(device.pages[1].request.from, 0);
-    assert.equal(device.pages[1].request.limit, 4000, "generation adoption precedes shrinking");
+    assert.equal(device.pages[1].request.limit, 10000, "generation adoption precedes shrinking");
     await recovered(device, 2, (await f.post("/sync", { from: 0, limit: 1 })).watermark);
   });
 });
@@ -206,7 +206,7 @@ test("an oversized reply from a replacement store is observed before shrinking e
     assert.equal(device.pages[0].page.denied?.code, "E_BOUND");
     assert.deepEqual(device.trace.slice(0, 3), ["/sync", "/schema", "/sync"]);
     assert.equal(device.pages[1].request.from, 0);
-    assert.equal(device.pages[1].request.limit, 4000);
+    assert.equal(device.pages[1].request.limit, 10000);
     assert.equal((await device.core.call({ op: "sync_state" })).ok.store_id, replacement.store_id);
     await recovered(device, replacement.generation, replacement.watermark);
   });
@@ -387,7 +387,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: many ordinary commits rec
   assert.equal(after.watermark, (await f.post('/sync', { from: 0, limit: 1 })).watermark);
   assert.ok(f.replies.some(r => r.denied?.code === 'E_BOUND'));
   assert.ok(f.requests.every(r => !r.metadata && !r.recover));
-  assert.ok(f.requests.some(r => r.limit < 4000));
+  assert.ok(f.requests.some(r => r.limit < 10000));
   assert.ok(f.requests.every(r => r.metadata || r.from > 0));
   assert.ok(f.replies.every(r => !r.snapshot));
   const row = (await f.core.call({ op: 'query', name: 'item', viewer: 'dev:alice', args: { id: 'ordinary-47' }, now: Date.now() })).ok;
