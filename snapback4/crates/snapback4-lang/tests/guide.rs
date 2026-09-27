@@ -1120,6 +1120,8 @@ fn every_alias_targets_a_keyword_and_nearest_uses_aliases() {
         assert!(!KEYWORDS.contains(&word), "alias shadows keyword {word}");
         assert!(KEYWORDS.contains(&target), "{word} targets unknown card {target}");
         assert_eq!(card(word), card(target));
+        assert_eq!(card(&word.to_ascii_uppercase()), card(target), "case-insensitive alias {word}");
+        assert_eq!(card(&target.to_ascii_uppercase()), card(target), "case-insensitive card {target}");
     }
     assert_eq!(guide::nearest("pagintion")[0], "reads");
     assert_eq!(guide::nearest("redict")[0], "prediction");

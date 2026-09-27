@@ -68702,6 +68702,120 @@ Final reference audit: 517 LLP documents, 9,618 references, zero errors and
 zero unchecked. Diff whitespace check passes. Final one-minute host loads
 were 29.88 (expiry) and 51.26 (React).
 
+### 2026-09-27 — Calibration 23: receipt gaps and Following adoption are discoverable
+
+Calibration 23's M5 run log records `E_STRUCTURAL_FANOUT` for a mutation
+page over expiring messages. The supplied export retains the repaired program
+but omits the referenced diagnostic file and rejected source; the regression
+is explicitly a minimal reconstruction, not a historical quote. The builder's
+bounded unique ordinal probes are already the paved gap traversal. Its manual
+`lastOrdinal` read/update is the weaker allocation form: `sequence by` removes
+that application protocol and enforces assignment and immutability. It does
+not make a long gap constant cost (LLP 3000.015 §2).
+
+Added the compiled `sequences` card with both allocators, a receipt-hole helper,
+a row-keyed missed count, shared membership positions, expiry before physical
+sweeping, live-message blockers and bounded resumption. Writes, expiry,
+maintains and the receipts opening point to it. Diary/run-log intent aliases
+include `receipt gap expiring messages`, which previously returned no card
+(nearest: receipts, ephemeral, expire) and now returns the recipe directly.
+The expiry diagnostic emits a pasteable top-level helper using the actual
+parent and ordinal columns. It is a non-mechanical rewrite: integrate it into
+the delivered-run merge, preserving disjoint runs. Parent-scope visibility is
+required so hidden messages cannot be mistaken for holes. Kept generic scan
+advice, the existing capped-loop example and the bounded `why` output.
+
+Chose Following option (b). Slot-fill upgrades an existing declaration from
+its owned event rows; a bounded activation walk cannot reconstruct missing
+event identities or edge-admission history from bare sources (LLP 3000.016
+§2.1a). The feeds opening states the ordering rule and reason. `check` now
+shares adoption's read-only preflight and reports `E_TIMELINE_ACTIVATE` at
+the declaration for populated post, repost or follow sources. It suggests
+declaring first in a new store or retaining data with a planned view, and
+states that no source-history backfill exists. Actual adoption refusal and
+atomic retirement are unchanged. The builder's M2 restart is evidence of
+adoption, not a captured wrong-order refusal; its diary says it followed the
+already documented rule.
+
+Five receipt regressions and two added Following regressions cover the
+published examples, pasteable diagnostic helpers, aliases, authority,
+expiry/probe behavior on memory and SQLite, long-gap resumption, declaration
+sites, read-only store bytes and valid empty/unchanged adoption. Updated the
+exact four-entry online-only authoring census and guide keyword inventories.
+The full suite passes: `== 0 failure(s) in 3050 s`, exit 0; Rust 3,842 passed
+with 24 existing ignored, client 2,690 passed with 9 existing skips, models
+78 passed, fixture wrappers 9 passed. Guide tests pass 86/86. The first run
+caught guide/example issues that were fixed; its 17 package-fixture failures
+were macOS temporary-path aliases. The final run uses Node 24.18.0 and a
+canonical TMPDIR, without exclusions or timeout changes.
+
+Wasm measures 1,981,740 B raw / 572,430 B gzip before and after: delta 0 B.
+The 572,841 B ratchet is unchanged, with 411 B headroom; all new production
+work is compiler/server-side. The root inventory audit reports untouched
+Snapback 1 drift and missing generated leaves; its diagnostic roots exclude
+Snapback 4. No root guide page changed. Logs and before/after routing are in
+`target/data-modeling-cal23/`; report:
+`/Users/ccheever/projects/snapback-sb5-program/data-modeling-cal23.final.md`.
+Work stays on `sb4/data-modeling-cal23`; no push.
+
+### 2026-09-27 — Data-modeling review: activation agreement and receipt resumption
+
+Read Astra's blocking review and Grok's later review in full. Following's
+read-only adoption preview now shares the runtime retirement plan and the
+predecessor-expiry predicate. It excludes exactly the affected rows retired
+before runtime occupancy checks; runtime does not reapply old expiry after
+recapture. The generated eight-cell matrix compares CLI check, preview API,
+and adoption for expired-unswept/live rows, read-through changes/no change,
+and new/existing Following. It also checks unchanged database/WAL bytes and
+physical retirement. Existing-Following expiring predecessors are explicit
+stored-schema fixtures because current Quarry rejects that source shape.
+Disabling the preview plan reproduces the reviewer's E_TIMELINE_ACTIVATE
+false positive while adoption succeeds.
+
+The expiry diagnostic selects the refused scan's ordering coordinate and a
+covering unique key with its pinned required reference, in either key order.
+Execution tests cover the external-number distractor, reversed key, unrelated
+parent keys, and no covering key. Both diagnostic and sequences card explicitly
+condition receipt advancement on the caller's authority check. Uniformity is
+not readability; a caller-dependent rule alone cannot prove a successful,
+dominating check. Membership, deny and read-through fixtures exercise the
+qualified advice and checked integrations.
+
+The compiled card now shows a delivered-run merge that saves partial progress
+and lets an already-recorded run reach the helper again. Integrated into the
+actual calibration-23 builder, repeating [1027,1027] advances 1024 then 1027
+and preserves a disjoint run. Restoring the old held-run guard fails the second
+call. Added all four requested receipt-intent aliases, Grok's disappearing
+message phrase, and case-insensitive card/alias lookup. Old routing and key
+selection fail their regression controls. All mutated production files were
+restored byte-for-byte before qualification. Updated LLP 3000.015 and 3000.016.
+
+Full qualification: `== 0 failure(s) in 3064 s`, exit 0. Rust: 3,912 passed,
+zero failed, 24 existing ignores. Client: 2,694 passed, zero failed, nine existing skips. Models: 78 passed, zero failed.
+All 86 guide, 10 receipt and 12 Following-adoption tests pass. The first full
+run was `== 1 failure(s) in 3007 s`: it caught the new delivered mutation's
+missing online-only authoring-census entry, now added, and an unchanged worker
+setup timeout already seen in publication evidence. That worker test passed
+1/1 in isolation (0.61 s) and in the final full run. No claim that its
+intermittency is fixed. The React hooks suite, including useNow, passed in both runs; no isolated
+React rerun was required and its code and timeouts remain untouched.
+
+The final run uses Node 24.18.0, canonical /private/tmp, eight build jobs and
+four Rust test processes; the required serial-client command is unchanged.
+All Cargo commands disable incremental compilation and dev/test debuginfo.
+No test exclusions or timeout changes. Shortened the writes opening and the
+receipt cross-link to fit the rebased guide's unchanged total-word ceiling;
+preserved its Details facts and compiled blocks. The new online-only card
+mutation adds one census occurrence, retaining all 55 private-write sites.
+
+Wasm: 1,981,740 B raw / 572,430 B gzip before and after, delta 0 B. The
+572,841 B ceiling remains unchanged with 411 B headroom; these changes add no
+device bytes. Final reference audit: zero errors and zero unchecked. Diff whitespace check passes.
+Logs and mutation controls: target/data-modeling-r2/. Per-finding report:
+/Users/ccheever/projects/snapback-sb5-program/data-modeling-r2.final.md.
+Work remains on sb4/data-modeling-cal23. No push, stash, other worktree,
+remote machine or spawned agent.
+
 
 ### 2026-09-27 — Lane FX round 2: useNow flake is a clock-fixture error
 

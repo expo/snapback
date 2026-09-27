@@ -10,12 +10,21 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     let path = explicit.map(PathBuf::from).unwrap_or_else(|| project.store_path());
     if explicit.is_none() && !path.exists() { return Ok(Vec::new()); }
     let mut store = Store::open_read_only(&path).map_err(|e| e.to_string())?;
+    let timeline_error = match store.check_timeline_activation(schema) {
+        Ok(()) => None,
+        Err(error @ snapback4_core::RuntimeError::Structural { .. }) => Some(error),
+        Err(error) => return Err(error.to_string()),
+    };
     let steps = store.successor(schema).map_err(|e| e.to_string())?;
-    if !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok(Vec::new()); }
+    if timeline_error.is_none() && !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok(Vec::new()); }
     let mut sites = BTreeMap::new();
     for (file, source) in project.sources().map_err(|e| e.to_string())? {
         let (document, _) = snapback4_lang::parse_document(&file, &source);
+        for view in document.views { sites.insert(format!("timelines.{}", view.name), view.site); }
+        for view in document.feed_views { sites.insert(format!("timelines.{}", view.name), view.site); }
+        for timeline in document.timelines { sites.insert(format!("timelines.{}", timeline.name), timeline.site); }
         for maintain in document.maintains {
+            sites.insert(format!("timelines.{}", maintain.name), maintain.site.clone());
             if let Some(position) = schema.maintains.iter().position(|m| m.target == maintain.name) {
                 sites.insert(format!("maintains[{position}]"), maintain.site);
             }
@@ -27,11 +36,19 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
             for index in table.indexes { sites.insert(format!("{path}.indexes.{}", index.name), index.site); }
         }
     }
-    Ok(steps.iter().filter(|s| s.change == Change::Narrowing).map(|step| {
+    let mut diagnostics: Vec<_> = steps.iter().filter(|s| s.change == Change::Narrowing).map(|step| {
         let table = step.path.split('.').take(2).collect::<Vec<_>>().join(".");
         let site = sites.get(&step.path).or_else(|| sites.get(&table)).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
         Diagnostic::new(&site, "E_ADOPT", &step.message, step.rewrite(schema)).guide("types")
-    }).collect())
+    }).collect();
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — slot fill needs existing owned events, not just populated sources.
+    if let Some(snapback4_core::RuntimeError::Structural { code, message }) = timeline_error {
+        let name = message.strip_prefix("view ").and_then(|s| s.split_once(':')).map(|(name, _)| name);
+        let site = name.and_then(|name| sites.get(&format!("timelines.{name}"))).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
+        diagnostics.push(Diagnostic::new(&site, code, message,
+            "declare the Following view before the first post, repost or follow in a new store; retain populated sources with a planned activity view instead. No source-history backfill exists. Renaming a view fixes an owned-name collision only; it cannot recover event identities or edge-admission history").guide("feeds"));
+    }
+    Ok(diagnostics)
 }
 
 // @ref LLP 3000.019#3.7 — persisted discovery uses store ownership's address; temporary hosts need --url.

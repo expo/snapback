@@ -29,7 +29,7 @@ fn activation_refuses_each_populated_event_or_edge_table() {
         let mut e=bare();e.load([(table.into(),row)]).unwrap();
         let before=snapshot(&e); let generation=e.generation();
         let err=adopt(&mut e,bound(true)).unwrap_err();assert_eq!(err.code(),"E_TIMELINE_ACTIVATE");
-        assert!(err.to_string().contains(table)); assert!(err.to_string().contains("planned view"));
+        assert!(err.to_string().contains(table)); assert!(err.to_string().contains("planned query"));
         assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);
     }
 }

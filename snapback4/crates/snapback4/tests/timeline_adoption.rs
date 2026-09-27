@@ -199,7 +199,7 @@ fn redefinition_refuses_atomically_and_delivery_keeps_running() {
         let b = compile(&revised);
         let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
         assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
-        for word in ["following", "event identities", "remove the view and deploy, then add the new definition", "empty", "planned view"] {
+        for word in ["following", "repost identities", "remove the view and deploy, then add the new definition", "empty", "planned home query"] {
             assert!(error.to_string().contains(word), "{error}");
         }
         assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
@@ -297,4 +297,142 @@ fn two_step_replacement_over_empty_sources_is_supported() {
     post(&mut e, "author", "reply", id("p"), 2);
     drain(&mut e);
     assert_eq!(pages(&mut e, "reader").len(), 2);
+}
+
+#[test]
+fn check_reports_late_following_at_the_view_without_changing_the_store() {
+    let s = source();
+    let lead = snapback4_lang::guide::card("feeds").unwrap().split("\n\n").nth(1).unwrap();
+    assert!(lead.contains("before the first post, repost or follow"));
+    assert!(lead.contains("event identities") && lead.contains("edge-admission history"));
+    for (table, row) in [
+        ("posts", snapback4_core::value::object([("id", id("p")), ("authorId", id("author")), ("parentId", Value::Null), ("at", Value::Int(1)), ("removed", Value::Bool(false))])),
+        ("reposts", snapback4_core::value::object([("id", id("r")), ("actorId", id("author")), ("postId", id("p")), ("at", Value::Int(2))])),
+        ("follows", snapback4_core::value::object([("id", id("f")), ("followerId", id("reader")), ("followedId", id("author"))])),
+    ] {
+        for disk in [false, true] {
+            let dir = Dir::new();
+            fs::create_dir(dir.0.join(".snapback4")).unwrap();
+            let path = dir.0.join(".snapback4/store.sqlite");
+            let b = compile(&without_view(&s));
+            let store = if disk { Store::open(&path).unwrap() } else { Store::memory().unwrap() };
+            let mut e = Engine::new(store, b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            e.seed([(table.into(), row.clone())]).unwrap();
+            let generation = e.generation();
+            let before = e.store().rows(table).unwrap();
+            let b = compile(&s);
+            let error = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
+            assert_eq!(error.code(), "E_TIMELINE_ACTIVATE");
+            assert!(error.to_string().contains(&format!("source table {table} is populated")), "{error}");
+            let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
+            assert_eq!(error.code(), "E_TIMELINE_ACTIVATE");
+            assert_eq!(e.generation(), generation);
+            assert_eq!(e.store().rows(table).unwrap(), before);
+            drop(e);
+            if disk {
+                dir.source(&s);
+                let stored = fs::read(&path).unwrap();
+                for explicit in [false, true] {
+                    let args = if explicit { vec!["check", "--json", "--store", path.to_str().unwrap()] } else { vec!["check", "--json"] };
+                    let result = dir.command(&args);
+                    assert!(!result.status.success(), "{result:?}");
+                    let json: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+                    let problems = json["problems"].as_array().expect("check diagnostic envelope");
+                    let d = problems.iter().find(|d| d["code"] == "E_TIMELINE_ACTIVATE").expect("Following preflight diagnostic");
+                    assert_eq!(d["guide"], "feeds");
+                    assert!(d["rewrite"].as_str().unwrap().contains("before the first post, repost or follow"));
+                    assert!(d["rewrite"].as_str().unwrap().contains("No source-history backfill exists"));
+                    let line = d["site"]["line"].as_u64().unwrap() as usize;
+                    assert!(s.lines().nth(line - 1).unwrap().starts_with("view following:"), "{d}");
+                    assert_eq!(fs::read(&path).unwrap(), stored, "check is read-only");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn following_declared_before_events_passes_check_and_unchanged_adoption() {
+    let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
+    let path = dir.0.join(".snapback4/store.sqlite");
+    let s = source(); dir.source(&s);
+    // No store: compile only. Empty existing sources: adoption preflight passes.
+    assert!(dir.command(&["check"]).status.success());
+    let b = compile(&without_view(&s));
+    let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    assert!(dir.command(&["check"]).status.success());
+    adopt(&mut e, &s);
+    post(&mut e, "author", "p", Value::Null, 1);
+    follow(&mut e, "reader", "author");
+    drain(&mut e);
+    assert!(dir.command(&["check"]).status.success());
+    adopt(&mut e, &s);
+    assert_eq!(pages(&mut e, "reader").len(), 1);
+}
+
+#[test]
+fn check_and_adoption_agree_across_expiry_through_changes_and_following_presence() {
+    use snapback4_core::value::object;
+    // Astra's repro: inherited expiry remains physically present until a
+    // read-through change retires it, before Following checks occupancy.
+    let base = source().split("mutation post").next().unwrap().to_owned()
+        .replace("  sync public last 1000 by .at", "  online only")
+        .replace("  public 'public posts and replies'", "  group: groups\n  immutable group\n  read through .group");
+    let base = format!("table groups:\n  deadline: time ?\n  immutable deadline\n  public\n  expire at .deadline\n  online only\n{base}\nmutation addPost(group: groups, expiresAt: time ?):\n  return insert posts {{ group, expiresAt, authorId: viewer, parentId: null, at: now }}\n");
+    for expired in [false, true] {
+        for changed in [false, true] {
+            for existing in [false, true] {
+                let case = format!("expired={expired}, through_changed={changed}, following_existing={existing}");
+                let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
+                let path = dir.0.join(".snapback4/store.sqlite");
+                // No read-through change: use an own expiry and remove it in the
+                // candidate; ordinary expiry removal must NOT retire raw rows.
+                let old = without_view(&base);
+                let old = if changed { old } else {
+                    old.replace("read through .group", "public 'public posts and replies'\n  expire at .expiresAt")
+                };
+                let old = old.replace("  group: groups", "  expiresAt: time ?\n  immutable expiresAt\n  group: groups");
+                let next = base.replace("read through .group", "public 'public posts and replies'")
+                    .replace("  group: groups", "  expiresAt: time ?\n  immutable expiresAt\n  group: groups");
+                let candidate = compile(&next);
+                let mut b = compile(&old);
+                if existing {
+                    // Generate a stored predecessor with an existing declaration.
+                    // Quarry currently rejects expiring Following sources, but
+                    // the stored-schema activation API must still agree with check.
+                    b.schema.timelines = candidate.schema.timelines.clone();
+                    for name in &b.schema.timelines[0].owned {
+                        b.schema.tables.insert(name.clone(), candidate.schema.tables[name].clone());
+                    }
+                }
+                let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                e.seed_at([("groups".into(), object([("id", id("g")), ("deadline", if expired { Value::Int(2) } else { Value::Null })]))], 1).unwrap();
+                write(&mut e, "alice", "addPost", &[("group", id("g")), ("expiresAt", if expired { Value::Int(2) } else { Value::Null })], 1);
+                assert_eq!(e.store().rows("posts").unwrap().len(), 1, "unswept: {case}");
+                dir.source(&next);
+                let b = compile(&next);
+                assert!(!e.store_mut().successor(&b.schema).unwrap().iter().any(|s| s.change == snapback4_core::successor::Change::Narrowing), "{case}");
+                // Check under a live writer too: the preview takes no writer lock
+                // and must leave both the database and existing WAL unchanged.
+                let before = fs::read(&path).unwrap();
+                let wal_path = path.with_extension("sqlite-wal");
+                let wal = fs::read(&wal_path).unwrap();
+                let check = dir.command(&["check", "--json"]);
+                let json: serde_json::Value = serde_json::from_slice(&check.stdout).unwrap();
+                assert_eq!(fs::read(&path).unwrap(), before, "{case}");
+                assert_eq!(fs::read(&wal_path).unwrap(), wal, "{case}");
+                let preview = e.store_mut().check_timeline_activation(&b.schema);
+                let adoption = e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), 5000);
+                let expected = existing || (expired && changed);
+                assert_eq!(adoption.is_ok(), expected, "runtime {case}: {adoption:?}");
+                assert_eq!(preview.is_ok(), adoption.is_ok(), "API divergence {case}: {preview:?}, {adoption:?}");
+                assert_eq!(check.status.success(), adoption.is_ok(), "CLI divergence {case}: {json}, {adoption:?}");
+                if !expected {
+                    assert_eq!(adoption.unwrap_err().code(), "E_TIMELINE_ACTIVATE", "{case}");
+                    assert!(json["problems"].as_array().unwrap().iter().any(|d| d["code"] == "E_TIMELINE_ACTIVATE"), "{json}");
+                }
+                assert_eq!(e.store().rows("posts").unwrap().len(), usize::from(!(expired && changed)), "{case}");
+            }
+        }
+    }
 }

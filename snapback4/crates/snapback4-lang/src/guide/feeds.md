@@ -1,7 +1,9 @@
 # Feeds: Global, Following and Trending
 
 Feeds present public originals and reposts as Global, Following or Trending.
-Views define the event stream; a predicate read selects the trending posts.
+Declare Following before the first post, repost or follow: event identities and
+edge-admission history are recorded when sources change, and existing source
+rows cannot reconstruct them.
 
 ## Global: a union view
 
@@ -46,7 +48,9 @@ no `next`, never a complete empty page. It is not a scalable inbox.
 ## Following: a view for the reader
 
 For a new store, declare this materialized view before posts, reposts or follows;
-for populated sources use the planned `home` above. This program excludes replies.
+for populated sources use the planned `home` above. `check` against the dev
+store (or `check --store <path>`) reports the adoption refusal at the view
+before adoption when any of those tables already holds rows. This program excludes replies.
 The three sources are public and writable only by their owners. Posts and
 reposts acquire the newest 1,000 rows globally on a cold device.
 
