@@ -77,7 +77,7 @@ fn uniform_words_continue_and_nonuniform_cut_reasons_cross_both_device_wires() {
         let mut device = host.open("cuts", Some(backend)).unwrap();
         for (n, page) in common::snapshot_pages(&mut engine, "dev:alice", 4000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         let top = query(&mut *device, "top", "dev:alice", json!({}), 10000);
-        assert_eq!(rows(&top).len(), 1); assert_eq!(top["complete"], false);
+        assert_eq!(rows(&top).len(), 1); assert_eq!(top["complete"], true);
         assert_eq!(top["unknown"], false, "a cursorless top-N is not a missing fact");
         let cut = query(&mut *device, "filtered", "dev:alice", json!({"roomId":"readable"}), 10000);
         assert_eq!(cut["complete"], false);

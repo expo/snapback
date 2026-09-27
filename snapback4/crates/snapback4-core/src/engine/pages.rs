@@ -96,6 +96,15 @@ pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
     sites
 }
 
+/// Cursorless pages returned as the whole answer, rather than a bounded field.
+// @ref LLP 3000.027#3 — composed previews state their whole intent and need no continuation advice.
+pub fn uncontinued_page_sites(program: &Program) -> BTreeSet<String> {
+    if program.kind != ProgramKind::Query { return BTreeSet::new(); }
+    returned_origins(program, true, &mut BTreeMap::new()).into_values().filter_map(|origin| {
+        if let Origin::Page(site, None) = origin { Some(site) } else { None }
+    }).collect()
+}
+
 fn result_page(origin: &Origin) -> Option<(&str, Option<&str>)> {
     fn collect<'a>(origin: &'a Origin, pages: &mut BTreeSet<(&'a str, &'a str)>) -> bool {
         match origin {

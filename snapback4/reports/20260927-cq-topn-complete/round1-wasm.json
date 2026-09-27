@@ -1,0 +1,27 @@
+{
+  "baseline_commit": "60007c0adc8967ec3132e83e5a20eaf1f6703aa4",
+  "budget_gzip": 572841,
+  "rust": "1.97.0",
+  "wasm_bindgen": "0.2.127",
+  "wasm_opt": "123",
+  "baseline": {
+    "raw": 1981159,
+    "gzip": 572011,
+    "sha256": "d0ecb9759e88f6ba094184b4f472b9d04f3ed5565056ea999adbddd10d2b52dc"
+  },
+  "candidate": {
+    "raw": 1981375,
+    "gzip": 572099,
+    "sha256": "0f7a06e527f1c1783fa7c285f7fc13ef8e75c1bee59b94916ccaaac1f2fad7b5"
+  },
+  "delta": {
+    "raw": 216,
+    "gzip": 88
+  },
+  "headroom_gzip": 742,
+  "full_suite_candidate": {
+    "raw": 1981361,
+    "gzip": 572177,
+    "sha256": "148d0807b7cf2d06616b151c0e37f2af8584d7b0139155484eaa6ba80c2a97d6"
+  }
+}

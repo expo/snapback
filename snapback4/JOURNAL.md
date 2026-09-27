@@ -68857,6 +68857,38 @@ round-2 scripts/test.sh summary; historical round 0 remains
 weakened assertion, new API/design, unrelated fix, shared tool installation,
 push or publication. Report and durable run evidence:
 reports/20260927-fx-flakes/ROUND2.md and round2-qualification.json there.
+
+
+## 2026-09-27 — 0.4.6 lane CQ: a top-N answer is complete
+
+Recorded the supervisor decision first in LLP 3000.027 (`83f543fec`), then
+implemented it on `sb4-intent/cq-topn-complete` (`4d5a93669`). Cursorless first/last
+bounds now answer completely on server, SQLite and Memory without next;
+composed last-1 previews stay complete and no longer get N_NO_CURSOR. The note
+still explains continuation for a whole returned page if the screen pages.
+Cuts, undecided authorization, horizons, incomplete lane discovery, declared
+cursor ownership and metering retain their behavior. Client fallback and
+certificates already consume the shared facts. No GS membership-plan change.
+
+New exact-row regressions use 1,000 rows on server and both device stores,
+including reopen, real meter cuts, horizons, expiring-membership authorization
+and a newer hidden row. CLI fixture reporting and native/web local routing
+are covered. All final affected checks pass, including the entire 86-test
+guide. The nine edited guide/client texts shrink by 278 words; README is
+300/300 lines. Same-toolchain wasm: 1,981,159 B raw / 572,010 B gzip versus
+1,981,512 / 572,053 baseline, -353 raw / -43 gzip, 831 B below the unchanged
+572,841 B gzip budget.
+
+Ran scripts/test.sh once: `== 3 failure(s) in 1280 s`, exit 1: docs budget,
+cargo test, client tests. Docs and all 14 failing Rust targets were lane-owned
+expectations/budgets, corrected and retested. Existing web lost-reply retry
+count and HTTP startup timing failed under concurrent client load; both passed
+an isolated rerun (11/11), with cause/classification limits retained in the
+report. Client models passed 78/78. The original red run is preserved; no
+second full-suite-green claim. No live Postgres qualification, version bump,
+budget increase, shared tool installation, push or publication. File map,
+forms, every first-run failure, receipts and open reproduction details:
+reports/20260927-cq-topn-complete/REPORT.md.
 ## 2026-09-27 — DQ2: Darwin repairs for the 0.4.5 qualification
 
 Lane `sb4/dq2-darwin-045`, from `10f69a7447`, on the black M5:
@@ -69282,3 +69314,43 @@ Report with file map, examples, mutations, commands and reproductions:
 reports/20260927-dc-delivery-client/ROUND5.md. Raw evidence:
 target/lane-dc-round5/. Commits carry the requested co-author. No push or
 publication.
+## 2026-09-27 — 0.4.6 lane CQ round 1: stop the plain query at its bound
+
+Read both round 0 reviews and the supervisor ruling. Merged origin/main in
+60007c0ad, retaining both complete journal appends. LLP 3000.027 §2 now
+states the collector distinction precisely: an interrupted cursor page loses
+safe continuation and is incomplete; a cursorless break returns the program's
+answer over complete inputs. Collector implementation is unchanged.
+
+Plain cursorless query scans stop at N without examining N+1. Cursor pages,
+ordered merges, distinct lane discovery, device horizon proofs, meter-bounded
+domains, streaming reads, jobs and aborting mutation scans retain their existing
+consumption rules. All three outcome builders check value_source_incomplete
+directly. The search card leads with the reads card's completeness definition.
+Shared server/SQLite/memory tests pin exact-N and before-N examined ceilings,
+both interrupted collector cases, and five-room discovery that omits the room
+holding the newest row (incomplete, cut null, next null).
+
+Deviation: the literal `where .room in (rooms first 2 by .id)` is already
+refused as a reference/row type mismatch. The regression uses compiled explicit
+merge IR with the distinct room-id source; no compiler or membership-plan
+redesign. The report includes the exact schema and CLI reproduction.
+
+Ran scripts/test.sh once: `== 1 failure(s) in 3447 s`, exit 1, cargo test.
+All five failed Rust tests were lane-owned: two mutation-accounting regressions
+fixed by restricting the shortcut to queries, and three obsolete query receipt
+expectations. The exact mutation limits and conservative scale certificates
+remain asserted. Final affected checks pass 554 Rust tests (one existing
+ignore) and 48 client/wasm checks. The whole guide and lowering/authorization
+censuses pass. The earlier full device run passed 1,327 tests; the single full
+run passed 2,700 client tests (10 skips) and all 78 client model tests. Its red
+aggregate is retained, with every failure and its correction in the report.
+
+Final wasm: 1,981,375 B raw / 572,099 B gzip; +216 / +88 B versus merge
+60007c0ad on the same toolchain. The 572,841 B budget is unchanged, leaving
+742 B. Workspace/package builds pass. The optional Postgres feature check
+fails with baseline E0061 in postgres/through.rs:168, reproduced from the merge
+commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
+package-version or budget change, no new tool installation, no push or publish.
+Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
+round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.

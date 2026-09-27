@@ -169,8 +169,8 @@ query people(q: text <=100, c: cursor ?):
 This version gives conversations their own table and lets an admin add members.
 Use `inChat` for more hits in one conversation; `searchGrouped` and
 `searchNewest` use the grouped and global ordering described above.
-A query with `first 1` and no cursor is incomplete when its range contains two
-held rows. A horizon, an online-only source or zero read sites gets no
+`complete` means the query answered its declared request within known coverage and execution limits.
+A full `first 1` is complete without a cursor. A horizon, an online-only source or zero read sites gets no
 source-coverage line; that line never promises answer completeness.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,

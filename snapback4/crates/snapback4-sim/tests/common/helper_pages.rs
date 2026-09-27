@@ -153,7 +153,7 @@ pub fn check_pages(name: &str, mut query: impl FnMut(Option<String>) -> QueryOut
 pub fn check_interrupted(read: QueryOutcome) {
     assert_eq!(read.data.as_array().unwrap().len(), 1);
     assert!(read.next.is_none(), "an interrupted collector has no safe continuation");
-    assert!(!read.complete, "a page with more rows and no continuation is incomplete: {read:?}");
+    assert!(!read.complete, "an interrupted collector omits rows from its declared input page: {read:?}");
 }
 
 pub fn check_full_final_page(read: QueryOutcome) {

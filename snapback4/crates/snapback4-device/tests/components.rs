@@ -144,7 +144,7 @@ fn frames<S: DeviceStore>(mut store: S) {
                 "point" => assert!(components["left"].unknown),
                 "unknownGuard" => assert!(components.is_empty(), "an unknown passing guard withholds coverage"),
                 "words" => { assert!(components["left"].retained); assert!(!components["left"].unknown); assert!(actual.as_ref().unwrap().word_cut_at.is_none()); }
-                "overflow" => { assert!(!components["left"].retained); assert!(!components["left"].complete); }
+                "overflow" => { assert!(components["left"].retained); assert!(!components["left"].complete, "retained history remains incomplete at its horizon"); }
                 _ => unreachable!(),
             }
         }

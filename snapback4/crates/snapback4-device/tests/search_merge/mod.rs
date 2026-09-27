@@ -150,7 +150,7 @@ fn r1a_left_read_cannot_mask_an_unknown_held_read_in_either_order() {
         for name in ["mixed_incomplete", "mixed_presence"] {
             let local = query(device, name, "dev:bob", serde_json::json!({}), 100);
             assert_eq!(local["complete"], false);
-            assert_eq!(local["retained"], false, "a non-horizon incomplete site also wins: {local}");
+            assert_eq!(local["retained"], name == "mixed_incomplete", "the bounded top-N is complete; unknown presence still prevents retained-only coverage: {local}");
         }
         for name in ["mixed", "reverse"] {
             let local = query(device, name, "dev:bob", serde_json::json!({}), 100);

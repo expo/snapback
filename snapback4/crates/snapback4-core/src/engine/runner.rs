@@ -150,8 +150,8 @@ pub struct Runner<'a> {
     pub(super) scalar_unavailable: bool,
     /// An interrupted evaluation's null placeholder is not an application value.
     pub(crate) query_unavailable: bool,
-    /// The program's page had more rows than it returned and no cursor to
-    /// continue on: the result is not `complete`, and the card says so.
+    /// A lane-discovery source was truncated before all values were known.
+    /// Declared answer bounds do not set this (LLP 3000.027 §2).
     pub(crate) page_overflow: bool,
     pub(super) discovering_values: bool,
     pub(super) value_source_incomplete: bool,
