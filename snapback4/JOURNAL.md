@@ -67798,3 +67798,53 @@ The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
 never capabilities, and this is a name, not a secret. The operations manual
 calls it in a type-checked block, which the public-function census requires.
+
+
+## 2026-09-27 — DS: delivery reporters, manifests and receipt-only no-ops
+
+On `sb4-intent/ds-delivery-server`, implemented LLP 3000.022 §§2, 5 and 6:
+inline and continued `reports delivery` headers, portable compiled bindings,
+`E_DELIVERY_CLAUSE`, the receipts card's `RUNS_FULL` refusal, authorized source
+coordinates and per-field origins through projections, bounded survivor-only
+HTTP manifests, and SQLite/Postgres receipt-only no-ops at the committed head.
+No-op replay keeps its receipt and does not wake change waiters. Ordinary
+no-op mutations still advance. Dev reports the supplemental ledger under
+`meter.delivery`; candidate leases release stamping heap, while scalar alias
+map nodes remain reserved until their map is dropped. The schema and wire
+interfaces match the lane agreement. All changed source stays at or below
+1,500 lines.
+
+The final focused checks pass: 8 delivery engine tests, 4 clause tests, the
+whole 86-test guide, 3 existing provenance tests, 2 HTTP tests, and the
+Postgres delivery test in both Serialized and Serializable modes. The
+reference audit passes (516 LLP docs, 9,604 refs, zero errors/unchecked).
+The required full `scripts/test.sh` run ended exactly
+`== 2 failure(s) in 1487 s`: `wasm build` and `cargo test`. Both are mine.
+The latter is the Map source regression: the full-run artifact failed, but
+a rebuilt workspace target passes all 8 delivery tests; it appears to have
+compiled before the final Map handling edit. Final affected checks were run
+again after the ledger correction. Every other full-run gate/test passed,
+including all 78 client model tests. No baseline or environmental failure
+remains in that run. A separate prerequisite commit repaired the baseline
+Postgres read-through caller's missing optional adoption-report argument.
+
+Wasm measured 1,985,215 bytes raw / 572,996 gzip, versus 1,981,512 / 572,053
+at the base: +3,703 raw / +943 gzip. This is **155 gzip bytes over** the
+unchanged 572,841 budget. Three bounded codec-size iterations did not bring
+it under budget; this remains an integration blocker. Server origin tracking
+and the final ledger correction are absent from the wasm build.
+
+Also stopped and documented a contract conflict: changing a previously
+declared reporter into an ephemeral mutation in a later generation makes
+existing SQLite/HTTP routing bypass its old durable receipt and execute the
+new body on a repeated write id. The retained reproduction fails with
+`replayed: false` and one ephemeral row written. A current ephemeral reporter
+is rejected with `E_DELIVERY_CLAUSE`, because it cannot keep a durable
+receipt; custody across a later execution-class change needs a supervisor
+decision. No ephemeral replay redesign was attempted.
+
+No device collection, persisted debt, client queues, hook replacement,
+comparative update, version bump, budget increase, push or publication.
+The private Postgres test instance was stopped. File-by-file changes, forms,
+test claims, exact full-run log and both open-problem reproductions are in
+[the DS report](reports/20260927-delivery-server/REPORT.md).

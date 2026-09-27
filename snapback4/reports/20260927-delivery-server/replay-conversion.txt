@@ -1,0 +1,20 @@
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2.75s
+     Running tests/delivery_replay_conversion.rs (target/debug/deps/delivery_replay_conversion-6580740e7d25373c)
+
+running 1 test
+
+thread 'a_delivery_receipt_must_survive_conversion_of_the_name_to_ephemeral' (2985502) panicked at crates/snapback4-lang/tests/delivery_replay_conversion.rs:30:5:
+new generation executed instead of replaying: MutationOutcome { receipt_only: false, state: Sent { seq: 0, result: Null }, metered: Metered { examined: 0, index_entries: 2, rule_probes: 0, steps: 15, heap_bytes: 1054, output_bytes: 6, rows_written: 1 }, tables: ["signals"], events: 0, replayed: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test a_delivery_receipt_must_survive_conversion_of_the_name_to_ephemeral ... FAILED
+
+failures:
+
+failures:
+    a_delivery_receipt_must_survive_conversion_of_the_name_to_ephemeral
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery_replay_conversion`
