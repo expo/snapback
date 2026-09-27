@@ -948,10 +948,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return () => { if (reset && watches.get(watch.key) === watch) notify(watch); };
   }
   function armPresence(watch: Watch) {
-    // A closed client or a dead session keeps no interval, whichever read settles last.
     if (unavailable()) watch.presenceEvery = undefined;
     // @ref LLP 3000.019#3.3 — a live fallback must not wait behind cold snapshot publication.
-    // Reuse the bounded background read while sync owns the change-follow loop.
     const interval = !unavailable() && syncing && !acquired && watch.serverRead
       ? Math.min(watch.presenceEvery ?? 250, 250) : watch.presenceEvery;
     watch.presenceRefresh = presenceRefresh(watch.presenceRefresh, interval, () => {
@@ -971,7 +969,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
       if (watch.snapshot !== shown || watch.running) return;
-      // An answer the server gave, current for this store, authority and ephemeral state, is published whatever it says.
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running) return false;
@@ -987,7 +984,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         });
       }
     } catch {}
-    // A failure, or an answer from this device, keeps the answer and the interval: it retries.
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
   async function rerun(watch: Watch) {
@@ -1033,8 +1029,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     } finally {
       // @ref LLP 3000.019#3.3 — keep the expired value withdrawn while its live observation recovers.
-      // One request per watch, with 25/50/100/.../1000 ms pacing if the
-      // estimate stays ahead. Keep running set so invalidations only dirty it.
       if (retryExpired && !closed && watches.get(watch.key) === watch) {
         watch.expiredRetries = Math.min((watch.expiredRetries ?? 0) + 1, 7);
         const pause = Math.min(25 * 2 ** (watch.expiredRetries - 1), 1000);

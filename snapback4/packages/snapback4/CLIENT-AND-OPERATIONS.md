@@ -2291,6 +2291,15 @@ Startup waits only for debt present at startup. Later activation pages wait
 for capacity without evicting debt, retaining outbox priority even during live
 traffic. A failed page resumes its durable cursor with bounded backoff.
 
+`E_BOUND` first replays the same id: an oversized HTTP response can hide a
+committed success. Only a replayed `failed` receipt with `why.code: "E_BOUND"`
+permits a new id, with 1–60 s backoff, at most eight times. Then the interval
+parks without notifying the application. The 10-minute timer, reconnect and
+start permit one new id per wake, at least 30 s apart, for at most eight more
+wake retries. Counts survive local restart; reconnect does not reset the burst.
+If all eight wakes fail, `onDeliveryRefused` fires once and that interval stops
+retrying. A bare denial keeps the uncertain same-id behavior.
+
 Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
 for application refusals. It receives
 `{ table, mutation, args, group, from, through, why }`; `why` is the ordinary

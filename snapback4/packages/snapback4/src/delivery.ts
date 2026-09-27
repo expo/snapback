@@ -66,8 +66,7 @@ export class DeliveryQueue {
     const changed = await this.track(this.options.storage.update(state => {
       if (eligible()) return acceptManifest(state, manifest, this.options.local ? 4096 : 1024);
     }, eligible));
-    if (changed && !this.slow) this.slowTimer();
-    this.schedule(250);
+    if (changed) { if (!this.slow) this.slowTimer(); this.schedule(250); }
   }
   /** Device publication already persisted the collection and its wake flag. */
   published(): void { if (!this.slow) this.slowTimer(); this.schedule(250); }
@@ -87,7 +86,7 @@ export class DeliveryQueue {
       for (const group of Object.values(state.groups)) {
         group.wake = true;
         for (const parked of [...group.parked]) {
-          if (parked.kind === "retry" && reason !== "timer") parked.ready = true;
+          if (parked.kind === "bound" || (parked.kind === "retry" && reason !== "timer")) parked.ready = true;
           if (parked.kind === "start" && reason === "start") {
             group.parked.splice(group.parked.indexOf(parked), 1);
             group.owed = mergeRuns([...group.owed, parked.run]);
@@ -121,14 +120,24 @@ export class DeliveryQueue {
           }).sort(([, a], [, b]) => a.ready - b.ready);
           let entry = ready[0];
           if (!entry) {
-            const parked = idle.filter(([, g]) => g.wake && g.parked.some(p => p.kind === "full"))
-              .map(([key, group]) => ({ key, group, run: group.parked.filter(p => p.kind === "full").sort((a, b) => a.at - b.at)[0]! }))
+            const eligible = (p: Parked) => p.kind === "full" || (p.kind === "bound" && p.ready);
+            const parked = idle.filter(([, g]) => g.wake && g.parked.some(eligible))
+              .map(([key, group]) => ({ key, group, run: group.parked.filter(eligible).sort((a, b) => a.at - b.at)[0]! }))
               .filter(item => { if (item.run.at + 30_000 <= now) return true; nextAt = Math.min(nextAt, item.run.at + 30_000); return false; })
               .sort((a, b) => a.group.ready - b.group.ready)[0];
             if (parked) {
               parked.group.parked.splice(parked.group.parked.indexOf(parked.run), 1);
               parked.group.owed = mergeRuns([...parked.group.owed, parked.run.run]);
               parked.group.wake = false;
+              // One group wake buys one parked call. Later manifests/successes
+              // may wake full runs, but cannot spend this bound wake again.
+              for (const p of parked.group.parked) if (p.kind === "bound") p.ready = false;
+              if (parked.run.kind === "bound" && parked.run.attempt?.bound) {
+                const prior = parked.run.attempt;
+                parked.group.attempt = { ...prior, id: this.options.mint(), retries: 0, readyAt: 0, recent: [],
+                  bound: { ...prior.bound!, wakes: prior.bound!.wakes + 1, replay: false } };
+                parked.group.recent = [];
+              }
               entry = [parked.key, parked.group];
             }
           }
@@ -144,7 +153,7 @@ export class DeliveryQueue {
               if (retry.attempt) group.attempt = { ...retry.attempt, retries: 0, readyAt: 0 };
             }
           }
-          if (!group.parked.some(p => p.kind === "full")) group.wake = false;
+          if (!group.parked.some(p => p.kind === "full" || (p.kind === "bound" && p.ready))) group.wake = false;
           // This commit precedes transport, including the local host persistence batch.
           if (!group.attempt) {
             group.attempt = { id: this.options.mint(), run: [...group.owed[0]!], retries: 0, readyAt: 0, recent: [] };
@@ -188,7 +197,7 @@ export class DeliveryQueue {
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => { remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) }); };
         const retry = (recorded: boolean) => {
-          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; }
+          if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; if (attempt.bound) attempt.bound.replay = false; }
           if (attempt.retries >= 8) { park("retry", true); return; }
           attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** attempt.retries++);
         };
@@ -201,6 +210,20 @@ export class DeliveryQueue {
         else if (why?.code === "E_DELIVERY_BINDING") { dropBinding(state, group.binding); }
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
+        } else if (why?.code === "E_BOUND") {
+          // @ref LLP 3000.022#4 — a bare HTTP bound may follow a committed report.
+          // First replay the same id; only its failed receipt permits a new one.
+          const bound = attempt.bound ??= { retries: 0, wakes: 0, replay: false };
+          if (!bound.replay || json?.state !== "failed" || (json.why as Refusal | undefined)?.code !== "E_BOUND") {
+            bound.replay = true; retry(false);
+          } else if (bound.retries < 8) {
+            attempt.id = this.options.mint(); attempt.recent = []; group.recent = [];
+            attempt.retries = 0; bound.replay = false;
+            attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** bound.retries++);
+          } else {
+            park(bound.wakes < 8 ? "bound" : "stopped", true);
+            if (bound.wakes >= 8) effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+          }
         } else if (why?.code === "RUNS_FULL") park("full");
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {
           const recent = attempt.recent ?? group.recent;
@@ -238,7 +261,9 @@ export class DeliveryQueue {
     await this.pump();
     const cleared = await this.options.storage.update(state => !this.startup.some(({ key, incarnation, runs }) => {
       const g = state.groups[key];
-      return g?.incarnation === incarnation && runs.some(([a, b]) => g.owed.some(([x, y]) => a <= y && x <= b));
+      if (g?.incarnation !== incarnation) return false;
+      const pending = [...g.owed, ...g.parked.filter(p => (p.kind === "retry" || p.kind === "bound") && p.ready).map(p => p.run)];
+      return runs.some(([a, b]) => pending.some(([x, y]) => a <= y && x <= b));
     }));
     if (cleared) this.startup = [];
     return cleared;

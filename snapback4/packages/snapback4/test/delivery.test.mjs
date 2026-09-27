@@ -195,3 +195,34 @@ test('the completed startup barrier cannot reopen when bounded reported history 
  assert.deepEqual(groups(await h.state())[0].owed,[[1,1]]);
  assert.equal(await h.q.flushed(),true,'a completed barrier stays completed');
 });
+
+
+test('startup waits for a ready persisted retry behind a post-start lower interval',async t=>{
+ const responses=[],h=harness(t,{send:()=>{const d=deferred();responses.push(d);return d.promise;}});
+ h.ready(false);await h.q.accept(manifest([['c',41]]));
+ await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind:'retry',run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0}}];});
+ await h.q.start();await h.q.accept(manifest([['c',1]]));h.ready(true);await h.flush();
+ assert.equal(h.calls[0].args.from,1);assert.equal(await h.q.flushed(),false,'41 is ready but has not dispatched');
+ responses[0].resolve(ok);await settle();await h.flush();
+ assert.equal(h.calls[1].id,'persisted');assert.equal(await h.q.flushed(),false,'41 is still in flight');
+ // Further traffic does not become startup debt.
+ await h.q.accept(manifest([['c',3]]));responses[1].resolve(ok);await settle();await h.flush();
+ assert.equal(await h.q.flushed(),true);assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);
+});
+test('startup stops waiting for its retry when this session exhausts it again',async t=>{
+ const h=harness(t,{send:async()=>{throw Error('still unavailable');}});h.ready(false);
+ await h.q.accept(manifest([['c',41]]));
+ await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.parked=[{kind:'retry',run:[41,41],at:0,attempt:{id:'persisted',run:[41,41],retries:8,readyAt:0}}];});
+ await h.q.start();h.ready(true);
+ for(let n=0;n<9;n++){await h.flush();h.advance(60000);}
+ assert.equal(h.calls.length,9);assert.equal(groups(await h.state())[0].parked[0].ready,undefined);
+ assert.equal(await h.q.flushed(),true);
+});
+
+
+test('answers without delivery manifests leave the dormant queue without timers',async t=>{
+ const h=harness(t);const scheduled=[];
+ t.mock.method(globalThis,'setTimeout',(_,ms)=>{scheduled.push(ms);return {unref(){}};});
+ await h.q.accept(undefined);await h.q.accept('partial');await h.q.accept([]);
+ assert.deepEqual(scheduled,[]);
+});
