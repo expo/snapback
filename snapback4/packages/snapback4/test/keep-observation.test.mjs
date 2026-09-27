@@ -27,7 +27,7 @@ test("peeking a lingering watch neither acquires it nor changes its timer or exp
     key: 'keep:secret:{}', subscribers: new Set(), expiryTimer: null, presenceRefresh: null,
   }), watch => watch.publish(ready("secret")), () => { closed++; }, () => null);
   handle.close();
-  const watch = watches.values().next().value, linger = watch.linger, snapshot = handle.getSnapshot();
+  const watch = watches.values().next().value, linger = watch.lingering, snapshot = handle.getSnapshot();
   now = 29_999;
   assert.equal(peekObservation(client, q, {}, { keep: true }), snapshot);
   assert.equal(peekObservation(client, q, {}, { keep: false }), undefined);
@@ -37,7 +37,7 @@ test("peeking a lingering watch neither acquires it nor changes its timer or exp
   assert.equal(watch.snapshot, snapshot, "peek never invokes the mutating read/refusal path");
   blocked = false; now = 30_000;
   assert.equal(peekObservation(client, q, {}, { keep: true }), undefined, "boundary holds before the timer runs");
-  assert.equal(watch.linger, linger);
+  assert.equal(watch.lingering, linger);
   assert.equal(timers.size, 1, "peek never cancels the linger timer");
   assert.equal(closed, 0, "peek never closes or acquires a watch");
   timers.get(linger.timer).callback();
@@ -95,7 +95,7 @@ test("facade approval follows freshness identity but never a new publication or 
   assert.notEqual(source.snapshot, original);
   assert.equal(answerIdentity(source.snapshot), identity);
   assert.equal(watch.getSnapshot().data, data, "freshness alone does not withdraw an approved answer");
-  assert.equal(watch.getSnapshot().fresh, false, "freshness metadata reaches the facade synchronously");
+  assert.equal(watch.getSnapshot().fresh, true, "freshness metadata reaches the facade synchronously");
   assert.equal(peekObservation(facade.client, q, {}, { keep: true }), source.snapshot);
   assert.ok(seen.every(read => "data" in read), "no loading notification for staleness");
   for (const replace of [() => source.publish(publication), () => source.reset(publication)]) {
@@ -103,8 +103,14 @@ test("facade approval follows freshness identity but never a new publication or 
     for (const notify of listeners) notify();
     assert.notEqual(answerIdentity(source.snapshot), identity, "even the identical payload and Read object need new authority");
     assert.equal(answerIdentity(original), identity, "old snapshot identity is immutable");
-    assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
-    assert.deepEqual(watch.getSnapshot(), { loading: true });
+    if (source.resetVersion === 0) {
+      assert.equal(watch.getSnapshot().data, data, "the last approval stays while a publication waits");
+      assert.equal(watch.getSnapshot().fresh, true);
+      assert.equal(peekObservation(facade.client, q, {}, { keep: true }), watch.getSnapshot());
+    } else {
+      assert.equal(peekObservation(facade.client, q, {}, { keep: true }), undefined);
+      assert.deepEqual(watch.getSnapshot(), { loading: true }, "a scope reset still drops the approval");
+    }
   }
   authority.resolve(true);
   await until(() => watch.getSnapshot().data === data);
@@ -115,7 +121,7 @@ for (const op of ["apply", "admit", "settle", "clear_rows", "settle_exit", "adop
   test(`local keep: ${op} fences in-flight answers and ${["apply", "admit", "settle"].includes(op) ? "keeps" : "drops"} active and lingering data`, async () => {
     const reads = new LocalReads(), held = deferred();
     const keep = Object.assign(new ReadObservation(true), { expiryTimer: null, presenceRefresh: null });
-    const plain = Object.assign(new ReadObservation(), { expiryTimer: null, presenceRefresh: null });
+    const plain = Object.assign(new ReadObservation(false), { expiryTimer: null, presenceRefresh: null });
     keep.publish(ready("before")); plain.publish(ready("before"));
     const watches = new Map();
     const idleHandle = observeWatch(watches, "idle", () => Object.assign(new ReadObservation(true), {
@@ -123,33 +129,36 @@ for (const op of ["apply", "admit", "settle", "clear_rows", "settle_exit", "adop
     }), watch => watch.publish(ready("idle")), () => {}, () => null);
     idleHandle.close();
     const idle = watches.get("idle");
-    const work = keep.fetch(() => held.promise, () => {});
+    const revision = reads.revision;
+    const work = keep.fetch(() => held.promise, () => {}, { accept: () => reads.revision === revision });
     if (["adopt", "observe_store"].includes(op)) reads.clear([keep, plain, idle]);
     else reads.committed([keep, plain, idle], op);
     const retained = ["apply", "admit", "settle"].includes(op);
     assert.equal("data" in keep.snapshot, retained);
-    if (retained) { assert.equal(keep.snapshot.fresh, false); assert.ok(Number.isFinite(keep.snapshot.since)); }
+    if (retained) { assert.equal(keep.snapshot.fresh, true); assert.equal(keep.snapshot.revalidating, true); }
     assert.equal("data" in idle.snapshot, retained);
     assert.deepEqual(plain.snapshot, { loading: true });
     held.resolve({ read: ready("obsolete") }); await work;
     assert.notEqual(keep.snapshot.data, "obsolete", "old evaluation cannot republish across any commit or reset");
     keep.publish({ denied: why });
     assert.deepEqual(keep.snapshot, { denied: why }, "a refusal replaces a kept answer");
-    idle.linger.close();
+    idle.lingering.close();
   });
 }
 
-test("keep carries the original since across loading, then accepts null, empty data and refusal", async () => {
-  const watch = new ReadObservation(true), values = [];
-  watch.publish({ ...ready(["old"]), fresh: false, since: Date.now() - 60_000 });
-  const since = watch.snapshot.since;
-  for (const read of [{ loading: true }, { loading: true }, ready(null), ready([]), { denied: why }]) {
-    await watch.fetch(async () => ({ read }), () => values.push(watch.snapshot));
-    if ("loading" in read) { assert.equal(watch.snapshot.since, since); assert.deepEqual(watch.snapshot.data, ["old"]); }
-    else assert.deepEqual(watch.snapshot, read);
+test("keep carries original freshness through reload, and every published result replaces it", async () => {
+  const watch = new ReadObservation(true);
+  const initial = { ...ready(["old"]), fresh: false, since: Date.now() - 60_000 };
+  for (const read of [{ loading: true }, ready(null), ready([]), { denied: why }]) {
+    watch.publish(initial);
+    const since = watch.snapshot.since;
+    const held = deferred(), work = watch.fetch(() => held.promise, () => {});
+    assert.equal(watch.snapshot.since, since);
+    assert.equal(watch.snapshot.revalidating, true);
+    assert.deepEqual(watch.snapshot.data, ["old"]);
+    held.resolve({ read }); await work;
+    assert.deepEqual(watch.snapshot, read);
   }
-  assert.ok(values.every(read => !("loading" in read)));
-  watch.reset({ loading: true }); assert.deepEqual(watch.snapshot, { loading: true });
 });
 
 test("rejoining at 29 seconds cancels the old close and gives the next unsubscribe a full window", t => {
@@ -262,8 +271,8 @@ for (const trigger of ["mutation", "notification"]) for (const outcome of ["next
   else await f.change();
   await until(() => f.reads() > before);
   assert.equal(f.live.getSnapshot().data, "private", "revoked/changed answer stays until the replacement read lands");
-  assert.equal(f.live.getSnapshot().fresh, false);
-  assert.ok(Number.isFinite(f.live.getSnapshot().since));
+  assert.equal(f.live.getSnapshot().fresh, true);
+  assert.equal(f.live.getSnapshot().revalidating, true);
   // An ordinary notification must not evict idle opt-in answers either.
   const remount = f.client.observe(q, { idle: true }, { keep: true });
   assert.equal(remount.getSnapshot().data, "private"); remount.close();
@@ -319,7 +328,7 @@ test("the app client forwards keep while its lifetime fence still withdraws data
   await until(() => watch.getSnapshot().data === "private");
   f.hold(true); f.answer("next");
   await f.client.mutate({ kind: "mutation", name: "edit" }, {});
-  await until(() => f.releases.length > 0 && watch.getSnapshot().fresh === false);
+  await until(() => f.releases.length > 0 && watch.getSnapshot().revalidating === true);
   assert.equal(watch.getSnapshot().data, "private");
   const notify = facade.fence(); notify();
   assert.deepEqual(watch.getSnapshot(), { denied: why });
@@ -358,7 +367,7 @@ test("createApp forwards source expiry while sessionStore.get is held", async t 
   assert.ok(snapshots.some(read => read.loading), "the source withdrawal notifies the app subscriber before storage resumes");
 });
 
-test("createApp withdraws a superseded answer while replacement authority is held", async t => {
+for (const keep of [undefined, true, false]) test(`createApp ${keep !== false ? "keeps" : "withdraws"} a superseded answer while replacement authority is held`, async t => {
   const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
   const clock = new ServerClock(() => wall), memory = memorySessionStore(), held = deferred();
   const session = { kind: "user", token: "kept", principal: "alice", expiresAt: wall + 90 * 86400000 };
@@ -382,17 +391,27 @@ test("createApp withdraws a superseded answer while replacement authority is hel
   }) });
   t.after(async () => { holding = false; held.resolve(); replacement.resolve(); await app.close(); });
   assert.equal((await app.ready).ok, true);
-  const watch = app.client.observe(q, {}, { keep: true }), snapshots = [];
+  const watch = app.client.observe(q, {}, { keep }), snapshots = [];
   watch.subscribe(() => snapshots.push(watch.getSnapshot()));
   await until(() => watch.getSnapshot().data === "A" && watch.getSnapshot().fresh);
   await until(() => queries === 2); // Raw background read is already past session storage.
   holding = true; snapshots.length = 0;
   replacement.resolve();
   await until(() => blocked > 0);
+  if (keep !== false) {
+    assert.equal(watch.getSnapshot().data, "A");
+    assert.equal(watch.getSnapshot().fresh, true);
+    assert.equal(watch.getSnapshot().revalidating, true);
+    assert.ok(snapshots.every(read => read.data === "A"));
+    const remount = app.client.observe(q, {}, { keep });
+    assert.equal(remount.getSnapshot(), watch.getSnapshot(), "remount starts with A while B waits");
+    remount.close();
+  } else assert.deepEqual(watch.getSnapshot(), { loading: true });
+  snapshots.length = 0;
   clock.sample(deadline + 1, wall, wall, "server:1");
   await delay(10);
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "superseded A cannot remain visible past its own deadline");
-  assert.ok(snapshots.some(read => read.loading), "replacement withdraws A and notifies before authority resumes");
+  if (keep !== false) assert.ok(snapshots.some(read => read.loading), "A's own expiry notifies before authority resumes");
   assert.ok(snapshots.every(read => !("data" in read)), "B still needs authority");
   holding = false; held.resolve();
   await until(() => watch.getSnapshot().data === "B");

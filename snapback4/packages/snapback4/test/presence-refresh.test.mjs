@@ -82,7 +82,7 @@ test("an invalidation during a background refresh withdraws at once, and the lat
     if (n === 2) { await held.promise; return data("v2", 300, 2); }
     return data("v3", 300, 2);
   }, async signal => (++polls === 1 ? (await invalidate.promise, Response.json({ seq: 2, tables: [], generation: 0 })) : blocked(signal)));
-  const mark = client.observe(query, { p: "dev:bob" });
+  const mark = client.observe(query, { p: "dev:bob" }, { keep: false });
   t.after(async () => { held.resolve(); mark.close(); await client.close(); });
   await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
   const seen = [];

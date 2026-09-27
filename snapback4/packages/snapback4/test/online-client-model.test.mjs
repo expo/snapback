@@ -30,6 +30,8 @@ for (const op of ['login', 'guest']) for (const ending of ['signOut', 'close'])
     { op }, { op: ending }, { op: 'release' },
   ], 'app'));
 
+test('R1 replay seed 2345: the immediate-revocation model explicitly withdraws during a read', () => execute(generate(2345), 'client'));
+
 test('online clients preserve R1–R6 across 3,000 seeded interleavings', { timeout: 180_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_ONLINE_SEQUENCES ?? 3000);
   for (let seed = 1; seed <= count; seed++) {
