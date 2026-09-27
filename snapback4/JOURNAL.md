@@ -69875,3 +69875,86 @@ The supervisor owns acceptance; the online publisher remains unbuilt.
 Report and durable verification: experiments/following-adoption/atomic/ROUND4.md
 and ROUND4.verification.json. Raw logs: target/fa-round4/. Local commits carry
 the required co-author trailer. No push or publication.
+
+### 2026-09-27 — KG round 10: retired opening refusals and an independent approval oracle
+
+Read all round-0–9b prompts, prior report and KG journal entries, and Astra's
+round-9b NOT READY review. Grok's file initially held progress text only; it
+completed during qualification, and all four findings and its keep:false
+mutation were incorporated. First fetched and merged origin/main 687e2a05f in
+d1ec21af5, preserving both journal histories (256 additions against the lane
+parent, 602 against main, zero deletions against either) and both LLP 3000.019
+Revised histories. The round-8 ruling, refined in round 9b, remains unchanged.
+
+3b99d10aa fixes Astra's retirement regression. An opening remembers its last
+associated raw snapshot, both initially and through peer notifications. After
+raw retirement, that association still identifies the slot to reject; no saved
+data is approved. Six policy/attachment regressions fail on merged input and
+pass after the fix, including true's expired linger, one E_CLIENT snapshot
+and exactly one callback. The manual records the boundary with the code.
+
+4a321adeb and cbbfbd895 replace the permissive epoch oracle with independent
+expected approval identity, denial, row/episode bounds and retirement per raw
+owner; each injected check records facade lifetime, owner, phase and eligibility.
+Every intermediate callback must match expected identity/denial/deadlines,
+its getter at delivery, and nonduplicate notification ownership. Test-only
+fixture hooks identify facade/check lifetimes without reading production
+approval state. All policies run 60 seeds of 240 actions (43,200 random actions),
+with device deadlines, host/server rollback, batched completions, owner
+recreation, and fencing with approval pending then completing it. Grok's
+follow-up adds same-answer rechecks, raw denials and 18 named replays; the
+final model has 180 seeds, three parents and 39 named replays, all 222 passing.
+
+The completed Grok review reproduced as 18 failures and six controls among
+24 cases. db0c03544 ignores superseded refresh refusals while still delivering
+current refusals after close; makes adopting the same denial a no-op for
+generation; prevents a closed opening from revoking an owner it never joined;
+and preserves a closed loading latch through later raw denials. Last association
+is tracked while live, including peer notification, rather than freezing an
+absent owner at opening start. All 24 pass, and all earlier late-close cases
+remain green. The final deterministic approval set is 127/127.
+
+Final-source mutation evidence: deleting attach(kept.approve(snapshot)) fails
+all 222 model cases, including every seed; removing the generation check fails
+all three exact closed-opening/older-success replays. Recovery-only suppression,
+missing shared denial, duplicate denial delivery, and missing closed loading
+latch each fail their three-policy cases. Missing retirement association and
+closed-owner isolation each fail six cases. Superseded-refusal mutation fails
+six order cases; repeated-denial generation fails three recovery cases. Grok's
+keep:false retention mutant fails its model control while omitted/true pass.
+Brief unapproved publication before the correct final denial fails all three
+batch cases at an intermediate callback; checking only settled state lets all
+three mutants pass. Loaders mutate only their own process, not live source/dist.
+
+Final affected set: 754/754 (24.369 s). Final model: 222/222 (24.320 s).
+Whole guide rerun after Grok's findings: 86/86. Frozen Bun install, final package
+build/typecheck, whitespace and references pass: 519 LLP docs, 9,681 references,
+zero errors/unchecked. Largest changed source/test is 289 lines.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1612 s**, exit **0**.
+Every failure: none — zero ours, baseline or environmental failures. Rust:
+3,949 passed / 0 failed / 28 ignored (879 s). Main client: 3,397 passed /
+0 failed / 10 skipped, plus 56/56 acquisition/server shards (427 s). Final
+session/online models: 79/79 (260 s). Fixtures 9/9. Both app typechecks,
+builds, budgets, package checks and release guard pass.
+
+Qualification limit: Grok's review completed after full-suite client discovery.
+The main client phase covers the Astra fixes and 204-case oracle, not the later
+Grok regressions. Grok's fixes were rebuilt at 17:39 UTC and separately verified
+by the final affected/guide/mutation checks above; the full run's final seeded
+model phase started after that rebuild. The single run was not restarted or
+repeated, and is not represented as complete qualification of the final tree.
+No unresolved assigned finding or failing final focused check remains.
+
+Wasm is byte-identical to round 9b: 1,981,453 B raw / 572,553 B gzip,
+zero delta and 288 B below the unchanged 572,841 B cap. SHA-256:
+3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa.
+No Rust/wasm input, authorization/disclosure rule, meter, durable format,
+version, dependency or budget change. Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+eight Cargo jobs, dev/test debug off, fd limit 65,536. Existing tools selected
+through worktree-local symlinks; no shared-path tool installation or change.
+No implementation deviation, new final-review claim, push or publication.
+All round-10 commits carry the requested GPT-6 Astra co-author trailer.
+The inherited 60-second full-suite budget remains exceeded; no timeout raised.
+Report and reproductions: reports/20260927-kg-kept-through-authority/REPORT.md.
+Ignored evidence: target/lane-kg-r10/. This is the single round-10 journal append.

@@ -1,3 +1,220 @@
+# Lane KG round 10 — retired opening refusals and an independent approval oracle
+
+Branch: `sb4-intent/kg-kept-through-authority`. Read the round-0–9b prompts,
+prior report and KG journal entries, and Astra's complete round-9b NOT READY
+review. Grok's file initially contained only introductory progress messages.
+It completed during qualification; read its full NOT READY review and folded
+in all four findings and its keep:false mutation. The round-8 shared-approval
+ruling, refined in round 9b, remains unchanged. No push or publication.
+
+First fetched and merged `origin/main` at `687e2a05f` in `d1ec21af5`.
+Preserved both journal histories: 256 additions against the lane parent,
+602 against main, zero deletions against either. Combined LLP 3000.019's
+Revised histories, including main's Following-capacity amendment and KG's
+retention amendments. Other incoming changes merged automatically.
+All round-10 commits carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Earlier reports remain below as historical records.
+
+## Implementation, file by file
+
+Paths are relative to `snapback4/` unless specified otherwise.
+
+| File | Result |
+| --- | --- |
+| `packages/snapback4/src/app-client.ts` | Save the opening's last associated raw snapshot, including associations obtained through peer notifications, so retirement cannot hide its refusal. Ignore superseded refresh refusals while preserving a current refusal after close. A closed opening targets only an owner it actually joined. A closed loading latch survives later source denials; explicit facade fencing still revokes the handle. |
+| `packages/snapback4/src/read-approval.ts` | Adopting the already-delivered denial without a live registration is a no-op, preserving the eligibility of post-refusal recovery checks. Distinct refusals and actual releases retain their generation fences. |
+| `packages/snapback4/test/approval-lifecycle.test.mjs` | Six retirement regressions: all three policies × initial association/association acquired through a peer notification. Expire true's linger, reject the opening, and require its exact E_CLIENT snapshot and one callback. |
+| `packages/snapback4/test/approval-review.test.mjs` | 24 Grok regressions/controls: four B/C completion orders, idempotent opening-denial adoption during recovery, unassociated and retired-owner closed openings, and the closed loading latch. |
+| `packages/snapback4/test/helpers/approval-oracle.mjs` | Independent expected raw input, approved identity, denial, original row/episode bounds and retirement per owner. Every check records its facade, phase, lifetime and eligibility. Every intermediate callback is compared with expected identity/denial/deadlines, the getter at delivery, and the prior delivery; listener-isolated failures are retained for assertion. |
+| `packages/snapback4/test/approval-model.test.mjs` | 180 seeds × 240 random actions (43,200), plus 39 named replays. Covers required actions, owner recreation, same-answer rechecks and raw denials; each seed ends with pending approval, a fence, and completion. |
+| `packages/snapback4/test/helpers/authority-fixture.mjs` | Optional test hooks identify raw acquisition and injected-check completion and bind subscribers to facade AsyncLocalStorage context. They do not inspect production approval state. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | Document retirement delivery, superseded refusals, idempotent denial adoption, closed-owner isolation and stable closed loading. |
+| `JOURNAL.md`, this report | One dated append and this qualification record; preserve prior history. |
+| Root `llp/3000.019-what-the-builder-still-wrote.rfc.md` | Combine Revised histories during merge only; no design amendment. |
+
+Commits: `3b99d10aa` fixes Astra's retirement Medium; `4a321adeb` and
+`cbbfbd895` replace and strengthen the oracle; `db0c03544` incorporates
+Grok's completed review. The final evidence commit records qualification.
+
+## Review findings and decisions
+
+- **Astra: refusal after raw retirement.** The saved snapshot identifies the
+  attached owner only; it cannot approve or expose saved data. All six exact
+  reproductions fail on merged input and pass with the fix.
+- **Astra: independent model.** Expected authorization never comes from
+  ReadApprovals, its generation or facade output. Raw publication identities
+  are input labels. Only a live, current, eligible refresh can install expected
+  data; a closed opening's success cannot do so. Expected denials are positively
+  asserted, including their messages, rather than inferred from absence of data.
+- **Grok High: superseded refusal.** Restore the per-facade version check before
+  applying a refresh refusal. In either B-failure/C-success order, C reaches and
+  stays on screen. A current check still refuses after close, because close
+  does not supersede that check. All earlier late-close tests remain green.
+- **Grok Medium: adopting the same denial.** Return before changing generation
+  when there is no registration to drop and the identical denial is stored.
+  An opening can adopt its shared refusal without cancelling a later recovery.
+- **Grok Medium: closed opening ownership.** Once closed, an opening cannot
+  peek and revoke a newly created owner. It retains the last owner it actually
+  joined, including one joined through a peer notification while live. This
+  preserves the round-10 peer-attachment requirement; freezing only the owner
+  present at opening start would not satisfy that requirement.
+- **Grok Low: stable closed loading.** Return the already-latched loading object
+  before considering a later source denial. A denial captured at close, a
+  current closed check's own refusal, and explicit facade fencing retain their
+  existing precedence.
+
+The model observes completion at the injected check's promise boundary. A
+microtask places the independent transition beside the authority consumer,
+so an opening can start a refresh before a later refusal in the same batch is
+consumed. Its oracle distinguishes actual refusal boundaries from adopting an
+existing denial, and superseded checks from current late-close checks. Live raw
+withdrawals still take synchronous precedence over authority results. These
+rules come from the governing behavior, not from reading production fields.
+
+## Forms that compile and run
+
+No new API or Quarry syntax:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+```
+
+For each form, a remount receives one denial when its opening check fails after
+its raw owner retires (after linger expires for true). A qualifying peer success
+still reaches every live facade, including a prior rejecter. `watch.close()`
+keeps the round-9b identity/mark boundary and now preserves its loading latch.
+
+## Tests and discrimination
+
+Astra's retirement reproductions: **0 passed / 6 failed before**, all six pass
+after. Grok's 24 regressions/controls: **6 passed / 18 failed before**, all
+24 pass after. Final deterministic approval set: **127/127**.
+
+The final model passes **222/222**: 180 seed cases, three parents and 39 named
+replays. The thirteen scenarios per policy require same-B recovery for every
+live facade, denial after a closed opening's success followed by an older
+success, retirement refusal through both attachment paths, pending approval
+across a fence, separate old/new owners, batched completion orders, both
+superseded-refusal orders, duplicate opening-denial adoption during recovery,
+unassociated and retired-owner closed openings, and stable closed loading.
+
+Random actions cover publish with server/device deadlines, approve/reject in
+any order, batches of up to four completions before settle, remount, close,
+reload, reset, same-answer recheck, raw denial, host/server/device advancement,
+host/server rollback, owner recreation, and pending approval completed after
+fence. Every policy asserts action coverage. Expected data cannot disappear
+vacuously: every seed must successfully publish approved data. These are bounded
+generated witnesses, not an exhaustive proof.
+
+Final-source mutations use process-local loaders, never edits to live source
+or dist. The model discriminates each change:
+
+| Mutation | Result |
+| --- | --- |
+| Delete `attach(kept.approve(snapshot));` exactly as Astra did | **222 failures**, including all 180 seeds. |
+| Remove shared-generation comparison; run only Astra's closed-opening sequence | **3/3 fail** on stale success replacing denial. |
+| Suppress approval only when recovering from denial | **3/3 recovery cases fail**. |
+| Remove saved-owner fallback | **6/6 retired-opening cases fail**. |
+| Remove shared denial delivery | **3/3 refusal/recovery cases fail**. |
+| Duplicate only denial callbacks, preserving initial approval | **3/3 batch cases fail**. |
+| Briefly publish unapproved data before the correct final denial | **3/3 fail at the intermediate callback**. Removing only that intermediate semantic assertion lets **3/3 pass** with the mutant, proving why settled-state checks are insufficient. |
+| Remove superseded-refusal version check | **6/6 order cases fail**. |
+| Bump generation again when adopting the same denial | **3/3 recovery cases fail**. |
+| Let a closed opening peek a later raw owner | **6/6 ownership cases fail**. |
+| Remove closed loading latch | **3/3 raw-denial cases fail**. |
+| Delete the `!owner.retain` drop, Grok's surviving mutation | **keep:false fails** at the unapproved replacement; omitted/true controls pass. |
+
+Model-development failures were oracle mistakes corrected before final focused
+qualification: late current closed checks can still report their refusal;
+source withdrawals outrank late authority; batched openings can start checks
+before another refusal is consumed; closed facades do not receive a live peer's
+refresh-version updates; reloading a raw denial withdraws it. Required negative
+controls independently verify that the corrected oracle does not simply accept
+implementation output. No old product assertion or timeout was weakened.
+
+## Qualification
+
+- Final affected set: **754 passed / 0 failed**, 24.369 s.
+- Final model: **222/222**, 24.320 s; deterministic approvals **127/127**.
+- Whole guide rerun after the late findings: **86/86**, 2.56 s execution.
+- Frozen Bun install, final package build/typecheck, whitespace and references
+  pass: **519 LLP docs, 9,681 references, zero errors / unchecked**.
+- Largest changed source/test: **289 lines**; no source-cap exception.
+
+Ran `scripts/test.sh` **exactly once**, exit **0**. Exact summary:
+**`== 0 failure(s) in 1612 s`**. Every failure: **none** — zero ours,
+baseline or environmental failures. Intentional pre-fix and mutation failures
+are discrimination evidence, not qualification failures.
+
+- Rust tests/doctests: **3,949 passed / 0 failed / 28 ignored**, 879 s.
+- Main client: **3,397 passed / 0 failed / 10 skipped**, plus **56/56**
+  acquisition/server shard tests; client phase 427 s.
+- Final session/online models: **79/79**, 260 s, including both 5,000-sequence
+  session models and the 3,000-sequence online model.
+- Fixture wrappers **9/9**; both app typechecks, native/wasm builds, docs
+  budget, release guard, package build/typecheck and chat schema check pass.
+
+**Full-run scope:** Grok's review was completed and discovered after the full
+suite entered its client phase. The single full run began with the Astra fixes
+and the 204-case oracle; its main client discovery does not include the later
+Grok regressions. The Grok changes were then rebuilt and separately validated
+by the final 754-case affected set, whole guide and mutation controls above.
+The full run was not restarted or repeated, and is not claimed as a complete
+qualification of the final revision. Its seeded client-model phase started
+after the final runtime rebuild. This temporal limitation is explicit rather
+than representing the script result as an exact final-tree proof.
+
+Wasm from that run: **1,981,453 B raw / 572,553 B gzip**, byte-identical to
+round 9b, **0 B delta**, **288 B below** the unchanged 572,841 B budget.
+SHA-256: `3bb763b9f9eee9f76dba6965a3a7a940a7ea1bd3fcc2b69b215404ff7c6a4aaa`.
+No Rust/wasm input, authorization/disclosure rule, meter, durable format,
+version, dependency or budget change.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Existing Node/Bun selected through worktree-local symlinks;
+no tool installed or changed on a shared path. Optional wasm-opt is absent
+from the selected PATH. Ignored `target/lane-kg-r10/` contains logs, exit
+statuses, mutation source snapshots/loaders, and full-suite launch PID/time.
+
+Reproduce from `snapback4/` after the package build:
+
+```sh
+node --test packages/snapback4/test/approval-*.test.mjs
+node --import ./target/lane-kg-r10/no-approve-loader.mjs --test \
+  packages/snapback4/test/approval-model.test.mjs
+node --import ./target/lane-kg-r10/no-generation-loader.mjs --test \
+  --test-name-pattern='oracle rejects an older success after a closed opening succeeds' \
+  packages/snapback4/test/approval-model.test.mjs
+```
+
+## Decisions, deviations and remaining work
+
+No implementation deviation or change to the supervisor ruling. Fixture hooks
+are test instrumentation, not a production mechanism or gate. The late Grok
+review extends this round's work as requested; the single full-run limitation
+is recorded above. No independent final review is claimed; the supervisor owns
+review and integration. The inherited full-suite 60-second runtime budget is
+still exceeded; reproduce with `bash scripts/test.sh`. No budget was raised.
+
+No unresolved assigned finding or failing final check remains. The outstanding
+qualification limitation is that the one full run predates the late Grok
+changes in its main client phase; the final revision has the separately
+passing affected, guide, typecheck and mutation evidence above.
+
+llp-orient context: scope is opening association, shared approval notification
+and denial, asynchronous eligibility and closed-facade lifetime. Governing
+current LLPs: 3000 §4, 3000.023 §§3.1/3.4/3.6, 3000.019 §3.3, and 3000.013 §6.
+None is in foundation. Read the current client manual before editing. Risks
+were lost retirement denials, stale/no-op refusals and a vacuous oracle; each
+has deterministic and mutation evidence. Manual, journal and report updates
+suffice; no new LLP hand-off.
+
+---
+
+# Historical round-9b report
+
 # Lane KG round 9b — shared refusal ordering and complete notification ownership
 
 Branch: `sb4-intent/kg-kept-through-authority`. Read all prompts for rounds
