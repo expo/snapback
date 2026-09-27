@@ -15,7 +15,7 @@ pub(super) fn expand(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     for doc in &mut catalog.documents {
         for view in &doc.views {
             let site = view.site.clone();
-            doc.programs.push(ProgramDecl { held: false, predicts: false, server: false, native: false,
+            doc.programs.push(ProgramDecl { delivery: None, held: false, predicts: false, server: false, native: false,
                 kind: ProgramKind::Query, name: format!("$view:{}", view.name), args: Vec::new(), prelude: Vec::new(), site: site.clone(),
                 body: vec![Stmt::Return { site: site.clone(), value: Expr::Read(ReadExpr {
                     table: view.name.clone(), keys: Vec::new(), seeks: Vec::new(), computed: BTreeMap::new(), index: None, order_keys: vec!["id".into()],

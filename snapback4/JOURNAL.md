@@ -68125,6 +68125,54 @@ still not ready to land. Attribution, hashes, reproductions and limitations:
 reports/20260927-dc-delivery-client/ROUND1.md; logs and artifacts remain under
 ignored target/lane-dc-round1/.
 
+## 2026-09-27 — DS: delivery reporters, manifests and receipt-only no-ops
+
+On `sb4-intent/ds-delivery-server`, implemented LLP 3000.022 §§2, 5 and 6:
+inline and continued `reports delivery` headers, portable compiled bindings,
+`E_DELIVERY_CLAUSE`, the receipts card's `RUNS_FULL` refusal, authorized source
+coordinates and per-field origins through projections, bounded survivor-only
+HTTP manifests, and SQLite/Postgres receipt-only no-ops at the committed head.
+No-op replay keeps its receipt and does not wake change waiters. Ordinary
+no-op mutations still advance. Dev reports the supplemental ledger under
+`meter.delivery`; candidate leases release stamping heap, while scalar alias
+map nodes remain reserved until their map is dropped. The schema and wire
+interfaces match the lane agreement. All changed source stays at or below
+1,500 lines.
+
+The final focused checks pass: 8 delivery engine tests, 4 clause tests, the
+whole 86-test guide, 3 existing provenance tests, 2 HTTP tests, and the
+Postgres delivery test in both Serialized and Serializable modes. The
+reference audit passes (516 LLP docs, 9,604 refs, zero errors/unchecked).
+The required full `scripts/test.sh` run ended exactly
+`== 2 failure(s) in 1487 s`: `wasm build` and `cargo test`. Both are mine.
+The latter is the Map source regression: the full-run artifact failed, but
+a rebuilt workspace target passes all 8 delivery tests; it appears to have
+compiled before the final Map handling edit. Final affected checks were run
+again after the ledger correction. Every other full-run gate/test passed,
+including all 78 client model tests. No baseline or environmental failure
+remains in that run. A separate prerequisite commit repaired the baseline
+Postgres read-through caller's missing optional adoption-report argument.
+
+Wasm measured 1,985,215 bytes raw / 572,996 gzip, versus 1,981,512 / 572,053
+at the base: +3,703 raw / +943 gzip. This is **155 gzip bytes over** the
+unchanged 572,841 budget. Three bounded codec-size iterations did not bring
+it under budget; this remains an integration blocker. Server origin tracking
+and the final ledger correction are absent from the wasm build.
+
+Also stopped and documented a contract conflict: changing a previously
+declared reporter into an ephemeral mutation in a later generation makes
+existing SQLite/HTTP routing bypass its old durable receipt and execute the
+new body on a repeated write id. The retained reproduction fails with
+`replayed: false` and one ephemeral row written. A current ephemeral reporter
+is rejected with `E_DELIVERY_CLAUSE`, because it cannot keep a durable
+receipt; custody across a later execution-class change needs a supervisor
+decision. No ephemeral replay redesign was attempted.
+
+No device collection, persisted debt, client queues, hook replacement,
+comparative update, version bump, budget increase, push or publication.
+The private Postgres test instance was stopped. File-by-file changes, forms,
+test claims, exact full-run log and both open-problem reproductions are in
+[the DS report](reports/20260927-delivery-server/REPORT.md).
 ## 2026-09-27 — 0.4.5 lane QE round 1: sound items, bounded growth and pure-call narrowing
 
 Read the original lane prompt, round-0 report/journal and both complete blind
@@ -68274,6 +68322,98 @@ full wasm path matrix, native process-kill and IndexedDB browser crash witnesses
 remain unclaimed. File-by-file changes, examples, test map, failures and
 reproductions: reports/20260927-dc-delivery-client/ROUND2.md. Evidence remains
 under ignored target/lane-dc-round2/.
+
+### 2026-09-27 — DS round 1: fingerprinted delivery and review repairs
+
+Merged origin/main first in db887d978, preserving both journal append streams.
+LLP 3000.022 now pins SHA-256 over a versioned prefix and length-prefixed UTF-8
+binding names. Compiled bindings and manifest envelopes carry the digest;
+SDK reports send `delivery: { fingerprint }` beside id, args and store_id.
+SQLite and both Postgres write modes check it under the writer before signature
+validation/body execution. HTTP checks before decoding, rechecks at execution,
+and returns nonretryable E_DELIVERY_BINDING as a coded 200 refusal. Existing
+bound durable receipts win before ephemeral dispatch, including after a schema
+conversion; fresh ephemeral IDs remain correlation IDs. Closed the replay issue.
+
+Preserved owner-disclosed OptionalField origins through successive aliases;
+added colliding-table-ID controls, a charged per-query binding index, exhaustion
+short-circuiting, charged metadata loops, safe-integer coordinate exclusion,
+exact envelope reservations, and the missing second-envelope overflow test.
+The receipts card now teaches persisted local delivery debt versus the online
+memory queue. Its hook keeps only seen; the browser recipe tests preserve seen
+retry/remount/identity isolation and assert no hook delivery or automatic walk.
+
+Affected checks pass: delivery 13, clause 5, replay/fingerprint 2, guide 87,
+read-through provenance 3, HTTP 5, Postgres both Serialized/Serializable, React
+45 (zero skipped). Six deliberate mutations are killed by the new regressions.
+The mandatory one scripts/test.sh run exited 1 with the exact summary:
+`== 1 failure(s) in 1446 s` / `client tests`. Its sole failure was ours: the
+React fixture still extracted the deleted runsOf hook and pinned its old
+protocol. Updated it and reran the full affected React file successfully.
+No baseline or environmental failures; the full Rust phase (929 s), all other
+phases, and 78 client model tests passed. The final small HTTP and Postgres
+refinements have separate passing checks; the full script was not run twice.
+
+Warm in-memory engine benchmark, ten alternating batches of 5,000 writes:
+direct ephemeral 19,678 ns/write; receipt-aware mutate 25,978 ns (+6,300 ns,
+about 32%, including argument/outcome wrapping); isolated miss lookup 2,890 ns.
+Wasm exact duplicate-function elimination with Binaryen 108 yields 1,964,064 B
+raw / 570,429 B gzip: -2,567 gzip bytes from round 0, 2,412 below the unchanged
+572,841 cap. Imports/exports are unchanged. A host without wasm-opt still gets
+the unoptimized 573,266 B gzip module; the qualified build requires the tool.
+
+No client collection/queue, API contract redesign, package version, push or
+publication changes. Report, protocol examples, file map, full-run failure and
+passing repair, measurements and reproduction: reports/20260927-delivery-server/ROUND1.md.
+
+
+### 2026-09-27 — DS round 2: preflight signature custody and delivery work boundaries
+
+Merged origin/main first, retaining both parents in 09d70e30c, then addressed
+both round-1 reviews. The HTTP mutation signature is captured from the engine
+under the same ownership as receipt/fingerprint preflight. Pausing immediately
+after that preflight and adopting an argument rename, operation removal or
+query conversion now returns terminal E_DELIVERY_BINDING; the executing
+writer's independent check remains in place.
+
+Tracked-table membership belongs to the installed schema. Untracked source
+stamps and answers return before creating a supplemental ledger or building an
+index. A complete, metered cold index is shared with detached readers of that
+schema; adoption starts a new set/cache and old readers keep their old one.
+A partial index is never published. Later envelope failure still walks the
+already-reserved envelopes, retaining the fitting messages row [["c1",4]].
+The receipts paragraph above Owing now describes SDK debt from publications
+and accepted manifests, with progress retained as the catch-up read.
+
+Tests pin 195 steps for cold index exhaustion, and 197 for source lookups after
+an eight-binding index fits. The unrelated-query control uses 1,001 bindings
+and an 800-step ceiling; internal tests prove no hidden ledger or index work.
+Seven deliberate mutations fail, including zero-cost source lookup, one-step
+index insertion, lost reserved rows, each missing membership gate, the late
+signature and the obsolete card sentence. Restored-source affected checks pass:
+15 delivery, 5 clause, 2 replay/fingerprint, the whole 87-test guide, 2 internal
+lookup tests, 6 HTTP delivery tests, the existing lock-gap authority test, and
+the PostgreSQL delivery test in both Serialized and Serializable modes. Its
+private socket-only cluster was stopped. All changed source is <=1,500 lines.
+
+Reverted scripts/build-wasm.sh exactly to its pre-round-1 content. Round 1's
+optimizer-dependent qualification does not establish a fit on the macOS
+publisher, which has no wasm-opt. This Linux unoptimized build is 1,985,385 B
+raw / 573,265 B gzip, 424 bytes over the unchanged 572,841-byte budget. Rust
+1.97.0 and wasm-bindgen 0.2.127; no optimizer. The supervisor owns the single
+LLP 3000.022 integration ratchet. No tool was installed onto a shared path.
+
+The required scripts/test.sh ran once and exited 1, with exactly:
+`== 1 failure(s) in 1834 s` / `wasm build`. That failure is ours, the known
+unoptimized budget overrun above. No baseline or environmental full-run
+failures. All other phases passed, including 953 Rust executions plus doctests,
+client tests, and all 78 seeded client models. No suite rerun or changed test
+count/timeouts; the retained full log records the red size gate honestly.
+
+No client queue/device collection, version bump, budget increase, push or
+publication. File map, forms, regression evidence, measurements and the
+remaining budget reproduction: reports/20260927-delivery-server/ROUND2.md.
+
 ### 2026-09-27 — Lane GS: global-search baseline and continuation design stop
 
 Reproduced calibration #23's original unscoped search on a copied final store:
@@ -69133,6 +69273,59 @@ round-2 scripts/test.sh summary; historical round 0 remains
 weakened assertion, new API/design, unrelated fix, shared tool installation,
 push or publication. Report and durable run evidence:
 reports/20260927-fx-flakes/ROUND2.md and round2-qualification.json there.
+
+### 2026-09-27 — DS round 3: delivery survives PostgreSQL adoption and SQLite reopen
+
+Read the earlier briefs, reports/journal entries and both round-2 reviews.
+Fetched and merged origin/main 8dfbf7daa first, in dcd58071a. Preserved both
+parent journal histories in order. Kept main's extracted React harness and
+journal/clock repairs, transplanting DS's receipts/seen cases into the helper;
+the merged browser file passes 47/47.
+
+PostgreSQL adopt_at now prepares the delivery lookup beside contribution
+indexes, before rebuilding or installing its incoming schema. Two regressions
+fail before the fix: round-tripped adoption loses [["c1",1]], and removal from
+a warmed schema clone emits partial plus a 24-byte delivery meter. Both now
+pass in Serialized and Serializable modes, alongside the existing no-op,
+fingerprint and replay test. Audited SQLite memory/new/new_at, new_release,
+open/open_at, attach_release/attach_release_at, reader, adopt/adopt_at and
+private activate; PostgreSQL create/open/attach, contribution upgrade and
+adopt_at. The report records each path's lookup handling. The private
+socket-only PostgreSQL cluster was stopped; no shared tool installation.
+
+A new file-store reopen test pins the complete manifest. Deleting only
+open_at's lookup preparation fails it. A new index-only test gives the ledger
+3,000 heap bytes and 25,000 steps; two insertions reserve 2,480 bytes and three
+steps, then heap stops the third. Removing the index's heap debit fails it.
+Both mutations restore source byte-for-byte; final affected tests pass:
+16 delivery, 5 clause, 2 replay/fingerprint, 3 provenance, 3 internal delivery,
+6 HTTP, 3 PostgreSQL tests in both modes, and the whole 87-test guide.
+
+The merged guide initially exceeded its unchanged aggregate target by 26
+words. Shortened introductory language-card prose by 26, retaining every
+compiled block and inventoried Details fact; final total is 12,810. A first
+attempt that removed a pinned duplicate paragraph was rejected by the fact
+home test and restored. The initial heap fixture's wrong allowance/debit was
+also corrected before final checks. These development failures are ours and
+resolved; the report records them and the local PostgreSQL setup correction.
+
+Ran scripts/test.sh exactly once, exit 1, exact summary:
+`== 1 failure(s) in 1492 s` / `wasm build`. That sole failure is ours, carried
+from earlier DS rounds: unoptimized wasm is 1,985,385 B raw / 573,265 B gzip,
+424 B over the unchanged 572,841 cap. It is byte-identical to round 2, delta
+0/0; SHA-256 8fb46c34b5536599c516bafe08c83382491828421cf37c598ded27754b2a65a2.
+No wasm-opt on PATH; the build script is unchanged. The supervisor owns the
+single LLP 3000.022 integration ratchet under the standing round-2 ruling.
+
+No baseline or environmental full-run failures. Every other phase passes:
+Rust 3,915 passed / 25 ignored across 959 executions plus doctests (991 s),
+client main 2,636 passes plus 56 shard passes / 10 skips (194 s), all 78 models
+(260 s), builds, docs budget, release guard, package/app checks and fixture
+wrappers. Frozen install and reference audit pass; changed source is under
+1,500 lines. No wire, authorization, disclosure, receipt, meter-ceiling,
+version, device/queue, budget, push or publication change. Full file map,
+forms, audit, mutation proof, exact failures and wasm reproduction:
+reports/20260927-delivery-server/ROUND3.md; evidence under round3/ there.
 
 
 ## 2026-09-27 — 0.4.6 lane CQ: a top-N answer is complete
@@ -70531,3 +70724,57 @@ or crash-witness claim. Conditional-host fallback omission remains. No tool
 installed, no push or publication. Report with file map, examples, exact
 failures and reproductions: reports/20260927-dc-delivery-client/ROUND10.md;
 raw evidence: target/lane-dc-round10/. Commit carries the requested co-author.
+
+### 2026-09-27 — DS round 4: integrate current main for the DS + DC landing
+
+Merged origin/main 51b318c63 into DS round-3 head a36e9221a, committed as
+`db46bfe6d`. Both parent journals survive line-for-line in order; every parent
+report was preserved. Resolved error.rs with both the DS delivery-binding
+and GS search-opening refusal arms and their feature gates. The receipts card
+keeps the SDK reporter, seen hook and RUNS_FULL, plus ER’s sequences referral;
+the guide keeps all delivery/search definitions and ER assertions. The duplicate
+PostgreSQL optional-report fix from 3fade730c0 collapses to one None argument;
+delivery lookup preparation remains once. Read.rs and membership_search.rs
+are byte-identical to fetched main. Runner/mod/local preserve GS ownership,
+CQ completeness, ER admission, FA launch and DS stamping/receipt behavior;
+SS synchronization and TK live tokens remain integrated.
+
+Committed regression coverage as `36a2e09fb`: compact membership search reports
+only authorized emitted images through successive aliases, overlapping words,
+expiry and membership revocation; cursorless first 2 is complete at exactly
+two examined units and stamps no lookahead; admitted expiring reporter reads
+exclude dead rows, stamp no mutation result, retain receipt-only no-ops and
+replay both success and atomic bound refusal. Tracked and ordinary query data,
+meters and cuts agree. Removing GS’s emission stamp, restoring CQ lookahead,
+or removing delivery’s query-only guard each fails its new regression. The
+mutations restore source byte-for-byte and final affected checks pass.
+
+Affected results: 16 delivery, 3 new integration, 5 clause, 2 replay/fingerprint,
+3 provenance, 3 internal delivery, 6 HTTP and the whole 90-test guide pass.
+All 3 PostgreSQL delivery tests pass in Serialized and Serializable modes.
+PostgreSQL tools were copied into this worktree’s ignored target directory;
+the private socket-only cluster was stopped. No shared tool installation.
+
+Ran scripts/test.sh exactly once, exit 1, exact summary:
+`== 1 failure(s) in 1844 s` / `wasm build`. That sole failure is ours, the
+carried integration budget overage. Unoptimized wasm is 1,983,605 B raw /
+573,716 B gzip, SHA-256
+5a15e533a42a5f199fe04ccfecbbc5c87d93d641fbc3d357915219f91809ec00:
+875 B above the unchanged 572,841 B budget. Against pre-merge round 3 the
+whole artifact changes by -1,780 raw / +451 gzip; no per-lane attribution is
+claimed. The wasm script and budget remain byte-identical to fetched main,
+with no wasm-opt. The supervisor owns the LLP 3000.022 integration ratchet.
+
+No baseline or environmental full-run failures. Rust: 257 binaries, 970 target
+executions, 4,095 passed / 0 failed / 30 ignored plus passing doctests (1,305 s).
+Client tests: 2,700 passes across main and seven shards / 10 skips (198 s).
+All 78 client models pass with no skips (262 s); all other gates pass.
+During development, corrected two new fixture expectations (manifest order and
+failed-attempt metering), shortened the combined receipts lead to two sentences,
+and corrected an empty HTTP test filter; all are recorded in the report.
+
+Reference and source-size audits pass. No new runtime correction beyond merge
+resolution, no binding/wire or meter-ceiling change, no device/queue work,
+version bump, budget increase, push or publication. File-by-file resolutions,
+forms, tests, mutation evidence, exact full-run result and remaining reproduction:
+reports/20260927-delivery-server/ROUND4.md and round4/ beside it.

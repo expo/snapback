@@ -1,0 +1,28 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 50.16s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-30fe0f438ed59aa3)
+
+running 3 tests
+
+thread 'engine::postgres::tests::delivery::removed_reporter_pays_nothing_after_adopting_a_warmed_clone' (1588711) panicked at crates/snapback4-core/src/engine/postgres/tests/delivery.rs:78:9:
+removed reporter must not emit partial: Serialized: QueryOutcome { delivery: Some(Partial), delivery_meter: Some(DeliveryMeter { steps: 0, heap_bytes: 0, output_bytes: 24 }), ephemeral: None, data: Row(ObjectFields({"chat": Id("c1"), "id": Id("m1"), "ordinal": Int(1), "owner": Id("alice"), "quote": Null, "text": String("message")}, false, None, false)), unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 0, steps: 3, heap_bytes: 1128, output_bytes: 131, rows_written: 0 }, tables: ["messages"], next_expiry: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'engine::postgres::tests::delivery::delivery_manifest_survives_round_tripped_adoption' (1588709) panicked at crates/snapback4-core/src/engine/postgres/tests/delivery.rs:56:9:
+assertion `left == right` failed: Serialized
+  left: Null
+ right: Array [Array [String("c1"), Number(1)]]
+test engine::postgres::tests::delivery::removed_reporter_pays_nothing_after_adopting_a_warmed_clone ... FAILED
+test engine::postgres::tests::delivery::delivery_manifest_survives_round_tripped_adoption ... FAILED
+test engine::postgres::tests::delivery::delivery_noop_records_only_receipt_and_replay_does_not_lookup_program ... ok
+
+failures:
+
+failures:
+    engine::postgres::tests::delivery::delivery_manifest_survives_round_tripped_adoption
+    engine::postgres::tests::delivery::removed_reporter_pays_nothing_after_adopting_a_warmed_clone
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.12s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

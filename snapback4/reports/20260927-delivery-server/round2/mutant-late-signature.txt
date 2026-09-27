@@ -1,0 +1,55 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4)
+warning: unused variable: `signature`
+    --> crates/snapback4/src/serve.rs:1032:40
+     |
+1032 |                 let (replay, metadata, signature) = {
+     |                                        ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_signature`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (bin "snapback4" test) generated 1 warning (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 8.61s
+     Running unittests src/main.rs (target/debug/deps/snapback4-c1bf67872b7abf4f)
+
+running 1 test
+
+thread 'serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding' (697099) panicked at crates/snapback4/src/../tests/serve_delivery/mod.rs:246:9:
+assertion `left == right` failed: arguments: HTTP/1.1 400 Bad Request
+Server: tiny-http (Rust)
+Date: Sun, 27 Sep 2026 09:36:14 GMT
+X-Snapback-Time: 1790501774380
+X-Snapback-Clock: 01M3H3HS18W430DK0C8B32C67M:0
+Content-Type: application/json
+Cache-Control: no-store
+Vary: Origin
+Access-Control-Expose-Headers: X-Snapback-Time, X-Snapback-Clock
+Access-Control-Allow-Headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Content-Length: 164
+
+{"denied":{"code":"E_INPUT","family":"input","guide":"programs","message":"delivered takes no argument low"},"head":1,"store_id":"cd2741bd7d1484224fe95cf4ca74022c"}
+  left: 400
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding ... FAILED
+
+failures:
+
+failures:
+    serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 166 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

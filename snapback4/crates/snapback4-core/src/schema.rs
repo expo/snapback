@@ -32,6 +32,11 @@ pub struct Schema {
     /// Delivery reporters, keyed by tracked table and mutation.
     pub delivery: Vec<DeliveryBinding>,
     pub tables: BTreeMap<String, Table>,
+    /// SDK delivery reporters, keyed by (table, mutation).
+    pub delivery: Vec<DeliveryBinding>,
+    /// Derived server lookup, shared by readers of this installed schema.
+    #[cfg(feature = "sqlite")]
+    pub delivery_lookup: crate::engine::delivery::Lookup,
     pub timelines: Vec<timeline::Timeline>,
     pub maintains: Vec<Maintain>,
     pub auth: Auth,

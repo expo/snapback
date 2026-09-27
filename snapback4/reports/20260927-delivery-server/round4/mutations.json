@@ -1,0 +1,20 @@
+[
+  {
+    "name": "gs-emission-stamp",
+    "test": "compact_membership_search_reports_only_authorized_emitted_images",
+    "exit": 101,
+    "killed": true
+  },
+  {
+    "name": "cq-lookahead",
+    "test": "cursorless_page_stamps_its_exact_bound_without_lookahead",
+    "exit": 101,
+    "killed": true
+  },
+  {
+    "name": "er-mutation-stamp",
+    "test": "admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay",
+    "exit": 101,
+    "killed": true
+  }
+]

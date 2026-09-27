@@ -820,7 +820,7 @@ fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusa
 
 // @ref LLP 3000.009#5.1 — a racing id conflict is a terminal input refusal, not a transport failure.
 fn mutation_error_status(refusal: &Refusal) -> u16 {
-    if refusal.retryable { 503 } else if refusal.code == "E_ID_REUSED" { 200 } else { 500 }
+    if refusal.retryable { 503 } else if matches!(refusal.code.as_str(), "E_ID_REUSED" | "E_DELIVERY_BINDING") { 200 } else { 500 }
 }
 
 fn handle(mut request: Request, shared: &Shared) {
@@ -1027,33 +1027,48 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
+            let delivery_fingerprint = if path.starts_with("/m/") {
+                match ephemeral::delivery_fingerprint(&payload) {
+                    Ok(value) => value,
+                    Err(why) => return operation_refusal(request, shared, 200, why),
+                }
+            } else { None };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
-            if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
+            let signature = if path.starts_with("/m/") {
+                let id = payload.get("id").and_then(Json::as_str);
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (replay, metadata) = {
+                let (replay, metadata, signature) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
                         drop(engine);
                         return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
                     }
-                    // Adoption may have changed the operation after the early
-                    // route check. Classify again under the executing owner.
-                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                    let replay = intent_store(&engine, &payload).and_then(|()| {
+                        let replay = id.map(|id| engine.replay_mutation(&principal, id, &op, &args_json)).transpose().map_err(|e| e.refusal())?.flatten();
+                        if replay.is_none() { engine.schema().check_delivery(&op, delivery_fingerprint.as_deref()).map_err(|e| e.refusal())?; }
+                        Ok(replay)
+                    });
+                    if matches!(replay, Ok(None)) && engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
-                    (replay, response_head(&mut engine))
+                    // @ref LLP 3000.022#5 — decoding uses the signature whose binding
+                    // passed preflight; adoption is rechecked by the executing writer.
+                    let signature = engine.program(&op).map(|p| (p.kind, p.args.clone()));
+                    (replay, response_head(&mut engine), signature)
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
-                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
+                    Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
                     Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
-            }
-            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                .map(|p| (p.program.kind, p.program.args.clone()));
+                #[cfg(test)] test_work(&shared.mutation_wait);
+                signature
+            } else {
+                lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
+                    .map(|p| (p.program.kind, p.program.args.clone()))
+            };
             // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
             // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
@@ -1128,6 +1143,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             #[serde(skip_serializing_if = "Option::is_none")]
+                            delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
+                            #[serde(skip_serializing_if = "Option::is_none")]
                             ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
                             complete: bool,
                             cut: Option<snapback4_core::engine::ReadCut>,
@@ -1154,7 +1171,9 @@ fn handle(mut request: Request, shared: &Shared) {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
                             let m = outcome.metered;
                             let cut = if outcome.capped_at.is_some() { Some("meter") } else if outcome.word_cut_at.is_some() { Some("words") } else { None };
-                            json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut })
+                            let mut meter = json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut });
+                            if let Some(delivery) = &outcome.delivery_meter { meter["delivery"] = json!(delivery); }
+                            meter
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
@@ -1164,7 +1183,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {
@@ -1201,8 +1220,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
+                    context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
-                    if matches!(&outcome, Ok(outcome) if matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
+                    if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
                     (outcome, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };

@@ -52,3 +52,32 @@ impl<'de> Deserialize<'de> for DeliveryBinding {
     }
 }
 
+impl DeliveryBinding {
+    /// SHA-256 over the domain and seven UTF-8 strings with u64 BE byte lengths.
+    // @ref LLP 3000.022#5 — the digest fences a report at its execution boundary.
+    pub fn compute_fingerprint(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(b"snapback4.delivery.v1\0");
+        for field in [&self.table, &self.group, &self.position, &self.mutation].into_iter().chain(self.args.iter()) {
+            hash.update((field.len() as u64).to_be_bytes());
+            hash.update(field.as_bytes());
+        }
+        format!("{:x}", hash.finalize())
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl super::Schema {
+    pub fn check_delivery(&self, mutation: &str, fingerprint: Option<&str>) -> Result<(), crate::RuntimeError> {
+        if let Some(fingerprint) = fingerprint {
+            if !self.delivery.iter().any(|binding| binding.mutation == mutation && binding.fingerprint == fingerprint) {
+                return Err(crate::RuntimeError::Structural {
+                    code: "E_DELIVERY_BINDING",
+                    message: format!("{mutation}'s delivery binding changed or was removed; drop this binding's debt and collect under the current binding"),
+                });
+            }
+        }
+        Ok(())
+    }
+}

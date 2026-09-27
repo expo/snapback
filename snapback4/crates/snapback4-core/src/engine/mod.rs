@@ -45,6 +45,8 @@ mod read_point;
 #[cfg(all(test, feature = "sqlite"))]
 mod read_candidate;
 mod provenance;
+#[cfg(feature = "sqlite")]
+pub mod delivery;
 mod expiry;
 pub mod rules;
 pub mod runner;
@@ -144,6 +146,8 @@ pub struct Context {
     pub(crate) session_digest: Option<String>,
     /// Original HTTP arguments, before typed decoding or default insertion.
     pub wire_args: Option<serde_json::Value>,
+    #[cfg(feature = "sqlite")]
+    pub delivery_fingerprint: Option<String>,
     pub(crate) generation: u64,
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
@@ -157,7 +161,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -237,6 +241,12 @@ pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
+    #[cfg(feature = "sqlite")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<delivery::Manifest>,
+    #[cfg(feature = "sqlite")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_meter: Option<delivery::DeliveryMeter>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ephemeral: Option<crate::schema::ephemeral::Version>,
     pub data: Value,
@@ -272,6 +282,9 @@ pub enum WriteState {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "sqlite", derive(Deserialize))]
 pub struct MutationOutcome {
+    /// A delivery report retained only a receipt; persists across replay.
+    #[serde(skip)]
+    pub receipt_only: bool,
     #[serde(flatten)]
     pub state: WriteState,
     pub metered: Metered,
@@ -330,6 +343,7 @@ impl Engine {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
@@ -367,6 +381,7 @@ impl Engine {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms(), allow_feed_adoption)?;
@@ -397,6 +412,7 @@ impl Engine {
         let mut schema: Schema = schema;
         let stored_schema_hash = schema.hash();
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         let schema_hash = schema.hash();
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
@@ -514,6 +530,7 @@ impl Engine {
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
+        schema.prepare_delivery_lookup();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
@@ -906,7 +923,8 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+                let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -923,7 +941,8 @@ impl Engine {
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
-        let outcome = QueryOutcome { ephemeral: version,
+        let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+        let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
@@ -985,7 +1004,6 @@ impl Engine {
     /// Compare wire identity before decoding against a possibly newer schema.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
-        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) { return Ok(None); }
         crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }
@@ -997,14 +1015,6 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
-        // Signals bypass the replay table even when their correlation id was used before.
-        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
-            return match self.mutate_ephemeral(name, context) {
-                Ok(out) => Ok(MutationOutcome { state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
-                Err(error) if error.is_refusal() => Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
-                Err(error) => Err(error),
-            };
-        }
         context.generation = self.generation;
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) } else { serde_json::Value::Null };
         if let Some(op) = op
@@ -1012,6 +1022,25 @@ impl Engine {
         {
             return Ok(outcome);
         }
+        // An existing durable receipt owns its id even after conversion to ephemeral.
+        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
+            self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            return match self.mutate_ephemeral(name, context) {
+                Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
+                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
+                Err(error) => Err(error),
+            };
+        }
+        let tx = self.store.transaction()?;
+        if let Some(op) = op
+            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
+        {
+            // Applied between the check above and this transaction.
+            let outcome = MutationOutcome::from_receipt(&outcome)?;
+            tx.rollback()?;
+            return Ok(outcome);
+        }
+        self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind == ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
@@ -1023,7 +1052,7 @@ impl Engine {
             return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
         }
         if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
-            return Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
+            return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
         }
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
@@ -1033,15 +1062,6 @@ impl Engine {
         }
         context.entropy = self.entropy;
         let ceilings = self.ceilings;
-        let tx = self.store.transaction()?;
-        if let Some(op) = op
-            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
-        {
-            // Applied between the check above and this transaction.
-            let outcome = MutationOutcome::from_receipt(&outcome)?;
-            tx.rollback()?;
-            return Ok(outcome);
-        }
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);
         // An `image`/`video` argument names an upload by id; the program
@@ -1082,12 +1102,18 @@ impl Engine {
         let outcome = match ran {
             Ok(result) => {
                 tx.release("program")?;
-                let seq = tx.next_seq()?;
+                // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
+                // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
+                let receipt_only = rows_written == 0 && outbox.is_empty()
+                    && self.schema.delivery.iter().any(|binding| binding.mutation == name);
+                let seq = tx.next_seq()? - u64::from(receipt_only);
                 read_tables.extend(tables.iter().cloned());
-                tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
-                partition::append(&tx, seq, &events)?;
-                effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
+                if !receipt_only {
+                    tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
+                    partition::append(&tx, seq, &events)?;
+                    effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                }
+                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;
@@ -1099,7 +1125,7 @@ impl Engine {
                     }
                     _ => None,
                 };
-                MutationOutcome { state: WriteState::Failed { why: error.refusal(), current }, metered, tables: Vec::new(), events: 0, replayed: false }
+                MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current }, metered, tables: Vec::new(), events: 0, replayed: false }
             }
             Err(error) => {
                 tx.rollback()?;

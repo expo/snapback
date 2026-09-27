@@ -61,7 +61,9 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { ephemeral: None,
+    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome {
+            #[cfg(feature = "sqlite")] delivery: None,
+            #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
         unavailable: runner.query_unavailable,
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
@@ -169,7 +171,9 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
         };
         let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
-        Ok(QueryOutcome { ephemeral: None,
+        Ok(QueryOutcome {
+            #[cfg(feature = "sqlite")] delivery: None,
+            #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon,
             cut: runner.read_cut(),

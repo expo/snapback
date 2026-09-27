@@ -933,6 +933,10 @@ impl Parser {
 
     fn parse_block(&mut self) -> Fallible<Vec<Stmt>> {
         self.take_kind(Kind::Indent)?;
+        self.parse_block_contents()
+    }
+
+    fn parse_block_contents(&mut self) -> Fallible<Vec<Stmt>> {
         let mut body = Vec::new();
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();

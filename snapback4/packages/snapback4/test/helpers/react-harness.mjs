@@ -133,6 +133,34 @@ const cases = {
     await render(h(Receipts, { visible: true }), client);
     equal(acked(client), ["seen:60"], "the visible screen still records seen");
     await unmount();
+  },
+  // @ref LLP 3000.022#8 — the SDK owns delivery; this card hook owns only seen.
+  async "the receipts card leaves delivery to the SDK and reports only visible settled rows"() {
+    const pages = new Map([[null, ready(ordinals(60, 41), "p2")], ["p2", ready(ordinals(40, 21))]]);
+    const client = receiptsClient(pages, memberOf(0));
+    await mount(h(Receipts, { visible: false }), client);
+    equal(client.acks, [], "fetched rows and membership never make the hook report delivery");
+    equal(active(client).filter(record => "c" in record.args).length, 1, "delivery no longer walks pages from a mounted hook");
+    await act(async () => stream(client).set(ready({ deliveredOrdinal: 20, joinedOrdinal: 0, seenOrdinal: 0 })));
+    equal(client.acks, [], "moving the prefix still sends no delivery");
+    await render(h(Receipts, { visible: true }), client);
+    equal(acked(client), ["seen:60"], "the newest message on screen is seen");
+    client.acks.length = 0;
+    await act(async () => stream(client).set(memberOf(60)));
+    equal(client.acks, [], "a seen message is not sent again");
+    await unmount();
+
+    const pending = receiptsClient(new Map([[null, ready([{ ordinal: 104, pending: true }, ...ordinals(103, 101)])]]), memberOf(100));
+    await mount(h(Receipts, { visible: true }), pending);
+    equal(acked(pending), ["seen:103"], "pending rows are not seen");
+    await unmount();
+
+    const offline = receiptsClient(new Map([[null, ready(ordinals(600, 581), "p2", { fresh: false, since: 50 })]]), ready({ deliveredOrdinal: 0, joinedOrdinal: 0, seenOrdinal: 0 }, null, { complete: false, fresh: false, since: 50 }));
+    await mount(h(Receipts, { visible: true }), offline);
+    equal(acked(offline), ["seen:600"], "a retained visible row can be seen offline, without hook delivery");
+    await unmount();
+  },
+  async "the receipts card retains seen retries and scope without delivery reporting"() {
     const early = receiptsClient(new Map([[null, ready([{ ordinal: 21, pending: true }, ...ordinals(20, 1)])]]), { loading: true });
     await mount(h(Receipts, { visible: true }), early);
     equal(acked(early), ["seen:20"], "a view needs no member answer and excludes predictions");

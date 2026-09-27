@@ -2,9 +2,10 @@
 // @ref LLP 3000.021#3.4 — retaining the parent keeps the pinned screen after leave.
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member records fetched message runs and its read position to derive
-`sent`, `delivered` and `read` receipts. For expiring messages or engine-assigned
-ordinals, start with `guide sequences`, then use the run merge below.
+The SDK reports received messages as ordinals and runs, while the screen
+reports views, to derive `sent`, `delivered` and `read` receipts. For expiring
+messages or engine-assigned ordinals, start with `guide sequences`, then use
+the run merge below.
 
 ```quarry
 table conversations:
@@ -120,7 +121,8 @@ mutation leave(conversation: conversations):
   delete members[me]
   return null
 
-mutation delivered(conversation: conversations, from: int, through: int):
+mutation delivered(conversation: conversations, from: int, through: int)
+  reports delivery of messages by .conversation, .ordinal:
   me = members[conversation, viewer] ! else NOT_MEMBER
   chat = conversations[conversation] ! else NOT_FOUND
   require 0 < from and from <= through else NOT_A_RUN
@@ -203,6 +205,29 @@ sent. A message records how many recipients it had. Once all of them leave, the
 requirement is met; a message sent to nobody stays `sent`. So a receipt only
 ever moves forward.
 
+`reports delivery of messages by .conversation, .ordinal` binds this mutation
+to the SDK's delivery reporter. **Success is coverage:** every position in the
+inclusive run is recorded for the caller. Refuse with a code when it cannot be
+recorded. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
+before the count. A covered run keeps a replayable receipt but advances no
+sequence and wakes no reader. Replaying its write id returns that success.
+
+`E_DELIVERY_CLAUSE` requires exactly a reference to the group table and two
+`int` arguments, immutable group and position columns, their unique key, and
+one reporter per tracked table. The compiler checks those facts, not the body.
+Never reuse a deleted position. A membership without a join floor must refuse
+positions before the join. Membership and allocation remain server decisions. An ephemeral mutation
+cannot keep a durable replay receipt; use durable tables.
+
+A member's row claims every message through `deliveredOrdinal`, and each of
+their `runs` one unbroken run above a gap. The SDK reports debt collected from
+publications and accepted answer manifests with `delivered(from, through)`.
+`progress` remains a catch-up read; its returned message images also qualify
+for a manifest. The mutation merges a run with every run it meets, and folds it into the prefix
+when it reaches it. So whatever a client fetched is delivered once its report
+is recorded, however many gaps lie between, and a receipt never claims a
+message the client did not fetch, nor moves back.
+
 The SDK reports delivered positions for the signed-in client, even with no
 conversation mounted. The local client collects confirmed, held, unexpired
 published rows and persists debt with them; both clients collect the server's
@@ -212,8 +237,9 @@ the client stays `sent`. Positions outside JavaScript's safe-integer range
 also stay `sent`. Composed answers omit their manifest when retained local
 rows replace server rows.
 
-Every report sends its binding's fingerprint; unrelated generation changes
-preserve unchanged bindings.
+Every report sends its binding's fingerprint; the server checks it under the
+writer before executing the mutation. Unrelated generation changes preserve
+unchanged bindings.
 
 `E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
 drops that binding's debt and collects under the current fingerprint; it
@@ -231,7 +257,10 @@ refuses `RUNS_FULL` until a merge or catching up frees room.
 Reports call `delivered` directly, outside the ordered outbox. Success means
 the whole run is covered. `RUNS_FULL` parks a disjoint run while other runs
 continue; publication, a later success, reconnect, start and a slow timer can
-wake it. More than 64 permanent holes can keep a run unrecorded. Local debt
+wake it. A wake retries one parked run, at least 30 seconds after its last
+attempt, behind new debt; the slow timer runs every ten minutes. Uncertain
+requests reuse their persisted id. More than 64 permanent holes can keep a
+run unrecorded. Local debt
 survives restart; online debt lives only in memory. Leaving drops the group's
 debt. A new membership's join floor covers positions before its join.
 

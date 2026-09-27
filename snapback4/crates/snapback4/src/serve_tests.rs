@@ -1,9 +1,9 @@
 #[path = "../tests/latency/serve.rs"]
 mod latency_tests;
+#[path = "../tests/serve_delivery/mod.rs"] mod delivery_tests;
 use super::*;
 use std::io::{Read, Write};
 use std::{net::{SocketAddr, TcpStream}, sync::mpsc, thread::{self, JoinHandle}};
-
 #[path = "../tests/serve_adoption/mod.rs"]
 mod adoption_tests;
 #[path = "../tests/serve_routes/mod.rs"]

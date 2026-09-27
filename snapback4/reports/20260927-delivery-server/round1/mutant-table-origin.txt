@@ -1,0 +1,23 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 38.38s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'colliding_ids_do_not_turn_foreign_fields_into_own_images' (3569117) panicked at crates/snapback4-lang/tests/delivery.rs:431:5:
+assertion `left == right` failed: [{"args":["group","low","high"],"fingerprint":"2f5d2629caf0cd61eacb5eb5bd772dd8684be9e7872af1112bd679c5719f3443","mutation":"delivered","rows":[["c1",4]],"table":"messages"},{"args":["room","start","end"],"fingerprint":"fa6c3ba6e649a3a15b64b98edd5cc2be0e00f2ec11971f5c8efc242d6ee3998c","mutation":"noteDelivery","rows":[],"table":"notes"}]
+  left: Array [Array [String("c1"), Number(4)]]
+ right: Array []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test colliding_ids_do_not_turn_foreign_fields_into_own_images ... FAILED
+
+failures:
+
+failures:
+    colliding_ids_do_not_turn_foreign_fields_into_own_images
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`
