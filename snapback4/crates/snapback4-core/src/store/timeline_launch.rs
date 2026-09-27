@@ -119,8 +119,9 @@ fn estimate(tx: &Tx<'_>, schema: &Schema, previous: &Schema, now: i64) -> Result
             })?;
         }
         e.copies = e.events;
-        walk(tx, &t.edges[0], Work::DECODE, |_, row, meter| {
+        walk(tx, &t.edges[0], Work::DECODE, |_, mut row, meter| {
             if retirement.retires(&t.edges[0], &row) { return Ok(()); }
+            crate::schema::materialize_optional_fields(&mut row, &schema.tables[&t.edges[0]]);
             meter.heap(retained.used.heap_bytes)?;
             e.sources += 1;
             e.edges += 1;
@@ -173,7 +174,8 @@ pub(super) fn build(tx: &Tx<'_>, schema: &Schema, estimates: &[Estimate], now: i
                 let author = if repost {
                     meter.charge(MeterKind::Examined, 1)?;
                     meter.heap(crate::engine::row_copy_ceiling(&schema.tables[&t.posts[0]]).saturating_mul(4))?;
-                    let card = tx.get(&t.posts[0], post_id.as_str()?)?.ok_or_else(|| refuse(format!("view {}: retained repost {id} has no original card; restore the card or remove the repost", t.name)))?;
+                    let mut card = tx.get(&t.posts[0], post_id.as_str()?)?.ok_or_else(|| refuse(format!("view {}: retained repost {id} has no original card; restore the card or remove the repost", t.name)))?;
+                    crate::schema::materialize_optional_fields(&mut card, &schema.tables[&t.posts[0]]);
                     field(&card, &t.posts[1])?
                 } else { actor.clone() };
                 let event_id = if repost { Value::Id(crate::schema::timeline::owned_id(&t.name, "LaunchEvent", &[incarnation.clone(), Value::String(t.reposts[0].clone()), Value::Id(id.into())])) } else { post_id.clone() };
@@ -192,7 +194,8 @@ pub(super) fn build(tx: &Tx<'_>, schema: &Schema, estimates: &[Estimate], now: i
                 Ok(())
             })?;
         }
-        walk(tx, &t.edges[0], Work { examined: 1, steps: 128, index_entries: 64 }, |_, row, outer| {
+        walk(tx, &t.edges[0], Work { examined: 1, steps: 128, index_entries: 64 }, |_, mut row, outer| {
+            crate::schema::materialize_optional_fields(&mut row, &schema.tables[&t.edges[0]]);
             let reader = field(&row, &t.edges[1])?;
             let actor = field(&row, &t.edges[2])?;
             let id = crate::schema::timeline::owned_id(&t.name, "Edges", &[reader.clone(), actor.clone()]);

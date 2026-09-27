@@ -153,6 +153,30 @@ fn copy_ceiling_and_release_permission_refuse_before_candidate_writes() {
 }
 
 #[test]
+fn aggregate_copy_ceiling_refuses_two_individually_admissible_launches_before_writes() {
+    let mut e = engine(None, &bare()); seed(&mut e, 1001, 3000);
+    let q = Q.replace("query home", "view second: activity where .actor = viewer or exists follows[viewer, .actor]\nquery home");
+    let b = bound(&q);
+    let estimates = e.store_mut().timeline_launch_estimate(&b.schema).unwrap();
+    assert_eq!(estimates.iter().map(|e| e.copies).collect::<Vec<_>>(), [3_001_001, 3_001_001]);
+    let generation = e.generation(); let seq = e.seq().unwrap();
+    let sources: Vec<_> = ["posts", "reposts", "follows"].map(|table| (table, e.store().rows(table).unwrap())).into();
+    let writes = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w = writes.clone();
+    e.store().conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
+    // Test check first: sum -> max must fail without attempting six million copies.
+    let preview = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
+    let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
+    assert_eq!(error.code(), "E_TIMELINE_ACTIVATE");
+    assert_eq!(preview.to_string(), error.to_string());
+    assert!(error.to_string().contains("total 6002002 exceeds"), "{error}");
+    assert_eq!(writes.load(std::sync::atomic::Ordering::SeqCst), 0);
+    assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
+    for (table, rows) in sources { assert_eq!(e.store().rows(table).unwrap(), rows); }
+    let names: i64 = e.store().conn().query_row("SELECT COUNT(*) FROM _catalog WHERE name LIKE 'following%' OR name LIKE 'second%'", [], |r| r.get(0)).unwrap();
+    assert_eq!(names, 0);
+}
+
+#[test]
 fn predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit() {
     let p=path("isolation"); let mut e=engine(Some(&p),&bare()); seed(&mut e,3,1);
     let mut reader=e.reader().unwrap(); let old=e.generation();

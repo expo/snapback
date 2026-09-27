@@ -69220,3 +69220,56 @@ commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
 package-version or budget change, no new tool installation, no push or publish.
 Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
 round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.
+
+### 2026-09-27 — Lane FA round 4: preserve read capacity and adopt sparse defaults
+
+Read the round-0–3 prompts, LLP 3000.026, reports and lane journal, and both
+complete round-3 reviews (Grok READY, Astra NOT READY). Merged origin/main at
+8112f4ef640058132c1c58fc69f3fbfaa2143de5 in 48895b810. The only conflict was this
+journal; line-multiset comparisons found zero missing lines from either parent.
+Both reviews are retained verbatim beside the experiment reports.
+
+Sync now has a separate bounded 32-request admission pool, so 32 syncs waiting
+on atomic launch cannot occupy query/discovery or mutation capacity. Authenticate
+before waiting through the detached reader where available, and recheck bearer
+authority after the wait. The held-commit HTTP regression starts all 32 syncs,
+waits for them to reach the engine lock, then proves q/home and schema succeed
+on the predecessor without candidate slots. Overflow remains bounded; after
+commit the syncs learn the generation and a queued mutation/retry commits once.
+Missing/invalid credentials refuse before waiting; expiry/revocation refuses after.
+
+Materialize candidate source images before mapped reads in original-card lookup,
+edge estimate/construction and slot filling. Four sparse-source cases create rows
+before their fields, adopt literal defaults without storing them, compare CLI
+check (implicit and explicit store), shared preflight and runtime, and assert
+copies, reader results, author attribution and slots. Two simultaneous declarations
+each estimate 3,001,001 copies; their combined 6,002,002 refuses before any write,
+preserving source rows, sequence, generation and catalog. Production sum is unchanged.
+
+Both medium findings reproduced on unfixed code, then passed. Five temporary
+mutants were caught: sum-to-max and omitted card, edge-preflight, edge-build and
+slot materialization. All were restored before qualification. These seven
+expected reds are ours; no unexpected development test failure remains.
+Affected checks pass: language launch/research/Following/background/epoch/timeline
+guide 8/4/8/17/1/4; CLI Following/timeline/adoption/delivery/counterexample/design
+2/23/15/1/1/2; HTTP adoption 20 (two existing ignored); core activation 6; whole
+guide 86; complete device package 1,332 (three existing ignored); codec census 26.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1392 s`. Every full-suite failure: none — ours 0, baseline 0,
+environmental 0. Rust scheduler: 3,932 passed / 28 ignored, 250 binaries / 963
+executions; ordinary client tests and shards: 2,701 passed / 10 skipped; models
+78/78; fixture wrappers 9/9. All other phases pass. The inherited 60-second suite
+budget remains exceeded and unchanged. No code or test changed during/after the run.
+
+Wasm: 1,981,453 B raw / 572,553 B gzip, 288 B under the unchanged 572,841 B cap;
+Rust 1.97.0, wasm-bindgen 0.2.127, without wasm-opt. Node 24.13.1, Bun 1.3.14,
+eight Cargo build jobs, debug info/incremental off, fd limit 65,536. Frozen Bun
+install found no dependency changes; no tool installed. No new performance
+benchmark: round-2 lock observations remain 46.901 s / 696.667 s, without a new
+latency claim. LLP 3000.026 and the admission paragraph of LLP 3000.019 are updated.
+The supervisor owns acceptance; the online publisher remains unbuilt.
+
+Report and durable verification: experiments/following-adoption/atomic/ROUND4.md
+and ROUND4.verification.json. Raw logs: target/fa-round4/. Local commits carry
+the required co-author trailer. No push or publication.

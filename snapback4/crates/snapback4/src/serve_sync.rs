@@ -31,10 +31,6 @@ fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: 
 }
 
 pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
-    // @ref LLP 3000.026#4-atomic-launch-adoption — sync joins the ordinary
-    // writer lock during launch; detached queries keep reading the predecessor.
-    let launching = lock(&shared.readers).launching_feed();
-    if launching { drop(lock(&shared.engine)); }
     // This is also the page path's request authorization. Partition rules
     // filter unreadable rows/groups; they add no whole-request refusal.
     let principal = match principal_of(&request, shared) {
@@ -48,6 +44,19 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
         Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
         _ => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
     };
+    // @ref LLP 3000.026#4-atomic-launch-adoption — sync has its own bounded
+    // admission pool and authenticates before waiting on atomic launch.
+    let launching = lock(&shared.readers).launching_feed();
+    if launching {
+        let engine = lock(&shared.engine);
+        // A long wait cannot preserve an expired or revoked bearer.
+        let authority = mutation_authority(&request, shared, &engine, &principal);
+        drop(engine);
+        if let Err(refusal) = authority {
+            respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
+            return;
+        }
+    }
     let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store } = input;
     let store_id = match shared.read_head() {
         Ok((id, _)) => id,

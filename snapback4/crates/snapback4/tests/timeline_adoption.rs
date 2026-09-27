@@ -446,6 +446,64 @@ fn check_and_runtime_refuse_the_copy_ceiling_and_owned_name_reuse() {
 }
 
 #[test]
+fn sparse_literal_defaults_agree_in_check_and_atomic_launch() {
+    use snapback4_core::value::object;
+    // Each case isolates a mapped read: original card, edge estimate/build,
+    // original slot, repost slot. The predecessor really predates these fields;
+    // no direct SQL manufactures sparse rows after adoption.
+    for (case, sparse_table, missing, repost) in [
+        ("card", "posts", vec!["authorId"], true),
+        ("edge", "follows", vec!["followerId", "followedId"], true),
+        ("post slot", "posts", vec!["authorId"], false),
+        ("repost slot", "reposts", vec!["actorId", "postId"], true),
+    ] {
+        let s = source().replace("authorId: principal", "authorId: principal default 'a'")
+            .replace("actorId: principal", "actorId: principal default 'b'")
+            .replace("postId: posts\n", "postId: posts default 'p'\n")
+            .replace("followerId: principal", "followerId: principal default 'reader'")
+            .replace("followedId: principal", "followedId: principal default 'a'");
+        let mut table = "";
+        let old = s.split("view activity:").next().unwrap().lines().filter(|line| {
+            if let Some(name) = line.strip_prefix("table ").and_then(|s| s.strip_suffix(':')) { table = name; }
+            table != sparse_table || !missing.iter().any(|field| line.contains(field))
+        }).collect::<Vec<_>>().join("\n");
+        let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
+        let path = dir.0.join(".snapback4/store.sqlite");
+        let b = compile(&old);
+        let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, []).unwrap();
+        let mut rows = vec![
+            ("posts".to_string(), object([("id", id("p")), ("authorId", id("a")), ("parentId", Value::Null), ("at", Value::Int(1)), ("removed", Value::Bool(false))])),
+            ("follows".to_string(), object([("id", id("f")), ("followerId", id("reader")), ("followedId", id("a"))])),
+        ];
+        if repost { rows.push(("reposts".into(), object([("id", id("r")), ("actorId", id("b")), ("postId", id("p")), ("at", Value::Int(2))]))); }
+        for (name, row) in &mut rows {
+            if name == sparse_table { if let Value::Row(fields) | Value::Map(fields) = row { fields.retain(|field, _| !missing.contains(&field.as_str())); } }
+        }
+        e.seed(rows).unwrap();
+        adopt(&mut e, &without_view(&s));
+        let retained = e.store().rows(sparse_table).unwrap();
+        for field in &missing { assert!(retained[0].field(field).is_err(), "{case}: default was stored"); }
+        let copies = if repost { 3 } else { 2 };
+        preview(&dir, &path, &s, true, Some(copies), "start this feed now");
+        let b = compile(&s);
+        let estimates = e.store_mut().check_timeline_activation(&b.schema).unwrap();
+        assert_eq!(estimates[0].copies, copies, "{case}");
+        let result = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program));
+        assert!(result.is_ok(), "{case}: check accepted but runtime returned {result:?}");
+        assert_eq!(e.store().count("followingFeed").unwrap(), copies);
+        assert_eq!(pages(&mut e, "reader").len(), 1);
+        assert_eq!(e.store().rows("posts").unwrap()[0].field("$timeline:following:post"), Ok(&Value::Bool(true)));
+        if repost {
+            let events = e.store().rows("followingPosts").unwrap();
+            let event = events.iter().find(|r| r.field("repost") == Ok(&Value::Bool(true))).unwrap();
+            assert_eq!(event.field("authorId"), Ok(&id("a")));
+            assert_eq!(event.field("actorId"), Ok(&id("b")));
+            assert_eq!(e.store().rows("reposts").unwrap()[0].field("$timeline:following:repost"), event.field("id"));
+        }
+    }
+}
+
+#[test]
 fn following_declared_before_events_passes_check_and_unchanged_adoption() {
     let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
     let path = dir.0.join(".snapback4/store.sqlite");
