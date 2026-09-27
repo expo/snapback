@@ -68105,3 +68105,59 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+## 2026-09-27 — Lane DC round 2: repair delivery publication and queue review findings
+
+Merged origin/main first in dfe00e837, including LLP 3000.022 amendment
+54099bc88; kept both journal histories in the only merge conflict. Binding
+fingerprints now travel from compiled schema and manifests in every report as
+delivery: { fingerprint }. E_DELIVERY_BINDING drops only that binding. The
+amendment makes omission of unsafe JavaScript integer positions the contract.
+
+Moved manifest collection out of query evaluation into final answer
+publication on both clients, after authority, credential, incarnation, expiry
+and current-read checks. Local publication has one callback inside serialized
+acceptance; saves cannot reject accepted answers or resurrect withdrawn
+watches. Composed answers omit manifests, and fallback responses witness their
+captured restore floor. Uncertain retries preserve their original collection
+boundary, including parked attempts; unrelated generation changes preserve
+unchanged bindings. Activation waits for startup witnessing, idle outbox and
+persisted-debt flush, then retries failed cursor pages with bounded backoff.
+E_OFFLINE transitions the client's existing link path so it can reconnect.
+
+Review fixes are in 083952bdf, 3d6019954, d692a919f and 9751439e2; 283b2c5bd
+repairs the full run's transport-to-loading publication regression and removes
+an existing lane fixture's refusal-response reuse race. Tests cover real local
+fallback durability, failed/delayed saves, interleaved commits, credentials,
+expiry, restoration, composition, exact gaps, binding adoption, activation and
+offline recovery. All 16 temporary-copy mutation controls fail assertions.
+
+Final wasm: **2,021,859 B raw / 584,954 B gzip**, **2,609 B raw / 408 B gzip
+smaller** than the accepted round-1 artifact. Shared streaming binding decoding
+and removing a JSON clone paid for the amendment. The unchanged 572,841 B
+ratchet remains 12,113 B below this artifact; the supervisor owns its accepted
+integration increase. Used round 1's no-optimizer toolchain after a newly
+available shared wasm-opt 108 failed a preflight on sign-extension instructions.
+Did not modify that shared tool or the budget.
+
+Ran scripts/test.sh exactly once, exit 1:
+`== 2 failure(s) in 1474 s` — wasm build (baseline for this round: accepted
+DC remainder) and client tests (ours). Client failures were the membership
+fixture race plus page-authority/page-ready expecting loading on unavailable
+transport. Both causes are fixed; final package typecheck/build and the
+affected recheck pass **251/251**, including all three failures. The original
+full red remains recorded. Full Rust passes **3,855**, with **24 existing
+ignores**; client main passed 2,703 with 3 failures and 10 existing skips, extra
+shards **56/56**, models **78/78**. Standalone device **1,339 passed**, 3 ignored;
+whole guide **86/86** after fixing two registration preflight failures (ours).
+Source/artifact census, reference and whitespace audits pass. No environmental
+failure occurred in the full run. No second full run.
+
+Did not push, publish, change versions, raise ceilings or implement DS's server
+half. DS's current source consumes the same fingerprint request field, but
+compiler/manifest/writer/RUNS_FULL and receipt-only no-op integration remain
+DS's; client tests use fixtures as directed. The comparative choreography,
+full wasm path matrix, native process-kill and IndexedDB browser crash witnesses
+remain unclaimed. File-by-file changes, examples, test map, failures and
+reproductions: reports/20260927-dc-delivery-client/ROUND2.md. Evidence remains
+under ignored target/lane-dc-round2/.
