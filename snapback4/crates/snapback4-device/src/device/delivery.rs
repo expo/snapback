@@ -88,7 +88,7 @@ fn add(value: &mut Json, n: i64) {
     // instantiates serde's owned-tree writer for the entire interval container.
     *value = Json::Array(merged.into_iter().map(|(a,b)| Json::Array(vec![Json::from(a), Json::from(b)])).collect());
 }
-// @ref LLP 3000.022#4 — group bound accounting survives debt and group eviction.
+// @ref LLP 3000.022#4 — refused coverage survives eviction, scoped to its fingerprint.
 #[cold]
 fn retire_oldest(state: &mut Json, evict: bool) -> bool {
     let mut oldest: Option<(&String, u64)> = None;
@@ -101,8 +101,8 @@ fn retire_oldest(state: &mut Json, evict: bool) -> bool {
     let oldest = oldest.clone();
     let old = state["groups"].as_object_mut().unwrap().remove(&oldest).unwrap();
     let saturated = old["saturated"] == true;
-    if !old["bound"].is_null() || saturated || old["refused"].as_array().is_some_and(|runs| !runs.is_empty()) {
-        state["retired"].as_object_mut().unwrap().insert(oldest, json!({"fingerprint":old["binding"]["fingerprint"],"refused":old["refused"],"saturated":saturated,"scope":old["scope"],"bound":old["bound"]}));
+    if saturated || old["refused"].as_array().is_some_and(|runs| !runs.is_empty()) {
+        state["retired"].as_object_mut().unwrap().insert(oldest, json!({"fingerprint":old["binding"]["fingerprint"],"refused":old["refused"],"saturated":saturated,"scope":old["scope"]}));
     } else { state["retired"].as_object_mut().unwrap().remove(&oldest); }
     true
 }
@@ -120,10 +120,9 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
         let kept = if kept["fingerprint"] == binding.fingerprint { kept } else { &Json::Null };
         let refused = kept.get("refused").cloned().unwrap_or(json!([]));
         let saturated = kept["saturated"] == true;
-        let bound = kept["bound"].clone();
         state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":binding.args,"fingerprint":binding.fingerprint},
             "group":group,"incarnation":incarnation,"collected":incarnation,"ready":incarnation,"owed":[],"reported":[],"refused":refused,
-            "parked":[],"bound":bound,"saturated":saturated,"wake":false,"recent":[],"scope":scope});
+            "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
     // An older compiled generation must not collect into a newer manifest binding.
     let debt = &state["groups"][&key];

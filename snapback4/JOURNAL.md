@@ -69408,3 +69408,61 @@ omission. No new syntax/API, server qualification, comparative choreography,
 full wasm path matrix or crash-witness claim. No shared-path tool install,
 push or publication. Report: reports/20260927-dc-delivery-client/ROUND6.md;
 raw evidence: target/lane-dc-round6/. Commits carry the requested co-author.
+
+
+## 2026-09-27 — Lane DC round 7: session-scoped bound retries
+
+Implemented the supervisor's simplification of LLP 3000.022 §4. Each queue
+keeps an in-memory counter per binding fingerprint and group key, granting at
+most eight replacement ids after replay confirms a recorded E_BOUND failure.
+Every E_BOUND first replays the same id: success retires the interval; a bare
+denial stays uncertain. Spent groups park until the next queue session, with
+no refused coverage and no onDeliveryRefused. Removed persisted counters,
+spending coverage, bound wakes/caps and bound tombstone carrying from the
+TypeScript queue/state and Rust device collector. Manifest-only bindings,
+startup barriers, held-attempt priority, fingerprint-scoped range-refusal
+tombstones and the consumer TypeScript fix remain.
+
+Eviction before the first replay needs a separate in-memory pending-id marker:
+the allowance cannot be debited before replay confirms failure. If pressure
+loses that id, the group waits for the next session instead of issuing fresh
+initial ids. This conservative delay may include clean coverage before all
+eight replacements are spent; it creates no persisted record or refusal and
+restores no evicted debt. Repeated CAS edits reuse their replacement-id
+reservation; an ultimately abandoned reservation may consume allowance.
+An older membership retry now subtracts reported/refused coverage before
+restoring recent collections. Parking advances scheduling order and yields
+the pump turn, so continuous new debt in a spent group cannot monopolize it.
+The LLP's E_BOUND row is two sentences; operations documentation matches.
+
+Regressions cover committed-response replay (also at the spent cap), two
+recorded failures then third-id success, eight replacements and restart,
+25 eviction-before-replay cycles through manifest and wasm collection,
+merged clean coverage delayed then successful after restart, no bound
+callbacks, transition/fingerprint/CAS behavior, older settled coverage,
+held-attempt priority and scheduling fairness. The round-6 implementation
+fails eleven new cases; thirteen isolated mutations fail assertions. The
+pre-fix fairness failure was ours and is fixed. Final affected checks pass
+154/154; queue subset 77/77. Complete device run: 1,359 passed, zero failed,
+three ignored before the final two range-refusal tests; final delivery target
+30/30, and the full suite passes all 1,361 device tests. Whole guide 86/86,
+consumer routes 9/9, package build/typecheck, source and artifact censuses pass.
+
+Wasm: 2,022,205 B raw / 585,167 B gzip, raw down 379 B and gzip up 14 B from
+round 6; 195 B below the accepted 585,362 B remainder. No budget/profile,
+codec allowance or meter changed. SHA-256:
+8c86042158304b7b2c48acad400762ad5964c62e2311009cb3e6b9bf064176fb.
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1529 s`, exit 1.
+Its only failure is baseline wasm build, 12,326 B over the unchanged
+572,841 B gate; no lane-owned or environmental failure. Full Rust: 3,961
+passed, zero failed, 24 ignored; main clients 2,766 passed, ten skipped;
+extra shards 56/56; wrappers 9/9; seeded models 78/78. The final scheduling
+correction was made after ordinary clients while this run was in its model
+phase, then qualified by the final affected checks; no second full run.
+
+First fetched and merged origin/main: already up to date, no conflicts.
+No new syntax/API, server/comparative qualification, complete wasm path
+matrix or crash-witness claim. Hosts without conditional supplementary
+commits retain the previous fallback-manifest omission. No shared-path
+install, push or publication. Report: reports/20260927-dc-delivery-client/ROUND7.md;
+raw evidence: target/lane-dc-round7/. The commit carries the requested co-author.

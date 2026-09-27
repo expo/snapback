@@ -2291,27 +2291,26 @@ for capacity without evicting debt, retaining outbox priority even during live
 traffic. A failed page resumes its durable cursor with bounded backoff.
 
 `E_BOUND` first replays the same id: an oversized HTTP response can hide a
-committed success. Only a replayed `failed` receipt with `why.code: "E_BOUND"`
-permits a new id, with 1–60 s backoff, at most eight times. Then the interval
-parks without notifying the application. The 10-minute timer, reconnect and
-start permit one new id per wake, at least 30 s apart, for at most eight more
-wake retries. The budget belongs to the group and survives every park, interval
-merge/split, eviction and local restart; reconnect does not reset the burst.
-If all eight wakes fail, `onDeliveryRefused` fires once and that interval stops
-retrying. Its refused entry survives interval and group eviction. The same
-accounting follows spending intervals through other refusal types; a start
-park defers notification until that budget terminates. Only successful coverage
-of those intervals clears it; unrelated success cannot replenish it. Eviction
-retains the counters in the group’s fingerprint-scoped tombstone. Online queues
-live in memory; a new process starts a fresh budget. A bare denial keeps the uncertain same-id
-behavior.
+committed success, whose replay retires the interval without executing again.
+Only a replayed `failed` receipt with `why.code: "E_BOUND"` permits a new id,
+with 1–60 s backoff. Each queue keeps an in-memory counter keyed by binding
+fingerprint and group key, allowing at most eight replacement ids per session.
+No park, merge, split, eviction, recollection or success resets that counter;
+only a new queue on app start or sign-in does. Once spent, the group's intervals
+wait in `start` parks for the next session. Reconnect and timer wakes grant no
+extra ids. `E_BOUND` never creates a refused entry or calls `onDeliveryRefused`.
+A bare denial stays uncertain on the same id. If eviction loses an id awaiting
+a bound replay, an in-memory pending-id marker delays that group until the next
+session, without restoring evicted debt or refusing clean coverage. The counter
+and pending-id set are not persisted; the same-id replay flag stays with its
+persisted attempt.
 
 Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
 for application refusals. It receives
 `{ table, mutation, args, group, from, through, why }`; `why` is the ordinary
 coded refusal. `NOT_A_RUN` and `PAST_LAST_MESSAGE` enter a remembered refused
 set; other non-retryable application refusals park until restart.
-`RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
+`E_BOUND`, `RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
 this callback. Reports do not appear in `onWrite` or `pendingWrites()`.
 
 Local debt survives closing or sign-out for the same viewer. Online sign-out

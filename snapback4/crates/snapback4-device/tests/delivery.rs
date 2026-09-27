@@ -263,51 +263,38 @@ fn edit_state<S:DeviceStore>(d:&mut Device<S>, edit:impl FnOnce(&mut Json)) {
     let raw=request(d,"read");let mut s:Json=serde_json::from_str(raw["value"].as_str().unwrap()).unwrap();edit(&mut s);
     assert_eq!(d.delivery(&json!({"viewer":"dev:alice","action":"write","expected":raw["value"],"value":s.to_string()})).unwrap(),json!(true));
 }
-fn bound_eviction<H:Host>(h:&mut H) {
+// Range-refusal tombstones remain durable; E_BOUND no longer uses them.
+fn refused_eviction<H:Host>(h:&mut H) {
     let key="[\"messages\",\"delivered_messages\",\"r\"]";
-    for location in ["attempt","bound","retry","full","start","stopped"] { for whole_group in [false,true] {
-        let name=format!("bound-{location}-{whole_group}");
-        let mut d=h.open(&name,Some(backend())).unwrap();request(&mut d,"read");d.apply(&page(true,vec![event(41)],1),true).unwrap();
+    for whole_group in [false,true] {
+        let name=format!("refused-{whole_group}");
+        let mut d=h.open(&name,Some(backend())).unwrap();request(&mut d,"read");
+        d.apply(&page(true,vec![event(41)],1),true).unwrap();
         edit_state(&mut d,|s|{
-            let g=&mut s["groups"][key];
-            g["bound"]=json!({"retries":2,"wakes":1,"runs":[[41,41]],"at":0});
-            let attempt=json!({"id":"held","run":[41,41],"retries":2,"readyAt":1000000,"boundReplay":true});
-            if location=="attempt" {g["attempt"]=attempt;} else {
-                g["owed"]=json!([]);g["parked"]=json!([{"run":[41,41],"kind":location,"at":0,"attempt":attempt}]);
-                if location=="stopped" {g["refused"]=json!([[41,41]]);}
-            }
+            let g=&mut s["groups"][key];g["owed"]=json!([]);g["refused"]=json!([[41,41]]);
             if whole_group {
-                let mut other=g.clone();other["owed"]=json!([]);other["parked"]=json!([]);other.as_object_mut().unwrap().remove("attempt");other["refused"]=json!([]);
+                let mut other=g.clone();other["refused"]=json!([]);
                 for n in 0..4095 { let group=format!("other{n}");other["group"]=json!(group);other["collected"]=json!(10000+n);
                     s["groups"][json!(["messages","delivered_messages",group]).to_string()]=other.clone(); }
             }
         });
         if whole_group {
             let mut row=event(1000);row["data"]["room"]=json!("new");
-            d.apply(&page(false,vec![row],2),false).unwrap();
-            let retired=state(&mut d)["retired"][key].clone();
-            assert_eq!(retired["fingerprint"],"fixture:messages");
-            assert_eq!(retired["saturated"],false);
-            assert_eq!(retired["bound"]["retries"],2);
+            d.apply(&page(false,vec![row],2),false).unwrap();let s=state(&mut d);
+            assert!(s["groups"].get(key).is_none());
+            assert_eq!(s["retired"][key]["fingerprint"],"fixture:messages");
+            assert_eq!(s["retired"][key]["refused"],json!([[41,41]]));
         } else {
             d.apply(&page(false,(0..256).map(|n|event(100+n*2)).collect(),2),false).unwrap();
-            let s=state(&mut d);let g=&s["groups"][key];
-            assert_eq!(g["saturated"],false);
-            assert_eq!(g["bound"]["retries"],2,"{location}: pressure cannot reset bound counters");
-            assert!(g.get("attempt").is_none());
-            assert_eq!(g["parked"],json!([]));
-            assert_eq!(g["owed"].as_array().unwrap().len(),256);reset_debt(&mut d);
+            assert_eq!(state(&mut d)["groups"][key]["refused"],json!([[41,41]]));reset_debt(&mut d);
         }
         h.close(&name,d);let mut d=h.open(&name,None).unwrap();
-        d.apply(&page(false,vec![event(41)],3),false).unwrap();
-        let s=state(&mut d);let g=&s["groups"][key];
-        assert_eq!(g["bound"],json!({"retries":2,"wakes":1,"runs":[[41,41]],"at":0}),"recollection must not replenish {location}");
-        assert_eq!(g["saturated"],false);
-        if location=="stopped" {assert_eq!(g["refused"],json!([[41,41]]));assert_eq!(g["owed"],json!([]));} else {assert_eq!(g["owed"],json!([[41,41]]));}
-    }}
+        d.apply(&page(false,vec![event(41)],3),false).unwrap();let s=state(&mut d);
+        assert_eq!(s["groups"][key]["refused"],json!([[41,41]]));assert_eq!(s["groups"][key]["owed"],json!([]));
+    }
 }
-#[test]fn bound_eviction_memory(){bound_eviction(&mut Memory::new())}
-#[test]fn bound_eviction_sqlite(){bound_eviction(&mut Sqlite::new("delivery-bound-lifetime"))}
+#[test]fn refused_eviction_memory(){refused_eviction(&mut Memory::new())}
+#[test]fn refused_eviction_sqlite(){refused_eviction(&mut Sqlite::new("delivery-refused-eviction"))}
 
 fn retired_adoption<H:Host>(h:&mut H) {
     let mut initial=backend();initial.schema.delivery[0].fingerprint="older".into();

@@ -1,5 +1,5 @@
 import type { Refusal } from "./contract.ts";
-import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, retireGroup, subtractRuns, type DeliveryGroup, type Run, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
+import { acceptManifest, boundDebt, dropBinding, emptyDelivery, mergeRuns, retireGroup, subtractRuns, type Attempt, type DeliveryRefused, type DeliveryState, type Parked } from "./delivery-state.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 
 export interface DeliveryStorage {
@@ -35,6 +35,11 @@ interface Flight { key: string; incarnation: number; epoch: number; attempt: Att
 // @ref LLP 3000.019#4 — delivery belongs to the SDK, independent of mounted screens.
 // @ref LLP 3000.022#4 — receipt success is coverage; uncertain retries retain their persisted id.
 export class DeliveryQueue {
+  // @ref LLP 3000.022#4 — only a new queue grants another session allowance.
+  private boundMints = new Map<string, number>();
+  // If pressure forgets an unresolved bound id, delay the group for this
+  // session instead of issuing fresh initial ids around the replay limit.
+  private boundPending = new Map<string, Set<string>>();
   private epoch = 0;
   private stopped = false;
   private paused = false;
@@ -86,7 +91,7 @@ export class DeliveryQueue {
       for (const group of Object.values(state.groups)) {
         group.wake = true;
         for (const parked of [...group.parked]) {
-          if (parked.kind === "bound" || (parked.kind === "retry" && reason !== "timer")) parked.ready = true;
+          if (parked.kind === "retry" && reason !== "timer") parked.ready = true;
           if (parked.kind === "start" && reason === "start") {
             group.parked.splice(group.parked.indexOf(parked), 1);
             group.owed = mergeRuns([...group.owed, parked.run]);
@@ -114,15 +119,13 @@ export class DeliveryQueue {
           const idle = Object.entries(state.groups).filter(([key, g]) => !g.saturated && ![...this.flights].some(f => f.key === key));
           const ready = idle.filter(([, g]) => {
             if (!g.owed.length && !g.attempt && !g.parked.some(p => p.kind === "retry" && p.ready)) return false;
-            const next = g.owed[0];
-            const waitingBound = !g.attempt && next && this.spendsBound(g, next) && g.bound!.retries >= 8 && g.bound!.wakes < 8;
-            const at = g.attempt?.readyAt ?? (waitingBound ? g.bound!.at + 30_000 : 0);
+            const at = g.attempt?.readyAt ?? 0;
             if (at > now) { nextAt = Math.min(nextAt, at); return false; }
             return true;
           }).sort(([, a], [, b]) => a.ready - b.ready);
           let entry = ready[0];
           if (!entry) {
-            const eligible = (p: Parked) => p.kind === "full" || (p.kind === "bound" && p.ready);
+            const eligible = (p: Parked) => p.kind === "full";
             const parked = idle.filter(([, g]) => !g.attempt && g.wake && g.parked.some(eligible))
               .map(([key, group]) => ({ key, group, run: group.parked.filter(eligible).sort((a, b) => a.at - b.at)[0]! }))
               .filter(item => { if (item.run.at + 30_000 <= now) return true; nextAt = Math.min(nextAt, item.run.at + 30_000); return false; })
@@ -131,9 +134,6 @@ export class DeliveryQueue {
               parked.group.parked.splice(parked.group.parked.indexOf(parked.run), 1);
               parked.group.owed = mergeRuns([...parked.group.owed, parked.run.run]);
               parked.group.wake = false;
-              // One group wake buys one parked call. Later manifests/successes
-              // may wake full runs, but cannot spend this bound wake again.
-              for (const p of parked.group.parked) if (p.kind === "bound") p.ready = false;
               entry = [parked.key, parked.group];
             }
           }
@@ -149,28 +149,29 @@ export class DeliveryQueue {
               if (retry.attempt) group.attempt = { ...retry.attempt, retries: 0, readyAt: 0 };
             }
           }
-          if (!group.parked.some(p => p.kind === "full" || (p.kind === "bound" && p.ready))) group.wake = false;
+          if (!group.parked.some(p => p.kind === "full")) group.wake = false;
           // This commit precedes transport, including the local host persistence batch.
           if (!group.attempt) {
-            const run: Run = [...group.owed[0]!];
-            if (this.spendsBound(group, run)) {
-              const budget = group.bound!;
-              if (budget.retries >= 8 && budget.wakes < 8 && budget.at + 30_000 > now) {
-                nextAt = Math.min(nextAt, budget.at + 30_000); return;
-              }
-              if (!this.debitBound(group, run, now)) return { refused: this.refuseBound(group, run, now) };
+            const sessionKey = JSON.stringify([group.binding.fingerprint, key]);
+            const pending = this.boundPending.get(sessionKey);
+            const lostReplay = pending && [...pending].some(id => !group.parked.some(p => p.attempt?.id === id));
+            const run: [number, number] = [...group.owed[0]!];
+            if ((this.boundMints.get(sessionKey) ?? 0) >= 8 || lostReplay) {
+              group.owed = subtractRuns(group.owed, [run]);
+              group.parked.push({ run, kind: "start", at: now });
+              group.ready = ++state.serial; // A delay takes a scheduling turn too.
+              return { kind: "parked" as const };
             }
             group.attempt = { id: this.options.mint(), run, retries: 0, readyAt: 0, recent: [] };
             group.recent = [];
           }
-          return { key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
+          return { kind: "flight" as const, key, incarnation: group.incarnation, binding: group.binding, group: group.group, attempt: { ...group.attempt, run: [...group.attempt.run] as [number, number] } };
         }));
         if (!selected) { if (Number.isFinite(nextAt)) this.schedule(Math.max(1, nextAt - this.now())); break; }
         if (epoch !== this.epoch || this.stopped) break;
-        if ("refused" in selected) {
-          if (selected.refused) this.options.onRefused?.(selected.refused);
-          this.options.onSettled?.(); // A terminal disposition can free activation capacity without transport.
-          continue;
+        if (selected.kind === "parked") {
+          this.options.onSettled?.();
+          this.schedule(0); break; // New collections cannot keep this pump turn alive forever.
         }
         const flight: Flight = { ...selected, epoch, controller: new AbortController(), done: Promise.resolve() };
         this.flights.add(flight);
@@ -180,24 +181,6 @@ export class DeliveryQueue {
         void flight.done.catch(() => {});
       }
     } finally { this.pumping = false; }
-  }
-  private spendsBound(group: DeliveryGroup, run: Run): boolean {
-    return !!group.bound?.runs.some(([a, b]) => a <= run[1] && run[0] <= b);
-  }
-  // @ref LLP 3000.022#4 — all new ids for spending intervals debit one group ledger.
-  private debitBound(group: DeliveryGroup, run: Run, now: number): boolean {
-    const budget = group.bound!;
-    if (budget.retries < 8) budget.retries++;
-    else if (budget.wakes < 8) budget.wakes++;
-    else return false;
-    budget.runs = mergeRuns([...budget.runs, run]); budget.at = now;
-    return true;
-  }
-  private refuseBound(group: DeliveryGroup, run: Run, now: number): DeliveryRefused {
-    group.owed = subtractRuns(group.owed, [run]); delete group.attempt;
-    group.parked.push({ run, kind: "stopped", at: now });
-    group.refused = mergeRuns([...group.refused, run]); boundDebt(group);
-    return { ...group.binding, group: group.group, from: run[0], through: run[1], why: { code: "E_BOUND", family: "bound", message: "Delivery exhausted its group bound retry budget." } };
   }
   private current(f: Flight): boolean { return !this.stopped && f.epoch === this.epoch; }
   private async run(f: Flight, mutation: string, body: { id: string; args: Record<string, unknown>; delivery: { fingerprint: string } }): Promise<void> {
@@ -215,34 +198,22 @@ export class DeliveryQueue {
       const json = reply?.json;
       const why = (json?.why ?? json?.denied) as Refusal | undefined;
       if (why?.code === "E_STORE_REPLACED" || why?.code === "E_STORE_RESTORE") { await this.reset(true); return; }
+      const sessionKey = JSON.stringify([body.delivery.fingerprint, f.key]);
+      // CAS retries reuse this reservation; they cannot debit/mint repeatedly.
+      let replacement: { id: string; delay: number } | undefined;
       const outcome = await this.track(this.options.storage.update(state => {
         if (!this.current(f)) return;
         const group = state.groups[f.key];
         if (!group || group.incarnation !== f.incarnation || group.attempt?.id !== f.attempt.id) return;
-        const effects: { refused?: DeliveryRefused; paused?: boolean; offline?: boolean } = {};
+        const effects: { refused?: DeliveryRefused; paused?: boolean; offline?: boolean; boundPending?: string | null } = {};
         const attempt = group.attempt, run = attempt.run, now = this.now();
+        if (reply?.accepted && Number.isSafeInteger(json?.head) && Number(json?.head) >= 0
+          && (json?.state === "sent" || (why && !["E_BOUND", "E_AUTH", "E_OFFLINE"].includes(why.code)))) effects.boundPending = null;
         const remove = () => { group.owed = subtractRuns(group.owed, [run]); delete group.attempt; };
         const park = (kind: Parked["kind"], keepId = false) => {
-          if (this.spendsBound(group, run)) {
-            group.bound!.at = now;
-            if ((kind === "full" || kind === "start") && group.bound!.retries >= 8 && group.bound!.wakes >= 8) {
-              effects.refused = this.refuseBound(group, run, now); return;
-            }
-          }
           remove(); group.parked.push({ run, kind, at: now, ...(keepId ? { attempt } : {}) });
         };
-        const boundRetry = () => {
-          const budget = group.bound!;
-          if (budget.retries < 8) {
-            const delay = Math.min(60_000, 1000 * 2 ** budget.retries);
-            this.debitBound(group, run, now);
-            attempt.id = this.options.mint(); attempt.recent = []; group.recent = [];
-            attempt.retries = 0; attempt.boundReplay = false; attempt.readyAt = now + delay;
-          } else if (budget.wakes < 8) park("bound");
-          else effects.refused = this.refuseBound(group, run, now);
-        };
         const retry = (recorded: boolean) => {
-          if (recorded && this.spendsBound(group, run)) { boundRetry(); return; }
           if (recorded) { attempt.id = this.options.mint(); attempt.recent = []; group.recent = []; attempt.boundReplay = false; }
           if (attempt.retries >= 8) { park("retry", true); return; }
           attempt.readyAt = now + Math.min(60_000, 1000 * 2 ** attempt.retries++);
@@ -256,27 +227,31 @@ export class DeliveryQueue {
         else if (why?.code === "E_DELIVERY_BINDING") { dropBinding(state, group.binding); }
         else if (json?.state === "sent") {
           remove(); group.reported = mergeRuns([...group.reported, run]).slice(-256); group.wake = true;
-          // Only success of the spending coverage clears its budget. A sibling
-          // success cannot reset it, nor can a partial success after a split.
-          if (group.bound) {
-            group.bound.runs = subtractRuns(group.bound.runs, [run]);
-            if (!group.bound.runs.length) { delete group.bound; delete state.retired[f.key]; }
-          }
         } else if (why?.code === "E_BOUND") {
+          effects.boundPending = attempt.id;
           // @ref LLP 3000.022#4 — a bare HTTP bound may follow a committed report.
           // First replay the same id; only its failed receipt permits a new one.
           if (!attempt.boundReplay || json?.state !== "failed" || (json.why as Refusal | undefined)?.code !== "E_BOUND") {
             attempt.boundReplay = true; retry(false);
           } else {
-            group.bound ??= { retries: 0, wakes: 0, runs: [], at: now };
-            group.bound.runs = mergeRuns([...group.bound.runs, run]);
-            boundRetry();
+            const mints = this.boundMints.get(sessionKey) ?? 0;
+            if (!replacement && mints >= 8) { park("start"); effects.boundPending = null; }
+            else {
+              if (!replacement) {
+                this.boundMints.set(sessionKey, mints + 1);
+                replacement = { id: this.options.mint(), delay: Math.min(60_000, 1000 * 2 ** mints) };
+              }
+              attempt.id = replacement.id; attempt.recent = []; group.recent = [];
+              attempt.retries = 0; attempt.boundReplay = false;
+              attempt.readyAt = now + replacement.delay;
+              effects.boundPending = attempt.id;
+            }
           }
         } else if (why?.code === "RUNS_FULL") park("full");
         else if (why?.code === "NOT_MEMBER" || why?.code === "NOT_FOUND") {
           const recent = attempt.recent ?? group.recent;
           if (!this.options.local && recent.length) {
-            group.owed = recent; group.parked = []; delete group.attempt;
+            group.owed = subtractRuns(recent, [...group.reported, ...group.refused]); group.parked = []; delete group.attempt;
             group.incarnation = ++state.serial;
           } else { retireGroup(state, f.key, group); delete state.groups[f.key]; }
         } else if (why?.code === "NOT_A_RUN" || why?.code === "PAST_LAST_MESSAGE") {
@@ -285,9 +260,7 @@ export class DeliveryQueue {
           effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
         } else if (why?.retryable) retry(json?.state === "failed" || why.code === "E_CONFLICT");
         else if (why) {
-          // A budget-bearing interval has one terminal notification, even if
-          // another refusal temporarily parks it until start.
-          if (!this.spendsBound(group, run)) effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
+          effects.refused = { ...group.binding, group: group.group, from: run[0], through: run[1], why };
           park("start");
         }
         else retry(false);
@@ -297,6 +270,13 @@ export class DeliveryQueue {
       // Local CAS can rerun the edit after a concurrent leave/publication. Only
       // the successfully committed edit may pause dispatch or notify the app.
       if (outcome && this.current(f)) {
+        if (outcome.boundPending !== undefined) {
+          const pending = this.boundPending.get(sessionKey) ?? new Set<string>();
+          pending.delete(f.attempt.id);
+          if (outcome.boundPending !== null) pending.add(outcome.boundPending);
+          if (pending.size) this.boundPending.set(sessionKey, pending);
+          else this.boundPending.delete(sessionKey);
+        }
         if (outcome.paused) this.paused = true;
         if (outcome.offline) { this.offline = true; this.options.onOffline?.(); }
         if (outcome.refused) this.options.onRefused?.(outcome.refused);
@@ -315,7 +295,7 @@ export class DeliveryQueue {
     const cleared = await this.options.storage.update(state => !this.startup.some(({ key, incarnation, runs }) => {
       const g = state.groups[key];
       if (g?.incarnation !== incarnation) return false;
-      const pending = [...g.owed, ...g.parked.filter(p => (p.kind === "retry" || p.kind === "bound") && p.ready).map(p => p.run)];
+      const pending = [...g.owed, ...g.parked.filter(p => p.kind === "retry" && p.ready).map(p => p.run)];
       return runs.some(([a, b]) => pending.some(([x, y]) => a <= y && x <= b));
     }));
     if (cleared) this.startup = [];

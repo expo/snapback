@@ -4,8 +4,7 @@ export type Run = [number, number];
 export interface DeliveryBinding { fingerprint: string; table: string; mutation: string; args: [string, string, string] }
 export interface DeliveryRefused extends DeliveryBinding { group: string; from: number; through: number; why: Refusal }
 export interface Attempt { id: string; run: Run; retries: number; readyAt: number; recent?: Run[]; boundReplay?: boolean }
-export interface Parked { run: Run; kind: "full" | "start" | "retry" | "bound" | "stopped"; at: number; ready?: boolean; attempt?: Attempt }
-export interface BoundBudget { retries: number; wakes: number; runs: Run[]; at: number }
+export interface Parked { run: Run; kind: "full" | "start" | "retry"; at: number; ready?: boolean; attempt?: Attempt }
 export interface DeliveryGroup {
   binding: DeliveryBinding; group: string; incarnation: number; collected: number;
   owed: Run[]; reported: Run[]; refused: Run[]; parked: Parked[];
@@ -13,12 +12,11 @@ export interface DeliveryGroup {
   /** New collections since the current attempt; online membership refusals cannot erase them. */
   recent: Run[];
   scope?: string;
-  bound?: BoundBudget;
 }
 export interface DeliveryState {
   serial: number;
   groups: Record<string, DeliveryGroup>;
-  retired: Record<string, { fingerprint: string; refused: Run[]; saturated: boolean; bound?: BoundBudget; scope?: string | undefined }>;
+  retired: Record<string, { fingerprint: string; refused: Run[]; saturated: boolean; scope?: string | undefined }>;
   // The device owns these fields; queue transactions preserve them.
   cursors?: Record<string, unknown>;
   bindings?: DeliveryBinding[];
@@ -55,7 +53,7 @@ export function groupFor(state: DeliveryState, binding: DeliveryBinding, group: 
     const retired = state.retired[key], kept = retired?.fingerprint === binding.fingerprint ? retired : undefined;
     value = state.groups[key] = { binding, group, incarnation: ++state.serial, collected: state.serial,
       owed: [], reported: [], refused: kept?.refused ?? [], saturated: kept?.saturated ?? false,
-      parked: [], wake: false, ready: state.serial, recent: [], ...(kept?.bound ? { bound: kept.bound } : {}) };
+      parked: [], wake: false, ready: state.serial, recent: [] };
   }
   return value;
 }
@@ -86,10 +84,10 @@ export function boundDebt(value: DeliveryGroup): void {
     delete value.attempt;
   }
 }
-// @ref LLP 3000.022#4 — pressure may under-report, never replenish a bound budget.
+// @ref LLP 3000.022#4 — refused coverage survives eviction, scoped to its fingerprint.
 export function retireGroup(state: DeliveryState, key: string, value: DeliveryGroup): void {
-  if (value.refused.length || value.saturated || value.bound) state.retired[key] = {
-    fingerprint: value.binding.fingerprint, refused: value.refused, saturated: value.saturated, scope: value.scope, ...(value.bound ? { bound: value.bound } : {}),
+  if (value.refused.length || value.saturated) state.retired[key] = {
+    fingerprint: value.binding.fingerprint, refused: value.refused, saturated: value.saturated, scope: value.scope,
   };
   else delete state.retired[key];
 }
