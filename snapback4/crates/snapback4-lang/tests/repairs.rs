@@ -208,7 +208,7 @@ fn trending_card_finds_winners_only_inside_its_declared_candidate_window() {
     let cut = engine.query("trendingNow", context()).unwrap();
     assert!(cut.complete, "sorting and slicing the declared candidate window is a complete answer about that window");
     assert_eq!(cut.capped_at, None, "the candidate bound leaves enough meter for exact prefix scores");
-    assert_eq!(cut.metered.examined, 8191);
+    assert_eq!(cut.metered.examined, 8190); // 4,095 candidates and score reads; no overflow row.
     assert_eq!(ids(&cut.data).len(), 10);
     assert_eq!(ids(&cut.data)[..2], expected[..2]);
     assert_eq!(cut.data.as_array().unwrap().iter().map(|row| row.field("likes").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [4, 3, 0, 0, 0, 0, 0, 0, 0, 0]);

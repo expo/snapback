@@ -68781,3 +68781,45 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+
+## 2026-09-27 — 0.4.6 lane CQ round 1: stop the plain query at its bound
+
+Read both round 0 reviews and the supervisor ruling. Merged origin/main in
+60007c0ad, retaining both complete journal appends. LLP 3000.027 §2 now
+states the collector distinction precisely: an interrupted cursor page loses
+safe continuation and is incomplete; a cursorless break returns the program's
+answer over complete inputs. Collector implementation is unchanged.
+
+Plain cursorless query scans stop at N without examining N+1. Cursor pages,
+ordered merges, distinct lane discovery, device horizon proofs, meter-bounded
+domains, streaming reads, jobs and aborting mutation scans retain their existing
+consumption rules. All three outcome builders check value_source_incomplete
+directly. The search card leads with the reads card's completeness definition.
+Shared server/SQLite/memory tests pin exact-N and before-N examined ceilings,
+both interrupted collector cases, and five-room discovery that omits the room
+holding the newest row (incomplete, cut null, next null).
+
+Deviation: the literal `where .room in (rooms first 2 by .id)` is already
+refused as a reference/row type mismatch. The regression uses compiled explicit
+merge IR with the distinct room-id source; no compiler or membership-plan
+redesign. The report includes the exact schema and CLI reproduction.
+
+Ran scripts/test.sh once: `== 1 failure(s) in 3447 s`, exit 1, cargo test.
+All five failed Rust tests were lane-owned: two mutation-accounting regressions
+fixed by restricting the shortcut to queries, and three obsolete query receipt
+expectations. The exact mutation limits and conservative scale certificates
+remain asserted. Final affected checks pass 554 Rust tests (one existing
+ignore) and 48 client/wasm checks. The whole guide and lowering/authorization
+censuses pass. The earlier full device run passed 1,327 tests; the single full
+run passed 2,700 client tests (10 skips) and all 78 client model tests. Its red
+aggregate is retained, with every failure and its correction in the report.
+
+Final wasm: 1,981,375 B raw / 572,099 B gzip; +216 / +88 B versus merge
+60007c0ad on the same toolchain. The 572,841 B budget is unchanged, leaving
+742 B. Workspace/package builds pass. The optional Postgres feature check
+fails with baseline E0061 in postgres/through.rs:168, reproduced from the merge
+commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
+package-version or budget change, no new tool installation, no push or publish.
+Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
+round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.

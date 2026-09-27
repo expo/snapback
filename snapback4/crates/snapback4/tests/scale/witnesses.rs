@@ -132,7 +132,7 @@ job sweep():
     assert_eq!(c.class, Class::Constant);
     covers(&c, write.metered);
     let read = e.query("queryPage", Context::new("alice", BTreeMap::new())).unwrap();
-    assert_eq!(read.metered.examined, 21);
+    assert_eq!(read.metered.examined, 20); // Cursorless query needs no overflow row.
     covers(&query, read.metered);
 }
 
@@ -178,7 +178,7 @@ query queryMany():
     let read = e.query("queryMany", Context::new("alice", BTreeMap::new())).unwrap();
     assert!(read.capped_at.is_none(), "{read:?}");
     assert_eq!(read.data, Value::Int(1));
-    assert_eq!(read.metered.examined, 8000);
+    assert_eq!(read.metered.examined, 4000); // One row per cursorless query scan.
     covers(&query, read.metered);
 }
 

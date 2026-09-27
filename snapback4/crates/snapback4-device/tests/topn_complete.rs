@@ -1,6 +1,8 @@
 mod common;
 #[path = "../../snapback4-sim/tests/common/topn.rs"]
 mod fixture;
+#[path = "../../snapback4-sim/tests/common/topn_boundaries.rs"]
+mod boundaries;
 use common::*;
 use serde_json::json;
 use snapback4_core::engine::ReadCut;
@@ -90,3 +92,28 @@ query top():
 fn sqlite_and_server_undecided_prefix_stays_incomplete() { undecided(&mut Sqlite::new("topn-prefix")); }
 #[test]
 fn memory_and_server_undecided_prefix_stays_incomplete() { undecided(&mut Memory::new()); }
+
+fn boundaries_on_store<S: snapback4_device::store::DeviceStore>(mut store: S) {
+    use snapback4_core::{engine::local, rows::Rows};
+    let (_, mut backend) = compile(boundaries::SOURCE);
+    for program in &mut backend.programs { boundaries::distinct_discovery(program); }
+    store.install(&backend.schema, &Default::default(), false).unwrap();
+    let tx = store.transaction().unwrap();
+    for (table, row) in boundaries::rows() {
+        tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap();
+    }
+    let query = |op: &str, ceilings| {
+        let program = backend.programs.iter().find(|p| p.name == op).unwrap();
+        let (read, unknown, _) = local::query_with_coverage(&tx, &backend.schema, program, context("alice", &[]), ceilings);
+        assert!(!unknown, "{op}: neither a meter cut nor lane discovery requests fallback");
+        read.unwrap()
+    };
+    boundaries::check_collectors(|op| query(op, Default::default()));
+    boundaries::check_discovery(|op| query(op, Default::default()));
+    boundaries::check_meter(query);
+}
+
+#[test]
+fn sqlite_bound_meter_collectors_and_lane_discovery() { boundaries_on_store(snapback4_core::Store::memory().unwrap()); }
+#[test]
+fn memory_bound_meter_collectors_and_lane_discovery() { boundaries_on_store(snapback4_device::memory::MemoryStore::new()); }

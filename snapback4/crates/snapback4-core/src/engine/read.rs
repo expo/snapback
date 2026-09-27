@@ -884,6 +884,11 @@ impl<'r> Runner<'r> {
         let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
+        // @ref LLP 3000.027#2 — a declared cursorless query needs no overflow row;
+        // cursor positions, ordered merges, lane discovery and horizons still do.
+        let stop_at_bound = !aborting && !scan.opaque_cursor && scan.merge_site.is_none() && word.is_none()
+            && !self.discovering_values && !self.view_scan_active && !(self.device && horizon.is_some())
+            && !transient && !job_page && scan.take != Bound::Meter;
         if metered_payload || transient { self.meter.heap(DisclosedBounds(&bounds).heap())?; }
         let mut cursor = bounds.clone();
         // One retained cursor/key allowance, outside the transient row scope.
@@ -896,6 +901,8 @@ impl<'r> Runner<'r> {
         let mut consumed = 0;
 
         'outer: loop {
+            if stop_at_bound && visible.len() == take { break; }
+            let batch = if stop_at_bound { batch.min(take - visible.len()) } else { batch };
             if transient {
                 if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
                 row_bytes = 0;
@@ -1084,7 +1091,7 @@ impl<'r> Runner<'r> {
                     }
                     self.next_expiry.inherit(pending);
                     row_expiry.emit();
-                    if (scan.existence || job_page) && visible.len() == take { break 'outer; }
+                    if (scan.existence || job_page || stop_at_bound) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 }
             }
