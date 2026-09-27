@@ -67409,3 +67409,24 @@ No second full-suite run, focused failure rerun, unrelated fix, push or
 publication. All tested source bytes remained unchanged through qualification.
 This dated entry is included in the merge commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+### 2026-09-27 — `idFrom(label)`: a fixture label names a valid id
+
+Two builders on two releases (the 0.4.3 comparative's Grok, and calibration
+#23's Astra on 0.4.4) hit `E_WRITE_ID` with fixture strings and wrote the same
+workaround: a hash of the label into the `mintId()` form. `snapback4/client`
+now exports `idFrom(label)`, which is that mapping. It takes the first 128
+bits of SHA-256 over `["snapback4:id:v1", label]` in 26 Crockford digits, with
+the first digit 0–7. It is synchronous on every host, through a small
+portable SHA-256 (`src/sha256.ts`), because Web Crypto's digest is
+asynchronous and Hermes has no `node:crypto`.
+
+- The derivation is pinned by a test, so fixtures replay across releases.
+- The portable hash is checked against `node:crypto` on 212 inputs, including
+  astral characters and lone surrogates.
+- `E_WRITE_ID`'s message, its `why` entry, `MutateOptions.id` and the README
+  (still 300 lines) point to it.
+
+The server's write records are keyed by principal and id, and nothing reads a
+write id's embedded time, so a derived id is as good as a minted one. Ids were
+never capabilities, and this is a name, not a secret.

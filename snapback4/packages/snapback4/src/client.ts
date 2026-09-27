@@ -25,6 +25,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
+import { sha256, utf8 } from "./sha256.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -109,6 +110,24 @@ export function mintId(now = Date.now()): string {
   // ids sort by the moment they were minted.
   let value = BigInt(now);
   for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+  let out = "";
+  for (let i = 0; i < 26; i++) {
+    out = ALPHABET[Number(value & 31n)] + out;
+    value >>= 5n;
+  }
+  return out;
+}
+
+/** The id a stable key names, in the `mintId()` form: the same key gives the
+ * same id on every client and host. For fixtures, seeds and replays keyed by a
+ * label (`idFrom("post-17")`), as a write id or a row id. It is a name, not a
+ * secret: anyone who knows the key knows the id. */
+export function idFrom(key: string): string {
+  if (typeof key !== "string" || key === "") throw new TypeError("idFrom: the key must be a non-empty string");
+  const digest = sha256(utf8(JSON.stringify(["snapback4:id:v1", key])));
+  // 128 bits fill 26 base32 digits with the first digit 0–7, as mintId's do.
+  let value = 0n;
+  for (let i = 0; i < 16; i++) value = (value << 8n) | BigInt(digest[i]!);
   let out = "";
   for (let i = 0; i < 26; i++) {
     out = ALPHABET[Number(value & 31n)] + out;
