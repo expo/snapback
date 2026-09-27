@@ -161,7 +161,7 @@ fn w14b_first_account_screen_is_self_contained() {
         "post-signup", "terminal", "cold-offline", "1,024 UTF-8 bytes", "8 characters",
         "// src/client.ts", "// App.tsx",
     ] { assert!(path.contains(text), "in-file first-screen path omits {text}"); }
-    assert!(!path.contains("]("), "required setup is in-file; external lookups belong in the reference map");
+    assert!(!path.split("### 6.").next().unwrap().contains("]("), "required account setup is in-file; the optional thread extension links the receipt recipe");
     assert!(!path.contains("guest("), "the first account is password-only");
     assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: result.asset.id }").unwrap());
     let source = quarry(path).into_iter().find(|block| block.contains("table profiles:")).unwrap();
@@ -270,7 +270,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let at = |who: &str, now: i64, pairs: &[(&str, Value)]| Context::new(who, args(pairs)).at(now);
     let receipt = |m: &Value| match m.field("receipt").unwrap() { Value::String(s) => s.to_string(), other => panic!("receipt is {other:?}") };
     let receipts = |engine: &mut Engine, conversation: &str| -> Vec<String> {
-        let page = engine.query("history", at("alice", 9_000, &[("conversation", id(conversation))])).unwrap();
+        let page = engine.query("messageReceipts", at("alice", 9_000, &[("conversation", id(conversation))])).unwrap();
         page.data.as_array().unwrap().iter().map(receipt).collect()
     };
     let c = || ("conversation", id("c"));
@@ -354,7 +354,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let everything = |engine: &mut Engine| -> Vec<String> {
         let (mut all, mut cursor) = (Vec::new(), Value::Null);
         loop {
-            let page = engine.query("history", at("alice", 9_000, &[long(), ("c", cursor)])).unwrap();
+            let page = engine.query("messageReceipts", at("alice", 9_000, &[long(), ("c", cursor)])).unwrap();
             all.extend(page.data.as_array().unwrap().iter().map(receipt));
             match page.next { Some(next) => cursor = Value::String(next), None => { all.reverse(); return all } }
         }
@@ -385,7 +385,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     let every = |engine: &mut Engine| -> Vec<String> {
         let (mut all, mut cursor) = (Vec::new(), Value::Null);
         loop {
-            let page = engine.query("history", at("alice", 9_000, &[win(), ("c", cursor)])).unwrap();
+            let page = engine.query("messageReceipts", at("alice", 9_000, &[win(), ("c", cursor)])).unwrap();
             all.extend(page.data.as_array().unwrap().iter().map(receipt));
             match page.next { Some(next) => cursor = Value::String(next), None => { all.reverse(); return all } }
         }
@@ -488,7 +488,7 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     }
     let (mut cursor, mut page) = (Value::Null, None);
     for _ in 0..3 {
-        let read = engine.query("history", at("alice", 9_000, &[wide(), ("c", cursor.clone())])).unwrap();
+        let read = engine.query("messageReceipts", at("alice", 9_000, &[wide(), ("c", cursor.clone())])).unwrap();
         cursor = read.next.clone().map(Value::String).unwrap_or(Value::Null);
         page = Some(read);
     }
@@ -761,18 +761,6 @@ fn every_card_compiles_clean() {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
-            if *keyword == "search" && n == 1 {
-                // This historical full-history example intentionally has no horizon.
-                // Keep the exception on this block and this exact site; every
-                // other card and every server operation must still compile silently.
-                let bound = compile(block);
-                assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-                assert_eq!(bound.notes.iter().map(|note| (note.code.as_str(), note.site.line, note.guide.as_str())).collect::<Vec<_>>(),
-                    [("N_NO_HORIZON", 9, "sync")]);
-                assert!(bound.notes[0].message.starts_with("table messages:"));
-                assert!(text.contains("This block intentionally emits N_NO_HORIZON"));
-                continue;
-            }
             if std::panic::catch_unwind(|| clean(&format!("card {keyword}, block {}", n + 1), &in_context(block))).is_err() { errors.push(format!("{keyword}: {}", n + 1)); }
         }
     }
@@ -807,7 +795,11 @@ fn w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol() {
         assert!(!section.contains(sentence), "obsolete protocol: {sentence}");
     }
     let server = block.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
-    clean("both server search forms", &server);
+    // Turning off every sync deliberately makes searchHeld an unsynced held read.
+    let bound = compile(&server);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(!bound.notes.is_empty());
+    assert!(bound.notes.iter().all(|note| note.code == "N_HELD_UNKNOWN" && note.message.contains("searchHeld")), "{:?}", bound.notes);
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an

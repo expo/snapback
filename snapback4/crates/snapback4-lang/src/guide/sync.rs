@@ -1,3 +1,4 @@
+// @ref LLP 3000.021#3.1 — history is an ordinary page on the sync horizon index.
 //! The sync card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of sync
 
@@ -45,7 +46,41 @@ table threads:
   delete <- deny
   retain delivered-history                  -- a device keeps these rows after it leaves the thread
   sync to participants[.id] by .personId    -- each row reaches every principal with a participants row whose threadId matches
+
+table messages:
+  conversation: threads
+  body: text <=2000
+  at: time
+  search body
+  read <- exists participants[.conversation, viewer]
+  retain delivered-history
+  sync to participants[.conversation] by .personId last 500 by .at
+
+query conversationScreen(c: threads):
+  return threads[c]
+
+query history(c: threads, page: cursor ?):
+  return messages where .conversation = c last 20 by .at after page
+
+query searchHeld(q: text <=100, page: cursor ?) held:
+  return messages matching q last 20 by .at after page
+
 ```
+
+The ordinary `history` page uses the horizon's index, with no membership
+`require`. Table rules protect server reads. Before acquisition or beyond
+coverage the local client can ask the server; after leave it keeps the
+retained page local, online and offline. Pin `conversationScreen` by id.
+Keep receipts, profiles, quotes and reactions in separate queries rendered
+beside history, as `guide app` and `guide receipts` show. A decoration that
+loads or refuses must not take the page with it.
+
+Use `held` only for a read the server cannot answer, such as `searchHeld`
+over every chat this device holds. It never falls back, even online.
+N_HELD_UNKNOWN names a held query's read of a table, view or `read through`
+parent with no `sync`, or `connected[...]` server presence, including reads
+inside helpers and shapes: move the read to its own query,
+or drop `held`. A horizon or word index alone does not cause this note.
 
 ```text
 sync [last N by .at]                           audience inferred from the read rule

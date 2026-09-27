@@ -358,7 +358,6 @@ fn prepare(options: Options) -> Result<Run> {
     if app_pid(&simctl(&["spawn", &udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
         return Err(error("E_WITNESS_APP", format!("{} is already running on {udid}; quit it before starting the witness", options.bundle)));
     }
-    reserve_artifacts(&options.artifacts, &options.segment)?;
     let run = format!("{}-{}", now(), std::process::id());
     let dir = container.join("Documents/.snapback4-witness").join(&run);
     fs::create_dir_all(&dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -379,7 +378,23 @@ pub fn run(args: &[String]) -> i32 {
         let options = Options::parse(args)?;
         #[cfg(unix)]
         unsafe { libc::signal(libc::SIGINT, interrupt as *const () as libc::sighandler_t); libc::signal(libc::SIGTERM, interrupt as *const () as libc::sighandler_t); }
-        let mut run = prepare(options)?;
+        platform(std::env::consts::OS)?;
+        reserve_artifacts(&options.artifacts, &options.segment)?;
+        let failure_path = options.artifacts.join(format!("{}-ios-run.json", options.segment));
+        let mut preparation = json!({ "bundleId": options.bundle, "segment": options.segment,
+            "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
+            "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
+            "events": [], "artifacts": {} });
+        let mut run = match prepare(options) {
+            Ok(run) => run,
+            Err(problem) => {
+                preparation["error"] = json!(problem);
+                preparation["finishedAt"] = json!(now());
+                fs::write(&failure_path, serde_json::to_vec_pretty(&preparation).unwrap())
+                    .map_err(|e| error("E_WITNESS_ARTIFACT", format!("{problem}; could not write {}: {e}", failure_path.display())))?;
+                return Err(problem);
+            }
+        };
         let result = run.execute();
         INTERRUPTED.store(false, Ordering::Relaxed);
         // On failure finalize capture before collecting and hashing artifacts.

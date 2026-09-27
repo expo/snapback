@@ -67149,3 +67149,250 @@ and eight Rust processes, normal parallel clients, no assertion/count/timeout
 relaxation. Report: `reports/20260927-lane-a5-list-offline.md`, round 3;
 evidence: ignored `target/a5-evidence/round3-*`. Full-suite log SHA-256:
 `0fb4b438e83ec8238a9ebbefe00f7d9884e72615b8b7ef1a2bcdb9758e459ce9`.
+
+
+## 2026-09-26 — DQ: Darwin qualification for 0.4.4
+
+Lane `sb4/darwin-qual`, starting at `dde688548d`, on the black M5:
+macOS 26.6.2 (25G83), arm64, 18 CPUs; Node 24.18.0, Bun 1.4.2,
+rustc 1.97.0. Read the failed publication attempt-2 log and reproduced
+its defects/premises before changing them. Frozen Bun installation passes.
+Evidence logs are ignored under `snapback4/target/lane-dq/`.
+
+- **Refused legacy adoption:** all three published 0.2.33 capability fences
+  reproduced the extra durable `_device_residency` row. Raw SQLite open
+  installed counters before capability validation. Durable counters now
+  install in the successful schema/adoption transaction. An unchanged old
+  backend uses TEMP counters/triggers, invalidated by peer `data_version`,
+  so inspection preserves its bytes while keeping `client.residency()`
+  correct without rescanning unchanged rows. The regression also covers
+  peer/own writes and promotion without duplicate triggers. Existing
+  published-fence assertions are unchanged. Capability file: 10/10 runs
+  (4 tests each); native residency: 10/10 (6 each).
+- **Blocked response writes:** the original two tests failed on Darwin.
+  Loopback TCP inflated the requested 1 KiB buffers to 65,328 B send and
+  326,640 B receive, absorbing their 16–17 KiB response. The tests now use
+  real Unix sockets whose actual buffer sizes are asserted (each <=4 KiB,
+  combined below the payload), and assert that the writer is still pending
+  before and after the 200 ms read hold. The held-poll path uses release
+  HTTP authorization with a real bearer; the real writer and original
+  timing assertions remain. All 8 duration tests pass in 10/10 runs:
+  blocked JSON totals 203.407–210.660 ms, held final frame
+  203.687–213.800 ms. Mutating completion to occur before the write makes
+  both tests fail; the mutation was removed.
+- **Exited worker/adoption:** the original focused case passed 20/20
+  naturally. A controlled 2,200 ms child-exit delay reproduced its 2 s
+  setup failure. The authorizer's `E_STORE: not authorized` is the test's
+  deliberate denial after releasing the held adoption gate, not a Darwin
+  deadlock. Setup/restart waits now have named 10 s deadlines; reads must
+  still answer within 2 s while the writer remains held. A second test
+  pins the delayed-exit schedule. Repetition exposed parallel fixture
+  directory collisions on identical Darwin timestamps; a process-local
+  sequence fixes those names. The final original/delayed pair passes
+  10/10 runs. No read latency or adoption/revocation assertion was relaxed.
+- **Witness manifest:** the historical log does not identify which mode
+  failed or retain its stderr; the original four-mode case passed 10/10
+  naturally, so the exact historical mode remains unconfirmed. A controlled
+  simulator-discovery timeout reproduced the missing manifest: `prepare`
+  returned before a Run could save it. Valid invocations now reserve output
+  names before discovery and save a failed preparation manifest on that
+  error, without claiming an app or backend started. Invalid arguments,
+  unsupported platforms and occupied output names still refuse without
+  overwriting evidence. A new regression pins the discovery timeout;
+  receipt-timeout assertions now also prove they reached the intended
+  receipt step. Full witness file: 25 tests, 10/10 runs.
+- **Node QoS:** the asset-budget case passed 20/20 baseline reruns, so no
+  spontaneous `setTypeOfService EINVAL` was reproduced. The SDK passes no
+  QoS option; Node 24.18's bundled Undici makes the unguarded macOS call.
+  App-test fetch instrumentation bypassed the SDK's existing pinned,
+  patched dispatcher. It now wraps that same SDK default transport. The
+  existing injected-EINVAL transport regression passes, and the asset case
+  passes another 20/20 runs.
+- **Hidden strict admission:** reproduced 8 failures in 10 baseline runs,
+  all the original “transport entered under the session lock” assertion.
+  A later outbox commit could publish after admission while another local
+  session turn held the lock. Exit notifications now wait for queued local
+  session turns to drain without acquiring the lock. The original peer
+  logout assertion remains; a deterministic second-turn regression fails
+  when the fix is removed. Focused pair: 10/10; complete browser file:
+  55/55.
+
+Focused repetitions ran with one-minute host loads from 14.37 to 53.24
+across 18 CPUs. Intermediate reader-fixture collision failures are retained
+in the logs and were fixed before the final worker repetitions. Initial
+fresh-tree missing build artifacts and disk exhaustion were setup failures,
+not product reproductions. Only this lane's disposable Cargo outputs were
+cleaned. Test/dev debug symbols and incremental compilation were disabled
+(`CARGO_PROFILE_TEST_DEBUG=0`, `CARGO_PROFILE_DEV_DEBUG=0`,
+`CARGO_INCREMENTAL=0`), with `CARGO_BUILD_JOBS=4`; optimizations and debug
+assertions are unchanged. Used the publication SQLite input
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` throughout qualification.
+
+Package typecheck/build pass. Final reference audit: 515 LLP docs, 9,557 refs
+in 27,047 files, zero errors or unchecked. Rebuilt wasm: 1,980,481 B raw /
+572,055 B gzip, within the unchanged 572,841 B budget; SHA-256
+`97dcfbfa888a28f52cb08d23417cf0a552106d227ba39dcf5d5016ef44f8809c`.
+Updated LLP 3000.019 §3.4 and LLP 3000.007 §§20.4/20.10 with the fixes.
+
+Ran `bash scripts/test.sh` exactly once on code commit `764ca07ac2`, with
+`SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33`:
+**`== 0 failure(s) in 1794 s`, exit 0** (supervisor wall time 1794.418 s).
+All stages pass: build, wasm, docs budget, release guard, package typecheck
+and build, chat check, both app typechecks, fixture wrappers (9/9), Rust
+(3,804 passed, zero failed, 24 existing ignores; 1,352 s), client tests
+(2,528 passed, zero failed, five existing skips across the main group and
+seven shards; 192 s), and all 78 seeded-model tests (158 s). The full run
+includes the three published capability fences, both blocked writes, both
+worker schedules, all 25 witness cases, the asset-budget case and both
+browser lock-order cases. Complete output and invocation receipt:
+`target/lane-dq/full-suite.log` and `target/lane-dq/full-suite.json`.
+This elapsed time exceeds the repository's 60 s suite target; the budget
+was not changed.
+
+No added test skips, weakened guarantees, budget increases, package version
+changes, push or publication. Commits carry the requested GPT-6 Astra
+coauthor. The final journal-only commit follows the qualified code commit.
+
+### 2026-09-27 — Lane GN: ordinary retained history and first-account guidance
+
+Implemented LLP 3000.021 P12/P15/P16 on `sb4-intent/gn-guide-note`, base
+`dde688548`; local implementation commits `63c48dddf` and `b72a28dc7`.
+`N_HELD_UNKNOWN` walks lowered reads, including expanded helpers/shapes,
+nested points and `exists`, and names a table/view with no sync plus the
+rewrite to move the read or drop held. It changes no routing, authorization,
+disclosure, durability, meters, IR or client contract. Held word search stays
+device-only; its generated empty-needle branch no longer receives history-order
+advice, while ordinary mismatched pages still do.
+
+The app, sync and receipts cards show bare ordinary history, separate
+receipt/profile/quote/reaction reads, and a pinned retained conversation beside
+retained messages. The guide inboxes drop until-revoked memberships. The README
+adds accepted write IDs and one mintId per kept intent, ordinary history,
+retention, held search, the receipts link, product caps and Following naming.
+Duplicate reference examples made room within the unchanged 300-line budget.
+The search card now has a horizon, removing the guide test's old note exception.
+Its existing search witnesses explicitly keep their original full-history
+control and ten-row horizon cases. The frozen compatibility fixture set remains
+unchanged; the new comparative messaging excerpt lives under tests/history/.
+The authoring census removes only the three deleted README addNote entries.
+
+Seven new compiler tests pass; the whole guide passes 86/86 without an exception.
+Eight real-server JS tests on wasm and process devices pass: cold DM fallback,
+HTTP history with separate decorations, held refusal, nonpredicting offline
+send listed by pendingWrites through reopen and settlement, and the two exact
+guide programs plus the comparative through leave/removal, remount and reopen
+both offline and online. The comparative excerpt preserves its original retained
+members policy, so its local inbox can still keep a membership after removal;
+the guide inbox-drop assertions apply to the guides. The report gives the
+reproduction and every full-suite failure by name.
+
+Ran scripts/test.sh once: `== 1 failure(s) in 1375 s`, exit 1; only failing
+check: cargo test (903 s). Rust reported 3,758 passed / 34 failed / 24 ignored.
+All 34 failures were ours, caused by test inputs: 32 search witnesses inherited
+the new guide horizon while expecting full coverage; the authoring census still
+included a removed README example; the frozen fixture census included our new
+fixture. Corrected those inputs without weakening assertions or altering runtime
+code. Affected reruns pass: compiler/guide 94/94, census 1/1, device search 50/50,
+server search 17/17. The original red full run is preserved; no second full run
+or claim that it was green. No baseline or environmental failure observed.
+Client main passes 2,474 with 10 skips, seven shards pass 56, all 78 seeded
+models pass, fixture wrappers pass 9, and both app typechecks, package build/
+typecheck, docs budget, release guard and wasm budget pass. The eight new JS
+acceptance cases also pass within that full run.
+
+Wasm is 1,980,253 B raw / 571,841 B gzip, +0 B against the integration baseline,
+under the unchanged 572,841 B budget. SHA-256:
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug off,
+file limit 65,536. Frozen Bun install and ref-check pass (515 LLP docs, 9,566
+refs, zero errors/unchecked). No changed source exceeds 1,500 lines.
+
+No delivery reporter, package version/budget increase, runtime/client change,
+Apple simulator, Expo UI or whole comparative rerun. The acceptance program is
+the relevant messaging excerpt, not the unrelated feed/media/typing/digest
+features; the comparative packet was untouched. No push or publication.
+Full report: `reports/20260927-gn-guide-note/REPORT.md`; raw and affected-check
+logs: ignored `target/lane-gn/qualification/`.
+
+### 2026-09-27 — Lane GN round 1: executable imports, unavailable held reads and complete history assertions
+
+Read the binding lane prompt, round-0 report and journal, and both complete
+READY WITH CHANGES reviews. First fetched and merged origin/main: already up
+to date at ac7d82185, with no conflict. Fixed the four requested findings.
+The README imports mintId from snapback4/client and names the feeds card's
+query home. The held note also names an unsynced read-through parent and
+connected server presence, using the existing lowered reads and expanded
+source locations; horizon and word-index examples stay silent. Updated its
+code entry, sync-card explanation, why text and definition assertion.
+
+The compiler tests now pin a bare scan return for comparative history and all
+three guide histories, catching both the projection and sync-card membership
+require mutations. Acceptance copies the original comparative's image-send,
+edit and delete mutations and asserts all 17 stored history columns on HTTP
+and acquired wasm/process clients. Original quote, editedAt, reaction and
+photoOnce first/second-open assertions remain. A focused React bubble renders
+real bare history and unpredicted pendingWrites while all four separate
+decoration snapshots load or refuse; it also renders ready decorations, edited
+labels, quote jumps, view-once buttons and tombstones.
+
+Restored checks: compiler 10/10, whole guide 86/86, frozen compatibility 1/1,
+client/first-account 16/16. Actual public-export imports and the kept-intent
+snippet execute in Node. Expo/Metro web plus headless Chromium evaluated all
+23 first-account bindings with zero runtime errors, including the platform
+imports and generated API. No dependency or lockfile changed. Seven source
+mutations were killed, with eight failing commands: root import, missing
+parent note, missing presence note, projected history (compiler and client),
+sync membership require, homeFeed naming, and decoration-gated rendering.
+Sources were restored before the final positive checks.
+
+Ran scripts/test.sh once at the end: `== 0 failure(s) in 997 s`, exit 0.
+Rust tests/doctests (535 s), every build/typecheck/budget stage, nine fixture
+wrappers, client main 2,480 passed with 10 intentional skips, seven client
+shards 56 passed, and all 78 seeded models passed. No introduced, baseline or
+environmental test failure. Wasm remains 1,980,253 B raw / 571,841 B gzip,
+zero delta, 1,000 B below the unchanged 572,841 B budget; SHA-256
+61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c.
+Frozen Bun install and reference audit passed (515 LLP docs, 9,567 refs,
+zero errors/unchecked). Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo
+jobs, dev/test debug off, file limit 65,536. README remains 300 lines; changed
+source files stay under 1,500.
+
+No unresolved round-1 finding or deviation. No production runtime/client,
+authorization, disclosure, durability, meter, version, budget, search fixture
+or frozen fixture change; no full comparative or Apple UI rerun. No push or
+publication. The original retained-members policy remains the round-0
+fixture's policy. Report: reports/20260927-gn-guide-note/REPORT.md, Round 1.
+Exact logs and the browser import probe: target/lane-gn-round1/.
+
+### 2026-09-27 — Lane GN round 2: note only reads that pin the parent
+
+Read the lane prompt, prior reports and journal entries, and both complete
+round-1 READY WITH CHANGES reviews. Corrected their shared parent-note
+finding: a synced child's held point, exists and unpinned page use captured
+authority and do not need the parent. The compiler now adds the read-through
+parent only when the scan's equality prefix includes its reference, matching
+the engine's parent_pinned test, or for a parent-key aggregate point. The
+connected arm is unchanged. This corrects the round-1 entry's broad parent
+claim; no runtime behavior changed.
+
+Replaced the old false-positive test with three independent silent controls
+and two positive tests. The unpinned pages include ordering by the parent
+without filtering it. All cases cover omitted sync, online only, sync and
+sync horizons; the aggregate checks the parent note separately from its own
+unsynced-view advice. Restoring the overbroad parent walk fails all three
+controls (11 pass, 3 fail); dropping the parent dependency fails both
+positives (12 pass, 2 fail). Restored the compiler before qualification.
+
+Affected checks passed: held_unknown 14, whole guide 86, frozen compatibility
+1, read_through 10 and read_through_sync 5 — 116 passed, zero failed. Guide
+held examples remain silent. Reference audit: 515 LLP docs, 9,567 refs, zero
+errors/unchecked. As instructed, did not rerun scripts/test.sh: round 1's
+qualifying result is `== 0 failure(s) in 997 s`, exit 0. Rechecked the existing
+wasm artifact without rebuilding: 1,980,253 B raw / 571,841 B gzip, zero delta,
+1,000 B below the unchanged budget; SHA-256
+61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c.
+
+No deviation or open round-2 finding. Changed only the compiler note, its
+test, this append and the report's round-2 section. No runtime/client, guide,
+version or budget change, push or publication. Report:
+reports/20260927-gn-guide-note/REPORT.md; logs: target/lane-gn-round2/.

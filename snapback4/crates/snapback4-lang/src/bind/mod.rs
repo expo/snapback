@@ -31,6 +31,7 @@ mod view_predicate;
 mod intent_lanes;
 mod intent_windows;
 mod intent_sync;
+mod held;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -199,6 +200,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(residency::sync_order_notes(&schema, &programs));
+    notes.extend(held::notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
     index_diagnostics::authored(&catalog, &mut diagnostics);

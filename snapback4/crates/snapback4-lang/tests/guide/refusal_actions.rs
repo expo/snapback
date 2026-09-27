@@ -221,6 +221,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_SYNC_ORDER", &["Use `last N by .at, .id` for the example above, keeping the audience predicate and cursor", "a held query stays local with incomplete coverage"]),
     ("N_NO_HORIZON", &["Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`", "An absent note does not certify bounded acquisition or a safe cold-start size"]),
     ("N_PUBLIC_AGGREGATE_COPY", &["Use `likeCount: count likes` for an engine-owned count", "pin its source in both write rules"]),
+    ("N_HELD_UNKNOWN", &["Move the read to its own query, or drop `held`.", "A horizon or a word index alone does not cause this note."]),
     ("N_SEEK", &["write `messages where .roomId = roomId and .at >= start first 20 by .at after c`", "the planner makes that comparison a seek"]),
     ("N_SPARSE_FILTER", &["Use the Following view, or pin the deciding columns for another read"]),
     ("N_TIMELINE_COMPAT", &["`authors` and `size` lines are unused compatibility inputs", "Remove them"]),

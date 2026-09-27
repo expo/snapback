@@ -1,9 +1,11 @@
+// @ref LLP 3000.021#3.1 — receipt reads live beside a bare ordinary history.
+// @ref LLP 3000.021#3.4 — retaining the parent keeps the pinned screen after leave.
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
 Each member's client records what it fetched and how far it has shown it, as
 ordinals, on its own membership row and in runs beside it. One helper turns them
-into every message's receipt, `sent`, `delivered` or `read`, live in the history
-query.
+into every message's receipt, `sent`, `delivered` or `read`, rendered beside
+the history page.
 
 ```quarry
 table conversations:
@@ -14,6 +16,7 @@ table conversations:
   insert <- .creatorId = viewer
   update <- exists members[.id, viewer]
   after insert <- exists members[conversation = .id, principal = .creatorId]
+  retain delivered-history
   sync to members[.id]
 
 table members:
@@ -50,11 +53,13 @@ table messages:
   ordinal: int
   recipients: int
   text: text <=2000
+  quote: messages ?
   at: time
   unique byConversationOrdinal: conversation, ordinal
   immutable conversation, sender, ordinal, recipients, at
   read <- exists members[.conversation, viewer]
   insert <- .sender = viewer and exists members[.conversation, viewer]
+  retain delivered-history
   sync to members[.conversation] last 500 by byConversationOrdinal
 
 fn receipt(m: messages):
@@ -71,8 +76,17 @@ fn receipt(m: messages):
         state = 'delivered'
   return state if remaining > 0 or m.recipients > 0 else 'sent'
 
+query conversationScreen(conversation: conversations):
+  return conversations[conversation]
+
+query inbox(c: cursor ?):
+  return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
+
 query history(conversation: conversations, c: cursor ?):
-  return messages where .conversation = conversation last 20 by .ordinal after c { *, receipt: receipt(.) }
+  return messages where .conversation = conversation last 20 by .ordinal after c
+
+query messageReceipts(conversation: conversations, c: cursor ?):
+  return messages where .conversation = conversation last 20 by .ordinal after c { id, receipt: receipt(.) }
 
 query progress(conversation: conversations, c: cursor ?):
   me = members[conversation, viewer] ! else NOT_MEMBER
@@ -132,7 +146,48 @@ mutation seen(conversation: conversations, through: int):
   if through > me.seenOrdinal:
     update members[me] { seenOrdinal: through }
   return null
+
+table profiles:
+  principal: principal
+  name: text <=80
+  unique principal
+  public 'display names are public'
+  sync last 500 by .id
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text <=16
+  unique message, principal
+  cap 32 by message
+  immutable message, principal
+  read through .message
+  online only
+
+query messageAuthor(message: messages):
+  return profiles[principal = messages[message].sender]
+
+query quotedMessage(message: messages):
+  return messages[messages[message].quote]
+
+query messageReactions(message: messages):
+  return reactions where .message = message first 32 by .principal
+
 ```
+
+Pin `conversationScreen` by id beside the bare, ordinary `history` page.
+Neither requires membership: table rules still protect every server read.
+Retention on both conversations and messages keeps the delivered screen on
+local clients after leave, remount and reopen, offline and online. The inbox
+reads memberships and drops the row when that member row is deleted.
+An online-only client cannot recover these retained rows.
+
+Render `messageReceipts`, profiles, quotes and reactions from their own
+queries beside history. A decoration that loads or refuses leaves the page
+intact. Use `held` only for a read the server cannot answer, such as word
+search over every chat held on a device. An ordinary history can ask the
+server before acquisition or past its horizon; a left group's retained page
+stays local.
 
 Every message takes the conversation's next ordinal, and a member records the
 last ordinal when they join. So commit order, not the clock, decides a
@@ -272,6 +327,7 @@ function useReceipts(conversation: string, visible: boolean) {
 ```
 
 Render a clock while a message is `pending`; after settlement render `receipt`
+from `messageReceipts`, matched by message id, beside the bare history
 as one tick (`sent`), two ticks (`delivered`) or two colored ticks (`read`). A
 typing indicator is an expiring table (`guide reads`); who is connected now is
 `connected[p]` (`guide presence`)."##;

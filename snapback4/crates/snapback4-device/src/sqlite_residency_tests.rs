@@ -1,4 +1,10 @@
 use super::*;
+
+fn install(conn: &Connection) -> Result<(), RuntimeError> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    install_in(&tx, true)?;
+    Ok(tx.commit()?)
+}
 use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, time::Duration};
 
 #[test]
