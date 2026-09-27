@@ -173,8 +173,11 @@ fn background_refusal_rolls_back_chunk_and_parks_work() {
     let mut b=bound(true);b.schema.tables.get_mut("feedFeed").unwrap().constraints.push(snapback4_core::schema::Constraint::Cap{by:vec![],max:2});
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     for (n,who) in ["b","c"].into_iter().enumerate() {sent(&mut e,"follow",who,&[("authorId",id("a"))],n as i64);}
-    drain(&mut e);sent(&mut e,"publish","a",&[("postId",id("p"))],2);
-    drain(&mut e);assert_eq!(rows(&e,"feedFeed").len(),1,"first follower copy rolls back when the second exceeds the cap");
+    // One chunk must hold both copies for the rollback this test pins. The
+    // default cooperative time slice can end after one row under load.
+    let whole = |e: &mut Engine| while e.run_timeline_chunk_for(10000, std::time::Duration::from_secs(3600)).unwrap().is_some() {};
+    whole(&mut e);sent(&mut e,"publish","a",&[("postId",id("p"))],2);
+    whole(&mut e);assert_eq!(rows(&e,"feedFeed").len(),1,"first follower copy rolls back when the second exceeds the cap");
     assert_eq!(e.timeline_work_counts().unwrap(),[("feed".into(),0,1)]);
     assert!(!rows(&e,"feedWork")[0].field("error").unwrap().as_str().unwrap().is_empty());
 }
