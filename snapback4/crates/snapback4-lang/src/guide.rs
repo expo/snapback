@@ -325,6 +325,8 @@ leaves local stores on the next sync. In development, `snapback4 clock advance 1
 runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
+Mutation scans of expiring tables follow guide programs; unswept rows still
+cost examined work, and a backlog can refuse the whole write (why E_BOUND).
 For receipt gaps in expiring messages, use `sequence by` and bounded unique
 ordinal probes: `guide sequences` has the compiled recipe and a row-keyed count.
 Disappearing messages are one field on

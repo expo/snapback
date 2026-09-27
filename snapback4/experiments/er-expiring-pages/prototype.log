@@ -1,0 +1,99 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 41.52s
+     Running tests/er_expiry_research.rs (target/debug/deps/er_expiry_research-ed0ef6ee777ef954)
+
+running 5 tests
+test backlog_measurements ... ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":19.32,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":24.727,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":12.279,"observation":{"fetched":1,"meter":{"examined":2,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Bool":true},"store_calls":1},"op":"has","p95_us":13.09,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":23.906000000000002,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Int":2},"store_calls":3},"op":"total","p95_us":24.817,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":3.686,"observation":{"fetched":0,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":4.335999999999999,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":3211.054,"observation":{"fetched":0,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":4473.557000000001,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":4096,"median_us":13.901,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":22.884,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":9.194,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":9.524000000000001,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":6.309,"observation":{"fetched":1,"meter":{"examined":2,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Bool":true},"store_calls":1},"op":"has","p95_us":12.129,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":17.917,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Int":2},"store_calls":3},"op":"total","p95_us":18.838,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":1.773,"observation":{"fetched":0,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":3.2449999999999997,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":2354.53,"observation":{"fetched":0,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":2715.8120000000004,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":4096,"median_us":14.280999999999999,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":18.417,"samples":31,"store":"memory"}
+ER_SWEEP {"backlog":0,"calls":1,"elapsed_us":24.918,"removed":0}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":5858.432,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":6275.889,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4698.444,"observation":{"fetched":1001,"meter":{"examined":1002,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Bool":true},"store_calls":1001},"op":"has","p95_us":6169.669,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":5357.1410000000005,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Int":2},"store_calls":1003},"op":"total","p95_us":6397.8910000000005,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4.957,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":5.939,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":5242.849,"observation":{"fetched":1000,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":7061.596,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":4096,"median_us":5714.216,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":6469.639,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2445.025,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":3299.395,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4742.84,"observation":{"fetched":1001,"meter":{"examined":1002,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Bool":true},"store_calls":1001},"op":"has","p95_us":4896.661,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4473.066000000001,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Int":2},"store_calls":1003},"op":"total","p95_us":4772.1140000000005,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2.544,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":2.864,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":3795.661,"observation":{"fetched":1000,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":4242.55,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":4096,"median_us":3025.947,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":3700.8779999999997,"samples":31,"store":"memory"}
+ER_SWEEP {"backlog":1000,"calls":1,"elapsed_us":15851.793,"removed":1000}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":40228.126000000004,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"page","p95_us":58877.292,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":49091.433,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8198},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"has","p95_us":65007.37299999999,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":58133.328,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8197},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"total","p95_us":68336.774,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":5.298,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":6.34,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":5705.964,"observation":{"fetched":1024,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":5915.818,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":4096,"median_us":21242.253999999997,"observation":{"fetched":4096,"meter":{"examined":4097,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":4096},"op":"page","p95_us":29279.353000000003,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":29308.115999999998,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"page","p95_us":32336.425000000003,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":29612.372000000003,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8198},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"has","p95_us":42856.215000000004,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":28420.665,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8197},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"total","p95_us":43874.402,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":4.687,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":6.149,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":3358.464,"observation":{"fetched":1024,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":5942.9490000000005,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":4096,"median_us":13829.001,"observation":{"fetched":4096,"meter":{"examined":4097,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":4096},"op":"page","p95_us":16318.062000000002,"samples":31,"store":"memory"}
+ER_SWEEP {"backlog":10000,"calls":10,"elapsed_us":110440.681,"removed":10000}
+ok
+test current_admission_matrix_and_live_cap ... ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"bound"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"loop"}
+ER_ADMISSION {"cap":false,"codes":["E_QUARRY_PLACEMENT"],"server":false,"shape":"whole"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"exists"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"count"}
+ER_ADMISSION {"cap":false,"codes":[],"server":false,"shape":"point"}
+ER_ADMISSION {"cap":false,"codes":[],"server":true,"shape":"bound"}
+ER_ADMISSION {"cap":false,"codes":[],"server":true,"shape":"loop"}
+ER_ADMISSION {"cap":false,"codes":["E_QUARRY_PLACEMENT"],"server":true,"shape":"whole"}
+ER_ADMISSION {"cap":false,"codes":[],"server":true,"shape":"exists"}
+ER_ADMISSION {"cap":false,"codes":[],"server":true,"shape":"count"}
+ER_ADMISSION {"cap":false,"codes":[],"server":true,"shape":"point"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"bound"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"loop"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"whole"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"exists"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"count"}
+ER_ADMISSION {"cap":true,"codes":[],"server":false,"shape":"point"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"bound"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"loop"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"whole"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"exists"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"count"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"point"}
+ER_CAP {"live_cap":4,"physical_rows":12,"sweeps":0}
+ok
+test prototype_admits_natural_program_and_preserves_receipts ...
+thread 'prototype_admits_natural_program_and_preserves_receipts' (1272866) panicked at crates/snapback4-lang/tests/er_expiry_research.rs:34:5:
+MutationOutcome { state: Failed { why: Refusal { code: "E_INPUT", family: "input", message: "E_INPUT: natural takes no argument ordinal", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 0, heap_bytes: 0, output_bytes: 0, rows_written: 0 }, tables: [], events: 0, replayed: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test prototype_refuses_effects_including_serialized_ir_and_site_aliases ...
+thread 'prototype_refuses_effects_including_serialized_ir_and_site_aliases' (1272924) panicked at crates/snapback4-lang/tests/er_expiry_research.rs:78:5:
+assertion failed: check(&alias).is_err()
+FAILED
+test removing_only_the_expiry_guard_discloses_a_retained_ordinal ...
+thread 'removing_only_the_expiry_guard_discloses_a_retained_ordinal' (1272925) panicked at crates/snapback4-lang/tests/er_expiry_research.rs:117:5:
+assertion `left != right` failed: counterexample stopped distinguishing the worlds: [Object {"code": String("STOP"), "meter": Object {"examined": Number(2), "heap_bytes": Number(8869), "index_entries": Number(4), "output_bytes": Number(0), "rows_written": Number(1), "rule_probes": Number(0), "steps": Number(19)}, "retained_ordinal": Number(1)}, Object {"code": String("STOP"), "meter": Object {"examined": Number(1), "heap_bytes": Number(8869), "index_entries": Number(4), "output_bytes": Number(0), "rows_written": Number(1), "rule_probes": Number(0), "steps": Number(19)}, "retained_ordinal": Number(2)}]
+  left: String("STOP")
+ right: String("STOP")
+FAILED
+
+failures:
+
+failures:
+    prototype_admits_natural_program_and_preserves_receipts
+    prototype_refuses_effects_including_serialized_ir_and_site_aliases
+    removing_only_the_expiry_guard_discloses_a_retained_ordinal
+
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.30s
+
+error: test failed, to rerun pass `-p snapback4-lang --test er_expiry_research`

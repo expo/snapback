@@ -301,8 +301,28 @@ mutation totalMutation():
     for change in ["  expiresAt: time ?\n  by byExpiry: expiresAt\n  expire at .expiresAt\n", ""] {
         let changed = source.replace("  n: int\n", &format!("  n: int\n{change}")).replace("read <- .owner = viewer", if change.is_empty() {"read <- .n = 0"} else {"read <- .owner = viewer"});
         let changed = format!("{}mutation totalMutation{}", changed.split("query total").next().unwrap(), changed.split("mutation totalMutation").nth(1).unwrap());
-        let bound = snapback4_lang::compile(&[("schema.q".into(),changed)]);
-        assert!(bound.diagnostics.iter().any(|d| d.code=="E_STRUCTURAL_FANOUT"), "{:?}",bound.diagnostics);
+        let bound = snapback4_lang::compile(&[("schema.q".into(),changed.clone())]);
+        if change.is_empty() {
+            assert!(bound.diagnostics.iter().any(|d| d.code=="E_STRUCTURAL_FANOUT"), "{:?}",bound.diagnostics);
+            continue;
+        }
+        // @ref LLP 3000.025#3-proposed-rule — a never-predicting domain count may precede effects; moving an emit before it refuses.
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert_eq!(bound.schema.operations["totalMutation"].predicts.as_deref(), Some("never"));
+        let effect_first = changed.replace("mutation totalMutation():\n", "mutation totalMutation():\n  emit notify {}\n");
+        let refused = snapback4_lang::compile(&[("schema.q".into(), effect_first)]);
+        assert!(refused.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"), "{:?}", refused.diagnostics);
+        let mut expiring = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let rows: Vec<(String, Value)> = (0..8).map(|i| ("items".into(), wire::row_from_json(expiring.schema().table("items").unwrap(),
+            &json!({"id":format!("i{i}"),"owner":"alice","n":i,"active":i%2==0,"expiresAt":if i<4 {json!(1)} else {Json::Null}})).unwrap())).collect();
+        expiring.load_trusted(rows).unwrap();
+        let result = expiring.mutate("totalMutation", Some("live-total"), Context::new("alice", BTreeMap::new()).at(2)).unwrap();
+        assert!(matches!(result.state, snapback4_core::engine::WriteState::Sent { result: Value::Int(2), .. }), "{result:?}");
+        assert_eq!(expiring.effects(None, 10).unwrap().len(), 1);
+        expiring.set_ceilings(Ceilings { examined: 3, ..Ceilings::default() });
+        let cut = expiring.mutate("totalMutation", Some("expiry-cut"), Context::new("alice", BTreeMap::new()).at(2)).unwrap();
+        assert!(matches!(cut.state, snapback4_core::engine::WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{cut:?}");
+        assert_eq!(expiring.effects(None, 10).unwrap().len(), 1);
     }
 }
 

@@ -1,0 +1,138 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling typenum v1.20.1
+   Compiling unicode-ident v1.0.24
+   Compiling subtle v2.6.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling libm v0.2.16
+   Compiling shlex v2.0.1
+   Compiling serde_core v1.0.229
+   Compiling cc v1.4.5
+   Compiling pkg-config v0.3.34
+   Compiling vcpkg v0.2.15
+   Compiling generic-array v0.14.7
+   Compiling bitflags v2.13.2
+   Compiling wasmparser v0.228.0
+   Compiling zmij v1.0.23
+   Compiling wasmi_ir v2.0.0
+   Compiling libc v0.2.189
+   Compiling foldhash v0.2.0
+   Compiling syn v3.0.5
+   Compiling hashbrown v0.17.1
+   Compiling cpufeatures v0.2.17
+   Compiling cfg-if v1.0.4
+   Compiling rand_core v0.6.4
+   Compiling wasmi_core v2.0.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling getrandom v0.3.4
+   Compiling libsqlite3-sys v0.38.2
+   Compiling base64ct v1.8.3
+   Compiling wasmi v2.0.0
+   Compiling serde_json v1.0.151
+   Compiling tinyvec_macros v0.1.1
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.20
+   Compiling tinyvec v1.13.2
+   Compiling password-hash v0.5.0
+   Compiling blake2 v0.10.6
+   Compiling hashlink v0.12.2
+   Compiling spin v0.9.9
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-iterator v0.3.0
+   Compiling smallvec v1.16.1
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling argon2 v0.5.3
+   Compiling unicode-normalization v0.1.25
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4-device)
+warning: unused import: `ProgramKind`
+ --> crates/snapback4-lang/tests/er_expiry_research.rs:5:35
+  |
+5 | use snapback4_core::ir::{Program, ProgramKind};
+  |                                   ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "er_expiry_research") generated 1 warning (run `cargo fix --test "er_expiry_research" -p snapback4-lang` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 44.38s
+     Running tests/er_expiry_research.rs (target/debug/deps/er_expiry_research-ed0ef6ee777ef954)
+
+running 2 tests
+test backlog_measurements ... ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":13.26,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":21.032,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":8.393,"observation":{"fetched":1,"meter":{"examined":2,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Bool":true},"store_calls":1},"op":"has","p95_us":15.283,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":16.354,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Int":2},"store_calls":3},"op":"total","p95_us":17.535999999999998,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":2.544,"observation":{"fetched":0,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":3.024,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":2519.407,"observation":{"fetched":0,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":2534.8900000000003,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":4096,"median_us":13.31,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":14.521999999999998,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":8.753,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":9.072999999999999,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":5.979,"observation":{"fetched":1,"meter":{"examined":2,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Bool":true},"store_calls":1},"op":"has","p95_us":6.42,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":11.066999999999998,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8},"result":{"Int":2},"store_calls":3},"op":"total","p95_us":11.507,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":1.682,"observation":{"fetched":0,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":2.043,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":8192,"median_us":1694.621,"observation":{"fetched":0,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":1708.5220000000002,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":0,"cut":"Abort","examined_ceiling":4096,"median_us":8.864,"observation":{"fetched":2,"meter":{"examined":3,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":2},"op":"page","p95_us":13.41,"samples":31,"store":"memory"}
+ER_SWEEP {"backlog":0,"calls":1,"elapsed_us":15.914,"removed":0}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4244.433,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":4289.150000000001,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4373.857,"observation":{"fetched":1001,"meter":{"examined":1002,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Bool":true},"store_calls":1001},"op":"has","p95_us":4396.912,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4405.844,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Int":2},"store_calls":1003},"op":"total","p95_us":4566.115,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4.858,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":5.599,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":4941.558,"observation":{"fetched":1000,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":4973.395,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":4096,"median_us":4300.977,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":4347.987999999999,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2239.347,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":2340.1580000000004,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2353.318,"observation":{"fetched":1001,"meter":{"examined":1002,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Bool":true},"store_calls":1001},"op":"has","p95_us":2383.994,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2357.675,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":652,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":1008},"result":{"Int":2},"store_calls":1003},"op":"total","p95_us":2383.873,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2.454,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":2.815,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":8192,"median_us":2645.276,"observation":{"fetched":1000,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":2677.133,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":1000,"cut":"Abort","examined_ceiling":4096,"median_us":2226.748,"observation":{"fetched":1002,"meter":{"examined":1003,"heap_bytes":655,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"Array":[{"Row":{"body":{"String":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"conversation":{"Id":"alice"},"expiresAt":{"Int":9000},"id":{"Id":"m10001"},"ordinal":{"Int":10001}}}]},"store_calls":1002},"op":"page","p95_us":2271.935,"samples":31,"store":"memory"}
+ER_SWEEP {"backlog":1000,"calls":1,"elapsed_us":10343.335000000001,"removed":1000}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":37430.621999999996,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"page","p95_us":38097.490999999995,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":39027.025,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8198},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"has","p95_us":39628.056000000004,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":38100.917,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8197},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"total","p95_us":38312.854,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":5.017,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":11.177,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":5263.41,"observation":{"fetched":1024,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":5284.873,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":4096,"median_us":18545.441,"observation":{"fetched":4096,"meter":{"examined":4097,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":4096},"op":"page","p95_us":18781.456,"samples":31,"store":"sqlite"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":21283.746,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"page","p95_us":22443.605,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":22067.321,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8198},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"has","p95_us":22482.594,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":22014.833000000002,"observation":{"fetched":8192,"meter":{"examined":8193,"heap_bytes":122,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":8197},"result":{"code":"E_BOUND"},"store_calls":8192},"op":"total","p95_us":22122.924,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":2.574,"observation":{"fetched":1,"meter":{"examined":1,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":4},"result":{"Bool":false},"store_calls":1},"op":"point","p95_us":3.335,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":8192,"median_us":2815.531,"observation":{"fetched":1024,"meter":{"examined":1024,"heap_bytes":5125,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":11271},"result":{"Int":1024},"store_calls":1024},"op":"probes","p95_us":2855.5099999999998,"samples":31,"store":"memory"}
+ER_MEASURE {"backlog":10000,"cut":"Abort","examined_ceiling":4096,"median_us":10322.064,"observation":{"fetched":4096,"meter":{"examined":4097,"heap_bytes":10,"index_entries":0,"output_bytes":0,"rows_written":0,"rule_probes":0,"steps":5},"result":{"code":"E_BOUND"},"store_calls":4096},"op":"page","p95_us":10483.345,"samples":31,"store":"memory"}
+ER_SWEEP {"backlog":10000,"calls":10,"elapsed_us":101064.675,"removed":10000}
+ok
+test current_admission_matrix_and_live_cap ... ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"bound"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"loop"}
+ER_ADMISSION {"cap":false,"codes":["E_QUARRY_PLACEMENT"],"server":false,"shape":"whole"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"exists"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"count"}
+ER_ADMISSION {"cap":false,"codes":[],"server":false,"shape":"point"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"bound"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"loop"}
+ER_ADMISSION {"cap":false,"codes":["E_QUARRY_PLACEMENT"],"server":true,"shape":"whole"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"exists"}
+ER_ADMISSION {"cap":false,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"count"}
+ER_ADMISSION {"cap":false,"codes":[],"server":true,"shape":"point"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"bound"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"loop"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"whole"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"exists"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":false,"shape":"count"}
+ER_ADMISSION {"cap":true,"codes":[],"server":false,"shape":"point"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"bound"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"loop"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"whole"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"exists"}
+ER_ADMISSION {"cap":true,"codes":["E_STRUCTURAL_FANOUT"],"server":true,"shape":"count"}
+ER_ADMISSION {"cap":true,"codes":[],"server":true,"shape":"point"}
+ER_CAP {"live_cap":4,"physical_rows":12,"sweeps":0}
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.44s
