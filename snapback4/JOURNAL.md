@@ -68816,3 +68816,34 @@ materialized declaration. Earlier runs exposed that deliberate note and obsolete
 editorial pins (4 failures, then 1); updated those pins to the revised recovery
 text. No compiler behavior was changed. Whitespace check passes. Rust checks
 only; no JavaScript tests or full suite were needed for this documentation delta.
+
+Part B revises LLP 3000.026 without building the publisher. Both full round-0
+reviews are retained byte-for-byte with the experiment record. Recommendation
+for the next review: initialize new slots/events in place, then copy retained
+own and foreign events after publication, avoiding replacement source images
+and catalog swapping. Ordinary new-follow backfill already handles concurrent
+writes safely, but unmodified live scans can chase continuous backdated births;
+the launch still needs finite rosters and newest-first merging per reader.
+Removals prune without refill. Retained own copies become pending at launch;
+source initialization still needs its measured fence and proven column isolation.
+
+The revision specifies durable mutation-id reservations, authority recheck,
+table fence epochs and high-water validation; atomic task creation/recount;
+pending checks on every Feed read; fair declaration/work rotation; separate
+fence-wait admission with identity/ephemeral/replay capacity; yielding blocked
+maintenance; unlogged preparation preserving other slots; and backfill cursors
+with roster ids instead of a Work enum change. It includes the halfway-acquiring
+device regression, newly included older-history example, all rejected-option
+counterexamples, and both reviewers' recommendations on the five open questions.
+
+The integrated/skewed measurement plan covers the initialization write pause,
+queued outcomes, signed-in queries/sync/changes, delivery delay, peak disk and
+process-death publication recovery. Existing construction numbers bound only
+the measured replay or necessary copy counts; they do not bound this design's
+pause or live-service latency. No new adoption prototype, benchmark, publisher,
+version, device implementation or meter change. Full guide remains 86/86 from
+Part A; Part B changes documentation only. Reference audit passes: 518 LLPs,
+9,630 references, zero errors/unchecked; whitespace check passes. The first
+reference audit caught a renamed §5 anchor; restored its existing heading so
+the research probe's @ref remains valid. All work committed locally with the
+requested co-author trailer; no push or publication.

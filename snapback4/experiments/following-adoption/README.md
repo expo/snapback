@@ -1,5 +1,15 @@
 # Following adoption research (lane FA)
 
+**Round-0 experiment record.** Measurements and probe code below are unchanged.
+Round 1 shipped only the card/refusal fix (661c013dc); it built no publisher and
+ran no new adoption benchmark. [LLP 3000.026 §4](../../../llp/3000.026-following-over-a-populated-store.rfc.md#4-execution-publication-and-the-simpler-alternative)
+now prefers in-place initialization plus finite launch rosters over the original
+replacement-image proposal described below. Its §5 adds the integrated/skewed
+measurement plan and distinguishes measured lower bounds from unmeasured pauses.
+The complete [Astra review](./fa-r0.astra.md) and [Grok review](./fa-r0.grok.md)
+are retained verbatim; both verdicts were NOT READY. References below to the
+card hiding the query describe round 0, before the separate card fix.
+
 Proposal: [LLP 3000.026](../../../llp/3000.026-following-over-a-populated-store.rfc.md).
 Base: `f39598de7febb1f3ddea45ae350b79e0bec50104`, branch
 `sb4-intent/fa-following-adoption`, Snapback 4 version 0.4.4. No production
