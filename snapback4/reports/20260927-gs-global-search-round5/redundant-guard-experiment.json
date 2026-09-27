@@ -1,0 +1,25 @@
+{
+  "name": "page-result",
+  "source": "crates/snapback4-core/src/engine/membership_search.rs",
+  "original_sha256": "03a6dc34dec69828258939c8e7bf2ab7a773a1ca1782c81eccff4d906d6c13c2",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-sim",
+    "--test",
+    "membership_search",
+    "eligible_heap_ceiling_sweep"
+  ],
+  "mutation": {
+    "old": "            Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }) => Err(self.opening_error(merge, progress.0, progress.1)),\n",
+    "new": ""
+  },
+  "exit": 0,
+  "seconds": 40.05,
+  "log": "target/lane-gs-round5/control-page-result.log",
+  "sha256": "432be02dcc080b1cba239ace7a55848903272d492e507feb2551010d24645d68",
+  "summaries": [
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.14s"
+  ]
+}

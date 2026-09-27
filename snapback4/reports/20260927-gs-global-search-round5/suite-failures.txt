@@ -1,0 +1,10 @@
+== 0 failure(s) in 1389 s
+Exit: 0
+Invocations: 1
+Implementation: 5cf51bed32db66f91c988385b6a994d830b6a2fd
+
+Ours: none.
+Baseline: none.
+Environmental: none.
+Existing ignored/skipped tests are retained, not counted as passes.
+Expected negative-control assertion failures are recorded separately in controls.json.

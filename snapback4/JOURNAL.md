@@ -69255,3 +69255,52 @@ commit; no live Postgres claim. No authorization, fallback, N_NO_CURSOR,
 package-version or budget change, no new tool installation, no push or publish.
 Report and durable receipts: reports/20260927-cq-topn-complete/ROUND1.md,
 round1-qualification.json and round1-wasm.json; raw logs: target/cq-round1/.
+
+## 2026-09-27 — GS round 5: final-copy refusal and actual public-witness admission
+
+Read rounds 0–4's prompts, reports and journal entries, LLP 3000.024 and its
+Decision, and both round-4 reviews. Fetched and merged origin/main first in
+6b277bf5c, preserving both complete journal appends and combining compact search
+with main's cursorless completion. Implementation: 5cf51bed32db66f91c988385b6a994d830b6a2fd.
+
+Carry each compact search's origin and visible membership count through the
+generated result binding to return. The final array-copy heap charge now
+refuses E_SEARCH_OPEN, retaining the charge. Byte-by-byte sweeps cover computed
+cursor, result, binding and final-copy boundaries plus transient admission; the
+3,025,041–3,025,072 interval and the stored 1.9 MB payload at 17,125,185 no longer
+return heap-null pages. Complete pages preserve their continuation token.
+
+Protected scopes save the caller's ceiling and public reservations separately
+from private work. Public witnesses check actual materialization before copying;
+stored fields no longer reserve unused schema defaults. Materialization decides
+visibility on the original image, moves a uniquely owned row, then inserts
+admitted defaults. Tests pin the stored 'hi' case at 64 KiB, missing million-byte
+defaults at 64 KiB and 200,000 bytes, and a 1.5 MB stored title at both assigned
+ceilings. Nested private-work isolation, pointer/allocation checks, exact
+retained default heap (compact 3,025,073; control 3,034,639), nested owned-list
+prices and spare string/id capacity are asserted. Nine targeted negative
+controls fail at assertions and restore source bytes.
+
+Affected checks pass: core 153 passed / one existing ignored; membership 24/24;
+certificate 7/7; shared server search 17/17; device 436 passed / one existing
+ignored (including all 50 shared fixtures); census 81/81; merge 11/11; whole
+guide 86/86; docs budget and reference audit pass. Factoring protected-scope
+entry/restoration out of the generic wrapper keeps wasm at **1,979,558 raw /
+572,577 gzip bytes**, **264 below** the unchanged 572,841-byte budget, and
+321 gzip bytes below the same-toolchain merged baseline. No check was removed.
+
+Ran `scripts/test.sh` once on the unchanged implementation:
+**`== 0 failure(s) in 1389 s`**, exit **0**. Full Rust: **4,006 passed / 24
+existing ignored**, plus workspace doctests; client tests: **2,701 passed / 10
+existing skipped**; serial models: **78/78**. Every suite failure: none
+(ours 0; baseline 0; environmental 0). The inherited 60-second target remains
+exceeded; timeouts and seed counts are unchanged. The source/artifact hashes,
+affected results, negative controls and compressed full log are preserved in
+`reports/20260927-gs-global-search-round5/`.
+
+Kept the Decision's one-read scope, cursor format, authorization/disclosure and
+production meter budgets. Only delivery-boundary fixtures use a larger output
+allowance to isolate their heap boundary. No original GS store opened or
+modified, no tools installed, no shared-path installation, no push or publication.
+Local commits carry the required co-author trailer. No unresolved round-5
+reproduction or scope deviation.
