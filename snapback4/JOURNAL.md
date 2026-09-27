@@ -68383,3 +68383,76 @@ the requested Astra co-author. No push or publication. Full file map, examples,
 failing-before and mutation evidence, exact historical suite failure list and
 scope: reports/20260927-qe-quarry-ergonomics/ROUND3.md. Ignored logs and
 repeatable probes: target/lane-qe-r3/.
+
+## 2026-09-27 — Lane DC round 3: synchronous acceptance and current collection commits
+
+Read the three binding lane prompts, prior reports/journal entries and both
+complete round-2 reviews. First fetched and merged origin/main as 981699084;
+both journal conflicts retain every line from both parents in order. Local
+commits answer the supervisor's consolidated findings: c26f2b931 covers
+refusal isolation and independently held responses (5/6); aa98209e2 adopts
+manifest-only bindings by fingerprint (4); 9da895bf9 and be105bdc6 bound the
+startup barrier and pause activation without evicting debt, with actual
+SQLite/wasm cursor-failure retries (3/6); 08a133d98, de1f13a25 and 5f2af6524
+make acceptance synchronous and guard each collection CAS/host commit (1/2).
+The LLP 3000.022 acceptance amendment and Revised line land with that code.
+Publication runs once; stale or failed collection only under-reports.
+
+Memory and IndexedDB hosts now support conditional supplementary collection.
+The current process/Expo adapters and custom hosts lacking that capability
+omit fallback-manifest saves, leaving rows sent; ordinary device publication
+collection remains available. This is a documented limitation, not complete
+native fallback qualification. Counterexample: an async IPC CAS passes the
+JavaScript fence, waits in the host, and commits after sign-out. A JS retry
+check cannot cancel it. No unqualified native cancellation bridge was added.
+DS still owns the fingerprint writer check and the card's RUNS_FULL body;
+fixtures remain. Full comparative choreography, the full wasm path matrix,
+native process-kill and IndexedDB crash witnesses remain unclaimed.
+
+Standalone complete device tests pass 1,344/1,344, three ignored; all 24
+delivery tests pass. Whole guide passes 86/86. Census/browser/durability
+checks pass 78/78, final conditional-host checks 14/14, and final adapter/
+publication/durability checks 34/34 (overlapping totals). Negative controls
+reject cached fences, the exact old awaited-query helper, missing host guards,
+JSON-normalizing guard removal, blanket binding deletion and response reuse.
+Memory/SQLite adoption and live-traffic activation tests fail before fixes.
+Actual SQLite/wasm errors after cursor advance retry rows 1–500 then 501.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+`== 2 failure(s) in 1569 s`, groups `wasm build` and `client tests`.
+Rust: 244 binaries, 957 executions plus doctests; 3,907 passed, zero failed,
+24 ignored, 1,060 seconds. Client main: 2,719 passed, four failed, ten skipped;
+seven extra shards pass 56/56; phase 198 seconds. All 78 models pass (280 s),
+all nine fixture wrappers and both app typechecks pass; every other phase
+passes. The inherited 60-second suite budget is unchanged.
+
+Every failure: the wasm gate is the accepted baseline remainder; one client
+failure is ours, a binding-replacement response fixture race, corrected in
+8e8cb4fc6 after explicitly pumping reproduces its old failure. Every request
+now owns a held response, and the complete final delivery suite passes 88/88.
+The other three client failures are environmental transport errors, each
+TypeError fetch failed/read ECONNRESET: the held-rotation local global logout,
+wire clock stamps, and foreign-identity changes tests. Their direct fixture
+fetches failed before assertions. All three files pass an isolated 29/29
+retest. Current and merged-baseline app-global files also each passed twelve
+isolated runs before the full reporter printed the socket cause. Root cause
+remains unconfirmed; no production retries or assertions were weakened.
+Tracked in issues/20260927-snapback4-parallel-client-econnreset.md. No second
+full run. The final JS adapter correction was rebuilt and passed its affected
+tests during the full run's Rust phase, before its client phase; Rust inputs
+were unchanged. Only the response-fixture correction followed that phase.
+
+Production wasm: 2,022,931 B raw / 585,317 B gzip, 1,537 raw / 45 gzip bytes
+below the accepted round-1 remainder (585,362 gzip). Round-2 delta is +1,072
+raw / +363 gzip. The unchanged 572,841 B gate is 12,476 B over; integration
+owns the accepted ratchet change. Pre-suite/full-suite artifacts are identical,
+SHA-256 c0f4bc6f1cc1b881ee4f7b4fbb6ee2883306b8c9d92ace7ae73b163b555c2321.
+Reused Rust 1.97.0, wasm-bindgen 0.2.127, Node 24.13.1 and Bun 1.3.14;
+same no-optimizer path as prior rounds. No tool installed on a shared path.
+Frozen install, typecheck/build, README 300/300, source/artifact census,
+reference and whitespace audits pass. Changed source stays at most 1,500
+lines (local.ts 1,499). No version, budget, authorization, disclosure, meter,
+IR-format or DS server change. Every commit has the Astra co-author trailer.
+No push or publication. File map, examples, tests, all failure details and
+reproductions: reports/20260927-dc-delivery-client/ROUND3.md. Evidence:
+target/lane-dc-round3/.
