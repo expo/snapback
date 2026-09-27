@@ -1,4 +1,5 @@
 import type { Client, ObserveOptions, Query, Read, Observed, Refusal } from "./contract.ts";
+import { deferReadNotifications } from "./read-notifications.ts";
 import type { ReadObservation } from "./read-observation.ts";
 
 interface Watch extends ReadObservation<unknown> {
@@ -35,6 +36,23 @@ export function bindWatchPeek(client: Client, watches: Map<string, Watch>, denie
 /** A scope-ending reset closes unsubscribed watches before application callbacks. */
 export function endLingering(watches: Iterable<Watch>): void {
   for (const watch of [...watches]) watch.lingering?.close();
+}
+
+// @ref LLP 3000.023#3.4 — close withdraws all peers and cancels deadlines before callbacks.
+export function closeWatchAnswers(watches: Map<string, Watch>, denied: Refusal): () => void {
+  const current = [...watches.values()];
+  const deliver = deferReadNotifications(() => {
+    endLingering(current);
+    for (const watch of current) {
+      if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      watch.expiryTimer = null;
+      watch.deadlines = undefined;
+      if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
+      watch.presenceRefresh = null;
+      watch.publish({ denied });
+    }
+  });
+  return () => { deliver(); for (const watch of current) for (const subscriber of watch.subscribers) subscriber(); };
 }
 
 // @ref LLP 3000.019#3.3 — keep leaves the same live observation running for 30 seconds without subscribers.

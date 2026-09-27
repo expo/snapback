@@ -54,6 +54,8 @@ export class ReadObservation<T> {
 
   read(denied: Refusal | null): Read<T> {
     if (denied && (!("denied" in this.snapshot) || this.snapshot.denied.code !== denied.code)) this.reset({ denied });
+    // A detached handle is absent from client.close's sweep; its owner's denial still wins.
+    if (denied) return this.snapshot;
     checkReadExpiry(this);
     this.episode.check();
     return this.snapshot;

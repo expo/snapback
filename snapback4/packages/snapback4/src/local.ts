@@ -1,6 +1,6 @@
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries, type ReadDeadlines } from "./read-expiry.ts";
-import { bindWatchPeek, observationKey, endLingering, observeWatch } from "./observe-watch.ts";
+import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
@@ -347,16 +347,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
-    if (next === "signed-out") pending.notify();
-    ephemeral.linkChanged();
     if (next !== "online") {
       identityChecked = false;
-      for (const watch of watches.values()) {
-        if (next === "signed-out") watch.publish({ denied: unavailable()! });
-        else if ("data" in watch.snapshot && watch.snapshot.fresh) watch.publish({ loading: true });
-      }
+      const deliver = deferReadNotifications(() => {
+        if (next === "signed-out") endLingering(watches.values());
+        for (const watch of watches.values()) {
+          if (next === "signed-out") watch.publish({ denied: unavailable()! });
+          else if ("data" in watch.snapshot && watch.snapshot.fresh) watch.publish({ loading: true });
+        }
+      });
+      deliver();
       for (const watch of watches.values()) notify(watch);
     }
+    if (next === "signed-out") pending.notify();
+    ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") void flush();
     for (const watch of watches.values()) void rerun(watch);
@@ -392,7 +396,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     endingSession = work;
     void work.catch(() => { if (endingSession === work) endingSession = undefined; });
     if (!sessionDead) {
-      endLingering(watches.values());
       sessionDead = true; holds.clear();
       session = null;
       rotating = false;
@@ -403,8 +406,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
       delete headers.authorization;
       delete headers["x-snapback-persona"];
-      setAcquired(false);
       setLink("signed-out");
+      setAcquired(false);
     }
     return work;
   };
@@ -1215,7 +1218,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
         () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation }),
-        watch => { watchEphemeral(watch); void rerun(watch); },
+        watch => {
+          watchEphemeral(watch); const d = watch.deadlines;
+          // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
+          if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
+          void rerun(watch); },
         watch => ephemeralReads.remove(watch), unavailable, false);
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
@@ -1386,8 +1393,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true; holds.clear();
+      closeWatchAnswers(watches, unavailable()!)();
       pending.notify(); pending.clear();
-      endLingering(watches.values());
       closingResponses.begin();
       stopRefresh();
       stopHost?.();
@@ -1399,10 +1406,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
-      for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-      for (const watch of watches.values()) if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
-      for (const watch of watches.values()) watch.publish({ denied: unavailable()! });
-      for (const watch of watches.values()) notify(watch);
       watches.clear();
       linkListeners.clear();
       sessionListeners.clear();

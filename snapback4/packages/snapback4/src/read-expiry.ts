@@ -6,7 +6,7 @@ export interface ReadDeadlines {
   /** A remembered server answer can have a local reobservation wakeup. */
   localWakeup: boolean;
 }
-export type ExpiryClock = Pick<ServerClock, "deviceDelay" | "serverDelay">;
+export type ExpiryClock = Pick<ServerClock, "deviceDelay" | "serverDelay" | "estimatedServerNow">;
 interface ExpiringRead {
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null;
@@ -49,7 +49,11 @@ export function checkReadExpiry(watch: ExpiringRead & { expire(): () => void }):
   if (serverDue || (d.device !== null && context.clock.deviceDelay(d.device) === 0)) {
     if (context.current()) context.expired(serverDue);
     // A closed local handle has left the live sweep, but can still be read.
-    else if (serverDue || !d.localWakeup) { watch.deadlines = undefined; watch.expire()(); }
+    else if (serverDue || !d.localWakeup) {
+      context.withdrawHeld?.(serverDue, context.clock.estimatedServerNow());
+      watch.deadlines = undefined;
+      watch.expire()();
+    }
   }
 }
 

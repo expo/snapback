@@ -1212,6 +1212,8 @@ corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
 immediately, including failure, link loss, and a replacement's earlier expiry.
 An older authority completion cannot publish a newer unchecked answer.
+Grouped withdrawals change every affected raw snapshot and shared approval before
+delivering read or link callbacks, including callbacks from lingering remounts.
 
 For all three options, a failed whole re-read, expired candidate, refusal,
 expiry, sign-out, credential or viewer change, store replacement or adoption,
@@ -1219,6 +1221,10 @@ expiry, sign-out, credential or viewer change, store replacement or adoption,
 installation, or client close withdraws the answer immediately. A successful
 server fallback keeps retaining while device composition finishes within the
 episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
+Closing the client cancels row deadlines before publishing its stable denial. A
+closed local observation still checks its saved deadlines; resubscribing rearms
+those same absolute row deadlines before its re-read. Observed server expiry also
+fences remembered answers, so clock rollback cannot recover the expired body.
 
 `usePage` preserves valid earlier pages while a later page loads or withdraws.
 Its combined read carries `revalidating` while any displayed page has that mark,

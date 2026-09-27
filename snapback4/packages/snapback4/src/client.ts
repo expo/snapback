@@ -1,6 +1,6 @@
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
-import { bindWatchPeek, observationKey, endLingering, observeWatch } from "./observe-watch.ts";
+import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
@@ -238,11 +238,8 @@ export function createClient(options: ClientOptions): Client {
     // @ref LLP 3000.023#3.4 — discovery withdraws; copying an answer through reset loses its episode.
     schemaLoading = true;
     queryEpoch++;
-    for (const watch of watches.values()) {
-      watch.reset({ loading: true });
-      scheduleExpiry(watch, null);
-      notify(watch); void refresh(watch);
-    }
+    const deliver = resetWatches(false); deliver();
+    for (const watch of watches.values()) { notify(watch); void refresh(watch); }
     const fallback = setInterval(() => {
       if (closed || storeRefusal || !credentials || !watches.size) { clearInterval(fallback); return; }
       for (const watch of watches.values()) void refresh(watch);
@@ -292,17 +289,16 @@ export function createClient(options: ClientOptions): Client {
 
   const endCredentials = () => {
     if (!credentials) return;
-    endLingering(watches.values());
     session = null;
     stopRefresh(auth());
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
-    pendingEvents.notify();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
     setLink("signed-out");
+    pendingEvents.notify();
     // A dead session refreshes nothing (LLP 3000.018 §3.2).
     for (const watch of watches.values()) { if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh); watch.presenceRefresh = null; watch.presenceEvery = undefined; }
     for (const listener of [...sessionListeners]) listener(null);
@@ -312,23 +308,24 @@ export function createClient(options: ClientOptions): Client {
     if (closed || storeRefusal || (!credentials && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    const changed: Watch[] = [];
+    const deliver = deferReadNotifications(() => {
+      if (next === "signed-out") endLingering(watches.values());
+      if (next !== "online") for (const watch of watches.values()) {
+        if (next === "signed-out" || "data" in watch.snapshot) {
+          watch.publish(next === "signed-out" ? { denied: auth() } : { loading: true });
+          changed.push(watch);
+        }
+      }
+    });
+    deliver();
+    for (const watch of changed) notify(watch);
     ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") {
       void flush();
       for (const watch of watches.values()) void refresh(watch);
-    } else if (next === "signed-out") {
-      failUnsentWrites(auth());
-      for (const watch of watches.values()) watch.publish({ denied: auth() });
-      for (const watch of watches.values()) notify(watch);
-    } else {
-      for (const watch of watches.values()) {
-        if ("data" in watch.snapshot) {
-          watch.publish({ loading: true });
-          notify(watch);
-        }
-      }
-    }
+    } else if (next === "signed-out") failUnsentWrites(auth());
   };
 
   const setViewer = (next: Principal | null) => {
@@ -1012,18 +1009,14 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
-      endLingering(watches.values());
       stopClock();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
-      for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-      for (const watch of watches.values()) if (watch.presenceRefresh) clearTimeout(watch.presenceRefresh);
-      for (const watch of watches.values()) watch.publish({ denied: storeRefusal ?? ended() });
-      for (const watch of watches.values()) notify(watch);
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();
