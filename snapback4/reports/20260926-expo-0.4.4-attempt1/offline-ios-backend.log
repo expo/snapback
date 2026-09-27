@@ -1,0 +1,3 @@
+snapback4 dev: startup schema adoption failed: E_STORE: database is locked; no requests, jobs or sweeps are running; retrying automatically
+
+SNAPBACK4_SIGNAL verb=dev generation=0 reason=SIGTERM signal=15

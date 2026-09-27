@@ -1,23 +1,49 @@
 //! Native residency counters; SQLite maintains them with the row transaction.
-use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use snapback4_core::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, schema::Schema};
 use serde_json::{Value, json};
 
 // @ref LLP 3000.019#3.4 — inspecting residency must not copy or scan the held partition on every call.
-pub(crate) fn install(conn: &Connection) -> Result<(), RuntimeError> {
-    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
-    let installed: bool = tx.query_row("SELECT
-        EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_device_residency') AND
-        (SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'r'
-         AND name IN ('_device_residency_insert', '_device_residency_delete', '_device_residency_update')) = 3", [], |r| r.get(0))?;
-    if installed { return Ok(tx.commit()?); }
+pub(crate) fn install_in(conn: &Connection, adopting: bool) -> Result<(), RuntimeError> {
+    assert!(!conn.is_autocommit(), "residency installation belongs to schema installation");
+    let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = '_device_residency')", [], |r| r.get(0))?;
+    let temporary = !adopting && !exists;
+    // Opening an old, unchanged backend is not permission to migrate its
+    // durable state. Keep a connection-local counter cache until adoption.
+    // @ref LLP 3000.019#3.4 — legacy inspection preserves the old store.
+    let namespace = if temporary { "temp" } else { "main" };
+    if !temporary {
+        conn.execute_batch("DROP TRIGGER IF EXISTS temp._device_residency_insert;
+            DROP TRIGGER IF EXISTS temp._device_residency_delete;
+            DROP TRIGGER IF EXISTS temp._device_residency_update;
+            DROP TABLE IF EXISTS temp._device_residency; PRAGMA temp.user_version = 0;")?;
+    }
+    let installed: bool = conn.query_row(&format!("SELECT
+        EXISTS(SELECT 1 FROM {namespace}.sqlite_master WHERE type = 'table' AND name = '_device_residency') AND
+        (SELECT count(*) FROM {namespace}.sqlite_master WHERE type = 'trigger' AND tbl_name = 'r'
+         AND name IN ('_device_residency_insert', '_device_residency_delete', '_device_residency_update')) = 3"), [], |r| r.get(0))?;
+    if installed && (!temporary || current_cache(conn)?) { return Ok(()); }
+    rebuild(conn, temporary)
+}
+
+// temp.user_version belongs only to this connection. Main's data_version
+// changes on other owners' commits; our own writes maintain the temp triggers.
+fn current_cache(conn: &Connection) -> Result<bool, RuntimeError> {
+    let kept: i64 = conn.query_row("PRAGMA temp.user_version", [], |r| r.get(0))?;
+    let current: i64 = conn.query_row("PRAGMA main.data_version", [], |r| r.get(0))?;
+    Ok(kept == current)
+}
+
+fn rebuild(tx: &Connection, temporary: bool) -> Result<(), RuntimeError> {
+    let namespace = if temporary { "temp" } else { "main" };
+    let storage = if temporary { "TEMP " } else { "" };
     // A table without all its triggers cannot certify the counters. Rebuild
     // interrupted/partial installations atomically before reporting or writing.
-    tx.execute_batch("DROP TRIGGER IF EXISTS _device_residency_insert;
-        DROP TRIGGER IF EXISTS _device_residency_delete;
-        DROP TRIGGER IF EXISTS _device_residency_update;
-        DROP TABLE IF EXISTS _device_residency;
-        CREATE TABLE _device_residency (t INTEGER PRIMARY KEY, rows INTEGER NOT NULL, bytes INTEGER NOT NULL);")?;
+    tx.execute_batch(&format!("DROP TRIGGER IF EXISTS {namespace}._device_residency_insert;
+        DROP TRIGGER IF EXISTS {namespace}._device_residency_delete;
+        DROP TRIGGER IF EXISTS {namespace}._device_residency_update;
+        DROP TABLE IF EXISTS {namespace}._device_residency;
+        CREATE {storage}TABLE _device_residency (t INTEGER PRIMARY KEY, rows INTEGER NOT NULL, bytes INTEGER NOT NULL);"))?;
     // Upgrade old devices in bounded maintenance chunks. Read only keys and
     // byte lengths, never row bodies. The transaction fences concurrent owners
     // and rolls the entire installation back on failure.
@@ -42,25 +68,31 @@ pub(crate) fn install(conn: &Connection) -> Result<(), RuntimeError> {
         }
         if count < 512 { break; }
     }
-    tx.execute_batch("CREATE TRIGGER _device_residency_insert AFTER INSERT ON r BEGIN
+    tx.execute_batch(&format!("CREATE {storage}TRIGGER _device_residency_insert AFTER INSERT ON main.r BEGIN
         INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
         ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
       END;
-      CREATE TRIGGER _device_residency_delete AFTER DELETE ON r BEGIN
+      CREATE {storage}TRIGGER _device_residency_delete AFTER DELETE ON main.r BEGIN
         UPDATE _device_residency SET rows = rows - 1, bytes = bytes - length(CAST(OLD.data AS BLOB)) WHERE t = OLD.t;
       END;
-      CREATE TRIGGER _device_residency_update AFTER UPDATE ON r BEGIN
+      CREATE {storage}TRIGGER _device_residency_update AFTER UPDATE ON main.r BEGIN
         UPDATE _device_residency SET rows = rows - 1, bytes = bytes - length(CAST(OLD.data AS BLOB)) WHERE t = OLD.t;
         INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
         ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
-      END;")?;
-    Ok(tx.commit()?)
+      END;"))?;
+    if temporary {
+        let version: i64 = tx.query_row("PRAGMA main.data_version", [], |r| r.get(0))?;
+        tx.execute_batch(&format!("PRAGMA temp.user_version = {version}"))?;
+    }
+    Ok(())
 }
 
 pub(crate) fn read(store: &mut snapback4_core::Store, schema: &Schema) -> Result<Value, RuntimeError> {
     // The catalog and counters must belong to the handle's adopted generation.
     let snapshot = store.read_transaction()?;
     let tx = snapshot.conn();
+    let cached: i64 = tx.query_row("PRAGMA temp.user_version", [], |r| r.get(0))?;
+    if cached != 0 && !current_cache(tx)? { rebuild(tx, true)?; }
     let mut meter = Meter::new(Ceilings::default(), Cut::Abort);
     meter.at("client.residency");
     let mut tables = serde_json::Map::new();
@@ -74,6 +106,8 @@ pub(crate) fn read(store: &mut snapback4_core::Store, schema: &Schema) -> Result
     }
     let pages: i64 = tx.query_row("PRAGMA page_count", [], |r| r.get(0))?;
     let page_size: i64 = tx.query_row("PRAGMA page_size", [], |r| r.get(0))?;
+    drop(query);
+    snapshot.commit()?; // Retain a refreshed temp cache; main remains read-only.
     Ok(json!({ "tables": tables, "totalBytes": pages * page_size, "totalBytesKind": "sqlite-pages" }))
 }
 

@@ -67117,3 +67117,151 @@ recorded intermittent client failures did not occur in this run. No second
 full run, no implementation or test changes after qualification began, and no
 unrelated changes. Committed with the requested
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.
+
+## 2026-09-26 — DQ: Darwin qualification for 0.4.4
+
+Lane `sb4/darwin-qual`, starting at `dde688548d`, on the black M5:
+macOS 26.6.2 (25G83), arm64, 18 CPUs; Node 24.18.0, Bun 1.4.2,
+rustc 1.97.0. Read the failed publication attempt-2 log and reproduced
+its defects/premises before changing them. Frozen Bun installation passes.
+Evidence logs are ignored under `snapback4/target/lane-dq/`.
+
+- **Refused legacy adoption:** all three published 0.2.33 capability fences
+  reproduced the extra durable `_device_residency` row. Raw SQLite open
+  installed counters before capability validation. Durable counters now
+  install in the successful schema/adoption transaction. An unchanged old
+  backend uses TEMP counters/triggers, invalidated by peer `data_version`,
+  so inspection preserves its bytes while keeping `client.residency()`
+  correct without rescanning unchanged rows. The regression also covers
+  peer/own writes and promotion without duplicate triggers. Existing
+  published-fence assertions are unchanged. Capability file: 10/10 runs
+  (4 tests each); native residency: 10/10 (6 each).
+- **Blocked response writes:** the original two tests failed on Darwin.
+  Loopback TCP inflated the requested 1 KiB buffers to 65,328 B send and
+  326,640 B receive, absorbing their 16–17 KiB response. The tests now use
+  real Unix sockets whose actual buffer sizes are asserted (each <=4 KiB,
+  combined below the payload), and assert that the writer is still pending
+  before and after the 200 ms read hold. The held-poll path uses release
+  HTTP authorization with a real bearer; the real writer and original
+  timing assertions remain. All 8 duration tests pass in 10/10 runs:
+  blocked JSON totals 203.407–210.660 ms, held final frame
+  203.687–213.800 ms. Mutating completion to occur before the write makes
+  both tests fail; the mutation was removed.
+- **Exited worker/adoption:** the original focused case passed 20/20
+  naturally. A controlled 2,200 ms child-exit delay reproduced its 2 s
+  setup failure. The authorizer's `E_STORE: not authorized` is the test's
+  deliberate denial after releasing the held adoption gate, not a Darwin
+  deadlock. Setup/restart waits now have named 10 s deadlines; reads must
+  still answer within 2 s while the writer remains held. A second test
+  pins the delayed-exit schedule. Repetition exposed parallel fixture
+  directory collisions on identical Darwin timestamps; a process-local
+  sequence fixes those names. The final original/delayed pair passes
+  10/10 runs. No read latency or adoption/revocation assertion was relaxed.
+- **Witness manifest:** the historical log does not identify which mode
+  failed or retain its stderr; the original four-mode case passed 10/10
+  naturally, so the exact historical mode remains unconfirmed. A controlled
+  simulator-discovery timeout reproduced the missing manifest: `prepare`
+  returned before a Run could save it. Valid invocations now reserve output
+  names before discovery and save a failed preparation manifest on that
+  error, without claiming an app or backend started. Invalid arguments,
+  unsupported platforms and occupied output names still refuse without
+  overwriting evidence. A new regression pins the discovery timeout;
+  receipt-timeout assertions now also prove they reached the intended
+  receipt step. Full witness file: 25 tests, 10/10 runs.
+- **Node QoS:** the asset-budget case passed 20/20 baseline reruns, so no
+  spontaneous `setTypeOfService EINVAL` was reproduced. The SDK passes no
+  QoS option; Node 24.18's bundled Undici makes the unguarded macOS call.
+  App-test fetch instrumentation bypassed the SDK's existing pinned,
+  patched dispatcher. It now wraps that same SDK default transport. The
+  existing injected-EINVAL transport regression passes, and the asset case
+  passes another 20/20 runs.
+- **Hidden strict admission:** reproduced 8 failures in 10 baseline runs,
+  all the original “transport entered under the session lock” assertion.
+  A later outbox commit could publish after admission while another local
+  session turn held the lock. Exit notifications now wait for queued local
+  session turns to drain without acquiring the lock. The original peer
+  logout assertion remains; a deterministic second-turn regression fails
+  when the fix is removed. Focused pair: 10/10; complete browser file:
+  55/55.
+
+Focused repetitions ran with one-minute host loads from 14.37 to 53.24
+across 18 CPUs. Intermediate reader-fixture collision failures are retained
+in the logs and were fixed before the final worker repetitions. Initial
+fresh-tree missing build artifacts and disk exhaustion were setup failures,
+not product reproductions. Only this lane's disposable Cargo outputs were
+cleaned. Test/dev debug symbols and incremental compilation were disabled
+(`CARGO_PROFILE_TEST_DEBUG=0`, `CARGO_PROFILE_DEV_DEBUG=0`,
+`CARGO_INCREMENTAL=0`), with `CARGO_BUILD_JOBS=4`; optimizations and debug
+assertions are unchanged. Used the publication SQLite input
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` throughout qualification.
+
+Package typecheck/build pass. Final reference audit: 515 LLP docs, 9,557 refs
+in 27,047 files, zero errors or unchecked. Rebuilt wasm: 1,980,481 B raw /
+572,055 B gzip, within the unchanged 572,841 B budget; SHA-256
+`97dcfbfa888a28f52cb08d23417cf0a552106d227ba39dcf5d5016ef44f8809c`.
+Updated LLP 3000.019 §3.4 and LLP 3000.007 §§20.4/20.10 with the fixes.
+
+Ran `bash scripts/test.sh` exactly once on code commit `764ca07ac2`, with
+`SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33`:
+**`== 0 failure(s) in 1794 s`, exit 0** (supervisor wall time 1794.418 s).
+All stages pass: build, wasm, docs budget, release guard, package typecheck
+and build, chat check, both app typechecks, fixture wrappers (9/9), Rust
+(3,804 passed, zero failed, 24 existing ignores; 1,352 s), client tests
+(2,528 passed, zero failed, five existing skips across the main group and
+seven shards; 192 s), and all 78 seeded-model tests (158 s). The full run
+includes the three published capability fences, both blocked writes, both
+worker schedules, all 25 witness cases, the asset-budget case and both
+browser lock-order cases. Complete output and invocation receipt:
+`target/lane-dq/full-suite.log` and `target/lane-dq/full-suite.json`.
+This elapsed time exceeds the repository's 60 s suite target; the budget
+was not changed.
+
+No added test skips, weakened guarantees, budget increases, package version
+changes, push or publication. Commits carry the requested GPT-6 Astra
+coauthor. The final journal-only commit follows the qualified code commit.
+
+### 2026-09-27 — Lane OW: merge published 0.4.4 main after round 2
+
+Fetched and merged `origin/main` at `ea853b9dae4295441f5ec04ab23a9468e7e34653`
+into `sb4-intent/ow-sidecar`, preserving the reviewed round-1 hardening and
+round-2 exclusion boundary. This is merge-only work: no new implementation,
+version, budget or publication change beyond the incoming main commits.
+
+Resolved all three conflicts by keeping both sides' meaning. LLP 3000.019's
+Revised header retains OW's two revisions and DQ's temporary-residency revision;
+section 3.4 retains OW's hardening/boundary paragraphs and DQ's qualification
+paragraph. JOURNAL retains both branches' additions verbatim. In device
+`tests/residency.rs`, keep both the removed-sidecar boundary regression and
+DQ's legacy-counter regression; counters remain temporary before successful
+adoption, and refused adoption preserves legacy bytes. The operations manual
+merged without conflict and exactly matches incoming main's corrected paragraph
+(`b36100892`), with its exclusion-boundary sentence appearing once. Every other
+OW file exactly preserves the reviewed branch.
+
+On Linux with Node 24.13.1, Bun 1.3.14 and Rust 1.97.0, eight Cargo build jobs,
+dev/test debug information off and fd limit 65,536: frozen Bun install and
+workspace build pass. Requested focused checks pass: `private_fs` 1/1,
+`store_owner` 9/9, `run_admission` 27/27 (`--test-threads=2`), native residency
+7/7 and the whole guide 86/86. Then `bash scripts/build-wasm.sh` and
+`bun run build` in `packages/snapback4` pass, followed by native-opening JS
+6/6. Wasm is 1,980,253 B raw / 571,810 B gzip against the unchanged 572,841 B
+cap. Reference audit passes: 515 LLP documents, 9,562 refs, zero errors or
+unchecked. Evidence is ignored under `target/lane-ow-merge/`.
+
+Ran `scripts/test.sh` **exactly once**. Exact result:
+**`== 1 failure(s) in 1328 s`**, exit **1**; the failed check is **`client tests`**.
+Rust tests/doctests pass: **3,795 passed / 0 failed / 24 ignored**, 858 s.
+Client main reports **2,466 passed / 1 failed / 10 skipped**, and all seven
+additional shards pass (**56/56**); client phase 195 s. The failure is
+`packages/snapback4/test/local-e2e.test.mjs:172`, "a device restores its session
+on its own": its line-205 assertion expected `dead.denied?.code` to be `E_AUTH`
+and received `undefined` after sign-out. That test is unchanged from incoming
+main; the cause is not established or attributed as baseline. All **78/78**
+seeded-model tests pass, 264 s; fixture wrappers **9/9**. Native/wasm builds,
+wasm/docs budgets, release guard, package build/typecheck and both app
+typechecks pass. No ownership regression fails.
+
+No second full-suite run, focused failure rerun, unrelated fix, push or
+publication. All tested source bytes remained unchanged through qualification.
+This dated entry is included in the merge commit with
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

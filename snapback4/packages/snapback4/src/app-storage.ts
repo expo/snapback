@@ -45,3 +45,14 @@ export function storeLock<T>(key: string, work: () => Promise<T>): Promise<T> {
 export class StorageWarning extends Error {
   constructor(readonly why: Refusal) { super(why.message); }
 }
+
+// @ref LLP 3000.007#20.4 — exit notifications cannot hold up session retirement.
+// Publish transport notifications outside every queued local session turn.
+// Observing the settled tail is not acquiring the cross-tab lock: callbacks
+// may themselves queue work behind another tab's logout without holding it.
+export function afterStoreLock(key: string | undefined, work: () => void): void {
+  const pending = key === undefined ? undefined : locks.get(key);
+  if (!pending) { work(); return; }
+  const retry = () => afterStoreLock(key, work);
+  void pending.then(retry, retry);
+}

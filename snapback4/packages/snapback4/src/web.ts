@@ -1,3 +1,4 @@
+import { afterStoreLock } from "./app-storage.ts";
 import { indexedDbStore } from "./web-idb.ts";
 import { WebResidency } from "./web-residency.ts";
 import { admissionHost, admissionRefusal, browserAdmission } from "./admission.ts";
@@ -146,12 +147,20 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       const committedListeners = new Set<() => void>();
       let working = false;
       let publishPending = false;
+      let publishing = false;
       const publishCommitted = () => {
         // Transport may acquire the session lock. Run it only after admission
         // (including its strict IDB commit) has released that lock.
         if (working) { publishPending = true; return; }
-        publishPending = false;
-        for (const notify of committedListeners) notify();
+        publishPending = true;
+        if (publishing) return;
+        publishing = true;
+        afterStoreLock(journal.authority?.capture().key, () => {
+          publishing = false;
+          if (working) return;
+          publishPending = false;
+          for (const notify of committedListeners) notify();
+        });
       };
       const run = async <T>(work: () => Promise<T>): Promise<T> => {
         working = true;

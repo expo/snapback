@@ -15,6 +15,8 @@ a = sys.argv[1:]
 assert a[0] == 'simctl'
 a = a[1:]
 if a[0] == 'list':
+    if mode == 'timeout-prepare':
+        time.sleep(6)  # Exceed the fixture's five-second simulator step budget.
     devices = [{'udid': udid, 'state': 'Booted'}]
     if mode == 'ambiguous':
         devices.append({'udid': 'someone-else', 'state': 'Booted'})
