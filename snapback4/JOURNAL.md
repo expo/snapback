@@ -67851,3 +67851,72 @@ The server's write records are keyed by principal and id, and nothing reads a
 write id's embedded time, so a derived id is as good as a minted one. Ids were
 never capabilities, and this is a name, not a secret. The operations manual
 calls it in a type-checked block, which the public-function census requires.
+
+
+### 2026-09-27 — KG round 1: answers stay through one bounded revalidation episode
+
+Merged origin/main at 9642d406c into the KG lane, retaining both journal and
+LLP Revised histories. Addressed both blind round-0 reviews: held snapshots
+and peeks enforce their own deadlines before timers and apply the memory
+fence; recursive timer rearming keeps that callback; reset/refusal/retirement
+notify opening remounts. Independently gated B/C tests pin older authority
+completion ordering. Reverting each fix or the version guard makes its new
+test fail (4 accessor, 1 rearm, 3 notification and 2 ordering failures).
+
+Implemented Accepted LLP 3000.023. Omitted options retain for one absolute,
+non-renewable host-time second after invalidation processing, marked
+revalidating while fresh/since and answer identity stay unchanged. False
+withdraws immediately; true retains without that cap and lingers 30 seconds.
+Retain/linger, three keys, universal viewer/credential reset fences, per-call
+false, exact loading publication and episode withdrawal without retiring
+in-flight work now follow the RFC. The facade inherits the episode by value
+and clears every source withdrawal, including an earlier B expiry. Snapshots,
+peeks and usePage caches check deadlines without timers; pages carry the mark
+and drop expired suffixes. Grouped reset notifications withdraw all shared
+approvals before callbacks. Read card, ObserveOptions, manual and LLP
+3000.019 §3.3 describe the new contract. The report audits every former keep
+branch and maps all fourteen §6 evidence items to tests.
+
+Guide: 86/86. Focused groups (overlapping): 107 episode/authority, 141 device/
+expiry, 110 default reset/clock, 72 compatibility, and 273 extended revocation/
+memory/composition tests pass. Eighteen generated createApp sequences span
+online, wasm and process clients with 50 ms authority reads; long bursts must
+withdraw at their original cap. Both Chromium witnesses preserve query/page
+inputs through 20 updates, loaded cursor changes and authoritative removal.
+An isolated transform using only main's facade fails on the first replacement.
+Local finite-retry cases use the same revoked row plus an ephemeral sample,
+reject four stale epochs and withdraw on both devices.
+
+Ran scripts/test.sh exactly once. Exact summary: **== 2 failure(s) in 1406 s**,
+exit **1**; phases: client tests and client models. Rust: 3,835 passed,
+0 failed, 24 ignored (696 s). Main client: 2,746 passed, 16 failed, 10 skipped;
+additional shards: 56/56 (428 s). Final seeded models: 77 passed, 1 failed
+(244 s). Fixture wrappers: 9/9. Builds, package/app typechecks, guide, docs/wasm
+budgets and release guard pass.
+
+All 17 failures are lane-owned old semantic assertions: two remembered-wakeup
+cases, one maintained-column served-answer filter, seven page-authority cases,
+one presence invalidation, five clock/freshness cases, and the R1 immediate-
+revocation model at seed 2345. Preserved immediate-withdrawal assertions with
+keep:false; mark assertions preserve fresh/since/identity, and newly served
+schema evidence excludes revalidating copies. All five affected client files
+then pass 59/59; the model passes 27/27 and all 3,000 seeds with a named 2345
+replay. Every failure and correction is listed in the report. No baseline or
+environmental failure. Runtime bytes were unchanged after the full run began;
+the complete suite was not rerun or relabeled green. Its inherited 60-second
+runtime budget remains exceeded; no timeout or budget was raised.
+
+Wasm: 1,981,512 B raw / 572,053 B gzip, unchanged from merged main, 788 B
+below the unchanged 572,841 B cap; SHA-256
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+No Rust, meter, authorization/disclosure rule, durable format, diagnostic,
+version or dependency change. Changed source/test files remain below 1,500
+lines (local.ts: 1,497; extracted React harness: 1,430). Reference audit:
+zero errors/unchecked; whitespace check passes. No unresolved lane defect or
+design deviation. No push, publication, comparative or Apple UI run.
+
+Commits: 9c131c4eb (merge), 47befc1a8 (review fixes), 53e2ea798 (RFC),
+4dd0aa619 (models/browser), db86ef80c and 80ed62092 (client assertions),
+6c0dec7f0 (R1 model); all include the required GPT-6 Astra co-author trailer.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md. Ignored logs and
+negative controls: target/lane-kg-r1/. This is round 1's single journal append.
