@@ -112,6 +112,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_DELIVERY_BINDING", "a report's binding changed or was removed"),
     ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),
     ("RUNS_FULL", "`RUNS_FULL` refuses a disjoint 65th run"),
     ("E_FIELD_AUTHORITY", "E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours."),
@@ -340,3 +341,14 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("SNAPBACK4_SIGNAL", "`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance stopped; an unexpected stop ends the server)."),
     ("SNAPBACK4_THREAD_EXIT", "`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance stopped; an unexpected stop ends the server)."),
 ];
+
+#[test]
+fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
+    let text = normalize(&card("receipts").unwrap());
+    for fact in ["retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "client.mutate(api.seen"] {
+        assert!(text.contains(fact), "missing {fact}");
+    }
+    for obsolete in ["client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
+        assert!(!text.contains(obsolete), "obsolete: {obsolete}");
+    }
+}

@@ -68060,3 +68060,47 @@ with the four resolutions. Full report and reproduction:
 reports/20260927-lx-linux-package/REPORT.md, round 3; raw affected/guide logs,
 mutation driver/results and all eight failure logs: target/lane-lx-round3/.
 No open round-3 problem; integration owns fresh 0.4.5 qualification.
+
+
+### 2026-09-27 — DS round 1: fingerprinted delivery and review repairs
+
+Merged origin/main first in db887d978, preserving both journal append streams.
+LLP 3000.022 now pins SHA-256 over a versioned prefix and length-prefixed UTF-8
+binding names. Compiled bindings and manifest envelopes carry the digest;
+SDK reports send `delivery: { fingerprint }` beside id, args and store_id.
+SQLite and both Postgres write modes check it under the writer before signature
+validation/body execution. HTTP checks before decoding, rechecks at execution,
+and returns nonretryable E_DELIVERY_BINDING as a coded 200 refusal. Existing
+bound durable receipts win before ephemeral dispatch, including after a schema
+conversion; fresh ephemeral IDs remain correlation IDs. Closed the replay issue.
+
+Preserved owner-disclosed OptionalField origins through successive aliases;
+added colliding-table-ID controls, a charged per-query binding index, exhaustion
+short-circuiting, charged metadata loops, safe-integer coordinate exclusion,
+exact envelope reservations, and the missing second-envelope overflow test.
+The receipts card now teaches persisted local delivery debt versus the online
+memory queue. Its hook keeps only seen; the browser recipe tests preserve seen
+retry/remount/identity isolation and assert no hook delivery or automatic walk.
+
+Affected checks pass: delivery 13, clause 5, replay/fingerprint 2, guide 87,
+read-through provenance 3, HTTP 5, Postgres both Serialized/Serializable, React
+45 (zero skipped). Six deliberate mutations are killed by the new regressions.
+The mandatory one scripts/test.sh run exited 1 with the exact summary:
+`== 1 failure(s) in 1446 s` / `client tests`. Its sole failure was ours: the
+React fixture still extracted the deleted runsOf hook and pinned its old
+protocol. Updated it and reran the full affected React file successfully.
+No baseline or environmental failures; the full Rust phase (929 s), all other
+phases, and 78 client model tests passed. The final small HTTP and Postgres
+refinements have separate passing checks; the full script was not run twice.
+
+Warm in-memory engine benchmark, ten alternating batches of 5,000 writes:
+direct ephemeral 19,678 ns/write; receipt-aware mutate 25,978 ns (+6,300 ns,
+about 32%, including argument/outcome wrapping); isolated miss lookup 2,890 ns.
+Wasm exact duplicate-function elimination with Binaryen 108 yields 1,964,064 B
+raw / 570,429 B gzip: -2,567 gzip bytes from round 0, 2,412 below the unchanged
+572,841 cap. Imports/exports are unchanged. A host without wasm-opt still gets
+the unoptimized 573,266 B gzip module; the qualified build requires the tool.
+
+No client collection/queue, API contract redesign, package version, push or
+publication changes. Report, protocol examples, file map, full-run failure and
+passing repair, measurements and reproduction: reports/20260927-delivery-server/ROUND1.md.

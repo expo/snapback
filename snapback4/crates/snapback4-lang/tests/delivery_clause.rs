@@ -12,7 +12,7 @@ fn clause_binds_argument_names_and_survives_schema_serialization() {
     let wire = serde_json::to_value(&bound.schema).unwrap();
     assert_eq!(
         wire["delivery"],
-        json!([{"table":"messages","group":"chat","position":"ordinal","mutation":"delivered","args":["group","low","high"]}])
+        json!([{"table":"messages","group":"chat","position":"ordinal","mutation":"delivered","args":["group","low","high"],"fingerprint":"2f5d2629caf0cd61eacb5eb5bd772dd8684be9e7872af1112bd679c5719f3443"}])
     );
     let restored: snapback4_core::Schema =
         serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
@@ -116,9 +116,28 @@ fn binding_decoder_rejects_incomplete_or_duplicate_fields() {
     use snapback4_core::schema::DeliveryBinding;
     for wire in [
         r#"{"table":"messages"}"#,
-        r#"{"table":"messages","table":"other","group":"chat","position":"ordinal","mutation":"delivered","args":["group","low","high"]}"#,
+        r#"{"table":"messages","table":"other","group":"chat","position":"ordinal","mutation":"delivered","args":["group","low","high"],"fingerprint":"2f5d2629caf0cd61eacb5eb5bd772dd8684be9e7872af1112bd679c5719f3443"}"#,
         r#"{"table":"messages","group":"chat","position":"ordinal","mutation":"delivered","args":["group"]}"#,
     ] {
         assert!(serde_json::from_str::<DeliveryBinding>(wire).is_err());
     }
+}
+
+#[test]
+fn fingerprint_names_every_component_and_is_independent_of_wire_order() {
+    let bound = compile(SOURCE);
+    let binding = bound.schema.delivery[0].clone();
+    assert_eq!(binding.fingerprint, binding.compute_fingerprint());
+    for field in 0..7 {
+        let mut changed = binding.clone();
+        match field {
+            0 => changed.table.push('x'), 1 => changed.group.push('x'),
+            2 => changed.position.push('x'), 3 => changed.mutation.push('x'),
+            n => changed.args[n - 4].push('x'),
+        }
+        assert_ne!(changed.compute_fingerprint(), binding.fingerprint, "{field}");
+    }
+    let wire = serde_json::to_value(&binding).unwrap();
+    let restored: snapback4_core::schema::DeliveryBinding = serde_json::from_value(wire).unwrap();
+    assert_eq!(restored.compute_fingerprint(), binding.fingerprint);
 }

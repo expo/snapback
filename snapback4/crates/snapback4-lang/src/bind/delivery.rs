@@ -134,18 +134,21 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec
                 );
                 continue;
             }
-            schema.delivery.push(DeliveryBinding {
+            let mut binding = DeliveryBinding {
                 table: clause.table.clone(),
                 group: clause.group.clone(),
                 position: clause.position.clone(),
                 mutation: operation_name(&module, &decl.name),
                 args: decl.args.iter().map(|arg| arg.name.clone()).collect(),
-            });
+                fingerprint: String::new(),
+            };
+            binding.fingerprint = binding.compute_fingerprint();
+            schema.delivery.push(binding);
         }
     }
 }
 
-// Ephemeral mutations deliberately bypass receipts, so they cannot promise replay.
+// Fresh ephemeral writes do not keep receipts, so they cannot promise replay.
 pub(super) fn durability(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Diagnostic>) {
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file)

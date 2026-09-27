@@ -1,5 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
     ("RUNS_FULL", "the receipts reporter cannot record another disjoint run: 64 are already held for this member. Keep the owed interval and retry after a merge frees a slot. A successful delivered call always records coverage. guide receipts."),
+    ("E_DELIVERY_BINDING", "the report names a changed or removed delivery binding. Drop that binding’s debt and collect under the current fingerprint; do not retry the old report. guide receipts."),
     ("E_DELIVERY_CLAUSE", "reports delivery requires a mutation with exactly a group reference and two int arguments, immutable group/position columns and their unique key. Declare one reporter per tracked table. Success promises coverage of every position; refuse what cannot be recorded. The located diagnostic gives the rewrite. guide receipts."),
     ("E_QUARRY_EPHEMERAL", "ephemeral life is 1–60 seconds. Keep durable custody, rules that probe memory, held reads and durable writes out of ephemeral tables. Split mixed mutations and read ephemeral state in its own server query; guide ephemeral."),
     ("E_EPHEMERAL_FULL", "ephemeral memory is full for this principal or the server. No write applied. Wait for rows to expire or remove your rows, then retry; guide ephemeral."),

@@ -1,0 +1,117 @@
+{
+  "rawBefore": 1985385,
+  "rawAfter": 1964064,
+  "sha256": "d843f60e9776069dbaa92c9040b68dedb6480cd0be953f301d93125c3ea53926",
+  "exports": [
+    {
+      "name": "memory",
+      "kind": "memory"
+    },
+    {
+      "name": "__wbg_webdevice_free",
+      "kind": "function"
+    },
+    {
+      "name": "webdevice_call",
+      "kind": "function"
+    },
+    {
+      "name": "webdevice_drain",
+      "kind": "function"
+    },
+    {
+      "name": "webdevice_new",
+      "kind": "function"
+    },
+    {
+      "name": "webdevice_word_fold",
+      "kind": "function"
+    },
+    {
+      "name": "__abort_handler",
+      "kind": "global"
+    },
+    {
+      "name": "__instance_terminated",
+      "kind": "global"
+    },
+    {
+      "name": "__wbindgen_export",
+      "kind": "function"
+    },
+    {
+      "name": "__wbindgen_export2",
+      "kind": "function"
+    },
+    {
+      "name": "__wbindgen_export3",
+      "kind": "function"
+    },
+    {
+      "name": "__wbindgen_add_to_stack_pointer",
+      "kind": "function"
+    },
+    {
+      "name": "__wbindgen_export4",
+      "kind": "function"
+    }
+  ],
+  "imports": [
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbindgen_object_drop_ref",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg_call_35dba3c747ad7521",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg_getPrototypeOf_28594fd8c494d87a",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg_normalize_ed1c81b7d0d0efad",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg_get_971a0c45d172643f",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg_getRandomValues_a608c4436c19407a",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg___wbindgen_throw_bb96b2010945f0bc",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg_Error_408e67f47ca7b58b",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg___wbindgen_string_get_d154f1e671052120",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbg___wbindgen_is_function_5e4570eb24ffa122",
+      "kind": "function"
+    },
+    {
+      "module": "./snapback4_device_bg.js",
+      "name": "__wbindgen_cast_0000000000000001",
+      "kind": "function"
+    }
+  ],
+  "interfaceUnchanged": true
+}

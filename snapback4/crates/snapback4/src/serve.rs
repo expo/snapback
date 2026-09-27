@@ -813,7 +813,7 @@ fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusa
 
 // @ref LLP 3000.009#5.1 — a racing id conflict is a terminal input refusal, not a transport failure.
 fn mutation_error_status(refusal: &Refusal) -> u16 {
-    if refusal.retryable { 503 } else if refusal.code == "E_ID_REUSED" { 200 } else { 500 }
+    if refusal.retryable { 503 } else if matches!(refusal.code.as_str(), "E_ID_REUSED" | "E_DELIVERY_BINDING") { 200 } else { 500 }
 }
 
 fn handle(mut request: Request, shared: &Shared) {
@@ -1019,8 +1019,15 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
+            let delivery_fingerprint = if path.starts_with("/m/") {
+                match ephemeral::delivery_fingerprint(&payload) {
+                    Ok(value) => value,
+                    Err(why) => return operation_refusal(request, shared, 200, why),
+                }
+            } else { None };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
-            if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
+            if path.starts_with("/m/") {
+                let id = payload.get("id").and_then(Json::as_str);
                 #[cfg(test)] test_work(&shared.mutation_wait);
                 let (replay, metadata) = {
                     let mut engine = lock(&shared.engine);
@@ -1028,18 +1035,20 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
                     }
-                    // Adoption may have changed the operation after the early
-                    // route check. Classify again under the executing owner.
-                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                    let replay = intent_store(&engine, &payload).and_then(|()| {
+                        let replay = id.map(|id| engine.replay_mutation(&principal, id, &op, &args_json)).transpose().map_err(|e| e.refusal())?.flatten();
+                        if replay.is_none() { engine.schema().check_delivery(&op, delivery_fingerprint.as_deref()).map_err(|e| e.refusal())?; }
+                        Ok(replay)
+                    });
+                    if matches!(replay, Ok(None)) && engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
                     (replay, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
-                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
+                    Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
                     Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
@@ -1197,6 +1206,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
+                    context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
                     (outcome, response_head(&mut engine))

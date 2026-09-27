@@ -1,0 +1,23 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 26.62s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'unsafe_positions_are_not_reported_and_safe_endpoints_are_exact' (3699225) panicked at crates/snapback4-lang/tests/delivery.rs:470:9:
+assertion `left == right` failed: -9223372036854775808
+  left: Array [Array [String("c1"), Number(-9223372036854775808)]]
+ right: Array []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test unsafe_positions_are_not_reported_and_safe_endpoints_are_exact ... FAILED
+
+failures:
+
+failures:
+    unsafe_positions_are_not_reported_and_safe_endpoints_are_exact
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`

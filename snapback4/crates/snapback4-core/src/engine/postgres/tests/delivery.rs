@@ -64,7 +64,8 @@ fn delivery_noop_records_only_receipt_and_replay_does_not_lookup_program() {
             ("high".into(), Value::Int(1)),
         ]
         .into();
-        let ctx = Context::new("alice", args);
+        let mut ctx = Context::new("alice", args);
+        ctx.delivery_fingerprint = Some(e.schema.delivery[0].fingerprint.clone());
         let out = e.mutate("delivered", Some("noop"), ctx.clone()).unwrap();
         assert!(matches!(out.state, WriteState::Sent { seq, .. } if seq == before.0));
         assert!(out.receipt_only && !out.replayed);
@@ -78,7 +79,17 @@ fn delivery_noop_records_only_receipt_and_replay_does_not_lookup_program() {
         assert_eq!(receipt[0].get::<_, &str>(2), "delivered");
         assert!(!receipt[0].get::<_, &str>(3).is_empty());
         tx.rollback().unwrap();
+        // Rebinding is checked under each adapter's writer before the body.
+        e.schema.delivery[0].fingerprint = "changed".into();
+        let refused = e.mutate("delivered", Some("stale"), ctx.clone()).unwrap_err().refusal();
+        assert_eq!(refused.code, "E_DELIVERY_BINDING");
+        assert!(!refused.retryable);
+        assert_eq!(snapshot(&mut e), before);
+        e.schema.delivery.clear();
+        e.programs.get_mut("delivered").unwrap().kind = ProgramKind::Query;
+        assert_eq!(e.mutate("delivered", Some("now-query"), ctx.clone()).unwrap_err().code(), "E_DELIVERY_BINDING");
         e.programs.remove("delivered");
+        assert_eq!(e.mutate("delivered", Some("removed"), ctx.clone()).unwrap_err().code(), "E_DELIVERY_BINDING");
         let replay = e.mutate("delivered", Some("noop"), ctx).unwrap();
         assert!(replay.replayed && replay.receipt_only);
         assert!(matches!(replay.state, WriteState::Sent { seq, .. } if seq == before.0));

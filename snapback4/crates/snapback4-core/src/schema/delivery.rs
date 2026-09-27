@@ -9,6 +9,7 @@ pub struct DeliveryBinding {
     pub position: String,
     pub mutation: String,
     pub args: Vec<String>,
+    pub fingerprint: String,
 }
 
 // This streaming map reader shares the ordinary String/Vec readers with the
@@ -25,40 +26,58 @@ impl<'de> Deserialize<'de> for DeliveryBinding {
                 self,
                 mut map: A,
             ) -> Result<Self::Value, A::Error> {
-                let mut out = DeliveryBinding::default();
+                let mut fields: [String; 5] = Default::default();
+                let mut args = Vec::new();
                 let mut seen = 0_u8;
+                const NAMES: [&str; 6] = ["table", "group", "position", "mutation", "fingerprint", "args"];
                 while let Some(key) = map.next_key::<String>()? {
-                    let bit = match key.as_str() {
-                        "table" => 1,
-                        "group" => 2,
-                        "position" => 4,
-                        "mutation" => 8,
-                        "args" => 16,
-                        _ => 0,
+                    let Some(index) = NAMES.iter().position(|name| *name == key) else {
+                        let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        continue;
                     };
-                    if seen & bit != 0 {
-                        return Err(serde::de::Error::custom("duplicate delivery field"));
-                    }
+                    let bit = 1 << index;
+                    if seen & bit != 0 { return Err(serde::de::Error::custom("duplicate delivery field")); }
                     seen |= bit;
-                    match bit {
-                        1 => out.table = map.next_value()?,
-                        2 => out.group = map.next_value()?,
-                        4 => out.position = map.next_value()?,
-                        8 => out.mutation = map.next_value()?,
-                        16 => out.args = map.next_value()?,
-                        _ => {
-                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
+                    if index == 5 { args = map.next_value()?; }
+                    else { fields[index] = map.next_value()?; }
                 }
-                if seen != 31 || out.args.len() != 3 {
-                    return Err(serde::de::Error::custom(
-                        "delivery needs table, group, position, mutation and three arguments",
-                    ));
+                if seen != 63 || args.len() != 3 {
+                    return Err(serde::de::Error::custom("delivery needs table, group, position, mutation, fingerprint and three arguments"));
                 }
-                Ok(out)
+                let [table, group, position, mutation, fingerprint] = fields;
+                Ok(DeliveryBinding { table, group, position, mutation, args, fingerprint })
             }
         }
         deserializer.deserialize_map(Binding)
+    }
+}
+
+impl DeliveryBinding {
+    /// SHA-256 over the domain and seven UTF-8 strings with u64 BE byte lengths.
+    // @ref LLP 3000.022#5 — the digest fences a report at its execution boundary.
+    pub fn compute_fingerprint(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(b"snapback4.delivery.v1\0");
+        for field in [&self.table, &self.group, &self.position, &self.mutation].into_iter().chain(self.args.iter()) {
+            hash.update((field.len() as u64).to_be_bytes());
+            hash.update(field.as_bytes());
+        }
+        format!("{:x}", hash.finalize())
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl super::Schema {
+    pub fn check_delivery(&self, mutation: &str, fingerprint: Option<&str>) -> Result<(), crate::RuntimeError> {
+        if let Some(fingerprint) = fingerprint {
+            if !self.delivery.iter().any(|binding| binding.mutation == mutation && binding.fingerprint == fingerprint) {
+                return Err(crate::RuntimeError::Structural {
+                    code: "E_DELIVERY_BINDING",
+                    message: format!("{mutation}'s delivery binding changed or was removed; drop this binding's debt and collect under the current binding"),
+                });
+            }
+        }
+        Ok(())
     }
 }

@@ -146,6 +146,8 @@ pub struct Context {
     pub(crate) session_digest: Option<String>,
     /// Original HTTP arguments, before typed decoding or default insertion.
     pub wire_args: Option<serde_json::Value>,
+    #[cfg(feature = "sqlite")]
+    pub delivery_fingerprint: Option<String>,
     pub(crate) generation: u64,
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
@@ -159,7 +161,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -994,7 +996,6 @@ impl Engine {
     /// Compare wire identity before decoding against a possibly newer schema.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
-        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) { return Ok(None); }
         crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }
@@ -1006,14 +1007,6 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
-        // Signals bypass the replay table even when their correlation id was used before.
-        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
-            return match self.mutate_ephemeral(name, context) {
-                Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
-                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
-                Err(error) => Err(error),
-            };
-        }
         context.generation = self.generation;
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) } else { serde_json::Value::Null };
         if let Some(op) = op
@@ -1021,6 +1014,25 @@ impl Engine {
         {
             return Ok(outcome);
         }
+        // An existing durable receipt owns its id even after conversion to ephemeral.
+        if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
+            self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            return match self.mutate_ephemeral(name, context) {
+                Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
+                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
+                Err(error) => Err(error),
+            };
+        }
+        let tx = self.store.transaction()?;
+        if let Some(op) = op
+            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
+        {
+            // Applied between the check above and this transaction.
+            let outcome = MutationOutcome::from_receipt(&outcome)?;
+            tx.rollback()?;
+            return Ok(outcome);
+        }
+        self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind == ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
@@ -1042,15 +1054,6 @@ impl Engine {
         }
         context.entropy = self.entropy;
         let ceilings = self.ceilings;
-        let tx = self.store.transaction()?;
-        if let Some(op) = op
-            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
-        {
-            // Applied between the check above and this transaction.
-            let outcome = MutationOutcome::from_receipt(&outcome)?;
-            tx.rollback()?;
-            return Ok(outcome);
-        }
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);
         // An `image`/`video` argument names an upload by id; the program

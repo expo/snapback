@@ -91,6 +91,9 @@ impl Ledger {
         }
         true
     }
+    fn tracking(&mut self, steps: u64, heap: u64) -> bool {
+        !self.stamping_stopped && self.reserve(steps, heap, 0)
+    }
     fn lease(&self, bytes: u64) -> Lease {
         Lease {
             heap: self.heap.as_ref().expect("reserved metadata heap").clone(),
@@ -138,6 +141,7 @@ pub(super) struct Origins {
 pub(super) struct Tracking {
     ledger: Option<Ledger>,
     pub last: Option<Origin>,
+    index: Option<BTreeMap<String, usize>>,
     variables: BTreeMap<String, (Origin, Lease)>,
     // Removing an entry need not free its BTree node. Retain node charges
     // until the whole map is dropped; individual leases own only the names.
@@ -151,7 +155,7 @@ impl Tracking {
             return;
         }
         if let Some(ledger) = &mut self.ledger
-            && ledger.reserve(1, 0, 0)
+            && ledger.tracking(1, 0)
         {
             self.last = fields.field_origin(name);
         }
@@ -163,6 +167,7 @@ pub struct Envelope {
     pub table: String,
     pub mutation: String,
     pub args: Vec<String>,
+    pub fingerprint: String,
     pub rows: Vec<(String, i64)>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub partial: bool,
@@ -225,14 +230,12 @@ impl Runner<'_> {
         if self.device || self.meter.cut != crate::meter::Cut::Cap {
             return;
         }
-        let Some(binding) = self
-            .schema
-            .delivery
-            .iter()
-            .find(|binding| binding.table == table)
-        else {
-            return;
-        };
+        if !self.delivery_index() { return; }
+        let cost = 1 + (self.schema.delivery.len() + 1).ilog2() as u64;
+        let ledger = self.delivery_ledger();
+        if ledger.stamping_stopped || !ledger.reserve(cost, 0, 0) { return; }
+        let Some(&index) = self.delivery.index.as_ref().unwrap().get(table) else { return; };
+        let binding = &self.schema.delivery[index];
         let (Value::Row(fields) | Value::Map(fields)) = row else {
             return;
         };
@@ -245,10 +248,8 @@ impl Runner<'_> {
         let Some(position) = fields.get(&binding.position).and_then(|v| v.as_int().ok()) else {
             return;
         };
+        if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&position) { return; }
         let ledger = self.delivery_ledger();
-        if ledger.stamping_stopped {
-            return;
-        }
         let size =
             384 + (2 * table.len() + 2 * id.len() + group.len() + binding.position.len()) as u64;
         if !ledger.reserve(1, size, 0) {
@@ -268,6 +269,7 @@ impl Runner<'_> {
             heap: Some(ledger.lease(0)),
         };
         for key in fields.keys() {
+            if !self.delivery_ledger().tracking(1, 0) { return; }
             // Runtime flags are not stored columns; the schema includes the implicit id.
             if !self.schema.tables[table].columns.contains_key(key) {
                 continue;
@@ -307,7 +309,7 @@ impl Runner<'_> {
         if fields.delivery_image().is_none() {
             return;
         }
-        if self.delivery_ledger().reserve(1, 0, 0) {
+        if self.delivery_ledger().tracking(1, 0) {
             self.delivery.last = fields.field_origin(name);
         }
     }
@@ -317,7 +319,7 @@ impl Runner<'_> {
             return;
         }
         if let Some(ledger) = &mut self.delivery.ledger
-            && ledger.reserve(1, 0, 0)
+            && ledger.tracking(1, 0)
         {
             self.delivery.last = self
                 .delivery
@@ -333,7 +335,7 @@ impl Runner<'_> {
                 self.delivery.variables.len(),
             );
             let ledger = self.delivery_ledger();
-            if ledger.reserve(1, nodes + name.len() as u64, 0) {
+            if ledger.tracking(1, nodes + name.len() as u64) {
                 let lease = ledger.lease(name.len() as u64);
                 let node_lease = ledger.lease(0);
                 self.delivery.variable_nodes.get_or_insert(node_lease).bytes += nodes;
@@ -342,6 +344,9 @@ impl Runner<'_> {
         }
     }
     pub(super) fn clear_delivery_variable(&mut self, name: &str) {
+        if self.delivery.variables.is_empty() { return; }
+        let cost = 1 + (self.delivery.variables.len() + 1).ilog2() as u64;
+        if !self.delivery_ledger().tracking(cost, 0) { return; }
         self.delivery.variables.remove(name);
         if self.delivery.variables.is_empty() {
             self.delivery.variables = BTreeMap::new();
@@ -368,7 +373,7 @@ impl Runner<'_> {
         let bytes = crate::rows::word_heap::insertion::<String, Origin>(origins.fields.len())
             + name.len() as u64;
         let ledger = self.delivery_ledger();
-        if ledger.reserve(1, bytes, 0) {
+        if ledger.tracking(1, bytes) {
             origins.heap.get_or_insert_with(|| ledger.lease(0)).bytes += bytes;
             origins.fields.insert(name.into(), origin);
         }
@@ -380,7 +385,7 @@ impl Runner<'_> {
             .and_then(|image| image.coordinates.clone());
         let source = fields.source_identity();
         let bytes = 256 + source.map_or(0, |s| (s.table.len() + s.id.len()) as u64);
-        if origins.fields.is_empty() || !self.delivery_ledger().reserve(1, bytes, 0) {
+        if origins.fields.is_empty() || !self.delivery_ledger().tracking(1, bytes) {
             fields.clear_delivery();
             return;
         }
@@ -402,71 +407,76 @@ impl Runner<'_> {
         fields.replace_source(identity);
     }
 
+    // Build once per query. Each insertion is reserved before looking at the
+    // next binding, so many bindings cannot evade a small supplemental budget.
+    fn delivery_index(&mut self) -> bool {
+        if self.schema.delivery.is_empty() { return false; }
+        if self.delivery_ledger().stamping_stopped { return false; }
+        if self.delivery.index.is_none() {
+            self.delivery.index = Some(BTreeMap::new());
+            for (i, binding) in self.schema.delivery.iter().enumerate() {
+                let bytes = crate::rows::word_heap::insertion::<String, usize>(i) + binding.table.len() as u64;
+                if !self.delivery_ledger().reserve(1 + (i + 1).ilog2() as u64, bytes, 0) { return false; }
+                self.delivery.index.as_mut().unwrap().insert(binding.table.clone(), i);
+            }
+        }
+        true
+    }
+
     pub(crate) fn delivery_manifest(
         &mut self,
         data: &Value,
     ) -> (Option<Manifest>, Option<DeliveryMeter>) {
-        if self.device
-            || self.query_unavailable
-            || !self
-                .schema
-                .delivery
-                .iter()
-                .any(|binding| self.read_tables.contains(&binding.table))
-        {
+        if self.device || self.query_unavailable || self.schema.delivery.is_empty() {
             return (None, None);
         }
-        // Reserve the smallest wire form before envelopes, including framing.
-        let ledger = self.delivery_ledger();
-        ledger.reserve(0, 0, 24);
+        if !self.delivery_index() { return self.partial_manifest(); }
         let mut bindings = Vec::new();
         let mut seen = Vec::new();
-        for binding in &self.schema.delivery {
-            if !self.read_tables.contains(&binding.table) {
-                continue;
-            }
+        // Select by read table through the index, never by scanning all bindings
+        // once per source. Reserve the final partial-flag pass with each envelope.
+        for table in &self.read_tables {
+            let cost = 1 + (self.schema.delivery.len() + 1).ilog2() as u64;
             let ledger = self.delivery.ledger.as_mut().unwrap();
-            if !ledger.reserve(
-                5 + binding.table.len() as u64
-                    + binding.mutation.len() as u64
-                    + binding.args.iter().map(|s| s.len() as u64).sum::<u64>(),
-                0,
-                0,
-            ) {
-                break;
-            }
-            let bytes = envelope_bytes(binding);
-            let heap = 256
-                + bytes * 2
+            if !ledger.reserve(cost, 0, 0) { break; }
+            let Some(&index) = self.delivery.index.as_ref().unwrap().get(table) else { continue; };
+            let binding = &self.schema.delivery[index];
+            if !ledger.reserve(1 + binding.table.len() as u64 + binding.mutation.len() as u64
+                + binding.fingerprint.len() as u64 + binding.args.iter().map(|s| 1 + s.len() as u64).sum::<u64>(), 0, 0) { break; }
+            let bytes = envelope_bytes(binding) + if bindings.is_empty() { 14 } else { 1 };
+            let heap = 256 + bytes * 2
                 + crate::rows::word_heap::vec_growth::<Envelope>(bindings.len() + 1)
                 + crate::rows::word_heap::vec_growth::<BTreeSet<(Arc<str>, i64)>>(seen.len() + 1);
-            if !ledger.reserve(1, heap, bytes) {
-                break;
-            }
+            if !ledger.reserve(2, heap, bytes) { break; }
             bindings.push(Envelope {
-                table: binding.table.clone(),
-                mutation: binding.mutation.clone(),
-                args: binding.args.clone(),
-                rows: Vec::new(),
-                partial: false,
+                table: binding.table.clone(), mutation: binding.mutation.clone(),
+                args: binding.args.to_vec(), fingerprint: binding.fingerprint.clone(),
+                rows: Vec::new(), partial: true,
             });
             seen.push(BTreeSet::new());
         }
         if bindings.is_empty() {
-            return (
-                Some(Manifest::Partial),
-                Some(self.delivery_ledger().meter()),
-            );
+            if self.delivery_ledger().partial { return self.partial_manifest(); }
+            return (None, None);
         }
-        walk(data, &mut bindings, &mut seen, self.delivery_ledger());
+        if !self.delivery_ledger().partial {
+            walk(data, &mut bindings, &mut seen, self.delivery_ledger());
+        }
         let ledger = self.delivery_ledger();
-        if ledger.partial {
-            for binding in &mut bindings {
-                binding.partial = true;
-            }
+        if !ledger.partial {
+            for binding in &mut bindings { binding.partial = false; }
         }
         (Some(Manifest::Bindings(bindings)), Some(ledger.meter()))
     }
+
+    fn partial_manifest(&mut self) -> (Option<Manifest>, Option<DeliveryMeter>) {
+        let ledger = self.delivery_ledger();
+        // No bindings were emitted, so only the minimal representation is owed.
+        ledger.used.output_bytes = 0;
+        ledger.reserve(0, 0, 24);
+        (Some(Manifest::Partial), Some(ledger.meter()))
+    }
+
 }
 
 // JSON escaping is counted without constructing a second string or Value tree.
@@ -481,7 +491,9 @@ fn text_bytes(text: &str) -> u64 {
         .sum::<u64>()
 }
 fn envelope_bytes(binding: &DeliveryBinding) -> u64 {
-    80 + text_bytes(&binding.table)
+    br#"{"table":,"mutation":,"args":[,,],"fingerprint":,"rows":[],"partial":true}"#.len() as u64
+        + text_bytes(&binding.fingerprint)
+        + text_bytes(&binding.table)
         + text_bytes(&binding.mutation)
         + binding.args.iter().map(|s| text_bytes(s)).sum::<u64>()
 }
@@ -532,7 +544,8 @@ fn walk(
                         if !ledger.reserve(coordinate.group.len() as u64, 0, 0) {
                             return false;
                         }
-                        let bytes = 24 + text_bytes(&coordinate.group);
+                        let digits = if coordinate.position == 0 { 1 } else { coordinate.position.unsigned_abs().ilog10() as u64 + 1 } + u64::from(coordinate.position < 0);
+                        let bytes = 3 + text_bytes(&coordinate.group) + digits + u64::from(!binding.rows.is_empty());
                         let heap =
                             crate::rows::word_heap::insertion::<(Arc<str>, i64), ()>(seen.len())
                                 + crate::rows::word_heap::vec_growth::<(String, i64)>(

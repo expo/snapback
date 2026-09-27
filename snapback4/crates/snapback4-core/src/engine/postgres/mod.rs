@@ -211,13 +211,10 @@ impl PostgresEngine {
         {
             return Ok(outcome);
         }
-        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.into()))?.clone();
-        if program.kind != ProgramKind::Mutation {
-            return Err(RuntimeError::UnknownOp(format!("{name} is not a mutation")));
-        }
-        if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
-            return Ok(failed(error.refusal(), None, Metered::default()));
-        }
+        let program = self.programs.get(name).ok_or_else(|| {
+            self.schema.check_delivery(name, context.delivery_fingerprint.as_deref()).err()
+                .unwrap_or_else(|| RuntimeError::UnknownOp(name.into()))
+        })?.clone();
         context.now.get_or_insert_with(crate::now_ms);
         if context.entropy == 0 {
             context.entropy = crate::ids::seed();
@@ -236,7 +233,7 @@ impl PostgresEngine {
         unreachable!()
     }
 
-    fn mutate_once(&mut self, program: &Program, op: Option<&str>, context: Context, args_digest: &str) -> Result<MutationOutcome, RuntimeError> {
+    fn mutate_once(&mut self, program: &Program, op: Option<&str>, mut context: Context, args_digest: &str) -> Result<MutationOutcome, RuntimeError> {
         let tx = self.store.transaction(Some(self.mode))?;
         if let Some(op) = op
             && let Some(receipt) = tx.applied_bound(&context.viewer, op, &program.name, args_digest)?
@@ -244,6 +241,13 @@ impl PostgresEngine {
             let outcome = MutationOutcome::from_receipt(&receipt)?;
             tx.rollback()?;
             return Ok(outcome);
+        }
+        self.schema.check_delivery(&program.name, context.delivery_fingerprint.as_deref())?;
+        if program.kind != ProgramKind::Mutation {
+            return Err(RuntimeError::UnknownOp(format!("{} is not a mutation", program.name)));
+        }
+        if let Err(error) = validate::validate_inputs(&self.schema, program, &mut context.args) {
+            return Ok(failed(error.refusal(), None, Metered::default()));
         }
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);

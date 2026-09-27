@@ -1,5 +1,9 @@
 # DS: delivery, the server half
 
+**Current result:** [Round 1](ROUND1.md) adds the amended fingerprint protocol
+and resolves the round-0 review findings. The report below is the historical
+round-0 record; its interface and open-problem status are superseded.
+
 Date: 2026-09-27. Branch: `sb4-intent/ds-delivery-server`. Base: `3369ae543`.
 Implements LLP 3000.022 §§2, 5 and 6. No push or package publication.
 

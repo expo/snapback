@@ -200,7 +200,11 @@ fn supplemental_overflow_never_changes_answer_or_its_meter() {
         output_bytes: 128,
         ..Ceilings::default()
     });
-    assert_eq!(manifest(&mut with, "fields"), json!("partial"));
+    // The amended 64-hex fingerprint makes this envelope genuinely exceed
+    // 128 bytes. The bare fallback, unlike a binding, reserves only 24 bytes.
+    let floor = with.query("fields", context("alice")).unwrap();
+    assert_eq!(serde_json::to_value(floor.delivery).unwrap(), json!("partial"));
+    assert_eq!(floor.delivery_meter.unwrap().output_bytes, 24);
 }
 
 #[test]
@@ -223,8 +227,8 @@ fn two_bindings_have_separate_rows_and_self_describing_names() {
     assert_eq!(
         answer,
         json!([
-            {"table":"messages","mutation":"delivered","args":["group","low","high"],"rows":[["c1",1]]},
-            {"table":"notes","mutation":"noteDelivery","args":["room","start","end"],"rows":[["c1",1]]}
+            {"table":"messages","mutation":"delivered","args":["group","low","high"],"fingerprint":"2f5d2629caf0cd61eacb5eb5bd772dd8684be9e7872af1112bd679c5719f3443","rows":[["c1",1]]},
+            {"table":"notes","mutation":"noteDelivery","args":["room","start","end"],"fingerprint":e.schema().delivery[1].fingerprint,"rows":[["c1",1]]}
         ])
     );
 }
@@ -389,4 +393,101 @@ fn map_backed_authorized_source_images_are_tracked_too() {
         json!([["c1", 1]]),
         "{answer:?}"
     );
+}
+
+#[test]
+fn owner_field_origin_survives_optional_access_and_successive_aliases() {
+    let source = SOURCE.replace("text: text <=80", "text: text <=80 default '' written by .owner")
+        .replace("read <- .owner = viewer", "read <- allow");
+    let mut e = engine(&source);
+    for op in ["fields", "alias", "variable"] {
+        let owner = e.query(op, context("alice")).unwrap();
+        assert_eq!(serde_json::to_value(owner.delivery).unwrap()[0]["rows"], json!([["c1",1]]), "{op}");
+        let hidden = e.query(op, context("bob")).unwrap();
+        assert_eq!(serde_json::to_value(hidden.delivery).unwrap()[0]["rows"], json!([]), "{op}");
+        assert!(!serde_json::to_string(&snapback4_core::wire::to_json(&hidden.data)).unwrap().contains("hello"));
+    }
+}
+
+#[test]
+fn colliding_ids_do_not_turn_foreign_fields_into_own_images() {
+    let source = format!("{SOURCE}
+table notes:
+  chat: chats
+  position: int
+  text: text <=80
+  unique chat, position
+  immutable chat, position
+  public
+mutation noteDelivery(room: chats, start: int, end: int) reports delivery of notes by .chat, .position:
+  return null
+query collision():
+  message = messages['x'] ! else MISSING
+  note = notes['x'] ! else MISSING
+  return message {{preview: note.text}}
+query ownImages():
+  return {{message: messages['x'] {{text}}, note: notes['x'] {{text}}}}
+");
+    let mut e = engine(&source);
+    e.seed([("messages".into(), row("x", 4, "alice", None)),
+        ("notes".into(), object([("id", Value::Id("x".into())), ("chat", Value::Id("c1".into())), ("position", Value::Int(4)), ("text", Value::String("note".into()))]))]).unwrap();
+    let collision = manifest(&mut e, "collision");
+    assert_eq!(collision[0]["rows"], json!([]), "{collision}");
+    assert_eq!(collision[1]["rows"], json!([]), "{collision}");
+    let own = manifest(&mut e, "ownImages");
+    assert_eq!(own[0]["rows"], json!([["c1",4]]));
+    assert_eq!(own[1]["rows"], json!([["c1",4]]));
+    // The second envelope cannot fit. Dropping it must mark the first partial.
+    let one_envelope = serde_json::to_string(&json!({"delivery":[{
+        "table":"messages","mutation":"delivered","args":["group","low","high"],
+        "fingerprint":e.schema().delivery[0].fingerprint,"rows":[],"partial":true
+    }]})).unwrap().len() as u64;
+    e.set_ceilings(Ceilings { output_bytes: (one_envelope + 20) * 4, ..Ceilings::default() });
+    let tight = manifest(&mut e, "ownImages");
+    assert_eq!(tight.as_array().unwrap().len(), 1, "{tight}");
+    assert_eq!(tight[0]["partial"], true, "{tight}");
+}
+
+#[test]
+fn exact_output_reservation_admits_a_fitting_binding_and_row() {
+    let mut e = engine(SOURCE);
+    let mut full = manifest(&mut e, "fields");
+    full[0]["partial"] = json!(true); // overhead is reserved before any row
+    let ceiling = (serde_json::to_string(&json!({"delivery":full})).unwrap().len() as u64) * 4;
+    e.set_ceilings(Ceilings { output_bytes: ceiling, ..Ceilings::default() });
+    let out = e.query("fields", context("alice")).unwrap();
+    assert_eq!(serde_json::to_value(out.delivery).unwrap()[0]["rows"], json!([["c1",1]]));
+    assert!(out.delivery_meter.unwrap().output_bytes <= ceiling / 4);
+}
+
+#[test]
+fn unsafe_positions_are_not_reported_and_safe_endpoints_are_exact() {
+    let mut e = engine(SOURCE);
+    for n in [i64::MIN, -9_007_199_254_740_992, -9_007_199_254_740_991, 9_007_199_254_740_991, 9_007_199_254_740_992, i64::MAX] {
+        // Store fixture models legacy/imported values beyond the current input gate.
+        let table = e.schema().tables["messages"].clone();
+        let tx = e.store_mut().transaction().unwrap();
+        let old = tx.get("messages", "m1").unwrap();
+        tx.put("messages", &table, &row("m1", n, "alice", None), old.as_ref()).unwrap();
+        tx.commit().unwrap();
+        let expected = if (-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&n) { json!([["c1",n]]) } else { json!([]) };
+        assert_eq!(rows(&mut e, "fields"), expected, "{n}");
+    }
+}
+
+#[test]
+fn many_bindings_exhaust_metadata_work_before_further_source_stamping() {
+    let mut bound = compile(SOURCE);
+    let binding = bound.schema.delivery[0].clone();
+    for n in 0..1000 {
+        let mut other = binding.clone(); other.table = format!("unused{n}");
+        bound.schema.delivery.insert(0, other);
+    }
+    let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    e.load((1..=100).map(|n| ("messages".into(), row(&format!("m{n}"), n, "alice", None)))).unwrap();
+    e.set_ceilings(Ceilings { steps: 800, ..Ceilings::default() });
+    let out = e.query("page", context("alice")).unwrap();
+    assert_eq!(serde_json::to_value(out.delivery).unwrap(), json!("partial"));
+    assert!(out.delivery_meter.unwrap().steps <= 200);
+    assert!(out.delivery_meter.unwrap().steps > 100, "index work is charged");
 }

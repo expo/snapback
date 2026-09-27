@@ -230,22 +230,25 @@ Three things keep every fetched message moving:
   moves, until the client is caught up. Ordinals are contiguous: this card
   never deletes messages. An interval below the acquired window needs the server.
   It never needs the page's cursor.
-- **Owing.** For the life of the signed-in client, a remount included, the
-  hook keeps what it has fetched, merged into disjoint runs, for this viewer
-  and conversation, until the server's own rows cover it, even before
-  `progress` first answers; a predicted row covers nothing. It sends a run
-  when the run is new or grows, and again only when those rows move, even
-  after a page is gone; a report the client could not keep (`E_ADMISSION`)
-  goes again with the next answer. When the lowest run it holds lies above
-  the prefix, it walks older pages it holds, offline too.
-- **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
-  its report refuses `RUNS_FULL`; the SDK owes it until a merge or catching up
-  frees room. A reload forgets what is owed: what the pages and the page ahead
-  still hold is reported again, and the rest waits for catching up, which
-  needs the server.
+- **Owing.** The SDK collects exact positions from confirmed published rows
+  and accepted answer manifests, merges them into owed runs, and retires them
+  on committed success. The local client persists debt and uncertain attempt
+  ids in the device store, so a reload resumes them. The online client keeps
+  its queue in memory; closing it loses queued debt, which stays `sent`.
+  Predicted rows and positions outside JavaScript's safe-integer range never
+  count. Reporting needs no mounted conversation or confirmation query.
+- **Waiting.** A member keeps at most 64 runs. A disjoint 65th report refuses
+  `RUNS_FULL`; the SDK parks that run and continues with later owed intervals.
+  A group success, a published row or accepted manifest, reconnect, start, or
+  the slow ten-minute timer wakes one parked run. Retries wait at least 30
+  seconds and yield to new debt. Uncertain requests reuse their persisted id.
 
-`seen` records the newest message on screen, online or offline. The hook owes
-a view as it owes a run, until the member's row shows it; a view the client
+`E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
+drops that binding's debt and collects under the current fingerprint; it
+does not retry the old report.
+
+`seen` records the newest message on screen, online or offline. The hook keeps
+an owed view until the member's row shows it; a view the client
 could not keep goes again with the next answer, even once the conversation is
 hidden or its screen remounted. A reload forgets it, and the next view records
 it again. A message is `read` for a recipient once it is delivered and `seen`
@@ -254,37 +257,23 @@ message. Each message's receipt costs one scan of at most 50 member rows and a
 run lookup for each member not yet past it; `check --cost` prints the
 certificate.
 
-Run the hook for a conversation in the background (`visible: false`) as well as
-on screen, so `delivered` follows fetching. Both mutations predict and queue
-offline, and a covered report writes nothing. A predicted row carries
-`pending: true` and its ordinal is not yet the server's, so it is never
-acknowledged:
+The SDK reports delivery in the background. The hook below records only
+`seen`; keep it mounted to retain an owed view. A predicted row carries
+`pending: true`, so it is never used as a confirmed view watermark.
 
 ```ts
 import { useEffect, useMemo } from "react";
 import { useClient, usePage, useQuery, useViewer } from "snapback4/react";
 import { api } from "./snapback/generated/api";
-// Runs and ordinals, merged into disjoint unbroken runs, lowest first.
-function runsOf(runs: [number, number][], ordinals: number[]) {
-  const all = [...runs, ...ordinals.map((n): [number, number] => [n, n])].sort((a, b) => a[0] - b[0]);
-  const merged: [number, number][] = [];
-  for (const [from, through] of all) {
-    const last = merged[merged.length - 1];
-    if (last && from <= last[1] + 1) last[1] = Math.max(last[1], through); else merged.push([from, through]);
-  }
-  return merged;
-}
-// What the hook owes, for the life of the signed-in client, per viewer and conversation:
-// a remount keeps it, and a replaced client or another viewer starts afresh.
-type Debt = { owed: Map<string, { run: [number, number]; tried: string | null }>; viewed: { through: number; sent: number } };
-const debts = new WeakMap<object, Map<string, Debt>>();
-function debtOf(client: object, viewer: string | null, conversation: string): Debt {
-  const scopes = debts.get(client) ?? new Map<string, Debt>();
-  debts.set(client, scopes);
+type Viewed = { through: number; sent: number };
+const views = new WeakMap<object, Map<string, Viewed>>();
+function viewOf(client: object, viewer: string | null, conversation: string): Viewed {
+  const scopes = views.get(client) ?? new Map<string, Viewed>();
+  views.set(client, scopes);
   const scope = JSON.stringify([viewer, conversation]);
-  const debt = scopes.get(scope) ?? { owed: new Map(), viewed: { through: 0, sent: 0 } };
-  scopes.set(scope, debt);
-  return debt;
+  const viewed = scopes.get(scope) ?? { through: 0, sent: 0 };
+  scopes.set(scope, viewed);
+  return viewed;
 }
 function useReceipts(conversation: string, visible: boolean) {
   const client = useClient();
@@ -293,36 +282,7 @@ function useReceipts(conversation: string, visible: boolean) {
   const progress = useQuery(api.progress, { conversation });
   const mine = "data" in progress ? progress.data : null;
   const member = mine ? mine.member : null;
-  // What it holds (the pages walked, the page ahead) it owes until the server's own rows
-  // cover it, remembered even before progress loads; a view is owed the same way.
-  const { owed, viewed } = useMemo(() => debtOf(client, viewer, conversation), [client, viewer, conversation]);
-  const held = [...page.items, ...(mine ? mine.ahead : [])].filter(m => !m.pending).map(m => m.ordinal);
-  const prefix = member && !member.pending ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
-  const stored = mine ? mine.runs.filter(r => !r.pending).map((r): [number, number] => [r.fromOrdinal, r.throughOrdinal]) : [];
-  const coverage = mine && JSON.stringify([prefix, stored]);
-  const holding = JSON.stringify(runsOf([], held));
-  useEffect(() => {
-    const entries = new Map(owed);
-    owed.clear();
-    for (const run of runsOf([...entries.values()].map(entry => entry.run), held)) owed.set(run.join("-"), entries.get(run.join("-")) ?? { run, tried: null });
-    if (coverage === null) return;
-    // Send a run when it is new, and again only when the server's coverage has moved.
-    for (const [name, entry] of owed) {
-      const from = prefix === null ? entry.run[0] : Math.max(entry.run[0], prefix + 1), through = entry.run[1];
-      if (from > through || stored.some(([low, high]) => low <= from && through <= high)) { owed.delete(name); continue; }
-      if (entry.tried === coverage) continue;
-      entry.tried = coverage;
-      void client.mutate(api.delivered, { conversation, from, through }).then(write => {
-        // Nothing was kept (storage unavailable): owe it again, and send it with the next answer.
-        if (write.state === "failed" && write.why.code === "E_ADMISSION" && entry.tried === coverage) entry.tried = null;
-      });
-    }
-  }, [client, conversation, owed, holding, coverage, progress]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Walk older pages while the lowest run held lies above the prefix.
-  const floor = member ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
-  const lowest = runsOf([], held)[0];
-  const short = floor !== null && lowest !== undefined && lowest[0] > floor + 1;
-  useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
+  const viewed = useMemo(() => viewOf(client, viewer, conversation), [client, viewer, conversation]);
   const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
   const newest = settled.length ? Math.max(...settled) : 0;
   const shown = member ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;

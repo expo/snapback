@@ -1,0 +1,23 @@
+   Compiling snapback4-core v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.4 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 20.68s
+     Running tests/delivery.rs (target/debug/deps/delivery-876601a6cc953ce3)
+
+running 1 test
+
+thread 'owner_field_origin_survives_optional_access_and_successive_aliases' (3600421) panicked at crates/snapback4-lang/tests/delivery.rs:401:9:
+assertion `left == right` failed: fields
+  left: Array []
+ right: Array [Array [String("c1"), Number(1)]]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test owner_field_origin_survives_optional_access_and_successive_aliases ... FAILED
+
+failures:
+
+failures:
+    owner_field_origin_survives_optional_access_and_successive_aliases
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery`

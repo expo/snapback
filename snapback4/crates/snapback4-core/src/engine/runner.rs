@@ -676,7 +676,7 @@ impl<'a> Runner<'a> {
             self.effect_presence.absent = None;
         }
         #[cfg(feature = "sqlite")]
-        if !matches!(expression, Expr::Variable(_) | Expr::Field { .. } | Expr::Block { .. }) { self.delivery.last = None; }
+        if !matches!(expression, Expr::Variable(_) | Expr::Field { .. } | Expr::Block { .. } | Expr::Builtin { builtin: Builtin::OptionalField { .. }, .. }) { self.delivery.last = None; }
         result
     }
 
@@ -876,7 +876,11 @@ impl<'a> Runner<'a> {
                     self.project_row(table, row).map(|row| super::recorded::public_image(&self.schema.tables[table], row.into_value()))
                 }
             }
-            Builtin::OptionalField { field } => Ok(args[0].field(field).cloned().unwrap_or(Value::Null)),
+            Builtin::OptionalField { field } => {
+                #[cfg(feature = "sqlite")]
+                self.delivery_field(&args[0], field);
+                Ok(args[0].field(field).cloned().unwrap_or(Value::Null))
+            },
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
                 if *millis <= 0 { return Err(RuntimeError::Input("calendar duration must be positive".into())); }
