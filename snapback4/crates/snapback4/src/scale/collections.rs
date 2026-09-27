@@ -18,7 +18,7 @@ impl Collections {
         struct Census {
             definitions: BTreeMap<String, Expr>,
             scopes: BTreeMap<String, Scope>,
-            pushes: BTreeMap<String, Vec<Scope>>,
+            pushes: BTreeMap<String, Vec<(Scope, Option<Expr>)>>,
             changed: BTreeSet<String>,
             iterations: BTreeMap<usize, Iterations>,
             next: usize,
@@ -42,9 +42,24 @@ impl Collections {
                             if census.definitions.insert(name.into(), expr).is_some() { census.changed.insert(name.into()); }
                         }
                     }
-                    if let Some(name) = fields.get("Assign").and_then(|s| s.get("name")).and_then(|v| v.as_str()) { census.changed.insert(name.into()); }
+                    if let Some(assign) = fields.get("Assign")
+                        && let Some(name) = assign.get("name").and_then(|v| v.as_str()) {
+                        let increment = serde_json::from_value::<Expr>(assign["value"].clone()).ok().and_then(|value| {
+                            let Expr::Builtin { builtin: Builtin::Concat, args } = value else { return None; };
+                            let [left, right] = args.as_slice() else { return None; };
+                            let is_self = |value: &Expr| matches!(value, Expr::Variable(source) if source == name);
+                            match (is_self(left), is_self(right)) {
+                                (true, false) => Some(right.clone()),
+                                (false, true) => Some(left.clone()),
+                                _ => None, // Doubling still needs the step-ceiling fallback.
+                            }
+                        });
+                        if let Some(increment) = increment {
+                            census.pushes.entry(name.into()).or_default().push((scope.clone(), Some(increment)));
+                        } else { census.changed.insert(name.into()); }
+                    }
                     if let Some(name) = fields.get("Push").and_then(|s| s.get("target")).and_then(|v| v.as_str()) {
-                        census.pushes.entry(name.into()).or_default().push(scope.clone());
+                        census.pushes.entry(name.into()).or_default().push((scope.clone(), None));
                     }
                     if let Some(loop_) = fields.get("For") {
                         let domain = &loop_["domain"];
@@ -80,13 +95,16 @@ impl Collections {
         // @ref LLP 3000.019#3.2 — shapes lower to [] plus pushes. Sum each
         // push's bounded iterations since initialization, multiplying nested
         // loops. Resolve source-list bounds only after all pushes/assignments
-        // are known. Assignments and open/cyclic pushes keep the fallback.
+        // are known. Bounded append/prepend contributes its length just like Push;
+        // arbitrary assignments and open/cyclic growth keep the fallback.
         for (name, scopes) in &census.pushes {
-            let iterations = census.scopes.get(name).and_then(|initial| scopes.iter().map(|scope| {
+            let iterations = census.scopes.get(name).and_then(|initial| scopes.iter().map(|(scope, increment)| {
                 if !scope.starts_with(initial) { return None; }
-                Some(scope[initial.len()..].iter().map(|id| census.iterations[id].clone()).collect())
+                let mut times: Vec<_> = scope[initial.len()..].iter().map(|id| census.iterations[id].clone()).collect();
+                if let Some(increment) = increment { times.push(Iterations::List(increment.clone())); }
+                Some(times)
             }).collect::<Option<Vec<_>>>());
-            if let Some(iterations) = iterations.filter(|_| matches!(census.definitions.get(name), Some(Expr::Array(values)) if values.is_empty())) {
+            if let Some(iterations) = iterations {
                 pushes.insert(name.clone(), iterations);
             } else { census.changed.insert(name.clone()); }
         }
@@ -109,7 +127,8 @@ impl Collections {
             Expr::Shape { base, .. } | Expr::Block { value: base, .. } => self.value(base, program, meter, seen),
             Expr::Variable(name) if seen.insert(name.clone()) => {
                 let bound = if let Some(pushes) = self.pushes.get(name) {
-                    pushes.iter().try_fold(0u64, |sum, iterations| {
+                    let initial = self.definitions.get(name).and_then(|value| self.value(value, program, meter, seen))?;
+                    pushes.iter().try_fold(initial, |sum, iterations| {
                         let times = iterations.iter().try_fold(1u64, |times, iteration| {
                             let max = match iteration {
                                 Iterations::Static(max) => *max,
