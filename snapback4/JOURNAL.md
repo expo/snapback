@@ -68301,3 +68301,67 @@ the requested Astra co-author. No push or publication. Full file map, examples,
 failing-before and mutation evidence, exact historical suite failure list and
 scope: reports/20260927-qe-quarry-ergonomics/ROUND3.md. Ignored logs and
 repeatable probes: target/lane-qe-r3/.
+
+### 2026-09-27 — Lane SS round 1: acquisition refresh recovery and heap attribution
+
+Fetched and merged origin/main at 47ea5918b before changing the lane; both
+sides of the journal append conflict are preserved. An unpublished background
+read no longer clears the last accepted server answer's origin. Only the
+fenced publication branch sets `serverRead`; failures, queued predictions
+and expiry-withheld replies retain the 250 ms acquisition polling cadence.
+The background call still supplies no watch to `runLocal`, preserving
+ReadObservation.fetch's publication/finally contract.
+
+Three wasm SDK regressions hold terminal catch-up, publish once, inject a
+503, a real persisted predictable outbox entry, or an expired reply, then
+observe another session's message and deletion before acquisition finishes.
+All three fail with the old assignment and pass with the fix. Tombstones and
+self-sends now appear in both fifty-member batch equivalence and actual
+snapshot/stream delivery, with scalar comparisons and work counts intact.
+A finite Cut::Cap test exhausts examined after its one readable member;
+source admission refuses rather than certifying zero. Five Rust mutation
+runs reject removal of require_uncapped and both predicate corruptions.
+No engine production code changed.
+
+During-acquisition remeasurement remains above the one-second target:
+33 memory samples give 1.119 s p95, 31 IDB-shaped samples 1.398 s, across
+four acquisitions per mode. An isolated 100 ms poll experiment gives
+1.158/1.566 s p95, so the production cadence stays 250 ms. Device applies
+already rerun watches. A later message after terminal catch-up's database
+cut still waits through atomic publication and the next sync: one memory
+witness has a 533 ms apply, a 363 ms following response and a 615 ms event-loop
+gap. No clear safe timing improvement was established; publication and all
+read fences remain intact.
+
+The 1,000-member IDB-shaped replay reproduces 1.859 GB sampled JS heap.
+After SDK close and GC, fake-indexeddb 6.2.5 retains 1.556 GB. Releasing only
+its 218 completed transactions (129,712 rollback entries), with live records
+unchanged, releases 1.372 GB and leaves 183.85 MB. A diagnostic control doing
+this after each save peaks at 844 MB and finishes acquisition in 42.236 s
+versus the ordinary 41.467 s. This attributes most of round 0's 1.87 GB JS
+heap to the fake's retained transaction history; it is not a browser memory
+claim or a production SDK change. The remaining ~180 MB after simulated
+store deletion is not fully attributed. The memory-persistence control
+returns to 10.67 MB JS heap after close. Real SDK scale cost remains:
+external memory peaks at 1.383/1.515 GB (memory/IDB-shaped), with about
+1.366 GB retained by the process-global wasm runtime after close. Largest
+atomic applies are 19.043/24.838 s on this shared host. The original GS
+database and WAL hashes still match.
+
+Affected checks pass: row views 18/18, sync delivery 1/1, adjacent SDK 198/198,
+whole guide 86/86, typecheck/build, reference audit and whitespace checks.
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1057 s`, exit 0.
+Every failure classified: none (lane-owned 0, baseline 0, environmental 0).
+Rust 3,888 passed / 24 existing ignored; main SDK 2,638 passed / 10 existing
+skips, seven additional shards 56/56, serial models 78/78, fixtures 9/9.
+The inherited 60 s budget is still exceeded; no budget or timeout changed.
+Wasm remains 1,981,512 B raw / 572,049 B gzip, delta 0 B, 792 B below the
+unchanged budget; SHA-256
+1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928.
+The supported no-optimizer build again avoids the host's old wasm-opt through
+existing worktree-local PATH symlinks. No tool installation, new syntax,
+diagnostic, version, contract reshaping, push or publication.
+
+File map, examples, controls, exact qualification, deviations and reproductions:
+reports/20260927-ss-sync-scale/ROUND1.md and round1-measurements.json. Raw
+witnesses, mutation controls and full-suite log/exit: target/lane-ss-round1/.

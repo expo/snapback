@@ -41,6 +41,13 @@ fn fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications() {
         let row = message(&format!("message-{n}"), "busy", n, if n <= 200 { Value::Int(10) } else { Value::Null });
         rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
     }
+    for (id, sender, tombstone) in [("tombstoned", "sender", true), ("self-sent", "member-0", false)] {
+        let mut row = message(id, "busy", 1201, Value::Null);
+        let Value::Row(fields) = &mut row else { unreachable!() };
+        fields.insert("senderId".into(), Value::Id(sender.into()));
+        fields.insert("tombstone".into(), Value::Bool(tombstone));
+        rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
+    }
     let start = std::time::Instant::now();
     let mut batched = runner(&rows, &schema, "reader");
     let actual = batched.live_aggregate_batch("unread", &views).unwrap();
@@ -48,10 +55,29 @@ fn fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications() {
     let mut scalar = runner(&rows, &schema, "reader");
     let expected: Vec<_> = views.iter().map(|row| scalar.live_aggregate("unread", row.clone()).unwrap()).collect();
     assert_eq!(actual, expected);
-    assert_eq!(batched.rebuilt_source_rows, 1000, "one walk, with no expired candidates");
-    assert_eq!(scalar.rebuilt_source_rows, 50000, "control actually executes the old repeated walk");
+    assert_eq!(actual[0].as_ref().unwrap().field("value"), Ok(&Value::Int(1000)), "self and tombstone excluded");
+    assert_eq!(actual[1].as_ref().unwrap().field("value"), Ok(&Value::Int(1001)), "self-send is unread for another member");
+    assert_eq!(batched.rebuilt_source_rows, 1002, "one walk, with no expired candidates");
+    assert_eq!(scalar.rebuilt_source_rows, 50100, "control actually executes the old repeated walk");
     assert!(actual.iter().all(|row| row.as_ref().unwrap().field("recountPending") == Ok(&Value::Bool(false))));
-    eprintln!("50 members / 1000 live rows: batch {:?}; decoded {} instead of {}", elapsed, batched.rebuilt_source_rows, scalar.rebuilt_source_rows);
+    eprintln!("50 members / 1002 live rows: batch {:?}; decoded {} instead of {}", elapsed, batched.rebuilt_source_rows, scalar.rebuilt_source_rows);
+}
+
+#[test]
+fn capped_batch_admission_refuses_instead_of_certifying_zero() {
+    let schema = schema(false);
+    let rows = MemoryRows::new();
+    rows.put("members", &schema.tables["members"], &member("a", "one", "alice", 0), None).unwrap();
+    rows.put("messages", &schema.tables["messages"], &message("m", "one", 1, Value::Null), None).unwrap();
+    let input = [view("a", false)];
+    let mut control = runner(&rows, &schema, "alice");
+    assert_eq!(control.live_aggregate_batch("unread", &input).unwrap()[0].as_ref().unwrap().field("value"), Ok(&Value::Int(1)));
+    let mut capped = Runner::new(&rows, &schema, Context::new("alice", Default::default()).at(10),
+        Meter::new(Ceilings { examined: 1, ..Ceilings::default() }, Cut::Cap), 0);
+    assert!(matches!(capped.live_aggregate_batch("unread", &input),
+        Err(RuntimeError::Bound { kind: MeterKind::Examined, actual: 2, ceiling: 1, .. })),
+        "member lookup exhausts admission; a skipped walk cannot certify zero");
+    assert_eq!(capped.rebuilt_source_rows, 0);
 }
 
 #[test]

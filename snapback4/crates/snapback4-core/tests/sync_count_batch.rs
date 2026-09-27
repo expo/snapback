@@ -52,11 +52,11 @@ fn cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch() {
             tx.log.push(LogEvent { seq: 2, ord: tx.log.len() as u32, table: "unread".into(), kind: "put".into(), id: id.clone(), data: Some(view.clone()) });
         }
     }
-    for n in 1..=1000 {
+    for n in 1..=1002 {
         tx.put("messages", &b.schema.tables["messages"], &object([
             ("id", Value::Id(format!("m{n:04}"))), ("conversationId", Value::Id("busy".into())),
-            ("ordinal", Value::Int(n)), ("senderId", Value::Id("sender".into())),
-            ("until", Value::Null), ("tombstone", Value::Bool(false)),
+            ("ordinal", Value::Int(n)), ("senderId", Value::Id(if n == 1002 { "member-000" } else { "sender" }.into())),
+            ("until", Value::Null), ("tombstone", Value::Bool(n == 1001)),
         ]), None).unwrap();
     }
     let snapshot = partition::snapshot_page(&tx, &b.schema, "reader", None, 4000, 10).unwrap();
@@ -64,9 +64,9 @@ fn cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch() {
     let counts: BTreeMap<_, _> = snapshot.events.iter().filter(|e| e.table == "unread")
         .map(|e| (e.id.clone(), e.data.clone().unwrap())).collect();
     assert_eq!(counts.len(), 50);
-    assert!(tx.source_rows.get() <= 2000, "snapshot repeated its source basis: {}", tx.source_rows.get());
+    assert!(tx.source_rows.get() <= 2004, "snapshot repeated its source basis: {}", tx.source_rows.get());
     for (n, row) in counts.values().enumerate() {
-        assert_eq!(row.field("value"), Ok(&Value::Int(1000 - n as i64)));
+        assert_eq!(row.field("value"), Ok(&Value::Int(1000 - n as i64 + i64::from(n != 0))));
         assert_eq!(row.field("recountPending"), Ok(&Value::Bool(false)));
     }
     tx.source_rows.set(0);
@@ -74,6 +74,17 @@ fn cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch() {
     assert_eq!(stream.events.len(), 250);
     assert!(!stream.more);
     assert_eq!(stream.watermark, 2);
-    assert_eq!(tx.source_rows.get(), 1000, "repeated current puts must share their certification");
+    assert_eq!(tx.source_rows.get(), 1002, "repeated current puts must share their certification");
     for event in stream.events { assert_eq!(event.data.as_ref(), counts.get(&event.id)); }
+    // A query point read uses scalar live certification, independently of the
+    // snapshot and stream batch path (including each member's self-send rule).
+    let program = &b.programs.iter().find(|p| p.program.name.ends_with("unreadFor")).unwrap().program;
+    tx.source_rows.set(0);
+    for (id, image) in &counts {
+        let context = snapback4_core::Context::new("reader", BTreeMap::from([("member".into(), Value::Id(id.clone()))])).at(10);
+        let mut scalar = snapback4_core::engine::runner::Runner::new(&tx, &b.schema, context,
+            snapback4_core::meter::Meter::new(snapback4_core::meter::Ceilings::unbounded(), snapback4_core::meter::Cut::Abort), 0);
+        assert_eq!(&scalar.run(program).unwrap(), image.field("value").unwrap());
+    }
+    assert_eq!(tx.source_rows.get(), 50100, "scalar control performs fifty independent walks");
 }

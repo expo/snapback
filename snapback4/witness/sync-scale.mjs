@@ -18,7 +18,13 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const now = () => performance.now();
 const out = { url, persistence, mode, node: process.version, pages: [], calls: {}, callTimeline: [], saves: [], requests: [], live: [], watches: [] };
 const start = now();
+const heapAttribution = process.env.SS_HEAP === '1';
+const reclaimFakeTransactions = process.env.SS_FAKE_RECLAIM === '1';
+out.reclaimFakeTransactions = reclaimFakeTransactions;
+if (heapAttribution) assert.equal(typeof globalThis.gc, 'function', 'SS_HEAP requires node --expose-gc');
 let peakHeap = 0, peakExternal = 0, peakRss = 0, client, reader, writer, stop, lastResponse = start;
+let lastTick = start;
+out.eventLoopGaps = [];
 let lastResponseLoop = performance.eventLoopUtilization();
 const sampleHeap = () => {
   const memory = process.memoryUsage();
@@ -26,13 +32,18 @@ const sampleHeap = () => {
   peakExternal = Math.max(peakExternal, memory.external);
   peakRss = Math.max(peakRss, memory.rss);
 };
-const sampler = setInterval(sampleHeap, 20);
+const sampler = setInterval(() => {
+  const at = now(), ms = at - lastTick;
+  if (ms > 50) out.eventLoopGaps.push({ at: lastTick - start, ms });
+  lastTick = at;
+  sampleHeap();
+}, 20);
 const account = async handle => {
   const result = await login(url, `${handle}@example.com`, 'CliqueScale!20260808');
   assert.ok(result.ok, JSON.stringify(result));
   return result.session;
 };
-try {
+async function run() {
   const signed = now(), session = await account('u0500');
   out.loginMs = now() - signed;
   reader = createClient({ url, session });
@@ -54,6 +65,10 @@ try {
   const persist = { ...base, async save(name, changes) {
     const at = now();
     await base.save(name, changes);
+    // A diagnostic control, never used by the production persistence adapter.
+    if (reclaimFakeTransactions && persistence === 'idb') {
+      for (const db of indexedDB._databases.values()) db.transactions = db.transactions.filter(tx => tx._state !== 'finished');
+    }
     out.saves.push({ at: at - start, ms: now() - at, changes: changes.length });
   } };
   const device = webDevice({ wasm: readFileSync(new URL('../packages/snapback4/src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist });
@@ -130,7 +145,7 @@ try {
     const committed = now();
     while (!seen.has(id) && now() - at < 31000) await sleep(5);
     const ms = seen.has(id) ? seen.get(id) - at : null;
-    out.live.push({ phase, ms, commitMs: committed - at, acquiredAtSend, timedOut: ms === null });
+    out.live.push({ phase, at: at - start, ms, commitMs: committed - at, acquiredAtSend, timedOut: ms === null });
     console.log(JSON.stringify({ phase, ms, acquired, pages: out.pages.length }));
     return ms !== null;
   };
@@ -139,12 +154,37 @@ try {
   assert.ok(acquired, 'acquisition did not complete');
   for (let n = 0; n < Number(process.env.SS_SAMPLES ?? 23); n++) if (!await send(n < 3 ? 'warmup' : 'after')) break;
   out.ok = out.live.every(sample => !sample.timedOut);
-} catch (error) {
+}
+try { await run(); } catch (error) {
   out.error = { message: error.message, stack: error.stack };
   out.ok = false;
 } finally {
   sampleHeap(); clearInterval(sampler); stop?.();
   await Promise.allSettled([client?.close(), reader?.close(), writer?.close()]);
+  client = reader = writer = stop = undefined;
+  if (heapAttribution) {
+    const checkpoint = async label => {
+      for (let n = 0; n < 3; n++) { await sleep(0); globalThis.gc(); }
+      (out.heapAttribution ??= []).push({ label, ...process.memoryUsage() });
+    };
+    await checkpoint('closed-sdk-gc');
+    if (persistence === 'idb') {
+      // Diagnostic-only intervention in fake-indexeddb, after closing the SDK.
+      // Retain every live record; release only completed simulated transactions.
+      out.fakeTransactions = [...indexedDB._databases.values()].map(db => ({
+        name: db.name, total: db.transactions.length,
+        finished: db.transactions.filter(tx => tx._state === 'finished').length,
+        rollbackEntries: db.transactions.reduce((n, tx) => n + tx._rollbackLog.length, 0),
+      }));
+      for (const db of indexedDB._databases.values()) db.transactions = db.transactions.filter(tx => tx._state !== 'finished');
+      await checkpoint('finished-fake-transactions-released-gc');
+      for (const { name } of await indexedDB.databases()) await new Promise((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(name);
+        request.onsuccess = resolve; request.onerror = () => reject(request.error);
+      });
+      await checkpoint('fake-databases-deleted-gc');
+    }
+  }
   out.peakHeap = peakHeap; out.peakExternal = peakExternal; out.peakRss = peakRss;
   out.elapsedMs = now() - start;
   const measured = out.live.filter(s => s.phase === 'after' && s.ms !== null).map(s => s.ms).sort((a, b) => a - b);

@@ -32,12 +32,15 @@ async function fixture(t) {
   let blocked = true, released;
   const barrier = new Promise(resolve => { released = resolve; });
   let queries = 0, catchups = 0, publications = 0, active = 0, peak = 0;
+  let failNext, failures = 0, fenced = 0, openedCore;
   const core = webDevice({ wasm, persist: memoryPersistence() });
   const options = { url, persona: 'bob', device: { async open(...args) {
     const opened = await core.open(...args);
+    openedCore = opened;
     return { ...opened, async call(request, committed) {
       const result = await opened.call(request, committed);
       if (request.op === 'apply' && result.ok?.published) publications++;
+      if (request.op === 'queued' && result.ok?.some(entry => entry.predictable && entry.predicted?.length)) fenced++;
       return result;
     } };
   } }, async fetch(input, init) {
@@ -50,7 +53,16 @@ async function fixture(t) {
       })]);
     }
     if (path.startsWith('/q/')) { queries++; active++; peak = Math.max(peak, active); }
-    try { return await fetch(input, init); }
+    try {
+      if (path.startsWith('/q/') && failNext) {
+        const fault = failNext;
+        failNext = undefined; failures++;
+        if (fault === '503') return new Response('temporarily unavailable', { status: 503 });
+        const response = await fetch(input, init);
+        return Response.json({ ...await response.json(), nextExpiry: Date.now() - 1000 });
+      }
+      return await fetch(input, init);
+    }
     finally { if (path.startsWith('/q/')) active--; }
   } };
   const prepared = await prepareClient(options, () => createLocalClient(options));
@@ -62,7 +74,18 @@ async function fixture(t) {
   t.after(() => { unsubscribe(); observed.close(); });
   await until(() => observed.getSnapshot().data?.length === 0, 'initial server fallback');
   return { client, observed, acquiring, release() { blocked = false; released(); },
-    counts: () => ({ queries, catchups, publications, peak }),
+    counts: () => ({ queries, catchups, publications, peak, failures, fenced }),
+    failRefresh(fault) { failNext = fault; },
+    // A persisted prediction from another owner can fence this reader without
+    // rerunning its watch. Exercise the real outbox, independently of admission.
+    async prediction(pending) {
+      const result = await openedCore.call(pending ? { op: 'enqueue', entry: {
+        id: 'peer-prediction', seq: 1, op: 'send', viewer: 'dev:bob', now: Date.now(),
+        args: { id: 'predicted', body: 'pending', at: 100 }, new_ids: [],
+        predictable: true, predicted: ['messages/predicted'],
+      } } : { op: 'dequeue', id: 'peer-prediction' });
+      assert.equal(result.denied, undefined, JSON.stringify(result));
+    },
     async send(n) {
       const id = mintId();
       const write = await online.mutate({ kind: 'mutation', name: 'send' }, { id, body: `message ${n}`, at: n });
@@ -97,6 +120,26 @@ test('live fallback receives consecutive sends and deletion while snapshot publi
   const queries = f.counts().queries;
   await delay(650);
   assert.equal(f.counts().queries, queries);
+});
+
+for (const fault of ['503', 'prediction', 'expiry']) test(`an unpublished ${fault} refresh keeps acquisition polling alive`, { timeout: 15000 }, async t => {
+  const f = await fixture(t);
+  const first = await f.send(1);
+  await until(() => f.observed.getSnapshot().data?.some(row => row.id === first), 'first published server message');
+  const shown = f.observed.getSnapshot();
+  if (fault === 'prediction') await f.prediction(true);
+  else f.failRefresh(fault);
+  await until(() => fault === 'prediction' ? f.counts().fenced > 0 : f.counts().failures === 1, 'background refresh encountered fault');
+  await delay(100); // Allow the unpublished attempt to settle before recovery.
+  assert.equal(f.observed.getSnapshot(), shown, 'the failed/fenced result was not published');
+  if (fault === 'prediction') await f.prediction(false);
+  await f.remove(first);
+  const second = await f.send(2);
+  await until(() => f.observed.getSnapshot().data?.some(row => row.id === second), 'message after unpublished refresh, before acquisition ends');
+  assert.ok(!f.observed.getSnapshot().data.some(row => row.id === first), 'the deletion also arrives');
+  assert.equal(f.client.acquired, false);
+  assert.equal(f.counts().publications, 0);
+  assert.equal(f.counts().catchups, 1);
 });
 
 test('removing the watch stops cold-acquisition refreshes', { timeout: 10000 }, async t => {

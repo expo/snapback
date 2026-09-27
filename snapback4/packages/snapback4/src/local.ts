@@ -969,9 +969,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
       if (watch.snapshot !== shown || watch.running) return;
-      watch.serverRead = served === true;
       // An answer the server gave, current for this store, authority and ephemeral state, is published whatever it says.
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
+        watch.serverRead = true;
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.tables = tables;
         if (!(watch.keep && "data" in watch.snapshot && "loading" in read)) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
