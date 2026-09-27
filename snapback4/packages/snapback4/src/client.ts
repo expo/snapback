@@ -235,12 +235,12 @@ export function createClient(options: ClientOptions): Client {
     // Discovery failures and the adoption publication window retry here, so a
     // held /changes request cannot postpone installation for its whole wait.
     // Until the interests are known, query polling keeps durable changes live.
-    // These answers cannot claim freshness while /changes is suspended.
+    // @ref LLP 3000.023#3.4 — discovery withdraws; copying an answer through reset loses its episode.
     schemaLoading = true;
     queryEpoch++;
     for (const watch of watches.values()) {
-      watch.reset("data" in watch.snapshot ? { ...watch.snapshot, fresh: false } : { loading: true });
-      if (!("data" in watch.snapshot)) scheduleExpiry(watch, null);
+      watch.reset({ loading: true });
+      scheduleExpiry(watch, null);
       notify(watch); void refresh(watch);
     }
     const fallback = setInterval(() => {
