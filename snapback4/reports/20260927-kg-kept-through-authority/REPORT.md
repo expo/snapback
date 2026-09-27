@@ -1,3 +1,177 @@
+# Lane KG round 5 — detached deadlines and exact withdrawal delivery
+
+Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.
+Read the round-0 through round-4 prompts, reports and KG journal entries, and
+both full round-4 reviews (Astra and Grok, READY WITH CHANGES). Earlier reports
+remain below as historical evidence. No push or publication. Every round-5
+commit includes `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## Integration and commits
+
+- `5bf924483` merges `origin/main` at `941a3698c` before implementation.
+  Preserved both sides of the journal append conflict (zero removed lines
+  against either parent) and both Revised histories in LLP 3000.019.
+  The local read changes merged automatically. FX's deterministic useNow
+  harness is unchanged from round 4; main's cold-acquisition fallback refresh
+  behavior is retained.
+- `107f9484c` answers findings **1–4**, with the regressions and client manual.
+- `2472b30ca` extracts the merged presence scheduling helper: combining main
+  with KG made local.ts 1,506 lines; it is now 1,496. The helper keeps the
+  same interval, stopped-client behavior and callback. No feature was removed.
+- The final evidence commit records this report and one dated journal append.
+
+## Findings and discriminating tests
+
+1. **Astra Medium, closed keep:false facade.** `detach()` releases the raw
+   subscription and closes its handle, but retains the handle for synchronous
+   snapshot/deadline checks. Eight real online/wasm cases cover guardClient
+   and createApp, standalone and with a live peer sharing the query. At expiry
+   5000, the closed facade is loading, including inside the live peer's
+   withdrawal callbacks. Rolling time back to 1000 cannot restore A.
+   Restoring only `source = undefined` fails all **8/8** cases.
+2. **Astra Low, duplicate facade withdrawal.** The facade records the snapshot
+   its last delivery announced. Raw refresh suppresses a withdrawal already
+   delivered by shared approval, while withdrawing facades and opening remounts
+   retain their notification. Exact-count tests cover the default episode
+   timer, true's shared hard withdrawal, and false's raw withdrawal. Removing
+   the comparison fails **2/3**, with false as the passing control. A separate
+   closeWatchAnswers test uses three policy owners and two subscribers apiece:
+   all six receive exactly one callback after every peer has its denial.
+   Calling each close subscriber twice fails **1/1**.
+3. **Grok Low, episode notification during grouped commit.** The raw episode
+   callback now uses deliverReadNotifications. The two-watch test starts A's
+   episode at 1000, leaves B settled, then commits at 2000 under deferral.
+   A gets exactly one callback after the loop, with A loading and B marked
+   revalidating. Restoring direct callback delivery fails **1/1**.
+4. **Grok Low, sign-out coverage.** All seven wasm guard policy-pair cases
+   require E_AUTH before close and E_CLOSED afterward. The test records the
+   actual close invocation because signOut calls close internally. It checks
+   raw snapshots captured before accessor side effects as well as both exposed
+   reads. That detail prevents a getter's denial repair from masking a bad raw
+   publish. Replacing local's sign-out denial with loading fails **7/7**.
+
+There are **13 added tests** and seven strengthened sign-out cases. No existing
+product assertion was relaxed. Mutations use process-local module loaders;
+production source and built files are never changed for negative controls.
+The corrected pre-fix pair of test files passes 190 and fails 11; final code
+passes all 201. An initial test draft treated all sign-out callbacks as occurring
+before close and checked a peer before opening authority attached it; those
+fixture errors were corrected before qualification. These development and
+intentional negative-control failures are not final-code suite failures.
+
+## File map
+
+Paths are relative to `snapback4/`, except the explicitly named root LLP.
+
+| File | Round-5 change |
+| --- | --- |
+| `packages/snapback4/src/app-client.ts` | Retain detached source handles; track delivered snapshots and suppress duplicate raw withdrawal emission. |
+| `packages/snapback4/src/read-observation.ts` | Route episode onWithdrawal through deferred read notification delivery. |
+| `packages/snapback4/src/local-reads.ts` | Own the extracted armLocalPresence helper, preserving the merged main behavior. |
+| `packages/snapback4/src/local.ts` | Delegate presence scheduling to that helper to satisfy the 1,500-line source limit. |
+| `packages/snapback4/test/retention-lifecycle.test.mjs` | Eight closed-facade regressions using real online/wasm clients, createApp fixture support, and seven exact sign-out denial cases. |
+| `packages/snapback4/test/retention-episode.test.mjs` | Three facade notification-count cases, the six-subscriber close count, and the grouped two-watch episode case. |
+| `packages/snapback4/CLIENT-AND-OPERATIONS.md` | State detached checks, single withdrawal delivery and grouped episode ordering. |
+| `JOURNAL.md` | Preserve both merged histories and append one round-5 entry. |
+| `reports/20260927-kg-kept-through-authority/REPORT.md` | This evidence, with earlier reports preserved. |
+| Root `llp/3000.019-what-the-builder-still-wrote.rfc.md` | Merge both Revised histories; no round-5 design amendment. |
+
+## Forms that compile and run
+
+No new spelling. The existing forms are exercised:
+
+```ts
+const bounded = app.client.observe(api.inbox, {});
+const withdrawing = app.client.observe(api.inbox, {}, { keep: false });
+const lingering = app.client.observe(api.inbox, {}, { keep: true });
+withdrawing.close();
+const snapshot = withdrawing.getSnapshot(); // Still honors the raw handle's withdrawal/deadline.
+```
+
+The default episode withdraws once at its deadline; false still withdraws
+immediately; true still has its existing retention and linger. Every new data
+answer continues through authority. Ordinary successful rereads keep their
+existing no-loading behavior.
+
+## Qualification
+
+- Frozen Bun install, package build and typecheck pass.
+- Changed test files: **201 passed / 0 failed**.
+- Final affected set: **380 passed / 0 failed**, 18.704 s, including all
+  retention tests, raw-read-deadlines, read-observation, keep-authority,
+  keep-observation, keep-clock, keep-app-expiry and presence-refresh.
+- Whole guide: **86 passed / 0 failed**, 2.51 s test execution.
+- Reference audit: **517 LLP docs, 9,658 refs, zero errors/unchecked**.
+- Changed source/test files are below 1,500 lines; whitespace check passes.
+
+Ran `scripts/test.sh` **exactly once** on the final implementation and tests.
+Exact summary: **`== 0 failure(s) in 1510 s`**, exit **0**.
+Every failure: **none** — no lane-owned, baseline or environmental test failure.
+The deliberate pre-fix and mutation failures are separate discrimination evidence.
+
+- Rust tests/doctests: **3,907 passed / 0 failed / 24 ignored**, 773 s.
+- Main client: **3,074 passed / 0 failed / 10 skipped**, 427 s; seven extra
+  client shards: **56/56**.
+- Final seeded models: **79 passed / 0 failed**, 269 s, including both
+  5,000-sequence session models and the 3,000-seed online-client model.
+- Fixture wrappers: **9/9**. Native/wasm builds, package and both app
+  typechecks, docs budget, release guard and chat schema check pass.
+
+All thirteen added tests and seven strengthened sign-out cases pass in the
+full run, along with all eighteen delayed-authority createApp sequences, both
+Chromium input-preservation witnesses, FX's deterministic useNow cases, and
+main's live fallback while snapshot publication is blocked. The latter also
+checks the unchanged behavior of the extracted presence scheduler.
+
+Wasm from the full run: **1,981,512 B raw / 572,049 B gzip**, **792 B below**
+the unchanged 572,841 B budget. SHA-256:
+`1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928`.
+Against round 4's artifact: 0 raw / -4 gzip bytes, with the new main merged;
+this round changes no Rust or wasm input, so its implementation adds no device
+bytes. This is not a claim of byte identity with round 4.
+
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0; eight Cargo jobs, dev/test debug
+information disabled, file limit 65,536. Existing tools selected through
+worktree-local symlinks. No tool was installed or modified on a shared path.
+
+Evidence: ignored `target/lane-kg-r5/`, including affected, focused, guide,
+full-suite and reference logs/exit files, measurements, and five isolated
+mutation loaders and their logs. Reproduce the regression set from snapback4:
+
+```sh
+node --test packages/snapback4/test/retention-lifecycle.test.mjs \
+  packages/snapback4/test/retention-episode.test.mjs
+node --import ./target/lane-kg-r5/signout-loading-loader.mjs --test \
+  --test-name-pattern='wasm guard: sign-out' \
+  packages/snapback4/test/retention-lifecycle.test.mjs
+```
+
+## Decisions, deviations and remaining issues
+
+No design deviation or stopped design part. Suppression records actual
+notification delivery, rather than assuming a shared snapshot update has
+already called its listeners; this preserves delivery while deferral is active.
+The source-limit extraction is the only implementation work beyond the four
+findings, required by the merged file size. No authorization/disclosure rule,
+meter, durable format, API, diagnostic, dependency, version or budget changes.
+No independent review is claimed; the supervisor owns the two-family review.
+
+No unresolved round-5 implementation or merge problem remains. The inherited
+60-second full-suite budget remains exceeded (1510 seconds); reproduce with
+`cd snapback4 && bash scripts/test.sh`. No timeout or budget was raised.
+
+llp-orient context: Snapback 4's fence (LLP 3000); LLP 3000.023 §§3.1,
+3.4–3.6 (single episode withdrawal, exact hard boundaries, and facade authority);
+LLP 3000.019 §3.3 (held deadlines and live fallback); current client manual.
+The governing LLPs are in current, not foundation. Scope is detached facade
+access, withdrawal delivery and grouped commits. No new design decision or
+LLP hand-off is needed; manual/report/journal updates suffice.
+
+
+---
+
+# Historical round-4 report
+
 # Lane KG round 4 — synchronous facade withdrawal for every policy
 
 Branch: `sb4-intent/kg-kept-through-authority`; release target: 0.4.5.

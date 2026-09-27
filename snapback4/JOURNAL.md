@@ -69036,3 +69036,63 @@ storage, version or budget change. No push or publication; every commit has
 the requested co-author trailer. Report, file map, deviations, failure
 reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
 Raw evidence remains in ignored target/lane-tk-round1/.
+
+### 2026-09-27 — KG round 5: detached facade deadlines and exact withdrawal delivery
+
+Read rounds 0–4's prompts, reports and KG entries and both complete round-4
+reviews. Merged origin/main 941a3698c in 5bf924483 before implementation,
+retaining both journal histories (zero removed lines against either parent)
+and both LLP 3000.019 Revised histories. FX's deterministic useNow test is
+unchanged; the incoming cold-acquisition fallback refresh remains intact.
+
+107f9484c answers the four findings. Detach retains the closed raw handle so
+keep:false facades still enforce source withdrawal and row deadlines. The
+facade remembers the snapshot actually announced and suppresses a raw refresh
+that repeats the same shared withdrawal. Episode onWithdrawal uses the read
+notification queue, so a grouped commit reloads every watch before a due
+watch's callback inspects a settled peer. Sign-out tests record the real
+internal close transition and require E_AUTH before it, E_CLOSED after it,
+including raw snapshots captured before getters can repair them.
+
+Thirteen added regressions: eight real online/wasm guardClient/createApp closed
+facade cases, with/without a live peer; three exact facade-delivery cases;
+closeWatchAnswers with six subscribers across all policies; and the two-watch
+grouped-commit episode. Seven wasm guard sign-out cases were strengthened.
+Isolated negative controls fail 8 closed-facade cases, 2 shared-notification
+cases (false stays green), 1 double-close-callback case, 1 grouped-episode case,
+and all 7 sign-out-loading cases. No existing product assertion was relaxed.
+All mutations are process-local loaders, never changes to live built output.
+
+2472b30ca moves the merged local presence scheduling into local-reads.ts,
+preserving its interval and lifetime while reducing local.ts from 1,506 to
+1,496 lines. This source-budget extraction is the only work beyond the four
+findings. Updated the client manual's detached-access and callback contract.
+
+Affected suite: 380/380; changed test files: 201/201; whole guide: 86/86.
+Frozen Bun install, package build/typecheck and reference audit pass:
+517 LLP docs, 9,658 refs, zero errors/unchecked. Changed source files are
+below 1,500 lines; whitespace validation passes.
+
+Ran scripts/test.sh exactly once: **== 0 failure(s) in 1510 s**, exit **0**.
+Rust: 3,907 passed / 0 failed / 24 ignored (773 s). Main client: 3,074 passed /
+0 failed / 10 skipped (427 s); seven extra shards: 56/56. Final seeded models:
+79/79 (269 s). Fixtures: 9/9. All builds, typechecks, guide, budgets and release
+guard pass. Every full-run failure: none — no lane-owned, baseline or
+environmental failure. All thirteen added tests, seven strengthened sign-out
+cases, eighteen delayed-authority sequences, both Chromium witnesses, FX's
+useNow cases and main's blocked-snapshot live fallback pass. The complete run
+was neither restarted nor rerun. No unresolved round-5 implementation problem.
+
+Wasm: 1,981,512 B raw / 572,049 B gzip, SHA-256
+1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928;
+792 B below the unchanged 572,841 B budget. Against round 4, the merged
+artifact is 0 raw / -4 gzip bytes; round 5 has no Rust or wasm-input change
+and adds no device bytes. No engine authorization/disclosure rule, meter,
+durable format, API, diagnostic, dependency, version or budget change.
+Existing Node 24.13.1 / Bun 1.3.14 tools are selected by worktree-local
+symlinks; Rust 1.97.0, eight Cargo jobs, dev/test debug off, fd limit 65,536.
+No tool installed or modified on a shared path. No design deviation, push,
+publication or independent-review claim. Every commit has the requested
+Astra co-author trailer. The inherited 60-second suite budget remains exceeded.
+Report: reports/20260927-kg-kept-through-authority/REPORT.md; ignored evidence:
+target/lane-kg-r5/. This is round 5's single dated journal append.
