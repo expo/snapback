@@ -161,6 +161,26 @@ for (const keep of [undefined, false, true]) {
     m.complete(recovery); await m.settle();
   });
 
+  // Round 12 review (Astra): a surviving opening joins a replacement owner whose first
+  // generation equals the retired owner's; its delivered denial must not cancel recovery.
+  for (const outcome of [false, "late opening"]) test(`oracle adopts a replacement owner's delivered denial for a surviving opening (outcome=${outcome}), keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep);
+    const gate = record => m.pending.find(g => g.record === record);
+    const first = m.open();
+    m.complete(gate(first)); await m.settle();
+    m.publish(); m.complete(gate(first), "D1"); await m.settle();
+    const opening = m.open(), openingCheck = gate(opening);
+    m.close(first); if (keep) m.expireLinger();
+    await m.settle();
+    const peer = m.open();
+    m.complete(gate(peer));
+    for (let i = 0; i < 40; i++) await Promise.resolve();
+    m.publish(); m.complete(gate(peer), "D2"); await m.settle();
+    m.recheck(); const recovery = gate(peer);
+    m.complete(openingCheck, outcome); await m.settle();
+    m.complete(recovery); await m.settle();
+  });
+
   test(`oracle isolates a closed opening that never associated, keep=${keep}`, async t => {
     const m = approvalOracle(t, keep), closed = m.open(), opening = m.pending[0];
     m.close(closed); await m.settle(); await start(m);

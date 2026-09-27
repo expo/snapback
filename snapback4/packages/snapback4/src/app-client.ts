@@ -148,14 +148,15 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         }
         emit();
       };
-      const openingGeneration = held?.generation, openingSnapshot = held?.snapshot;
+      const openingSlot = held, openingGeneration = held?.generation, openingSnapshot = held?.snapshot;
       void refusal().then(refused => {
         if (refused) {
           const shared = held?.read();
           // A shared refusal already delivered during opening is this failure's
           // visible result; a newly started check can still report a new denial.
           // Normalization can restore the opening snapshot after generation moves.
-          reject(held?.generation !== openingGeneration && shared !== openingSnapshot && shared && "denied" in shared
+          // Generations count per raw owner: a replacement owner's slot is new evidence at any generation.
+          reject((held !== openingSlot || held?.generation !== openingGeneration) && shared !== openingSnapshot && shared && "denied" in shared
             ? shared as Read<R> : { denied: refused });
           if (!closed) emit();
           return;
