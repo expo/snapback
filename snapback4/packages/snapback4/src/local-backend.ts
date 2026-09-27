@@ -15,7 +15,8 @@ export async function loadBackend(doFetch: typeof fetch, base: string, headers: 
     if (response.status === 401) throw new BackendAuthError({ code: "E_AUTH", family: "auth", message: "the server refused this session" });
     throw error;
   }
-  if (json.denied || response.status === 401) throw new BackendAuthError(json.denied ?? { code: "E_AUTH", family: "auth", message: "the server refused this session" });
+  if (response.status === 401 || (json.denied?.code === "E_AUTH" && !json.denied.retryable)) throw new BackendAuthError(json.denied ?? { code: "E_AUTH", family: "auth", message: "the server refused this session" });
+  if (json.denied) throw new Error(`schema: ${json.denied.code}: ${json.denied.message}`);
   if (!response.ok) throw new Error(`schema: HTTP ${response.status}`);
   return json;
 }

@@ -40,7 +40,6 @@ pub(super) const NO_HOST: &str = "no running persisted dev server; pass --url wi
 /// Select the listener before any inspection/reset; status must name our project.
 /// The server supplies temporary-store status in both discovery modes.
 pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option<serde_json::Value>, String> {
-    use std::net::{Ipv4Addr, SocketAddr};
     let (address, expected_store) = if let Some(url) = options.flags.get("url") {
         if options.flags.contains_key("release") {
             return Err("--url inspects a dev server; omit --release and run doctor in that server's project".into());
@@ -49,9 +48,9 @@ pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option
     } else {
         if options.flags.contains_key("release") { return Ok(None); }
         let path = project.store_path();
-        let Some(port) = crate::store_owner::inspector_port(&path) else { return Ok(None); };
+        let Some(address) = crate::store_owner::inspector_address(&path) else { return Ok(None); };
         let Some(id) = Store::open_read_only(&path).ok().and_then(|store| store.meta("store_id").ok().flatten()) else { return Ok(None); };
-        (SocketAddr::from((Ipv4Addr::LOCALHOST, port)), Some(id))
+        (address, Some(id))
     };
     let Some(mut status) = request(address, "GET", "/dev/status") else {
         return if options.flags.contains_key("url") {

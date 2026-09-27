@@ -546,7 +546,7 @@ impl Engine {
                 return Err(RuntimeError::Schema("scheduled work takes periodStart: time and periodEnd: time, or nothing".into()));
             }
         }
-        store.activate_at(schema, Some(programs), false, now, |tx, changed| {
+        store.activate_at(schema, Some(programs), false, now, |tx, changed, report| {
             if let Some((release, expected)) = release {
                 use rusqlite::OptionalExtension;
                 let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
@@ -571,18 +571,20 @@ impl Engine {
             let columns = column_activation::changed_parents(schema, previous.as_ref());
             if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
             let seq = tx.next_seq()?;
+            let mut phase = std::time::Instant::now();
             if attribution {
                 // This runner owns only activation rewrites; ordinary rebuilds
                 // below retain their commit and partition accounting.
                 let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
                 capture.capture_activation(previous.as_ref())?;
-                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>())?;
+                report.phase("capture recorded paths", &mut phase);
+                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-            runner.activate_columns(previous.as_ref(), &rebuild, &columns)?;
+            runner.activate_columns(previous.as_ref(), &rebuild, &columns, Some(report))?;
             for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {
                 if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {
-                    runner.rebuild_maintain(maintain)?;
+                    runner.rebuild_maintain_reported(maintain, report)?;
                 }
             }
             let events = runner.events.take();

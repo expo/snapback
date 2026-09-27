@@ -164,3 +164,47 @@ fn latency_successful_asset_stream_and_range_refusal_are_both_measured() {
     assert_eq!(snapshot["operations"]["/assets (download)"]["refused"], 1);
     ordered(&snapshot["operations"]["/assets (download)"]);
 }
+
+// @ref LLP 3000.019#3.6 — writer saturation must leave detached reads and dev inspection available.
+#[test]
+fn latency_writer_admission_refuses_once_and_keeps_dev_inspection_available() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
+    host.admission.mutations.store(MUTATION_WORKERS, Ordering::Release);
+    let mut stream = TcpStream::connect(host.address).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    stream.write_all(b"POST /m/put HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\n\r\n{}").unwrap();
+    let mut bytes = Vec::new();
+    let _ = stream.read_to_end(&mut bytes);
+    let result = counted(&host, "/m/put", 1);
+    assert_eq!(result["operations"]["/m/put"]["refused"], 1);
+    assert_eq!(result["operations"]["/m/put"]["wait"]["max"], 0.0);
+    assert_eq!(status(&host.request("POST", "/q/read", PERSONA, "{}")), 200);
+    assert_eq!(status(&host.request("POST", "/dev/latency/reset", "", "")), 200);
+    host.admission.mutations.store(0, Ordering::Release);
+}
+
+#[test]
+fn latency_detached_checkout_stamps_wait_before_query_work() {
+    for bearer in [false, true] {
+        let fresh = query_readers::FreshDirectory::new().unwrap();
+        let host = Host::with_store(true, fresh.store().unwrap(), SOURCE);
+        let headers = if bearer {
+            let session = { let engine = lock(&host.shared.engine);
+                snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
+            format!("Authorization: Bearer {}\r\n", session.token)
+        } else { PERSONA.to_owned() };
+        // The first checkout follows 100 ms of accepted request work. Query
+        // execution then waits another 250 ms; that belongs only to total.
+        *lock(&host.shared.request_work) = Some(Arc::new(|| thread::sleep(Duration::from_millis(100))));
+        *lock(&host.shared.query_wait) = Some(Arc::new(|| thread::sleep(Duration::from_millis(250))));
+        assert_eq!(status(&host.request("POST", "/q/read", &headers, "{}")), 200);
+        *lock(&host.shared.request_work) = None;
+        let result = counted(&host, "/q/read", 1);
+        let sample = &result["operations"]["/q/read"];
+        let wait = sample["wait"]["max"].as_f64().unwrap();
+        let total = sample["total"]["max"].as_f64().unwrap();
+        assert!(wait >= 100.0, "detached checkout missing from wait: {sample}");
+        assert!(total - wait >= 250.0, "query work must follow first acquisition: {sample}");
+        assert_eq!(sample["refused"], 0);
+    }
+}

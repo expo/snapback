@@ -65250,6 +65250,222 @@ authorization, meter, outbox, public API/syntax, version or budget change.
 No delegated agent, push or publication. Grok provided no rounds 6–7 verdict;
 no second-review approval is claimed. Evidence: target/lane-k-round8-evidence/.
 
+## 2026-09-26 — 0.4.4 lane AD: baseline for adding a view without stalling reads
+
+Committed the calibration #22 adoption-stall ticket. Before optimization, an
+ignored engine fixture compiled the actual M7/M8 program and built the requested
+source populations, with synthetic Following fanout: 1,447,960 physical rows,
+8,863,718 index entries. On expose-builder-pixel (96 logical CPUs), Rust 1.97.0,
+opt-level 1 tests, adoption took 171,946 ms and a read behind its engine mutex
+waited 171,948 ms. Projection/index replacement took 142,046.153 ms, validation
+12,850.041 ms, commit/checkpoint 6,776.048 ms, preflight 3,788.815 ms. Derived work
+was 6,481.720 ms, including 2,156.589 ms capturing reference paths and 3,612.381 ms
+rebuilding unread after source-index changes. The six M8 grouped folds together
+took 670.957 ms: they already group in memory and write each final row once.
+This directs the fix at unrelated activation work and read admission, not the
+aggregate evaluator. Timers include metering; perf is absent on this host.
+Fixture generation uses a larger cache and longer delivery slices; measured
+adoption reopens with the normal cache and FULL durability. The original replay
+history/distribution is not claimed. Evidence: reports/20260926-lane-ad-baseline.log
+and reports/20260926-lane-ad-adoption.md. Before optimization, pristine lane-base
+wasm is 2,025,652 B raw / 582,552 B gzip, 458 B above the unchanged budget;
+instrumentation changes gzip by +2 B. No budget increase or publication.
+
+Continuation of lane AD: corrected the M7 extraction to retain unrelated
+trending/digest operations; the first run had removed them and therefore also
+rebuilt unread. The corrected shared M7 fixture has 1,447,960 rows and 9,077,125
+indexes. Rebuilt the pristine instrumented implementation and measured 167,083 ms
+adoption / 167,084 ms waiting read. Optimized adoption is 9,601 ms / <1 ms detached
+read: preflight 3,008.926 ms, projection/index work 476.216 ms, capture 2,120.956 ms
+inside 2,801.141 ms derived work, validation 473.078 ms, commit 2,837.892 ms. The
+six folds together take about 679 ms. The one-second end-to-end target remains
+unmet. The original measurement record above is retained, with its scope corrected
+here and in the report. Streaming comparison of both corrected M8 stores matches
+all 1,447,966 rows, 9,077,137 index entries, 1,973,177 log images and 316,734 commits.
+The scripts/compare-adoption.py witness reproduces that exact comparison.
+
+Activation now preserves unchanged physical indexes/table invariants and caches
+SQLite inserts; aggregate folds, captures, sequence and images remain unchanged.
+Dev/serve query, sync and bearer-authentication reads use an independent factory
+for fresh identity-checked WAL snapshots. Atomic adoption remains the writer;
+new queries report pending, existing ones read the old generation. Writes queue
+and execute exactly once after adoption. Startup/adoption logs include per-view
+source visits and milliseconds without extra scans or meter charges. `--fresh`
+and its `--memory` alias use a new private temporary WAL file each run; orderly
+exit removes it, a force-kill can leave its directory. The banner, pinned test and
+operations reference describe this storage change. No new Quarry syntax, diagnostic,
+budget, publication or claim of interleaved writes. LLP 3000.019 §3.6 records the
+design, and LLP 3000.015 still requires atomic adoption.
+
+The broader all-read claim is unfinished: `/changes` still durably records
+presence reconnects under the writer lock. A queued reconnect acknowledged before
+its durable write, followed by a crash, could leave a loss notification eligible
+despite acknowledging reconnection; that shortcut was not taken. The report gives
+the held-adoption reproduction and preserves this limitation alongside the
+nine-second adoption cost. No claim that safe chunking is impossible is made.
+
+Validation: required scripts/test.sh ran once unmodified and ended exactly
+`== 2 failure(s) in 1389 s`, exit 1; groups `wasm build` and `cargo test`.
+Rust was 3,665 passed / 3 failed / 21 ignored. The three failures were mine:
+`failed_materialization_is_not_counted_and_unreadable_head_fails_discovery`
+(masked the actual storage error), `stale_generation_reader_snapshot` and
+`stale_generation_reader_stream` (their manual adoption omitted the reader
+factory handoff). Corrected the error propagation and test adoption plumbing,
+retaining every existing assertion. Final CLI unit run: 116 passed, 1 ignored,
+including a new witness that a write queued during adoption loses expired bearer
+authority. Core equivalence 3/3; row-view accounting/legacy/witness 10/10; replay
+15/15; whole guide 86/86; reference audit 513 LLPs / 9,495 refs / zero errors or
+unchecked. All modified source files are within 1,500 lines (largest 1,497).
+
+Client main batch passed 2,377 with 10 skips; all separate shards passed; models
+78/78. Package typecheck/build, fixture wrappers and app checks passed. Final
+binary/package builds passed after the scoped fixes. Full-suite wasm was
+582,553 B gzip (459 B over); after the final instrumentation cleanup the rebuild
+is 2,025,652 B raw / 582,551 B gzip, one byte below the pristine baseline but still
+457 B over the unchanged 582,094 B budget. This is the remaining inherited gate
+failure, not an authorized budget increase. No environmental failure was found.
+The full suite was not rerun; its red summary is retained with the scoped green
+results rather than relabeled green. Final evidence is in reports/20260926-lane-ad-*.
+Commits so far: 5429a3d1f, 5563a56c8, 2e00cef93, 46bf41d23; the evidence commit
+completes this same dated entry. No push, package publication or delegated review.
+
+### 2026-09-26 — Lane AD round 1: adoption review findings
+
+Read both blind reviews and fixed rebuilt-target uniqueness/cap rollback,
+mutation/read admission (16 + 16 within the existing 32), and bearer checks
+inside both replay/execution locks. Regressions now cover failed candidate
+cleanup and concurrent commits during detached snapshot/stream reads. The
+native Following failure reproduced in 51/64 loaded runs: the device was at
+sequence 70 while the online comparison was at 71, after `sync()` joined an
+older round. Waiting for the observed sequence fixes that comparison; 64 runs
+on both native and wasm passed, including a forced overlapping remote write.
+A later-head watermark mutant and all six review-specific mutants fail.
+
+The scale read now runs inside a held SQLite transaction (531 µs). Validated
+key bounds are reused only with a matching activation proof; legacy/device
+checks and every newly generated key retain validation. Capture computes only
+keys depending on new facts, preserving all stored captures and nulls. Adoption
+measured 9,239 → 6,884 ms; capture 2,196 → 762 ms. Every row/index/log/commit
+still matches the retained legacy store. The actual HTTP reconnect wait was
+9,710 → 6,302 ms, while query/sync took 5.607/9.573 ms during the held adoption.
+The one-second target and bounded `/changes` writer access remain unmet. The
+new `/changes` ticket preserves durable reconnect acknowledgment across crashes;
+no chunks or in-memory acknowledgment were introduced. LLP/guide/operations
+claims now name only query and sync snapshot reads. Raw lane logs moved to
+ignored `target/lane-ad-evidence/`; the lane report retains commands and numbers.
+
+Affected core, canonical CLI, device upgrade and whole-guide checks pass.
+A default 96-thread CLI attempt exhausted its 1,024-descriptor process limit;
+the canonical runner's single CLI thread passes 120 tests (two intentional
+ignored helpers). The single final full suite ends exactly
+`== 1 failure(s) in 988 s`, listing only `wasm build`, exit 1. Its inherited
+size failure is 2,025,652 B raw / 582,551 B gzip, 457 B above the unchanged
+582,094 B cap and identical to round 0's final artifact. Rust tests/doctests
+pass 3,675 with 22 ignored; client main batch passes 2,377 with 10 skipped,
+the seven shards pass 56, and models pass 78/78. No sync or Following failure;
+both native and wasm unfollow/repost cases pass against the rebuilt server.
+No introduced or environmental full-suite failure. The final reference audit
+has zero errors. Evidence is under `target/lane-ad-evidence/r1-test-sh.log`;
+the report records commands, exact counts and all seven killed mutations.
+No push or publication.
+
+### 2026-09-26 — Lane AD round 2: final adoption corrections
+
+Read the lane prompt, report and both full round-1 reviews. Writer-dependent
+handlers now default to their separate 32-slot admission budget; detached reads
+retain 32 slots, sharing their admission policy with authentication. The earlier
+round-1 entry's 16 + 16 describes the superseded lane implementation;
+supervisor commit d15d5110a established the actual separate 32 + 32 budgets.
+Saturation now covers 32 guests and effect done/failed/step-done requests as well
+as mutations, with query/sync responses while every admitted writer still waits.
+
+SQLite INSERT/UPDATE triggers invalidate a matching key proof when a physical
+key exceeds 2,048 bytes, including direct SQL. Legacy stores missing either
+guard rescan before reuse. Regression cases leave the proof untouched, corrupt
+keys by insert/update with and without guards, and require E_INDEX_KEY_BYTES
+with atomic rollback. The fixture rebuild inserts twelve keys; six alternating
+12,000-insert replay samples measure medians of 18.529296 ms without triggers
+and 24.527470 ms with them: about 499.8 ns extra per insert, or 6.0 µs for M8.
+
+The failure test now invokes the watcher's extracted production adoption/error
+path, without calling cleanup itself. Removing its finish_adoption call fails
+with a pending query instead of E_OP. Ephemeral writes recheck bearer authority
+under checkout and fallback guards; expiry/revocation join the six durable
+cases, and removing the checkout check returns sent and fails the new assertion.
+Both mutation experiments were restored. Concurrent sync tests alternate inserts
+on both sides of the cursor and assert its actual descending traversal.
+
+Scale adoption is 6,433 ms, with a 511 µs detached query proved inside the held
+transaction. The HTTP witness is 6,653 ms adoption / 6,655 ms changes wait;
+query and sync take 4.512 / 8.641 ms. All 1,447,966 rows, 9,077,137 indexes,
+1,973,177 log images and 316,734 commits still match the retained legacy store.
+The one-second target remains unmet. LLP 3000.019 §3.6 records the supervisor's
+0.4.4 ruling: /changes ships as the documented, ticketed limitation; bounded
+adoption is follow-up. No chunking, budget increase, syntax or diagnostic change.
+
+Affected checks: core adoption 6/6, canonical CLI 120 passed / 2 intentional
+ignores, final adoption subset 13 passed / 2 ignores, concurrent sync 32 inner
+cases, rows/legacy keys 8/8, device keys 3/3, device legacy upgrade 5/5, guide
+86/86. Two preliminary test-authoring mistakes (guest fixture lacked identity;
+cursor assertion assumed ascending traversal) were fixed. No remaining affected
+failure. The report contains file-by-file changes, reproductions and raw-log
+paths under ignored target/lane-ad-evidence/r2-*.
+
+The single final scripts/test.sh run ends exactly `== 1 failure(s) in 972 s`,
+exit 1, listing only `wasm build`. This is baseline: 2,025,652 B raw / 582,551 B
+gzip, identical to round 1 (delta 0 B), 457 B above the unchanged 582,094 B cap.
+No introduced or environmental full-suite failure. Rust tests/doctests pass
+3,676 with 22 ignored (510 s); client main batch 2,377 with 10 skipped and seven
+shards 56 passed (195 s); models 78/78 (254 s). Both native and wasm Following
+unfollow/repost cases pass. Build, typechecks, docs budget, release guard and
+fixture wrapper checks pass. Final reference audit: 513 LLPs / 9,503 refs /
+zero errors or unchecked. The generated native fixture lockfile was restored.
+Implementation commits are 39b76c1b6, 888931efb and bb9b8bce5; the evidence
+commit completes this entry. No push or publication.
+
+### 2026-09-27 — Lane AD round 3: supervision and reader failure isolation
+
+Addressed the five final-round review findings. Worker supervision now runs on
+its own owned, joined thread; durable status/session revocation and child
+shutdown stay with DevWorker. A production accept-loop regression holds an
+adoption transaction, exits a real Node child, and requires correct query/sync
+responses while supervision waits on the writer. It also proves revocation,
+restart, and shutdown reaping. File-backed reader-open failures now refuse with
+retryable E_STORE without taking the writer; seven injected-failure cases cover
+auth, query, pending head, sync head/snapshot/stream and missing factory. Only
+explicit memory stores use the read-class writer fallback.
+
+Added expiry and revocation in the memory ephemeral fallback's second lock gap;
+insert-only-missing and update-only-missing index guards with corruption through
+the unguarded operation and complete rollback; and /dev/status assertions naming
+a refused adoption then clearing on production success. All eleven deliberate
+mutations fail, including inline accept-loop ticking, each read fallback, the
+memory authority deletion, `installed == 0`, omitted refusal recording and
+omitted recovery. Restored CLI: 122 passed / 2 intentional ignores; core adoption
+6/6; lifecycle integration 20/20. The initial CLI run hit its shell's 1,024-file
+limit; rerun at 65,536 passed. This changes the test shell, not product limits.
+
+The unchanged prepared scale fixture (1,447,960 rows / 9,077,125 indexes) adopted
+in 6,545 ms, with a 525 µs detached query proved inside the held transaction.
+HTTP witness: adoption 6,521 ms, query 5.991 ms, sync 8.270 ms, /changes 6,523 ms.
+The one-second target is still unmet, and /changes still waits for durable
+reconnect admission under the supervisor's accepted 0.4.4 ruling. No chunking,
+new syntax, diagnostic, budget change, push or publication. Four small commits
+carry the requested co-author trailer; report and full evidence are in
+reports/20260926-lane-ad-adoption.md and ignored target/lane-ad-evidence/r3-*.
+
+Final qualification: ran scripts/test.sh exactly once after all affected checks,
+mutations were restored, and both scale runs. Exact summary: `== 1 failure(s) in
+967 s`, group `wasm build`, exit 1. The sole failure is baseline: 2,025,652 B raw /
+582,551 B gzip against the unchanged 582,094 B cap, 457 B over and **0 B change
+from round 2**. No introduced or environmental failure in the final run. Rust
+3,678 passed / 0 failed / 22 ignored (502 s); whole guide 86/86; client main
+2,377 passed / 10 skipped plus 56 shard tests (194 s); models 78/78 (256 s);
+fixture wrappers 9/9. Cargo build, docs budget, release guard, package and app
+checks passed. Reference audit: 513 LLP docs / 9,504 refs / zero errors or
+unchecked. Restored the generated native fixture lockfile change. All changed
+Rust files fit 1,500 lines; no push or publication.
+
 ## 2026-09-26 — 0.4.4 lane LT: the server knows its own p95
 
 Implemented LLP 3000.019 §3.7 on `sb4-intent/lt-latency`, from `cfa35e161`.
@@ -66545,3 +66761,164 @@ replace the original result. Ordinary clients: 2,506 tests, 2,494 passed,
 additional timing failure occurred in the full run. Evidence, reproduction
 commands and file map: `reports/20260927-lane-a5-list-offline.md`; logs and
 before/after artifacts: `target/a5-evidence/`.
+
+### 2026-09-27 — Lane AD: merge the 0.4.4 integration branch
+
+Ran `git merge sb4-intent/integration-044` after reading the lane prompt/report.
+The initial ref check saw the prompt's `2ddaf6802`, but the branch advanced
+before the merge command. Actual merge parent: `674998886`, which includes
+`2ddaf6802` and main's image-list placement fix. Retained and qualified that
+named-branch result; no later integration commits were included. Corrected the
+initial progress claim about the parent; the lane report records this input
+revision deviation explicitly.
+
+Resolved seven conflicts. LLP 3000.019 keeps AD §3.6, LT §3.7 and both revision
+histories; this journal keeps both sets of existing entries unchanged. Row views
+keep P5's device range certification/current authority and the diet's sqlite
+fence, with AD's source counter only on the server. Store constructors retain
+AD's report/oracle and R's ownership/file identity, including reader ownership
+clones and SQLite-before-descriptor drop order. Serve retains detached readers,
+32 + 32 admission, re-authentication, the owned supervision thread and private
+WAL fresh stores, plus R's store_owner/serve.lock/announce and LT's latency,
+status fields and doctor URL support. Adoption's production helper reopens via
+the retained owner and publishes reader and latency registries. Both sets of
+serve test modules remain; the file is 1,499 lines.
+
+Detached checkout now stamps LT's first-engine acquisition. Regressions cover
+bearer/persona wait versus total, writer-budget refusal and independent dev
+inspection, every injected reader refusal, and query/sync timings while worker
+supervision waits for adoption. Updated P5's inherited test-wrapper asset-release
+signature to forward placement arguments (initial E0050/E0061). Reconciled R's
+replaced-inode regression with AD's required no-writer-fallback policy: snapshot
+and stream refuse retryable E_STORE/503 without replacement data; /changes
+still returns the original store identity/sequence. No product ownership or
+refusal behavior was weakened to satisfy that test.
+
+Affected checks: CLI unit 149 passed / 4 intentional ignores; LT latency 9/9;
+core adoption 6/6; row-view accounting/legacy/witness 10/10; lifecycle 20/20;
+replay 15/15; R native opening 6/6; P5 unread range corrected rerun 7/7; whole
+guide 86/86. Corrected ownership/admission target 23/23. Native and package
+builds pass. Reference audit: 515 LLP docs / 9,552 refs / zero errors or
+unchecked. Frozen Bun install passed; Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+eight Cargo jobs, dev/test debug information disabled, file limit 65,536.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 3 failure(s) in 1322 s`,
+exit 1; groups `wasm build`, `cargo test`, `client tests`. The wasm gate is
+inherited: 1,980,253 B raw / 571,841 B gzip, 875 B above the unchanged actual
+570,966 B cap. That is +2 B gzip versus the prompt's supplied 571,839 B;
+the intervening main image-placement commit already lowered the prompt's
+570,967 B cap by one byte. No separate old-revision size attribution is claimed.
+The Rust failure was the reconciled R fallback expectation above; full Rust
+3,779 passed / 1 failed / 24 ignored (835 s). The client failure was unchanged
+identity.test.mjs:904: its 100-ms cancellation timer won before a mocked core
+request entered. Classified as environmental/intermittent timing: unchanged
+focused 1/1 and whole-file 18/18 reruns pass. Full client main: 2,458 passed /
+1 failed / 10 skipped, seven shards 56 passed (195 s); models 78/78 (256 s);
+fixture wrappers 9/9. Other build/typecheck/doc/release checks pass. Retained the
+red full-suite result; no second full run. No production code changed after
+that run started; only the ownership test expectation was corrected and rerun.
+
+No new syntax, chunking, adoption scale claim, budget change, push or
+publication. The one-second target and documented /changes adoption wait remain
+as previously accepted. Report: reports/20260926-lane-ad-adoption.md; raw logs
+and exit status: ignored target/lane-ad-evidence/merge-*.
+
+### 2026-09-27 — Lane AD round 4: crash revocation and retryable read recovery
+
+Read both round-3 NOT READY reviews and the binding lane prompt on merged
+base `122348198`. Fixed only the three new failure paths. A detected dead
+worker now closes its child session on its first writer acquisition, before
+recording status. The production-loop regression submits the old bearer to
+`/effects/claim` at `waiting() == 1` during a deliberately rejected adoption.
+A third queued writer holds replacement off while the test requires E_AUTH,
+zero surviving family sessions, the effect queued with zero attempts, one
+child start and unchanged worker revision. Query/sync availability, latency,
+restart and joined shutdown stay covered.
+
+Existing writer-owned maintenance now retries a missing file-reader factory;
+requests still return immediate retryable E_STORE/503 without writer fallback.
+Both new() and replace() recovery are exercised through real open failures:
+move the database away, observe prompt bearer /schema refusal under the held
+writer, return the original inode, then run production maintenance through
+clock advance and read successfully. The earlier seven reader-failure cases
+also recover without the test reinstalling their factory.
+
+The local schema loader now raises BackendAuthError only for HTTP 401 or
+nonretryable E_AUTH. All other failures follow existing offline startup.
+Seven new client regressions preserve the exact saved session bytes in four
+non-auth cases and retain deletion/refusal in three auth cases. The online
+client owns a separate loader; its existing session tests were qualified,
+and its implementation is unchanged. No language or design decision changed.
+
+All four counterfactuals fail: restore status-before-revocation, delete only
+crash-path revocation, delete maintenance factory retry, and restore the old
+all-denials-auth schema loader. The first three compile and exit 101 with a
+failed Rust regression; the restored old loader compiles and exits 1 with
+four failed session-preservation tests. An initial partial loader mutation
+was rejected by TypeScript narrowing; the runtime evidence uses the complete
+old loader. Every mutation was restored before final affected checks.
+
+Affected results: CLI 150 passed / 4 intentional ignores; lifecycle 20/20;
+latency 9/9; whole guide 86/86; client schema/session/sign-out files 30/30.
+Package build/typecheck and frozen Bun installation pass. Reference audit:
+515 LLP docs / 9,554 refs / zero errors or unchecked. The new report section
+records file-by-file changes and reproductions. Raw evidence is ignored under
+`target/lane-ad-evidence/r4-*`. No chunking, new scale claim, meter or budget
+change, push or publication. The inherited one-second target and accepted
+/changes adoption wait remain. Final full-suite qualification follows below.
+
+Ran scripts/test.sh exactly once after the restored mutations and affected
+checks. Exact summary: `== 1 failure(s) in 1012 s`, exit 1; sole failure:
+`wasm build`, inherited. The artifact is 1,980,253 B raw / 571,841 B gzip,
+875 B over the unchanged 570,966 B cap. Both raw and gzip deltas are zero;
+byte-identical to the preserved integration artifact, SHA-256
+`61e9f947f9c3c40b3323a6fedd70f079b051d7d15b654be176ab6e81099eb51c`.
+No introduced or environmental full-suite failure. Rust tests/doctests:
+3,780 passed / 0 failed / 24 ignored (519 s). Client main: 2,466 passed /
+0 failed / 10 skipped; seven shards: 56 passed (194 s). Seeded models:
+78/78 (288 s); fixture wrappers: 9/9. Other build/typecheck/doc/release checks
+pass. No implementation or test changed after qualification began, and no
+generated tracked file cleanup was needed. Node 24.13.1 / Bun 1.3.14 /
+Rust 1.97.0; eight Cargo jobs, dev/test debug info off, file limit 65,536.
+This one entry, the report, implementation and tests are committed together
+with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push or publication.
+
+## 2026-09-26 — 0.4.4 integration: what calibration #21's builder still wrote, and what #22 charged
+
+Branch `sb4-intent/integration-044`, from `da21a2792`. It merges lanes SP, O,
+P2, P1, K, R, EK, P5, LT and AD, and `main` twice: the wasm diet, then the
+image-list fix that the author held the release for. Codex lanes wrote the
+code; Astra and Grok reviewed every round blind; the supervisor merged and
+wrote the integration fixes. The lanes, merges, resolutions, measurements
+and review record are in `reports/20260926-intent-integration-044/REPORT.md`.
+LLP 3000.019 is at revision 5 and Implemented; LLP 3000.020 carries P5, and
+LLP 3000.021 (Accepted) plans 0.4.5.
+
+Integration fixes, each its own commit:
+
+- P2's device test builds the outbox entry lane O extended.
+- The guide's before-fixture is re-pinned from its generator.
+- The native fixture's lock names the workspace version.
+- A busy store names a live server's published address.
+- P5's device authority check builds on wasm after the diet.
+- The row-view page receipt includes its lookahead.
+- `doctor` dials the published loopback address.
+- P5's counting store takes the image-list fix's `release_asset`.
+
+Lane AD's detached readers change one behavior lane R had tested. After the
+database file is replaced under a running server, reads now answer with a
+retryable `E_STORE` instead of serving the old file through the writer.
+
+**Wasm ratchet raised.** `main`'s measured base is 569,966 B gzip, after the
+diet and the image-list fix. The integrated tree measures 1,980,253 B raw /
+571,841 B gzip (Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt): +1,875 B.
+That is the shared interpreter and device code of P2 (row-expression
+extrema), P1 (multi-column window boundaries), O (queued-write listing), R
+(residency statistics) and P5 (range certification). It is a whole-artifact
+measurement. The ratchet is measured + 1,000 = 572,841 B
+(`metrics/wasm-budget.json`, with the reason there too). Runtime meter
+ceilings are unchanged.
+
+Not in this release: offline retention of list assets (lane A5, next patch),
+and `/changes` without waiting for an adoption
+(`issues/20260926-snapback4-changes-waits-for-adoption.md`).

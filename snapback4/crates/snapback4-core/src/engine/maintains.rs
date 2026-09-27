@@ -80,6 +80,16 @@ impl Runner<'_> {
         Ok(())
     }
 
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn rebuild_maintain_reported(&mut self, maintain: &Maintain, report: &mut crate::store::adoption_report::AdoptionReport) -> Result<(), RuntimeError> {
+        let started = std::time::Instant::now();
+        self.rebuilt_source_rows = 0;
+        self.rebuild_maintain(maintain)?;
+        let rows = self.rebuilt_source_rows;
+        report.views.push(crate::store::adoption_report::ViewBuild { name: maintain.label(), rows, elapsed: started.elapsed() });
+        Ok(())
+    }
+
     /// Build one aggregate from the rows in the store: the target's rows go,
     /// then every source row contributes once. A schema change that adds or
     /// redefines a `maintain` calls this, so a count over existing rows is
@@ -121,6 +131,7 @@ impl Runner<'_> {
             let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, "byId", &[], &bounds, Dir::Asc, 256))?;
             if page.is_empty() { break; }
             for (mut image, key) in page {
+                self.rebuilt_source_rows += 1;
                 bounds.after = crate::key::decode(&key);
                 materialize_optional_fields(&mut image, source);
                 self.charge_maintain(MeterKind::Examined, 1)?;

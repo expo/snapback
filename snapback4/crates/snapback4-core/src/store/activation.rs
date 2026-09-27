@@ -56,16 +56,29 @@ impl Store {
     }
 
     pub(crate) fn activate(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_at(schema, programs, reset, crate::now_ms(), build)
+        self.activate_at(schema, programs, reset, crate::now_ms(), |tx, changed, _| build(tx, changed))
     }
 
-    pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+    pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        let mut report = super::adoption_report::AdoptionReport::default();
+        let mut phase = std::time::Instant::now();
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+        index_key_guards(&sql)?;
+        // @ref LLP 3000.019#3.6 — reuse an admitted key bound, never assume a legacy store was checked.
+        // Physical INSERT/UPDATE triggers invalidate the proof on oversized keys,
+        // including direct SQL. Every activation key
+        // below is checked too. Bind the proof to the predecessor so an older
+        // binary's adoption invalidates it; device installation always scans.
+        let key_proof = before.1.as_ref().map(|hash| format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES));
+        let validated: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key = 'index_keys_validated'", [], |r|r.get(0)).optional()?;
+        let keys_validated = programs.is_some() && key_proof.is_some() && validated == key_proof;
+        #[cfg(test)]
+        let keys_validated = keys_validated && !self.full_adoption;
         // One bounded result, no row images. Fresh stores have no schema;
         // an explicit device reset discards the old entries in this transaction.
-        if before.0.is_some() && !reset {
+        if before.0.is_some() && !reset && !keys_validated {
             let violation: Option<(String, i64)> = sql.query_row(
                 "SELECT c.name, COUNT(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE length(i.k) > ?1 GROUP BY i.ti ORDER BY i.ti LIMIT 1",
                 [crate::rows::MAX_INDEX_KEY_BYTES as i64], |row| Ok((row.get(0)?, row.get(1)?))
@@ -75,6 +88,7 @@ impl Store {
                 return Err(crate::rows::index_key_refusal(table, index, count as u64));
             }
         }
+        report.phase("key validation", &mut phase);
         let schema_hash = schema.hash();
         let activation_hash = programs.map(|programs| digest(&(schema, programs)));
         let schema_changed = before.0.as_deref() != Some(&schema_hash);
@@ -118,6 +132,14 @@ impl Store {
                 return Err(step.refusal(schema));
             }
         }
+        let previous: Option<Schema> = if schema_changed && programs.is_some() && !reset {
+            tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0)).optional()?
+                .map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?
+        } else { None };
+        #[cfg(test)]
+        let previous = if self.full_adoption { None } else { previous };
+        let plans = super::activation_plan::plans(schema, previous.as_ref());
+        report.phase("preflight", &mut phase);
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.
@@ -130,11 +152,13 @@ impl Store {
             }
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let t = catalog[name];
-                for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
+                let plan = &plans[name];
+                if !plan.project && plan.indexes.is_empty() { continue; }
+                for index in &plan.indexes { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
                 walk_metered(&tx, t, work, |row| if work.index_entries != 0 { crate::rows::adoption::contribution_bytes(row, table) } else { crate::value::InternalPrice::zero() }, |id, mut row, contribution_meter| {
                     let original = row.clone();
-                    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
+                    if plan.project { if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); } }
                     // Persist only a destructive projection. Defaults and
                     // optionals are an interpretation of the stored image.
                     if row != original {
@@ -146,7 +170,8 @@ impl Store {
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
                     // Maintained rows are replaced by the candidate builder.
                     if schema.maintain_for(name).is_none() { crate::engine::validate::validate_row(schema, name, &row)?; }
-                    for (index_name, index) in &table.indexes {
+                    for index_name in &plan.indexes {
+                        let index = &table.indexes[index_name];
                         let scratch = contribution_meter.mark();
                         let contribution = match index.components.first() { Some(crate::schema::IndexComponent::Contribution(m)) => Some(m), _ => None };
                         if let Some(m) = contribution {
@@ -156,11 +181,11 @@ impl Store {
                             crate::rows::adoption::charge(contribution_meter, crate::rows::adoption::contribution_bytes(&row, table))?;
                         }
                         for key in index_keys(index, &row, id) {
-                            if contribution.is_some() && key.len() > crate::rows::MAX_INDEX_KEY_BYTES {
+                            if key.len() > crate::rows::MAX_INDEX_KEY_BYTES {
                                 return Err(crate::rows::index_key_refusal(name, index_name, 1));
                             }
                             if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
-                            tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], key, id])?;
+                            tx.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![catalog[&format!("{name}.{index_name}")], key, id])?;
                         }
                         contribution_meter.release_heap(scratch);
                     }
@@ -168,6 +193,7 @@ impl Store {
                 })?;
             }
         }
+        report.phase("project and index", &mut phase);
         // Upgrade old stores and rebuild only when the schema changes. Counts
         // participate in the same activation transaction as rows and indexes.
         if cap_counts && tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash) {
@@ -179,9 +205,15 @@ impl Store {
             }
             tx.set_meta("cap_counts_schema", &schema_hash)?;
         }
-        build(&tx, changed)?;
+        report.phase("cap counts", &mut phase);
+        build(&tx, changed, &mut report)?;
+        report.phase("derived rebuild", &mut phase);
         if schema_changed {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
+                let plan = &plans[name];
+                // @ref LLP 3000.019#3.6 — physical reuse cannot exempt rebuilt rows from unchanged invariants.
+                let rebuilt = schema.maintain_for(name).is_some_and(|m| previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)));
+                if plan.project || rebuilt {
                 walk(&tx, catalog[name], |_, mut row| {
                     materialize_optional_fields(&mut row, table);
                     if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
@@ -189,10 +221,11 @@ impl Store {
                     for (column, kind) in &table.columns { validate_assets(&tx, kind, row.field(column).ok())?; }
                     Ok(())
                 })?;
-                for (index_name, index) in table.indexes.iter().filter(|(_, i)| i.unique) {
+                }
+                for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))) {
                     validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
                 }
-                for constraint in &table.constraints {
+                for constraint in table.constraints.iter().filter(|_| plan.project || rebuilt) {
                     if let Constraint::Cap { by, max } = constraint {
                         let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
                         validate_groups(&tx, name, index_name, by.len(), u64::from(*max), false)?;
@@ -200,6 +233,7 @@ impl Store {
                 }
             }
         }
+        report.phase("validation", &mut phase);
         if schema_changed {
             // A removed asset home is retired in the same transaction as its
             // projection. The ordinary collector removes bytes after commit.
@@ -213,6 +247,11 @@ impl Store {
         let previous = tx.tx.query_row("SELECT value FROM _meta WHERE key = 'generation'", [], |row| row.get::<_, String>(0)).optional()?.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
         let generation = if programs.is_some() && changed { previous.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { previous.max(1) };
         tx.set_meta("schema_hash", &schema_hash)?;
+        if let Some(hash) = &activation_hash {
+            tx.set_meta("index_keys_validated", &format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES))?;
+        } else {
+            tx.tx.execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
+        }
         if let (Some(hash), Some(programs)) = (&activation_hash, programs) {
             tx.set_meta("activation_hash", hash)?;
             tx.set_meta("generation", &generation.to_string())?;
@@ -221,13 +260,39 @@ impl Store {
             }
         }
         let after = identity(&tx.tx)?;
+        report.phase("metadata", &mut phase);
         tx.commit()?;
+        report.phase("commit", &mut phase);
+        self.adoption_report = report;
         // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
         catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
         self.catalog = catalog;
         self.identity = after;
         Ok(generation)
     }
+}
+
+// @ref LLP 3000.019#3.6 — a key-bound proof must be invalidated even by direct SQL edits.
+fn index_key_guards(conn: &Connection) -> Result<(), RuntimeError> {
+    let limit = crate::rows::MAX_INDEX_KEY_BYTES;
+    let insert = format!("_index_keys_insert_{limit}");
+    let update = format!("_index_keys_update_{limit}");
+    let installed: i64 = conn.query_row(
+        "SELECT count(*) FROM sqlite_schema WHERE type = 'trigger' AND name IN (?1, ?2)",
+        params![insert, update], |r| r.get(0),
+    )?;
+    if installed != 2 {
+        // A predecessor without both guards could have retained a proof across
+        // physical edits. Install and revalidate in this activation transaction.
+        conn.execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
+        conn.execute_batch(&format!(
+            "CREATE TRIGGER IF NOT EXISTS {insert} AFTER INSERT ON i WHEN length(NEW.k) > {limit}
+             BEGIN DELETE FROM _meta WHERE key = 'index_keys_validated'; END;
+             CREATE TRIGGER IF NOT EXISTS {update} AFTER UPDATE OF k ON i WHEN length(NEW.k) > {limit}
+             BEGIN DELETE FROM _meta WHERE key = 'index_keys_validated'; END;"
+        ))?;
+    }
+    Ok(())
 }
 
 /// Equal prefixes are adjacent in an index. Validate uniqueness and caps

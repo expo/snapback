@@ -36,7 +36,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     let principal = match principal_of(&request, shared) {
         Ok(principal) => principal,
         Err(refusal) => {
-            respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+            respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
             return;
         }
     };
@@ -45,9 +45,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
         _ => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
     };
     let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store } = input;
-    let store_id = match lock(&shared.engine).store().meta("store_id") {
-        Ok(Some(id)) => id,
-        _ => return respond_timed(request, shared, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
+    let store_id = match shared.read_head() {
+        Ok((id, _)) => id,
+        Err(error) => return respond_timed(request, shared, 503, json!({ "denied": refusal_json(&error) })),
     };
     // An old snapshot cursor belongs to its database, not merely its schema.
     if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
@@ -56,12 +56,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     if from == 0 && !stream {
         // `after` is the previous snapshot page's opaque `next` token.
         let (outcome, generation) = {
-            let reader = { lock(&shared.engine).reader() };
+            let reader = shared.reader().map(|(_,reader)|reader);
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
+                Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
@@ -85,12 +86,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
         }
     } else {
         let (outcome, generation) = {
-            let reader = { lock(&shared.engine).reader() };
+            let reader = shared.reader().map(|(_,reader)|reader);
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
                 }
+                Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();

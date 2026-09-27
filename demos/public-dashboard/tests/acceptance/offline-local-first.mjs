@@ -33,7 +33,7 @@
 //   the persisted entry; a non-empty outbox never resumes (the retained
 //   render survives, token withheld — the dated rendering note).
 
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,19 +96,12 @@ const suite = createSuite('public-dashboard / offline-local-first (JS arm)', {
 });
 
 let server = await bootServer();
-{
-  const provisioner = new SnapbackClient(server.baseUrl, {
-    ...server.clientOptions,
-    rqsStore: null,
-  });
-  await provisioner.ensureApp({
-    schema: generated('schema.manifest.json'),
-    functions: generated('functions.manifest.json'),
-    seed,
-  });
-}
-
-const cleanups = [];
+// Cleanups run in reverse registration order: the state dir goes last, with
+// the instance reservation the server keeps beside it (instance_lock.rs).
+const cleanups = [() => {
+  rmSync(stateDir, { recursive: true, force: true });
+  rmSync(`${stateDir}.snapback.restore.lock`, { force: true });
+}];
 const trackedClients = new Set();
 const openClient = () => {
   const client = new SnapbackClient(server.baseUrl, server.clientOptions);
@@ -125,6 +118,20 @@ cleanups.push(async () => {
 cleanups.push(() => server.stop().catch(() => {}));
 
 await runAcceptance(suite, async () => {
+  // Provisioning runs inside the suite so a refusal here is a reported
+  // failure that still runs the cleanups above, not a top-level crash.
+  {
+    const provisioner = new SnapbackClient(server.baseUrl, {
+      ...server.clientOptions,
+      rqsStore: null,
+    });
+    await provisioner.ensureApp({
+      schema: generated('schema.manifest.json'),
+      functions: generated('functions.manifest.json'),
+      seed,
+    });
+  }
+
   // ---- Warm session: default store, persistence, retainability facts ----
   const clientA = openClient();
   let handleA;

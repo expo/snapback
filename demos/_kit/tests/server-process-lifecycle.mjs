@@ -201,7 +201,14 @@ async function startAndPublish() {
 }
 
 await startAndPublish();
-if (coexistenceSignal) {
+const crashMode = process.env.FIXTURE_CRASH_AFTER_READY || null;
+if (crashMode) {
+  // Model a test that dies before its cleanup runs: no signal, no stop().
+  process.once('message', () => {
+    if (crashMode === 'exit') process.exit(3);
+    throw new Error('fixture parent crashed while owning a server');
+  });
+} else if (coexistenceSignal) {
   process.on('message', (message) => {
     if (message?.command === 'start-next') {
       void startAndPublish().catch((error) => {
@@ -297,6 +304,22 @@ function waitForChildClose(child, timeoutMs = 5_000) {
     child.once('close', onClose);
     child.once('error', onError);
   });
+}
+
+async function waitPidGone(pid, message, timeoutMs = 3_000) {
+  // A SIGKILLed orphan stays a zombie until init reaps it; poll, then assert.
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      if (error.code === 'ESRCH') return;
+      throw error;
+    }
+    if (Date.now() > deadline) break;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+  }
+  assertPidGone(pid, message);
 }
 
 function forceKillProcessGroup(pid) {
@@ -1303,6 +1326,50 @@ try {
           signalOwner.kill('SIGKILL');
         }
         forceKillProcessGroup(signalOwnedPids?.serverPid);
+      }
+    }
+
+    // A test parent that dies without a signal (an uncaught throw before its
+    // cleanup is registered, or a bare process.exit) must not strand its
+    // detached server group either (issues/closed/20260926-demo-kit-servers-
+    // orphaned-on-parent-exit.md: 71 orphans on one backstop host).
+    if (process.platform !== 'win32') {
+      for (const [crashMode, expectedCode] of [['throw', 1], ['exit', 3]]) {
+        const crashOwner = spawn(process.execPath, [signalOwnerFixture], {
+          cwd: scratch,
+          env: {
+            ...process.env,
+            SERVER_PROCESS_MODULE_URL: new URL('../server-process.mjs', import.meta.url).href,
+            FIXTURE_SERVER_PATH: fixture,
+            FIXTURE_CWD: scratch,
+            FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+            FIXTURE_CRASH_AFTER_READY: crashMode,
+          },
+          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+        });
+        let crashLog = '';
+        crashOwner.stdout.on('data', (chunk) => { crashLog += chunk; });
+        crashOwner.stderr.on('data', (chunk) => { crashLog += chunk; });
+        let crashOwnedPids = null;
+        try {
+          crashOwnedPids = await waitForChildMessage(crashOwner);
+          process.kill(crashOwnedPids.serverPid, 0);
+          process.kill(crashOwnedPids.descendantPid, 0);
+          const crashClose = waitForChildClose(crashOwner);
+          crashOwner.send({ command: 'crash' });
+          const closed = await crashClose;
+          assert.equal(closed.code, expectedCode, `${crashMode} owner exit code; log:\n${crashLog}`);
+          await waitPidGone(crashOwnedPids.serverPid, `${crashMode} owner leaves no server leader`);
+          await waitPidGone(
+            crashOwnedPids.descendantPid,
+            `${crashMode} owner leaves no TERM-resistant descendant`,
+          );
+        } finally {
+          if (crashOwner.exitCode === null && crashOwner.signalCode === null) {
+            crashOwner.kill('SIGKILL');
+          }
+          forceKillProcessGroup(crashOwnedPids?.serverPid);
+        }
       }
     }
 

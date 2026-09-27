@@ -1,5 +1,7 @@
 use super::*;
 
+mod concurrent;
+
 const SOURCE: &str = "use personas alice\ntable items:\n  n: int\n  public 'generation fixture'\n  update <- allow\n  sync public\nmutation bump():\n  item = items['one'] ! else NOT_FOUND\n  update items['one'] {n: item.n + 1}\n";
 const PERSONA: &str = "x-snapback-persona: alice\r\n";
 static NEXT_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
@@ -24,6 +26,7 @@ fn generation_case(reader: bool, stream: bool) {
         let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("n: int", "n: int\n  added: int default 0"))]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+        lock(&host.shared.readers).replace(&engine);
         *lock(&host.shared.generation) = generation;
         *lock(&host.shared.bound) = bound;
         (generation, engine.store().meta("store_id").unwrap().unwrap(), engine.seq().unwrap())

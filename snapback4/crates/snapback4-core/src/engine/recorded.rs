@@ -93,12 +93,12 @@ pub(super) fn paths_changed(schema: &crate::schema::Schema, previous: Option<&cr
 
 #[cfg(feature = "sqlite")]
 impl Runner<'_> {
-    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain]) -> Result<(), RuntimeError> {
+    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain], report: &mut crate::store::adoption_report::AdoptionReport) -> Result<(), RuntimeError> {
         let saved = self.event_free;
         self.event_free = true;
         let result = (|| {
             for maintain in maintains {
-                if table_paths_changed(self.schema.table(&maintain.source), previous.and_then(|s| s.table(&maintain.source))) { self.rebuild_maintain(maintain)?; }
+                if table_paths_changed(self.schema.table(&maintain.source), previous.and_then(|s| s.table(&maintain.source))) { self.rebuild_maintain_reported(maintain, report)?; }
             }
             Ok(())
         })();
@@ -114,6 +114,12 @@ impl Runner<'_> {
         for (name, table) in &self.schema.tables.clone() {
             let paths: Vec<_> = table.recorded.keys().filter(|path| previous.and_then(|s| s.table(name)).is_none_or(|old| !old.recorded.contains_key(*path))).cloned().collect();
             if paths.is_empty() { continue; }
+            // @ref LLP 3000.019#3.6 — capture changes only these fields; keep unrelated physical keys.
+            // Projection already installed the candidate's defaults/indexes.
+            // Persist every historical capture, including null, but generate
+            // old/new keys only for indexes depending on a newly stamped path.
+            let mut captured_table = table.clone();
+            captured_table.indexes.retain(|_, index| paths.iter().any(|path| index.uses_column(path)));
             let mut bounds = Bounds::default();
             loop {
                 let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, name, "byId", &[], &bounds, Dir::Asc, 256))?;
@@ -122,7 +128,7 @@ impl Runner<'_> {
                     bounds.after = crate::key::decode(&key);
                     let row = self.capture_recorded(table, old.clone(), &paths)?;
                     super::validate::validate_row(self.schema, name, &crate::schema::row_image(&row, table))?;
-                    let entries = self.tx.put(name, table, &row, Some(&old))?;
+                    let entries = self.tx.put(name, &captured_table, &row, Some(&old))?;
                     self.meter.charge(MeterKind::IndexEntries, entries)?;
                 }
             }
@@ -227,7 +233,7 @@ mod tests {
         tx.put("likes",&schema.tables["likes"],&row,None).unwrap();
         let maintains = schema.maintains.iter().collect::<Vec<_>>();
         let mut runner = Runner::new(&tx,&schema,Context::system(),Meter::new(Ceilings::unbounded(),Cut::Abort),1);
-        runner.rebuild_recorded_activation(None,&maintains).unwrap();
+        runner.rebuild_recorded_activation(None,&maintains, &mut Default::default()).unwrap();
         assert!(!runner.event_free);
         assert!(runner.rows_written>0);
         assert!(runner.events.is_empty(),"populated activation rebuild emits no events");
@@ -235,7 +241,7 @@ mod tests {
         for saved in [false,true] {
             runner.event_free=saved;
             runner.meter=Meter::new(Ceilings {heap_bytes:0,..Ceilings::unbounded()},Cut::Abort);
-            assert!(runner.rebuild_recorded_activation(None,&maintains).is_err());
+            assert!(runner.rebuild_recorded_activation(None,&maintains, &mut Default::default()).is_err());
             assert_eq!(runner.event_free,saved);
         }
     }

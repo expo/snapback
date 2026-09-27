@@ -27,7 +27,7 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
   await writeFile(join(directory, 'snapback/schema.q'), source + '\nquery followsActor(actor: principal):\n  return exists follows[viewer, actor]\n');
   const server = spawn(binary, ['dev', '--port', '0', '--fresh', '--no-watch'], {cwd:directory, stdio:['ignore', 'pipe', 'pipe']});
   const exited = once(server, 'exit');
-  let log = '', url, client, core, observation, offline = false;
+  let log = '', url, client, core, observation, offline = false, holdSync;
   for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   try {
     await until(() => { assert.equal(server.exitCode, null, log); return url; }, 'server startup');
@@ -45,6 +45,12 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
       fetch:async (...args) => {
         if (offline) throw new TypeError('held delivery');
         const response = await fetch(...args);
+        if (holdSync && String(args[0]).endsWith('/sync')) {
+          const held = holdSync;
+          holdSync = undefined;
+          held.enter(await response.clone().json());
+          await held.release;
+        }
         if (offline) throw new TypeError('held delivery');
         return response;
       }});
@@ -56,8 +62,14 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
       // comparing cuts; the Rust model separately compares undrained pages.
       const advanced = await fetch(url + '/dev/clock/advance', {method:'POST', body:JSON.stringify({duration:'1ms'})}).then(r => r.json());
       assert.equal(advanced.advancedMs, 1, JSON.stringify(advanced));
-      await client.sync();
       const online = await request('/q/cards', {c:null});
+      // sync() can join a round already in flight before the delivery commit.
+      // Compare only after the replica reaches the online query's cut. A
+      // missing row at that watermark still fails the equality below.
+      await until(async () => {
+        await client.sync();
+        return (await core.call({op:'state'})).ok.watermark >= online.seq;
+      }, `${label}: replica did not reach server sequence ${online.seq}`);
       const local = await core.call({op:'query', name:'cards', viewer:'dev:bob', args:{c:null}, now:Date.now()});
       assert.deepEqual(local.ok?.data, online.data, `${label}: device`);
       assert.deepEqual((await client.query(query, {c:null})).data, online.data, `${label}: client`);
@@ -86,6 +98,22 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
     // true predicate, then skips unfollow when that not-yet-delivered card is
     // absent. Absence of an event is not proof of absence of a follow edge.
     await mutate('follow', {actor:'dev:alice'});
+    // Force the same overlap as the intermittent native failure: an explicit
+    // sync joins a response captured before the remote write and its delivery.
+    let enter, release;
+    const entered = new Promise(resolve => { enter = resolve; });
+    holdSync = {enter, release:new Promise(resolve => { release = resolve; })};
+    const olderRound = client.sync();
+    const olderPage = await entered;
+    try {
+      const receipt = await request('/m/post', {postId:'overlapping-original', parentId:null}, 'alice');
+      assert.ok(olderPage.watermark < receipt.seq);
+      assert.ok(olderPage.events.every(row => row.id !== 'overlapping-original'));
+      const joinedRound = client.sync();
+      release();
+      await Promise.all([olderRound, joinedRound]);
+      assert.ok((await check('sync overlapping a remote commit')).some(row => row.post.id === 'overlapping-original'));
+    } finally { release(); }
     offline = true;
     assert.equal((await request('/m/post', {postId:'held-original', parentId:null}, 'alice')).state, 'sent');
     const before = (await core.call({op:'query', name:'cards', viewer:'dev:bob', args:{c:null}, now:Date.now()})).ok;

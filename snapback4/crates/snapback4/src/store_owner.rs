@@ -10,9 +10,24 @@ pub(crate) struct Owner {
     record: Option<File>,
 }
 
-pub(crate) fn inspector_port(store: &Path) -> Option<u16> {
+/// The address `doctor` dials for the server that owns this store: the
+/// published loopback address itself, or, for a wildcard bind, that family's
+/// loopback on the same port. A published non-loopback address is not followed.
+pub(crate) fn inspector_address(store: &Path) -> Option<std::net::SocketAddr> {
     let path = store.canonicalize().ok()?;
-    address(&path)?.strip_prefix("http://")?.parse::<std::net::SocketAddr>().ok().map(|a| a.port())
+    dialable(&address(&path)?)
+}
+
+fn dialable(published: &str) -> Option<std::net::SocketAddr> {
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+    let address = published.strip_prefix("http://")?.parse::<SocketAddr>().ok()?;
+    let ip = match address.ip() {
+        ip if ip.is_loopback() => ip,
+        IpAddr::V4(ip) if ip.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(ip) if ip.is_unspecified() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+        _ => return None,
+    };
+    (address.port() != 0).then(|| SocketAddr::new(ip, address.port()))
 }
 
 fn resolve(store: &Path) -> Result<PathBuf, String> {

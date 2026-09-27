@@ -2,22 +2,16 @@
 mod latency_tests;
 use super::*;
 use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpStream};
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
+use std::{net::{SocketAddr, TcpStream}, sync::mpsc, thread::{self, JoinHandle}};
 
 #[path = "../tests/serve_adoption/mod.rs"]
 mod adoption_tests;
-
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
-
 #[path = "../tests/serve_ephemeral/mod.rs"]
 mod ephemeral_tests;
-
 #[path = "../tests/serve_presence/mod.rs"]
 mod presence_tests;
-
 #[path = "../tests/serve_sync/mod.rs"]
 mod sync_generation_tests;
 #[path = "../tests/serve_timeline/mod.rs"]
@@ -26,8 +20,6 @@ mod timeline_tests;
 mod store_tests;
 #[path = "../tests/serve_assets/mod.rs"]
 mod asset_list_tests;
-
-
 #[test]
 fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
     for dev in [true, false] {
@@ -74,6 +66,7 @@ impl Host {
         let presence = Arc::new(Live::new(clock.clone()));
         engine.set_presence(Some(presence.clone()));
         let generation = engine.generation();
+        let readers = Mutex::new(QueryReaders::new(&engine));
         let shared = Arc::new(Shared {
             project: std::env::current_dir().unwrap(), temporary: true,
             latency: Arc::new(latency::Registry::new(&bound)),
@@ -81,7 +74,7 @@ impl Host {
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: super::engine_lock::FairMutex::new(engine),
-            readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
+            readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),
             worker_revision: AtomicUsize::new(0),
@@ -103,6 +96,7 @@ impl Host {
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
             query_wait: Mutex::new(None),
+            mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let server = Arc::new(
@@ -1399,7 +1393,7 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     {
         let mut engine = lock(&host.shared.engine);
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        lock(&host.shared.readers).invalidate();
+        lock(&host.shared.readers).replace(&engine);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }
@@ -1416,8 +1410,11 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     // A native-only replacement also invalidates loans even if the stored
     // schema generation stays equal. This checks the epoch boundary only;
     // it does not claim to execute a native-module rebuild.
-    lock(&host.shared.readers).invalidate();
-    assert_eq!(lock(&host.shared.engine).generation(), generation);
+    {
+        let engine = lock(&host.shared.engine);
+        lock(&host.shared.readers).replace(&engine);
+        assert_eq!(engine.generation(), generation);
+    }
     lock(&host.shared.readers).put(&epoch, reader);
     assert!(lock(&host.shared.readers).idle.is_empty());
     assert_eq!(version()["data"], 2);

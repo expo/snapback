@@ -1463,8 +1463,36 @@ function describeStamp({ gitCommit, gitDirty }) {
 // owner. Normal stop() errors still reject their caller; signal-time failures
 // are aggregated and printed before the original signal is re-delivered.
 const ownedProcessTrees = new Set();
+const ownedProcessTreeChildren = new WeakMap();
 let ownedServerSignalShutdown = null;
 let ownedServerSignalHandlersInstalled = false;
+let ownedProcessTreeExitHookInstalled = false;
+
+// Signals are not the only way a test parent ends early. An uncaught throw
+// before the caller registers its cleanup, or a bare process.exit(), runs no
+// async teardown, and a detached group outlives its parent re-parented to
+// launchd/init (issues/closed/20260926-demo-kit-servers-orphaned-on-parent-exit.md).
+// `exit` handlers must be synchronous, so this is a last-resort SIGKILL of
+// each still-owned group, not the attested stop() proof; a tree whose stop()
+// already settled has left the set and is never signalled here.
+function killOwnedProcessTreesAtExit() {
+  for (const ownership of ownedProcessTrees) {
+    const pid = ownedProcessTreeChildren.get(ownership)?.pid;
+    if (!Number.isInteger(pid)) continue;
+    try {
+      if (process.platform === 'win32') process.kill(pid, 'SIGKILL');
+      else process.kill(-pid, 'SIGKILL');
+    } catch {
+      try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
+    }
+  }
+}
+
+function installOwnedProcessTreeExitHook() {
+  if (ownedProcessTreeExitHookInstalled) return;
+  ownedProcessTreeExitHookInstalled = true;
+  process.on('exit', killOwnedProcessTreesAtExit);
+}
 
 const ownedServerSignalHandlers = {
   SIGINT: () => beginOwnedServerSignalShutdown('SIGINT'),
@@ -1515,7 +1543,9 @@ export function ownProcessTree(child, stopAction) {
     },
   };
   ownedProcessTrees.add(ownership);
+  ownedProcessTreeChildren.set(ownership, child);
   installOwnedServerSignalHandlers();
+  installOwnedProcessTreeExitHook();
   return ownership;
 }
 
