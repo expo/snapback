@@ -256,18 +256,29 @@ for (const tier of ["online", "web", "native"]) {
 
   test(`W6d ${tier}: input key order is immaterial and an evicted receipt never readmits on the same client`, { timeout: 60000 }, async t => {
     const f = await callerFixture(t), client = await f.open(), id = mintId();
-    const first = await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id });
+    // A device's foreground wait may return pending under load. Eviction counts
+    // terminal receipts, so follow that same id without submitting another write.
+    const terminal = async (owner, write) => write.state !== "pending" ? write : until(async () => {
+      const known = await owner.write(write.id);
+      return known && known.state !== "pending" ? known : false;
+    });
+    const first = await terminal(client, await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id }));
     assert.equal(first.state, "sent");
     const receipt = { state: "sent", id, seq: first.seq, replayed: true };
     assert.deepEqual(await client.mutate(mutation("answerPair"), { b: 2, a: 1 }, { id }), receipt);
     assert.equal(f.attempts.length, 1);
-    for (let n = 0; n < 256; n++) assert.equal((await client.mutate(mutation("answer"), { n })).state, "sent");
+    for (let n = 0; n < 256; n++) {
+      // Force the pending-return path once on every host, without a clock race.
+      const write = await client.mutate(mutation("answer"), { n }, n === 128 ? { waitSeconds: 0 } : undefined);
+      if (n === 128) assert.equal(write.state, "pending");
+      assert.equal((await terminal(client, write)).state, "sent");
+    }
     assert.equal(await client.write(id), undefined);
     const expired = await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id });
     assert.equal(expired.state, "failed"); assert.equal(expired.why.code, "E_WRITE_RECEIPT_EXPIRED");
     assert.equal(f.attempts.length, 257, "receipt eviction does not enqueue a known id again");
     await client.close(); const reopened = await f.open();
-    assert.deepEqual(await reopened.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id }), receipt);
+    assert.deepEqual(await terminal(reopened, await reopened.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id })), receipt);
     assert.equal(f.attempts.length, 258, "without retained local evidence the server's original outcome wins");
     t.diagnostic(`tier=${tier} retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1`);
   });

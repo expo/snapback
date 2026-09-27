@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,11 +42,11 @@ test("resolveBinary selects installed linux-x64, then checkout; override still w
   const resolve = (arch = "x64", override) => spawnSync(process.execPath, ["--input-type=module", "-e", `Object.defineProperty(process,"platform",{value:"linux"});Object.defineProperty(process,"arch",{value:${JSON.stringify(arch)}}); const {resolveBinary}=await import(${JSON.stringify(module)}); console.log(resolveBinary());`], { encoding: "utf8", env: { ...env, ...(override ? { SNAPBACK4_BIN: override } : {}) } });
   assert.match(resolve().stderr, /darwin-arm64 and linux-x64/);
   const debug = join(root, "target/debug"); mkdirSync(debug, { recursive: true }); writeFileSync(join(debug, "snapback4"), "checkout");
-  assert.equal(resolve().stdout.trim(), join(debug, "snapback4"));
+  assert.equal(realpathSync(resolve().stdout.trim()), realpathSync(join(debug, "snapback4")));
   const installed = join(root, "node_modules/snapback4-linux-x64"); mkdirSync(installed, { recursive: true });
   writeFileSync(join(installed, "package.json"), '{"name":"snapback4-linux-x64"}'); writeFileSync(join(installed, "snapback4"), "installed");
-  assert.equal(resolve().stdout.trim(), join(installed, "snapback4"));
-  assert.equal(resolve("x64", join(debug, "snapback4")).stdout.trim(), join(debug, "snapback4"));
+  assert.equal(realpathSync(resolve().stdout.trim()), realpathSync(join(installed, "snapback4")));
+  assert.equal(realpathSync(resolve("x64", join(debug, "snapback4")).stdout.trim()), realpathSync(join(debug, "snapback4")));
 });
 
 test("qualification refuses even empty credentials before doing any work", () => {

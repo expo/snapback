@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // @ref LLP 3000.021#3.3 — pin the installed proof's CLI, client and disclosure assertions
 function roundtrip(t, scenario = "success") {
-  const root = mkdtempSync(join(tmpdir(), "snapback4-roundtrip-test-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "snapback4-roundtrip-test-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   copyFileSync(new URL("../../../scripts/publication-roundtrip.mjs", import.meta.url), join(root, "roundtrip.mjs"));
   copyFileSync(new URL("./helpers/publication-roundtrip-mock.mjs", import.meta.url), join(root, "mock.mjs"));

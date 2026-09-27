@@ -68180,6 +68180,135 @@ change. No push. Supervisor owns integration and blind reviews. Full file map,
 reproduction, limitations and evidence: reports/20260927-fx-flakes/REPORT.md;
 raw logs/controls under target/lane-fx-evidence/ and durable result hashes in
 reports/20260927-fx-flakes/qualification.json. This is the single journal append.
+### 2026-09-27 — Lane SS: acquisition and live messages at scale
+
+Implemented bounded server certification of expiring row-keyed counts for
+snapshot and stream delivery. Up to 256 authorized member images share one
+live source walk per parent; repeated puts use a transaction-local certified
+image. Every source still crosses its row/field authorization boundary, and
+scratch, output, examined work and per-member predicate steps remain metered.
+The SDK refreshes mounted server-backed watches every 250 ms while cold
+acquisition owns the follow loop, using the existing read fences. Staged
+rows remain private; publication and persistence remain atomic.
+
+Reproduced calibration #23 using Node 24.13.1, the local SDK and wasm on a
+private copy of its store on expo-build-1000. The original debug server took
+33.68 s to acquire and one message timed out at 31 s. Original optimized
+server plus original SDK: 7.858 s acquisition / 6.252 s steady-state message
+p95. Fixed optimized server: 1.858 s acquisition with memory persistence,
+2.348 s with production indexedDbStore over fake-indexeddb; login-inclusive
+1.905/2.384 s. Five responses deliver 15,588 rows, about 4.655 MB. Sync response
+time falls from 6.426 s to 0.480 s; fixed device apply excluding saves is
+0.756/0.757 s, saves 0.016/0.504 s. Inter-page idle time is zero. Steady-state
+message p95 is 0.427/0.454 s (20 samples each after three warm-ups).
+
+The one-second target throughout acquisition remains open. Initial five-send
+probes measured 0.257/0.320 s p95 but missed terminal publication. Extending
+four probes per persistence mode until acquisition finishes gives 28/30
+samples and 1.092/1.397 s p95, maximum 1.124/1.410 s. A concrete boundary
+message committed after the terminal response's cut waits behind the
+556 ms memory / 760 ms IDB-shaped atomic apply and the next ~366 ms sync
+response. Returning staged rows or claiming that later message in the
+terminal watermark would break the publication contract; neither was done.
+The witness now includes this boundary, and the report records the miss.
+
+Extended a second private copy with 900 two-member conversations and 100
+messages each. The 1,000-membership acquisition delivers 110,088 rows,
+about 41.967 MB in 30 responses: memory 21.378 s, IDB-shaped 41.580 s.
+Sampled peak JS heap is 207.7/1,866.8 MB; external memory 1,375.3/1,514.7 MB;
+RSS 1,798.8/3,412.8 MB. IDB simulation stores its data in JS and is not a
+Chromium/disk measurement. Largest atomic apply: 13.83/25.24 s including
+persistence; one-second visibility throughout that publication is not
+established. Steady-state p95 afterward is 0.483/0.973 s. No original GS
+store or WAL write; their recorded hashes still match.
+
+Four new engine tests pin scalar equality, authorization/revocation,
+expiry/current basis and meter exhaustion. A partition test pins one source
+walk through actual snapshot/stream delivery, including 250 repeated puts.
+Two SDK tests hold terminal catch-up and prove consecutive sends/deletion
+reach a watch with zero device publications, with refresh cleanup on
+acquisition and unmount. Row-view tests 17/17, partition regression 1/1,
+adjacent SDK tests 54/54, whole guide 86/86, typecheck/build and reference
+audit pass. One complete scripts/test.sh run: `== 0 failure(s) in 1431 s`,
+exit 0; no lane-owned, baseline or environmental failures in that run.
+Ordinary client tests: 2,635 passed, ten skipped; serial models: 78 passed.
+The inherited 60 s budget remains exceeded; no budget/timeout was raised.
+
+Wasm raw 1,981,512 B before/after; gzip 572,053 -> 572,049 B (-4), below the
+unchanged 572,841 B budget. Host wasm-opt 108 rejects sign-extension
+instructions; both measurements and the full suite use the supported
+no-optimizer path via an isolated PATH, without changing global tools or
+build scripts. No new syntax/diagnostics, contract reshaping, publication
+redesign, browser qualification, version bump, push or package publication.
+Supervisor owns integration and blind reviews. No new design LLP: this
+optimizes the existing live-count and staged-publication contracts.
+
+Implementation/witness commits: 440c032cf, f1d8cc991, f524fa5fa, 13210d828.
+File map, exact measurements, open limits and reproductions:
+reports/20260927-ss-sync-scale/REPORT.md and measurements.json. Raw evidence
+and the full-suite log remain under target/lane-ss-evidence/.
+## 2026-09-27 — 0.4.5 lane TK: mint service tokens through the live owner
+
+On `sb4-intent/tk-token-live`, implemented the live-token brief in
+7e85a25a0, corrected refusal wording in 8e8cf4814, and updated the existing
+consumer proof in 9a2533030. Persistent dev and serve accept a private
+`POST /dev/token` only from a loopback socket peer, with a loopback Host,
+no Origin and exactly one per-run store proof. Startup writes 32 OS-random
+bytes as hex to the 0600 `<canonical database>-token` sidecar through the
+existing alias/symlink/hard-link protections; it rotates on every start.
+Discovery uses the existing `serve.lock` address hint, mapping wildcard
+addresses to loopback. `<database>-owner` remains the lifetime lock. The
+request uses the existing bounded writer admission and the owner's engine
+guard, then calls the same identity mint routine as offline token. Service
+validation, session records, wall-clock expiry and stdout are unchanged.
+The CLI never retries or opens another writer after a live request fails;
+an uncertain reply names that uncertainty and gives the offline recovery.
+
+Eight new process tests pass: both hosts' live/offline validation and expiry,
+durability and proof rotation, actual non-loopback refusal with the correct
+proof, missing/wrong/duplicate/browser proofs, bounded invalid requests,
+wildcard/IPv6 discovery, unreachable/wrong-store/older owners, unsafe proof
+files, and the unchanged missing-store/temporary-dev boundary. Existing
+ownership tests pass 27/27, including canonical release aliases. The two
+consumer tests now redeem all 16 offline/live/flags/mode combinations, and
+the whole periphery file passes 19/19. Final whole guide passes 86/86;
+its recovery pin now distinguishes a lost mint reply from unadmitted offline
+work. No new diagnostic code; services, residency, refusals, why and SERVER.md
+describe the new path. Changed source files remain below 1,500 lines.
+
+Ran `scripts/test.sh` exactly once, exit 1. Exact summary:
+`== 1 failure(s) in 1416 s`, `client tests`. Rust passes 3,843, with 24
+intentional ignores, across 238 binaries / 951 executions (903 s). Ordinary
+clients: 2,631 passed, two failed, 10 skipped; seven other shards pass 56/56.
+Both failures are lane-owned old periphery assertions expecting live token
+to return status 2 instead of success; corrected and retested above. Models
+pass 78/78 (279 s), and every other full-suite phase passes. No baseline or
+environmental full-suite failure. The full suite was not repeated after
+the test-only corrections: the evidence is that red run plus affected greens.
+The inherited 60-second suite budget remains exceeded and unchanged.
+
+Additional lane-owned failures found and fixed: the first new tests caught
+invalid service names returning live exit 2 instead of offline exit 1; the
+post-suite guide rerun caught the old unconditional “No work was admitted”
+recovery pin (85/86 before correction, 86/86 afterward). A preliminary wasm
+build hit an environmental Binaryen feature-validation error; the explicit
+PATH recheck and full-suite build pass without the optional optimizer.
+
+Wasm is unchanged before/within the full run: 1,981,512 B raw / 572,053 B
+gzip, delta 0 B, 788 B below the unchanged 572,841 B cap. SHA-256:
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo
+jobs, debug information and incremental compilation off, fd limit 65,536.
+Frozen Bun install, reference audit and diff whitespace checks pass.
+
+No engine, authorization, disclosure, durability, meter, device, SDK, version,
+dependency or budget change; no push or publication. Specific non-loopback
+binds without a loopback listener and temporary dev keep their documented
+refusal/offline paths. No known implementation problem remains; integration
+and blind review belong to the supervisor. File map, engineering choices,
+all failure reproductions and qualification limits:
+`reports/20260927-tk-token-live.md`. Raw evidence stays in ignored
+`target/lane-tk-evidence/`.
 ## 2026-09-27 — 0.4.5 lane QE round 2: compatible joins and review regressions
 
 Read the original lane prompt, both earlier reports/journal entries and both
@@ -68425,3 +68554,230 @@ second full-suite-green claim. No live Postgres qualification, version bump,
 budget increase, shared tool installation, push or publication. File map,
 forms, every first-run failure, receipts and open reproduction details:
 reports/20260927-cq-topn-complete/REPORT.md.
+## 2026-09-27 — DQ2: Darwin repairs for the 0.4.5 qualification
+
+Lane `sb4/dq2-darwin-045`, from `10f69a7447`, on the black M5:
+macOS 26.6.2 (25G83), arm64, 18 CPUs; Node 24.18.0, Bun 1.4.2,
+rustc 1.97.0. Read the publication attempt-1 log in `snapback-pub-045`
+and the 0.4.4 DQ entry before reproducing. Oriented against LLP 3000,
+LLP 2000.000, LLP 3000.021 §3.3, LLP 3000.019 §3.6, and LLP
+3000.008.002.000 §3 plus CLIENT-AND-OPERATIONS. No new design or changed
+contract. Raw logs and controlled reproductions are retained, ignored, under
+`target/lane-dq2/`.
+
+- **Linux resolver:** reproduced `/var/folders` versus `/private/var/folders`.
+  The checkout, installed-package and override assertions now compare both
+  sides through `realpathSync`, preserving selection and precedence.
+- **Linux qualifier:** the mock already supplies Linux/x64. The actual fault
+  was the CLI entrypoint comparing an uncanonicalized argv path to Node's
+  canonical module URL: it exited zero without executing `qualify()`. The
+  real entrypoint now canonicalizes argv. Every harness case invokes a
+  symlink, making the regression observable on Linux as well as Darwin.
+  Two new cases assert Darwin/arm64 and Linux/arm64 refuse before any tool
+  call. No environment bypass or relaxed production host check was added.
+  The two files reproduced 16 failures in 23 tests, then passed 25/25,
+  including receipt/digest binding, redirected Cargo output, all six failure
+  scenarios, six container/proot proof guards and proot provenance.
+- **Native W6d eviction:** ran the entire unchanged client-seams file ten
+  times (63 tests each). The named native case passed 10/10, taking
+  2.501–4.620 s. File totals were 628 passed and 2 failed; the unrelated
+  failures are recorded below. A controlled 4,200 ms reply delay reproduced
+  the exact `pending !== sent` assertion: the foreground wait returned at
+  4,002.630 ms, and that same id subsequently became sent with one POST.
+  This is a load-sensitive test assumption about the documented four-second
+  wait, not evidence of a Darwin product defect. The historical log cannot
+  identify which OS scheduling delay expired the wait. The test now follows
+  pending returns through `write(id)` to a terminal outcome, still asserting
+  sent (a terminal failure fails immediately), all 256 evictions, canonical
+  input equality, E_WRITE_RECEIPT_EXPIRED, exact 257/258 POST counts and
+  same-id recovery after reopen. A forced zero-wait admission at n=128 pins
+  the pending path on all three tiers without a timed sleep. All three
+  updated cases pass, including the native 4,200 ms delayed-reply control.
+- **Worker/adoption:** the original and delayed-exit cases passed ten
+  baseline repetitions. Holding the child for 500 ms after creating `ready`
+  but before writing its contents produced a zero-byte token and reproduced
+  `worker/adoption setup did not reach dead worker claim queued`. An empty
+  bearer is refused before the writer queue. The E_STORE/not-authorized
+  adoption message is the deliberate SQLite authorizer denial, printed when
+  panic cleanup releases its gate, not the cause of missing claim admission.
+  The fixture now closes the complete token in `ready.tmp` before renaming
+  it to `ready`. A new gated test pauses with the temporary file open and
+  asserts readiness has not been published. The refusal assertion now also
+  pins E_STORE and `not authorized`. The original two-second read bounds,
+  writer ordering, family revocation, zero effect attempts, 401/E_AUTH,
+  restart and child-reaping assertions remain. The three cases pass 10/10
+  repetitions (30 tests); the broader adoption group passes 18 tests with
+  2 pre-existing ignores.
+
+**Other observed failures:** unmodified client-seams runs 5 and 7 failed
+`W8R1a native server-run observations retain nothing during a replacing
+fetch`, at original line 844: its ten-second wait for all observations to
+become loading after going offline expired. This is a separate baseline
+flake; its underlying cause was not established or changed by this lane.
+It passed all three tiers in the full run (native: 280.436 ms).
+The initial fresh-tree package build also failed TS2307 because generated
+wasm bindings were absent; running build-wasm before the package build
+resolved that setup error. Frozen Bun installation passed. Deliberately
+red control runs and the pre-fix Linux tests remain in the evidence.
+
+**One full suite, exact result:** ran `bash scripts/test.sh` once at
+`1e5cf1cee8`, with no tracked edits during the run. Used Node 24.18.0 on
+PATH, `CARGO_BUILD_JOBS=2`, `SNAPBACK4_RUST_TEST_PROCESSES=2`,
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`, and the publication SQLite build
+input `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Only this full
+suite ran in the lane; no other session's process was killed. Cold compilation
+and the loaded host made it slow; a sampled guide process stalled before main
+in dyld and later progressed without intervention. No timeout or budget was
+relaxed.
+
+```text
+== 1 failure(s) in 5000 s
+   client tests
+```
+
+Exit status 1. Cargo passed all 950 inventory executions plus doctests
+(3,853 passed, 0 failed, 24 existing ignores); client tests reported 2,701
+total, 2,691 passed, 1 failed, 9 existing skips; fixtures passed 9/9;
+client models passed 78/78. Every other named stage passed. The four requested
+repairs all passed in this run. The complete output and exit status are
+`target/lane-dq2/full-suite.log` and `target/lane-dq2/full-suite.exit`.
+
+The **only full-suite failure** was the unchanged
+`publication-roundtrip.test.mjs:29` success case, "unchanged round-trip proof
+executes version/init/check/dev, client write/read and denied cross-persona
+read" (assertion at line 33). The proof exited zero and printed success, but
+its exact event trace compared the canonical `process.cwd()` paths under
+`/private/var` with the fixture's `/var` paths. A separate unchanged-file run
+reproduced 13 passes and 1 failure. After the full suite finished, canonicalized
+the fixture root with `realpathSync`; no trace assertion changed. All 14 tests
+then passed in `target/lane-dq2/roundtrip-fixed.log`. This is a follow-up fix,
+not a green full-suite claim: the full suite was not run again.
+
+Implementation commits: `c207ca6c90` (canonical paths), `bda34d344b`
+(atomic readiness), `1e5cf1cee8` (terminal receipt assertions), and
+`891f76572a` (round-trip fixture root). This entry
+is the single dated journal append. No push or publication.
+### 2026-09-27 — Lane SS round 1: acquisition refresh recovery and heap attribution
+
+Fetched and merged origin/main at 47ea5918b before changing the lane; both
+sides of the journal append conflict are preserved. An unpublished background
+read no longer clears the last accepted server answer's origin. Only the
+fenced publication branch sets `serverRead`; failures, queued predictions
+and expiry-withheld replies retain the 250 ms acquisition polling cadence.
+The background call still supplies no watch to `runLocal`, preserving
+ReadObservation.fetch's publication/finally contract.
+
+Three wasm SDK regressions hold terminal catch-up, publish once, inject a
+503, a real persisted predictable outbox entry, or an expired reply, then
+observe another session's message and deletion before acquisition finishes.
+All three fail with the old assignment and pass with the fix. Tombstones and
+self-sends now appear in both fifty-member batch equivalence and actual
+snapshot/stream delivery, with scalar comparisons and work counts intact.
+A finite Cut::Cap test exhausts examined after its one readable member;
+source admission refuses rather than certifying zero. Five Rust mutation
+runs reject removal of require_uncapped and both predicate corruptions.
+No engine production code changed.
+
+During-acquisition remeasurement remains above the one-second target:
+33 memory samples give 1.119 s p95, 31 IDB-shaped samples 1.398 s, across
+four acquisitions per mode. An isolated 100 ms poll experiment gives
+1.158/1.566 s p95, so the production cadence stays 250 ms. Device applies
+already rerun watches. A later message after terminal catch-up's database
+cut still waits through atomic publication and the next sync: one memory
+witness has a 533 ms apply, a 363 ms following response and a 615 ms event-loop
+gap. No clear safe timing improvement was established; publication and all
+read fences remain intact.
+
+The 1,000-member IDB-shaped replay reproduces 1.859 GB sampled JS heap.
+After SDK close and GC, fake-indexeddb 6.2.5 retains 1.556 GB. Releasing only
+its 218 completed transactions (129,712 rollback entries), with live records
+unchanged, releases 1.372 GB and leaves 183.85 MB. A diagnostic control doing
+this after each save peaks at 844 MB and finishes acquisition in 42.236 s
+versus the ordinary 41.467 s. This attributes most of round 0's 1.87 GB JS
+heap to the fake's retained transaction history; it is not a browser memory
+claim or a production SDK change. The remaining ~180 MB after simulated
+store deletion is not fully attributed. The memory-persistence control
+returns to 10.67 MB JS heap after close. Real SDK scale cost remains:
+external memory peaks at 1.383/1.515 GB (memory/IDB-shaped), with about
+1.366 GB retained by the process-global wasm runtime after close. Largest
+atomic applies are 19.043/24.838 s on this shared host. The original GS
+database and WAL hashes still match.
+
+Affected checks pass: row views 18/18, sync delivery 1/1, adjacent SDK 198/198,
+whole guide 86/86, typecheck/build, reference audit and whitespace checks.
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1057 s`, exit 0.
+Every failure classified: none (lane-owned 0, baseline 0, environmental 0).
+Rust 3,888 passed / 24 existing ignored; main SDK 2,638 passed / 10 existing
+skips, seven additional shards 56/56, serial models 78/78, fixtures 9/9.
+The inherited 60 s budget is still exceeded; no budget or timeout changed.
+Wasm remains 1,981,512 B raw / 572,049 B gzip, delta 0 B, 792 B below the
+unchanged budget; SHA-256
+1be50bb70f066dcfb224e9c26149c9a734a385f101429be26e3f5a504dec4928.
+The supported no-optimizer build again avoids the host's old wasm-opt through
+existing worktree-local PATH symlinks. No tool installation, new syntax,
+diagnostic, version, contract reshaping, push or publication.
+
+File map, examples, controls, exact qualification, deviations and reproductions:
+reports/20260927-ss-sync-scale/ROUND1.md and round1-measurements.json. Raw
+witnesses, mutation controls and full-suite log/exit: target/lane-ss-round1/.
+## 2026-09-27 — Lane TK round 1: mutual live-token proof without a wire secret
+
+Read the round-0 handoff and full Grok READY WITH CHANGES review, then fetched
+and merged origin/main at 880788cc5. Merge 143d4804f preserves both journal
+sides; a line-count comparison confirms neither parent's lines were lost.
+On `sb4-intent/tk-token-live`, 2316fe561 replaces the bearer-secret request
+with fresh client/server nonces and the specified direction-separated
+HMAC-SHA256 proofs. The request binds service, unclamped days and canonical
+store path/device/inode. Both MAC checks use RustCrypto's constant-time
+`verify_slice`. Server nonces expire after 10 monotonic seconds; a capped
+128-entry map consumes each before verification/minting. Existing loopback
+peer, private-file, writer, single-header, no-Origin, no-CORS, no-store and
+uniform refusal guards remain. This private door now requires a literal
+loopback Host and rejects the old secret header. Offline semantics and CLI
+stdout remain unchanged.
+
+Mutual proof alone permits an active forwarding listener to intercept a
+plaintext final bearer. The final reply therefore uses ChaCha20-Poly1305
+under a separately HMAC-derived transcript key, including authenticated
+validation errors. A relay can forward the one intended mint or deny delivery,
+but cannot read its bearer or replay another mint. This adds HMAC 0.12.1 and
+ChaCha20-Poly1305 0.10.1 to the CLI/server only. LLP 3000.019 §3.4 records the
+protocol and this additional protection; services and SERVER.md match it.
+
+Test commit 1e28f5e63 adds real impostor capture and forwarding listeners,
+request-field/direction/replay checks, both-round Host/Origin/CORS checks,
+and actual IPv4-mapped loopback and remote peers on `[::]` dev and serve.
+The impostor test redirects the address hint, reproducing BSD interception
+without requiring Linux's wildcard port to permit a second bind. Temporary
+roots are canonicalized in token and ownership tests for Darwin's `/var`
+aliases. Five deterministic unit tests pin independent MAC vectors, nonce
+expiry/capacity, concurrent one-use consumption and reply integrity. Timing
+was not measured; there is no flaky timing assertion. macOS execution remains
+the supervisor's qualification, not a claim from this Linux host.
+
+Affected checks pass: 5 protocol tests, 13 token process tests, 27 ownership
+tests, 19 consumer periphery tests and all 86 guide tests. Frozen Bun install,
+package build, reference audit and diff whitespace checks pass. One preliminary
+lane-owned E0282 compile error (type inference through a serde match guard)
+was fixed with an explicit Mint type before those tests. No test failure
+needed correction. Changed source files stay below 1,500 lines.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+`== 0 failure(s) in 1400 s`. Rust: 3,883 passed / 24 existing ignored across
+244 binaries and 957 executions, 913 s. Ordinary client tests: 2,633 passed /
+10 existing skips, plus all seven extra shards 56/56, 194 s. Client models:
+78/78, 263 s. Fixture wrappers: 9/9. Every other phase passes. No lane-owned,
+baseline or environmental full-suite failure. The inherited 60-second budget
+is still exceeded and unchanged. No product/test source changed during or
+after that run; only the report and this final journal append followed it.
+
+Wasm is byte-identical before/after: 1,981,512 B raw / 572,053 B gzip, delta
+0/0 B, 788 B under the unchanged 572,841 B cap. SHA-256:
+5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969.
+Node 24.13.1, Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo
+jobs, dev/test debug information and incremental off, fd limit 65,536.
+No tool installation outside the worktree. No engine, device, meter, session
+storage, version or budget change. No push or publication; every commit has
+the requested co-author trailer. Report, file map, deviations, failure
+reproduction and macOS commands: reports/20260927-tk-token-live-r1.md.
+Raw evidence remains in ignored target/lane-tk-round1/.
