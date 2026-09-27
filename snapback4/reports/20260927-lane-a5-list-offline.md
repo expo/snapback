@@ -411,3 +411,158 @@ pre-correction commit.
 LLP), and the final helper-correction/report/journal commit containing this
 record. All carry `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 Nothing was pushed or published.
+
+
+## Round 2 — 2026-09-27
+
+Read the lane prompt, earlier report and journal entries, and both round-1
+reviews in full. First fetched and merged `origin/main` `dde688548` as
+`f630aad9a`, preserving OW's sidecar ownership, both journal histories and
+both LLP revision histories. Runtime/tests/LLP are committed as `a9428c4b2`.
+All three requested findings are addressed; no other implementation changed.
+
+### Built, file by file
+
+Paths are relative to `snapback4/`, except the LLP.
+
+- `crates/snapback4-device/src/device/store_identity.rs`: the published
+  restore check now accepts a snapshot as evidence independently of the request
+  cursor. A same-store snapshot below the published watermark persists
+  `E_STORE_RESTORE`, including `more: true` with no `images_at` during upgrade.
+- `packages/snapback4/src/local-assets.ts`: parse the download receipt before
+  the `once` early return, and inspect the current entry inside the serialized
+  operation. A foreign-store `once` response preserves a confirmed replacement
+  entry and its live URLs. Current-store `once` invalidation remains; no `once`
+  body enters durable storage.
+- `crates/snapback4-device/tests/asset_lists.rs`: two restore regressions
+  exercise the exact 5000/100 watermark, requested-zero, nonterminal page on
+  memory/SQLite. Existing scalar/list upgrade cases now interrupt after the
+  terminal snapshot, inspect the actual device metadata, reopen with transfer
+  zero and the same queued intent, and publish only after catch-up.
+- `packages/snapback4/test/asset-lists.test.mjs`: both native and wasm run
+  Astra's held-A-once/B-ordinary ordering, requiring B's live URL and offline
+  bytes before and after reopen. Four scalar/list upgrade cases now fail
+  catch-up after the terminal snapshot, reopen, preserve the intent, finish
+  acquisition and verify offline bytes. Two restore cases require a persistent
+  refusal, halted follow/explicit sync and no outbox send after refusal,
+  including reopen.
+- `packages/snapback4/test/asset-blob-lifecycle.test.mjs`: a serialized cache
+  regression queues the foreign `once` response while the new ordinary entry
+  is still being validated, then proves the ordinary bytes survive and the
+  `once` body is never copied. Existing current-store invalidation still passes.
+- `../llp/3000.019-what-the-builder-still-wrote.rfc.md`: §3.5 records these
+  restore, invalidation and terminal-publication boundaries.
+- `JOURNAL.md`: one appended dated round-2 entry.
+- `reports/20260927-lane-a5-list-offline.md`: this round-2 section; earlier
+  reports remain intact.
+
+### Forms and regression evidence
+
+No new authoring form. Existing `images: image <=10000 ?` and
+`images: [image <=10000] <=4 ?`, with
+`assets: { keep: "viewed", maxBytes: 10000 }`, still recover unchanged rows
+through `await client.sync(); await client.asset(id)` and retain the bytes on
+offline reopen. Existing `secrets: [image <=10000 once] <=4 ?` serves a
+transient view and remains uncached; its delayed old-store response now leaves
+a replacement's ordinary download intact.
+
+The restore fixture supplies Grok's exact shape: published/restore watermark
+5000, snapshot watermark 100, requested cursor zero, `more: true`, no
+`images_at`. Initial acquisition succeeds; healthy upgrade at the published
+watermark still finishes. A test-only dispatch hold prevents a write from
+racing ahead of the restore evidence; the hold is released after the refusal,
+and follow/flush get 1.4 seconds to retry. No new sync or mutation transport
+occurs, and reopening preserves the halt and queued intent. The separate
+terminal-interruption fixture holds dispatch so the snapshot alone is under
+test and server rows remain unchanged. These holds are fixture-only; no runtime
+send or retry policy changed.
+
+Affected checks on final source:
+
+- Client list/Blob targets: **60/60** (36 list/HTTP cases, 24 Blob cases).
+- Clock and all `store-reset*.test.mjs` targets: **73/73**.
+- Device media/list/upgrade cases: **10/10**; store-reset cases **10/10**;
+  retained history **20/20**; deferred boundaries **6/6**.
+- Whole guide **86/86**; frozen Bun install, native/package build and package
+  typecheck pass. Changed source files stay below 1,500 lines.
+- Reference audit before the report/journal append: **515 LLP docs, 9,569 refs
+  in 27,050 files, 0 errors, 0 unchecked**. Whitespace check passes.
+
+Three failing controls are retained in ignored `target/a5-evidence/`:
+
+1. Leaving `published_restore` unchanged fails both new device restore tests:
+   `observe_store` returns success instead of `E_STORE_RESTORE`.
+   Log: `round2-restore-old-predicate.log`.
+2. Stamping the format while staging the terminal snapshot fails both device
+   upgrade tests at “terminal snapshot is not publication.”
+   Log: `round2-premature-stamp.log`.
+3. Removing the serialized `once` store guard fails both native/wasm held-once
+   tests when reading B's revoked live URL.
+   Log: `round2-once-unguarded.log`.
+
+Every temporary mutation was restored; final affected checks pass. Initial
+client fixture failures were corrected before the full run: device metadata
+must be read from raw storage rather than the client-prefixed metadata API,
+and pending dispatch must be held until the boundary being tested. None
+required another product change.
+
+### Wasm and scope
+
+Production `scripts/build-wasm.sh`, Rust 1.97.0 / wasm-bindgen 0.2.127,
+`CARGO_INCREMENTAL=0`, no wasm-opt:
+
+| Artifact | Raw B | Gzip B |
+| --- | ---: | ---: |
+| Round 1 | 1,980,804 | 571,975 |
+| Round 2 | 1,980,820 | 571,988 |
+| Round-2 delta | +16 | +13 |
+
+Final gzip is **853 B below main's unchanged 572,841 B ratchet**, and **147 B
+above main's recorded 571,841 B artifact** (raw difference +567 B against
+main's recorded 1,980,253 B). The full suite reproduced the final measurement.
+Raw SHA-256:
+`8748eaf2d95b77d1242a887e87105722719231bd38f83cf4ea964a7ff783d79e`.
+Whole-artifact measurements; no per-component attribution or budget increase.
+
+No scope deviation. Server placement, authorization, meters, package versions
+and public APIs remain unchanged. No push or publication.
+
+### Required complete suite
+
+Ran `scripts/test.sh` **once**, on implementation commit `a9428c4b2`,
+exit **0**. Exact final summary:
+
+```text
+== 0 failure(s) in 1455 s
+```
+
+Every phase passed. Rust compiled **236 test binaries**, ran **949 executions**
+and workspace doctests: **3,795 passed, 0 failed, 24 intentional ignores**;
+Rust phase **964 s**. Ordinary clients across the main process and seven shards:
+**2,580 tests, 2,570 passed, 0 failed, 10 skipped**; client phase **195 s**.
+All **78 client model tests passed**, no failures or skips; model phase **259 s**.
+Native/wasm builds, docs budget, release guard, package typecheck/build, chat
+check, chat/Expo typechecks and fixture wrapper tests all passed.
+
+Environment: Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127;
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_BUILD_JOBS=8`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, `FORCE_COLOR` unset. The suite chose its
+normal parallel client scheduling (host load 2.22 across 96 CPUs). No test
+count, timeout, assertion or runtime ceiling was relaxed.
+
+**Every full-suite failure:** none — no lane-owned, baseline or environmental
+failure to classify. No full-suite rerun. Full log:
+`target/a5-evidence/round2-full-suite.log`; recorded exit:
+`target/a5-evidence/round2-full-suite.exit`.
+
+**Open problems:** none known in the requested scope. The report retains the
+three reproducible failing controls above; none is present in the final tree.
+
+**Commits:** `f630aad9a` (merge), `a9428c4b2` (two runtime fixes, regressions
+and LLP), followed by the report/journal evidence commit. Every commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing was pushed or published.
+
+Final post-documentation reference audit: **515 LLP docs, 9,569 refs in 27,050
+files, 0 errors, 0 unchecked**; `git diff --check` passes. Full-suite log SHA-256:
+`9186528832fa4f6be8f9a8f82f808fddf700ed4539c5665a48e3346e5f72d4bb`.

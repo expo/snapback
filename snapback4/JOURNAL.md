@@ -67048,3 +67048,52 @@ The new regression tests, guide, wasm measurement and sidecar implementation
 are unchanged after qualification. No second full-suite run, unrelated
 client fix, push or publication. Darwin verification remains the supervisor's
 next platform proof, not a claim from this Linux lane.
+
+## 2026-09-27 — A5 round 2: paged restores and delayed once responses
+
+Read the lane prompt, rounds 0–1 and both round-1 reviews. First merged
+`origin/main` `dde688548` as `f630aad9a`, preserving OW's sidecar ownership,
+both journal histories and both LLP revision histories. Round-2 runtime,
+tests and LLP §3.5 are committed as `a9428c4b2`.
+
+A same-store snapshot below the published watermark now persists
+`E_STORE_RESTORE` even when upgrade requested from zero and the first page is
+nonterminal with no `images_at`. Follow and outbox sends stop after that
+refusal. `once` receipts are parsed before invalidation; the serialized cache
+operation leaves a confirmed replacement-store entry and its live URLs intact.
+Current-store `once` invalidation remains, and its body is never retained.
+Terminal-snapshot interruption tests now read the real device format metadata,
+require acquisition false and no stamp, reopen with transfer zero and the same
+queued intent, then complete catch-up and verify offline bytes. Both native and
+wasm client tiers, and both memory/SQLite device stores, exercise the boundaries.
+
+Affected checks pass: client lists/Blob 60/60, clock/store-reset clients 73/73,
+device media 10/10, device store-reset 10/10, retained history 20/20, deferred
+boundaries 6/6 and the whole guide 86/86. Frozen install, package build/typecheck
+and native build pass. Three temporary controls each fail two intended cases:
+unchanged restore predicate accepts Grok's 5000/100 first page, premature
+terminal format stamping claims acquisition, and unguarded `once` invalidation
+revokes B's live URL. All mutations were restored and affected checks passed.
+Fixture development corrections did not require additional product changes.
+
+Production wasm is 1,980,820 B raw / 571,988 B gzip, +16 raw / +13 gzip versus
+round 1, 853 B below main's unchanged 572,841 B ratchet (+147 gzip versus
+main's recorded artifact). The full suite reproduces this measurement on
+Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt. No server placement,
+authorization, meter, package version, public API or budget change. No push or
+publication. The only runtime changes are the two review fixes; the third
+finding needed stronger tests. Evidence: `target/a5-evidence/round2-*` and the
+round-2 section of `reports/20260927-lane-a5-list-offline.md`.
+
+Ran `scripts/test.sh` exactly once on `a9428c4b2`, exit 0:
+`== 0 failure(s) in 1455 s`. All phases passed. Rust: 236 test binaries,
+949 executions plus doctests, 3,795 passes, zero failures and 24 intentional
+ignores (964 s). Ordinary clients: 2,580 tests across the main process and
+seven shards, 2,570 passes, zero failures, 10 skips (195 s). All 78 seeded
+client model tests passed (259 s). No lane-owned, baseline or environmental
+full-suite failure; no rerun. Node 24.13.1; eight Cargo jobs and eight Rust
+processes; normal parallel client scheduling; no test-count, timeout,
+assertion or runtime ceiling relaxation. No known open problem in this scope.
+Final reference audit: 515 LLP docs, 9,569 refs, zero errors or unchecked;
+whitespace check passes. Full-suite log SHA-256:
+`9186528832fa4f6be8f9a8f82f808fddf700ed4539c5665a48e3346e5f72d4bb`.
