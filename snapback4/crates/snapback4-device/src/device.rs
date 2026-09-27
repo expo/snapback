@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod predictions;
+mod delivery;
 mod deferred;
 mod media;
 mod snapshot;
@@ -209,7 +210,7 @@ const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
 const SNAPSHOT_IMAGES_AT: &str = "device:snapshot:images_at";
 const SNAPSHOT_NEXT: &str = "device:snapshot:next";
 const SNAPSHOT_ACKS: &str = "device:snapshot:acks";
-const SNAPSHOT_KEYS: [&str; 10] = [expiry_clock::STAGED,SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
+const SNAPSHOT_KEYS: [&str; 11] = [delivery::SNAPSHOT_LEFT,expiry_clock::STAGED,SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -218,6 +219,7 @@ const NATIVE_GENERATION: &str = "device:native:generation";
 
 pub struct Device<S: DeviceStore> {
     store: S,
+    delivery_now: i64,
     schema: Schema,
     programs: BTreeMap<String, Program>,
     generation: u64,
@@ -489,7 +491,7 @@ impl<S: DeviceStore> Device<S> {
             clear_native(&mut store)?;
         }
         let store_identity = store.meta(STORE_ID)?;
-        Ok(Self {
+        Ok(Self { delivery_now: 0,
             store,
             schema: backend.schema,
             programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(),
@@ -770,6 +772,7 @@ impl<S: DeviceStore> Device<S> {
             if page.snapshot && first {
                 let images_at = store_identity::restore_images_at(&tx)?;
                 tx.staged_clear()?;
+                tx.delete_meta(&[delivery::SNAPSHOT_LEFT])?;
                 tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT, expiry_clock::STAGED])?;
                 // @ref LLP 3000.001#authoritative-replacement-disposes-of-the-deferred-slot — an authoritative replacement discards private effects and their receipts together.
                 // Keep incarnation and maximum head evidence, but publish no
@@ -799,6 +802,7 @@ impl<S: DeviceStore> Device<S> {
             }
             snapshot::continuation(&tx, page, first)?;
             snapshot::stage(&tx, &self.schema, page)?;
+            delivery::stage_left(&tx, &self.schema, page, true)?;
             history::events(&tx, &self.schema, &page.events, &page.joined, true)?;
             tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
             tx.set_meta(SNAPSHOT_IMAGES_AT, &meta_u64(&tx, SNAPSHOT_IMAGES_AT)?.max(page.images_at.unwrap_or(page.watermark)).to_string())?;
@@ -827,6 +831,8 @@ impl<S: DeviceStore> Device<S> {
         }
         // @ref LLP 3000.014#5 — publication can rewrite or withdraw pending
         // rows even on an empty clock page; invalidate both sides of replay.
+        let restored_delivery = delivery::predicted(&tx, &self.schema)?;
+        let mut delivery_candidates = delivery::Candidates::default();
         touched.extend(predictions::restore(&tx, &self.schema)?);
         if replacing {
             let groups = history::load(&tx, history::STAGED_GROUPS)?;
@@ -842,6 +848,7 @@ impl<S: DeviceStore> Device<S> {
                     if !staged.acquired && !history::is_left(&groups, table_name, &history::row_key(table, &staged.row)?) { continue; }
                     tx.put(table_name, table, &staged.row, None)?;
                     if staged.acquired {
+                        delivery_candidates.put(&self.schema, table_name, staged.row.field("id")?.as_str()?);
                         media::remember(&tx, table_name, table, &staged.row, self.generation)?;
                     } else {
                         media::forget(&tx, table_name, table, &staged.row)?;
@@ -854,16 +861,17 @@ impl<S: DeviceStore> Device<S> {
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             expiry_clock::publish(&tx)?;
+            delivery::install_left(&tx, &mut delivery_candidates, true)?;
             snapshot::clear(&tx)?;
             // Consume private identity after promotion; ordinary effects and
             // receipts were discarded when this replacement started.
             deferred::clear(&tx)?;
             tx.set_meta(media::FORMAT, media::ROW_FORMAT)?;
         } else {
-            let mut installed = deferred::install(&tx, &self.schema, &mut touched)?;
+            let mut installed = deferred::install(&tx, &self.schema, &mut touched, &mut delivery_candidates)?;
             installed.extend(acknowledgements);
             acknowledgements = installed;
-            deferred::events(&tx, &self.schema, self.generation, page, &mut touched)?;
+            deferred::events(&tx, &self.schema, self.generation, page, &mut touched, &mut delivery_candidates)?;
         }
         debug_assert!(tx.meta_prefix(deferred::PREFIX)?.is_empty(), "publication requires a disposed deferred slot");
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
@@ -874,7 +882,9 @@ impl<S: DeviceStore> Device<S> {
         if !page.more { tx.set_meta(ACQUIRED, &self.generation.to_string())?; }
         deferred::acknowledge(&tx, page.watermark, &acknowledgements)?;
         predictions::publish_declaration(&tx, declaration)?;
+        delivery::publish(&tx, &self.schema, &delivery_candidates, self.delivery_now)?;
         touched.extend(predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?);
+        delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
         tx.commit()?;
         self.store_identity = owner_store.clone();
         if replacing {
@@ -978,10 +988,12 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
+        let restored_delivery = delivery::predicted(&tx, &self.schema)?;
         predictions::restore(&tx, &self.schema)?;
         // Base images are shared by overlapping predictions, so restore the
         // complete speculative overlay and rebuild the writes that remain.
         predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
+        delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
         tx.commit()
     }
 
@@ -1052,6 +1064,7 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
+        let restored_delivery = delivery::predicted(&tx, &self.schema)?;
         predictions::restore(&tx, &self.schema)?;
         match seq {
             Some(seq) => {
@@ -1062,6 +1075,7 @@ impl<S: DeviceStore> Device<S> {
             None => predictions::remove(&tx, id)?,
         }
         predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
+        delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
         tx.commit()
     }
 
@@ -1105,9 +1119,11 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn dequeue(&mut self, id: &str) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        let restored_delivery = delivery::predicted(&tx, &self.schema)?;
         predictions::restore(&tx, &self.schema)?;
         predictions::remove(&tx, id)?;
         predictions::replay(&tx, &self.schema, &self.programs, meta_u64(&tx, WATERMARK)?)?;
+        delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
         tx.commit()
     }
 
@@ -1129,6 +1145,8 @@ impl<S: DeviceStore> Device<S> {
         store_identity::keep_write(&tx, value)?;
         tx.commit()
     }
+
+    pub fn delivery_time(&mut self, now: i64) { self.delivery_now = self.delivery_now.max(now); }
 
     pub fn backend(&self) -> Backend {
         Backend { generation: self.generation, schema: self.schema.clone(), programs: self.programs.values().cloned().collect() }

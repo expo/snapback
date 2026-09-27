@@ -27,6 +27,8 @@ pub use routes::RouteSpec;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
+    /// Delivery reporters, keyed by tracked table and mutation.
+    pub delivery: Vec<DeliveryBinding>,
     pub tables: BTreeMap<String, Table>,
     pub timelines: Vec<timeline::Timeline>,
     pub maintains: Vec<Maintain>,
@@ -43,6 +45,16 @@ pub struct Schema {
     pub effect_specs: BTreeMap<String, WorkSpec>,
     /// Only these paths publish application HTTP handlers.
     pub routes: BTreeMap<String, RouteSpec>,
+}
+
+// @ref LLP 3000.022#2.1 — the compiled reporter names coordinates and argument order.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeliveryBinding {
+    pub table: String,
+    pub group: String,
+    pub position: String,
+    pub mutation: String,
+    pub args: [String; 3],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

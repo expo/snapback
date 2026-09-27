@@ -63,6 +63,7 @@ fn take(request: &mut Json, name: &str) -> Result<Json, RuntimeError> {
 
 /// The dispatcher consumes the request so decoding never clones a page.
 pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
+    if let Some(now) = request.get("delivery_now").and_then(Json::as_i64) { device.delivery_time(now); }
     let op = match request.get("op").and_then(Json::as_str) {
         Some(op) => op.to_owned(),
         None => return answer(Err(RuntimeError::Input("the call needs op".into()))),
@@ -82,6 +83,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 json!({ "rows": rows, "watermark": state.watermark, "generation": state.generation,
                     "storeId": state.store_id, "acquired": state.acquired, "backendRequired": state.backend_required })
             }
+            "delivery" => device.delivery(&request)?,
             "state" => {
                 let (watermark, generation) = device.state()?;
                 json!({ "watermark": watermark, "generation": generation, "native": device.native_digest() })
