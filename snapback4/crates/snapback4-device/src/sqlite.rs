@@ -20,7 +20,6 @@ pub fn open(path: &Path) -> Result<Store, RuntimeError> {
          CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL);
          CREATE INDEX IF NOT EXISTS _device_snapshot_by_table ON _device_snapshot(t, k);",
     )?;
-    crate::sqlite_residency::install(store.conn())?;
     Ok(store)
 }
 
@@ -30,7 +29,11 @@ impl DeviceStore for Store {
         self.install_checked(schema, metadata, reset, &BTreeMap::new())
     }
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
-        self.install_device_checked_with(schema, metadata, reset, expected, |tx| crate::device::reset_for_install(tx, metadata, reset))
+        self.install_device_checked_with(schema, metadata, reset, expected, |tx| {
+            let adopting = tx.meta("device:backend")?.as_ref() != metadata.get("device:backend");
+            crate::sqlite_residency::install_in(tx.conn(), adopting)?;
+            crate::device::reset_for_install(tx, metadata, reset)
+        })
     }
     fn witness_count(&self, table: &str) -> Result<u64, RuntimeError> { self.count(table) }
     fn residency(&mut self, schema: &Schema) -> Result<serde_json::Value, RuntimeError> {

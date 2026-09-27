@@ -184,3 +184,46 @@ fn incomplete_counter_installation_is_rebuilt_before_the_next_read_or_write() {
         assert_eq!(report_without_row_reads(&mut Device::open(&path, None).unwrap())["tables"], repaired["tables"]);
     }
 }
+
+#[test]
+fn legacy_counters_stay_temporary_until_adoption_and_follow_other_owners() {
+    let (mut server, backend) = server();
+    let host = Sqlite::new("residency-legacy");
+    let path = host.path("store");
+    let mut device = Device::open(&path, Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut server, "dev:alice", 100).iter().enumerate() {
+        device.apply(page, n == 0).unwrap();
+    }
+    let expected = check_rows(&mut device);
+    device.store().conn().execute_batch("DROP TRIGGER _device_residency_insert; DROP TRIGGER _device_residency_delete; DROP TRIGGER _device_residency_update; DROP TABLE _device_residency;").unwrap();
+    drop(device);
+    let before = std::fs::read(&path).unwrap();
+    let mut device = Device::open(&path, None).unwrap();
+    assert_eq!(report_without_row_reads(&mut device)["tables"], expected["tables"]);
+    let mut future = device.backend();
+    future.schema.tables.values_mut().next().unwrap().constraints.push(snapback4_core::schema::Constraint::Capabilities(["future-residency-test".into()].into()));
+    let refused = call(&mut device, json!({"op":"adopt", "backend":future}));
+    assert_eq!(refused["denied"]["code"], "E_SCHEMA_CAPABILITY", "{refused}");
+    drop(device);
+    assert_eq!(std::fs::read(&path).unwrap(), before, "open, inspection and refused adoption preserve legacy bytes");
+
+    let mut device = Device::open(&path, None).unwrap();
+    let other = Device::open(&path, None).unwrap();
+    other.store().conn().execute_batch("INSERT INTO r SELECT t, 'extra', data FROM r WHERE id = 'msg000';").unwrap();
+    assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 121);
+    // Refresh only after a peer commit, never on each subsequent inspection.
+    assert_eq!(report_without_row_reads(&mut device)["tables"]["messages"]["rows"], 121);
+    device.store().conn().execute_batch("DELETE FROM r WHERE id = 'extra';").unwrap();
+    assert_eq!(report_without_row_reads(&mut device)["tables"]["messages"]["rows"], 120);
+    let durable: i64 = device.store().conn().query_row("SELECT count(*) FROM main.sqlite_master WHERE name = '_device_residency'", [], |r| r.get(0)).unwrap();
+    assert_eq!(durable, 0);
+    drop(other);
+    let mut next = device.backend(); next.generation += 1;
+    device.adopt(next).unwrap();
+    let durable: i64 = device.store().conn().query_row("SELECT count(*) FROM main.sqlite_master WHERE name = '_device_residency'", [], |r| r.get(0)).unwrap();
+    assert_eq!(durable, 1, "successful adoption installs durable counters");
+    let temporary: i64 = device.store().conn().query_row("SELECT count(*) FROM temp.sqlite_master WHERE name LIKE '_device_residency%'", [], |r| r.get(0)).unwrap();
+    assert_eq!(temporary, 0, "promotion removes temp triggers as well as their table");
+    device.store().conn().execute_batch("INSERT INTO r VALUES ((SELECT num FROM _catalog WHERE name = 'messages'), 'after', '{\"Row\":{}}');").unwrap();
+    check_rows(&mut device); // A leftover temp trigger would count this twice.
+}

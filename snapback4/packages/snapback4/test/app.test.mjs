@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+// Instrument the SDK's pinned Node transport, including its Darwin QoS fix.
+import { defaultFetch as fetch } from "../dist/node-fetch.js";
 import { createApp } from "../dist/app.js";
 import { memorySessionStore, restoreSession, keepSession, sessionKey, refreshSession, logout as revokeSession } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";

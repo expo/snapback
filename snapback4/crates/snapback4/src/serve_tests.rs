@@ -1299,7 +1299,8 @@ struct ReaderTestDirectory(std::path::PathBuf);
 impl ReaderTestDirectory {
     fn new() -> Self {
         let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let path = std::env::temp_dir().join(format!("sb4-reader-reuse-{}-{unique}", std::process::id()));
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let path = std::env::temp_dir().join(format!("sb4-reader-reuse-{}-{unique}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
         std::fs::create_dir(&path).unwrap();
         Self(path)
     }
