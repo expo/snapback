@@ -15,6 +15,7 @@ interface HeldExpiry extends ExpiringRead { withdraw(): () => void }
 const heldExpiries = new WeakMap<ExpiringRead, Set<HeldExpiry>>();
 const expiryOwners = new WeakMap<ExpiringRead, {
   clock: ExpiryClock; current(): boolean; expired(serverDue: boolean): void;
+  withdrawHeld: ((serverDue: boolean, serverNow: number) => void) | undefined;
 }>();
 
 // @ref LLP 3000.019#3.3 — a facade's approved answer participates in its raw watch's expiry sweep.
@@ -50,6 +51,7 @@ export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>
       if (held.expiryTimer) clearTimeout(held.expiryTimer);
       held.expiryTimer = null;
       held.deadlines = undefined;
+      expiryOwners.get(watch)?.withdrawHeld?.(d.server !== null && d.server <= serverNow, serverNow);
       deliveries.push(held.withdraw());
     } else {
       const context = expiryOwners.get(watch)!;
@@ -73,8 +75,9 @@ export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>
 
 // @ref LLP 3000.019#3.3 — deadlines belong to the displayed answer, including while its replacement loads.
 export function armReadExpiry(watch: ExpiringRead, deadlines: ReadDeadlines | undefined, clock: ExpiryClock,
-  current: () => boolean, expired: (serverDue: boolean) => void): void {
-  expiryOwners.set(watch, { clock, current, expired });
+  current: () => boolean, expired: (serverDue: boolean) => void,
+  withdrawHeld?: (serverDue: boolean, serverNow: number) => void): void {
+  expiryOwners.set(watch, { clock, current, expired, withdrawHeld });
   if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
   watch.expiryTimer = null;
   watch.deadlines = deadlines;

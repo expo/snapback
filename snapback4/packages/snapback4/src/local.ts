@@ -925,7 +925,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
     const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
     armReadExpiry(watch, deadlines, clock,
-      () => !closed && watches.get(watch.key) === watch, sweepExpiries);
+      () => !closed && watches.get(watch.key) === watch, sweepExpiries,
+      (serverDue, now) => expireMemory(watch, serverDue, now));
   }
 
   function sweepExpiries() {
@@ -934,9 +935,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       watch => { if (watches.get(watch.key) === watch) void rerun(watch); });
   }
 
+  // @ref LLP 3000.019#3.3 — held expiry also fences old HTTP bodies before a callback can roll time back.
+  function expireMemory(watch: Watch, serverDue: boolean, serverNow: number): void {
+    if (serverDue) answers.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
+  }
+
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
     // @ref LLP 3000.018#3.2 — fence every displayed expiry, preserving newer memory and its cuts.
-    if (serverDue) answers.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
+    expireMemory(watch, serverDue, serverNow);
     // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before asynchronous recovery.
     const denied = unavailable(), reset = denied || !d.localWakeup || serverDue;
     if (denied) watch.reset({ denied });
