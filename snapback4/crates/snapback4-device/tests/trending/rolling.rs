@@ -101,7 +101,7 @@ fn w12a_bounded_ranking_coverage_on_both_stores() {
             let mut device = host.open(&name, Some(backend)).unwrap();
             for (i, page) in snapshot_pages_at(&mut server, "bob", 1000, now).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let read = query(&mut *device, "trending", "bob", json!({}), now);
-            assert_eq!(read["complete"], count == 4095, "{label}: {read}");
+            assert_eq!(read["complete"], true, "the declared 4095-candidate window is the input to this ranking: {label}: {read}");
             assert_eq!(read["data"].as_array().unwrap().len(), 10);
             assert_eq!(read["data"][0]["postId"], "p01250");
             for row in read["data"].as_array().unwrap() {

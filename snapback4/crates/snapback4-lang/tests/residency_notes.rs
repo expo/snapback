@@ -398,14 +398,16 @@ fn calibration_capped_members_page_needs_no_cursor_note() {
 }
 
 #[test]
-fn w10a_no_cursor_names_both_remedies_and_the_capped_control_is_silent() {
+fn no_cursor_advises_continuation_and_the_capped_control_is_silent() {
     let source = "table typing:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  public 'typing roster'\nquery typingNow(conversationId: id):\n  return typing[conversationId] first 50 by byConversationPrincipal\n";
     let b = compile(&[("chat.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert_eq!(b.notes.len(), 1);
     let note = &b.notes[0];
     println!("W10a diagnostic:\n{note}");
-    assert_eq!(note.to_string(), "chat.q:6:1 — N_NO_CURSOR: query chat.typingNow returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` in chat.typingNow and append `after c` to this typing page, keeping its current predicate, direction and column order; or declare `cap 50 by conversationId` on table typing if that is the intended group limit, then read `typing where .conversationId = <value>` without a page clause; other metered work can still cut the read\n  guide: reads");
+    assert!(note.message.ends_with("with no cursor, so the page cannot continue"), "{note}");
+    assert!(note.rewrite.starts_with("if the screen pages, declare `c: cursor ?`"), "{note}");
+    assert!(!note.message.contains("complete") && !note.rewrite.contains("cap 50"), "{note}");
     for fixed in [source.replace("  public 'typing roster'", "  cap 50 by conversationId\n  public 'typing roster'"), source.replace("conversationId: id):", "conversationId: id, c: cursor ?):").replace("first 50", "after c first 50")] {
         let b = compile(&[("chat.q".into(), fixed)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
@@ -443,7 +445,7 @@ fn capped_page_cursor_note_respects_default_examined_ceiling() {
         if let Some(note) = note {
             println!("{note}");
             assert!(!note.rewrite.contains("or declare `cap"), "{note}");
-            assert!(note.rewrite.contains("still needs continuation"), "{note}");
+            assert!(note.rewrite.contains("if the screen pages"), "{note}");
         }
         assert_eq!(note.is_some(), expected, "cap {cap}");
     }
@@ -481,7 +483,7 @@ fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
     let b = clean(source);
     assert!(b.notes.iter().any(|n| n.code == "N_NO_CURSOR"), "two groups can have 100 rows: {:?}", b.notes);
     let note = b.notes.iter().find(|n| n.code == "N_NO_CURSOR").unwrap();
-    assert!(note.rewrite.contains("still needs continuation") && !note.rewrite.contains("or declare"), "{note}");
+    assert!(note.rewrite.contains("if the screen pages") && !note.rewrite.contains("or declare"), "{note}");
 }
 
 

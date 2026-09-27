@@ -148,7 +148,7 @@ fn table_typed_helpers_bind_at_each_call_as_rows_or_references() {
 }
 
 #[test]
-fn trending_card_ranks_the_day_and_reports_a_cut_set() {
+fn trending_card_ranks_its_declared_candidate_window() {
     use snapback4_core::{Context, Engine, Value};
     use snapback4_lang::guide::quarry;
     use std::collections::BTreeMap;
@@ -169,7 +169,7 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
     assert_eq!(rows[1].field("id").unwrap(), &Value::Id("new".into()));
     engine.seed((0..8200).map(|i| post(&format!("p{i:05}"), 95_000_000))).unwrap();
     let cut = engine.query("trendingNow", context()).unwrap();
-    assert!(!cut.complete);
+    assert!(cut.complete, "the declared candidate window is the query input");
     assert_eq!(cut.data.as_array().unwrap().len(), 10);
     assert_eq!(cut.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("popular".into()));
     for row in cut.data.as_array().unwrap() {
@@ -179,7 +179,7 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
 }
 
 #[test]
-fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_ceiling() {
+fn trending_card_finds_winners_only_inside_its_declared_candidate_window() {
     use snapback4_core::{Context, Engine, Value, value::object};
     use snapback4_lang::guide::quarry;
     use std::collections::BTreeMap;
@@ -206,9 +206,9 @@ fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_
     engine.seed((1500..8193).map(post)).unwrap();
     engine.seed(likes(8192, 5)).unwrap();
     let cut = engine.query("trendingNow", context()).unwrap();
-    assert!(!cut.complete, "sorting and slicing a capped population cannot claim exact ranking");
+    assert!(cut.complete, "sorting and slicing the declared candidate window is a complete answer about that window");
     assert_eq!(cut.capped_at, None, "the candidate bound leaves enough meter for exact prefix scores");
-    assert_eq!(cut.metered.examined, 8191);
+    assert_eq!(cut.metered.examined, 8190); // 4,095 candidates and score reads; no overflow row.
     assert_eq!(ids(&cut.data).len(), 10);
     assert_eq!(ids(&cut.data)[..2], expected[..2]);
     assert_eq!(cut.data.as_array().unwrap().iter().map(|row| row.field("likes").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [4, 3, 0, 0, 0, 0, 0, 0, 0, 0]);

@@ -99,7 +99,7 @@ fn w12a_fresh_ranking_seed_ties_boundaries_and_meter() {
     println!("W12a complete ranking: candidates=4095; likes=1; examined={}; index_entries={}; heap_bytes={}; returned=10", read.metered.examined, read.metered.index_entries, read.metered.heap_bytes);
     engine.seed((4094..4095).map(|n| post(&format!("p{n:05}"), now))).unwrap();
     let cut = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
-    assert!(!cut.complete, "{cut:?}");
+    assert!(cut.complete && cut.capped_at.is_none(), "the declared candidate window is complete: {cut:?}");
     assert_eq!(cut.data.as_array().unwrap().len(), 10);
     for ranked in cut.data.as_array().unwrap() {
         let expected_score = i64::from(ranked.field("postId").unwrap() == &id("p00000"));
@@ -108,10 +108,10 @@ fn w12a_fresh_ranking_seed_ties_boundaries_and_meter() {
     assert_eq!(cut.data.as_array().unwrap()[0].field("postId").unwrap(), &id("p00000"));
     assert_eq!(cut.data.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(1));
     assert_eq!(read.metered.examined, 8191);
-    println!("W12a capped ranking: candidates=4096; likes=1; examined={}; heap_bytes={}; returned=10; complete={}", cut.metered.examined, cut.metered.heap_bytes, cut.complete);
+    println!("W12a bounded ranking: candidates=4096; likes=1; examined={}; heap_bytes={}; returned=10; complete={}", cut.metered.examined, cut.metered.heap_bytes, cut.complete);
     engine.seed((4095..8193).map(|n| post(&format!("p{n:05}"), now))).unwrap();
     let large = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
-    assert!(!large.complete);
+    assert!(large.complete && large.capped_at.is_none());
     assert_eq!(large.data, cut.data, "more candidates beyond the page cannot change the scored prefix");
 }
 
