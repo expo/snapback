@@ -112,10 +112,11 @@ export class ReadApprovals {
     const owner = answerObservation(read);
     if (!owner) return;
     const answer = this.get(read)!;
-    answer.generation++;
     const drop = this.drops.get(owner);
+    // Adopting an already-delivered denial is not another authority boundary.
+    if (!drop && answer.snapshot === denied) return;
+    answer.generation++;
     if (drop) { drop(denied)(); return; }
-    if (answer.snapshot === denied) return;
     answer.snapshot = denied;
     this.notify(owner);
   }

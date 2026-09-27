@@ -47,6 +47,7 @@ export function approvalOracle(t, keep) {
     for (const gate of pending) if (!gate.opening && gate.owner === owner) gate.eligible = false;
   };
   const withdraw = (owner, value = loading()) => {
+    if (!owner.registered && owner.approved === value) return;
     invalidate(owner); owner.approved = value; owner.registered = false; associate(owner);
   };
   const mark = value => value.kind !== "data" || value.revalidating ? value
@@ -59,7 +60,7 @@ export function approvalOracle(t, keep) {
       if (owner.retired) continue;
       if (rowDue(owner.raw) || episodeDue(owner.raw)) {
         owner.raw = loading(); withdraw(owner);
-        for (const record of records) if (record.source === owner) record.latest = undefined;
+        for (const record of records) if (!record.closed && record.source === owner) record.latest = undefined;
       } else if (rowDue(owner.approved) || episodeDue(owner.approved)) {
         // Expiry of held A alone does not invalidate a pending check of raw B.
         owner.approved = loading(); associate(owner);
@@ -70,7 +71,8 @@ export function approvalOracle(t, keep) {
     for (const { gate, error } of completed.splice(0)) {
       const record = gate.record;
       if (error) {
-        const owner = gate.opening ? record.source ?? currentOwner() ?? record.associated : gate.owner;
+        if (!gate.opening && record.latest !== gate) continue;
+        const owner = gate.opening ? record.source ?? (record.closed ? undefined : currentOwner()) ?? record.associated : gate.owner;
         let value = denied(error);
         if (gate.opening && !record.closed && owner?.approved.kind === "denied" && owner.epoch !== gate.epoch) value = owner.approved;
         if (record.closed) record.frozen = value;
@@ -132,6 +134,7 @@ export function approvalOracle(t, keep) {
     let value = record.frozen;
     const source = record.source ?? currentOwner();
     if (value.kind === "denied") return value;
+    if (value.kind === "loading") return value;
     if (source?.raw.kind === "denied") return record.frozen = source.raw;
     if (!source || source.raw.kind !== "data" || value.kind !== "data" || source.raw.id !== value.id || episodeDue(value))
       return record.frozen = loading();
@@ -185,13 +188,26 @@ export function approvalOracle(t, keep) {
   };
   const reload = () => {
     latch(); const owner = currentOwner(); trace.push("reload");
-    if (keep === false) { owner.raw = loading(); withdraw(owner); }
+    if (keep === false || owner.raw.kind !== "data") { owner.raw = loading(); withdraw(owner); }
     else { owner.raw = mark(owner.raw); if (owner.registered) owner.approved = mark(owner.approved); }
     f.owner().reload(); for (const notify of f.owner().subscribers) notify();
+    if (owner.raw.kind !== "data") for (const record of records) if (!record.closed && record.source === owner) record.latest = undefined;
   };
   const reset = () => {
     const owner = currentOwner(); trace.push("reset"); owner.raw = loading(); withdraw(owner);
+    for (const record of records) if (!record.closed && record.source === owner) record.latest = undefined;
     f.owner().reset({ loading: true }); for (const notify of f.owner().subscribers) notify();
+  };
+  const recheck = () => {
+    trace.push("recheck"); for (const notify of f.owner().subscribers) notify();
+  };
+  const sourceDenial = () => {
+    const owner = currentOwner(); trace.push("source denial");
+    owner.raw = { ...auth, message: `raw refusal ${++serial}` }; withdraw(owner, owner.raw);
+    for (const record of records) if (!record.closed && record.source === owner) record.latest = undefined;
+    clearTimeout(f.owner().expiryTimer); f.owner().expiryTimer = null; f.owner().deadlines = undefined;
+    f.owner().publish({ denied: { code: owner.raw.code, message: owner.raw.message } });
+    for (const notify of f.owner().subscribers) notify();
   };
   const retire = owner => {
     owner.retired = true; owner.raw = loading(); if (owner.registered) withdraw(owner);
@@ -225,6 +241,6 @@ export function approvalOracle(t, keep) {
     for (const record of records) { record.closed = true; record.watch.close(); }
     for (const gate of pending) gate.resolve(true);
   });
-  return { open, publish, complete, settle, close, reload, reset, time, expireLinger, fence, pending, records, trace,
+  return { open, publish, complete, settle, close, reload, reset, recheck, sourceDenial, time, expireLinger, fence, pending, records, trace,
     currentOwner, clocks: () => ({ host, server, device }) };
 }

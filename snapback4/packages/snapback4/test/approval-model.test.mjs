@@ -74,6 +74,44 @@ for (const keep of [undefined, false, true]) {
     }
   });
 
+  for (const newestFirst of [false, true]) test(`oracle ignores superseded refusal (newest first=${newestFirst}), keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [first] = await start(m);
+    m.publish(); const old = m.pending.find(gate => gate.record === first);
+    m.publish(); const latest = m.pending.filter(gate => gate.record === first).at(-1);
+    if (newestFirst) { m.complete(latest); await m.settle(); }
+    m.complete(old, "obsolete refusal"); await m.settle();
+    if (!newestFirst) { m.complete(latest); await m.settle(); }
+  });
+
+  test(`oracle preserves recovery across duplicate opening denial, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [first] = await start(m);
+    m.publish(); const remount = m.open(), opening = m.pending.find(gate => gate.record === remount);
+    m.complete(m.pending.find(gate => gate.record === first), "replacement refused"); await m.settle();
+    m.recheck(); const recovery = m.pending.filter(gate => gate.record === first).at(-1);
+    m.complete(opening, "opening refused"); await m.settle();
+    m.complete(recovery); await m.settle();
+  });
+
+  test(`oracle isolates a closed opening that never associated, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), closed = m.open(), opening = m.pending[0];
+    m.close(closed); await m.settle(); await start(m);
+    m.complete(opening, "unassociated refusal"); await m.settle();
+  });
+
+  test(`oracle isolates a closed opening of a retired owner, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), sources = await start(m), closed = m.open();
+    const opening = m.pending.find(gate => gate.record === closed);
+    m.close(closed); sources.forEach(record => m.close(record));
+    if (keep) m.expireLinger(); await m.settle(); await start(m);
+    m.complete(opening, "retired opening refusal"); await m.settle();
+  });
+
+  test(`oracle preserves closed loading across raw denial, keep=${keep}`, async t => {
+    const m = approvalOracle(t, keep), [closed] = await start(m);
+    m.close(closed); m.publish(); await m.settle();
+    m.sourceDenial(); await m.settle();
+  });
+
   test(`seeded independent shared approval oracle, keep=${keep}`, async t => {
     const coverage = new Map();
     for (let seed = 1; seed <= 60; seed++) await t.test(`seed ${seed}`, async t => {
@@ -90,7 +128,7 @@ for (const keep of [undefined, false, true]) {
           coverage.set("recreate-owner", (coverage.get("recreate-owner") ?? 0) + 1);
         }
         const live = m.records.filter(record => !record.closed && record !== anchor);
-        const choices = ["publish", "publish-device", "reload", "reset", "open", "host", "server", "device", "rollback"];
+        const choices = ["publish", "publish-device", "reload", "reset", "recheck", "source-denial", "open", "host", "server", "device", "rollback"];
         if (m.pending.length) choices.push("approve", "approve", "reject", "batch");
         if (live.length) choices.push("close");
         const action = choices[pick(choices.length)];
@@ -111,6 +149,8 @@ for (const keep of [undefined, false, true]) {
         if (action === "close") m.close(live[pick(live.length)]);
         if (action === "reload") m.reload();
         if (action === "reset") m.reset();
+        if (action === "recheck") m.recheck();
+        if (action === "source-denial") m.sourceDenial();
         if (["host", "server", "device"].includes(action)) m.time(action, 1 + pick(1200), !!pick(2));
         if (action === "rollback") {
           m.time("host", -(1 + pick(1200))); m.time("server", -(1 + pick(1200)));
@@ -128,7 +168,7 @@ for (const keep of [undefined, false, true]) {
       coverage.set("complete-after-fence", (coverage.get("complete-after-fence") ?? 0) + 1);
     });
     for (const action of ["publish", "publish-device", "approve", "reject", "batch", "several-completions", "open", "close",
-      "host", "server", "device", "rollback", "reload", "reset", "recreate-owner", "fence", "complete-after-fence"])
+      "host", "server", "device", "rollback", "reload", "reset", "recheck", "source-denial", "recreate-owner", "fence", "complete-after-fence"])
       assert.ok(coverage.get(action) > 0, `${action} is exercised`);
   });
 }

@@ -104,7 +104,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const reject = (read: Read<R>) => {
         snapshot = read;
         // @ref LLP 3000.023#3.6 — an opening refusal still addresses its shared slot after raw retirement.
-        const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options) ?? associated;
+        const current = source?.getSnapshot() ?? (closed ? undefined : peekObservation(raw, op, args, options)) ?? associated;
         if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
       };
       // @ref LLP 3000.023#3.4 — detached facades still consult the raw handle's deadline latch.
@@ -131,7 +131,10 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         const slot = held, generation = slot?.generation;
         const refused = await refusal();
         // A refusal revokes the shared slot even if this subscriber has closed.
-        if (refused) { reject({ denied: refused }); if (!closed) emit(); return; }
+        if (refused) {
+          if (version !== refreshVersion) return;
+          reject({ denied: refused }); if (!closed) emit(); return;
+        }
         // @ref LLP 3000.023#3.6 — no pre-withdrawal authority completion can restore the shared answer.
         if (closed || version !== refreshVersion || slot?.generation !== generation) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
@@ -167,6 +170,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         // @ref LLP 3000.023#3.4 — closed facades keep only their final identity, under its original deadlines.
         if (closed) {
           if ("denied" in snapshot) return snapshot;
+          if (snapshot === loading) return snapshot;
           if (read && "denied" in read) return snapshot = read;
           const deadline = episodeDeadline(snapshot);
           if (deadline !== undefined) closedDeadline = Math.min(closedDeadline ?? Infinity, deadline);

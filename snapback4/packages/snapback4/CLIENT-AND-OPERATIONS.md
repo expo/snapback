@@ -1222,9 +1222,12 @@ This also applies when the opening first joined through a peer's notification.
 A live facade stays attached after a transient authority error, so a peer's later
 approval reaches it too. Expiry and follower registrations release on rejection;
 notification ownership ends only on close or a facade fence.
-A refusal invalidates authority checks already in flight across all facades of
-that watch; only a check started afterward can recover it. A refusal completing
-after its facade closes still clears the shared approval for live peers. Opening
+A refusal from the facade's current refresh invalidates authority checks already
+in flight across all facades of that watch; a superseded refresh's result is ignored.
+Only a check started after the refusal can recover it. Adopting an
+already-delivered denial does not fence those new checks. A refusal completing
+after its facade closes still clears the shared approval for live peers of its
+associated raw owner. A closed opening cannot revoke a later owner it never joined. Opening
 facades adopt a denial already delivered while they waited, without notifying
 again. An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
@@ -1236,7 +1239,8 @@ raw handle but never adopts a new identity. While its last identity is still the
 deadlines hold, it returns the source's current copy of that identity, including
 its revalidating mark. Closing preserves any earlier captured episode deadline. After that it returns one stable `loading` snapshot, or its denial, even
 when the replacement has identical data. A closed facade has no listeners and
-never notifies.
+never notifies. Once its loading snapshot latches, a later source denial does
+not replace it; an explicit facade fence still revokes the entire handle.
 Closing a standalone `keep: false` facade removes its raw owner
 and cancels its subscriptions and timers. Shared approval and raw subscription delivery
 announce the same withdrawal only once, including an authority refusal during
