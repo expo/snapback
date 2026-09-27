@@ -122,9 +122,17 @@ test("proot binds only disposable inputs, scratch and three devices, with an all
   assert.ok(args.includes("-r") && !args.includes("-R") && !args.includes("-S"));
   assert.deepEqual(args.flatMap((arg, i) => arg === "-b" ? [args[i + 1]] : []),
     ["/cache/scratch:/consumer", "/cache/inputs:/proof", "/dev/null", "/dev/urandom", "/dev/random"]);
-  const env = prootEnvironment("/cache/tmp");
+  const keys = ["SNAPBACK4_BIN", "NPM_TOKEN", "NODE_AUTH_TOKEN", "NODE_OPTIONS", "LD_PRELOAD", "LD_LIBRARY_PATH", "NPM_CONFIG__AUTHTOKEN"];
+  const saved = keys.map(key => [key, process.env[key]]);
+  let env;
+  try {
+    for (const key of keys) process.env[key] = "host-value-that-must-not-enter-the-consumer";
+    env = prootEnvironment("/cache/tmp");
+  } finally {
+    for (const [key, value] of saved) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  }
   assert.equal(env.HOME, "/root"); assert.equal(env.PATH, "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
-  for (const key of ["SNAPBACK4_BIN", "NPM_TOKEN", "NODE_AUTH_TOKEN", "NODE_OPTIONS", "LD_PRELOAD"]) assert.ok(!Object.hasOwn(env, key));
+  for (const key of keys) assert.ok(!Object.hasOwn(env, key));
   assert.notEqual(env.NPM_CONFIG_USERCONFIG, env.NPM_CONFIG_GLOBALCONFIG);
 });
 test("proot receipt binds its route, both root filesystems and every pinned tool", t => {
@@ -136,7 +144,8 @@ test("proot receipt binds its route, both root filesystems and every pinned tool
   validate(r.receipt);
   for (const alter of [r => delete r.route, r => r.route = "docker", r => r.proofs.pop(), r => r.proofs[0].route = "docker",
     r => r.proofs[0].rootfs.sha256 = "0".repeat(64), r => r.proofs[1].rootfs.url += "?changed",
-    r => r.proofs[1].tools.pop(), r => r.proofs[0].tools[0].sha256 = "0".repeat(64), r => r.proofs[1].status = "skipped"]) {
+    r => r.proofs[1].tools.pop(), r => r.proofs[0].tools[0].sha256 = "0".repeat(64), r => r.proofs[1].tools[1].url += "?changed",
+    r => r.proofs[0].node = "0.0.0", r => r.proofs[1].status = "skipped"]) {
     const modified = structuredClone(r.receipt); alter(modified); assert.throws(() => validate(modified), /successful Ubuntu .* and Alpine proofs/);
   }
 });
