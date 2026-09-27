@@ -114,7 +114,8 @@ impl Runner<'_> {
                 let cursor_rows: Vec<Value> = candidates.iter().map(|(key, _)| Value::Row(suffix.iter().zip(key).map(|(column, value)| (column.name.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>().into())).collect();
                 self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix: Some(suffix), table: view, index: view_index.into(), order,
                     prefix_len: 0, prefix: None, merge: true, interrupted: false, inclusive: false, next, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never }, cursor_rows.iter())?;
-            } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
+            }
+            // @ref LLP 3000.027#1 — a full cursorless page needs no continuation to be complete.
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }

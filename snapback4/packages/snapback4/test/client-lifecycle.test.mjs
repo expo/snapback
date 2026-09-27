@@ -1351,7 +1351,7 @@ for (const tier of ["wasm", "native"]) {
 }
 
 for (const scenario of [
-  { name: "cursorless", cut: null, unknown: false, requests: 0 },
+  { name: "cursorless", complete: true, cut: null, unknown: false, requests: 0 },
   { name: "meter", cut: "meter", unknown: false, requests: 0 },
   { name: "words", cut: "words", unknown: false, requests: 0 },
   { name: "missing fact", cut: null, unknown: true, requests: 1 },
@@ -1364,7 +1364,7 @@ for (const scenario of [
   const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: !!scenario.complete, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
     if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;
@@ -1384,5 +1384,5 @@ for (const scenario of [
   const read = await client.query(query("read"), {});
   assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);
   assert.deepEqual(read.data, scenario.requests ? ["server"] : [{ id: "device" }]);
-  assert.equal(read.complete, !!scenario.requests);
+  assert.equal(read.complete, !!scenario.requests || !!scenario.complete);
 });

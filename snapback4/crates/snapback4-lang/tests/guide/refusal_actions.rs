@@ -217,7 +217,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_NEVER_COMPLETE", &["Keep the current equality prefix when adding those pins", "choosing a conversation narrows the answer to that scope"]),
     ("N_NOT_PREDICTABLE", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
     ("N_NOW_SERVER", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
-    ("N_NO_CURSOR", &["declare `c: cursor ?` and page with `after c`", "`chatDeliveries where .messageId = messageId` without a page clause when a declared cap bounds that message's acknowledgements", "if 50 is the intended group limit and no existing cap already bounds that group", "A cap refuses writes beyond its limit: it is a data constraint, not a hint"]),
+    ("N_NO_CURSOR", &["declare `c: cursor ?` and page with `after c`", "Composed fields omit this note"]),
     ("N_SYNC_ORDER", &["Use `last N by .at, .id` for the example above, keeping the audience predicate and cursor", "a held query stays local with incomplete coverage"]),
     ("N_NO_HORIZON", &["Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`", "An absent note does not certify bounded acquisition or a safe cold-start size"]),
     ("N_PUBLIC_AGGREGATE_COPY", &["Use `likeCount: count likes` for an engine-owned count", "pin its source in both write rules"]),

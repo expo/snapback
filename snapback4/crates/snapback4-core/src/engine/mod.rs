@@ -33,7 +33,7 @@ pub use pages::expression_page_site;
 mod shaping;
 #[cfg(feature = "sqlite")]
 pub(crate) struct ImportInput(());
-pub use pages::returned_page_sites;
+pub use pages::{returned_page_sites, uncontinued_page_sites};
 pub mod read;
 pub(crate) use runner::extrema;
 mod read_auth;

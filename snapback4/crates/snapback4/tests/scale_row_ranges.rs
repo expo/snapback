@@ -169,8 +169,8 @@ fn live_view_page_and_point_certificates_cover_real_receipts() {
                 else if member_grant { BTreeMap::from([("conversationId".into(), Value::Id("c0".into()))]) }
                 else { BTreeMap::new() };
             let q = engine.query(name, Context::new("bob", args).at(1)).unwrap();
-            // A cursorless page over more rows than it returns is incomplete (N_NO_CURSOR).
-            assert_eq!(q.complete, i == 1 || seeded == 100, "{variant} {name}");
+            // LLP 3000.027: the cursorless bound defines this requested page.
+            assert!(q.complete, "{variant} {name}");
             let count = Value::Int(if member_grant { 100 } else { 1 });
             if i == 0 {
                 let Value::Array(page) = &q.data else { panic!("{variant}: {q:?}") };

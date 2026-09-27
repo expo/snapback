@@ -262,7 +262,7 @@ mutation commits atomically. A job sweeps; an effect records external work. An a
 (bounded work at any data size), **constant once background cleanup catches up**, or **grows with** a named
 site. A constant verdict proves a degradation rule; timing one measures noise. Cite the verdicts in scale reports.
 
-The page and acquisition sizes describe this screen. Indexes and job chunk sizes are chosen by the engine.
+`complete` means the query answered its declared request within known coverage and execution limits. A full `first N` or `last N` is complete without a cursor. Indexes and job chunk sizes are chosen by the engine.
 Streaming aggregates count a domain under the meter; maintained views read stored totals. A cut total is unavailable.
 Jobs run as the system: select the recipient's authorized data before emitting. `once` prevents repeated emission;
 the worker still deduplicates provider delivery. See `guide maintains`, `guide jobs` and `guide effects` for recipes.

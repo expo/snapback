@@ -89,14 +89,13 @@ fn a_merged_feed_continues_when_one_lane_fills_the_page() {
     assert!(second.complete);
 }
 
-/// Set A, runs 2 and 3: a page declared without a cursor said `complete:
-/// true, next: null` over more rows than it held.
+/// LLP 3000.027: the declared top-N is the complete requested answer.
 #[test]
-fn a_cursorless_page_with_more_rows_is_not_complete() {
+fn a_cursorless_page_with_more_rows_is_complete() {
     let mut engine = engine(28);
     let page = engine.query("global", Context::new("dev:alice", args(&[]))).unwrap();
     assert_eq!(page.data.as_array().unwrap().len(), 20);
-    assert!(!page.complete, "more rows exist and there is no cursor to continue on");
+    assert!(page.complete, "the declared page bound is the requested answer");
     assert_eq!(page.next, None);
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), FEED.to_owned())]);
     assert!(bound.notes.iter().any(|n| n.code == "N_NO_CURSOR" && n.message.contains("query global")), "{:?}", bound.notes.iter().map(|n| n.message.clone()).collect::<Vec<_>>());

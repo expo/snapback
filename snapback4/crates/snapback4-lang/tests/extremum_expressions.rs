@@ -28,7 +28,7 @@ fn row_expressions_match_a_loop_with_nulls_and_named_outer_values() {
     for (op, value) in [("receipt", 1), ("fastest", 2), ("page", 8), ("nested", 28)] {
         let r = e.query(op, context("chat")).unwrap();
         assert_eq!(r.data, Value::Int(value), "{op}: {r:?}");
-        assert_eq!(r.complete, op != "page", "{op}: {r:?}");
+        assert!(r.complete, "{op}: {r:?}");
     }
     for conversation in ["chat", "empty"] {
         let fold = e.query("nullable", context(conversation)).unwrap();
