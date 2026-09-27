@@ -23,6 +23,7 @@ async function until(check) {
 }
 async function fixture(t, tier) {
   let wall = 1000, failing = false, held = false, holdDevice = false, queries = 0, discovering = false;
+  let data = "private A", nextExpiry = 5000;
   const loss = Promise.withResolvers(), deviceGate = Promise.withResolvers();
   const opener = modelDevice();
   const device = { async open(...args) {
@@ -50,12 +51,13 @@ async function fixture(t, tier) {
     queries++;
     if (failing) throw Error("offline after rollback");
     if (held) return parked(init.signal);
-    return Response.json({ data: "private A", complete: true, tables: ["remote"], seq: 1, nextExpiry: 5000 });
+    return Response.json({ data, complete: true, tables: ["remote"], seq: 1, nextExpiry });
   }) };
   const raw = tier === "online" ? createClient(options) : await createLocalClient(options);
   t.after(async () => { deviceGate.resolve(); await raw.close(); });
   if (raw.sync) await raw.sync();
   return { raw, wall(n) { wall = n; }, queries: () => queries, discovering: () => discovering,
+    answer(value, expiry) { data = value; nextExpiry = expiry; },
     holdDevice() { holdDevice = true; }, fail() { failing = true; },
     trigger(boundary) { held = true; if (boundary === "close") return raw.close(); if (boundary === "sign-out") return raw.signOut(); loss.resolve(boundary); } };
 }
@@ -109,10 +111,27 @@ for (const closed of [true, false]) test(`wasm: ${closed ? "closed" : "live"} ha
   assert.equal(recovered.denied?.code, "E_OFFLINE", "expired private A cannot be recovered after server-time rollback");
 });
 
+test("wasm: closed A expiry preserves newer unexpired B in memory across rollback", async t => {
+  const f = await fixture(t, "wasm"), watch = f.raw.observe(q, {});
+  await until(() => watch.getSnapshot().data === "private A");
+  watch.close();
+  f.answer("private B", 8000);
+  assert.equal((await f.raw.query(q, {})).data, "private B", "the same query remembers newer B");
+  f.wall(5000);
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "closed A observes its own expiry");
+  f.wall(1000); f.fail();
+  const recovered = await f.raw.query(q, {});
+  assert.equal(recovered.data, "private B", "A's expiry must preserve B until B's own server deadline");
+  assert.equal(recovered.fresh, false, "recovery uses remembered data after transport fails");
+});
+
+const peerPolicies = [[undefined, undefined], [false, false], [true, true],
+  [false, undefined], [undefined, false], [false, true], [true, false]];
 for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" ? ["discovery", "offline", "close", "sign-out"] : ["offline", "close", "sign-out"]) {
-  for (const mode of ["raw", "guard", "opening remount"]) for (const keep of mode === "opening remount" ? [true] : [undefined, true]) {
-    test(`${tier} ${mode}: ${boundary} withdraws both peers before every callback, keep=${keep}`, async t => {
+  for (const mode of ["raw", "guard", "opening remount"]) for (const [keep, peerKeep] of mode === "opening remount" ? [[true, undefined], [true, false], [true, true]] : peerPolicies) {
+    test(`${tier} ${mode}: ${boundary} withdraws both peers before every callback, keep=${keep}, peerKeep=${peerKeep}`, async t => {
       const f = await fixture(t, tier), options = keep === undefined ? undefined : { keep };
+      const peerOptions = peerKeep === undefined ? undefined : { keep: peerKeep };
       const authority = Promise.withResolvers(); let holding = false;
       const facade = guardClient(f.raw, async () => { if (holding) await authority.promise; return true; },
         () => true, () => ({ code: "E_AUTH", family: "auth", message: "closed" }));
@@ -120,10 +139,10 @@ for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" 
       const client = mode === "raw" ? f.raw : facade.client;
       let first = client.observe(q, {}, options);
       await until(() => first.getSnapshot().data);
-      const peer = client.observe(peerQuery, {}, options);
+      const peer = client.observe(peerQuery, {}, peerOptions);
       await until(() => peer.getSnapshot().data);
       // Capture raw owners so inspecting peers cannot itself cause their withdrawal.
-      const rawFirst = f.raw.observe(q, {}, options), rawPeer = f.raw.observe(peerQuery, {}, options);
+      const rawFirst = f.raw.observe(q, {}, options), rawPeer = f.raw.observe(peerQuery, {}, peerOptions);
       const owners = [rawFirst, rawPeer].map(watch => answerObservation(watch.getSnapshot()));
       if (mode === "opening remount") {
         first.close(); holding = true;
@@ -133,7 +152,7 @@ for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" 
       const seen = [];
       const inspect = kind => seen.push({ kind, raw: owners.map(owner => owner.snapshot),
         reads: [first.getSnapshot(), peer.getSnapshot()],
-        peek: peekObservation(client, peerQuery, {}, options) });
+        peek: peekObservation(client, peerQuery, {}, peerOptions) });
       first.subscribe(() => inspect("first")); peer.subscribe(() => inspect("peer"));
       if (mode !== "opening remount") rawFirst.subscribe(() => inspect("raw"));
       f.raw.onLink(next => { if (next === "offline" || next === "signed-out") inspect("link"); });

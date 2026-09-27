@@ -13,10 +13,13 @@ import { guardClient } from "../dist/app-client.js";
 import { createApp } from "../dist/app.js";
 import { keepSession, memorySessionStore } from "../dist/auth.js";
 
+const peerPolicies = [[undefined, undefined], [false, false], [true, true],
+  [false, undefined], [undefined, false], [false, true], [true, false]];
 for (const mode of ["guard", "app", "lingering guard"]) for (const replacement of [true, false]) {
-  for (const keep of mode === "lingering guard" ? [true] : [undefined, true]) {
-    test(`${mode}: ${replacement ? "replacement" : "restore"} withdraws every peer before callbacks, keep=${keep}`, async t => {
+  for (const [keep, peerKeep] of mode === "lingering guard" ? [[true, undefined], [true, false], [true, true]] : peerPolicies) {
+    test(`${mode}: ${replacement ? "replacement" : "restore"} withdraws every peer before callbacks, keep=${keep}, peerKeep=${peerKeep}`, async t => {
       const options = keep === undefined ? undefined : { keep };
+      const peerOptions = peerKeep === undefined ? undefined : { keep: peerKeep };
       const url = "http://store-boundary.test", code = replacement ? "E_STORE_REPLACED" : "E_STORE_RESTORE";
       let changed = false, blockAuthority = false;
       const authority = Promise.withResolvers();
@@ -42,7 +45,7 @@ for (const mode of ["guard", "app", "lingering guard"]) for (const replacement o
       t.after(async () => { authority.resolve(); facade?.fence()(); await (app ? app.close() : raw.close()); });
       let first = client.observe(q, { first: true }, options);
       await until(() => first.getSnapshot().data);
-      const peer = client.observe(q, { peer: true }, options);
+      const peer = client.observe(q, { peer: true }, peerOptions);
       await until(() => peer.getSnapshot().data);
       if (mode === "lingering guard") {
         first.close(); blockAuthority = true;

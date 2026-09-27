@@ -138,8 +138,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         return refresh();
       }).catch(() => { reject(denied()); emit(); });
       return {
-        getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading
-          : held ? held.read() as Read<R> : snapshot) : denied(),
+        getSnapshot() {
+          if (!valid()) return denied();
+          // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
+          const read = source?.getSnapshot();
+          if (read && ("loading" in read || "denied" in read)) return snapshot = read;
+          return opening ? peekObservation(client, op, args, options) ?? loading
+            : held ? held.read() as Read<R> : snapshot;
+        },
         subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };

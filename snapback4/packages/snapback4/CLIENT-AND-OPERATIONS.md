@@ -1217,6 +1217,9 @@ immediately, including failure, link loss, and a replacement's earlier expiry.
 An older authority completion cannot publish a newer unchecked answer.
 Grouped withdrawals change every affected raw snapshot and shared approval before
 delivering read or link callbacks, including callbacks from lingering remounts.
+Facade snapshots honor their source's loading or denial even before their own
+subscription callback runs, including with `keep: false`; data still waits for
+the facade's authority check.
 
 For all three options, a failed whole re-read, expired candidate, refusal,
 expiry, sign-out, credential or viewer change, store replacement or adoption,
@@ -1227,7 +1230,8 @@ episode. Expiry retry transport explicitly withdraws, including with `keep: true
 Closing the client cancels row deadlines before publishing its stable denial. A
 closed local observation still checks its saved deadlines; resubscribing rearms
 those same absolute row deadlines before its re-read. Observed server expiry also
-fences remembered answers, so clock rollback cannot recover the expired body.
+fences remembered answers, so clock rollback cannot recover the expired body,
+while preserving newer answers whose server deadlines have not arrived.
 
 `usePage` preserves valid earlier pages while a later page loads or withdraws.
 Its combined read carries `revalidating` while any displayed page has that mark,
