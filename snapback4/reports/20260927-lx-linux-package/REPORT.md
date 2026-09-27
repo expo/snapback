@@ -5,7 +5,7 @@ on `3a1f8b55d`. No push, package publication, registry login, runtime rule,
 disclosure, durability or meter change. The release version remains 0.4.4
 in this lane; integration owns the coordinated 0.4.5 bump.
 
-**Qualification limitation:** this host has no usable Docker or Podman.
+**Round-0 qualification limitation (resolved in Round 1 below):** this host has no usable Docker or Podman.
 The required real Ubuntu 22.04/Alpine proof has not passed. The script
 refuses before writing a receipt; a host-only smoke test is not a substitute.
 
@@ -262,3 +262,199 @@ node scripts/publish.mjs --resume
 `--resume` is also the recovery command after an interrupted upload. It
 requires exact staged/registry integrity and never republishes a matching
 version. Any existing conflicting artifact refuses before the first upload.
+
+## Round 1 — pinned proot consumers (2026-09-27)
+
+The round-0 missing-container blocker is resolved. This host used **proot
+5.4.1**, with no sudo, namespaces, system configuration changes, push,
+registry login or publication. The package version stays **0.4.4**;
+integration owns 0.4.5. Round-0 review responses remain round-2 work.
+
+### Files and behavior
+
+| File (under `snapback4/`, except LLP) | Round-1 change |
+| --- | --- |
+| `scripts/linux-proof-inputs.mjs` | Pinned URLs and SHA-256 for static proot, both roots, official Ubuntu Node, and Alpine Node/npm plus every APK dependency; expected receipt provenance. |
+| `scripts/qualify-linux-proot.mjs` | Verify downloads and cache hits before use; fresh roots/scratch/HOME; offline signed APK installation under fake root; run the unchanged consumer proof and record timings/provenance. |
+| `scripts/qualify-linux.mjs` | Prefer working Docker, then Podman, then proot; receipt route and elapsed times; preserve executed consumer evidence on a red suite without issuing a success receipt. |
+| `scripts/publication-artifacts.mjs` | Accept proot receipts only with both successful roots and the exact pinned tool/rootfs provenance; retain the existing Docker/Podman receipt path. |
+| `packages/snapback4/test/qualify-linux.test.mjs` | Offline route-selection, download/cache corruption refusal, environment/bind scope, proot failure, and receipt provenance tests. |
+| `packages/snapback4/test/helpers/publish-fixture.mjs` | Copy the shared pin module into disposable publication test fixtures. |
+| `AGENTS.md` | Document automatic proot fallback. |
+| `../llp/3000.021-what-the-comparative-builder-still-wrote.rfc.md` | Update §3.3's implementation note with the authorized fallback and measured evidence. |
+| `JOURNAL.md` | One dated round-1 append. |
+| `reports/20260927-lx-linux-package/` | This report and the durable round-1 receipts/evidence. |
+
+There are no new Quarry forms. `node scripts/qualify-linux.mjs --client
+/path/client.tgz --out /path/new-qualification` automatically selects the
+route. In each root, the existing proof installs the two staged tarballs,
+runs `npx --no-install snapback4 --version`, `init app --online`, `check`,
+`dev --port 0 --no-watch`, an Alice mutation/read and Bob's denied read.
+
+### Isolation and pins
+
+Only disposable proof-input copies and consumer scratch are directory
+bindings; `/dev/null`, `/dev/random` and `/dev/urandom` are the device
+bindings. DNS configuration is copied. There is no host home, checkout,
+toolchain, library, `/proc`, `/sys`, `/tmp` or root binding. The environment
+is an allowlist with guest PATH, fresh HOME, separate empty npm config
+paths, public npm registry, and no binary override, credentials or injected
+Node/loader options. proot is a userspace compatibility tool, not a security
+boundary for hostile programs; these are trusted consumer compatibility
+proofs and do not establish a kernel minimum. proot has no read-only-bind
+option: the proof uses disposable copies and verifies their tarball hashes
+afterwards. Downloads and temporary roots live only under
+`~/.cache/snapback4-qualify/`; successful or failed roots are cleaned up.
+
+Docker/Podman keep the original Ubuntu 22.04/Alpine, Node 24.13.1 path.
+Per the round-1 instruction, proot uses Ubuntu **24.04.3**, Node **22.22.0**
+(npm **10.9.4**), and Alpine **3.23.3**, Node **24.18.1** (npm **11.11.0**).
+Alpine APK signatures are verified using the pinned root's keys. Package
+installation is offline with an empty repository list; every dependency
+APK is also SHA-256 pinned. npm's consumer installation still uses the
+shared network, as the round-0 proof does.
+
+Root/Node checksums came from the official adjacent checksum files and
+proot's release SHA256SUMS. APK bytes came from the official Alpine v3.23
+repositories and are independently signature-checked by apk. Every URL and
+digest appears in the receipt (22 unique downloaded inputs).
+
+### Tests added
+
+- Selection prefers working Docker, then Podman, then proot, including a
+  missing or unusable runtime; no network is needed by the test.
+- Wrong downloaded bytes and a subsequently corrupted cached archive are
+  refused; a correct cache hit makes no download.
+- The proot command uses explicit bindings rather than `-R`/`-S` aliases;
+  its environment does not inherit host credentials or tool overrides.
+- Successful receipts serialize both rootfs identities and every tool pin.
+  Missing/changing the route, root hash/URL, tool list/hash or proof status
+  is refused by the publication importer.
+- Failed proot execution or a red source suite never writes a successful
+  qualification receipt. Existing Docker, suite, ELF and bad-pin refusal
+  controls remain.
+
+The only behavior extension beyond selecting proot is preserving successful
+consumer evidence in `proofs.json` when the source suite is red. This is
+necessary to run both roots without repeating the full suite after a known
+flake; it cannot be imported as a successful qualification receipt.
+
+### Measured qualification and merge
+
+Implementation: `bd15a8def`. The one real `qualify-linux.mjs` run used that
+clean branch head, a freshly prepared 0.4.4 client, and the static musl
+platform build. **Exit 0**, exact full-suite result:
+
+```text
+== 0 failure(s) in 1376 s
+```
+
+Every stage passed. Rust tests/doctests took 880 s; client main: **2,530
+passed, 0 failed, 10 intentional skips**; seven shards: **56 passed**;
+models: **78 passed** in 274 s; fixture wrappers: **9 passed**. The whole
+guide passed **86/86**. Neither the ephemeral typing case nor the known
+session-restore case failed, so there was no flake rerun and no failure to
+classify as introduced, baseline or environmental. The inherited 60-second
+suite budget remains exceeded; no budget or test deadline changed.
+
+Then fetched and merged `origin/main` at `9473e0a34` in `35be43f56`.
+Only JOURNAL conflicted: both complete append-only entries are preserved
+verbatim, checked against their parents. No code conflict resolution.
+`a95bbb44d` strengthens only the isolation/receipt unit test with deliberately
+inherited hostile environment values and additional bad Node/tool URL cases.
+
+Post-merge checks: packaging **73/73**, filesystem **1/1**, ownership **9/9**,
+admission **27/27**, residency **7/7**, whole guide **86/86**, and the updated
+local-e2e file **5/5** — **208 passed, 0 failed**. The local-e2e change came
+from main; this lane changed neither that test nor ephemeral-e2e. Rebuilt
+wasm and prepared a fresh client at `a95bbb44d`; its SRI is unchanged. The
+static production rebuild took **3 min 42 s**. Both roots then passed again
+against the merged binary. The full suite was not repeated.
+
+| Evidence | Ubuntu 24.04.3 / Node 22.22.0 | Alpine 3.23.3 / Node 24.18.1 |
+| --- | --- | --- |
+| Development preflight | 14.705 s, passed | 14.514 s, passed |
+| Full qualification at `bd15a8def` | 11.155 s, passed | 10.224 s, passed |
+| Merged consumers at `a95bbb44d` | 11.225 s, passed | 10.228 s, passed |
+
+Times include each root's setup and consumer execution. The full and merged
+runs reused SHA-256-verified cached downloads but extracted fresh roots.
+[Full qualification receipt](./round1-receipt.json) binds the suite and
+artifacts to `bd15a8def`; [merged consumer evidence](./round1-merged-consumers.json)
+is explicitly an affected consumer recheck, not a claim that a second full
+suite ran at `a95bbb44d`. All later lane changes are evidence/documentation.
+
+Pinned SHA-256 values (the receipt records every URL and all 18 APK hashes):
+
+- [proot 5.4.1](https://github.com/proot-me/proot/releases/download/v5.4.1/proot): `19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09`.
+- [Ubuntu rootfs](https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz): `6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9`.
+- [Ubuntu Node archive](https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz): `9aa8e9d2298ab68c600bd6fb86a6c13bce11a4eca1ba9b39d79fa021755d7c37`.
+- [Alpine rootfs](https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-minirootfs-3.23.3-x86_64.tar.gz): `42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb`.
+
+Published checksum sources: [proot](https://github.com/proot-me/proot/releases/download/v5.4.1/SHA256SUMS),
+[Ubuntu](https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/SHA256SUMS),
+[Node](https://nodejs.org/dist/v22.22.0/SHASUMS256.txt), and
+[Alpine](https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-minirootfs-3.23.3-x86_64.tar.gz.sha256).
+
+- Full qualification: binary **17,189,152 B**, SHA-256 `78ce3de25bb7806c4dad8f56906a0aa9753535b424b3c8b172045ef163283c52`; platform **7,405,562 B**, SRI `sha512-/gBv0qBzTASmJ/HKK7HJaw3pCCtZ7FCLaYhc4JKi0JOauOEqH/i2ZpKegxUoAMubSpJsmHYnW7RYM7Rzj9dqHA==`. ELF: no interpreter and no NEEDED entries.
+- Merged recheck: binary **17,193,248 B**, SHA-256 `23e4e408c750d30ca6554c91fbbf04e7c522edd9b6048aff01d21ba16695803e`; platform **7,406,320 B**, SRI `sha512-nlUk0mr2oBjNyfPJDeEtbKWkQhUC07dGFK2cbFkoSBGj0X5nZNSvt9RuwtgIOXy1bQmbMvL6YXHGuMVtNhYFMQ==`. ELF: no interpreter and no NEEDED entries.
+- Common client: **840,123 B**, SRI `sha512-IWHv0j+9F1nmyTUBh9JpMtRVN78Wqf0Daj/O2H6mFt94f24FZRi6gL6cXDhgQiwymJ9CdBZP2pt2vJh7SSiU9w==` in both runs.
+- Wasm before and after merge: **1,980,253 B raw / 571,810 B gzip**, SHA-256
+  `324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc`;
+  unchanged **572,841 B** cap and **1,031 B** headroom. This round's delta is zero.
+
+### Reproduction and remaining scope
+
+No open round-1 blocker. The remaining work is the separately commissioned
+round-2 review response and integration's coordinated 0.4.5 release. The
+0.4.4 development artifacts and pre-merge receipt are not a 0.4.5 publication
+qualification. A clean release commit must prepare and qualify its own bytes.
+There was no Docker/Podman run on this host, and no Mac signing/publication.
+
+The existing two-host publication commands above still apply, with the
+"after a working Docker or Podman is available" condition removed: Linux
+now automatically uses pinned proot. The Linux command is unchanged:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+export CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+export CARGO_INCREMENTAL=0
+ulimit -n 65536
+unset NPM_TOKEN NODE_AUTH_TOKEN SNAPBACK4_BIN
+node scripts/qualify-linux.mjs \
+  --client target/incoming/snapback4-0.4.5.tgz \
+  --out target/linux-qualification-0.4.5
+```
+
+For this round's exact development reproduction, use a clean checkout of
+`bd15a8def`, install frozen Bun dependencies, export the settings above, and
+run from `snapback4/` with new output directories:
+
+```sh
+node --input-type=module -e 'import { prepareClient } from "./scripts/prepare-client.mjs"; import { resolve } from "node:path"; prepareClient(process.cwd(), "0.4.4", resolve("target/lx-round1-repro/client"));'
+node scripts/qualify-linux.mjs \
+  --client target/lx-round1-repro/client/snapback4-0.4.4.tgz \
+  --out target/lx-round1-repro/qualification
+```
+
+That command runs the full suite; this round executed it only once. Offline
+affected tests:
+
+```sh
+node --test packages/snapback4/test/qualify-linux.test.mjs \
+  packages/snapback4/test/publish-linux.test.mjs \
+  packages/snapback4/test/publish-signing.test.mjs \
+  packages/snapback4/test/linux-package.test.mjs
+```
+
+Raw logs/artifacts: ignored `target/lane-lx-round1/`: `prepare.log`,
+`qualify.log`, `qualification/suite.log`, `qualification/receipt.json`,
+`affected-before.log`, `affected-merged.log`, `merged-consumers.log`,
+`merged/consumers.json`, `merged/client/prepare.json`, the exact platform
+and client tarballs, and `recheck-merged.mjs` (the post-merge driver, which
+runs no full suite). The round-0 report and retained tarballs remain.
+
+Final reference audit: **515 LLP documents, 9,585 refs, 0 errors, 0 unchecked**.
+Frozen Bun installation and diff whitespace checks passed; all changed source
+files remain below 1,500 lines. Every lane commit has the requested co-author
+trailer.

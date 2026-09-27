@@ -67478,3 +67478,57 @@ No second full-suite run, focused failure rerun, unrelated fix, push or
 publication. All tested source bytes remained unchanged through qualification.
 This dated entry is included in the merge commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+### 2026-09-27 — Lane LX round 1: clean Linux consumers through pinned proot
+
+Removed the missing-container blocker without sudo, namespaces or system
+settings. qualify-linux prefers working Docker, then Podman, otherwise static
+proot 5.4.1. Pinned and verified 22 unique downloaded inputs in the user cache:
+proot, Ubuntu 24.04.3 and Alpine 3.23.3 roots, official Ubuntu Node 22.22.0,
+and Alpine Node 24.18.1/npm 11.11.0 with their entire APK dependency closure.
+The APK installation is offline and signature-checked under fake root. Each
+consumer gets fresh roots/HOME/scratch, explicit disposable input bindings,
+three null/random devices and an allowlisted environment; no host home,
+checkout, toolchain, libraries, /proc, npm credentials or binary override.
+The unchanged proof runs version/init/check/dev, mutation/read and denied
+cross-persona read. Receipts bind the route, every URL/SHA-256 and artifact
+SRI. A red suite may retain actual consumer evidence but never a success
+receipt. No runtime authorization, disclosure, durability or meter change.
+
+Implementation bd15a8def qualified at clean source with 0.4.4: both real roots
+passed, Ubuntu 11.155 s and Alpine 10.224 s including setup. scripts/test.sh
+ran exactly once, exit 0: `== 0 failure(s) in 1376 s`. Rust/doctests passed
+(880 s), main client 2,530 passed / 0 failed / 10 intentional skips, all 56
+shards and 78 models passed, fixture wrappers 9/9 and whole guide 86/86.
+Every other stage passed. Neither known flake failed; no targeted flake
+rerun, no introduced/baseline/environmental failure, no test deadline change.
+The inherited 60-second suite budget remains exceeded and unchanged.
+
+Merged origin/main 9473e0a34 in 35be43f56; the sole conflict was JOURNAL,
+resolved by preserving both complete entries verbatim. No code conflict.
+The subsequent test-only a95bbb44d checks hostile inherited credentials and
+loader settings. Post-merge affected checks pass 208/208: packaging 73,
+filesystem 1, ownership 9, admission 27, residency 7, guide 86, local-e2e 5.
+Reprepared the identical client and rebuilt musl production in 3m42s. Both
+merged roots passed: Ubuntu 11.225 s, Alpine 10.228 s. No second full suite.
+
+Rootfs SHA-256: Ubuntu
+6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9;
+Alpine 42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb.
+Merged binary: 17,193,248 B, SHA-256
+23e4e408c750d30ca6554c91fbbf04e7c522edd9b6048aff01d21ba16695803e;
+platform tarball 7,406,320 B; client 840,123 B, unchanged SRI. Both binaries
+have no ELF interpreter or NEEDED entries. Wasm unchanged before/after merge:
+1,980,253 B raw / 571,810 B gzip, 1,031 B under the unchanged 572,841 B cap;
+SHA-256 324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+
+Detailed file list, pins, timings, exact commands, successful pre-merge
+receipt and separately labelled merged evidence are in
+reports/20260927-lx-linux-package/. Raw logs and tarballs are in ignored
+target/lane-lx-round1/. Version remains 0.4.4; integration owns 0.4.5 and its
+fresh release qualification. No open round-1 blocker, no round-2 review
+response, no signing, registry login, push or publication.
+Final reference audit: 515 LLP docs, 9,585 refs, zero errors/unchecked;
+frozen Bun install and diff whitespace checks pass. Every lane commit has
+the requested co-author trailer; changed source files remain under 1,500 lines.
