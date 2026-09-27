@@ -9,6 +9,8 @@ description = "Snapback 4 — the binary: check, dev, run, test, why, guide, doc
 [dependencies]
 libc = "0.2"
 sha2 = "0.10"
+hmac = "0.12"
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 snapback4-core = { path = "../snapback4-core" }
 snapback4-lang = { path = "../snapback4-lang" }
 snapback4-device = { path = "../snapback4-device" }

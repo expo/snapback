@@ -293,7 +293,10 @@ bytes remain untouched; sign in again after upgrading. Local device outboxes and
 server data are unchanged.
 
 Browser Web Locks serialize journal updates and session replacement/deletion
-across tabs. A refused bearer stops that runtime without deleting stored
+across tabs. Journal observers re-read on both a broadcast and the journal's
+storage event: a broadcast can arrive before another tab sees a localStorage
+commit. Neither notification carries trusted intent or replaces durable custody.
+A refused bearer stops that runtime without deleting stored
 credentials; it cannot delete a successor saved by another tab. Explicit logout
 commits a tombstone before revoking the stored bearer it displaces. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
