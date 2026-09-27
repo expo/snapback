@@ -155,7 +155,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.forget_upload_facts(text(&request, "viewer")?, text(&request, "id")?)?;
                 Json::Null
             }
-            "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
+            "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0), &request["home"])?,
             "admit" => {
                 let entry = take(&mut request, "entry")?;
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);

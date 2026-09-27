@@ -66718,6 +66718,50 @@ targeted/counterfactual logs and both wasm artifacts. The requested report is
 `/Users/ccheever/projects/snapback-sb5-program/image-list-fix-3.final.md`.
 This fix is committed locally on `sb4/image-list-assets`; it is not pushed.
 
+
+## 2026-09-27 — A5: list media retained offline under download-confirmed homes
+
+Ported lane A's reviewed device/cache half onto the landed M5
+`engine/asset_columns.rs` server. Acquired-row generation markers and recursive
+optional/list membership replace inferred per-asset homes. Authorized downloads
+carry the ledger's table/row/column and store identity; retention, read,
+reconciliation and reopen validate that binding. Ordinary list bytes survive
+reorder and offline reopen, while removal, clear, deletion, expiry, generation
+change and partition leave retire them. A delayed old-store response cannot
+cache bytes in a replacement, and `once` stays uncached. Old unconfirmed cache
+entries are purged. The assets card, LLP 3000.019 §3.5 and the closed offline-list
+ticket record the behavior. Runtime/tests are committed locally as `b8bf5c327`
+and `1158caa1b`; nothing was pushed or published.
+
+Targeted evidence: four new memory/SQLite list tests, 22 HTTP/native/wasm list
+cases, 28 unchanged server asset-list tests, 20 retained-history tests, six
+deferred-boundary tests, two scalar media scenarios and all 86 guide tests pass.
+The other 72 affected Blob/clock/reset client tests passed; one imported list
+assertion was adapted to query server-stored facts instead of expecting them in
+the landed server's mutation return. The final reference audit has zero errors.
+
+Same-host production wasm (Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt)
+measures 1,980,253 raw / 571,842 gzip before, 1,980,173 raw / 571,839 gzip after:
+−80 raw / −3 gzip bytes. Budget remains 570,966; the unmodified baseline was
+already 876 bytes over and the final artifact is 873 bytes over. The full run
+reproduced the final measurement. No server placement, scalar accounting,
+runtime ceiling, package version or budget was changed; no automatic legacy
+repair or unrelated size redesign was attempted.
+
+Ran `scripts/test.sh` once, exit 1: `== 3 failure(s) in 2372 s` — `wasm build`,
+`cargo test`, `client tests`. All are baseline or consequences of baseline:
+(1) the measured wasm overrun; (2) the unchanged unread-range test adapter still
+implements/calls `release_asset(id, now)` against the landed five-argument
+trait (E0050/E0061), preventing the workspace test-binary run; (3) the skipped
+Rust trace producer leaves `target/event-slots-traces.json` absent, so the two
+event-slot client files fail at import. Running that unchanged producer
+separately passed 2/2, then both client files passed 48/48. Those reruns do not
+replace the original result. Ordinary clients: 2,506 tests, 2,494 passed,
+2 failed imports, 10 skipped. All 78 client models passed. No A5-owned or
+additional timing failure occurred in the full run. Evidence, reproduction
+commands and file map: `reports/20260927-lane-a5-list-offline.md`; logs and
+before/after artifacts: `target/a5-evidence/`.
+
 ### 2026-09-27 — Lane AD: merge the 0.4.4 integration branch
 
 Ran `git merge sb4-intent/integration-044` after reading the lane prompt/report.
@@ -66879,6 +66923,54 @@ Not in this release: offline retention of list assets (lane A5, next patch),
 and `/changes` without waiting for an adoption
 (`issues/20260926-snapback4-changes-waits-for-adoption.md`).
 
+
+## 2026-09-27 — A5 round 1: upgrade acquisition and delayed media deliveries
+
+Read both round-0 reviews and merged `origin/main` `0cca900d8` first; built and
+committed the merge as `18c3b31e3`, preserving both journal histories, A5's full
+LLP 3000.019 §3.5 and main's §3.6. Main brings the unread-range adapter repair
+and the 572,841-byte wasm ratchet. Runtime and regression changes are committed
+as `ad160808f`; the final commit records the evidence and fixes a shared test
+helper exposed by the full inventory.
+
+An unversioned media index now requests one normal confirmed snapshot, keeping
+the outbox, predictions, retained history, published watermark and private
+restore evidence. Only snapshot/catch-up publication stamps the new format and
+acquired-row markers; left history cannot restore media authority. Interrupted
+upgrades restart on reopen. No server row needs a touch. Invalid downloads
+remove only unconfirmed entries or entries bound to that receipt's exact store,
+table, row and column, so a delayed old response preserves newer bytes and URLs.
+
+Affected evidence: 110 unique client tests pass, including both native/wasm
+scalar/list upgrades, the replacement download cached before the old delivery,
+`[[a], [b]]` moving to `[[b], [a]]` and `[[], [b,a]]` across offline reopen,
+and a placed `photo` cleared while its same-row legacy `refs` copy remains.
+Eight memory/SQLite device cases cover upgrade interruption, preserved outbox,
+retained-history exclusion and exact column homes. Retained history 20/20,
+deferred boundaries 6/6, scalar media scenarios 2/2, server lists 28/28 and the
+whole guide 86/86 pass. Four compiled counterfactuals each produce two intended
+failures (first-inner-only, any-column fallback, no upgrade, unconditional cache
+deletion); all were restored and affected tests rerun.
+
+Production wasm, same Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt:
+merged baseline 1,980,173 raw / 571,841 gzip; round 1 1,980,804 raw / 571,975
+gzip, **+631 raw / +134 gzip**, **866 B below** main's unchanged ratchet.
+The full run reproduces that measurement. No server placement, authorization,
+runtime meter, package version or budget changed. No push or publication.
+
+Ran `scripts/test.sh` once, exit 1: `== 1 failure(s) in 622 s`, `cargo test`.
+This was lane-owned: the new shared fixture used `rusqlite` directly, but the
+simulator imports it without that dependency (E0433). Corrected it to use the
+core Store's connection, without adding a dependency. All other phases passed:
+2,565 ordinary client passes, 10 existing skips, zero client failures; all 78
+models passed. No baseline/environmental failure occurred. The separate
+corrected `node scripts/run-rust-tests.mjs` run exits 0: 236 test binaries,
+949 executions and workspace doctests, including simulator page_admission
+15/15 and main's unread_range 7/7. The original full-script result remains red;
+it was not rerun. Report, exact reproduction and artifact hashes:
+`reports/20260927-lane-a5-list-offline.md`, round 1. Evidence:
+`target/a5-evidence/round1-*`.
+
 ### 2026-09-27 — Lane OW: ownership beside SQLite, never on its inode
 
 Moved CLI/backend exclusive ownership and native-device shared ownership to
@@ -66956,6 +67048,108 @@ The new regression tests, guide, wasm measurement and sidecar implementation
 are unchanged after qualification. No second full-suite run, unrelated
 client fix, push or publication. Darwin verification remains the supervisor's
 next platform proof, not a claim from this Linux lane.
+
+## 2026-09-27 — A5 round 2: paged restores and delayed once responses
+
+Read the lane prompt, rounds 0–1 and both round-1 reviews. First merged
+`origin/main` `dde688548` as `f630aad9a`, preserving OW's sidecar ownership,
+both journal histories and both LLP revision histories. Round-2 runtime,
+tests and LLP §3.5 are committed as `a9428c4b2`.
+
+A same-store snapshot below the published watermark now persists
+`E_STORE_RESTORE` even when upgrade requested from zero and the first page is
+nonterminal with no `images_at`. Follow and outbox sends stop after that
+refusal. `once` receipts are parsed before invalidation; the serialized cache
+operation leaves a confirmed replacement-store entry and its live URLs intact.
+Current-store `once` invalidation remains, and its body is never retained.
+Terminal-snapshot interruption tests now read the real device format metadata,
+require acquisition false and no stamp, reopen with transfer zero and the same
+queued intent, then complete catch-up and verify offline bytes. Both native and
+wasm client tiers, and both memory/SQLite device stores, exercise the boundaries.
+
+Affected checks pass: client lists/Blob 60/60, clock/store-reset clients 73/73,
+device media 10/10, device store-reset 10/10, retained history 20/20, deferred
+boundaries 6/6 and the whole guide 86/86. Frozen install, package build/typecheck
+and native build pass. Three temporary controls each fail two intended cases:
+unchanged restore predicate accepts Grok's 5000/100 first page, premature
+terminal format stamping claims acquisition, and unguarded `once` invalidation
+revokes B's live URL. All mutations were restored and affected checks passed.
+Fixture development corrections did not require additional product changes.
+
+Production wasm is 1,980,820 B raw / 571,988 B gzip, +16 raw / +13 gzip versus
+round 1, 853 B below main's unchanged 572,841 B ratchet (+147 gzip versus
+main's recorded artifact). The full suite reproduces this measurement on
+Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt. No server placement,
+authorization, meter, package version, public API or budget change. No push or
+publication. The only runtime changes are the two review fixes; the third
+finding needed stronger tests. Evidence: `target/a5-evidence/round2-*` and the
+round-2 section of `reports/20260927-lane-a5-list-offline.md`.
+
+Ran `scripts/test.sh` exactly once on `a9428c4b2`, exit 0:
+`== 0 failure(s) in 1455 s`. All phases passed. Rust: 236 test binaries,
+949 executions plus doctests, 3,795 passes, zero failures and 24 intentional
+ignores (964 s). Ordinary clients: 2,580 tests across the main process and
+seven shards, 2,570 passes, zero failures, 10 skips (195 s). All 78 seeded
+client model tests passed (259 s). No lane-owned, baseline or environmental
+full-suite failure; no rerun. Node 24.13.1; eight Cargo jobs and eight Rust
+processes; normal parallel client scheduling; no test-count, timeout,
+assertion or runtime ceiling relaxation. No known open problem in this scope.
+Final reference audit: 515 LLP docs, 9,569 refs, zero errors or unchecked;
+whitespace check passes. Full-suite log SHA-256:
+`9186528832fa4f6be8f9a8f82f808fddf700ed4539c5665a48e3346e5f72d4bb`.
+
+
+## 2026-09-27 — A5 round 3: overtaken snapshot continuations never persist a restore halt
+
+Read the lane prompt, the reports and journal through round 2, and both full
+round-2 reviews (Grok READY; Astra READY WITH CHANGES). Committed the bounded
+runtime/tests/LLP correction as `36247cf00`; no merge, push or publication.
+An overtaken snapshot continuation now returns `E_GENERATION` before either
+restore check can persist a halt. Only a fresh first snapshot page supplies
+snapshot-as-head evidence below published progress. LLP 3000.019 §3.5 now
+states the distinction; genuine upgrade restores still persist their refusal.
+
+The device regressions run the 1-to-2 owner ordering on memory and SQLite,
+including terminal and nonterminal continuations, current capture, application,
+observation and reopen. A real HTTP `createLocalClient` regression keeps A open
+while B publishes to the shared native store, then checks A's older continuation
+and healthy offline reopen. Restore fixtures cover empty 5000/100 and populated
+12/7 pages. Valid, absent and malformed `once` receipts revoke live ordinary
+handles, remove files/manifests and never copy or retain the `once` body. The
+`once` implementation was already correct and did not change.
+
+Affected checks: 175/175 clients; device media 12/12, retained history 20/20,
+deferred boundaries 6/6, store-reset 10/10, whole guide 86/86. Builds, typecheck
+and frozen install pass. All eight named mutations fail: round-2 continuation
+behavior, empty-event-only restore, hardcoded restore watermarks, the pre-round-2
+restore predicate, equal-head restore and premature terminal format stamping
+produce two Rust failures each; unguarded foreign `once` produces one Blob
+failure; receipt-less preservation produces two. Every mutation was restored
+before the final affected checks and the complete run.
+
+Production wasm: round 2 1,980,820 raw / 571,988 gzip bytes; round 3 1,980,999
+raw / 572,131 gzip bytes, **+179 raw / +143 gzip**, **710 B below** the unchanged
+572,841-byte budget. The full run reproduces it. No server placement,
+authorization, meter, version, public API or other runtime change.
+
+Observed remaining boundary, left outside this narrow fix: after B publishes
+the first store identity, A's still-open interpreter can keep
+`backend_required: true`, `acquired: false` across five explicit sync attempts.
+There is no persisted restore refusal; closing/reopening A reads B's rows
+wholly offline. The report gives the committed HTTP ordering and diagnostic
+probe needed to reproduce it. No claim of automatic same-owner convergence.
+
+Ran `scripts/test.sh` **once**, exit **0**: `== 0 failure(s) in 1488 s`.
+All phases passed. Rust: 236 binaries, 949 executions plus doctests, 3,797
+passes, zero failures, 24 intentional ignores (1,008 s). Ordinary clients:
+2,583 tests, 2,573 passes, zero failures, 10 skips (195 s). Models: 78/78,
+zero failures/skips (262 s). No lane-owned, baseline or environmental failure;
+no full rerun. Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo jobs
+and eight Rust processes, normal parallel clients, no assertion/count/timeout
+relaxation. Report: `reports/20260927-lane-a5-list-offline.md`, round 3;
+evidence: ignored `target/a5-evidence/round3-*`. Full-suite log SHA-256:
+`0fb4b438e83ec8238a9ebbefe00f7d9884e72615b8b7ef1a2bcdb9758e459ce9`.
+
 
 ### 2026-09-27 — Lane OW round 1: ownership survives refused filesystem mutations
 
@@ -67364,6 +67558,68 @@ test, this append and the report's round-2 section. No runtime/client, guide,
 version or budget change, push or publication. Report:
 reports/20260927-gn-guide-note/REPORT.md; logs: target/lane-gn-round2/.
 
+
+## 2026-09-27 — A5 round 4: request-bound restore evidence and open-owner recovery
+
+Read the lane prompt, reports and journal through round 3 and Astra's complete
+round-3 review. First fetched and merged origin/main `3a1f8b55d` as `221fd3012`,
+preserving both LLP revision histories and both journal sides. This brings in
+published 0.4.4, DQ's Darwin fixes and 0.4.5 lane GN. Initial implementation is
+`21900c545`; complete-suite corrections are `bc82b1f2b`. All commits carry the
+requested GPT-6 Astra co-author trailer. No push or publication.
+
+Replace the ordering-specific restore checks with one comparison: a fresh head
+below facts captured before that request, in the same incarnation. An explicit
+image head retains its meaning, including on snapshots; a stream rewind below
+its request cursor remains independent proof. Otherwise only a fresh first
+snapshot or terminal stream supplies a head. A continuation's pinned watermark
+cannot prove restore. Observation and application preflight its staged owner,
+next cursor and cut, so B's unpublished staging and published progress both
+supersede A with E_GENERATION. Missing capture evidence never borrows newer
+shared progress to condemn an old response. Genuine restores remain durable.
+
+The client preserves its captured backend_required flag through observation,
+so A adopts B's identity, becomes acquired and answers the touched row offline
+before closing. A valid JSON once receipt containing only store_id is covered:
+it revokes ordinary bytes/live URLs, retains no once body, and cannot protect
+cached bytes as a foreign valid home. The parser was already correct. LLP
+3000.019 §3.5 and the report record these facts; the old report limitation is
+removed. Existing journal entries remain unchanged.
+
+All 16 failing controls were restored after proving their regressions. New
+memory/SQLite cases cover staged/published continuations, missing captures,
+fresh snapshots below private image heads, independent stream rewinds and
+explicit snapshot heads. Four real HTTP orderings cross B staged/published
+with A terminal/nonterminal and require same-open-owner offline recovery.
+The existing synthetic healthy-disposal Rust fixture now uses fresh head 20
+instead of 15 after captured head 20; a new refusal test explicitly protects
+15. No public API, server placement, authorization, meter, version or budget
+change. No assertion, count or timeout relaxation.
+
+Ran scripts/test.sh exactly once on `21900c545`, exit 1:
+`== 1 failure(s) in 1440 s`, `client tests`. Rust: 237 binaries, 950 executions
+plus doctests, 3,819 passes, zero failures, 24 intentional ignores (960 s).
+Ordinary clients: 2,602 tests, 2,587 passes, five failure records, 10 skips
+(195 s). All 78 seeded models pass (257 s); every other phase passes.
+Every failure is lane-owned: two acquisition restore assertions (wasm/native)
+exposed a higher image head masking a stream rewind; a skipped-snapshot test
+pinned the existing diagnostic; a Repair B snapshot-restart test needed its
+explicit image head respected, with one cascading parent failure. The follow-up
+preserves those existing tests unchanged and adds four Rust regressions that
+fail on the pre-correction runtime. The full run stays red; it was not repeated.
+
+Final correction qualification: 376/376 expanded clients (126.903 s), including
+all failing assertions; device media/restore 20/20, Repair B 110/110, retained
+history 20/20, deferred boundaries 6/6, store-reset 10/10, durability 2/2.
+Whole guide 86/86, frozen install, typecheck and builds pass. Final wasm on
+Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt: 1,981,512 raw / 572,053 gzip
+bytes, +513 raw / −58 gzip from the merged baseline, 788 B below the unchanged
+572,841 B budget. The full run's pre-correction artifact was 1,981,526 raw /
+571,954 gzip. No known requested defect remains; final complete-suite
+qualification is limited to the original red run plus the expanded passing
+checks. Evidence, reproductions and hashes are in the round-4 report,
+`reports/20260927-lane-a5-list-offline.md`, and ignored `target/a5-evidence/round4-*`.
+
 ### 2026-09-27 — Lane OW: merge published 0.4.4 main after round 2
 
 Fetched and merged `origin/main` at `ea853b9dae4295441f5ec04ab23a9468e7e34653`
@@ -67460,3 +67716,135 @@ The unchanged 572,841 B budget leaves 1,031 B. No runtime, authorization,
 disclosure, durability, IR-format or meter-ceiling change; no push or package
 publication. Report: reports/20260927-qe-quarry-ergonomics/REPORT.md. Logs:
 target/lane-qe/.
+## 2026-09-27 — A5 round 5: an owned continuation's cut is never its head
+
+Read the lane prompt, report/journal rounds 0–4 and both round-4 reviews.
+Supervisor commit 48df34a2c already covers each missing once-receipt coordinate.
+Added four private publication tests in 18947b0b2 for Grok's remaining Low:
+A stays open at snapshot cut 8 while B publishes an ordinary stream at 20,
+without clearing A's owner, cursor or cut. On memory and SQLite, terminal and
+nonterminal continuations without images_at pass observation, reject backwards
+application with E_GENERATION and retain no restore refusal after observation,
+application or reopen. Memory hands the same store between serialized calls
+while A's interpreter stays alive; SQLite uses two connections to one file.
+No lease metadata is fabricated and no runtime change is needed.
+
+The exact terminal-as-head mutation fails only the two new terminal tests;
+203 other affected tests pass. Restored it before committing. Fetched and merged
+origin/main 9473e0a34 as cdf52c77e, keeping both journal histories and both LLP
+revision histories. Main contributes OW's sidecar hardening and the session
+restore flake repair. Every local round-5 commit has the requested Astra trailer.
+
+Ran scripts/test.sh exactly once on cdf52c77e, exit 1:
+`== 1 failure(s) in 1515 s`, `client tests`. Rust: 237 binaries, 950 executions
+plus doctests; 3,835 passes, zero failures, 24 intentional ignores (985 s).
+Ordinary clients: 2,605 tests, 2,593 passes, two failures, 10 skips (195 s).
+All 78 models pass (256 s); all other phases pass. Both failures are lane-owned
+codec-census assertions: the test fixture's direct serde_json::from_value call
+was forbidden and also inflated the mutation count. No baseline, environmental
+or flaky failure. Corrected only that fixture to the existing decoded helper
+in 2fdb9858a; all 26 census tests and all 47 device library tests now pass.
+Repeating the mutation against the corrected fixture yields the same two
+terminal failures and 45 passes; restored code passes 47/47. The full suite was
+not repeated: final qualification is the original red run plus affected checks.
+
+Wasm is byte-identical before/after: 1,981,512 B raw / 572,053 B gzip, delta
+0/0, 788 B below the unchanged 572,841 B budget. Rust 1.97.0, wasm-bindgen
+0.2.127, no wasm-opt. Reference audit: 515 LLP docs, 9,592 refs, zero errors
+or unchecked. No design, public API, server placement, authorization, meter,
+version or budget change. No push or publication. No known implementation
+problem remains; the test-only post-suite correction is the explicit verification
+limitation. File map, repros and evidence: reports/20260927-lane-a5-list-offline.md,
+round 5; ignored target/a5-evidence/round5-*.
+
+## 2026-09-27 — 0.4.5 lane FK: identity stall ordering and expired server-reply recovery
+
+Committed the remaining flake fixes on `sb4-intent/fk-flakes`, starting at
+`9473e0a34`. The identity defect was a test race: its first status poll could
+cancel before the chosen stall. The fixture now forces status arrival first,
+then delivers cancellation only after actual fetch/body entry. Body cases
+prove consumption, including clones. Every cancellation, aborted-signal,
+no-mint/no-verification and late-core-effect assertion remains. Removing the
+entry wait makes the private-core control fail 5/5 (`false !== true`); the
+fixed ten-scenario test passes 20/20 loaded runs, 200 scenarios total.
+Closed `issues/closed/20260926-snapback4-identity-invocation-stall-flaky.md`.
+
+The ephemeral investigation found a product race: a server-time estimate
+100 ms ahead can trigger an expiry re-read before server expiry. The client
+correctly withholds that expired reply, but its first-attempt server branch
+lost the watch's final wakeup. Since expiry changes neither sequence nor
+ephemeral epoch, the watch stayed loading. Live queries now retry rejected
+server/composed replies through the ordinary publication/authority fences,
+with one request per watch and 25/50/100/... ms backoff capped at 1 s. A
+valid answer resets pacing; watch removal, close and sign-out prevent a late
+continuation. One-shot reads keep their existing result. LLP 3000.017 §2.4
+records this engineering choice; the brief did not prescribe retry pacing.
+
+The end-to-end fixture keeps its original assertions and clock bounds. It
+holds an explicit early estimate and replays the last real row reply once
+at expiry, so even a late scheduler wake cannot skip the race. Poll answers
+are recorded before consumption, following EK's method. Original product
+plus the early estimate fails 5/5 at `ephemeral trial 1 disappears`. The
+final fixture with recovery disabled in an isolated copied package also
+fails 5/5 at that assertion. No live suite bytes were mutated for that control.
+The final fixture passes 20/20 runs, five at a time beside eight CPU workers
+on cores 0–7, in 259.976 s. Its 100 trials appear in 4.867–47.664 ms and
+reach an authoritative empty answer 3877.760–4041.328 ms after the last call,
+with 2 ephemeral requests versus 45 durable-control requests each. An earlier
+20/20 proof of the window-only fixture is also retained. Opened and closed
+`issues/closed/20260927-snapback4-ephemeral-e2e-disappearance-flaky.md`.
+The original LX log has no component timestamps: this reproduces its failure
+signature, without claiming its precise historical offset/delivery order.
+
+Added five lifecycle tests for repeated expired replies, pacing, withholding,
+recovery with/without keep, and watch/client teardown; added two routing tests
+for first-attempt expiry and one-shot behavior. Routing plus lifecycle passes
+191/191; full identity plus original routing passes 202/202; adjacent expiry,
+keep, clock and ephemeral watches pass 72/72. The whole guide passes 86/86.
+No new diagnostic, syntax or guide snippet; all source files stay below
+1,500 lines (`local.ts`: 1,482). Reference audit and diff whitespace checks
+pass. Wasm is unchanged: 1,980,253 B raw / 571,810 B gzip, delta 0 B, 1,031 B
+below the unchanged 572,841 B budget; SHA-256
+324a54065e8d7077fe63e1d73dd26b24db29d8e8583d8a35753643f106c3fecc.
+
+Ran `scripts/test.sh` exactly once on expo-build-1000 with Node 24.13.1,
+Bun 1.3.14, Rust 1.97.0, eight Cargo build jobs, dev/test debug information
+disabled and fd limit 65,536. Exact result: **`== 0 failure(s) in 1403 s`**,
+exit **0**. Cargo: 3,809 passed / 24 existing ignored, 928 s. Main client:
+2,488 passed / 10 existing skips; all seven additional shards pass 56/56,
+client phase 197 s. Models pass 78/78 in 260 s; fixture wrappers pass 9/9.
+Native/wasm builds, docs/wasm budgets, release guard, package checks and both
+app typechecks pass. Both assigned flakes and all new lifecycle cases pass
+in that full run. No lane-owned, baseline or environmental failure, and no
+other intermittent failure observed. The inherited 60 s budget is still
+exceeded; no budget, deadline or timeout was raised.
+
+No identity runtime, engine/meter, authorization, disclosure, durable admission,
+version, package publication or unrelated flake change. No push. The supervisor
+owns integration and the blind reviews. Implementation commits: 14b476903,
+0821cb053 and afeb7bad9. Report: reports/20260927-fk-flakes/REPORT.md. Evidence,
+controls, the repeatable load driver and full-suite log/exit remain under
+`target/lane-fk-evidence/`; this entry is the lane's single journal append.
+### 2026-09-27 — `idFrom(label)`: a fixture label names a valid id
+
+Two builders on two releases (the 0.4.3 comparative's Grok, and calibration
+#23's Astra on 0.4.4) hit `E_WRITE_ID` with fixture strings and wrote the same
+workaround: a hash of the label into the `mintId()` form. `snapback4/client`
+now exports `idFrom(label)`, which is that mapping. It puts the first 80 bits
+of SHA-256 over `["snapback4:id:v1", label]` under a zero time, in 26
+Crockford digits. A derived id sorts before every minted id, as if minted at
+the epoch. With all 128 bits hashed, most ids decoded as future times, and
+seeded rows would have crowded a `by .id` sync window (Grok's review). It is synchronous on every host, through a small
+portable SHA-256 (`src/sha256.ts`), because Web Crypto's digest is
+asynchronous and Hermes has no `node:crypto`.
+
+- The derivation is pinned by a test, so fixtures replay across releases.
+- The portable hash is checked against `node:crypto` on 212 inputs, including
+  astral characters and lone surrogates.
+- `E_WRITE_ID`'s message, its `why` entry, `MutateOptions.id` and the README
+  (still 300 lines) point to it.
+
+The server's write records are keyed by principal and id, and nothing reads a
+write id's embedded time, so a derived id is as good as a minted one. Ids were
+never capabilities, and this is a name, not a secret. The operations manual
+calls it in a type-checked block, which the public-function census requires.

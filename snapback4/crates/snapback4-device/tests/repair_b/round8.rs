@@ -312,7 +312,9 @@ both!(round10_later_declaration_cannot_erase_captured_restore_proof, declaration
 fn replacement_restore_evidence<H: Host>(h: &mut H) {
     let mut d = fixture(h, "replacement-head", false);
     for _ in 0..2 {
-        let mut page = reply(&mut d, 15, None);
+        // A fresh first snapshot names the current head, at least the head
+        // already captured from private images. Only continuations pin older cuts.
+        let mut page = reply(&mut d, 20, None);
         page.snapshot = true; page.stage_snapshot = true;
         page.requested_watermark = Some(0); page.more = true;
         page.next = Some("continuation".into());
@@ -376,3 +378,22 @@ fn inline_restore<H: Host>(h: &mut H) {
     halted(&mut d);
 }
 both!(inline_observation_retains_repair_b_restore_evidence, inline_restore);
+
+// @ref LLP 3000.019#3.5 — a fresh first snapshot is head evidence even before publication.
+fn first_snapshot_restore<H: Host>(h: &mut H) {
+    for op in ["observe_store", "apply"] {
+        let name = format!("fresh-snapshot-restore-{op}");
+        let mut d = fixture(h, &name, false);
+        let mut page = reply(&mut d, 15, None);
+        page.snapshot = true; page.stage_snapshot = true;
+        page.requested_watermark = Some(0); page.more = true;
+        page.next = Some("next".into());
+        // Published 5 is below 15, but the request already knew image head 20.
+        refused(&mut d, op, &page);
+        h.close(&name, d);
+        let mut d = h.open(&name, None).unwrap();
+        halted(&mut d);
+        h.close(&name, d);
+    }
+}
+both!(fresh_snapshot_below_captured_private_head_is_restore, first_snapshot_restore);

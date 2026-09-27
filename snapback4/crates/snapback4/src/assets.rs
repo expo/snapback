@@ -95,8 +95,15 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
         Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
         Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, x-snapback-asset-home").unwrap(),
     ];
+    // @ref LLP 3000.019#3.5 — only the download's ledger home authorizes retention.
+    if let Some((table, row, column)) = &grant.home {
+        let receipt = json!({"store_id":grant.store_id,"table":table,"row":row,"column":column}).to_string();
+        // Percent-encoded UTF-8 keeps arbitrary row identities safe in an ASCII header.
+        let encoded: String = receipt.bytes().map(|byte| format!("%{byte:02X}")).collect();
+        headers.push(Header::from_bytes("X-Snapback-Asset-Home", encoded).unwrap());
+    }
     headers.extend(cors(&request));
     let (status, start, length) = match range {
         ByteRange::Satisfiable(start, end) => {

@@ -91,6 +91,8 @@ pub trait Host {
     type Store: BoundaryMetadata;
     fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError>;
     fn close(&mut self, name: &str, device: Device<Self::Store>);
+    /// Model a persisted older device format between owners.
+    fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]);
     fn label(&self) -> &'static str;
 }
 
@@ -127,6 +129,14 @@ impl Host for Sqlite {
     fn close(&mut self, _name: &str, device: Device<Self::Store>) {
         drop(device);
     }
+    fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]) {
+        let store = snapback4_core::store::Store::open(&self.path(name)).unwrap();
+        let conn = store.conn();
+        for (key, value) in changes {
+            if let Some(value) = value { conn.execute("INSERT OR REPLACE INTO _meta (key,value) VALUES (?1,?2)", [key, &value.as_str()]).unwrap(); }
+            else { conn.execute("DELETE FROM _meta WHERE key=?1", [key]).unwrap(); }
+        }
+    }
     fn label(&self) -> &'static str {
         "sqlite"
     }
@@ -162,6 +172,9 @@ impl Host for Memory {
     }
     fn close(&mut self, name: &str, device: Device<Self::Store>) {
         self.kept.entry(name.to_owned()).or_default().extend(device.store().drain());
+    }
+    fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]) {
+        self.kept.entry(name.to_owned()).or_default().extend(changes.iter().map(|(k, v)| Change { s: 'm', k: (*k).into(), v: v.clone() }));
     }
     fn label(&self) -> &'static str {
         "memory"
