@@ -2,6 +2,7 @@ use super::*;
 use crate::{authority::{AuthorityTransaction, test_cases}, rows::{Rows, PrefetchRequest}, schema::Index, value::object};
 
 mod caps;
+mod delivery;
 mod expiring_counts;
 
 #[test]

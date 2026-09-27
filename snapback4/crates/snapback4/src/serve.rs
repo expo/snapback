@@ -1120,6 +1120,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             #[serde(skip_serializing_if = "Option::is_none")]
+                            delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
+                            #[serde(skip_serializing_if = "Option::is_none")]
                             ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
                             complete: bool,
                             cut: Option<snapback4_core::engine::ReadCut>,
@@ -1146,7 +1148,9 @@ fn handle(mut request: Request, shared: &Shared) {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
                             let m = outcome.metered;
                             let cut = if outcome.capped_at.is_some() { Some("meter") } else if outcome.word_cut_at.is_some() { Some("words") } else { None };
-                            json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut })
+                            let mut meter = json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut });
+                            if let Some(delivery) = &outcome.delivery_meter { meter["delivery"] = json!(delivery); }
+                            meter
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
@@ -1156,7 +1160,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {
@@ -1194,7 +1198,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         return ephemeral::serve(request, shared, &op, &body);
                     }
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
-                    if matches!(&outcome, Ok(outcome) if matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
+                    if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
                     (outcome, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };

@@ -3,19 +3,30 @@
 use super::{ObjectFields, Value, object};
 use std::sync::Arc;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct SourceIdentity {
     pub table: String,
     pub id: String,
+    #[cfg(feature = "sqlite")]
+    pub(crate) delivery: Option<Arc<crate::engine::delivery::Image>>,
 }
+impl PartialEq for SourceIdentity {
+    fn eq(&self, other: &Self) -> bool { self.table == other.table && self.id == other.id }
+}
+impl Eq for SourceIdentity {}
 impl ObjectFields {
     pub fn source_identity(&self) -> Option<&SourceIdentity> {
-        self.2.as_deref()
+        #[cfg(feature = "sqlite")]
+        { self.2.as_deref().filter(|s| !s.table.is_empty()) }
+        #[cfg(not(feature = "sqlite"))]
+        { self.2.as_deref() }
     }
     pub(crate) fn set_source(&mut self, table: &str, id: &str) {
         self.2 = Some(Arc::new(SourceIdentity {
             table: table.into(),
             id: id.into(),
+            #[cfg(feature = "sqlite")]
+            delivery: None,
         }));
     }
     pub(crate) fn inherit_source(&mut self, bases: &[Value]) {
@@ -25,12 +36,16 @@ impl ObjectFields {
                 return;
             };
             let Some(identity) = &fields.2 else { return };
+            #[cfg(feature = "sqlite")]
+            if identity.table.is_empty() { return; }
             if source.as_ref().is_some_and(|prior| prior != identity) {
                 return;
             }
             source = Some(identity.clone());
         }
         self.2 = source;
+        #[cfg(feature = "sqlite")]
+        { self.3 = false; }
     }
 }
 impl Value {
@@ -89,5 +104,23 @@ impl Value {
             Self::Array(items) => Self::Array(items.iter().map(Self::retained_rows_mask).collect()),
             _ => Self::Null,
         }
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl SourceIdentity {
+    pub(crate) fn with_delivery(table: &str, id: &str, image: crate::engine::delivery::Image) -> Self {
+        Self { table: table.into(), id: id.into(), delivery: Some(Arc::new(image)) }
+    }
+}
+#[cfg(feature = "sqlite")]
+impl ObjectFields {
+    pub(crate) fn delivery_image(&self) -> Option<&crate::engine::delivery::Image> {
+        if self.3 { self.2.as_ref()?.delivery.as_deref() } else { None }
+    }
+    pub(crate) fn clear_delivery(&mut self) { self.3 = false; }
+    pub(crate) fn replace_source(&mut self, source: SourceIdentity) { self.2 = Some(Arc::new(source)); self.3 = true; }
+    pub(crate) fn set_delivery(&mut self, table: &str, id: &str, image: crate::engine::delivery::Image) {
+        self.replace_source(SourceIdentity::with_delivery(table, id, image));
     }
 }

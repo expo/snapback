@@ -160,7 +160,8 @@ impl PostgresEngine {
         runner.meter.used = self.precharge;
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
-        let outcome = QueryOutcome { ephemeral: None,
+        let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+        let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()
@@ -265,10 +266,16 @@ impl PostgresEngine {
         let outcome = match ran {
             Ok(result) => {
                 tx.batch("RELEASE SAVEPOINT program")?;
-                tx.record_commit(seq, now, &program.name, &viewer, program.kind.word(), &tables, writes)?;
-                partition::append(&tx, seq, &events)?;
-                tx.record_effects(&outbox, seq, now)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
+                // @ref LLP 3000.022#6 — same receipt-only transaction and committed watermark as SQLite.
+                let receipt_only = writes == 0 && outbox.is_empty()
+                    && self.schema.delivery.iter().any(|binding| binding.mutation == program.name);
+                let seq = seq - u64::from(receipt_only);
+                if !receipt_only {
+                    tx.record_commit(seq, now, &program.name, &viewer, program.kind.word(), &tables, writes)?;
+                    partition::append(&tx, seq, &events)?;
+                    tx.record_effects(&outbox, seq, now)?;
+                }
+                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_program()?;
@@ -377,7 +384,7 @@ impl PostgresEngine {
 }
 
 fn failed(why: Refusal, current: Option<Value>, metered: Metered) -> MutationOutcome {
-    MutationOutcome { state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
+    MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
 }
 
 fn retry_transaction(error: &RuntimeError) -> bool {

@@ -33,13 +33,13 @@ pub enum Value {
 // Row images are shared immutably (`Arc`) so a result, a page head and a
 // partition event can hold one copy; serialization is the plain map.
 #[derive(Clone, Debug, Eq, Default)]
-pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool, Option<std::sync::Arc<SourceIdentity>>);
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool, Option<std::sync::Arc<SourceIdentity>>, #[cfg(feature = "sqlite")] bool);
 impl PartialEq for ObjectFields {
     fn eq(&self, other: &Self) -> bool { self.0 == other.0 && self.1 == other.1 }
 }
 impl From<BTreeMap<String, Value>> for ObjectFields {
     fn from(value: BTreeMap<String, Value>) -> Self {
-        Self(std::sync::Arc::new(value), false, None)
+        Self(std::sync::Arc::new(value), false, None, #[cfg(feature = "sqlite")] false)
     }
 }
 impl FromIterator<(String, Value)> for ObjectFields {

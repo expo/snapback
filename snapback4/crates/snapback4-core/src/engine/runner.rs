@@ -76,6 +76,8 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
+    #[cfg(feature = "sqlite")]
+    pub(super) delivery: super::delivery::Tracking,
     pub(crate) tx: super::authorized_scan::GuardedRows<'a>,
     pub(crate) schema: &'a Schema,
     pub(crate) context: Context,
@@ -236,6 +238,8 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
+            #[cfg(feature = "sqlite")]
+            delivery: Default::default(),
             tx: super::authorized_scan::GuardedRows::new(tx),
             schema,
             context,
@@ -575,6 +579,8 @@ impl<'a> Runner<'a> {
     }
 
     fn bind(&mut self, name: &str, value: Value) {
+        #[cfg(feature = "sqlite")]
+        self.clear_delivery_variable(name);
         self.effect_presence.variables.remove(name);
         self.env.insert(name.to_owned(), value);
     }
@@ -660,6 +666,8 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
+        #[cfg(feature = "sqlite")]
+        { self.delivery.last = None; }
         #[cfg(not(target_arch = "wasm32"))]
         { self.effect_presence.absent = None; }
         let result = self.presence_expr(expression);
@@ -667,6 +675,8 @@ impl<'a> Runner<'a> {
         if !matches!(expression, Expr::Variable(_) | Expr::Binary { .. } | Expr::Unary { op: UnaryOp::Not, .. } | Expr::Builtin { builtin: Builtin::Connected, .. }) {
             self.effect_presence.absent = None;
         }
+        #[cfg(feature = "sqlite")]
+        if !matches!(expression, Expr::Variable(_) | Expr::Field { .. } | Expr::Block { .. }) { self.delivery.last = None; }
         result
     }
 
@@ -679,6 +689,8 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
+                #[cfg(feature = "sqlite")]
+                self.delivery_variable(name);
                 #[cfg(not(target_arch = "wasm32"))]
                 { self.effect_presence.absent = self.effect_presence.variables.get(name).and_then(|v| v.absent); }
                 let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
@@ -691,6 +703,8 @@ impl<'a> Runner<'a> {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     self.provisional_sequence_read |= self.sequence_field_is_provisional(base, name)?;
+                    #[cfg(feature = "sqlite")]
+                    { if let Value::Row(fields) | Value::Map(fields) = base { self.delivery.field(fields, name); } }
                     let value = base.field(name)?;
                     self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                     return Ok(value.clone());
@@ -700,6 +714,8 @@ impl<'a> Runner<'a> {
                     Value::Null => Ok(Value::Null),
                     other => {
                         self.provisional_sequence_read |= self.sequence_field_is_provisional(&other, name)?;
+                        #[cfg(feature = "sqlite")]
+                        self.delivery_field(&other, name);
                         let value = other.field(name)?;
                         self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                         Ok(value.clone())
@@ -719,12 +735,17 @@ impl<'a> Runner<'a> {
             Expr::Shape { base, fields } => {
                 // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
                 let base = self.expr(base)?;
+                #[cfg(feature = "sqlite")]
+                let (mut fields, origins) = self.delivery_fields(fields)?;
+                #[cfg(not(feature = "sqlite"))]
                 let mut fields: crate::value::ObjectFields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<_, RuntimeError>>()?;
                 // @ref LLP 3000.014#5 — retained history stays marked through projections.
                 // A spread can merge multiple row bases. Application fields named
                 // retained are ordinary data; only the reader creates provenance.
                 let bases = if let Value::Array(bases) = &base { bases.as_slice() } else { std::slice::from_ref(&base) };
                 fields.inherit_source(bases);
+                #[cfg(feature = "sqlite")]
+                self.project_delivery(&mut fields, origins);
                 for base in bases {
                     if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                     if matches!(base, Value::Row(base) | Value::Map(base) if base.is_retained()) { fields.mark_retained(); }
@@ -734,8 +755,17 @@ impl<'a> Runner<'a> {
                 Ok(value)
             }
             Expr::Object(values) => {
-                let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-                let value = Value::Row(fields.into());
+                #[cfg(feature = "sqlite")]
+                let value = {
+                    let (mut fields, origins) = self.delivery_fields(values)?;
+                    self.project_delivery(&mut fields, origins);
+                    Value::Row(fields)
+                };
+                #[cfg(not(feature = "sqlite"))]
+                let value = {
+                    let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+                    Value::Row(fields.into())
+                };
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }

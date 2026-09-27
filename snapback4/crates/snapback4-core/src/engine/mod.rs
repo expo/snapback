@@ -45,6 +45,8 @@ mod read_point;
 #[cfg(all(test, feature = "sqlite"))]
 mod read_candidate;
 mod provenance;
+#[cfg(feature = "sqlite")]
+pub mod delivery;
 mod expiry;
 pub mod rules;
 pub mod runner;
@@ -237,6 +239,12 @@ pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
+    #[cfg(feature = "sqlite")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<delivery::Manifest>,
+    #[cfg(feature = "sqlite")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_meter: Option<delivery::DeliveryMeter>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ephemeral: Option<crate::schema::ephemeral::Version>,
     pub data: Value,
@@ -272,6 +280,9 @@ pub enum WriteState {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "sqlite", derive(Deserialize))]
 pub struct MutationOutcome {
+    /// A delivery report retained only a receipt; persists across replay.
+    #[serde(skip)]
+    pub receipt_only: bool,
     #[serde(flatten)]
     pub state: WriteState,
     pub metered: Metered,
@@ -902,7 +913,8 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+                let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -919,7 +931,8 @@ impl Engine {
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
-        let outcome = QueryOutcome { ephemeral: version,
+        let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+        let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
@@ -996,8 +1009,8 @@ impl Engine {
         // Signals bypass the replay table even when their correlation id was used before.
         if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
             return match self.mutate_ephemeral(name, context) {
-                Ok(out) => Ok(MutationOutcome { state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
-                Err(error) if error.is_refusal() => Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
+                Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
+                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
                 Err(error) => Err(error),
             };
         }
@@ -1019,7 +1032,7 @@ impl Engine {
             return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
         }
         if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
-            return Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
+            return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
         }
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
@@ -1078,12 +1091,18 @@ impl Engine {
         let outcome = match ran {
             Ok(result) => {
                 tx.release("program")?;
-                let seq = tx.next_seq()?;
+                // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
+                // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
+                let receipt_only = rows_written == 0 && outbox.is_empty()
+                    && self.schema.delivery.iter().any(|binding| binding.mutation == name);
+                let seq = tx.next_seq()? - u64::from(receipt_only);
                 read_tables.extend(tables.iter().cloned());
-                tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
-                partition::append(&tx, seq, &events)?;
-                effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
+                if !receipt_only {
+                    tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
+                    partition::append(&tx, seq, &events)?;
+                    effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                }
+                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;
@@ -1095,7 +1114,7 @@ impl Engine {
                     }
                     _ => None,
                 };
-                MutationOutcome { state: WriteState::Failed { why: error.refusal(), current }, metered, tables: Vec::new(), events: 0, replayed: false }
+                MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current }, metered, tables: Vec::new(), events: 0, replayed: false }
             }
             Err(error) => {
                 tx.rollback()?;
