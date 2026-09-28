@@ -1,5 +1,5 @@
 import { deliveryCommit } from "./local-device.ts";
-import { deviceRestore, restoreRefusal, restoreWitness } from "./device-restore.ts";
+import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
 import { deviceControl, coldSnapshot, coldReplyStatus, type DeviceControlSnapshot } from "./device-control.ts";
 import { publishDelivery } from "./local-publication.ts";
 import { localDelivery } from "./local-delivery.ts";
@@ -300,6 +300,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const witnessRestore = restoreWitness(call, () => generation, refuseRestore,
     () => { deliveryWitness = true; deliveryQueue?.available(); });
+  const witnessColdRestore = coldRestoreWitness((evidence, validated) => core[deviceRestore]!(evidence, validated),
+    () => partitionDenied, refuseRestore, () => { partitionDenied = null; pending.notify(); if (!closed && !sessionDead) void client.sync().catch(() => {}); });
   async function captureStore(): Promise<StoreCapture | undefined> {
     const reply = await call({ op: "sync_state", capture: false });
     if (reply.denied) return;
@@ -542,9 +544,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const status = coldReplyStatus(control, json);
         const now = core[deviceControl]?.();
         if (status === "restore" && request.revision === credentialRevision && (!now || (now.transfer_store_id ?? now.store_id) === json.store_id)) {
-          const work = core[deviceRestore]!({ storeId: String(json.store_id), head: Number(json.head ?? json.seq), capture: control });
+          const work = witnessColdRestore({ storeId: String(json.store_id), head: Number(json.head ?? json.seq), capture: control }, !now);
           active.add(work); void work.finally(() => active.delete(work)).catch(() => {});
-          refuseRestore(restoreRefusal());
         }
         if (status !== "match") return { ok: false };
       } else if (path.startsWith("/q/") && (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id) || await witnessRestore(json.store_id, json.head ?? json.seq, capture))) delete json.delivery;
@@ -554,7 +555,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return { ok: false };
     }
   }
-  // ----- the stream -----
   async function refusePartition(denied: Refusal, revision: number) {
     await refusedSession(denied, revision);
     if (!denied.retryable && partitionDenied?.code !== "E_STORE_RESTORE") {

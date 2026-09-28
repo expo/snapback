@@ -35,8 +35,9 @@ async function afterWorker(locks: LockManager, name: string, release: () => Prom
     });
     return { name, release };
   } catch (error) {
-    // Failed quiescence is not permission to pass custody. Navigation releases
-    // this page lock; a replacement owner must establish the barrier again.
+    // No device opened under this claim. Every later claimant must establish
+    // the barrier again; abandoning this lock would force retries off-store.
+    await release();
     throw error;
   }
 }

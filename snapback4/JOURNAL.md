@@ -72534,3 +72534,66 @@ page-destruction limitation as ordinary queued observation; no synchronous
 restore journal or physical-power-loss guarantee is claimed. Worker failure
 with a surviving page, durable refusal, close and offline reopen are tested.
 All local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-28 — SS round 8: obsolete restore fences and failed initial claims
+
+First fetched and merged origin/main a745b110f in 1366c700c, without conflicts;
+read rounds 0–7's prompts/reports/SS entries, Astra's full round-7 NOT READY
+review and Grok's rounds-4–6 review. Grok round 7 had progress only at startup.
+Nothing pushed or published; no tool installed.
+
+A cold restore proof captured from A while page identity is unavailable now
+fences provisionally. After commit acknowledgement, the Worker host reports
+its identity validation through a callback retained with the original proof
+across failed attempts and restarts. Replacement B retires only A's obsolete
+provisional refusal and resyncs the client. Per-store pending proofs and page
+fences preserve overlapping evidence and confirmed ordinary/cold refusals.
+Two real Chromium client/Worker/wasm/IDB cases hold A's floor-100 query while
+sync installs B, crash the Worker, deliver A at 90 with control absent, then
+recover B. Reads and action dispatch recover and offline reopen has no refusal.
+One case interrupts validation before commit and proves callback retention.
+
+The shared initial claim's failed readonly quiescence probe now awaits release
+before rethrowing. Both default and Worker browser cases reject the first open
+without an abandoned app lock, retry on app with a new barrier, create no tab
+store, and release the claim on close. Running-owner termination custody is
+unchanged. The prediction witness now requires the complete messages plus
+messageCounts footprint after admission acknowledgement and independently
+blocks a server query depending on messageCounts but not messages.
+
+Added five control tests and four browser cases; strengthened the footprint
+case. Five isolated semantic mutants are killed: obsolete refusal remains
+sticky, failed initial claim leaks, derived footprint omitted, same omission
+without exact-footprint assertion, callback forgotten before failed validation
+commit. No page errors in final Worker protocol/watch evidence. LLP 3000.007
+§20.4 records the decision; no new public form, Rust/wasm ABI, meter,
+authorization rule or persistence format. Local.ts remains at 1,500 lines.
+
+Qualification: web/clock 198/198; sync-scale/repair-B/generation/store-reset
+158 passed and one existing skip; Worker controls 24/24; Worker protocol
+44/44; busy-Worker watches 5/5; navigation default/Worker 10/10 each; whole
+guide 92/92. Build/typecheck, references, whitespace and source lengths pass.
+Both IDB modes retain the two baseline adoptionRejected/adoptionUnlocked
+assertions (deferred recovery versus eager-open fixture); their ticket stays
+open. Setup errors were corrected and recorded, not counted as passing runs.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1422 s`, exit 1, client
+tests. Rust 4,162 passed / 0 failed / 30 ignored; client tests 3,925 passed /
+1 failed / 10 skipped; models 79/79; fixture wrappers 9/9. All build, budget,
+release and app checks pass. The only suite failure is the baseline wasm
+mounted ephemeral-interest adoption timing assertion (ephemeral-adoption.test.mjs
+line 92, <=500 ms). Its exercised paths are unchanged and use a default memory
+device. Three isolated pre-round controls pass at 24.48/35.53/33.83 ms and
+current controls at 33.35/30.11/49.83 ms. Scheduling is a possible cause; the
+full-run delay remains unlocalized, and passing controls do not clear it.
+Updated the existing dev-adoption timing ticket. No suite rerun or relaxed bound.
+
+Wasm after the suite is unchanged: 2,019,815 B raw / 585,384 B GNU file-input
+gzip-9, delta 0/0, 809 B below unchanged 586,193 B cap; SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+No new scale/platform/Worker-memory measurement or independent READY verdict.
+Historical performance and pre-durable-commit page-destruction limits remain.
+Detailed file map, forms, all failures, reproduction and retained evidence:
+reports/20260927-ss-sync-scale/ROUND8.md and round8-* in that directory.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

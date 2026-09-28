@@ -3,7 +3,7 @@ import type { DeviceOpening } from "./local-device.ts";
 import type { JournalInvoke } from "./web-journal-execution.ts";
 import { indexedDbStore } from "./web-idb.ts";
 import { PageDeviceControl } from "./device-control.ts";
-import { restoreFloor, restoreObservation, type RestoreEvidence } from "./device-restore.ts";
+import { restoreFloor, restoreObservation, type RestoreEvidence, type RestoreValidation } from "./device-restore.ts";
 
 type Reply = Record<string, any>;
 export type WorkerWasmSource = string | BufferSource | WebAssembly.Module;
@@ -38,10 +38,12 @@ export class WebWorkerHost {
   private opened = false;
   private opening: Promise<Change[]> | undefined;
   private released: Promise<void> | undefined;
-  private restore: RestoreEvidence | undefined;
+  private readonly restores = new Map<string, { evidence: RestoreEvidence; validated: ((outcome: RestoreValidation) => void)[] }>();
 
-  fenceRestore(evidence: RestoreEvidence): Promise<void> {
-    this.restore ??= { ...evidence, capture: { ...evidence.capture } };
+  fenceRestore(evidence: RestoreEvidence, validated: (outcome: RestoreValidation) => void = () => {}): Promise<void> {
+    let pending = this.restores.get(evidence.storeId);
+    if (!pending) this.restores.set(evidence.storeId, pending = { evidence: { ...evidence, capture: { ...evidence.capture } }, validated: [] });
+    pending.validated.push(validated);
     this.control.refuseRestore(evidence.storeId);
     this.invalidatePreparation();
     // Queue now; already queued transactions also drain the proof first.
@@ -49,8 +51,11 @@ export class WebWorkerHost {
   }
 
   private async persistRestore(): Promise<void> {
-    const proof = this.restore;
-    if (!proof) return;
+    for (const [storeId, pending] of this.restores) await this.persistRestoreProof(storeId, pending);
+  }
+
+  private async persistRestoreProof(storeId: string, pending: { evidence: RestoreEvidence; validated: ((outcome: RestoreValidation) => void)[] }): Promise<void> {
+    const proof = pending.evidence;
     const { ok: state, denied } = await this.rpc({ action: "invoke", request: { op: "sync_state", capture: false } });
     if (denied || !state) throw new Error("cannot persist the captured restore observation");
     if ((state.transfer_store_id ?? state.store_id) === proof.storeId && !state.restore_refusal) {
@@ -65,7 +70,10 @@ export class WebWorkerHost {
     }
     const reply = await this.rpc({ action: "commit", extra: [] });
     this.remember(reply.journal); this.control.publish(reply.control);
-    this.restore = undefined; // A failed save/Worker restart must retain it.
+    this.restores.delete(storeId); // A failed save/Worker restart must retain it.
+    const refusal = reply.control.restore_refusal;
+    if ((reply.control.transfer_store_id ?? reply.control.store_id) !== storeId) this.control.retireRestore(storeId);
+    for (const validated of pending.validated) validated(refusal ? { status: "refused", denied: refusal } : { status: "obsolete" });
   }
 
   constructor(private readonly claim: PersistenceClaim,

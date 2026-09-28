@@ -153,7 +153,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
   };
   const core: DeviceCore = {
     [deviceControl]: () => host.control.read(),
-    [deviceRestore]: evidence => host.fenceRestore(evidence),
+    [deviceRestore]: (evidence, validated) => host.fenceRestore(evidence, validated),
     onOutbox(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     onSuspend: flush => suspension.onSuspend(flush),
     media: {

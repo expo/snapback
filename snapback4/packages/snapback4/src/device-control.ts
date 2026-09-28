@@ -39,7 +39,7 @@ export class PageDeviceControl {
   private revision = 0;
   private readonly pendingAdmissions = new Set<string>();
   private barriers = 0;
-  private restoredStore: string | undefined;
+  private readonly restoredStores = new Set<string>();
 
   publish(snapshot: DeviceControlSnapshot): void {
     if (snapshot.queuedRevision !== this.durable?.queuedRevision) this.revision++;
@@ -53,11 +53,12 @@ export class PageDeviceControl {
     return () => { if (!ended) { ended = true; this.barriers--; this.revision++; } };
   }
   discard(): void { this.durable = undefined; this.revision++; }
-  refuseRestore(storeId: string): void { this.restoredStore = storeId; this.revision++; }
+  refuseRestore(storeId: string): void { this.restoredStores.add(storeId); this.revision++; }
+  retireRestore(storeId: string): void { if (this.restoredStores.delete(storeId)) this.revision++; }
   read(): DeviceControlSnapshot | undefined {
     if (!this.durable) return;
     return { ...this.durable, queuedRevision: this.revision,
-      ...(this.restoredStore !== undefined && (this.durable.transfer_store_id ?? this.durable.store_id) === this.restoredStore ? { restore_refusal: restoreRefusal() } : {}),
+      ...(this.restoredStores.has(this.durable.transfer_store_id ?? this.durable.store_id ?? "") ? { restore_refusal: restoreRefusal() } : {}),
       predictions: this.pendingAdmissions.size || this.barriers ? null : this.durable.predictions };
   }
 }

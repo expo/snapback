@@ -8,11 +8,13 @@ import { join, extname, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
 import { chromiumExecutable, root } from './lib.mjs';
 import { webShell } from '../packages/snapback4/bin/web-shell.js';
+import { replacementEntry, replacementWorker } from './worker-restore-replacement.mjs';
 
 const out = resolve(process.argv[2] ?? join(root, 'target/lane-ss-round4/worker-protocol.json'));
 const dir = join(root, 'target/lane-ss-round4/worker-protocol');
 mkdirSync(dir, { recursive: true });
 const sdk = join(root, 'packages/snapback4/dist');
+writeFileSync(join(dir, 'replacement-worker.js'), replacementWorker(sdk));
 const schema = JSON.parse(readFileSync(join(root, 'packages/snapback4/test/chat-schema.json'), 'utf8'));
 writeFileSync(join(dir, 'index.html'), '<!doctype html><script type="module" src="/entry.js"></script>');
 writeFileSync(join(dir, 'fault-worker.js'), `
@@ -63,6 +65,8 @@ import { EphemeralReads } from '${sdk}/ephemeral-reads.js';
 import { AdmissionJournal } from '${sdk}/web-journal.js';
 import { indexedDbPersistence, webDevice } from '${sdk}/web.js';
 const backend = ${JSON.stringify(schema)};
+backend.programs.push({ name: 'countOnly', kind: 'Query', args: { conversationId: { Ref: { table: 'conversations' } } },
+  body: [{ Return: { Get: { table: 'messageCounts', index: 'byGroup', key: [{ Variable: 'conversationId' }], provenance: 'Shape', site: 'countOnly' } } }] });
 const persist = indexedDbPersistence();
 const cores = new Map();
 const ok = reply => { if (reply.denied) throw new Error(JSON.stringify(reply)); return reply.ok; };
@@ -126,6 +130,25 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
+  async claimFailure(worker) {
+    await persist.save('app', [{ s: 'm', k: 'probe', v: 'present' }]);
+    const transaction = IDBDatabase.prototype.transaction;
+    let probes = 0, error;
+    IDBDatabase.prototype.transaction = function(stores, mode, ...rest) {
+      if (this.name === 'app' && mode === 'readonly' && ++probes === 1) throw Error('injected readonly IDB abort');
+      return transaction.call(this, stores, mode, ...rest);
+    };
+    const held = async () => (await navigator.locks.query()).held.map(lock => lock.name).filter(name => name === 'app' || name.startsWith('app:tab-'));
+    let core;
+    try {
+      try { core = await webDevice({ worker }).open('app', backend); } catch (e) { error = String(e); }
+      const afterFailure = await held();
+      core = await webDevice({ worker }).open('app', backend);
+      const afterRetry = await held(), stores = await persist.others('app');
+      await core.close(); core = undefined;
+      return { error, probes, afterFailure, afterRetry, afterClose: await held(), stores };
+    } finally { IDBDatabase.prototype.transaction = transaction; await core?.close(); }
+  },
   async predictionFootprint() {
     const core = cores.get('footprint');
     const durable = (await persist.load('footprint')).filter(c => c.s === 'o').map(c => JSON.parse(c.v));
@@ -142,7 +165,8 @@ window.w = { open, call, recover, capture, admit, counts, records, first, second
       installNative: async () => false, notify() {}, offline: () => ({ code: 'E_OFFLINE' }),
       deviceNow: () => 20, serverNow: () => 20, serverAnswers: new RememberedAnswers().view() };
     const answer = await evaluateLocal(env, { name: 'thread', kind: 'query' }, { conversationId: 'c1' }, 0, 0);
-    return { snapshot, durable, posts, answer: answer.read };
+    const count = await evaluateLocal(env, { name: 'countOnly', kind: 'query' }, { conversationId: 'c1' }, 0, 0);
+    return { snapshot, durable, posts, answer: answer.read, count: count.read, countTables: [...count.tables] };
   },
   async preparationFailure(refuse) {
     const core = cores.get('preparation');
@@ -229,6 +253,7 @@ window.w = { open, call, recover, capture, admit, counts, records, first, second
     return result;
   },
 };
+${replacementEntry(sdk)}
 `);
 const require = createRequire(join(root, 'apps/chat/package.json'));
 const { build } = await import(require.resolve('vite'));
@@ -265,6 +290,26 @@ const run = async (name, body) => {
   console.log(`${results.at(-1).ok ? 'PASS' : 'FAIL'} ${name}`);
 };
 try {
+  for (const failValidation of [false, true]) await run('obsolete A proof retires only its provisional refusal after B restart' + (failValidation ? ' and validation retry' : ''), async page => {
+    const result = await page.evaluate(failed => window.replacementRestore(failed), failValidation);
+    assert.equal(result.capture.store_id, 'A'); assert.equal(result.capture.restore_images_at, 100);
+    assert.equal(result.before.store_id, 'B'); assert.equal(result.before.restore_refusal, undefined);
+    assert.equal(result.unavailable, true); assert.equal(result.provisional.denied?.code, 'E_STORE_RESTORE');
+    assert.equal(result.blockedAction.denied?.code, 'E_STORE_RESTORE'); assert.equal(result.sentWhileProvisional, 0);
+    assert.deepEqual(result.validations, [{ status: 'obsolete' }]);
+    assert.equal(result.after.store_id, 'B'); assert.equal(result.after.restore_refusal, undefined);
+    for (const read of [result.read, result.offline]) { assert.equal(read.denied, undefined); assert.ok(Array.isArray(read.data)); }
+    assert.equal(result.action.denied, undefined); assert.equal(result.actions, 1); return result;
+  });
+  for (const worker of [false, true]) await run('failed quiescence releases primary claim: ' + (worker ? 'Worker' : 'default'), async page => {
+    const result = await page.evaluate(worker => w.claimFailure(worker), worker);
+    assert.match(result.error, /injected readonly IDB abort/);
+    assert.deepEqual(result.afterFailure, [], 'failed open leaves no abandoned lock');
+    assert.deepEqual(result.afterRetry, ['app'], 'same-document retry owns the primary');
+    assert.deepEqual(result.afterClose, []);
+    assert.ok(result.probes >= 2, 'retry repeats the readonly quiescence barrier');
+    assert.deepEqual(result.stores.filter(name => name.startsWith('app:tab-')), []); return result;
+  });
   await run('new offline device refuses before Worker startup and releases its claim', async page => {
     const result = await page.evaluate(async () => {
       const NativeWorker = window.Worker; let starts = 0, error;
@@ -321,9 +366,11 @@ try {
     });
     assert.equal(result.admitted.ok.predictable, true);
     assert.ok(result.durable[0].predicted.includes('messages/predicted-write'));
-    assert.ok(result.snapshot.predictions.includes('messages'), 'real runtime, no pending admission barrier');
+    assert.deepEqual([...result.snapshot.predictions].sort(), ['messageCounts', 'messages'], 'complete real runtime footprint after acknowledgement');
     assert.equal(result.snapshot.acquired, false); assert.equal(result.posts, 0);
-    assert.deepEqual(result.answer, { loading: true }); return result;
+    assert.deepEqual(result.answer, { loading: true });
+    assert.ok(result.countTables.includes('messageCounts')); assert.ok(!result.countTables.includes('messages'));
+    assert.deepEqual(result.count, { loading: true }, 'derived count alone blocks the server answer'); return result;
   });
   for (const refuse of [false, true]) await run('exit preparation failure preserves known admission ' + (refuse ? 'refusal' : 'success'), async page => {
     const result = await page.evaluate(async refuse => {

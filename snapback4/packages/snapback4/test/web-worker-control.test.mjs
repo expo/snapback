@@ -4,6 +4,7 @@ import { PageDeviceControl, coldReadControl, coldSnapshot, coldReplyStatus } fro
 import { evaluateLocal } from '../dist/local-query.js';
 import { RememberedAnswers } from '../dist/local-reads.js';
 import { EphemeralReads } from '../dist/ephemeral-reads.js';
+import { coldRestoreWitness, restoreRefusal } from '../dist/device-restore.js';
 
 const snapshot = (changes = {}) => ({ store_id: 'store', transfer_store_id: 'store', generation: 1,
   acquired: false, acquisition: 1, queuedRevision: 0, issuedFloor: 10, predictions: [],
@@ -95,6 +96,41 @@ test('page restore refusal survives later publication and Worker restart', () =>
   assert.equal(coldSnapshot(() => page.read(), true, 1), undefined);
   page.discard(); page.publish(snapshot());
   assert.equal(page.read().restore_refusal.code, 'E_STORE_RESTORE');
+});
+test('obsolete proof retires only its provisional fence, not another unresolved store', async () => {
+  let denied = null, retired = 0;
+  const validated = [];
+  const witness = coldRestoreWitness(async (_proof, done) => { validated.push(done); },
+    () => denied, next => { denied = next; }, () => { denied = null; retired++; });
+  for (const storeId of ['A', 'B']) await witness({ storeId, head: 90, capture: snapshot({ watermark: 100 }) }, true);
+  validated[0]({ status: 'obsolete' });
+  assert.equal(denied.code, 'E_STORE_RESTORE'); assert.equal(retired, 0);
+  validated[1]({ status: 'obsolete' });
+  assert.equal(denied, null); assert.equal(retired, 1);
+});
+for (const observer of ['ordinary', 'cold', 'host']) test(`obsolete provisional completion cannot clear a ${observer} confirmed refusal`, async () => {
+  let denied = null;
+  const validated = [];
+  const witness = coldRestoreWitness(async (_proof, done) => { validated.push(done); },
+    () => denied, next => { denied = next; }, () => { denied = null; });
+  const proof = { storeId: 'A', head: 90, capture: snapshot({ watermark: 100 }) };
+  await witness(proof, true);
+  if (observer === 'ordinary') denied = restoreRefusal();
+  else {
+    await witness({ ...proof, storeId: 'B' }, observer === 'host');
+    validated[1]({ status: 'refused', denied: restoreRefusal() });
+  }
+  const confirmed = denied;
+  validated[0]({ status: 'obsolete' });
+  assert.equal(denied, confirmed); assert.equal(denied.code, 'E_STORE_RESTORE');
+});
+test('retiring an obsolete page fence leaves another store fenced through restart', () => {
+  const page = new PageDeviceControl(); page.publish(snapshot({ store_id: 'B', transfer_store_id: 'B' }));
+  page.refuseRestore('A'); page.refuseRestore('B'); page.retireRestore('A');
+  page.discard(); page.publish(snapshot({ store_id: 'B', transfer_store_id: 'B' }));
+  assert.equal(page.read().restore_refusal.code, 'E_STORE_RESTORE');
+  page.publish(snapshot({ store_id: 'A', transfer_store_id: 'A' }));
+  assert.equal(page.read().restore_refusal, undefined);
 });
 test('a transient Worker fence withholds cold fallback without queueing a VM read', async () => {
   const f = fixture(); const unblock = f.page.block();
