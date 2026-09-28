@@ -1,0 +1,26 @@
+{
+  "command": "ulimit -n 4096; bash scripts/test.sh",
+  "runs": 1,
+  "exit": 1,
+  "summary": "== 2 failure(s) in 1378 s",
+  "failed_stages": [
+    "client tests",
+    "client models"
+  ],
+  "client": {
+    "tests": 4810,
+    "pass": 4798,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 10
+  },
+  "models": {
+    "tests": 79,
+    "pass": 78,
+    "fail": 0,
+    "cancelled": 1
+  },
+  "all_full_failures_classification": "ours",
+  "baseline_failures": 0,
+  "environmental_failures": 0
+}

@@ -13,7 +13,7 @@ function fixture() {
     offline: () => { link = 'offline'; lane.linkChanged(); },
     fetch: async (url, init) => new Promise((resolve, reject) => calls.push({ url, body: JSON.parse(init.body),
       done: (result = null) => resolve(Response.json({ state: 'sent', result })),
-      fail: code => resolve(Response.json({ state: 'failed', why: { code, family: 'auth', retryable: true } })),
+      fail: code => resolve(Response.json({ state: 'failed', why: { code, family: 'auth', message: 'refused', retryable: true } })),
       reject,
     })),
   });

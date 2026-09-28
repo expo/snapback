@@ -75249,3 +75249,423 @@ ac18ec094d1c596bda96caa164870f25192a1463397f5bd97f57e436338fe0bc.
 No fresh wasm build or native UI qualification claimed. Report:
 reports/20260928-lv-hook-retention/round5/REPORT.md. No tool installation,
 push, publication or deployment. Local commit carries the GPT-6 Astra co-author.
+
+## 2026-09-28 — Lane FU: fresh replay uploads and HTTP overload diagnostics
+
+Merged origin/main first (already current at f6ccc4a513). Reproduced only from
+worktree-local copies of the 0.4.7 Grok lane, its installed pins, program and
+instrument. The comparative packet and other lanes were not modified. Applied
+llp-orient; scoped constraints and evidence are in
+reports/20260928-fu-fresh-replay-uploads/REPORT.md.
+
+The published binary completes all 167,157 actions, both checkpoint hashes and
+2,015 uploads with --fresh --replay when the driver waits for writes (883.114 s).
+Exporting its intended zero-wait/admit-pending settings reproduces the failure
+after the same 10% prefix (43.222 s; img-01 rather than original img-04). Pending
+writes flood the 128-connection cap; old tiny_http closes excess sockets and the
+old SDK says unreachable. The server remains alive, answers HTTP 401 afterward,
+and exits 143 only on the harness's recorded SIGTERM. No asset-store, disk,
+panic or accept-loop failure. Peak 563 descriptors; Node raises its inherited
+1024 shell soft limit to 1,048,576 before spawning the server. Original server
+logs/environment were not retained, so exact historical scheduling is unknown.
+The adapter captures replay env during static import, before its launch script's
+assignments, and its fast mode counts pending actions as settled.
+
+Keep caps, worker counts, asset/WAL behavior and retry budgets. Excess connections
+now receive a nonblocking HTTP 503 E_RATE_LIMIT attempt without a parser or worker;
+log the cap and remedy at most once per second. Invalid upload envelopes report
+E_HTTP_RESPONSE with status and unknown outcome; actual transport failures retain
+their cause. Store errors log their code/cause. Dev/serve and doctor report caps
+and actual descriptor limits; E_HTTP_LIMIT below 1024 advises ulimit -n 1024 and
+hard-limit repair, never auto-raises. E_HTTP_LISTENER retains accept's OS error.
+Sustained unbounded fast replay can still lose a refusal as a reset: fixed-client
+comparison reports UND_ERR_SOCKET, while the server log identifies saturation.
+No promise of accepting that load or treating pending dependencies as settled.
+
+Smallest regression: cap two, hold two sockets, check the third refusal and idle
+lease cleanup. Real SDK regression saturates 128 sockets on fresh/replay and
+uploads successfully after release. Before-fix server regression and five SDK
+invalid-envelope controls fail as intended. Affected checks: 111 client cases,
+133 HTTP cases (three existing ignored), low-limit subprocess, all 98 guide cases.
+Whole scripts/test.sh invoked once: exit 0, zero failures in 1,336 s; Rust 4,274
+pass / 33 ignored, main client batch 4,369 pass / 10 skipped plus passing shards,
+79 client model cases. Builds, docs budget, release guard, typechecks and ref-check
+pass. Every failure is classified in the report: baseline/intentional overload
+and negative controls; ours, the initially missing guide pins (fixed); environmental,
+parallel HTTP tests exceeding shell NOFILE=1024 (same scope passes at 4096); ours,
+exploratory missing-path reads. No hidden failing qualification.
+
+Wasm unchanged: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, 711 B below the
+unchanged 593,719 B cap. SHA-256
+17084d758fe1f2e5f9f86ea1f3c10e572ac46b441b7e2d1d3bd1dee9af200ac0.
+Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt. LLP 3000 and guide updates accompany
+the change. Raw server streams, exit status, receipts and failure captures are
+preserved compressed; copied lane is retained under ignored target/fu-work.
+Only local dependency/submodule setup; no shared tool installation. Local commit
+carries Co-Authored-By: Codex <noreply@openai.com>. No push or publication.
+
+Final artifact check also found kernel padding in raw /proc limit captures
+(ours, formatting only). Preserved them losslessly as gzip, recorded it in the
+report, and passed the staged whitespace check before the amended local commit.
+
+## 2026-09-28 — Lane FU round 1: overload survives reporting failure
+
+First fetched and merged origin/main into sb4-intent/fu-fresh-replay-uploads:
+9563912e3 includes ddf317b13; resolved only an append-only journal conflict by
+keeping both entries. Read the round-0 prompt/report/entry and full Astra review;
+checked Grok before starting and reread its completed NOT READY review before
+finishing. Applied llp-orient under the Snapback 4 fence.
+
+Fixed all eight requested findings and Grok's second admission layer. The
+connection cap and all seven request-worker pools return the same best-effort,
+nonblocking 503 without a rejection queue/thread or body drain. Refusals use
+family limit, remain retryable, expose Retry-After through public-only CORS,
+and contain no identity, counts or data. Saturating counters include every
+refusal, failed write and TLS close; bounded summaries run off the accept
+thread. One bounded diagnostic writer absorbs stalled/broken output. Audited
+request/accept/engine prints, including native device acquisition diagnostics;
+the dev-refusal evidence writer keeps its existing persistence/backpressure
+coupling with fallible I/O. No caps, authority checks or admitted leases changed.
+
+Workers and route verification keep retrying overload. Online/local requests
+and sync preserve structured refusals and transport causes, with neutral
+no-cause wording. Safe reads and same-ID overload retries back off with jitter;
+ordinary storage recovery keeps its previous timing. Malformed 5xx background
+refreshes retain the existing answer/link. Upload/download envelopes validate
+required fields; invalid replies are E_HTTP_RESPONSE with the status. Explicit
+admission alone permits asset retry; ambiguous resets never resend uploads or
+once-view downloads. LLP 3000 and guide cards record these decisions.
+
+Regression witnesses include closed/full stderr with production panic=abort,
+32 held mutation workers plus unfinished uploads, all worker pools, TLS/failed
+write counters, worker continuation, real online/wasm clients, real Chromium
+CORS and four upload attempts. Negative controls restore the old binary/SDK,
+remove counters, restore silent pool abort, or flip retryable false; each
+relevant assertion fails. Native-device stderr faults fail before the print
+repair and pass afterward. The old replay's individual resets remain
+unattributable between connection/worker admission; no new full Clique replay
+or unconditional-delivery claim is made.
+
+Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1344 s`, categories
+cargo test and client tests. Rust 4,278 pass / 18 fail / 33 ignored; client
+shards 4,279 pass / 168 fail / 10 skipped; models 79/79; fixtures 9/9. All 186
+failed names are classified in round1/FAILURES.md: 170 ours, repaired with
+focused checks; 16 baseline search null-as-array failures reproduced on an
+isolated 9563912e3 source extraction; zero environmental. Our regressions were
+the dev-refusal evidence coupling, watcher diagnostic formatting, delivery
+await recipes, ordinary retry timing, malformed-5xx refresh handling and
+incomplete test refusal envelopes. The full-run red is retained; no second
+full run or all-green full-suite claim. Earlier fixture/setup failures and
+expected negative controls have a separate ledger.
+
+Final affected client selection passes 481 tests, including the 317-case
+await fault matrix; HTTP scope 135 pass / 3 existing ignores; whole guide
+98/98; dev-refusal tests 12/12; watcher parity 1/1; counter test 1/1; stderr
+server tests 2/2 in debug and production. Final packaged-wasm overload/upload/
+Chromium selection passes 54/54. Build/typecheck and reference validation pass.
+
+Wasm is 2,040,545 B raw / 593,008 B GNU file-input gzip-9, unchanged sizes and
+593,719 B budget (711 B headroom). Final SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409;
+its sole difference from the full-run artifact is a source-line word (105 to
+108) after the native-only diagnostic branch. Rust 1.97.0, wasm-bindgen 0.2.127,
+no wasm-opt. No shared tool installation, comparative-packet edits, push or
+publication. Report: reports/20260928-fu-fresh-replay-uploads/round1/REPORT.md.
+The local commit carries Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 2: refusals across startup and credential rotation
+
+Merged origin/main first (492ff2419, including W13 pin 8861dd636), then read
+both earlier lane records and Astra's full round-1 review. Grok completed
+while the one full run was underway; all its findings were incorporated.
+The unchanged search scope passes 50/50, including the 16 former baseline
+failures; the full Rust phase also passes them.
+
+Once-view downloads preserve ambiguous outcomes across credential rotation;
+a successful obsolete handle is revoked without another GET. Only a proven
+auth/admission refusal permits the online credential retry. Ephemeral writes
+return validated refusals without dropping the link or queued calls and keep
+their no-replay policy. Schema acquisition uses bounded safe-read admission
+retry; typed refusal survives never-synced startup, and saved devices keep
+received overload distinct from transport loss. Probes and sync can restore
+reachability from validated overload without adopting identity or replay
+proof. Auth preserves status/transport cause and stops automatic rotation
+retry after an ambiguous outcome. Other delivered change-feed refusals stay
+connected; uncached local assets retain the original transport cause.
+
+Jitter now follows the maximum of exponential delay and Retry-After, including
+uploads. A PendingRequest guard refuses and counts actual thread-spawn failure
+before the request destructor can drain an unfinished upload on the dispatcher.
+The report inventories every client request path, its refusal/reset/unreachable
+handling and retry owner. LLP 3000, LLP 3000.017 and guide cards were updated;
+no capacity, contract or wasm budget changed.
+
+Public regressions fail on round 1 in 44 cases; removing mutation jitter fails
+both tiers. Disabling the spawn guard in an isolated source copy makes the
+final real HTTP test return 500 instead of bounded 503; the guarded original
+passes. Real full-worker and full-connection witnesses assert four SDK attempts,
+nonzero summary counters, server survival and upload recovery.
+
+Ran scripts/test.sh exactly once, exit 1: `== 1 failure(s) in 1270 s`, category
+client tests. Rust: 4,295 pass / 0 fail / 33 ignored. Client shards: 4,503 pass /
+2 fail / 8 cancelled timeouts / 10 skipped. Models: 79/79; fixtures: 9/9.
+All ten full-run failures are ours: the await census and asynchronous cleanup
+loaded during late edits, plus eight old upload-lifetime timer mocks that
+missed jitter. All are repaired in affected reruns; every name is recorded in
+round2/FAILURES.md. No second full run or all-green full-suite claim. Outside
+that run, one unchanged HTTP token-bucket test crossed its 50 ms refill window
+under high concurrency (environmental); it passes alone and in the qualified
+four-thread HTTP scope. Setup mistakes and expected controls are also retained.
+
+Final affected client selection: 429 pass, including the 315-test await matrix.
+Upload-lifetime: 46/46; asset lifecycle: 30/30. HTTP: 136 pass / 3 existing
+ignored; spawn/pool/counter tests: 3/3; whole guide: 98/98. Build, typecheck,
+docs-budget and ref-check pass. The final server was rebuilt and its three
+overload tests passed again after the isolated negative control.
+
+Wasm: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, unchanged from round 1;
+593,719 B budget, 711 B headroom. SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt. No shared tool installation,
+other-lane/packet edits, push or publication. Report:
+reports/20260928-fu-fresh-replay-uploads/round2/REPORT.md. Local commit carries
+Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 3: retain rotation outcomes through startup
+
+Read the prior three prompts, reports and journal entries, and Astra's full
+round-2 NOT READY review. Applied llp-orient within Snapback 4. Fetched origin;
+main's new PF changes are unrelated to these SDK fixes, so no merge. The
+supervisor owns integration and its round-2 landing suite. Grok was checked at
+entry and before committing; it still had progress notes, no completed verdict.
+
+The local constructor retains its refresh outcome. Both client schedulers now
+consult that result, so deferred startup completion and clock corrections cannot
+re-arm an ambiguously consumed bearer. Construction uses the running client's
+retryable-refusal policy, including retryable E_AUTH. Repeated explicit refresh
+calls also return the retained unknown failure without another send. Successful
+rotation still adopts the successor; existing sign-out, persistence and late
+successor cleanup boundaries remain. The report audits constructor, deferred,
+scheduled, clock, on-401, account-switch, explicit and revocation paths; there
+is no automatic refresh-on-401 path or new cross-process deduplication claim.
+
+Ephemeral calls use the shared response decoder. Malformed text/envelopes keep
+HTTP status as E_HTTP_RESPONSE without taking the link offline or dropping the
+waiting tail; real fetch/body failures remain transport failures. No replay.
+Concurrent public uploads, downloads, queries and same-ID mutations in both
+tiers assert distinct Retry-After-respecting delays with varied randomness.
+
+Grok's provisional rapid-probe observation reproduced: after acquisition and a
+lost change feed, overload restored reachability while leaving identity
+unverified; the loop sent 16 probes about 0–2 ms apart. The probe now takes the
+existing jittered refusal wait before returning. Its new await is classified
+and tested under transient and persistent failure. Identity/acquisition evidence
+is still required before replay. Product changes stay in three SDK files.
+
+Final affected checks: 464/464 (118 overload cases, 317 delivery fault/census
+cases, and adjacent session/ephemeral cases). The session model passes 52/52
+with 100 seeds per tier plus its fixed regressions, explicitly a scoped run.
+Whole guide 98/98; build/typecheck, docs budget, references and whitespace pass.
+Disposable round-2 controls fail 22 public cases; replacing jitter with constant
+1.125 fails all eight concurrent public paths. Final positive runs have no
+failures. The ledger records all earlier reds: our round-2 defects/intentional
+mutants, fake-timer and early-assertion fixture mistakes, the probe-mock starvation
+and exploratory wrong paths; zero unrelated baseline/environmental failures.
+The interrupted runs and raw logs are retained. scripts/test.sh was not run.
+
+Measured existing round-2 wasm: 2,040,545 B raw / 593,008 B GNU file-input gzip-9,
+711 B below the unchanged 593,719 B budget; SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+No wasm input changed or rebuild was needed. No tool installation, shared-machine
+change, comparative-packet edit, push or publication. LLP 3000, ephemeral guide
+and client reference accompany the code; local.ts remains 1,500 lines. Report:
+reports/20260928-fu-fresh-replay-uploads/round3/REPORT.md. The local commit carries
+Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 4: rotation custody belongs to the session
+
+Read rounds 0–3's prompts, reports and journal entries, Astra's complete
+round-3 NOT READY review and Grok's completed round-2 review. Applied llp-orient
+within the Snapback 4 fence and read the paved session reference. Fetched
+origin; main is still 9ef49d43c, as recorded in round 3. No merge needed.
+
+Both client tiers persist a token-bound refresh claim in the existing session
+record under its lock before dispatch. Peer clients and fresh-process restarts
+consult it; saving the same bearer cannot erase it. Proven refusal/non-dispatch
+clears the claim; successful authorized successor adoption replaces it. Online
+refresh now awaits that save before notifying onSession, removing its duplicate
+notification save. Only connection-establishment failures prove non-dispatch;
+reset, opaque failure and lost bodies remain unknown. HTTP 200 without a valid
+session is E_HTTP_RESPONSE, not terminal E_AUTH. App auth.why exposes a paused
+renewal and the sign-in action, including restoration outside the refresh window.
+Failure to persist the detailed diagnostic leaves the original claim and warning.
+
+A peer can see an in-flight claim before its owner proves non-dispatch. Explicit
+calls therefore consult shared storage again; pending claims can be rechecked
+on the existing retry cadence. A remaining claim never permits network replay,
+including after an owner crash. Once a proven refusal clears it, the peer can
+renew explicitly or automatically and clears only its rotation warning.
+Public tests cover all three doors (online app, wasm app, direct local), real
+server 200 followed by discarded response, serialized state in a fresh Node
+process, a concurrent peer, and explicit/scheduled/peer non-dispatch recovery.
+
+Probe recovery delays every unsuccessful unverified attempt, including
+nonretryable E_RATE_LIMIT and malformed replies. Its public test advertises
+Retry-After: 3 and checks the requested delay. Nonretryable changes refusals,
+including omitted retryable, become visible denied reads and stop polling while
+the link stays online. Retryable refusals keep their existing delay. No server,
+core, contract, dependency or capacity change; local.ts is 1,499 lines.
+
+Final affected scope clears 596 cases across ten files. The last combined run
+was 595 pass / 1 fail / 0 cancelled or skipped. The one failure was ours: a new
+fixture still expected E_OFFLINE on a later explicit call after intentionally
+failing the diagnostic save; shared custody correctly returned the durable
+E_HTTP_RESPONSE claim. The corrected test separately checks the original
+automatic warning and later durable claim, with one server rotation; both tiers
+pass the final 2/2 rerun. No product change after that combined run. The previous
+combined selection passed 590/590. Seven isolated negative mutations fail 29
+named public cases, including stale peer outcome caching.
+
+Scoped session model: 54/54, 100 seeds per tier and three runtimes per sequence,
+plus fixed regressions and two I14 cases. I2 permits only claim metadata to
+change on failed refresh; credentials and epoch still cannot change. I14 refuses
+a second dispatch of any consumed refresh bearer. Whole guide 98/98;
+build/typecheck, docs budget, references and whitespace pass. Every earlier red
+is attributed in round4/FAILURES.md: all ours (including fixtures and intentional
+controls); no baseline or environmental failure. The first expanded app run was
+stopped on a fixture's nested storage lock using only its recorded PIDs; the
+repaired complete app file passes 78/78. scripts/test.sh was not run.
+
+Wasm unchanged: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, 711 B below the
+593,719 B budget; SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+Measured the round-2 artifact; no wasm inputs changed. No tool installation,
+other-lane edits, push or publication. LLP 3000 and the client reference land
+with the code. Report: reports/20260928-fu-fresh-replay-uploads/round4/REPORT.md.
+Local commit carries Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 5: overload scope restored, refresh custody deferred
+
+Read rounds 0–4's prompts, reports and lane journal entries, the full Astra
+round-3/4 reviews and earlier completed Astra/Grok findings. Applied llp-orient
+within the Snapback 4 fence and read the paved session reference. Fetched origin;
+main is still 9ef49d43c, so no merge. Followed the supervisor's re-scope: the
+ambiguous-refresh problem is a separate design lane, not another custody patch.
+
+Deleted the shared rotation claim/transaction modules, instance outcome fence,
+startup suppression, warning hook and online sessionStore option. Restored main's
+app persistence, session save, refresh scheduling/startup and I1–I13 model/tests.
+Only independent refresh improvements remain: validated refusal/status decoding,
+preserved transport causes, E_HTTP_RESPONSE for malformed refresh successes,
+and retryable E_AUTH without sign-out. Unknown delivery may be refreshed again
+as on main; no cross-client/restart protection is claimed. The new filesystem
+issue records startup, cross-client, restart, proven non-dispatch, stale
+restoration, storage failure and explicit account-replacement counterexamples,
+with token/lock custody, conditional restoration, durable proof, installation
+and actionable-warning constraints. It requires its own LLP before implementation.
+
+Retained server refusal/accounting/CORS and worker retry, all client transports,
+ambiguous once-view no-retry, nonretryable changes refusals and local probe
+pacing. Online probes now preserve Retry-After through the shared decoder and
+an abortable jittered delay, including nonretryable/malformed replies. The
+three-mode public header-removal control fails. No server, core, contract,
+capacity, dependency or wasm input changed this round.
+
+Astra r4 #3 passes on both tiers: stored A plus supplied near-expiry B sends B
+once, gets HTTP 200 and opens B, without deleting A as rejected authentication.
+Both cases pass on isolated main and fail on isolated round 4. Nine non-dispatch
+renewal cases pass on main and the final SDK; all six independent malformed/
+retryable-auth diagnostics fail on main and pass here. Twelve source/test
+comparisons confirm mainline refresh parity except the named retryable-auth
+condition. All round-2 confirmed reproductions pass; the selected 42-case main
+control has 36 expected failures and six positive controls. Every expected
+negative is individually named and attributed in the round-5 ledger.
+
+Affected client selections clear 567 distinct cases (109 overload, 17 refresh,
+317 delivery fault/census, 124 adjacent); server overload 3/3. Initial whole
+guide 97/98 found our unshipped issue link in the package reference; removed it,
+then the entire guide passes 98/98. Build/typecheck, docs budget, release guard,
+references and whitespace pass. local.ts is 1,492 lines; the 158 delivery await
+classifications and fault recipes are unchanged.
+
+scripts/test.sh ran exactly once with command-local NOFILE 4096, exit 1:
+`== 1 failure(s) in 1281 s`, category cargo test. Rust 4,295 pass / 1 fail /
+33 ignored; full client shards 4,561 pass / 0 fail / 0 cancelled / 10 skipped;
+all 79 client models pass, including 5,000 session sequences per tier; fixtures
+9/9. Its sole failure is ours, guide
+client::published::published_file_references_resolve_against_package_contents,
+the same link corrected above. No baseline/environmental full-run failures;
+no second full run or all-green full-suite claim. The failure ledger also
+retains three editing-boundary errors, one whitespace correction and all
+intentional controls. Product code did not change during the full run.
+
+Wasm unchanged: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, budget
+593,719 B, headroom 711 B; SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt. LLP 3000 and the
+client reference withdraw the custody guarantee; historical reports and journal
+entries stay untouched. Report: reports/20260928-fu-fresh-replay-uploads/round5/REPORT.md.
+Issue: ../issues/20260928-snapback4-ambiguous-session-refresh.md. No shared tool
+installation, other-lane edits, push or publication. Local commit carries
+Co-Authored-By: Codex <noreply@openai.com>.
+
+
+## 2026-09-29 — Lane LV round 6: combine retention with truthful overload
+
+Read rounds 0–5's prompts, reports and lane journal, LLP 3000.029, the Snapback 4
+fence/guide, FU's merge message and round-5 report, and RG round 6 / OS round 8's
+await rules. Applied llp-orient. Fetched and merged origin/main dc21eb085 into
+LV 25ed46bfe, including FU and PF; resolved all conflicts by combining semantics.
+All earlier LV entries remain verbatim and FU's six entries are preserved.
+
+FU refusal decoding, transport causes, Retry-After/backoff, link state, probe
+pacing and once-view no-retry coexist with LV fences, indexed reconciliation,
+asset authority ordering and ephemeral floors. Coded asset overload preserves
+grants; current authoritative E_ASSET_UNKNOWN revokes them. Sync captures its
+evidence revision before the bounded transport; asset-only polling respects the
+FU refusal stop. Preserved the original local-media transport cause without
+re-downloading obsolete successes. The combined tests found query admission
+refusals wrongly entering LV authority reconciliation on all three hosts; the
+fix returns E_RATE_LIMIT without withdrawing owners or changing evidence floors.
+
+Astra's round-5 review arrived during work, READY WITH CHANGES with one Low.
+Added process/wasm withdrawal and buffered-reply cases with both read certificates
+absent: 4/4 pass, and all four kill removal of the all-tables fallback. Re-read
+the completed review before committing. Its earlier initial-owner timeout
+remains unexplained; passing repetitions are not a cause diagnosis.
+
+Audited every added/moved await against main. All 158 inherited classifications,
+recipes and absorbs flags survive; eight explicit optional sites bring the
+matrix to 166 sites (49 required, 117 optional). Every site has transient and
+persistent injection; 333/333 checks pass, preserving the real FIFO's three
+healthy IDs and exact-post assertions under persistent optional faults.
+
+Broad affected client qualification passed 1,078/1,078; server overload 3/3 and
+independent Rust footprint census 5/5. Ran scripts/test.sh exactly once with
+command-local NOFILE 4096, exit 1. Exact summary: `== 2 failure(s) in 1378 s`,
+categories `client tests` and `client models`. Client shards: 4,798 pass, two
+fail, ten skipped; models: 78 pass, one timeout/cancelled. All three failures
+are ours. Two inherited LV fixture assumptions failed on LV and passed on the
+isolated main SDK: explicitly held the replacement probe, and obtained checked
+post-apply server memory before offline remount. Both corrected complete files
+passed 28/28. The online 5,000-sequence model exposed terminal denials spending
+three retired-request backoffs. Accepting safe terminal absence immediately
+fixes that path while preserving all data fences; three zero-wait regressions
+fail before and pass after. LLP 3000.029 §11 records these rules.
+
+Final correction qualification: affected clients 558/558 including all 333
+matrix checks; official models 79/79 with unchanged 5,000 sequences per session
+tier and 3,000 online-client interleavings. Online session model: 87.1 seconds
+within its original 240-second timeout. Final browser witnesses 3/3 (both profile
+gates: route /conversation/bob, one mount, zero loading flashes, profile alice,
+plus FU overload); whole guide 98/98; build/typechecks and reference audit pass.
+The original full run remains red and is not claimed as final-tree qualification.
+Every intermediate failure and intentional negative is in round6/FAILURES.md;
+no baseline or environmental exemption, timeout/count relaxation or second full run.
+
+Canonical rebuilt wasm: 2,042,203 B raw / 593,641 B GNU file-input gzip-9,
+78 B under the unchanged 593,719 B cap; SHA-256
+d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
+No cap increase, shared tool installation, push or publication. Report:
+reports/20260928-lv-hook-retention/round6/REPORT.md. Local merge commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

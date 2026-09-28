@@ -215,7 +215,7 @@ test('authoritative E_ASSET_VIEWED and HTTP transport failure preserve the alrea
   assert.equal((await client.asset(uploaded.asset.id)).denied?.code, 'E_ASSET_VIEWED');
   assert.ok(grant.url); assert.equal(assetRevoked(grant), false);
   failed = true;
-  assert.equal((await client.asset(uploaded.asset.id)).denied?.code, 'E_OFFLINE');
+  assert.equal((await client.asset(uploaded.asset.id)).denied?.code, 'E_HTTP_RESPONSE');
   assert.ok(grant.url); grant.revoke();
 });
 
@@ -350,4 +350,46 @@ for (const tier of ['online', 'process']) for (const order of ['old-refusal', 'o
     assert.equal((await client.asset(uploaded.asset.id)).denied?.code, 'E_ASSET_UNKNOWN');
     release.resolve(); assert.equal((await old).denied?.code, 'E_ASSET_UNKNOWN', 'per-asset refusal must fence the older in-flight grant');
   }
+});
+
+// Round 6: admission has not evaluated row or asset authority.
+for (const tier of ['online', 'process', 'wasm']) for (const kind of ['asset', 'query']) test(`combined ${tier}: ${kind} overload preserves authority until real evidence`, async t => {
+  const f = await fixture(t); let overload = false, attempts = 0;
+  const why = { code: 'E_RATE_LIMIT', family: 'limit', message: 'busy', retryable: true };
+  const fetcher = (input, init) => {
+    const path = new URL(input).pathname;
+    if (overload && (kind === 'asset' ? path.startsWith('/assets/') : path === '/q/remoteSecret')) {
+      attempts++; return Promise.resolve(Response.json({ denied: why }, { status: 503, headers: { 'Retry-After': '11' } }));
+    }
+    return parked(input, init);
+  };
+  const client = tier === 'online' ? createClient({ url: f.url, persona: 'bob', fetch: fetcher }) : await createLocalClient({ url: f.url, persona: 'bob', fetch: fetcher,
+    assets: { keep: 'viewed', maxBytes: 10000 }, device: tier === 'process' ? processDevice({ dir: join(f.dir, 'device'), binary }) : webDevice({ wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() }) });
+  t.after(() => client.close());
+  if (kind === 'query') {
+    const watch = client.observe(q('remoteSecret'), {}); watch.subscribe(() => {}); t.after(() => watch.close());
+    await until(() => watch.getSnapshot().data?.body === 'secret');
+    overload = true;
+    assert.deepEqual((await client.query(q('remoteSecret'), {})).denied, why);
+    assert.equal(client.link(), 'online');
+    assert.equal(watch.getSnapshot().data?.body, 'secret', 'admission did not evaluate authority');
+    overload = false;
+    await f.post('/m/kick', { id: 'kick', args: {} });
+    assert.equal((await client.query(q('remoteSecret'), {})).data, null);
+    assert.equal(watch.getSnapshot().data, null, 'real authority still reconciles');
+    return;
+  }
+  const uploaded = await client.upload(png); assert.equal(uploaded.ok, true);
+  const placed = await f.post('/m/place', { id: 'place', args: { photo: { id: uploaded.asset.id } } }, 'bob'); assert.equal(placed.state, 'sent');
+  if (tier !== 'online') await client.sync();
+  const grant = await client.asset(uploaded.asset.id); assert.ok(grant.url);
+  let notices = 0; onAssetRevoked(grant, () => { notices++; assert.equal(grant.url, ''); });
+  overload = true;
+  assert.deepEqual((await client.asset(uploaded.asset.id)).denied, why);
+  assert.equal(attempts, 1); assert.equal(client.link(), 'online');
+  assert.ok(grant.url); assert.equal(assetRevoked(grant), false); assert.equal(notices, 0);
+  overload = false;
+  await f.post('/m/remove', { id: 'remove', args: { id: placed.result.id } });
+  assert.equal((await client.asset(uploaded.asset.id)).denied?.code, 'E_ASSET_UNKNOWN');
+  assert.equal(assetRevoked(grant), true); assert.equal(notices, 1);
 });

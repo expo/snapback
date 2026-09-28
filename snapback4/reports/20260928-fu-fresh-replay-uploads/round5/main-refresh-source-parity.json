@@ -1,0 +1,77 @@
+[
+  {
+    "scope": "app persistence and account lifecycle",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "online scheduler and rotation",
+    "same_as_main": true,
+    "retained_exceptions": [
+      [
+        "if (refreshed.why.code === \"E_AUTH\" && !refreshed.why.retryable)",
+        "if (refreshed.why.code === \"E_AUTH\")"
+      ]
+    ]
+  },
+  {
+    "scope": "local scheduler and rotation",
+    "same_as_main": true,
+    "retained_exceptions": [
+      [
+        "if (refreshed.why.code === \"E_AUTH\" && !refreshed.why.retryable && session?.token === token)",
+        "if (refreshed.why.code === \"E_AUTH\" && session?.token === token)"
+      ]
+    ]
+  },
+  {
+    "scope": "local constructor rotation",
+    "same_as_main": true,
+    "retained_exceptions": [
+      [
+        "refreshed.why.code === \"E_AUTH\" && !refreshed.why.retryable",
+        "refreshed.why.code === \"E_AUTH\""
+      ]
+    ]
+  },
+  {
+    "scope": "online startup",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "local deferred startup",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "session save",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "restored baseline test/app.test.mjs",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "restored baseline test/app-local-session.test.mjs",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "restored baseline test/app-session-model.test.mjs",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "restored baseline test/helpers/app-session-model.mjs",
+    "same_as_main": true,
+    "retained_exceptions": []
+  },
+  {
+    "scope": "restored baseline test/session-security.test.mjs",
+    "same_as_main": true,
+    "retained_exceptions": []
+  }
+]

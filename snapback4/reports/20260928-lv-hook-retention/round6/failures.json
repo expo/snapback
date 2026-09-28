@@ -1,0 +1,195 @@
+{
+  "unexpected_tests": [
+    {
+      "classification": "ours",
+      "log": "overload-fences.log.gz",
+      "test": "authoritative E_ASSET_VIEWED and HTTP transport failure preserve the already granted first view",
+      "cause": "LV expected E_OFFLINE for malformed HTTP 503; FU correctly returns E_HTTP_RESPONSE.",
+      "resolution": "Update status assertion; preserve grant assertion; affected and full case pass."
+    },
+    {
+      "classification": "ours",
+      "log": "combined-before.log.gz",
+      "test": "combined online: query overload preserves authority until real evidence",
+      "cause": "Admission refusal entered authoritative reconciliation and withdrew retained peers.",
+      "resolution": "Explicit admissionRefused result preserves direct code without altering authority; all six combined cases pass."
+    },
+    {
+      "classification": "ours",
+      "log": "combined-before.log.gz",
+      "test": "combined process: query overload preserves authority until real evidence",
+      "cause": "Admission refusal entered authoritative reconciliation and withdrew retained peers.",
+      "resolution": "Explicit admissionRefused result preserves direct code without altering authority; all six combined cases pass."
+    },
+    {
+      "classification": "ours",
+      "log": "combined-before.log.gz",
+      "test": "combined wasm: query overload preserves authority until real evidence",
+      "cause": "Admission refusal entered authoritative reconciliation and withdrew retained peers.",
+      "resolution": "Explicit admissionRefused result preserves direct code without altering authority; all six combined cases pass."
+    },
+    {
+      "classification": "ours",
+      "log": "matrix-added.log.gz",
+      "test": "every delivery await is explicitly classified",
+      "cause": "Extension predicate selected every online function instead of refresh; census rejected unmapped scope.",
+      "resolution": "Restrict extension owner, classify explicit added sites; complete 333-case matrix passes."
+    }
+  ],
+  "expected_counterfactuals": [
+    {
+      "expected": true,
+      "log": "mutant-certificates.log.gz",
+      "test": "process missing both certificates: ephemeral replacement fences withdrawal at equal durable cut",
+      "result": "AssertionError; unsafe all-tables fallback removal killed"
+    },
+    {
+      "expected": true,
+      "log": "mutant-certificates.log.gz",
+      "test": "process missing both certificates: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "result": "AssertionError; unsafe all-tables fallback removal killed"
+    },
+    {
+      "expected": true,
+      "log": "mutant-certificates.log.gz",
+      "test": "wasm missing both certificates: ephemeral replacement fences withdrawal at equal durable cut",
+      "result": "AssertionError; unsafe all-tables fallback removal killed"
+    },
+    {
+      "expected": true,
+      "log": "mutant-certificates.log.gz",
+      "test": "wasm missing both certificates: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "result": "AssertionError; unsafe all-tables fallback removal killed"
+    },
+    {
+      "expected": true,
+      "test": "terminal close: a denied query does not retry retired epoch fences",
+      "log": "terminal-before.log.gz",
+      "result": "3 retry delays instead of zero before correction"
+    },
+    {
+      "expected": true,
+      "test": "terminal sign-out: a denied query does not retry retired epoch fences",
+      "log": "terminal-before.log.gz",
+      "result": "3 retry delays instead of zero before correction"
+    },
+    {
+      "expected": true,
+      "test": "terminal replacement: a denied query does not retry retired epoch fences",
+      "log": "terminal-before.log.gz",
+      "result": "3 retry delays instead of zero before correction"
+    }
+  ],
+  "setup": "See FAILURES.md for the corrected path and initial scanner-generation errors.",
+  "full_suite": {
+    "command": "ulimit -n 4096; bash scripts/test.sh",
+    "runs": 1,
+    "exit": 1,
+    "summary": "== 2 failure(s) in 1378 s",
+    "failed_stages": [
+      "client tests",
+      "client models"
+    ],
+    "client": {
+      "tests": 4810,
+      "pass": 4798,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 10
+    },
+    "models": {
+      "tests": 79,
+      "pass": 78,
+      "fail": 0,
+      "cancelled": 1
+    },
+    "all_full_failures_classification": "ours",
+    "baseline_failures": 0,
+    "environmental_failures": 0
+  },
+  "full_suite_failures": [
+    {
+      "classification": "ours, inherited LV",
+      "test": "app replacement never persists a late successor before probing the kept session",
+      "file": "online-terminal-entrypoints.test.mjs",
+      "controls": {
+        "main": "pass",
+        "lv_round5": "fail"
+      },
+      "resolution": "Hold replacement probe explicitly; preserve custody assertions."
+    },
+    {
+      "classification": "ours, inherited LV",
+      "test": "server-class watches run locally first and recover remembered server data offline",
+      "file": "residency.test.mjs",
+      "controls": {
+        "main": "pass",
+        "lv_round5": "fail"
+      },
+      "resolution": "Apply the cut and obtain a checked answer before testing remembered offline recovery."
+    },
+    {
+      "classification": "ours",
+      "test": "online session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "result": "cancelled after 240000ms",
+      "cause": "Terminal denials retried already-retired request fences.",
+      "resolution": "Accept terminal absence promptly; retain all data fences; unchanged-budget full-count models rerun."
+    }
+  ],
+  "focused_initial": {
+    "pass": 0,
+    "fail": 2
+  },
+  "focused_first_correction": {
+    "pass": 1,
+    "fail": 1
+  },
+  "focused_final": {
+    "pass": 2,
+    "fail": 0
+  },
+  "final_terminal_affected": {
+    "tests": 558,
+    "pass": 558,
+    "fail": 0
+  },
+  "diagnostic": {
+    "log": "online-model-diagnosis.log.gz",
+    "last_started_seed": 1889,
+    "completed_5000": false,
+    "stopped_intentionally": true
+  },
+  "final_qualification": {
+    "affected": {
+      "tests": 558,
+      "pass": 558,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "browser": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "guide": {
+      "pass": 98,
+      "fail": 0,
+      "log": "guide-final.log.gz"
+    },
+    "typechecks": {
+      "exit": 0,
+      "log": "typecheck-final.log.gz"
+    },
+    "full_suite_rerun": false
+  }
+}

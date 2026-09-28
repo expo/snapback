@@ -458,7 +458,19 @@ write that first returned `pending`; it is a live-client notification, while
 the durable outbox remains the authority across a restart. A restored or
 provided session within 24 hours of
 expiry rotates before the protected backend is fetched (temporary action sessions cannot refresh); a running client
-schedules the same rotation. A successful rotation replaces the stored
+schedules the same rotation. Refresh retains validated server refusals and
+transport causes; HTTP 200 without a valid session is `E_HTTP_RESPONSE`, not a
+terminal authentication failure. A retryable `E_AUTH` keeps the session alive.
+Refresh dispatch, startup and rescheduling retain the existing behavior: no
+persisted rotation claim or unknown-outcome fence is installed. A lost reply
+can therefore lead to reuse of a consumed bearer and a later sign-out. This
+remains an open limitation requiring a separate session-refresh design.
+Nonretryable `/changes` refusals stop polling and appear in observed reads;
+the link remains reachable. Reopen after correcting the refusal. Unverified
+probes wait after every unsuccessful attempt; refusal delays respect
+`Retry-After`, including nonretryable replies, and malformed replies back off.
+
+A successful rotation replaces the stored
 session and the Authorization bearer before `onSession` receives it. Local
 `signOut()` fences refresh and removes persisted credentials before completing;
 remote logout is best effort and cannot hold that local boundary open. An

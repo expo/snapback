@@ -25,6 +25,43 @@ const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
+fn dev_and_doctor_report_low_inherited_descriptor_limits() {
+    use std::os::unix::process::CommandExt;
+    let dir = Directory::new();
+    for verb in ["doctor", "dev"] {
+        let mut command = Command::new(BIN);
+        command.arg(verb).current_dir(&dir.0);
+        if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch", "--port", "0"]); }
+        // Change only the child's inherited limit, never the test process.
+        unsafe { command.pre_exec(|| {
+            let mut limit: libc::rlimit = std::mem::zeroed();
+            if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
+            limit.rlim_cur = 64;
+            if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+            Ok(())
+        }); }
+        let log = dir.0.join(format!("{verb}-limits.log"));
+        let file = File::create(&log).unwrap();
+        let mut child = command.stdout(file.try_clone().unwrap()).stderr(file).spawn().unwrap();
+        if verb == "dev" {
+            let deadline = Instant::now() + SERVER_READINESS_TIMEOUT;
+            while !fs::read_to_string(&log).unwrap().contains("store: temporary") {
+                assert!(child.try_wait().unwrap().is_none(), "{}", fs::read_to_string(&log).unwrap());
+                if Instant::now() >= deadline { let _ = child.kill(); let _ = child.wait(); panic!("{}", fs::read_to_string(&log).unwrap()); }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            unsafe { libc::kill(child.id() as i32, libc::SIGTERM); }
+        }
+        wait(&mut child);
+        let text = fs::read_to_string(log).unwrap();
+        assert!(text.contains("HTTP connections=128; uploads=2"), "{text}");
+        assert!(text.contains("soft=64"), "{text}");
+        assert!(text.contains("E_HTTP_LIMIT"), "{text}");
+        assert!(text.contains("ulimit -n 1024"), "{text}");
+    }
+}
+
+#[test]
 fn service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved() {
     let source = "use identity\ntable members:\n  room: text <=30\n  principal: principal\n  unique byRoomPrincipal: room, principal\n  by byPrincipalRoom: principal, room, id\n  immutable room, principal\n  read <- .principal = viewer\n  sync\ntable messages:\n  room: text <=30\n  body: text <=100\n  by byRoom: room, id\n  read <- exists members[.room, viewer] or viewer = 'service:pusher'\n  sync\nquery all(room: text <=30):\n  return messages[room] first 10 by byRoom\n";
     let dir = Directory::new();

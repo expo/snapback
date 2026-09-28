@@ -9,7 +9,7 @@ import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
 
 export type Bytes = Blob | ArrayBuffer | Uint8Array;
 
-const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+import { refusal, overloaded, invalidResponse, transportRefusal as offline, retryAfter, jitter } from "./http-response.ts";
 
 // @ref LLP 3000.011.005.000#8 — React Native Blobs use the public FileReader fallback
 export function blobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
@@ -71,13 +71,15 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
     let waited = 0;
     for (let attempt = 0; ; attempt++) {
       const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
-      const json = (await response.json()) as { asset?: Asset; denied?: Refusal };
-      if (json.asset) return { ok: true, asset: json.asset };
-      const why = json.denied ?? { code: "E_STORE", family: "store", message: "the server answered without an asset", retryable: true };
+      let json: { asset?: Asset; denied?: Refusal } | null;
+      try { json = await response.json(); }
+      catch { return { ok: false, why: invalidResponse(response.status, "upload") }; }
+      if (response.ok && json?.asset) return { ok: true, asset: json.asset };
+      const why = refusal(json?.denied) ?? invalidResponse(response.status, "upload");
       // Only an explicit admission refusal proves these bytes were not stored.
       // A transport failure or another retryable code may follow acceptance.
       if (why.code !== "E_RATE_LIMIT" || why.retryable !== true || attempt === 3 || !canRetry()) return { ok: false, why };
-      const delay = Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after")));
+      const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after"))));
       // Never retry earlier than the server permits. A long Retry-After ends
       // this bounded call instead of parking an upload indefinitely.
       if (waited + delay > 10_000) return { ok: false, why };
@@ -85,16 +87,9 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
       waited += delay;
       if (!canRetry()) return { ok: false, why };
     }
-  } catch {
-    return { ok: false, why: offline() };
+  } catch (error) {
+    return { ok: false, why: offline(error) };
   }
-}
-
-function retryAfter(value: string | null): number {
-  if (!value) return 0;
-  const seconds = /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) : NaN;
-  const delay = Number.isNaN(seconds) ? Date.parse(value) - Date.now() : seconds * 1000;
-  return Number.isNaN(delay) ? 0 : Math.max(0, delay);
 }
 
 /** Where the bytes are and what to send to get them: for hosts whose image
@@ -108,13 +103,25 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
   const source = assetSource(base, headers, id);
   let release: (() => void) | undefined;
   try {
-    const response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
-    if (response.status >= 500) return { denied: { code: "E_OFFLINE", family: "link", message: "the asset server is unavailable", retryable: true } };
+    let response: Response;
     let meta: { seq?: number; nextExpiry?: number | null } = {};
-    try { meta = JSON.parse(response.headers.get("x-snapback-asset-read") ?? "{}"); } catch {}
-    if (!response.ok) {
-      const json = (await response.json().catch(() => null)) as { denied?: Refusal; seq?: number; head?: number } | null;
-      return assetEvidence({ denied: json?.denied ?? { code: response.status === 410 ? "E_ASSET_VIEWED" : "E_ASSET_UNKNOWN", family: "asset", message: response.status === 410 ? "this photo was for one view, and it was viewed" : "no asset is served under that id to this viewer" } }, { ...meta, ...(typeof (json?.seq ?? json?.head) === "number" ? { seq: json!.seq ?? json!.head! } : {}) });
+    let waited = 0;
+    for (let attempt = 0; ; attempt++) {
+      response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
+      meta = {};
+      try { meta = JSON.parse(response.headers.get("x-snapback-asset-read") ?? "{}"); } catch {}
+      if (response.ok) break;
+      const json = await response.json().catch(() => null) as { denied?: unknown; seq?: number; head?: number } | null;
+      const why = refusal(json?.denied) ?? invalidResponse(response.status, "download");
+      const denied = () => assetEvidence({ denied: why }, { ...meta,
+        ...(typeof (json?.seq ?? json?.head) === "number" ? { seq: json!.seq ?? json!.head! } : {}) });
+      // Only a coded admission refusal proves a once-view response never began.
+      // Preserve its code and authority cut; lifetime applies only asset evidence.
+      const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after"))));
+      if (!overloaded(why) || attempt === 3 || waited + delay > 10_000 || signal?.aborted) return denied();
+      await new Promise(resolve => setTimeout(resolve, delay));
+      waited += delay;
+      if (signal?.aborted) return denied();
     }
     const accepted = (read: AssetRead) => assetEvidence(read, meta);
     const blob = await response.blob();
@@ -136,8 +143,8 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
       revoked = true;
       try { URL.revokeObjectURL(url); } finally { releaseHandle(); }
     } });
-  } catch {
-    return { denied: offline() };
+  } catch (error) {
+    return { denied: offline(error) };
   } finally {
     release?.();
   }

@@ -1,0 +1,46 @@
+[
+  {
+    "name": "round2-negative",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "online: public ephemeral text preserves HTTP status and never replays",
+      "online: public ephemeral null preserves HTTP status and never replays",
+      "online: public ephemeral envelope preserves HTTP status and never replays",
+      "online: public ephemeral success-envelope preserves HTTP status and never replays",
+      "web: public ephemeral text preserves HTTP status and never replays",
+      "web: public ephemeral null preserves HTTP status and never replays",
+      "web: public ephemeral envelope preserves HTTP status and never replays",
+      "web: public ephemeral success-envelope preserves HTTP status and never replays",
+      "public constructor startup rotation reset retains its retry decision across clock updates",
+      "public constructor startup rotation invalid retains its retry decision across clock updates",
+      "public constructor startup rotation body retains its retry decision across clock updates",
+      "public constructor startup rotation terminal retains its retry decision across clock updates",
+      "public constructor startup rotation retryable-auth retains its retry decision across clock updates",
+      "public deferred startup rotation reset retains its retry decision across clock updates",
+      "public deferred startup rotation invalid retains its retry decision across clock updates",
+      "public deferred startup rotation body retains its retry decision across clock updates",
+      "public deferred startup rotation terminal retains its retry decision across clock updates",
+      "public online startup rotation reset retains its retry decision across clock updates",
+      "public online startup rotation invalid retains its retry decision across clock updates",
+      "public online startup rotation body retains its retry decision across clock updates",
+      "public online startup rotation terminal retains its retry decision across clock updates",
+      "public web probe recovery paces overload while identity remains unverified"
+    ]
+  },
+  {
+    "name": "constant-jitter-negative",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "online: concurrent public upload retries vary beyond Retry-After",
+      "online: concurrent public asset retries vary beyond Retry-After",
+      "online: concurrent public query retries vary beyond Retry-After",
+      "online: concurrent public mutation retries vary beyond Retry-After",
+      "web: concurrent public upload retries vary beyond Retry-After",
+      "web: concurrent public asset retries vary beyond Retry-After",
+      "web: concurrent public query retries vary beyond Retry-After",
+      "web: concurrent public mutation retries vary beyond Retry-After"
+    ]
+  }
+]

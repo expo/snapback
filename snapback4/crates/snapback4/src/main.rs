@@ -4,6 +4,7 @@
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
 mod assets;
+mod host_limits;
 mod auth;
 mod native;
 mod project;

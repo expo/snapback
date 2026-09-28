@@ -1,0 +1,12 @@
+{
+  "artifact": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "raw": 2040545,
+  "gzip_file_input_9": 593008,
+  "budget": 593719,
+  "headroom": 711,
+  "sha256": "f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "rebuilt": false,
+  "reason": "No wasm input changed in round 3; measured the existing round-2 artifact."
+}

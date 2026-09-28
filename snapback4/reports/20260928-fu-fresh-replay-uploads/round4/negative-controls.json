@@ -1,0 +1,80 @@
+[
+  {
+    "name": "cache-peer-claim",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "app-online: a peer releases its warning after the owner proves non-dispatch (explicit)",
+      "app-online: a peer releases its warning after the owner proves non-dispatch (scheduled)",
+      "app-web: a peer releases its warning after the owner proves non-dispatch (explicit)",
+      "app-web: a peer releases its warning after the owner proves non-dispatch (scheduled)",
+      "local: a peer releases its warning after the owner proves non-dispatch (explicit)",
+      "local: a peer releases its warning after the owner proves non-dispatch (scheduled)"
+    ]
+  },
+  {
+    "name": "no-durable-claim",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "app-online: a shared-store peer and a new runtime fence reset refresh",
+      "app-web: a shared-store peer and a new runtime fence reset refresh",
+      "local: a shared-store peer and a new runtime fence reset refresh"
+    ]
+  },
+  {
+    "name": "fence-unsent",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "app-online: a proven unsent automatic refresh can renew later (explicit)",
+      "app-online: a proven unsent automatic refresh can renew later (scheduled)",
+      "app-online: a proven unsent automatic refresh can renew later (peer)",
+      "app-web: a proven unsent automatic refresh can renew later (explicit)",
+      "app-web: a proven unsent automatic refresh can renew later (scheduled)",
+      "app-web: a proven unsent automatic refresh can renew later (peer)",
+      "local: a proven unsent automatic refresh can renew later (explicit)",
+      "local: a proven unsent automatic refresh can renew later (scheduled)",
+      "local: a proven unsent automatic refresh can renew later (peer)"
+    ]
+  },
+  {
+    "name": "malformed-auth",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "app-online: a shared-store peer and a new runtime fence json refresh",
+      "app-web: a shared-store peer and a new runtime fence json refresh",
+      "local: a shared-store peer and a new runtime fence json refresh"
+    ]
+  },
+  {
+    "name": "spin-nonretryable",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "public web probe recovery paces nonretryable and respects Retry-After"
+    ]
+  },
+  {
+    "name": "discard-probe-headers",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "public web probe recovery paces retryable and respects Retry-After",
+      "public web probe recovery paces nonretryable and respects Retry-After",
+      "public web probe recovery paces malformed and respects Retry-After"
+    ]
+  },
+  {
+    "name": "hide-changes-refusal",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "online: nonretryable changes (false) is visible and stops polling",
+      "web: nonretryable changes (false) is visible and stops polling",
+      "online: nonretryable changes (undefined) is visible and stops polling",
+      "web: nonretryable changes (undefined) is visible and stops polling"
+    ]
+  }
+]

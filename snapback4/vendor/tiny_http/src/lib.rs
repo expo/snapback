@@ -113,7 +113,7 @@ use util::MessagesQueue;
 pub use common::{HTTPVersion, Header, HeaderField, Method, StatusCode};
 pub use connection::{ConfigListenAddr, ListenAddr, Listener};
 pub use request::{ReadWrite, Request};
-pub use limits::ConnectionLimits;
+pub use limits::{AdmissionRefusals, ConnectionLimits};
 pub use response::{Response, ResponseBox};
 pub use test::TestRequest;
 
@@ -143,6 +143,7 @@ pub struct Server {
     // result of TcpListener::local_addr()
     listening_addr: ListenAddr,
     connections: Arc<AtomicUsize>,
+    refusals: Arc<limits::RefusalCounters>,
 }
 
 enum Message {
@@ -192,6 +193,9 @@ pub struct SslConfig {
 }
 
 impl Server {
+    /// Every connection refused before admission, including failed wire delivery.
+    pub fn admission_refusals(&self) -> AdmissionRefusals { self.refusals.snapshot() }
+
     /// HTTP with admission before connection threads and absolute I/O deadlines.
     pub fn http_with_limits<A: ToSocketAddrs>(addr: A, limits: ConnectionLimits) -> Result<Server, Box<dyn Error + Send + Sync + 'static>> {
         if limits.max_connections == 0 || limits.max_header_bytes == 0
@@ -307,6 +311,8 @@ impl Server {
         let inside_messages = messages.clone();
         let connections = Arc::new(AtomicUsize::new(0));
         let inside_connections = connections.clone();
+        let refusals = Arc::new(limits::RefusalCounters::default());
+        let inside_refusals = refusals.clone();
         thread::spawn(move || {
             // a tasks pool is used to dispatch the connections into threads
             let tasks_pool = limits.is_none().then(util::TaskPool::new);
@@ -316,10 +322,12 @@ impl Server {
                 let new_client = match server.accept() {
                     Ok((sock, _)) => {
                         // Refuse before any connection parser/thread exists. A
-                        // full host closes excess sockets rather than queuing work.
+                        // full host refuses excess sockets without queuing work.
                         let state = if let Some(limits) = &limits {
                             let Some(lease) = limits::ConnectionLease::acquire(&inside_connections, limits.max_connections) else {
-                                let _ = sock.shutdown(Shutdown::Both);
+                                // No logging, queue or thread on this path.
+                                // TLS is counted too, without starting a handshake.
+                                inside_refusals.refuse(sock, ssl.is_some());
                                 continue;
                             };
                             match limits::ConnectionState::new(&sock, limits.clone(), lease) {
@@ -392,6 +400,7 @@ impl Server {
             close: close_trigger,
             listening_addr: local_addr,
             connections,
+            refusals,
         })
     }
 

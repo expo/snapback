@@ -17,7 +17,7 @@ for (const tier of ['online', 'wasm']) test(`${tier}: lane order, renewal suppre
     if (!new URL(input).pathname.startsWith('/m/')) return defaultFetch(input, init);
     return new Promise((resolve, reject) => calls.push({ name: input.split('/m/')[1], body: JSON.parse(init.body),
       sent: () => resolve(Response.json({ state: 'sent', result: null })),
-      failed: code => resolve(Response.json({ state: 'failed', why: { code, family: 'auth', retryable: true } })), reject }));
+      failed: code => resolve(Response.json({ state: 'failed', why: { code, family: 'auth', message: 'refused', retryable: true } })), reject }));
   };
   const client = tier === 'online' ? createClient({ url, persona: 'alice', fetch })
     : await createLocalClient({ url, persona: 'alice', fetch, device: opener });

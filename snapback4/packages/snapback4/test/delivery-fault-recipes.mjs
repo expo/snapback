@@ -1,15 +1,17 @@
 // Each recipe selects a real host operation below the named awaited call.
 // The census test pins this mapping; there is no default for a new await.
 export const groups = {
-  ordinary: [0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,156],
+  assetRead: [159,160,161,162,163,164],
+  onlineRefresh: [165],
+  ordinary: [0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,158],
   lookup: [1,87,88,89,90,91,100,101],
   media: [7,50,107,108,109,110,111,112,113,114,155],
   postcommit: [6],
   pending: [5,13,97,98],
   reset: [20,21],
   adoption: [22,23,24,25,123,124,125],
-  probe: [4,32,33,34,35,36,122],
-  follow: [37,38,39,40,41,42,43,44,45,46,47,135,136,137,138],
+  probe: [4,32,33,34,35,36,122,157],
+  follow: [37,38,39,40,41,42,43,44,45,46,47,135,136,137,138,156],
   replay: [69,70,71,72,73],
   recovery: [60,85,86],
   acknowledgement: [81,96],
@@ -24,7 +26,27 @@ export const groups = {
   clock: [134],
   auth: [11,18,26,27],
 };
-export function recipe(index) {
+// Keep the existing fixture cases attached to their semantic await after the
+// shared HTTP decoder moved body I/O. The census still pins every exact ID;
+// new sites have no default classification. Case 156 is the new overload pause.
+export function fixtureIndex(index) {
+  // LV prediction capture is optional to delivery; keep FU pause identities.
+  if (index >= 158 && index <= 165) return index;
+  // Round 3: the probe's admission refusal owns one paced recovery wait.
+  if (index === 35) return 157;
+  if (index > 35) index -= 1;
+  // Round 2: auth handling precedes refusal wait; schema send/body now share
+  // the safe-read await (body I/O is also exercised by readResponse).
+  if (index === 41) index = 42;
+  else if (index === 42) index = 41;
+  if (index >= 124) index += 1;
+  if (index >= 17 && index <= 40) return index + 1;
+  // The shared JSON await is required: it also reads mutation receipts, where
+  // failure must retain the same ID and wait for recovery before the FIFO tail.
+  return ({41:156,115:12,116:115,154:116,155:117,156:154,157:155})[index] ?? index;
+}
+export function recipe(ordinal) {
+  const index = fixtureIndex(ordinal);
   const matches = Object.entries(groups).filter(([,ids])=>ids.includes(index));
   if (matches.length !== 1) throw Error(`unclassified or ambiguous awaited site ${index}`);
   return matches[0][0];

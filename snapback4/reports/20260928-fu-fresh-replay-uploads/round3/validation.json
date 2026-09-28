@@ -1,0 +1,51 @@
+{
+  "affected-final": {
+    "tests": 464,
+    "pass": 464,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "refresh-final": {
+    "tests": 24,
+    "pass": 24,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "online-session-final": {
+    "tests": 13,
+    "pass": 13,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "session-model": {
+    "tests": 52,
+    "pass": 52,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "sequences_per_tier": 100
+  },
+  "probe-final": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "probe-matrix": {
+    "tests": 3,
+    "pass": 3,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "guide": {
+    "tests": 98,
+    "pass": 98,
+    "fail": 0
+  },
+  "full_suite": "not run, per round-3 instruction"
+}

@@ -1,0 +1,33 @@
+{
+  "affected": {
+    "tests": 558,
+    "pass": 558,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "tests": 3,
+    "pass": 3,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "guide": {
+    "pass": 98,
+    "fail": 0,
+    "log": "guide-final.log.gz"
+  },
+  "typechecks": {
+    "exit": 0,
+    "log": "typecheck-final.log.gz"
+  },
+  "full_suite_rerun": false
+}

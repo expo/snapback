@@ -1,0 +1,57 @@
+{
+  "affected_unique_client_cases": 567,
+  "affected_runs": {
+    "overload_and_early_renewal": 118,
+    "refresh_and_delivery_matrix": 334,
+    "adjacent": 124
+  },
+  "guide_initial": {
+    "pass": 97,
+    "fail": 1
+  },
+  "guide_corrected": {
+    "pass": 98,
+    "fail": 0
+  },
+  "server_overload": {
+    "pass": 3,
+    "fail": 0
+  },
+  "full_suite": {
+    "invocations": 1,
+    "exit": 1,
+    "summary": "== 1 failure(s) in 1281 s",
+    "categories": [
+      "cargo test"
+    ],
+    "rust": {
+      "pass": 4295,
+      "fail": 1,
+      "ignored": 33
+    },
+    "client_shards": {
+      "tests": 4571,
+      "pass": 4561,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 10
+    },
+    "client_models": {
+      "pass": 79,
+      "fail": 0
+    },
+    "fixture_wrapper": {
+      "pass": 9,
+      "fail": 0
+    },
+    "failure": "snapback4-lang::guide::client::published::published_file_references_resolve_against_package_contents",
+    "classification": "ours",
+    "resolution": "Removed unshipped package-document link; entire guide rerun passes 98/98."
+  },
+  "ref_check": {
+    "llps": 522,
+    "refs": 9848,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

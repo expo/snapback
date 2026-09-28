@@ -1,0 +1,78 @@
+{
+  "merge": "492ff24193b9ce949998d66775cf35994b11545f",
+  "main": "8861dd636265ebce76fa88d49c7d05eab3433b91",
+  "w13_pin": "8861dd636",
+  "inputs": {
+    "/home/ccheever/sb4-intent/lane-fu.prompt.md": "c237d3ed96343e373917d350b0b77173b858052077a32a2872a0f93f51f4547d",
+    "/home/ccheever/sb4-intent/lane-fu.r1.prompt.md": "25b20ccd20d42906575957f87b393166873c3bb185cea8f12f4a85e6fe421bcd",
+    "/home/ccheever/sb4-intent/reviews/fu-r1.astra.md": "6a9e3b4a5305653991377f6acf2123caefbb0bebf23d02843f6c51c146e44c97",
+    "/home/ccheever/sb4-intent/reviews/fu-r1.grok.md": "75c8e94692bff1aa7f09d9cd9e72fcd069152db88a516d5f9d6e3a2fc2d7f008"
+  },
+  "recorded": "2026-09-28T19:12:27.889794+00:00",
+  "full_run_launch_source": {
+    "llp/3000-snapback4.explainer.md": "6c79abd7447f76888163789cc352919966701e0a9d07a40cb7dd4a704f451132",
+    "llp/3000.017-ephemeral-tables.rfc.md": "2ee6d3d7984cac4ba53d5e1e9bbdb8ad1a6ece878e8879eb83cff55b7bb76255",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "74a4217f470f6a3a89851fd8c571e03df32b3ae49fd8af88c0f506ee0e4745e7",
+    "snapback4/crates/snapback4-lang/src/guide/refusals.rs": "94bdc1f90149ddfa1ba9507c4535f7b2777556feb23949366dce8ae426143f66",
+    "snapback4/packages/snapback4/src/auth.ts": "4dfc72af086cd9d08b7bbe24fa3f977b5b6f1268f976dae96b5ade113845b75b",
+    "snapback4/packages/snapback4/src/client.ts": "7eb792cc74180ee69c6c05280106f3190f7d387a8f3462681a6b811ff5742a98",
+    "snapback4/packages/snapback4/src/ephemeral.ts": "c21b1c1cef2a83b69675d385c32f6f0146fb2e2bd2d8758c4c00bd5a3b723f73",
+    "snapback4/packages/snapback4/src/http-response.ts": "dd930f6d5b5a9fc40a600c0bb561ad63a9a41ed1f52b716fa3f8e5fc78da97bc",
+    "snapback4/packages/snapback4/src/local-backend.ts": "23d63082441e1b657d601a577167713dbbb4ee618c74973b4ff19024e5e7b93f",
+    "snapback4/packages/snapback4/src/local.ts": "ce64cab76df102c1ddd5c8529d2a60c1ada5fe259d56c5fa8a0191fadf019af6",
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "3b0d669e6b1fcaa47aa39dca8ad105692002c6685f047d3fffafd3d8b3ac93f8",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "ae28ac381f89bc59b4c98ae1724b26ef8b20fe053a237574527fe9d60f33ed1b",
+    "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs": "2864fdc4ebe9acc41aa4f07ed1245edc29501c91c2d82283933b5aaf46b7450b",
+    "snapback4/packages/snapback4/test/delivery-fault-recipes.mjs": "cbc3f1abb0f15e9ff345e6a0a44f0696645cc470bdf62b1e08e812763476a01e",
+    "snapback4/packages/snapback4/test/delivery-fault-sites.json": "5dbc8fa5c3aceb9a213b63444f4500b723dd08eb5197e3b85501dbdfb9a9497f",
+    "snapback4/packages/snapback4/test/ephemeral-lanes.test.mjs": "d0e9635077b3c3fbcb7c6385a44e82628bd433ac3e29473ab1cc769ccb296cf5",
+    "snapback4/packages/snapback4/test/ephemeral-sender.test.mjs": "3f974e11785974b0427e70760abfc4cd832dfcf42c76c1353f034e55c327ab9a",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "ab3d14104c9ea1da8662ac472d66720d0dbc4a91ed24229a0e560e593f2cda08",
+    "snapback4/packages/snapback4/test/overload.test.mjs": "1ab4186ee5bdea622742bfb0a552c1884b97b64c96e934a3dc48ed6f0ffdfc32",
+    "snapback4/packages/snapback4/test/schema-session.test.mjs": "c47222fc6de7fad8da5c95c07addabbef60d8e9ae7f433318e1ffdb8e88aa8c5"
+  },
+  "final_recorded": "2026-09-28T19:34:49.705314+00:00",
+  "source": {
+    "llp/3000-snapback4.explainer.md": "84acbd134d83cf7667c8b155bb4ad3639d1b9d2652ba4090b6432b503aabf1e7",
+    "llp/3000.017-ephemeral-tables.rfc.md": "2ee6d3d7984cac4ba53d5e1e9bbdb8ad1a6ece878e8879eb83cff55b7bb76255",
+    "snapback4/JOURNAL.md": "1be88304526eecc81a08d3186b81e8f440c209ce8f46f602b10d98909bdd569e",
+    "snapback4/crates/snapback4-lang/src/guide.rs": "89e53c3a41b31db3068ed612da2b42fdc62da0522e6d453d59c7155796e6d275",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "74a4217f470f6a3a89851fd8c571e03df32b3ae49fd8af88c0f506ee0e4745e7",
+    "snapback4/crates/snapback4-lang/src/guide/refusals.rs": "4420b667a975053b846362cfac725c36f3e74aacc2ce510f0dcd00f66d3adf64",
+    "snapback4/crates/snapback4/src/serve.rs": "bc9c82e3812c78f55a9cb9522985550442bdc1ecf7faf308c38fa76139ff2b86",
+    "snapback4/crates/snapback4/tests/serve_overload/mod.rs": "0b1efbd9f5fb760b68e510c4776e32e6dd13271da8271a6cb34bbb691841f283",
+    "snapback4/packages/snapback4/src/assets.ts": "af7013059aae94e455315bbf3a3087ff7158cb3536949a2a3635771f4e94ff7e",
+    "snapback4/packages/snapback4/src/auth.ts": "4dfc72af086cd9d08b7bbe24fa3f977b5b6f1268f976dae96b5ade113845b75b",
+    "snapback4/packages/snapback4/src/client.ts": "c3097c6983cf5812f80deef46c7af08692e5908450e0aeb1355e1b60d5e22515",
+    "snapback4/packages/snapback4/src/ephemeral.ts": "c21b1c1cef2a83b69675d385c32f6f0146fb2e2bd2d8758c4c00bd5a3b723f73",
+    "snapback4/packages/snapback4/src/http-response.ts": "90753d5962e4a44db40c315f7bf9c0f214bf048c3d2e5c8eba6e01da13401193",
+    "snapback4/packages/snapback4/src/local-backend.ts": "23d63082441e1b657d601a577167713dbbb4ee618c74973b4ff19024e5e7b93f",
+    "snapback4/packages/snapback4/src/local.ts": "dc497327582177c8e8349b5ae83c496d4efd9d9c7a51fa69a5fa6eefeddcc83c",
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "3b0d669e6b1fcaa47aa39dca8ad105692002c6685f047d3fffafd3d8b3ac93f8",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "b8a66fc56548155658e81e315aa1098d20430ed10d100b2d1fb457c418fc7b58",
+    "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs": "2864fdc4ebe9acc41aa4f07ed1245edc29501c91c2d82283933b5aaf46b7450b",
+    "snapback4/packages/snapback4/test/delivery-fault-recipes.mjs": "cbc3f1abb0f15e9ff345e6a0a44f0696645cc470bdf62b1e08e812763476a01e",
+    "snapback4/packages/snapback4/test/delivery-fault-sites.json": "5dbc8fa5c3aceb9a213b63444f4500b723dd08eb5197e3b85501dbdfb9a9497f",
+    "snapback4/packages/snapback4/test/ephemeral-lanes.test.mjs": "d0e9635077b3c3fbcb7c6385a44e82628bd433ac3e29473ab1cc769ccb296cf5",
+    "snapback4/packages/snapback4/test/ephemeral-sender.test.mjs": "3f974e11785974b0427e70760abfc4cd832dfcf42c76c1353f034e55c327ab9a",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "ab3d14104c9ea1da8662ac472d66720d0dbc4a91ed24229a0e560e593f2cda08",
+    "snapback4/packages/snapback4/test/overload.test.mjs": "ee009be92823912625bca1e0dd55bc7a78bf06dae58112c39cf15f9fecbe9014",
+    "snapback4/packages/snapback4/test/schema-session.test.mjs": "c47222fc6de7fad8da5c95c07addabbef60d8e9ae7f433318e1ffdb8e88aa8c5",
+    "snapback4/packages/snapback4/test/upload-lifetime.test.mjs": "aa7b7af3e64e491afc3a78892bfdab02199cbaf31052c79f99d91a4528d6247e",
+    "snapback4/packages/snapback4/test/upload-retry.test.mjs": "b8a674db28c85ab8f0a3f8da5345c03c078b13578e316677f769436ba11a2b18"
+  },
+  "final_artifacts": {
+    "snapback4/target/debug/snapback4": "826e10d55ff8ec7a44e818d957d0c6464c2513d9045bc585ca4916b094da867d",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409"
+  },
+  "final_review_hashes": {
+    "/home/ccheever/sb4-intent/reviews/fu-r1.astra.md": "6a9e3b4a5305653991377f6acf2123caefbb0bebf23d02843f6c51c146e44c97",
+    "/home/ccheever/sb4-intent/reviews/fu-r1.grok.md": "75c8e94692bff1aa7f09d9cd9e72fcd069152db88a516d5f9d6e3a2fc2d7f008"
+  },
+  "tools": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "wasm-bindgen": "wasm-bindgen 0.2.127",
+    "node": "v24.13.1",
+    "bun": "1.3.14"
+  }
+}

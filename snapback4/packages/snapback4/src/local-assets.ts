@@ -206,10 +206,18 @@ export async function readLocalAsset(id: string, env: {
   if ("denied" in read) {
     if (current()) own(read);
     await env.refused(read.denied, request.revision);
-    if (read.denied.code === "E_OFFLINE" && !env.unavailable()) { env.disconnected(); return own(await env.media.read(id)); }
+    if (read.denied.code === "E_OFFLINE" && !env.unavailable() && current()) {
+      env.disconnected();
+      const retained = own(await env.media.read(id));
+      return "url" in retained ? retained : read;
+    }
     if (read.denied.code === "E_ASSET_UNKNOWN" && current()) await env.media.invalidate(id,
       () => current() && env.lifetime.current(id, read, ticket));
   }
-  if (!current()) { if ("url" in read) read.revoke(); return { denied: env.unavailable() ?? env.offline() }; }
+  if (!current()) {
+    if ("url" in read) read.revoke();
+    return env.unavailable() ? { denied: env.unavailable()! } : "denied" in read ? read :
+      { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
+  }
   return "denied" in read ? read : own(read);
 }

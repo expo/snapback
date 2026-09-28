@@ -1,3 +1,4 @@
+import { overloaded } from "./http-response.ts";
 import type { Refusal } from "./contract.ts";
 import type { Worker } from "./worker.ts";
 import { routeRequest, untilAborted, type RouteDeclaration, type ServiceRoute } from "./server-routes.ts";
@@ -62,7 +63,7 @@ export function runVerifiers(options: VerifierOptions): Worker {
       const reply = await untilAborted(() => response.json(), lifetime) as { denied?: Refusal; requests?: VerificationClaim[]; worker?: string; ok?: boolean };
       lifetime.throwIfAborted();
       if (reply.denied) {
-        if (reply.denied.family === "auth") options.stop();
+        if (reply.denied.family === "auth" && !overloaded(reply.denied)) options.stop();
         throw new Error(`${reply.denied.code}: ${reply.denied.message}`);
       }
       if (!response.ok) throw new Error(`route verification transport returned HTTP ${response.status}`);

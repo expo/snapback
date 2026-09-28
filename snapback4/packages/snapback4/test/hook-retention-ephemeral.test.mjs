@@ -31,7 +31,7 @@ query evidence():
 query delayed():
   return secrets['S']
 `;
-for (const scenario of ['online', 'process', 'wasm', 'online pre-discovery', 'online direct-only', 'process missing metadata', 'wasm missing metadata']) for (const mode of ['withdrawal', 'buffered direct reply']) {
+for (const scenario of ['online', 'process', 'wasm', 'online pre-discovery', 'online direct-only', 'process missing metadata', 'wasm missing metadata', 'process missing both certificates', 'wasm missing both certificates']) for (const mode of ['withdrawal', 'buffered direct reply']) {
   if (scenario.includes('direct-only') && mode === 'withdrawal') continue;
   const tier = scenario.split(' ')[0], preDiscovery = scenario.includes('pre-discovery'), directOnly = scenario.includes('direct-only');
   test(`${scenario}: ephemeral replacement fences ${mode} at equal durable cut`, { timeout: 20000 }, async t => {
@@ -48,9 +48,12 @@ for (const scenario of ['online', 'process', 'wasm', 'online pre-discovery', 'on
       });
       if (hold && ['/q/mounted', '/q/shaped', '/sync'].includes(path)) await release.promise;
       const response = await fetch(input, init);
-      if (path === '/schema' && scenario.includes('missing metadata')) {
+      if (path === '/schema' && scenario.includes('missing ')) {
         const backend = await response.json();
-        for (const op of [...Object.values(backend.schema.operations), ...backend.programs]) delete op.ephemeralReads;
+        for (const op of [...Object.values(backend.schema.operations), ...backend.programs]) {
+          delete op.ephemeralReads;
+          if (scenario.includes('both certificates')) delete op.reads;
+        }
         return Response.json(backend);
       }
       if (path === '/q/delayed' && !oldPacket) {

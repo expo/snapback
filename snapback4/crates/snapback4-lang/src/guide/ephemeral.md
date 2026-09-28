@@ -108,8 +108,9 @@ useEffect(() => {
 Import `useQuery` and `useMutation` from `snapback4/react`, and `useEffect`
 from React. The generated `api` supplies the operation handles. Calls resolve
 to `Signal<R>` (`sent` or `failed`); offline calls fail with `E_OFFLINE` and
-are dropped, never held, retried or added to an outbox. A server refusal does
-not mark the link offline. A suspended or disconnected viewer disappears
+are dropped, never held, retried or added to an outbox. A server refusal or a
+malformed reply (`E_HTTP_RESPONSE`, with HTTP status) keeps the link online and
+waiting calls in order. Neither replays the failed call. A suspended or disconnected viewer disappears
 within its 30 s life without cleanup succeeding.
 
 ## Life and the renewal law

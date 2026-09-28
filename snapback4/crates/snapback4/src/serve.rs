@@ -254,11 +254,12 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         let verbose = !matches!(mode, Mode::Dev { verbose: false, .. });
         let (reports, hidden) = crate::verbs::problem_reports(&bound, true, verbose);
         let shown = reports.len();
-        for report in reports { eprintln!("{report}"); }
-        if hidden > 0 { eprintln!("snapback4 dev: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"); }
+        for report in reports { snapback4_core::diagnostic!("{report}"); }
+        if hidden > 0 { snapback4_core::diagnostic!("snapback4 dev: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"); }
         return Err(format!("{shown} problem{} in snapback/", if shown == 1 { "" } else { "s" }));
     }
     let dev = matches!(mode, Mode::Dev { .. });
+    snapback4_core::diagnostic!("snapback4 host: {}", crate::host_limits::describe());
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
     let replay = matches!(mode, Mode::Dev { replay: true, .. });
     let hold_effects = matches!(mode, Mode::Dev { hold_effects: true, .. });
@@ -340,19 +341,19 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     };
     crate::lifecycle::generation(generation);
     // The URL is stdout's first line; the dev token follows, while lifecycle and worker logs use stderr.
-    println!("http://{address}");
+    snapback4_core::diagnostic_stdout!("http://{address}");
     match &generated {
-        Some(generated) => eprintln!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
-        None => eprintln!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
+        Some(generated) => snapback4_core::diagnostic!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
+        None => snapback4_core::diagnostic!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
     }
     if dev {
         match mode {
-            Mode::Dev { fresh: true, .. } => eprintln!("store: temporary — discarded on exit"),
-            _ => eprintln!("store: {}", project.store_path().display()),
+            Mode::Dev { fresh: true, .. } => snapback4_core::diagnostic!("store: temporary — discarded on exit"),
+            _ => snapback4_core::diagnostic!("store: {}", project.store_path().display()),
         }
     }
-    if dev { eprintln!("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."); }
-    if replay { eprintln!("snapback4 dev: replay on — new effects suppressed; schedules held"); }
+    if dev { snapback4_core::diagnostic!("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."); }
+    if replay { snapback4_core::diagnostic!("snapback4 dev: replay on — new effects suppressed; schedules held"); }
     let mut background = Vec::new();
     if let Mode::Dev { watch: true, verbose, .. } = mode {
         let shared = shared.clone();
@@ -363,7 +364,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         let shared = shared.clone();
         background.push(("maintenance", crate::lifecycle::background("maintenance", move || maintain(shared))?));
     }
-    if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
+    if dev { snapback4_core::diagnostic!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
     let worker = crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;
     serve_requests(server, shared, worker, background, crate::lifecycle::stopping)
 }
@@ -376,13 +377,30 @@ fn serve_requests(
 ) -> Result<(), String> {
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
+    let mut reported = tiny_http::AdmissionRefusals::default();
+    let mut reported_workers = ([0; 7], [0; 7]);
+    let mut report_at = Instant::now();
     loop {
+        if report_at.elapsed() >= Duration::from_secs(1) {
+            let refusals = server.admission_refusals();
+            if refusals != reported && snapback4_core::diagnostics::emit(format_args!(
+                "E_RATE_LIMIT at http: all {} HTTP connections occupied at admission; cumulative refused={} http_written={} http_failed={} tls_closed={}; since_summary={}; wait for pending writes to settle or reduce concurrent clients; wire delivery is best-effort",
+                tiny_http::ConnectionLimits::default().max_connections, refusals.total(), refusals.http_written, refusals.http_failed, refusals.tls_closed, refusals.total().saturating_sub(reported.total())), false) {
+                reported = refusals;
+            }
+            let workers = (admission.refused.each_ref().map(|n| n.load(Ordering::Relaxed)), admission.undelivered.each_ref().map(|n| n.load(Ordering::Relaxed)));
+            if workers != reported_workers && snapback4_core::diagnostics::emit(format_args!(
+                "E_RATE_LIMIT at workers: cumulative refused={:?} undelivered={:?}; pools=[short,mutation,sync,wait,route,registry,verifier]; reduce concurrent clients; wire delivery is best-effort", workers.0, workers.1), false) {
+                reported_workers = workers;
+            }
+            report_at = Instant::now();
+        }
         if stopping() { return Ok(()); }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }
         if worker.is_finished() { return Err("worker thread stopped".into()); }
-        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
+        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(crate::host_limits::listener_error)? {
             dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
         }
     }
@@ -401,15 +419,31 @@ const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, refused: [AtomicUsize; 7], undelivered: [AtomicUsize; 7] }
 
 #[derive(Clone, Copy)]
 enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
+// @ref LLP 3000#http-overload-diagnostics — spawn failure drops the closure on the dispatcher; refuse before Request can drain an unfinished body.
+struct PendingRequest { request: Option<Request>, admission: Arc<RequestAdmission>, class: RequestClass }
+impl PendingRequest {
+    fn take(mut self) -> Request { self.request.take().unwrap() }
+}
+impl Drop for PendingRequest {
+    fn drop(&mut self) {
+        if let Some(request) = self.request.take() { self.admission.refuse(request, self.class); }
+    }
+}
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
+    fn refuse(&self, request: Request, class: RequestClass) {
+        let result = request.refuse_overload();
+        let increment = |counter: &AtomicUsize| { let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_add(1))); };
+        increment(&self.refused[class as usize]);
+        if result.http_written == 0 { increment(&self.undelivered[class as usize]); }
+    }
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
         match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
@@ -421,6 +455,10 @@ impl RequestAdmission {
 }
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
+    dispatch_with_builder(request, shared, admission, loopback_listener, std::thread::Builder::new().name("request".into()));
+}
+
+fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool, builder: std::thread::Builder) {
     // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
     let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
     let path = request.url().split('?').next().unwrap_or("");
@@ -436,10 +474,15 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
         else if detached_request(request.method(), path)
             || shared.personas && matches!((request.method(), path), (Method::Get, "/dev/latency") | (Method::Post, "/dev/latency/reset")) { RequestClass::Short }
         else { RequestClass::Mutation };
-    let Some(permit) = admission.acquire(class) else { request.abort(); return; };
-    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit;
+    let Some(permit) = admission.acquire(class) else {
+        admission.refuse(request, class);
+        return;
+    };
+    let pending = PendingRequest { request: Some(request), admission, class };
+    if let Err(error) = builder.spawn(move || { let _permit = permit;
+        let request = pending.take();
         if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } }) {
-        eprintln!("snapback4: cannot start request thread: {error}");
+        snapback4_core::diagnostic!("snapback4: cannot start request thread: {error}");
     }
 }
 
@@ -1209,7 +1252,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
-                            if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
+                            if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { snapback4_core::diagnostic!("{line}"); }
                             let m = outcome.metered;
                             let cut = if outcome.capped_at.is_some() { Some("meter") } else if outcome.word_cut_at.is_some() { Some("words") } else { None };
                             let mut meter = json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut });

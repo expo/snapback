@@ -1,0 +1,8 @@
+{
+  "raw": 2040545,
+  "gzip_file_input_9": 593008,
+  "budget": 593719,
+  "headroom": 711,
+  "sha256": "f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409",
+  "build": "rebuilt/checked by the single round-5 scripts/test.sh invocation; no wasm input changed this round"
+}

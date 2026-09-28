@@ -49,7 +49,7 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     if !shared.hold_schedules {
         let fired = phase(shared, engine_work(shared, |engine, _| engine.fire_schedules(shared.now())), drain, "schedules")?;
         work.schedules = fired.len();
-        for name in fired { eprintln!("snapback4: schedule {name} fired"); }
+        for name in fired { snapback4_core::diagnostic!("snapback4: schedule {name} fired"); }
     }
     while drain || work.chunks < 500 {
         if crate::lifecycle::stopping() { break; }
@@ -57,15 +57,15 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
             let run = engine.run_job_chunk_for(shared.now(), budget);
             (run, engine.take_native_logs())
         });
-        for line in logs { eprintln!("snapback4: native {line}"); }
+        for line in logs { snapback4_core::diagnostic!("snapback4: native {line}"); }
         let Some(run) = phase(shared, run, drain, "job")? else { break; };
         work.chunks += 1;
         match run.state {
-            snapback4_core::JobState::Done => eprintln!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
+            snapback4_core::JobState::Done => snapback4_core::diagnostic!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
             snapback4_core::JobState::Parked => {
                 work.parked += 1;
                 if shared.personas { shared.refusals.job(&run); }
-                eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or(""));
+                snapback4_core::diagnostic!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or(""));
             }
             _ => {}
         }
@@ -77,7 +77,7 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
             let actions = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_actions_for(shared.now(), budget)), drain, "the action lease sweep")?;
             let effects = phase(shared, engine_work(shared, |engine, budget| engine.requeue_expired_effects_for(shared.now(), budget)), drain, "the effect lease sweep")?;
             if actions + effects > 0 { shared.durable_committed(&lock(&shared.engine)); }
-            if effects > 0 { eprintln!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
+            if effects > 0 { snapback4_core::diagnostic!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
             if !drain || actions + effects == 0 { break; }
         }
     }
@@ -107,7 +107,7 @@ pub(super) fn maintain(shared: Arc<Shared>) {
     let mut last_tick = std::time::Instant::now();
     loop {
         if crate::lifecycle::stopping() { return; }
-        if let Err(error) = shared.ephemeral.sweep(shared.now()) { eprintln!("snapback4: ephemeral sweep: {error}"); }
+        if let Err(error) = shared.ephemeral.sweep(shared.now()) { snapback4_core::diagnostic!("snapback4: ephemeral sweep: {error}"); }
         let observed = *lock(&shared.seq);
         {
             let _maintenance = lock(&shared.maintenance);
@@ -115,7 +115,7 @@ pub(super) fn maintain(shared: Arc<Shared>) {
                 tick += 1; last_tick = std::time::Instant::now();
                 work(&shared, false, tick).map(|_| ())
             } else { delivery(&shared, false).map(|_| ()) };
-            if let Err(error) = result { eprintln!("snapback4: maintenance failed: {error}"); }
+            if let Err(error) = result { snapback4_core::diagnostic!("snapback4: maintenance failed: {error}"); }
         }
         // Mutation, action and adoption commits already notify this condition.
         // Startup/recovery also runs immediately; replay holds only schedules.

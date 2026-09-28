@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-09-28T18:11:50.490268+00:00",
+  "merge": "9563912e3187b41deb603b5b0fcc06a2cbf5f029",
+  "merged_origin_main": "ddf317b139a9fa97a1dd61b21afd021a62ec1054",
+  "branch": "sb4-intent/fu-fresh-replay-uploads",
+  "files": {
+    "/home/ccheever/sb4-intent/lane-fu.prompt.md": {
+      "bytes": 2991,
+      "sha256": "c237d3ed96343e373917d350b0b77173b858052077a32a2872a0f93f51f4547d"
+    },
+    "/home/ccheever/sb4-intent/reviews/fu-r0.astra.md": {
+      "bytes": 8025,
+      "sha256": "b41bcd7cdedcdea14987c3b7c5de605cea362fdbd8e97d5429e41c902aaf8a6f"
+    },
+    "/home/ccheever/sb4-intent/reviews/fu-r0.grok.md": {
+      "bytes": 8845,
+      "sha256": "dd97d06f89743ab6ef42376d8cd07c6a968f09eb2b27343e4350ce275d7bc7fb"
+    },
+    "/home/ccheever/sb4-intent/lane-fu/snapback4/target/fu-round0-production": {
+      "bytes": 18326328,
+      "sha256": "be0e25b049c00401e51c824fd3935b59ed8dbac426a42813702027f3cf6dee3c"
+    }
+  },
+  "final_review_recheck_at": "2026-09-28T18:39:21.424256+00:00",
+  "final_production": {
+    "path": "snapback4/target/production/snapback4",
+    "bytes": 18357368,
+    "sha256": "dc86ebff2aa0e4a61e2f9a05ae612d863075e2115140d36d346076446114e407",
+    "profile": "production (panic=abort)",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "stderr_tests": "production-complete-stderr.log.gz"
+  }
+}

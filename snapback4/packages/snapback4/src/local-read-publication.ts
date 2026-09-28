@@ -9,6 +9,7 @@ import { invalidateReadEvidence, readKey } from "./read-observation.ts";
 import { putRetention } from "./read-nonrevoking.ts";
 
 type Result = {
+  admissionRefused?: boolean;
   op: Query<unknown, unknown>; args: unknown; read: Read<unknown>; tables: Set<string>;
   dependencyFree?: boolean; evidenceSerial?: number; invalidated?: boolean; serverOnly?: boolean; seq?: number | undefined;
   nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean;
@@ -18,6 +19,7 @@ type Result = {
 export function reconcileLocalRead(answers: LocalReads, watches: ReadIndex<LocalWatch>, backend: BackendJson | null,
   result: Result, publish: () => boolean,
   expiry: (watch: LocalWatch, device: number | null, server?: number | null, wakeup?: boolean) => void, watch?: LocalWatch, refresh: (watch: LocalWatch) => void = () => {}): boolean {
+  if (result.admissionRefused) return publish();
   const key = readKey(result.op, result.args);
   if (!result.serverOnly && answers.blocked(key, result.tables)) return "loading" in result.read && publish();
   if (result.serverOnly && (!answers.accepts(result.tables, result.seq, result.evidenceSerial ?? answers.evidenceSerial)
