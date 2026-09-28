@@ -1,0 +1,135 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "obsolete A proof retires only its provisional refusal after B restart",
+      "ok": false,
+      "error": "page.evaluate: Error: the device Worker stopped\n    at WebWorkerHost.stop (http://127.0.0.1:37621/assets/index-CfHHXkep.js:741:38)\n    at window.Worker.failed (http://127.0.0.1:37621/assets/index-CfHHXkep.js:598:9)\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:293:47"
+    },
+    {
+      "name": "obsolete A proof retires only its provisional refusal after B restart and validation retry",
+      "ok": false,
+      "error": "page.evaluate: Error: the device Worker stopped\n    at WebWorkerHost.stop (http://127.0.0.1:37621/assets/index-CfHHXkep.js:741:38)\n    at window.Worker.failed (http://127.0.0.1:37621/assets/index-CfHHXkep.js:598:9)\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:293:47"
+    },
+    {
+      "name": "failed quiescence releases primary claim: default",
+      "ok": true,
+      "ms": 404.1032030000001,
+      "detail": {
+        "error": "Error: injected readonly IDB abort",
+        "probes": 3,
+        "afterFailure": [],
+        "afterRetry": [
+          "app"
+        ],
+        "afterClose": [],
+        "stores": [
+          "app"
+        ]
+      }
+    },
+    {
+      "name": "failed quiescence releases primary claim: Worker",
+      "ok": true,
+      "ms": 401.5785900000001,
+      "detail": {
+        "error": "Error: injected readonly IDB abort",
+        "probes": 3,
+        "afterFailure": [],
+        "afterRetry": [
+          "app"
+        ],
+        "afterClose": [],
+        "stores": [
+          "app"
+        ]
+      }
+    },
+    {
+      "name": "Worker emits durable prediction tables after admission acknowledgement",
+      "ok": true,
+      "ms": 427.47735499999953,
+      "detail": {
+        "admitted": {
+          "ok": {
+            "args": {
+              "body": "predicted-write",
+              "conversationId": "c1"
+            },
+            "id": "predicted-write",
+            "new_ids": [
+              "predicted-write"
+            ],
+            "now": 20,
+            "observed_seq": null,
+            "op": "send",
+            "predictable": true,
+            "predicted": [
+              "messages/predicted-write",
+              "messageCounts/[{\"Id\":\"c1\"}]"
+            ],
+            "sent_seq": null,
+            "seq": 1,
+            "viewer": "dev:alice"
+          }
+        },
+        "snapshot": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 0,
+          "restore_watermark": 0,
+          "restore_images_at": 0,
+          "send_revision": 2,
+          "acquisition": 4,
+          "queuedRevision": 13,
+          "issuedFloor": 20,
+          "predictions": [
+            "messages",
+            "messageCounts"
+          ]
+        },
+        "durable": [
+          {
+            "id": "predicted-write",
+            "seq": 1,
+            "op": "send",
+            "args": {
+              "body": "predicted-write",
+              "conversationId": "c1"
+            },
+            "new_ids": [
+              "predicted-write"
+            ],
+            "predicted": [
+              "messages/predicted-write",
+              "messageCounts/[{\"Id\":\"c1\"}]"
+            ],
+            "viewer": "dev:alice",
+            "now": 20,
+            "predictable": true,
+            "sent_seq": null,
+            "observed_seq": null,
+            "dispatch": ""
+          }
+        ],
+        "posts": 0,
+        "answer": {
+          "loading": true
+        },
+        "count": {
+          "loading": true
+        },
+        "countTables": [
+          "messageCounts",
+          "memberships"
+        ]
+      }
+    }
+  ],
+  "pageErrors": [],
+  "failures": 2
+}

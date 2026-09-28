@@ -1,0 +1,97 @@
+[
+  {
+    "name": "obsolete-proof-stays-sticky",
+    "exit": 1,
+    "failures": [
+      {
+        "name": "obsolete A proof retires only its provisional refusal after B restart",
+        "ok": false,
+        "error": "page.evaluate: Error: resume B: obsolete evidence retired and B resynced{\"control\":{\"store_id\":\"B\",\"transfer_store_id\":\"B\",\"generation\":1,\"acquired\":true,\"backend_required\":false,\"watermark\":100,\"transfer_watermark\":100,\"restore_watermark\":100,\"restore_images_at\":0,\"send_revision\":2,\"acquisition\":1,\"queuedRevision\":37,\"issuedFloor\":0,\"predictions\":[]},\"read\":{\"denied\":{\"code\":\"E_STORE_RESTORE\",\"family\":\"store\",\"guide\":\"sync\",\"message\":\"the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox\"}},\"validations\":[{\"status\":\"obsolete\"}],\"heldOpen\":true,\"heldCommit\":false}\n    at window.replacementRestore (http://127.0.0.1:34297/assets/index-CDtJuU0D.js:10373:9)\n    at async <anonymous>:317:30\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs:293:47"
+      },
+      {
+        "name": "obsolete A proof retires only its provisional refusal after B restart and validation retry",
+        "ok": false,
+        "error": "page.evaluate: Error: resume B: obsolete evidence retired and B resynced{\"control\":{\"store_id\":\"B\",\"transfer_store_id\":\"B\",\"generation\":1,\"acquired\":true,\"backend_required\":false,\"watermark\":100,\"transfer_watermark\":100,\"restore_watermark\":100,\"restore_images_at\":0,\"send_revision\":2,\"acquisition\":1,\"queuedRevision\":40,\"issuedFloor\":0,\"predictions\":[]},\"read\":{\"denied\":{\"code\":\"E_STORE_RESTORE\",\"family\":\"store\",\"guide\":\"sync\",\"message\":\"the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox\"}},\"validations\":[{\"status\":\"obsolete\"}],\"heldOpen\":true,\"heldCommit\":true}\n    at window.replacementRestore (http://127.0.0.1:34297/assets/index-CDtJuU0D.js:10373:9)\n    at async <anonymous>:317:30\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs:293:47"
+      }
+    ],
+    "pageErrors": [],
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/witness.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/obsolete-proof-stays-sticky/result.json"
+    ]
+  },
+  {
+    "name": "failed-claim-leaks-lock",
+    "exit": 1,
+    "failures": [
+      {
+        "name": "failed quiescence releases primary claim: default",
+        "ok": false,
+        "error": "AssertionError [ERR_ASSERTION]: failed open leaves no abandoned lock\n+ actual - expected\n\n+ [\n+   'app'\n+ ]\n- []\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs:307:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs:284:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs:304:39"
+      },
+      {
+        "name": "failed quiescence releases primary claim: Worker",
+        "ok": false,
+        "error": "AssertionError [ERR_ASSERTION]: failed open leaves no abandoned lock\n+ actual - expected\n\n+ [\n+   'app'\n+ ]\n- []\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs:307:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs:284:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs:304:39"
+      }
+    ],
+    "pageErrors": [],
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/witness.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-claim-leaks-lock/result.json"
+    ]
+  },
+  {
+    "name": "omitted-derived-footprint",
+    "exit": 1,
+    "failures": [
+      {
+        "name": "Worker emits durable prediction tables after admission acknowledgement",
+        "ok": false,
+        "error": "AssertionError [ERR_ASSERTION]: complete real runtime footprint after acknowledgement\n+ actual - expected\n\n  [\n-   'messageCounts',\n    'messages'\n  ]\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-footprint/witness.mjs:369:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-footprint/witness.mjs:284:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-footprint/witness.mjs:360:3"
+      }
+    ],
+    "pageErrors": [],
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-footprint/witness.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-footprint/result.json"
+    ]
+  },
+  {
+    "name": "omitted-derived-query",
+    "exit": 1,
+    "failures": [
+      {
+        "name": "Worker emits durable prediction tables after admission acknowledgement",
+        "ok": false,
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 0\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-query/witness.mjs:369:59\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-query/witness.mjs:284:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-query/witness.mjs:360:3"
+      }
+    ],
+    "pageErrors": [],
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-query/witness.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/omitted-derived-query/result.json"
+    ]
+  },
+  {
+    "name": "failed-validation-forgets-callback",
+    "exit": 1,
+    "failures": [
+      {
+        "name": "obsolete A proof retires only its provisional refusal after B restart and validation retry",
+        "ok": false,
+        "error": "page.evaluate: Error: resume B: obsolete evidence retired and B resynced{\"control\":{\"store_id\":\"B\",\"transfer_store_id\":\"B\",\"generation\":1,\"acquired\":true,\"backend_required\":false,\"watermark\":100,\"transfer_watermark\":100,\"restore_watermark\":100,\"restore_images_at\":0,\"send_revision\":2,\"acquisition\":1,\"queuedRevision\":39,\"issuedFloor\":0,\"predictions\":[]},\"read\":{\"denied\":{\"code\":\"E_STORE_RESTORE\",\"family\":\"store\",\"guide\":\"sync\",\"message\":\"the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox\"}},\"validations\":[],\"heldOpen\":true,\"heldCommit\":true}\n    at window.replacementRestore (http://127.0.0.1:43151/assets/index-7G9mD5g5.js:10377:9)\n    at async <anonymous>:317:30\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-validation-forgets-callback/witness.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-validation-forgets-callback/witness.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-validation-forgets-callback/witness.mjs:293:47"
+      }
+    ],
+    "pageErrors": [],
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-validation-forgets-callback/witness.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round8/mutants/failed-validation-forgets-callback/result.json"
+    ]
+  }
+]

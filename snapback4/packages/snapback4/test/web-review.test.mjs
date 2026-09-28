@@ -26,7 +26,10 @@ query rows():
   if (mutant === 'reset') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replace('reset() { publish(empty); }', 'reset() {}');
   if (mutant === 'tables') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replaceAll('Object.create(null)', '{}');
   if (mutant === 'overflow-delete') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
-    .replace('if (prior === undefined && spill) store.delete([s, change.k]);', '/* mutant: leave deleted overflow rows on disk */');
+    .replace('if (prior === undefined && spill && !cleared) store.delete([s, change.k]);', '/* mutant: leave deleted overflow rows on disk */')
+    .replace('else if (saved.spill && !cleared) store.delete([s, change.k]);', '/* mutant: leave pure-deletion overflow rows on disk */');
+  if (mutant === 'range-survivor') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8')
+    .replace('request.result.every(key => Array.isArray(key) && key.length === 2 && typeof key[1] === "string" && keys.has(key[1]))', 'true');
   for (const [name, selected] of [['local.ts', 'progress'], ['web-idb.ts', 'buckets']]) if (mutant === selected) {
     sourceOverrides[path(name)] = execFileSync('git', ['show', `18f3754fc:snapback4/packages/snapback4/src/${name}`], { cwd: root, encoding: 'utf8' });
   }
@@ -256,6 +259,66 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
     });
     assert.equal(result.entries, 1000); assert.equal(result.first, 'z'.repeat(1024)); assert.equal(result.last, 'z'.repeat(1024));
     assert.equal(result.format, '2'); assert.ok(result.packedEntries <= 512); assert.ok(result.packedBytes <= 262144);
+  });
+  await t.test('publication clears only a proved deletion range, atomically with rows and the watermark', async () => {
+    const result = await page.evaluate(async () => {
+      const persistence = indexedDbPersistence(), name = 'bulk-delete', keys = collisionKeys.slice(0, 1400);
+      const staged = keys.map(k => ({ s: 's', k, v: 'x'.repeat(1024) }));
+      await persistence.save(name, [...staged, { s: 'r', k: 'live', v: 'before' },
+        { s: 'm', k: 'watermark', v: '1' }, { s: 'o', k: 'intent', v: 'pending' }]);
+      const before = await persistence.load(name);
+      const changes = [...keys.map(k => ({ s: 's', k, v: null })), { s: 'r', k: 'live', v: 'after' },
+        { s: 'm', k: 'watermark', v: '2' }, { s: 'o', k: 'intent', v: null }];
+      const originalDelete = IDBObjectStore.prototype.delete, originalGet = IDBObjectStore.prototype.getAllKeys;
+      const stringify = JSON.stringify;
+      let abort = true, ranges = 0, singles = 0, encodedImages = 0, limits = [];
+      IDBObjectStore.prototype.getAllKeys = function(range, count) {
+        if (this.transaction.db.name === name) limits.push(count);
+        return originalGet.call(this, range, count);
+      };
+      IDBObjectStore.prototype.delete = function(key) {
+        if (this.transaction.db.name === name) {
+          if (key instanceof IDBKeyRange) { ranges++; if (abort) { this.transaction.abort(); return; } }
+          else if (key[0] === 's') singles++;
+        }
+        return originalDelete.call(this, key);
+      };
+      JSON.stringify = function(value, ...args) {
+        if (Array.isArray(value) && value.length === 2 && typeof value[1] === 'string' && value[1].length >= 1024) encodedImages++;
+        return stringify.call(this, value, ...args);
+      };
+      let rejected = false, unchanged;
+      try {
+        try { await persistence.save(name, changes); } catch { rejected = true; }
+        unchanged = stringify(await indexedDbPersistence().load(name)) === stringify(before);
+        abort = false;
+        await persistence.save(name, changes);
+      } finally {
+        IDBObjectStore.prototype.delete = originalDelete; IDBObjectStore.prototype.getAllKeys = originalGet; JSON.stringify = stringify;
+      }
+      const complete = await indexedDbPersistence().load(name);
+      // The same optimization must refuse a range with a survivor, even when
+      // the requested deletions include nonexistent keys and duplicates.
+      await persistence.save(name, staged);
+      const partialKeys = [...keys.slice(0, 800), ...keys.slice(0, 50),
+        ...Array.from({ length: 1000 }, (_, n) => `absent-${n}`)];
+      await persistence.save(name, partialKeys.map(k => ({ s: 's', k, v: null })));
+      const survivors = (await indexedDbPersistence().load(name)).filter(c => c.s === 's');
+      // A put in that namespace disqualifies the range, preserving call order.
+      await persistence.save(name, [...keys.map(k => ({ s: 's', k, v: null })), { s: 's', k: keys[0], v: 'new stage' }]);
+      const mixed = (await indexedDbPersistence().load(name)).filter(c => c.s === 's');
+      return { rejected, unchanged, ranges, singles, limits, encodedImages,
+        complete: complete.filter(c => ['s', 'r', 'm', 'o'].includes(c.s)),
+        survivors: survivors.map(c => c.k).sort(), expected: keys.slice(800).sort(), mixed };
+    });
+    assert.equal(result.rejected, true); assert.equal(result.unchanged, true);
+    assert.equal(result.ranges, 2); assert.equal(result.singles, 0);
+    assert.deepEqual(result.limits, [1401, 1401], 'probe cost is bounded by unique requested deletions');
+    assert.equal(result.encodedImages, 0, 'deletion never encodes an image just to measure its old size');
+    assert.deepEqual(result.complete.sort((a,b) => a.s.localeCompare(b.s)), [
+      { s: 'm', k: 'watermark', v: '2' }, { s: 'r', k: 'live', v: 'after' }]);
+    assert.deepEqual(result.survivors, result.expected);
+    assert.equal(result.mixed.length, 1); assert.equal(result.mixed[0].v, 'new stage');
   });
   assert.deepEqual(errors, []);
 });

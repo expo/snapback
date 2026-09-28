@@ -1,0 +1,17 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "exit preparation failure preserves known admission success",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Error: failure immediately after admission, during exit preparation'\n- undefined\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs:333:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs:259:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs:328:39"
+    },
+    {
+      "name": "exit preparation failure preserves known admission refusal",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Error: failure immediately after admission, during exit preparation'\n- undefined\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs:333:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs:259:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs:328:39"
+    }
+  ],
+  "pageErrors": [],
+  "failures": 2
+}

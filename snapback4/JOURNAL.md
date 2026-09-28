@@ -70306,6 +70306,64 @@ path tool installation, push or publication. Binaryen experimentation stayed
 under this worktree's target directory and was not adopted. Local commits
 carry the required co-author trailer.
 
+## 2026-09-27 — lane SS round 3: index copies and measured Worker follow-up
+
+First fetched and merged main to `09e55ad98`, preserving the supervisor's
+round-2 corrections. Profiles still put index construction and insertion
+first. Removed ordinary column/id value copies during key encoding and
+moved validated owned keys into the memory index. Persistent key bytes,
+atomic terminal publication, strict host saves, undo, crash recovery and
+cross-tab journal code remain unchanged. A sorted bulk-index prototype gave
+a 13.635 s memory trial but exceeded the unchanged wasm budget by 1,121 B;
+removed it. No shadow-index protocol was introduced.
+
+Two normal 1,000-conversation samples each: memory acquisition
+**16.287/16.617 → 15.689/15.998 s**, IDB-shaped
+**21.253/21.373 → 21.132/21.108 s**. Terminal apply falls
+**8.450/8.927 → 8.188/8.137 s** memory and
+**9.192/9.343 → 9.105/8.976 s** IDB-shaped. Real Chromium terminal apply
+falls **7.098/7.129 → 6.730/6.603 s**, but slower persistence leaves total
+**27.529/27.080 → 28.445/27.749 s** and during-live p95
+**13.245/12.723 → 14.393/13.680 s**; all runs have 19 during samples,
+zero timeouts. After p95 is 0.879/0.868 s. **8/12-second acquisition and
+sub-second browser acquisition-live targets remain unmet.** Observed
+wasm/external high-water memory increases; no memory improvement is claimed.
+
+Added optional Chromium CPU/wasm/JSON/IDB profiling. Final diagnostic sees
+8.405 s synchronous wasm apply, 2.217/1.462 s JSON stringify/parse during
+saves, 1.326 s synchronous IDB put issuance and a 6.647 s longest main-thread
+task. The bounded Worker plan is recorded in `ROUND3.md`; implementation
+does not fit this round because page-local synchronous admission/exit-send
+custody and device-queued prediction/read fences require a coordinated
+ownership protocol and fault qualification. No Worker, new API or native/
+Node opener change is shipped. Existing Node witnesses remain unchanged.
+
+Added the mixed `photos = [[asset_a], []]` marker lifecycle including reopen
+on both stores, and overwrite/savepoint/failed-replacement/drop rollback
+assertions for entries and export. Last-element-only media and skipped-older-
+entry-undo mutants fail as requested. Added persisted index-byte equivalence.
+Affected tests pass: 48 device library, 484 integrations (1 existing ignored),
+6 focused core tests, 46 SDK tests, whole guide 86. Real Chromium navigation
+after 9,922 staged/zero published rows reopens and reacquires successfully.
+
+Ran `scripts/test.sh` exactly once: **`== 2 failure(s) in 1510 s`**, exit 1.
+Three failures across Rust and client phases: two baseline timeline tests
+still assert superseded diagnostic wording, and the inherited native media
+test fails `real home is gone`. Ten ordinary single-test repetitions pass
+on each binary; a delayed pre-revocation response reproduces that assertion
+on both the preserved main and changed binaries. The full-suite schedule
+itself was not traced. Filed separate timeline and explicit-sync tickets;
+did not weaken assertions or alter unrelated runtime code. Full Rust:
+3,909 passed/2 failed/24 ignored; clients 2,644 passed/1 failed/10 skipped;
+models 78/78; wrappers 9/9. No other suite failure.
+
+Final wasm **1,981,913 raw / 572,786 gzip**, **+323/+196 B**, **55 B below**
+the unchanged 572,841-byte budget. Detailed two-sample phase tables, memory,
+experiments, Worker plan, control patch, hashes and exact full-suite log are
+in `reports/20260927-ss-sync-scale/ROUND3.md` and its companions. Existing
+acquisition ticket remains open. No tool installation, shared-path writes,
+original GS store writes, push or publication. Commit carries the required
+co-author trailer.
 ### 2026-09-27 — Lane DC round 5: preserve bound budgets and terminal suppression
 
 Merged origin/main first as ce02eb3d5 (main 166fe0579), preserving both
@@ -72342,3 +72400,391 @@ Did not run scripts/test.sh, per instruction; the supervisor owns landing
 qualification. Report and logs: reports/20260928-dg/ROUND2.md. LLP 3000.028
 Revised line and implementation notes updated. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+## 2026-09-28 — Lane SS round 4: internal Worker execution; public path incomplete
+
+Fetched and merged origin/main first, at 1972112a04fc03ece3423fbd4af67646f0cd5826.
+Kept both sides of the journal conflict (17024e0d6). Removed the unlanded
+round-3 index copy reductions (f1e247c86), retaining their regression fixtures.
+Read all four prompts, reports and entries; scoped llp-orient via the populated
+sibling lane-gs skill and the governing host/ownership/expiry/delivery LLPs.
+No wasm ABI, engine meter, row authorization or disclosure change.
+
+This is the coherent subset the round allows. The public `worker: true`
+opener is NOT implemented and the ordinary web default is unchanged. New
+web-worker-host/runtime/entry modules implement internal private VM calls and
+strict IndexedDB commits in a dedicated Worker. The page retains the exclusive
+claim and synchronous localStorage capture; shared journal request plans now
+have synchronous and asynchronous executors. The Worker retains full stored
+images and persistence deltas and returns journal metadata after durability.
+Its entry and wasm URL use the package build and Vite path. The wasm cache
+loader was extracted unchanged for use in either realm.
+
+The Worker acknowledges a stable per-store lifetime Web Lock before open.
+Termination waits for that lock and IDB transaction barriers before restore
+or release; close after termination also restores before releasing the claim.
+Lost replies reject, even when already durable; replay consults
+the original transfer marker. A failed barrier remains sticky so a later close
+cannot release ownership. This is not yet the DeviceCore adapter, orphan
+adoption, prepared suspension transport, conditional delivery collection or
+the conservative page read snapshot. Mixed default/Worker navigation still
+needs lifetime coordination. No new public form or sync-card recommendation
+for a nonexistent option; all four 100/1,000-conversation performance targets
+remain unestablished. No scale run or live-writer measurement this round.
+
+Final Chromium protocol witness: 26/26, zero page errors. Covers termination
+and crash at five admission steps, strict outbox/marker atomicity before replay,
+original order/minted IDs/authority and issued-time floor, staged/terminal
+publication, navigation, admission during reacquisition, cold identity refusal,
+cleanup failure, exit-record replay, cross-tab claims, uncommitted/idle-crash
+rejection and sticky barrier failure. The production package entry and existing
+web-shell exporter also reopen offline with a new Worker and zero wasm fetches.
+Exit replay is not a Worker onSuspend transport proof. Fixture has three
+confirmed rows; it is not performance evidence.
+
+Affected results: unchanged default web tests 163/163; sync-scale/server-clock
+15/15; whole guide 92/92; existing Chromium navigation 10/10. Existing IDB
+witness exits 1: baseline adoptionRejected/adoptionUnlocked expectations,
+reproduced with main's original web host and journal. Main defers orphan
+recovery to a call/authority attach; the fixture still expects eager open.
+Filed issues/20260928-snapback4-idb-witness-assumes-eager-orphan-recovery.md.
+Lane-owned early harness brace/type errors and cold-admission assumptions
+were fixed, with early failure logs retained. No remaining environmental
+qualification failure. Final package build and Worker witness also cover the
+internal-host fixes made after the full suite's initial build.
+
+Ran scripts/test.sh once: `== 0 failure(s) in 1770 s`, exit 0. Rust 4,162
+passed / 30 ignored; client shards 3,901 passed / 10 skipped; serial models
+79/79; fixture wrappers 9/9; all build/typecheck/guide/docs/release checks pass.
+No full-suite failures. The 60 s suite time budget is not met. Initial/final
+wasm are byte-identical: 2,019,815 B raw / 585,384 B gzip, delta 0/0, unchanged
+586,193 B cap (809 B headroom). No shared tools installed, no original GS
+fixture/store/WAL touched, no pushes or publication.
+
+LLP 3000.007 section 20.4 and the acquisition ticket record this internal
+foundation and remaining work. Full file map, limitations, default criteria,
+commands, exact results and compressed evidence:
+reports/20260927-ss-sync-scale/ROUND4.md. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — SS round 5: Worker option implemented, measured, not ready to land
+
+Continued the round-4 foundation on `sb4-intent/ss-sync-at-scale`, fetching
+and merging origin/main first (already up to date). Local ordered subsets:
+`d3fe92105` control snapshot/watch bypass; `11d68425d` prepared suspension;
+`fa970ff41` orphan/receipt and conditional delivery integration; `16fe7c574`
+public Worker adapter, mixed navigation and offline reopen; `bb8c48955`
+measurement-driven cold-fence/first-open fixes and the repeated scale record.
+Every commit has the co-author trailer. Nothing pushed or published.
+
+The page keeps its exclusive claim, synchronous journal/authority and dispatch;
+the Worker keeps the unchanged VM and strict IndexedDB. Durable page control
+contains store/generation, acquisition incarnation, queue revision, prediction
+footprint (unknown blocks), issued-time floor and restore/send fences. A
+synchronous capture fences before Worker transfer. Only already wholly
+server-answered cold watches use the bypass; composition, held reads and
+supplementary collection remain disabled there. Dispatch and delivery retain
+credentials, expiry and every control fence. A temporary authority barrier now
+withholds without moving the watch behind the Worker queue.
+
+Prepared suspension commits the bound head's begin_send first; any later call
+synchronously cancels permission. Pagehide checks permission/credentials and
+captures the exit journal before keepalive. An unprepared head stays durable.
+Orphan transfer preserves custody/receipts under both claims. Conditional
+delivery transfers only its metadata delta to the page and executes current()
+inside the strict IDB transaction immediately before commit (LLP 3000.022 §4).
+Both openers wait for the old Worker lifetime and persistence barrier. The
+public form is webDevice({ worker: true }); the ordinary default and injected
+providers remain supported, while Worker plus custom persist explicitly refuses.
+
+Steps 1–4 are implemented/tested. Step 5 was measured twice per condition on
+a quiet 96-CPU host with Chromium 151.0.7922.34 and a live Node peer writer.
+Final Worker 1,000-conversation runs: acquisition 28.945/30.259 s, live p95
+516/515 ms, longest main-thread task 55/53 ms. The live and page-task targets
+pass; the 27 s acquisition target fails. Max live delay remains 1,426/1,312 ms,
+over 101/102 samples with zero timeouts. Ordinary controls: 27.066/26.876 s,
+12.517/12.719 s p95, 6.946/6.892 s main tasks. At 100 the Worker takes
+5.291/4.997 s against ordinary 4.216/4.216 s; live p95 1.686/1.019 s also
+misses one second. Initial and final repeats are both retained; no better
+sample is substituted. Page-only heap is not a total Worker-memory claim.
+Step 6 was deliberately not done because acceptance fails: no sync-card
+recommendation. Acquisition work and independent supervisor review remain;
+this option is not ready to land. Historical Node 8/12 s targets stay open.
+
+Final affected checks: web/default plus clock 191/191; control and sync-scale
+23/23; Worker Chromium protocol 36/36; real busy-Worker 503/expiry/admission
+cases 3/3; navigation default 10/10 and Worker 10/10; whole guide 92/92.
+Both existing IDB runs exit 1 only on baseline adoptionRejected/adoptionUnlocked
+expectations about eager recovery, already reproduced on main in round 4.
+The direct injected-persistence fault subcases remain default in that witness.
+Own early queued-helper initialization, extraction syntax, Node claim-helper
+regression and witness setup failures were fixed and their logs retained.
+No remaining environmental qualification failure.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1409 s`, exit 0.
+Rust 4,162 passed / 30 ignored; client shards 3,919 passed / 10 skipped;
+serial models 79/79; fixture wrappers 9/9; every build/typecheck/docs/release
+step passes. No product change during the run. The inherited 60 s full-suite
+time budget remains unmet. Canonical wasm stays 2,019,815 B raw / 585,384 B
+gzip, delta 0/0, SHA-256 unchanged at
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+Budget file is byte-identical at 586,193 B (809 B headroom); no Rust/ABI change.
+
+LLP 3000.007 §20.4 and the open acquisition ticket now record this state.
+Reference audit passed with zero errors. All tools/dependencies were already
+available or installed in the worktree; no shared tool installation. Only
+private worktree fixture copies were served; both verified owned servers were
+stopped. The GS source store/WAL was untouched. Full step status, implementation
+map, exact measurements, failure classifications and compressed qualification:
+reports/20260927-ss-sync-scale/ROUND5.md.
+
+## 2026-09-28 — SS round 6: real Clique acquisition, bounded IDB deletion
+
+Fetched/merged origin/main first on sb4-intent/ss-sync-at-scale (already up
+to date; no conflicts). Implementation commit b300391f2 preserves the default
+semantics, round-5 Worker option, strict commit, on-disk format and wasm ABI.
+No push, publication, integration or independent-review claim. The original
+calibration-24 store and RG worktree were untouched; both owned private-copy
+servers are stopped. All tool/dependency installation stayed in this worktree.
+
+Real builder Metro export in Chromium 151.0.7922.34, copies of the verified
+store: central u0001 has 1,000 memberships and receives 110,000 events / 41.586
+MB in 13 responses; u0500 has 100 and receives 15,679 / 5.371 MB in three.
+Two corrected final Worker repetitions, fresh navigation through login and
+rendered Offline access ready: 27.391/28.804 s centrally, 4.166/4.046 s at 100.
+No acquisition Long Tasks entry; page boot included, the worst is 77 ms.
+All round-6 30 s / 5 s / 200 ms targets pass for this workload. Default times
+are 28.414/26.659 and 4.003/4.395 s, but tasks reach 7,479/6,994 ms centrally
+and 368/422 ms at 100. Recommend the opt-in for these large accounts; package
+default and independent review remain unchanged. The corrected runs overlapped
+the complete suite on this 96-CPU shared host, not an exclusive-host run.
+
+The supplied Darwin/arm64 90-second timeout does not reproduce here, including
+published Linux 0.4.6 server/client at 29.089 s centrally / 4.532 s at 100 from
+login. This does not claim to fix its cause. Messages dominate central volume
+(90,500 rows); public ownLikes/ownReposts add 6,012 rows / 1.934 MB to both
+accounts. N_MAINTAIN_SYNCED already warns about them. The sync card now explains
+per-group horizons, full maintained key sets, largest-account measurement and
+the offline tradeoff of online only. No app declaration was changed.
+
+IDB now proves a complete physical deletion range inside the existing strict
+transaction before replacing scalar overflow deletions. Pure bucket deletion
+skips encoding removed images for byte-cap arithmetic. New browser regression
+proves abort/reopen atomicity, bounded probing, duplicates/nonexistent keys,
+unmatched survivors and mixed inserts; both negative controls fail as intended.
+Matched central Worker terminal saves improve 3.742/3.986 → 2.757/3.361 s;
+total acquisition remains roughly unchanged within run variation. Diagnostic
+CPU identifies about 4.06 s in index construction/insertion; IDB puts still
+serialize 636.9 MB, including 555.4 MB in staging. Server certification is
+bounded by the unread-only page's approximately 1.57 s engine time, not an
+isolated aggregate timer. Repeated whole-device recount is absent.
+
+Rejected sorted bulk indexes: +1,718 B gzip, 909 B over the unchanged cap;
+removed before qualification. Also rejected 1,024 buckets (69.2 s central)
+and structured values (no material central improvement). Final canonical wasm
+2,019,815 B raw / 585,384 B gzip, delta 0/0, cap 586,193 B, headroom 809 B;
+SHA-256 083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+
+Affected tests: 192/192 web/clock including Worker controls; sync-scale 5/5;
+Worker protocol 36/36; busy Worker watches 3/3; navigation default and Worker
+10/10 each; memory/index 13/13; count-batch equivalence/meter 1/1; whole guide
+92/92, repeated after correcting guide measurement numbers. Reference audit
+and package/type/syntax checks pass. Both IDB witnesses exit 1 only on baseline
+adoptionRejected/adoptionUnlocked assumptions, already reproduced on main in
+round 4 and tracked in the eager-orphan-recovery issue. No remaining own or
+environmental qualification red. Own early private-export/path setup errors
+were corrected and retained. Final audit caught eight runs aimed at the
+published server; retained them separately, then repeated against the paired
+control's lane server and added an expected-origin assertion to the witness.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1349 s`, exit 0.
+Rust 4,162 passed / 30 ignored; client shards 3,920 passed / 10 skipped;
+serial models 79/79; fixture wrappers 9/9; every full-suite stage passes.
+No full-suite failures. The inherited 60 s suite budget remains unmet.
+No runtime implementation changed during the run; later guide numbers were
+rechecked by the whole guide, and the origin assertion by all eight real runs.
+
+LLP 3000.007 §20.4 records the atomic deletion proof. Existing acquisition
+ticket remains open for historical Node 8/12 s, synthetic live-writer targets,
+review, bucket amplification and budget-constrained indexes. Worker total
+memory and broader platform qualification are not established here. File map,
+forms, every failure, all measurements and commands: reports/20260927-ss-sync-scale/ROUND6.md.
+All round-6 commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — SS round 7: sticky cold-read restore proof and known admissions
+
+Merged origin/main 3a8360db1 first, without conflicts, in e608e25db;
+read rounds 0–6's prompts/reports/SS entries and Astra's full NOT READY review.
+Grok had no verdict at startup; did not wait. No push/publication or tool install.
+
+Cold queries now distinguish malformed/foreign replies from proved same-store
+regression. The latter synchronously fences the client and page controls,
+including prepared exit permission. The Worker host retains the original head
+and floors through a failed strict save or Worker restart, drains proof before
+later transactions and close, and commits the existing observe_store refusal.
+A terminal publication that overtakes the request can rebind only the current
+transaction guards; it cannot erase the original proof. A later 101 cannot
+bless the store after 100 → 90. New admission invalidates read publication,
+not that restore fact. Query/admission/action/upload/exit and ordinary transport
+guards prevent further dispatch. Ordinary restore observation was extracted
+without behavior changes to keep local.ts at 1,500 lines.
+
+Exit preparation now has separate failure handling after a completed call:
+retain its success or known NOT_ADMIN, invalidate permission, and retry using
+the existing bounded background recovery. New Chromium cases preserve both
+outcomes and journal cancellation/transfer. A real Worker-produced prediction
+footprint from a persisted admitted send blocks the intersecting server answer
+after the page's admission barrier has cleared.
+
+The blocked-Worker client regression covers private/image floor 100, reply 90,
+a delayed reply 101, an intervening pending admission and one-shot read, both
+ordinary and keep:true watches, no later sends, terminal watermark advancing
+to 101, strict refusal and offline reopen. Another protocol case interrupts
+proof persistence and requires the next read and reopen to remain refused.
+Six isolated mutants fail at their intended assertions: drop restore handling,
+propagate preparation failure, emit an empty runtime footprint, forget proof
+before commit, let an older sync observer clear the refusal, discard proof
+when the page control is temporarily unavailable. The last audit
+found that completion race; a fifth browser case and adjacent completion
+guards keep the refusal sticky through old observation/adoption replies.
+Captured proof also survives unavailable page control until host revalidation.
+Earlier copied-mutant package/opener setup errors and one wrong-cwd edit,
+absent-file reads and a reused-store fixture are classified as ours, corrected,
+and retained separately.
+
+Qualification: web/clock 193/193; sync-scale and repair-B 73/73; observer audit
+316 pass, one existing skip; final sync/generation completion 85 pass and
+one existing skip; controls 19/19; Worker protocol 40/40;
+busy-Worker watches 5/5; navigation default and Worker 10/10 each; whole guide
+92/92. Package build/typecheck, refs, whitespace and source sizes pass.
+Both IDB browser witnesses retain only the two baseline adoptionRejected /
+adoptionUnlocked failures (deferred orphan recovery versus eager-open fixture),
+tracked since round 4; all other reported checks pass. No unresolved own or
+environmental qualification failure. Observer-by-observer audit, file map,
+commands, all failures and raw evidence: reports/20260927-ss-sync-scale/ROUND7.md.
+
+Did not run scripts/test.sh, per round-7 instruction. Round 6's historical
+`== 0 failure(s) in 1349 s` stands; supervisor runs the landing suite. No new
+scale measurement, independent READY claim or change to the default device.
+Wasm remeasured unchanged: 2,019,815 B raw / 585,384 B canonical gzip, zero
+delta, 809 B below the unchanged 586,193 B cap; SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+LLP 3000.007 §20.4 records the fixes. Existing performance/platform/memory
+limits remain. Before strict restore commit, page-memory proof has the same
+page-destruction limitation as ordinary queued observation; no synchronous
+restore journal or physical-power-loss guarantee is claimed. Worker failure
+with a surviving page, durable refusal, close and offline reopen are tested.
+All local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-28 — SS round 8: obsolete restore fences and failed initial claims
+
+First fetched and merged origin/main a745b110f in 1366c700c, without conflicts;
+read rounds 0–7's prompts/reports/SS entries, Astra's full round-7 NOT READY
+review and Grok's rounds-4–6 review. Grok round 7 had progress only at startup.
+Nothing pushed or published; no tool installed.
+
+A cold restore proof captured from A while page identity is unavailable now
+fences provisionally. After commit acknowledgement, the Worker host reports
+its identity validation through a callback retained with the original proof
+across failed attempts and restarts. Replacement B retires only A's obsolete
+provisional refusal and resyncs the client. Per-store pending proofs and page
+fences preserve overlapping evidence and confirmed ordinary/cold refusals.
+Two real Chromium client/Worker/wasm/IDB cases hold A's floor-100 query while
+sync installs B, crash the Worker, deliver A at 90 with control absent, then
+recover B. Reads and action dispatch recover and offline reopen has no refusal.
+One case interrupts validation before commit and proves callback retention.
+
+The shared initial claim's failed readonly quiescence probe now awaits release
+before rethrowing. Both default and Worker browser cases reject the first open
+without an abandoned app lock, retry on app with a new barrier, create no tab
+store, and release the claim on close. Running-owner termination custody is
+unchanged. The prediction witness now requires the complete messages plus
+messageCounts footprint after admission acknowledgement and independently
+blocks a server query depending on messageCounts but not messages.
+
+Added five control tests and four browser cases; strengthened the footprint
+case. Five isolated semantic mutants are killed: obsolete refusal remains
+sticky, failed initial claim leaks, derived footprint omitted, same omission
+without exact-footprint assertion, callback forgotten before failed validation
+commit. No page errors in final Worker protocol/watch evidence. LLP 3000.007
+§20.4 records the decision; no new public form, Rust/wasm ABI, meter,
+authorization rule or persistence format. Local.ts remains at 1,500 lines.
+
+Qualification: web/clock 198/198; sync-scale/repair-B/generation/store-reset
+158 passed and one existing skip; Worker controls 24/24; Worker protocol
+44/44; busy-Worker watches 5/5; navigation default/Worker 10/10 each; whole
+guide 92/92. Build/typecheck, references, whitespace and source lengths pass.
+Both IDB modes retain the two baseline adoptionRejected/adoptionUnlocked
+assertions (deferred recovery versus eager-open fixture); their ticket stays
+open. Setup errors were corrected and recorded, not counted as passing runs.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1422 s`, exit 1, client
+tests. Rust 4,162 passed / 0 failed / 30 ignored; client tests 3,925 passed /
+1 failed / 10 skipped; models 79/79; fixture wrappers 9/9. All build, budget,
+release and app checks pass. The only suite failure is the baseline wasm
+mounted ephemeral-interest adoption timing assertion (ephemeral-adoption.test.mjs
+line 92, <=500 ms). Its exercised paths are unchanged and use a default memory
+device. Three isolated pre-round controls pass at 24.48/35.53/33.83 ms and
+current controls at 33.35/30.11/49.83 ms. Scheduling is a possible cause; the
+full-run delay remains unlocalized, and passing controls do not clear it.
+Updated the existing dev-adoption timing ticket. No suite rerun or relaxed bound.
+
+Wasm after the suite is unchanged: 2,019,815 B raw / 585,384 B GNU file-input
+gzip-9, delta 0/0, 809 B below unchanged 586,193 B cap; SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+No new scale/platform/Worker-memory measurement or independent READY verdict.
+Historical performance and pre-durable-commit page-destruction limits remain.
+Detailed file map, forms, all failures, reproduction and retained evidence:
+reports/20260927-ss-sync-scale/ROUND8.md and round8-* in that directory.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — SS round 9: failed close releases custody; adoption guard pinned
+
+First fetched and merged origin/main (already up to date, no conflicts), from
+lane 6f7253beaa and fetched main a745b110f. Read rounds 0–8 prompts, reports
+and SS entries, and Grok's complete round-7 review. No push/publication or
+tool installation; the supervisor owns integration and independent review.
+
+WebWorkerHost.close now terminates in finally and releases the page claim
+after its lifetime-lock and IndexedDB barriers succeed, even when restoration
+or proof persistence fails. The original close still rejects; after release,
+later host closes resolve without starting another Worker. Concurrent closes
+share their attempt. A failed termination barrier still keeps its sticky
+failure and the claim; the existing regression stays green.
+
+Two new Chromium cases abort the actual strict restore save or replace the
+restore observation with a non-refusal. Before the fix both leave the next
+claimant on app:tab-*; after the fix both give exactly app with no remaining
+page/lifetime lock. Both the repeated-close and no-restart assertions pass.
+The two generation-changing cases capture floor 100 and hold head 90, then
+latch the refusal while either observation or a successful adoption reply is
+held. The next action remains E_STORE_RESTORE with zero dispatches. The second
+case allows observation to finish and reaches the previously untested guard;
+a following state observation is held if reached so it cannot mask a cleared
+latch. Deleting only the post-adoption restore condition in an isolated built
+SDK copy fails that assertion, while the observation case still passes.
+Local.ts is unchanged. No engine, meter, authorization, format or ABI change.
+
+Qualification: web/clock 198/198; sync-scale/repair-B/generation/store-reset
+158 passed, one existing skip; Worker protocol 48/48; busy-Worker watches 5/5;
+navigation default/Worker 10/10 each; whole guide 92/92. Build/typecheck,
+reference audit (522 LLPs, 9758 references), whitespace and source lengths
+pass. Both IDB runs retain only the baseline adoptionRejected/adoptionUnlocked
+failures from the eager-orphan-recovery fixture. The pre-fix close reds are
+corrected; the adoption mutation red is intentional. Two exploratory absent/
+not-yet-written file reads were corrected. No environmental or unresolved
+lane-owned qualification failure.
+
+Did not run scripts/test.sh, as instructed. Round 8's historical exact result
+stands: == 1 failure(s) in 1422 s, client tests; its baseline <=500 ms wasm
+ephemeral-adoption timing failure remains unlocalized and is not claimed fixed.
+Wasm remeasured, not rebuilt: 2,019,815 B raw / 585,384 B GNU file-input gzip-9,
+delta 0/0, 809 B below unchanged 586,193 B cap; SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+Existing acquisition/platform/memory limits remain; no new scale measurement.
+A failed close does not promise that its unsaved restore proof became durable.
+
+LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
+Full file map, forms, failures, commands and retained evidence:
+reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

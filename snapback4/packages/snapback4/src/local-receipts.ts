@@ -1,9 +1,18 @@
 import type { Refusal, Write } from "./contract.ts";
-import type { WriteHistory } from "./writes.ts";
+import type { WriteHistory, MutationIds } from "./writes.ts";
 import type { Queued } from "./local-types.ts";
 
 type Terminal = Exclude<Write, { state: "pending" }>;
 type Call = (request: Record<string, unknown>) => Promise<{ denied?: Refusal }>;
+
+export async function readQueued(call: (request: Record<string, unknown>) => Promise<{ ok?: unknown; denied?: Refusal }>, mutationIds: MutationIds, history: WriteHistory): Promise<Queued[]> {
+  const answer = await call({ op: "queued" });
+  if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
+  const entries = (answer.ok as Queued[] | undefined) ?? [];
+  for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
+  history.retainEmissions(entries.map(entry => entry.id));
+  return entries;
+}
 
 // @ref LLP 3000.013#6 — persist known terminal custody before sync or replay;
 // both success and refusal retain their original outcome after a failed save.

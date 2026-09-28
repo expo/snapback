@@ -1,0 +1,208 @@
+{
+  "base": "09e55ad98",
+  "branch": "sb4-intent/ss-sync-at-scale",
+  "toolchain": {
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "rust": "1.97.0"
+  },
+  "fullSuite": {
+    "clientCounts": {
+      "passed": 2644,
+      "failed": 1,
+      "skipped": 10,
+      "total": 2655
+    },
+    "clientModels": {
+      "passed": 78,
+      "failed": 0
+    },
+    "fixtureWrappers": {
+      "passed": 9,
+      "failed": 0
+    },
+    "invocations": 1,
+    "exit": 1,
+    "summary": "== 2 failure(s) in 1510 s",
+    "rustCounts": {
+      "passed": 3909,
+      "failed": 2,
+      "ignored": 24
+    },
+    "failures": [
+      {
+        "classification": "baseline",
+        "test": "snapback4::timeline::lifecycle::activation_refuses_each_populated_event_or_edge_table",
+        "site": "crates/snapback4/tests/timeline/lifecycle.rs:32",
+        "reason": "Unchanged test requires planned view; merged-main E_TIMELINE_ACTIVATE now says planned query from guide feeds."
+      },
+      {
+        "classification": "baseline",
+        "test": "snapback4::timeline_adoption::redefinition_refuses_atomically_and_delivery_keeps_running",
+        "site": "crates/snapback4/tests/timeline_adoption.rs:203",
+        "reason": "Unchanged test requires event identities and planned view; merged-main E_TIMELINE_REDEFINE now names repost identities/original event ids and planned home query."
+      },
+      {
+        "classification": "baseline",
+        "test": "native: legacy bare id cannot retain bytes after real home revoke",
+        "site": "packages/snapback4/test/asset-lists.test.mjs:237",
+        "reason": "Inherited sync scheduling: a later explicit sync can join an older in-flight round. The same assertion is reproduced by holding a pre-revocation response on the preserved main binary and current binary. All 10 ordinary isolated repetitions on each binary pass; the exact full-suite schedule was not traced.",
+        "evidence": "round3-failure-controls.json",
+        "control": "round3-media-sync-control.patch"
+      }
+    ],
+    "sha256": "e773ac9c1abdbfb1fdecf9be6a55b9b3c01ef84abe8aa8d606c9b8a3f544ad4a"
+  },
+  "checks": {
+    "install": {
+      "exit": 0,
+      "sha256": "8cec912c4bd5422af33bdd395c59ade78852b7778b4d0bc60617fdb5ce08f20a",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "package-before": {
+      "exit": 0,
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "mutations": {
+      "exit": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "device-lib": {
+      "exit": 0,
+      "sha256": "0b7b000c27b84c8f47b3dbec163b6443aaaccd4614cb300a308f65ab27ec6e4b",
+      "rustCounts": {
+        "passed": 48,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "device-integration": {
+      "exit": 0,
+      "sha256": "7dbc3e16fc3047850e89330d3c555db0ecda0deea79a2410b96b51072d7fbda5",
+      "rustCounts": {
+        "passed": 484,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    "core-keys": {
+      "exit": 0,
+      "sha256": "82f5b229de9a7c55f956e0fb36271beb484175e0deeeb836cfd450c7dd8e63b0",
+      "rustCounts": {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "core-index": {
+      "exit": 0,
+      "sha256": "300935ab374774d79a95ed5831d019b3810773afaf33d7756c0108ff4ee867cc",
+      "rustCounts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "guide": {
+      "exit": 0,
+      "sha256": "256385ba20b176631b6489df31ebe13161f0f6635208ba25b2eee74aba78ebec",
+      "rustCounts": {
+        "passed": 86,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "wasm-final": {
+      "exit": 0,
+      "sha256": "7b7e13c04d57c4ad3c2d2c26593a8398f406f1647c8faae08578af9c2bbc6caf",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "package-final": {
+      "exit": 0,
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "sdk-affected": {
+      "exit": 0,
+      "sha256": "4d983d8fd446e01fc298d3339e75259e4291849ca842381bef2bcde415fa052d",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "browser-crash": {
+      "exit": 0,
+      "sha256": "d04d4d94e5db996c1c29ac5e20c3c053eda6a72b59b974193b4eca43d2e9b4b2",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "ref-check": {
+      "exit": 0,
+      "sha256": "cad6d16033778e584f6b8f899a53f0c7598b847f62918d9124dba22f071ef998",
+      "rustCounts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    }
+  },
+  "mutations": [
+    {
+      "label": "mutant-last-media",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "asset_lists",
+        "sparse_media_markers"
+      ],
+      "exit": 101
+    },
+    {
+      "label": "mutant-older-entry",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--lib",
+        "memory::tests"
+      ],
+      "exit": 101
+    }
+  ],
+  "wasm": {
+    "raw": 1981913,
+    "gzip": 572786,
+    "budget": 572841,
+    "sha256": "ca1b5e4fa4848d95a218a332e505cdd128a021b1a604c9fae4f6241397972f3f"
+  }
+}

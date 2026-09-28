@@ -1,0 +1,17 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "obsolete A proof retires only its provisional refusal after B restart",
+      "ok": false,
+      "error": "page.evaluate: Error: install A: the device Worker stopped{\"validations\":[],\"heldOpen\":false,\"heldCommit\":false}\n    at window.replacementRestore (http://127.0.0.1:36659/assets/index-C1xR3FAo.js:10366:9)\n    at async <anonymous>:317:30\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:293:47"
+    },
+    {
+      "name": "obsolete A proof retires only its provisional refusal after B restart and validation retry",
+      "ok": false,
+      "error": "page.evaluate: Error: install A: the device Worker stopped{\"validations\":[],\"heldOpen\":false,\"heldCommit\":false}\n    at window.replacementRestore (http://127.0.0.1:36659/assets/index-C1xR3FAo.js:10366:9)\n    at async <anonymous>:317:30\n    at /home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:294:31\n    at run (/home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:284:40)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:293:47"
+    }
+  ],
+  "pageErrors": [],
+  "failures": 2
+}

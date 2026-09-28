@@ -1,0 +1,175 @@
+{
+  "control-and-sync": {
+    "exit": 0,
+    "summary": [
+      "\u2139 tests 5",
+      "\u2139 pass 5",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "classification": "pass"
+  },
+  "count-batch": {
+    "exit": 0,
+    "summary": [
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s"
+    ],
+    "classification": "pass"
+  },
+  "full-suite": {
+    "exit": 0,
+    "summary": [
+      "== 0 failure(s) in 1349 s"
+    ],
+    "classification": "pass",
+    "invocations": 1,
+    "exactSummary": "== 0 failure(s) in 1349 s",
+    "failures": [],
+    "rust": {
+      "passed": 4162,
+      "ignored": 30
+    },
+    "client": {
+      "passed": 3920,
+      "skipped": 10
+    },
+    "models": {
+      "passed": 79
+    },
+    "fixtures": {
+      "passed": 9
+    },
+    "timeBudget": {
+      "seconds": 60,
+      "met": false,
+      "classification": "baseline performance limitation"
+    }
+  },
+  "guide-final": {
+    "exit": 0,
+    "summary": [
+      "test result: ok. 92 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.54s"
+    ],
+    "classification": "pass"
+  },
+  "guide": {
+    "exit": 0,
+    "summary": [
+      "test result: ok. 92 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s"
+    ],
+    "classification": "pass"
+  },
+  "idb-default": {
+    "exit": 1,
+    "summary": [],
+    "classification": "baseline",
+    "failures": [
+      "durability.adoptionRejected",
+      "durability.adoptionUnlocked"
+    ],
+    "issue": "issues/20260928-snapback4-idb-witness-assumes-eager-orphan-recovery.md"
+  },
+  "idb-worker": {
+    "exit": 1,
+    "summary": [],
+    "classification": "baseline",
+    "failures": [
+      "durability.adoptionRejected",
+      "durability.adoptionUnlocked"
+    ],
+    "issue": "issues/20260928-snapback4-idb-witness-assumes-eager-orphan-recovery.md"
+  },
+  "memory": {
+    "exit": 0,
+    "summary": [
+      "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.20s"
+    ],
+    "classification": "pass"
+  },
+  "mutant-overflow-delete": {
+    "exit": 1,
+    "summary": [
+      "\u2139 tests 10",
+      "\u2139 pass 7",
+      "\u2139 fail 3",
+      "\u2139 skipped 0"
+    ],
+    "classification": "ours: expected negative-control rejection"
+  },
+  "mutant-range-survivor": {
+    "exit": 1,
+    "summary": [
+      "\u2139 tests 10",
+      "\u2139 pass 8",
+      "\u2139 fail 2",
+      "\u2139 skipped 0"
+    ],
+    "classification": "ours: expected negative-control rejection"
+  },
+  "navigation-default": {
+    "exit": 0,
+    "summary": [],
+    "classification": "pass"
+  },
+  "navigation-worker": {
+    "exit": 0,
+    "summary": [],
+    "classification": "pass"
+  },
+  "ref-check": {
+    "exit": 0,
+    "summary": [
+      "ref-check: ok \u2014 521 LLP docs, 9755 refs in 27788 files, 0 errors, 0 unchecked"
+    ],
+    "classification": "pass"
+  },
+  "web-and-clock": {
+    "exit": 0,
+    "summary": [
+      "\u2139 tests 192",
+      "\u2139 pass 192",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "classification": "pass"
+  },
+  "worker-protocol": {
+    "exit": 0,
+    "summary": [],
+    "classification": "pass"
+  },
+  "worker-watch": {
+    "exit": 0,
+    "summary": [],
+    "classification": "pass"
+  },
+  "setup": {
+    "classification": "ours, corrected",
+    "failures": [
+      "temporary Worker URL export resolution",
+      "incomplete copied SDK export resolution",
+      "private path/instrumentation setup",
+      "final export initially addressed published rather than lane server"
+    ],
+    "resolution": "Final export uses normal Metro bundling, full SDK and asserted lane-server origin; eight corrected repetitions retained."
+  },
+  "bulk-index-prototype": {
+    "exit": 1,
+    "classification": "ours, rejected before qualification",
+    "gzipBytes": 587102,
+    "budgetBytes": 586193,
+    "overBudgetBytes": 909,
+    "finalGzipBytes": 585384
+  },
+  "environment": {
+    "remainingQualificationFailures": [],
+    "evidenceLimitation": "Supplied export omitted its wasm asset; rebuilt private exports."
+  },
+  "ref-check-final": {
+    "exit": 0,
+    "classification": "pass",
+    "summary": [
+      "ref-check: ok \u2014 521 LLP docs, 9755 refs in 27790 files, 0 errors, 0 unchecked"
+    ]
+  }
+}

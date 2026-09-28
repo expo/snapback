@@ -1,0 +1,9 @@
+{
+  "rawBytes": 2019815,
+  "gzipBytes": 585384,
+  "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+  "initialSha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+  "budgetGzip": 586193,
+  "budgetByteIdentical": true,
+  "round5RustFilesChanged": []
+}
