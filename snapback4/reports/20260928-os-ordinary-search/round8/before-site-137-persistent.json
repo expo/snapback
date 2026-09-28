@@ -1,0 +1,17 @@
+[
+  {
+    "index": 137,
+    "id": "changes.ts:changeFeed:response.json()#1",
+    "mode": "persistent",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbed": false,
+    "retryDelays": [],
+    "injected": 6,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": false,
+    "rejected": false
+  }
+]

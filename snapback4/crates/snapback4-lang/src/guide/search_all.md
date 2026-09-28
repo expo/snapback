@@ -5,6 +5,84 @@ Use **grouped** to page matching chats with previews. Return bare hits and
 read chat details separately. Both forms enforce source rules on the server
 and over held device rows.
 
+A single bare ordinary word page such as
+`return messages matching q where not .tombstone last 20 by .at after c`
+can now infer the current server audience from an exact non-expiring membership
+read rule and matching sync audience. `check --cost` names that inferred audience
+and its grouped rewrite. Its server result deliberately changes from an empty
+incomplete answer to the compact membership page when the work fits. Explicit
+membership predicates and query guards keep their meaning; other audiences,
+joins and native functions keep their existing evaluator. Empty needles still
+take the existing browse branch, whose coverage can remain incomplete.
+System reads keep their original evaluator and full system-authorized domain.
+Inference also requires readable membership discovery. If its additional scoped
+index cannot fit the portable key or label budget, compilation keeps the original
+indexes and evaluator; that search may remain incomplete.
+
+Current rows are authoritative by source ID, including after a scope update or
+ID deletion and reinsertion. In the page's one server call, the SDK sends only
+that page's retained candidate IDs; authorized point reads tell it which have
+current readable rows. Those retained images are suppressed even when the
+current image no longer matches or lies before the cursor. Scope columns need
+not be immutable. A page can be short, or empty with a progress cursor, when
+suppression consumes its bounded retained candidates; follow `next` as usual.
+
+For the proved bare time-ordered page on a local client, the SDK merges current
+server rows with this device's certified departed images. Both use the same
+`(at, id)` order and the limit applies after deduplication. A page makes one
+server call; it never drains a cut to fill the limit. `next` seeks both sources after the combined consumed `(at, id)` key;
+a fetched but unconsumed hit after that key stays eligible. Unconsumed hits are recomputed on the next requested
+page and charged again. The coordinator and device scan share the existing
+per-page device read allowance. There is no saved search session.
+
+If the device word or read meter cuts without a continuation, its candidates
+cannot establish the newest retained hit. The online page still publishes the
+server's proved current rows, with `complete: false` and the constituent `cut`.
+Its `next` continues only that current stream; the cut device source stays
+incomplete throughout this traversal. Start a fresh search with a longer prefix
+or search one chat to try retained history again. If that cut leaves no proved
+server hits either, the request refuses E_BOUND with that repair instead of
+returning an empty page that cannot advance. Server refusals still win.
+
+Freshness describes emitted rows: a current-only page is fresh even when the
+device holds other departed chats; a page emitting retained images is stale,
+with `since` when available. Fresh does not mean complete.
+With horizon-free acquisition, both sources can prove exhaustion and an empty
+answer can be complete after departure. For a windowed source, the current
+unscoped device word scan cannot certify exhaustion of all departed ranges,
+even when their stored rows happen to be exhausted. Its boundary proof needs a
+pinned group; a global `Left` list alone proves no acquisition range. That unknown
+coverage keeps the combined page incomplete, including an empty terminal page.
+The coordinator reports complete only if both sources prove the requested page.
+A complete page can still have `next`; use that cursor to decide whether more
+rows remain, including after a short page of suppressed replacements.
+It must not infer “No matches” from `next: null`.
+
+A membership, incarnation, generation or link change invalidates an incompatible
+continuation. Every combined cursor binds the server's authorized audience, even
+with no departed chats. Server replies are validated against the captured store
+and generation, and continuations bind that validated identity. An unsynced
+replacement or generation change withdraws the attempt until ordinary sync
+establishes the new incarnation; its next observation starts with fresh source
+positions. An unsynced audience change withdraws the stale page and
+refreshes the first page of a live `usePage` observation. A one-shot query returns
+loading; request a fresh first page to restart. Each observation still makes one
+server call. An unrelated sync or an older-message edit preserves pagination.
+An online composition starts fresh from a plain offline/server cursor, which
+does not carry a validated store or audience identity. Resetting device rows
+also invalidates its old combined cursors, even after reacquiring the same data.
+The broader delivery fence still withdraws changes that occur during a request. Retained edits stay at their delivered image and expiry still
+removes them. Rejoined scopes use the current server lane. The server’s bounded audience proof prevents a stale departed image from being merged after an unsynced rejoin; that observation waits for sync. Missing acquired
+history and constituent cuts remain incomplete. An incomplete empty answer means
+“Results may be incomplete,” never “No matches.” An online client without a
+device searches only its current authorized domain; offline the same ordinary
+body searches authorized device holdings. Other ordered shapes keep their
+existing evaluator and routing.
+
+Each continuation returns the next `(at, id)` rows visible at that request across current server scopes and this device's retained rows; the traversal is not a snapshot.
+Changing an order key or match, or inserting a match before the consumed position, can repeat or skip that row; rows whose order, match, scope and readability stay stable appear exactly once, and `usePage` keeps one newest observed image per source ID when the generated query proves row identity.
+For exactly-once pagination over message edits, declare `immutable at`; refresh from the first page to see new or newly matching rows before the cursor.
+
 ```quarry
 table members:
   roomId: id
@@ -15,6 +93,7 @@ table members:
   sync to members[.roomId]
 
 table messages:
+  immutable roomId
   roomId: id
   body: text <=4000
   at: time

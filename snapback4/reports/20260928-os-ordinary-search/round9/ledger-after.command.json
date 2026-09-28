@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/ordinary-search-ledger.test.mjs"
+  ],
+  "exit": 1,
+  "seconds": 0.14
+}

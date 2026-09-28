@@ -1,0 +1,305 @@
+[
+  {
+    "log": "affected-device.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 425 filtered out; finished in 0.78s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.00s",
+      "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 155 filtered out; finished in 0.00s",
+      "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 437 filtered out; finished in 0.00s"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "affected-js-acceptance.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "\u2139 tests 134",
+      "\u2139 pass 134",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "affected-js-final.log.gz",
+    "classification": "ours: correct combined seek exposes authoritative E_SEARCH_OPEN; direct control and second drain fixture added",
+    "summaries": [
+      "\u2139 tests 84",
+      "\u2139 pass 83",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary mixed search: a real server drain cut is never automatically drained (3739.721455ms)"
+    ]
+  },
+  {
+    "log": "affected-js-qualified.log.gz",
+    "classification": "ours: same fully consumed cut assertion, already loaded before correction",
+    "summaries": [
+      "\u2139 tests 134",
+      "\u2139 pass 133",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary mixed search: real word-dense drain pages follow the combined keyset once (3111.705553ms)"
+    ]
+  },
+  {
+    "log": "affected-js.log.gz",
+    "classification": "ours: obsolete null cursor test expectation (fixed)",
+    "summaries": [
+      "\u2139 tests 84",
+      "\u2139 pass 83",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary mixed search: a real server drain cut is never automatically drained (3629.533767ms)"
+    ]
+  },
+  {
+    "log": "affected-rust.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s",
+      "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.51s",
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "client-build-boundary.log.gz",
+    "classification": "pass",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "client-build.log.gz",
+    "classification": "pass",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "client-final.log.gz",
+    "classification": "pass",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "drain-boundary-corrected.log.gz",
+    "classification": "ours: test assumed fully consumed server cut was partial (corrected)",
+    "summaries": [
+      "\u2139 tests 2",
+      "\u2139 pass 1",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary mixed search: real word-dense drain pages follow the combined keyset once (3108.41139ms)"
+    ]
+  },
+  {
+    "log": "drain-boundary.log.gz",
+    "classification": "ours: test calibration; 246-scope fixture does not drain (corrected)",
+    "summaries": [
+      "\u2139 tests 2",
+      "\u2139 pass 1",
+      "\u2139 fail 1",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary mixed search: real word-dense drain pages follow the combined keyset once (2523.519308ms)"
+    ]
+  },
+  {
+    "log": "global-boundary-before.log.gz",
+    "classification": "ours: expected failing-before composition regressions",
+    "summaries": [
+      "\u2139 tests 4",
+      "\u2139 pass 0",
+      "\u2139 fail 4",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary mixed search process: combined keyset boundary excludes new heads last (243.823398ms)",
+      "ordinary mixed search process: combined keyset boundary excludes new heads first (200.443073ms)",
+      "ordinary mixed search wasm: combined keyset boundary excludes new heads last (562.699623ms)",
+      "ordinary mixed search wasm: combined keyset boundary excludes new heads first (131.026163ms)"
+    ]
+  },
+  {
+    "log": "input-integrity.log.gz",
+    "classification": "pass",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "native-build-fixed.log.gz",
+    "classification": "pass",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "native-build.log.gz",
+    "classification": "ours: merge integration; missing Scan.cursor_pins (fixed)",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "oracle-acceptance.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "ORACLE_SUMMARY {\"host\":\"process\",\"seeds\":300,\"failed\":[],\"ms\":145231,\"coverage\":{\"at\":103,\"sync\":135,\"membership\":259,\"terminal:none\":303,\"reset\":70,\"link\":103,\"new\":151,\"body\":90,\"replacement\":82,\"expiry\":110,\"reopen\":53,\"differential-page\":194,\"generation\":36,\"terminal:words\":12,\"move\":8,\"terminal:meter\":1,\"refusal:E_BOUND\":6}}",
+      "ORACLE_SUMMARY {\"host\":\"wasm\",\"seeds\":300,\"failed\":[],\"ms\":109104,\"coverage\":{\"at\":103,\"sync\":135,\"membership\":259,\"terminal:none\":303,\"reset\":70,\"link\":103,\"new\":151,\"body\":90,\"replacement\":82,\"expiry\":110,\"reopen\":53,\"differential-page\":194,\"generation\":36,\"terminal:words\":12,\"move\":8,\"terminal:meter\":1,\"refusal:E_BOUND\":6}}",
+      "\u2139 tests 2",
+      "\u2139 pass 2",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "oracle-before.log.gz",
+    "classification": "ours: seed 159 product boundary bug; 33/66/209 model identity adoption (fixed)",
+    "summaries": [
+      "ORACLE_SUMMARY {\"host\":\"process\",\"seeds\":300,\"failed\":[33,66,159,209],\"ms\":146422,\"coverage\":{\"at\":102,\"sync\":129,\"membership\":276,\"terminal:none\":299,\"reset\":71,\"link\":107,\"new\":128,\"body\":90,\"replacement\":81,\"expiry\":111,\"reopen\":53,\"differential-page\":77,\"generation\":33,\"terminal:words\":12,\"move\":7,\"terminal:meter\":1,\"refusal:E_BOUND\":6}}",
+      "ORACLE_SUMMARY {\"host\":\"wasm\",\"seeds\":300,\"failed\":[33,66,159,209],\"ms\":105429,\"coverage\":{\"at\":102,\"sync\":129,\"membership\":276,\"terminal:none\":299,\"reset\":71,\"link\":107,\"new\":128,\"body\":90,\"replacement\":81,\"expiry\":111,\"reopen\":53,\"differential-page\":77,\"generation\":33,\"terminal:words\":12,\"move\":7,\"terminal:meter\":1,\"refusal:E_BOUND\":6}}",
+      "\u2139 tests 2",
+      "\u2139 pass 0",
+      "\u2139 fail 2",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary search generated oracle process: 300 seeds (146423.020728ms)",
+      "ordinary search generated oracle wasm: 300 seeds (105429.931177ms)"
+    ]
+  },
+  {
+    "log": "oracle-cuts-before.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "ORACLE_SUMMARY {\"host\":\"process\",\"seeds\":17,\"failed\":[],\"ms\":37348,\"coverage\":{\"at\":14,\"sync\":8,\"membership\":19,\"terminal:none\":17,\"reset\":6,\"link\":10,\"body\":3,\"replacement\":5,\"expiry\":8,\"new\":4,\"reopen\":2,\"differential-page\":7,\"terminal:meter\":1,\"terminal:words\":1,\"generation\":2}}",
+      "ORACLE_SUMMARY {\"host\":\"wasm\",\"seeds\":17,\"failed\":[],\"ms\":23638,\"coverage\":{\"at\":14,\"sync\":8,\"membership\":19,\"terminal:none\":17,\"reset\":6,\"link\":10,\"body\":3,\"replacement\":5,\"expiry\":8,\"new\":4,\"reopen\":2,\"differential-page\":7,\"terminal:meter\":1,\"terminal:words\":1,\"generation\":2}}",
+      "\u2139 tests 2",
+      "\u2139 pass 2",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "oracle-final.log.gz",
+    "classification": "ours: eight mutable fallback model reset errors (fixed)",
+    "summaries": [
+      "ORACLE_SUMMARY {\"host\":\"process\",\"seeds\":300,\"failed\":[11,22,55,99,198,220,231,242],\"ms\":145089,\"coverage\":{\"at\":102,\"sync\":135,\"membership\":252,\"terminal:none\":295,\"reset\":66,\"link\":101,\"new\":148,\"body\":90,\"replacement\":81,\"expiry\":108,\"reopen\":51,\"differential-page\":194,\"generation\":33,\"terminal:words\":12,\"move\":6,\"terminal:meter\":1,\"refusal:E_BOUND\":6}}",
+      "ORACLE_SUMMARY {\"host\":\"wasm\",\"seeds\":300,\"failed\":[11,22,55,99,198,220,231,242],\"ms\":102620,\"coverage\":{\"at\":102,\"sync\":135,\"membership\":252,\"terminal:none\":295,\"reset\":66,\"link\":101,\"new\":148,\"body\":90,\"replacement\":81,\"expiry\":108,\"reopen\":51,\"differential-page\":194,\"generation\":33,\"terminal:words\":12,\"move\":6,\"terminal:meter\":1,\"refusal:E_BOUND\":6}}",
+      "\u2139 tests 2",
+      "\u2139 pass 0",
+      "\u2139 fail 2",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": [
+      "ordinary search generated oracle process: 300 seeds (145090.487642ms)",
+      "ordinary search generated oracle wasm: 300 seeds (102621.209784ms)"
+    ]
+  },
+  {
+    "log": "oracle-old-before.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "ORACLE_SUMMARY {\"host\":\"process\",\"seeds\":24,\"failed\":[],\"ms\":7487,\"coverage\":{\"new\":18,\"terminal:none\":27,\"body\":11,\"at\":21,\"expiry\":8,\"move\":1,\"sync\":9,\"membership\":9,\"replacement\":3,\"differential-page\":14,\"reset\":4,\"reopen\":5}}",
+      "ORACLE_SUMMARY {\"host\":\"wasm\",\"seeds\":24,\"failed\":[],\"ms\":4998,\"coverage\":{\"new\":18,\"terminal:none\":27,\"body\":11,\"at\":21,\"expiry\":8,\"move\":1,\"sync\":9,\"membership\":9,\"replacement\":3,\"differential-page\":14,\"reset\":4,\"reopen\":5}}",
+      "\u2139 tests 2",
+      "\u2139 pass 2",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "oracle-regressions.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "ORACLE_SUMMARY {\"host\":\"process\",\"seeds\":9,\"failed\":[],\"ms\":4486,\"coverage\":{\"generation\":3,\"expiry\":3,\"terminal:none\":13,\"sync\":4,\"move\":1,\"new\":10,\"membership\":7,\"replacement\":5,\"reset\":2,\"at\":4,\"link\":2,\"differential-page\":34,\"body\":4}}",
+      "ORACLE_SUMMARY {\"host\":\"wasm\",\"seeds\":9,\"failed\":[],\"ms\":4147,\"coverage\":{\"generation\":3,\"expiry\":3,\"terminal:none\":13,\"sync\":4,\"move\":1,\"new\":10,\"membership\":7,\"replacement\":5,\"reset\":2,\"at\":4,\"link\":2,\"differential-page\":34,\"body\":4}}",
+      "\u2139 tests 2",
+      "\u2139 pass 2",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "page-accumulation.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "\u2139 tests 5",
+      "\u2139 pass 5",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "ref-check.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "ref-check: ok \u2014 522 LLP docs, 9811 refs in 28155 files, 0 errors, 0 unchecked"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "reset-publication.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 52 filtered out; finished in 0.02s"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "wasm-attribution.log.gz",
+    "classification": "pass",
+    "summaries": [],
+    "named_failures": []
+  },
+  {
+    "log": "wasm-final.log.gz",
+    "classification": "ours: expected unchanged budget overrun",
+    "summaries": [
+      "wasm 2039451 B raw, 592722 B gzip (budget 586193: OVER by 6529 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "whole-guide-eq.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "test result: ok. 93 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s",
+      "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s"
+    ],
+    "named_failures": []
+  },
+  {
+    "log": "full-suite.log.gz",
+    "classification": "ours: only expected unchanged wasm budget overrun",
+    "summaries": [
+      "== 1 failure(s) in 1775 s"
+    ],
+    "named_failures": [
+      "wasm build"
+    ]
+  },
+  {
+    "log": "ref-check-final.log.gz",
+    "classification": "pass",
+    "summaries": [
+      "ref-check: ok \u2014 522 LLP docs, 9811 refs in 28159 files, 0 errors, 0 unchecked"
+    ],
+    "named_failures": []
+  }
+]

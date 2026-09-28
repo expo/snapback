@@ -1,0 +1,8 @@
+{
+  "command": [
+    "python3",
+    "target/os-round9/controls.py"
+  ],
+  "exit": 0,
+  "seconds": 1.61
+}

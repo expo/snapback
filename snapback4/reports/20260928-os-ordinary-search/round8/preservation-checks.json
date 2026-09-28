@@ -1,0 +1,8 @@
+{
+  "original_delivery_assertion_retry_block": "identical except moved hold index and independent query work",
+  "original_classifications_and_recipes": 140,
+  "journal": "HEAD prefix plus exactly one entry",
+  "scope": "expanded only; no waived search awaits",
+  "direct_failure_allowlist": "unchanged",
+  "absorbs_set": "unchanged"
+}

@@ -237,6 +237,8 @@ pub trait Rows {
     fn acquired_boundary(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { Ok(None) }
     /// A device-only fact: this scan pins a delivered-history group it left.
     /// A found row belongs to retained history, without changing whole-query coverage.
+    /// Certified departed scopes only; rejoined images belong to the server lane.
+    fn search_retained_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     fn retained_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     fn retained_group(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<bool, RuntimeError> { Ok(false) }
 

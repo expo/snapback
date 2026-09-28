@@ -827,9 +827,9 @@ fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
 }
 
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
-    let metadata = shared.read_head();
+    let metadata = shared.read_identity();
     match metadata {
-        Ok((store_id, head)) => respond_timed(request, shared, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head })),
+        Ok((store_id, head, generation)) => respond_timed(request, shared, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head, "generation": generation })),
         Err(why) => respond_timed(request, shared, 503, json!({ "denied": refusal_json(&why) })),
     }
 }
@@ -855,6 +855,7 @@ fn handle(mut request: Request, shared: &Shared) {
     let ephemeral_request = method == Method::Post && path.strip_prefix("/m/").is_some_and(|op| lock(&shared.bound).schema.operations.get(op).is_some_and(|f| f.ephemeral));
     let reject = |request, status, refusal: Refusal| {
         if ephemeral_request { ephemeral::failed(request,shared,None,refusal); }
+        else if path.starts_with("/q/") { operation_refusal(request, shared, status, refusal); }
         else { respond_timed(request,shared,status,json!({"denied":refusal_json(&refusal)})); }
     };
     if let Err(refusal) = dev_request(&request, shared) {
@@ -891,6 +892,8 @@ fn handle(mut request: Request, shared: &Shared) {
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
+            // No authenticated viewer: metadata cannot disclose a store head.
+            if path.starts_with("/q/") { return respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({"denied":refusal_json(&refusal)})); }
             return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
     }
@@ -1129,8 +1132,15 @@ fn handle(mut request: Request, shared: &Shared) {
                     operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}")));
                     return;
                 }
+                let retained: Option<Vec<String>> = match payload.get("searchRetained") {
+                    Some(value) => match serde_json::from_value(value.clone()) {
+                        Ok(ids) => Some(ids),
+                        Err(_) => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetained must be a page of IDs")),
+                    },
+                    None => None,
+                };
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence) = match reader {
+                let (outcome, cut, metadata, reads_presence, query_generation, search_current) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1139,9 +1149,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
                         let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), reader.generation());
-                        let (outcome, cut) = reader.query_at(&op, context);
+                        let query_generation = reader.generation();
+                        let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence)
+                        (outcome, cut, metadata, reads_presence, query_generation, current)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
@@ -1152,8 +1163,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
                         if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
-                        let (outcome, cut) = engine.query_at(&op, context);
-                        (outcome, cut, metadata, reads_presence)
+                        let query_generation = engine.generation();
+                        let (outcome, cut, current) = engine.query_search_at(&op, context, retained.as_deref());
+                        (outcome, cut, metadata, reads_presence, query_generation, current)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1161,10 +1173,15 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
+                            #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
+                            search_scopes: &'a Option<Vec<String>>,
+                            #[serde(rename = "searchCurrent", skip_serializing_if = "Option::is_none")]
+                            search_current: &'a Option<Vec<String>>,
                             #[serde(skip_serializing_if = "Option::is_none")]
                             delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
                             #[serde(skip_serializing_if = "Option::is_none")]
                             ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
+                            generation: u64,
                             complete: bool,
                             cut: Option<snapback4_core::engine::ReadCut>,
                             data: wire::Plain<'a>,
@@ -1195,18 +1212,18 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter
                         });
                         if outcome.unavailable {
-                            let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
+                            let mut reply = json!({ "loading": true, "generation": query_generation, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
                             if let Some(version) = &outcome.ephemeral { reply["ephemeral"] = json!(version); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "complete": false, "store_id": store_id, "head": head });
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }

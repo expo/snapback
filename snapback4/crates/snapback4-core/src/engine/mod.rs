@@ -139,6 +139,8 @@ pub enum LoadMode { Import, Restore }
 pub struct Context {
     #[cfg(feature = "sqlite")]
     pub(crate) refusal_trace: Option<refusal_trace::RefusalTrace>,
+    pub retained_search: bool,
+    pub read_spent: Option<crate::meter::Metered>,
     pub viewer: String,
     pub kind: String,
     pub args: BTreeMap<String, Value>,
@@ -164,7 +166,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] refusal_trace: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] refusal_trace: None, retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -250,6 +252,9 @@ pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
+    /// Complete, authorized current audience of an inferred ordinary search.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_scopes: Option<Vec<String>>,
     #[cfg(feature = "sqlite")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delivery: Option<delivery::Manifest>,
@@ -890,11 +895,19 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None);
         (result, cut)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>) -> Result<QueryOutcome, Refusal> {
+    // @ref LLP 3000.028#3.3 — point overlap and page share one transaction/ledger.
+    #[cfg(feature = "server-search")]
+    pub fn query_search_at(&mut self, name: &str, context: Context, retained: Option<&[String]>) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current);
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
@@ -902,6 +915,12 @@ impl Engine {
         }
         server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, &program, &mut context.args)?;
+        // @ref LLP 3000.028#3.3 — only server execution substitutes this
+        // audience plan. The stored/device body keeps its retained domain.
+        #[cfg(feature = "server-search")]
+        let inferred_search = (!context.is_system()).then(|| crate::search_plan::ordinary::plan(&self.schema, &program)).flatten();
+        #[cfg(feature = "server-search")]
+        let program = inferred_search.as_ref().map_or(&program, |plan| &plan.program);
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
         }
@@ -933,7 +952,7 @@ impl Engine {
                 let data = value?;
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-                let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -945,13 +964,25 @@ impl Engine {
             }
         }
         let mut runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+        #[cfg(feature = "server-search")]
+        { runner.ordinary_search_cursor = inferred_search.as_ref().map(|plan| plan.cursor_indexes.clone()); }
+        #[cfg(feature = "server-search")]
+        if let Some(ids) = _retained {
+            let original = &self.programs[name];
+            let descriptor = crate::search_plan::ordinary::composition(&self.schema, original)
+                .ok_or_else(|| RuntimeError::Input("this query does not support retained search overlap".into()))?;
+            *_current = Some(runner.search_overlap(&descriptor, ids)?);
+        }
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-        let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version,
+        let outcome = QueryOutcome {
+            #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
+            #[cfg(not(feature = "server-search"))] search_scopes: None,
+            delivery, delivery_meter, ephemeral: version,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),

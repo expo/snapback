@@ -4,6 +4,35 @@ use super::super::runner::extrema::Aggregate;
 
 
 impl Runner<'_> {
+    // @ref LLP 3000.028#3.3 — only caller-supplied IDs, through the ordinary
+    // point boundary. Hidden/absent/expired all answer false; no current key or
+    // scope is returned. A capped check must refuse, never certify absence.
+    pub(in crate::engine) fn search_overlap(&mut self, plan: &crate::schema::SearchComposition, ids: &[String]) -> Result<Vec<String>, RuntimeError> {
+        if ids.len() as u64 > plan.limit.saturating_add(1) {
+            return Err(RuntimeError::Input("retained overlap exceeds this search page plus lookahead".into()));
+        }
+        if !self.meter.charge(MeterKind::OutputBytes, 19)? { self.meter.require_uncapped()?; }
+        self.meter.heap(word_heap::slots::<String>(ids.len()))?;
+        let mut current = Vec::with_capacity(ids.len());
+        for id in ids {
+            if !crate::value::identity_fits(id) {
+                return Err(RuntimeError::Input("invalid retained search ID".into()));
+            }
+            self.meter.heap(512 + 16 * (plan.table.len() + id.len()) as u64)?;
+            self.meter.step(1)?;
+            let read = Read { site: "ordinary search overlap".into(), table: plan.table.clone(), index: "byId".into(),
+                key: vec![Expr::Literal(Value::Id(id.clone()))], provenance: KeyProvenance::Computed };
+            let value = self.get(&read)?;
+            self.meter.require_uncapped()?;
+            if !matches!(value, Value::Null) {
+                self.meter.heap(word_heap::text(id))?;
+                if !self.meter.charge(MeterKind::OutputBytes, 4 + id.len() as u64 * 6)? { self.meter.require_uncapped()?; }
+                current.push(id.clone());
+            }
+        }
+        Ok(current)
+    }
+
     pub(in crate::engine) fn opening_error(&self, merge: &Merge, count: usize, discovered: bool) -> RuntimeError {
         let ceilings = self.meter.ceilings;
         let kind = self.meter.capped_at.as_ref().map(|cap|cap.0)
@@ -76,6 +105,30 @@ impl Runner<'_> {
         scopes.dedup();
         let count = scopes.len();
         *progress = (count, true, true);
+        // @ref LLP 3000.028#3.3 — the already-authorized complete opening
+        // proves the retained lane disjoint at this query's cut. Unrelated
+        // commits must not force the device to catch the entire server head.
+        if self.ordinary_search_cursor.is_some() {
+            let mut proof = Vec::new();
+            self.meter.heap(word_heap::slots::<String>(count))?;
+            proof.reserve_exact(count);
+            for scope in &scopes {
+                // Preallocate the JSON upper bound. Plain borrows the key;
+                // there is no intermediate JSON tree or grow-and-copy buffer.
+                let bytes = 32 + DisclosedKey(scope).copy_heap() * 6;
+                self.meter.heap(word_heap::allocation(bytes as usize) * 2)?;
+                self.meter.step(1)?;
+                let mut encoded = Vec::with_capacity(bytes as usize);
+                crate::json_codec::to_buffer(&mut encoded, &[crate::wire::Plain(scope)])
+                    .map_err(|e| RuntimeError::Input(e.to_string()))?;
+                let key = String::from_utf8(encoded).map_err(|e| RuntimeError::Input(e.to_string()))?;
+                if !self.meter.charge(MeterKind::OutputBytes, 4 + key.len() as u64 * 6)? {
+                    return Err(self.opening_error(merge, count, true));
+                }
+                proof.push(key);
+            }
+            self.search_scopes = Some(proof);
+        }
         let mut heap = BinaryHeap::<MergeHead>::new();
         for scope in scopes {
             let key = self.membership_head(lane, field, &scope, None);

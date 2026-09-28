@@ -1,0 +1,62 @@
+[
+  {
+    "path": "snapback4/packages/snapback4/src/local.ts",
+    "lines": 1500
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/serve.rs",
+    "lines": 1422
+  },
+  {
+    "path": "snapback4/crates/snapback4-device/src/device.rs",
+    "lines": 1258
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/bind/mod.rs",
+    "lines": 502
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/definitions.rs",
+    "lines": 441
+  },
+  {
+    "path": "snapback4/crates/snapback4-sim/tests/ordinary_search.rs",
+    "lines": 371
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-query.ts",
+    "lines": 345
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/codes.rs",
+    "lines": 325
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-search.ts",
+    "lines": 309
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs",
+    "lines": 244
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/search.rs",
+    "lines": 195
+  },
+  {
+    "path": "snapback4/crates/snapback4-device/src/device/search.rs",
+    "lines": 170
+  },
+  {
+    "path": "snapback4/crates/snapback4-core/src/search_plan/ordinary.rs",
+    "lines": 150
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/why.rs",
+    "lines": 63
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/local-types.ts",
+    "lines": 33
+  }
+]

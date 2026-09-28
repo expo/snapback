@@ -1,0 +1,10 @@
+{
+  "raw": 2039451,
+  "gzip": 592719,
+  "sha256": "7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d",
+  "measurement": "Canonical build-wasm.sh; no Rust/wasm inputs changed this round; GNU gzip -9 with file input",
+  "budget": 586193,
+  "over": 6526,
+  "round8_delta_raw": 0,
+  "round8_delta_gzip": 0
+}

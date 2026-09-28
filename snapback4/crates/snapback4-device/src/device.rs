@@ -24,6 +24,7 @@ mod deferred;
 mod media;
 mod snapshot;
 mod history;
+mod search;
 mod recorded;
 mod expiry_clock;
 mod boundary;
@@ -673,6 +674,11 @@ impl<S: DeviceStore> Device<S> {
     /// the watermark resets, the outbox stays.
     pub fn clear_rows(&mut self) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        // @ref LLP 3000.028#3.3 — reacquiring identical memberships after a
+        // reset must never resurrect their previous consumed source positions.
+        let reset = meta_u64(&tx, search::RESET)?.checked_add(1).ok_or_else(||
+            RuntimeError::Store("device search reset counter exhausted".into()))?;
+        tx.set_meta(search::RESET, &reset.to_string())?;
         tx.clear_rows()?;
         tx.base_clear()?;
         let identity = tx.meta(deferred::IDENTITY)?;
@@ -919,6 +925,10 @@ impl<S: DeviceStore> Device<S> {
     }
 
     pub(crate) fn query_observation(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>, snapback4_core::engine::components::Provenance) {
+        self.query_observation_search(name, viewer, args, now, observe_components, false, None)
+    }
+
+    pub(crate) fn query_observation_search(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool, search: bool, spent: Option<snapback4_core::meter::Metered>) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>, snapback4_core::engine::components::Provenance) {
         let mut unknown = false;
         let mut retained = false;
         let mut components = Default::default();
@@ -928,7 +938,9 @@ impl<S: DeviceStore> Device<S> {
             // @ref LLP 3000.025#3-proposed-rule — refuse mutation/job observation before any device or native execution.
             local::require_query(program)?;
             let tx = self.store.read_transaction()?;
-            let context = Context::new(viewer, typed_args(&program, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation);
+            let mut context = Context::new(viewer, typed_args(&program, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation);
+            context.retained_search = search && self.schema.operations.get(name).is_some_and(|fact| fact.search.is_some());
+            context.read_spent = spent;
             if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
                 unknown = true;
                 return Err(error.refusal());

@@ -1,0 +1,18 @@
+{
+  "name": "affected-rust",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-sim",
+    "--test",
+    "ordinary_search",
+    "--test",
+    "membership_search",
+    "--test",
+    "search_merge",
+    "--no-fail-fast"
+  ],
+  "exit": 0,
+  "seconds": 21.936
+}

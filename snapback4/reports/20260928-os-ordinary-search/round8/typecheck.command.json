@@ -1,0 +1,12 @@
+{
+  "name": "typecheck",
+  "command": [
+    "bun",
+    "run",
+    "--cwd",
+    "packages/snapback4",
+    "typecheck"
+  ],
+  "exit": 0,
+  "seconds": 1.946
+}

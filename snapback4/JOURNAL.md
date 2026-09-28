@@ -72259,6 +72259,121 @@ Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
 
+## 2026-09-28 — Lane OS: independent inferred current-scope ordinary search
+
+First fetched origin and merged origin/main on sb4-intent/os-ordinary-search;
+already up to date at a745b110f2187004abb1cec8380b33b6d1396108. Read Accepted
+LLP 3000.028 in full, the fence, root/design brief, rules, exclusions, journal
+and current search guide. Applied llp-orient read-only from the initialized
+lane-a5 skill copy. Updated NOT-DOING before implementation.
+
+Coherent subset explicitly allowed by LLP 3000.028 section 3.3: infer the compact
+server audience for one bare word page with an exact non-expiring membership
+rule, matching sync audience, total unique membership key and provably readable
+discovery source. The device body remains bare and includes authorized retained
+images. Deliberate result change: a bare membership-audience word search goes
+from an empty incomplete server answer to the compact membership page. Explicit
+membership queries, held operations, authored guards and unsupported audiences
+keep their evaluator. Empty needles retain the old browse path. The guide and
+check --cost explain the scope, opening refusal and grouped repair.
+
+The compiler requests ordinary scoped indexes; the original builder already
+has them and its index maps and original program IR stay identical. Candidate
+index requests precede final proof, so a rejected candidate can retain an unused
+ordinary index with normal maintenance costs. The server cursor keeps the
+ordinary index descriptor and identical suffix, charged before construction.
+No SDK coordinator, mixed merge, combined cursor, ledger bridge, new authority
+or durable search session is shipped. Section 7.2 is NOT complete: retained-first
+mixed pagination and mixed drain/coordinator/lifecycle witnesses remain open.
+
+Public process and wasm probes use copies of calibration 24's full store.
+u0500/coffee's first three pages match searchNewest with one server query each;
+offline bare pages match held search. An original-mutation 503-message chat has
+an acquisition floor at ordinal 4: 27 current online coffee hits, 24 acquired
+hits over two pages offline/departed, plus below/exact/above-floor tokens.
+Guarded searchIn stays NOT_MEMBER after departure on server and both device
+link states. Rejoin restores online below-floor access. Acquired empty departed
+word ranges remain honestly incomplete with zero fallback; recorded in
+issues/20260928-snapback4-empty-retained-search-coverage.md. Input hash guards
+confirm original SQLite/WAL/program files unchanged. No other lane was modified.
+
+Final affected tests: 9 ordinary-search, 24 existing membership-search,
+11 search-merge, 8 search-certificate, 4 read-cut, 1 simulator word-limit,
+2 device word-limit; whole guide 92 passed, 0 failed. Full scripts/test.sh ran
+once: exact summary "== 1 failure(s) in 1882 s". cargo test had three old bare
+nonuniform-control assertions, ours after the deliberate behavior change.
+Controls now have explicit guards; all affected reruns pass, including a new
+inferred assertion on the original 99,090-row calibration fixture. Every other
+suite step passes: client main 3,845 pass/10 skip, shards 56 pass, models 79 pass.
+No environmental qualification failure. Full historical red is retained, not
+claimed green; the report lists every earlier setup/compile/probe failure and
+the timing of final focused checks relative to that suite.
+
+Wasm final: 2,019,815 B raw / 585,378 B gzip, delta 0 / -6 B against this lane's
+baseline, unchanged 586,193 B cap. Ordinary and explicit builder server pages
+have identical examined/index/probe/step/output receipts; exact heap/cursor
+receipts and non-benchmark samples are in the report. No tool installed, budget
+raised, push or publication. Report: reports/20260928-os-ordinary-search/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OS round 1: SDK composition of live and departed search
+
+Fetched origin and merged origin/main first; already up to date on
+sb4-intent/os-ordinary-search at round-0 commit 5a94ba1f8. Read the binding prompt,
+round-0 report and entry, Snapback 4 fence and governing LLPs/guide; applied
+llp-orient read-only. No review findings were awaited and no other lane changed.
+
+Implemented LLP 3000.028 section 3.3's SDK coordinator for the proved single
+ordinary word page ordered by time/integer and ID. Device execution selects
+certified Left scopes, server execution retains its current audience, and the
+SDK merges under one limit with Rust-compatible ID ordering. One server call
+per requested combined page, including cuts and delivery races. Only consumed
+prefixes advance; fetched-but-unconsumed hits are recomputed and charged on a
+later request. No durable session, registry or saved response buffer.
+
+Budget source is the existing device Ceilings::default() read allowance.
+Retained-state inspection, arguments/cursors, device scan, coordinator decoding,
+comparisons/deduplication, output and final state check continue the same meter.
+An exhausted ledger refuses. The original server invocation keeps its own
+meter. Its already-authorized complete membership opening supplies bounded
+scope keys; disjointness with Left scopes fences unsynced rejoins. The initial
+whole-server-watermark fence was too broad under the builder's background
+commits and was replaced. Older devices explicitly refuse the internal call;
+a missing server proof withholds composition. Original guards and explicit
+membership queries remain unchanged.
+
+Both process and wasm traverse 10,014 unique u0500/coffee IDs in 501 mixed pages
+with exactly one server invocation per page. Twenty retained hits dominate the
+first page after twenty server hits are fetched; no server position advances.
+The original builder program's unguarded searchChat passes 50 current/departed,
+online/offline, below/exact/above-floor and rejoin reads. Guarded searchIn stays
+NOT_MEMBER. On a second builder copy, 245 added scopes with 32 word variants
+open within default limits and reach a real meter drain cut: two mixed requests
+make one invocation each and emit 20 then 7 rows. The simpler 4,077-live-scope
+fixture independently witnesses a real drain on the same coordinator.
+
+Final focused JavaScript: 22 passed, 0 failed, including native/wasm reset during
+delivery, reopen, membership and expiry races, retained edits, shared-ledger
+exhaustion, Unicode ties, and mounted React. The existing headless browser
+harness mounts the same useQuery across current online, departure, offline and
+rejoin, with honest incomplete rendering. Expo is not separately witnessed.
+Affected Rust: 10 ordinary-search, 24 membership-search and 11 search-merge
+passed. Whole guide: 92 passed, 0 failed. Required scripts/test.sh ran once;
+exact summary: "== 1 failure(s) in 1816 s". Only failed step: wasm build (ours).
+Every other suite step passes, including 3,864 client tests/10 skips and 79
+models. No baseline or environmental suite failure. The suite began before
+final proof/ledger changes; final affected checks qualify those changes.
+
+Final wasm: 2,044,274 B raw / 593,309 B gzip, +24,459 / +7,931 B over round 0.
+The unchanged 586,193 B gzip cap is exceeded by 7,116 B (ours). Added device
+bytes implement composition metadata, retained-only scanning, ledger resumption
+and bounded state inspection. The budget was not raised; this is a local lane
+commit for review with an explicit failed gate, not publication qualification.
+Every development failure and its classification is retained in the report.
+Original input hashes including SQLite/WAL remain unchanged. No tool installed,
+shared-path tool change, push or publication. Report and compressed evidence:
+reports/20260928-os-ordinary-search/REPORT.md and round1/. Round 0 remains in
+ROUND0.md. Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-28 — Lane OK: explicit owner-key coverage (LLP 3000.028 §3.4)
 
 Implemented `with own keys .principal` on admitted public windows. The compiler
@@ -72823,6 +72938,60 @@ Did not run scripts/test.sh, per instruction; the supervisor owns landing
 qualification. Report and logs: reports/20260928-dg/ROUND2.md. LLP 3000.028
 Revised line and implementation notes updated. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+
+## 2026-09-28 — Lane OS round 2: ordinary search review corrections
+
+Read both binding lane prompts, round-0/1 reports and journal entries, the full
+Astra NOT READY review and available Grok review. First fetched and merged
+origin/main into sb4-intent/os-ordinary-search; merge 1ce4f594e preserves both
+OS and DG sides of the RFC revision/journal conflicts. Applied llp-orient
+read-only. No original evidence database or other lane was modified.
+
+Repaired Astra's four findings. System contexts keep the original evaluator,
+including every system-readable room and its continuation. Optional scoped
+indexes now follow baseline schema/program binding and enter schema/catalog
+only after the final runtime audience proof, schema validation and portable
+key/label budgets succeed. Declining leaves the original schema and evaluator;
+it never raises E_INDEX_KEY_BYTES for a speculative access path. Scope is
+prepended to the bound ordinary index, preserving equality pins, words and
+cursor suffix even when zone sorts after tombstone. The standalone fixture
+contains only the bare query, checks the exact scoped index and traverses all
+authorized IDs completely; a no-op capture now fails it.
+
+The regressions first reproduced all three correctness failures. Restoring old
+provisioning separately fails both 380-character denied/readable schemas.
+Additional checks cover small denied discovery, optional label overflow, and
+20,000 newer hidden rows under zone. Builder program/index compatibility,
+hidden receipt equality, opening/drain and held/guarded/explicit controls pass.
+Grok's exact-sync-target/prefix proof mutation now fails its own regression.
+Round 1 already fixes Grok's retained-result publication finding; new process
+and wasm witnesses explicitly preserve departed hits over a complete empty
+server page. Disabling composition reproduces the loss on both tiers. Exact
+offline IDs after a real server cursor now match an independent full-key oracle.
+
+Round-1 merge checks reran after the system fix (22 passes), after optional
+admission/scope-order fixes (26 passes), and after every mutation was restored
+(26 passes). They cover consumed prefixes, one invocation, real mixed drain,
+shared ledger, reset/reopen, membership/expiry delivery races, retained edits,
+rejoin and mounted React. Final affected Rust: 16 ordinary, 24 membership and
+11 search-merge tests pass. Compiler/library checks: 73 pass. Whole guide:
+92 pass. Native/client builds and typecheck pass. Reference audit: zero errors
+or unchecked; original input hashes including SQLite/WAL remain unchanged.
+Full-builder 501-page/10,014-ID traversals and the complete searchChat floor
+matrix remain round-1 evidence, distinguished from this round's reruns.
+
+Per the round-2 instruction, did not rerun scripts/test.sh. Round 1 already ran
+it once: exact summary "== 1 failure(s) in 1816 s", only wasm build (ours).
+Canonical wasm remains 2,044,274 B raw / 593,309 B gzip, delta 0 / 0 from round 1,
+7,116 B over the unchanged 586,193 B cap. This is our inherited round-1 budget
+failure, not a new round-2 regression; no ceiling raised. No baseline or
+environmental failure observed. The report retains every expected-red mutation,
+the initial Option reference test compilation error, and harmless path mistakes.
+No tool installed, shared-path tool change, push or publication. Report and
+acceptance matrix: reports/20260928-os-ordinary-search/REPORT.md; prior report
+preserved as ROUND1.md, new logs under round2/. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-28 — Lane SS round 4: internal Worker execution; public path incomplete
 
 Fetched and merged origin/main first, at 1972112a04fc03ece3423fbd4af67646f0cd5826.
@@ -73212,6 +73381,156 @@ Full file map, forms, failures, commands and retained evidence:
 reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+## 2026-09-28 — OS round 3: stable pagination and server audience binding
+
+First fetched and merged origin/main 80036b466 into the OS branch, preserving
+both journal tails and combining SS device-control/restore checks with the OS
+stream decoder and searchAttempt marker. Merge commit 5febc518d retains both
+serverOnly and searchAttempt. Read rounds 0–2 prompts, reports and OS entries,
+Astra's complete round-1/2 NOT READY review and the applicable fence/design
+material. Grok had no verdict at startup; did not wait. Read llp-orient from the
+populated lane-a5 skill copy because this lane's symlink was unpopulated. No
+other worktree changed, no tool installed, no push or publication.
+
+Separated the continuation epoch from the delivery capture. Continuations bind
+incarnation, backend/generation, acquisition validity and the relevant table's
+current/Left membership. Watermarks, unrelated sync, old-message edits and
+additional delivered IDs in current rejoined groups preserve consumed source
+positions. The broader delivery digest still withdraws replies when that state
+changes in flight. Both use the existing state and shared allowance; no new
+persistent registry or epoch.
+
+Every combined cursor now binds a SHA-256 digest of the complete authorized
+server searchScopes proof, checked even when there are no retained scopes.
+Audience changes withdraw stale suffixes. A live page chain reobserves its root
+and replaces the suffix; a one-shot caller receives loading and can request a
+fresh first page. Each observation still makes at most one server invocation.
+Digest scratch and work are charged to the same ledger. The original rejoin
+non-overlap check remains. No authorization rule or public Read field changed.
+
+Copied Astra's six process/wasm probes; all fail before the fixes. Enhanced them
+to traverse the full 65-ID oracle exactly once, count invocations and test fresh
+recovery. Added unsynced membership loss, actual Pages root/suffix refresh and
+hidden-sync delivery withdrawal on both hosts. Comparison-step boundaries now
+reach both time and equal-time Unicode-ID comparisons. Removing time charges
+fails both cases, removing ID charges fails the tie case, and removing both
+fails both. Removing the audience check fails all six gain/loss/live-chain
+cases. Mutations were confined to generated output and restored.
+
+Affected qualification: 53 Rust tests, 41 JavaScript tests including process,
+wasm and mounted React, and the whole 92-test guide pass. Build/typecheck,
+reference audit and original program/SQLite/WAL hashes pass. The full builder
+501-page evidence remains historical round-1 evidence; no fresh full-store or
+Expo qualification is claimed. Search guidance, LLP 3000.028 implementation
+notes and the report acceptance matrix now distinguish these scopes.
+
+Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1682 s`.
+Failed steps: wasm build and client tests. Rust 4,203 passed / 0 failed /
+31 ignored; client tests including shards 3,965 passed / 2 failed / 10 skipped;
+models 79/79; fixture wrappers 9/9. All other build, docs, release and app checks
+pass. Both client failures are ours from round 1: `web-reachable typed JSON
+calls all use the codec funnel` found the direct server audience writer, and
+`census kills parse, encoded, MQ components and container regressions` counted
+that real violation alongside its intended mutant. Routed the same prepaid Vec
+through json_codec::to_buffer without changing bytes or meter. After repair,
+36 codec/family, 51 affected Rust and 41 affected JS tests pass; native/client
+and wasm rebuilds complete. The full-suite log retains its original red result
+and was not rerun. No baseline or environmental qualification failures.
+
+Removed the unused plan serialization and redundant retained Boolean from both
+per-page state replies, reused canonical ledger serializers and avoided a
+generic map-removal path. Removing plan alone saves 5,268 raw / 1,401 gzip bytes.
+Final canonical wasm: 2,039,892 B raw / 592,307 B GNU file-input gzip-9, net
+round-3 saving 4,382 raw / 1,002 gzip. Composition versus round 0 still adds
+20,077 raw / 6,929 gzip. Final SHA-256:
+35ce9ef347e691e5305ee45d1959dca0ff61d8b97fe920cdbb84a8bdad86a73e.
+The late server codec repair leaves that artifact identical. Family/absence
+attribution passes; the report accounts for descriptor, state/digests, ledger,
+dispatch, retained filter, data and shared-code groups. The unchanged 586,193 B
+cap fails by 6,114 B: ours, expected, awaiting the supervisor's budget decision.
+No cap raised and no publication qualification claimed.
+
+All expected-red reproductions, mutations, the corrected two-test fixture setup
+failure, operational setup errors, measurements, commands and full suite output
+are retained in reports/20260928-os-ordinary-search/REPORT.md and round3/.
+ROUND2.md preserves the previous report. Local commits carry
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OS round 4: device cuts keep the proved current stream
+
+First fetched origin and merged origin/main on sb4-intent/os-ordinary-search;
+already up to date at d2b561fb3 (origin/main 80036b466). Read all binding prompts,
+prior reports and OS entries, Grok's full rounds-1/2 NOT READY review, the earlier
+reviews, Snapback 4 fence/rules and governing LLP/guide context. Applied llp-orient
+read-only from the populated lane-a5 copy. No other lane, shared installation or
+original evidence store changed; no tool installed, push or publication.
+
+Fixed the device word/read-cut discard. With a device cut and no continuation,
+returned device candidates cannot establish the newest retained hit: an unopened
+word can own a newer one. The SDK publishes the server's proved current rows,
+keeps complete false and the constituent cut, and advances only consumed server
+rows. The bounded localCut cursor flag suspends the device source for that
+traversal; retrying it behind already emitted current rows could break order.
+A fresh search can try retained history again. If no proved server hits remain,
+E_BOUND names narrowing the prefix or searching one chat instead of publishing
+an empty non-progressing cut page. Normal safe two-source merge behavior stays.
+This is the author's permitted incomplete-device alternative; the existing
+32-word and examined bounds can still prevent retrieving retained matches.
+
+The 8,192-current-hit fixture exposed the rejected 8,193rd examined charge in the
+receipt. SDK resumption now preserves it with the device meter cut. Delivery-only
+state observation retains exhausted examined/index/probe counters while spending
+remaining heap/steps/output. Query resumption is still strict; no new work in an
+exhausted dimension succeeds. No clamping, reset, third allowance or ceiling
+change. One server invocation per requested page remains.
+
+Freshness follows emitted rows: current-only pages are fresh, mixed/retained
+pages stale with since when available, independently of completeness. The
+horizon-free process/wasm control already proves complete empty answers after
+departure; no completeness override was needed. Windowed unscoped word scans
+cannot use a pinned group's acquisition boundary and keep unknown coverage.
+Documented that conservative limit in the search guide, existing coverage issue
+and LLP 3000.028 instead of inferring absence from next null or the Left list.
+
+Added process/wasm regressions for 40 current prefix words plus a newer retained
+word outside discovery, 8,192 newer current hits before one departed hit,
+consumed current continuations, per-page freshness and both exhaustion cases.
+The existing retained guard was already correct; new raw-device tests require a
+newer current row to be absent before SDK deduplication. An unsynced at-changing
+current edit appears once with its current body and never later as a stale device
+image. Broadening the filter to every delivered-history row fails both dedicated
+process cases (including duplicate m000) and the Rust Held/Rejoined guard test.
+Negative controls also fail for old discard, strict SDK/state receipt resumption,
+retrying a cut source, scope-wide stale flags and always-incomplete answers.
+Every mutation was restored before final artifact qualification.
+
+Affected qualification: 71 Rust tests (51 ordinary/membership/merge, 12 device
+merge, 4 meter, 4 state/retained-guard), 61 JavaScript search cases including
+process, wasm and mounted React, and all 92 guide tests pass. Client build and
+typecheck, 36 codec/family checks, wasm family/absence attribution, original input
+hashes and whitespace pass. Round 3's no-plan serialization assertion remains;
+its pagination/audience/comparison tests pass again. Full-builder 501-page,
+10,014-ID and searchChat floor-matrix evidence remains historical round 1;
+Expo and whole-RFC completion are not newly claimed.
+
+Did not run scripts/test.sh, as instructed: round 3 ran it once. Its historical
+summary is `== 2 failure(s) in 1682 s`, wasm build and client tests. The two
+lane-owned codec assertions were repaired in round 3 and pass here. Current
+remaining qualification failure is ours: unchanged wasm cap. Canonical final
+wasm is 2,039,944 B raw / 592,440 B gzip, +52 raw / +133 gzip from round 3 for
+finished-read receipt preservation, 6,247 B above the unchanged 586,193 B budget.
+SHA-256 d872d56c461ec5a2eefba8347bba82b4340cf0ca9c05647224aa6262cea89c47.
+The supervisor decides that cap. No budget raise or publication qualification.
+
+All failure logs remain: pre-fix discard/freshness reds; two mistaken examined
+assertions (the rejected charge is recorded); two mistaken horizon-free
+incompleteness assertions; four failures from a duplicated retain fixture line;
+intentional mutation reds and both expected canonical budget failures. These
+are ours; no baseline or environmental qualification failure. Harmless failed
+path/log reads and the nonmatching Revised-line patch are recorded too.
+Acceptance matrix and complete failure ledger: reports/20260928-os-ordinary-search/
+REPORT.md and round4/; ROUND3.md preserves the preceding report. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-28 — RG round 4: emission ownership survives every retirement path
 
 First fetched and merged origin/main 80036b4664 in 412c9191c. Kept both journal
@@ -73477,6 +73796,95 @@ GPT-6 Astra <noreply@openai.com>.
 Report, reproductions and full command logs:
 reports/20260928-mp-modeling-papercuts/REPORT.md.
 
+## 2026-09-28 — Lane OS round 5: generated oracle, immutable scopes and identity
+
+NOT READY for the requested traversal guarantees. First fetched and merged
+origin/main 5763da073 into OS 10f2be21c (merge 1f8792149); retained both LLP,
+journal and NOT-DOING histories, including OK/EQ. Read all five binding lane
+prompts, prior reports and journal records, Astra r34 in full and Grok r34.
+Grok finished READY with a same-count audience test gap, now covered. Used
+llp-orient read-only from the populated lane-a5 skill; no tool installation,
+shared-path change, push or publication.
+
+Built the generated instrument before product fixes. The first valid 300 seeds
+per real process/wasm host flagged the same 165 seeds per host: 91 identity,
+44 terminal whole-corpus, 9 duplicate and 21 model/lifecycle assertions. Reported
+those findings before fixing product code. Copied Astra's two reproduction files;
+all four host cases failed before repair. Every initial and subsequent seed/trace
+is retained, including corrected fixture/model mistakes rather than relabeling
+them product defects. The independent model uses authored rows, memberships,
+acquired images and lifetime events, never query-returned expected rows.
+
+Composition now requires immutable scope ownership. Mutable scopes keep ordinary
+routing and server inference, with N_SEARCH_MUTABLE_SCOPE naming the one-step
+immutable declaration; compiler and runtime reproof are tested. Search guide
+cards declare immutable scope. HTTP queries carry their actual reader generation;
+searchPost propagates captured store/generation validation, and the combined
+cursor binds the validated identity. An unsynced replacement or generation
+change withdraws the attempt until normal sync and replanning. Seed 160 exposed
+a plain offline cursor crossing into a replacement store after reconnection:
+online composition now starts fresh without source identity proof. Seed 52
+exposed reset/reacquisition of identical memberships resurrecting an old epoch:
+clear_rows atomically advances a persistent counter included in both search
+fences. This is one invalidation counter, not a saved query or unbounded ID set.
+Both discoveries have named process/wasm regressions; reset tests failed before
+repair. New ascending Unicode cases kill the descending-only comparator; a
+same-count audience swap kills a count-only digest. Removing response identity
+validation fails all four store/generation cases. Restoring raw cursor adoption
+in an isolated copied package fails both seed-160 cases; original dist untouched.
+
+Final oracle runs first/last with varied page sizes/Unicode ties, random sync,
+join/leave, new/body/at/move/expiry, replacement/generation, reset/reopen and link
+flaps, including word/meter-cut interleavings. All 600 seeds complete in 233.094 s:
+process 133.509 s, wasm 99.585 s. Both have 276 passing / 24 failing seeds, exactly
+the same assertions: 10 duplicates and 14 terminal whole-corpus failures. Three
+of the latter omit continuously matching rows after at changes; new/restored
+matches account for the others. Seed 52 is repaired and passes. The mutable
+ordinary fallback can also repeat a moved row if its at crosses the consumed key
+(seed 88); immutable-scope admission fixes Astra's composition collision, not
+that broader mutable-order guarantee. No final generated disclosure, per-page
+order, invocation-count or empty-dead-end violation was observed. Explicit
+incomplete cut subsets/E_BOUND remain the accepted round-4 behavior.
+
+The public complete contract proves page coverage, not a changing traversal's
+whole corpus. The oracle applies the stronger corpus check at terminal complete
+pages and leaves failures red in the normal CI glob. Guide, LLP 3000.028, the
+acceptance matrix and issues/20260928-snapback4-live-search-traversal.md state the
+remaining gap. Do not silently adopt a snapshot, durable session, unbounded seen
+set or unrelated-sync reset to claim these stronger invariants. The binding
+prompts permit this coherent subset with an honest matrix; no full acceptance.
+
+Final affected checks pass: 75 JavaScript cases including real process/wasm and
+mounted React, 73 Rust cases (52 search, 12 device merge, 4 meter, 4 state,
+1 reset publication), all 93 guide cases, client build/typecheck, docs budget,
+wasm family/absence attribution. Full-builder 501-page/10,014-ID and per-chat
+floor evidence remains historical round 1; Expo remains separately unwitnessed.
+Ran scripts/test.sh exactly once. Exact summary: `== 2 failure(s) in 1684 s`:
+`wasm build`, `client tests`. The wasm step is ours, expected at 592,291 B gzip,
+6,098 B over its unchanged cap. The only client failures were the two 300-seed
+oracle tests, each with 25 flags before the reset repair. Main client runner:
+3,945 pass, 2 fail, 10 existing skips; all 56 acquisition/server shard cases and
+all 79 separate client models pass. Other suite steps pass. The suite began
+before the reset repair/final cut interleavings; affected final checks and the
+600-seed sweep followed. No second suite run or claim of a green full suite.
+
+Removed left/ceilings from the second search_state response: 173 fewer wire
+bytes in the fixture, 70 fewer raw wasm bytes but 45 MORE gzip bytes. The later
+reset counter costs 576 raw / 271 gzip. Final artifact is 2,038,528 B raw /
+592,562 B gzip: net -1,416 raw / +122 gzip versus round 4, 6,369 B (1.09%) over
+586,193. SHA-256 b527ef012a469c73a5c1a191aa5cc098646146048a239901ebf986f61834e200.
+No cap raise; the supervisor owns it. Prior descriptor/state/digest/ledger/filter
+attribution still applies, and the old unused plan echo remains removed.
+
+Every failure is classified in the report: ours (copied defects, generated
+traversal failures, invalid immutable syntax/unsafe membership fixture, acquisition
+model mistakes, missed model.write insertion, unauthenticated generation probes,
+exact-optional TypeScript typing, one guide definition pin, expected mutations,
+expected wasm cap and harmless path mistakes). The isolated mutation harness
+initially lacked #fetch imports; copying its manifest made the intended tests
+run and fail. No baseline or environmental qualification failure was identified.
+Reports/round5 retain every log and seed; ROUND4.md archives the preceding report.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-28 — Lane EX round 1: recover every send and enforce client lifetimes
 
 Read the original EX prompt, round-0 report/journal and both full reviews.
@@ -73686,6 +74094,77 @@ mutation patches, commands, exact summaries and hashes are in the round-3
 report directory. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+## 2026-09-28 — Lane OS round 6: live combined keyset contract
+
+Fetched and merged origin/main fb7c0790b first, in b44e5b66b. Preserved both
+LLP revision histories and journal tails, and combined EQ's descriptor check
+with OS's inferred public index mapping. The native build exposed one further
+integration initializer: the synthetic ordinary membership Scan now sets
+cursor_pins to zero. Read all rounds 0–5 prompts, reports and journal entries,
+the r34 Grok READY review and the governing fence, LLP and guide context.
+Round 5 already covered Grok's same-count room swap Low; both host cases pass.
+
+Recorded the supervisor's decision in LLP 3000.028 §3.3: continuation seeks
+the combined (order key, id) position in each request's currently visible
+domain, without a snapshot guarantee. Stable rows retain exactly-once;
+changed keys/matches and new rows before the position may repeat or be skipped.
+The search card gives three actionable sentences, including immutable at.
+
+The independent oracle now computes exact pages from authored server rows
+and separately acquired retained images, while preserving identity withdrawal,
+disclosure, order, one invocation, no dead end, cuts and stable-row checks.
+All 300 mixed seeds pass on process and wasm. All 24 old flags pass on both;
+the report and closed issue list each verdict and live-keyset explanation.
+Another 22 current-only schedules per host compare identical server-only and
+composed operation schedules: 194 identical pages each. Original mixed
+schedules still exercise membership and link transitions. Six cut schedules
+per host keep their accepted explicit E_BOUND termination, not an xfail.
+
+Seed 159 found a real composition defect: after descending rows at 110 and
+100, a newly inserted server row at 107 entered the next page because that
+source's position was only 110. The cursor now records the combined consumed
+key and both sources seek it, preserving eligible unconsumed hits after it.
+The extra key is charged to the existing ledger and 4,096-byte cursor bound.
+Four first/last process/wasm regressions fail before repair and pass afterward.
+At 4,077 scopes the corrected seek exposes the ordinary server cursor's
+E_SEARCH_OPEN cost; a direct query with that cursor refuses identically.
+A second 249-scope word-dense fixture proves two real drain-cut pages and
+one invocation per page. No evaluator, authority or budget was relaxed.
+
+SDK usePage now accumulates search/history rows by ID, retaining the newest
+observed image at the first display position. Refreshed earlier pages win;
+metadata-only revalidation cannot make a stale image newer. Suffix drops and
+publication/deadline behavior remain intact. Search/history tests cover this.
+Affected qualification: 134 JavaScript cases including mounted React and both
+real hosts, 73 OS Rust cases, 17 EQ cases and all 93 guide cases pass. Native
+Expo and the full copied builder store remain historical qualification gaps.
+
+Ran scripts/test.sh exactly once: exit 1, exact summary
+`== 1 failure(s) in 1775 s`, followed only by `wasm build`. That failure is
+ours and expected: the unchanged wasm cap. Baseline/environmental failures:
+zero. Full Rust: 4,235 passed / 33 ignored; client: 4,012 passed / 10 skipped
+including the seven acquisition/server shards; fixture wrappers: 9 passed;
+client models: 79 passed / zero skipped. All other stages pass. The full suite
+also reruns all 300 oracle seeds and 22 differential schedules per host green.
+
+All development failures are ours and retained in round6/run-ledger.json:
+the missing Scan initializer; the four deliberate boundary regressions and
+seed 159; three acquired-image and eight mutable-cursor model corrections;
+drain-fixture calibration/expectations; exploratory path/filter errors; and
+the expected wasm-budget failure. The final oracle and affected checks are
+green. No baseline or environmental failure was observed.
+
+Final canonical wasm: 2,039,451 B raw / 592,722 B GNU file-input gzip-9,
+6,529 B above the unchanged 586,193 B cap. Rust 1.97.0, wasm-bindgen 0.2.127,
+no wasm-opt. SHA-256 e1691a03acdce0cb323cd8c5da25baea26bb5a6c514e2265a08c8ebf88b672d0.
+The +923 raw/+160 gzip change from round 5 is merged EQ cursor work/layout;
+round-6 product fixes are TypeScript, and the Scan initializer is server-only.
+Existing OS growth remains attributed to composition state/digests, retained
+filtering, shared ledger/dispatch and reset counter; family/absence checks pass.
+The supervisor owns the budget raise. No tool install, shared-path change,
+push or publication. Reports, acceptance matrix, LLP notes and the resolved
+issues/closed/20260928-snapback4-live-search-traversal.md carry the evidence.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-28 — RG round 6: delivery await matrix and proven-success recovery
 
 Read rounds 0–5 prompts, reports and RG journal records, the Snapback 4 fence
@@ -73907,6 +74386,77 @@ Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 Report and complete evidence: reports/20260928-mp-modeling-papercuts/round2/REPORT.md.
 
+## 2026-09-28 — Lane OS round 7: point overlap, proven page identity and terminal refusals
+
+Round 7 first fetched and merged origin/main in `d023a8fd6`, keeping both
+parents' append-only journal blocks and the automatically merged source. Read
+all binding lane prompts, prior reports/OS entries, the Snapback 4 fence and
+scoped LLP/guide context using llp-orient read-only. Astra's full rounds-5/6
+NOT READY review and all four reproductions are incorporated. Grok had progress
+notes initially, then finished READY with lows; its final text is preserved and
+its cut-model and cursor-wording findings are addressed. No tool was installed.
+
+The server now point-checks only this page's supplied retained IDs under the
+query's existing transaction, authorization/expiry boundary and meter. At most
+the page size plus lookahead is admitted; capped checks refuse. Current readable
+IDs suppress retained candidates even after deletion/reinsertion, scope updates,
+match changes, filtering or movement outside the requested keyset. Hidden,
+absent and expired images have the same negative answer; no unsupplied ID, new
+body, scope or order key is disclosed. LLP 3000.028 §3.3 records the decision and
+disclosure argument. Immutable-scope admission and N_SEARCH_MUTABLE_SCOPE are
+removed. Immutable order advice remains. Every page still makes one server
+invocation; all-suppressed prefixes may return an empty advancing page, with no
+refill or skipped unconsumed server key. No runtime allowance is raised.
+
+Generated source-row page handles carry `rowKey: "id"`; Pages deduplicates only
+with that proof and keeps the newest observed image. A projected `id: .room`
+keeps ordinary list semantics. Authenticated early refusals capture a reader's
+store/head/generation, and the coordinator handles refusals before identity
+refresh. Mounted React/wasm invalid input settles E_INPUT after one request,
+remaining settled over 200 ms. Pre-authentication auth/origin refusals retain
+their metadata-free envelope; final review caught and tested the overly broad
+initial metadata patch before restoring that disclosure boundary.
+
+The extended generator reproduced all three blockers before repairs: seeds
+1/2/4 fail on process and wasm; changed-needle seed 3 already passes. It now
+generates ID reuse, projected non-identity IDs, permanent invalid inputs and
+argument changes. Restart/withdrawal follows modeled events, not returned
+cursor fields. Fixture conditions determine lane suspension. Partial offline
+safety samples never supply the model's next key; all uncut and suspended-current
+pages retain exact independent keyset comparison. The first complete sweep's
+225/240/300 failures per host were model mistakes: some offline pages fill before
+the fixture's cut. They are corrected and fully logged.
+
+Final oracle: 300/300 process and 300/300 wasm seeds, plus 22 current-only
+server differential schedules per host with 194 identical pages each. Process
+183.141 s, wasm 134.262 s. Each host generates 50 reinsertion cases and 74 each
+of projections, invalid inputs and changed arguments. An isolated mutation
+removing arguments from the cursor binding fails both Astra's needle regression
+and generated seed 3 on both hosts. Product artifacts were never mutated.
+
+Qualification: 160 affected JavaScript cases pass in the final combined run,
+plus the added pre-authentication disclosure regression in the focused refusal
+rerun (161 unique affected cases). 83 affected Rust tests pass, including 75
+search/device/meter cases and eight HTTP query cases; one existing prepared-M7
+scale case is ignored by its named prerequisite. Whole guide: 94 pass. Client
+build/typecheck, 36 wasm codec/family tests, family/server-only absence checks
+and reference audit pass. `scripts/test.sh` was not run, as instructed.
+
+Canonical wasm: 2,039,451 B raw / 592,719 B gzip, 0 raw / −3 gzip from round 6.
+The unchanged 586,193 B cap still fails by 6,526 B (ours, inherited expected
+budget failure). The server-only overlap and TypeScript metadata/coordinator
+add no device function family; whole-artifact bytes include merged source/layout.
+No budget raise here. No baseline or environmental test failure. Development
+product/model/fixture/mutation failures, including the initial auth-metadata
+regression, are retained and classified in the
+[round-7 report](./reports/20260928-os-ordinary-search/REPORT.md). The revised
+word-dense drain fixture pays the overlap inside the existing allowance and
+checks unconsumed hits through a third explicitly requested page.
+
+Round-1 full-builder u0500/floor/guard evidence remains historical; this round
+reruns real process/wasm and mounted browser cases, not a native Expo witness or
+the full copied calibration store. Prior round-6 report is preserved as ROUND6.md.
+Commit carries the co-author trailer; push and publication remain forbidden.
 ## 2026-09-28 — Lane EX round 2: cold owner keys and published client guidance
 
 Read both prior EX prompts/reports/entries and Astra's complete round-1
@@ -74189,3 +74739,118 @@ Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 Report and complete evidence: reports/20260928-mp-modeling-papercuts/round2/REPORT.md.
 Report: reports/20260928-mp-modeling-papercuts/round3/REPORT.md.
+## 2026-09-28 — Lane OS round 8: reconcile and extend the delivery await matrix
+
+Ran RG's matrix on untouched round-7 c81476d5f first. The census rejected two
+changed expressions and the added search decoder. The decoder shifted subsequent
+case indices; old recipes then faulted the wrong awaits. The complete initial
+run stalled at the displaced change-feed cases. Recorded-PID termination and
+externally bounded split runs attempted every case: 253 pass, 28 fail, one
+persistent case stalls, plus census failure and a prefix teardown timeout.
+These are ours, not evidence of broken production clock/native/restore guards.
+Exact IDs, line/index moves, logs and exits are retained under round8/.
+
+Then fetched/merged origin/main ae265b730 in 54ca4b1d3. Preserved both parents'
+journal sequences and all complete LLP revision notes. Read rounds 0–7 prompts,
+reports and OS journal entries, the RG round-6 matrix/report, scoped LLPs and
+current guide; applied llp-orient read-only from the populated enginefix skill.
+Round-7 reviews remain for the later commissioned round. No tool installation.
+
+All original 140 site classifications, recipes and absorbs flags are preserved.
+Shared mutation transport/JSON decoding and unknown custody remain required;
+query identity and the new search decoder are optional to healthy delivery.
+Existing sendPost guards already handle their failures, proven by guard-removal
+controls. No production code changes. Expanded scope includes all nine search
+module awaits and all six query-route awaits, including four pre-existing ones.
+No search waiver or exclusion. The direct-failure allowlist and all RG delivery
+assertions remain unchanged. Stream cancellation receives its own low-level
+injection; fallback recipes reach real I/O. Scripted query host replies drive
+the SDK branches while the actual wasm outbox admits/delivers the queued sends.
+Public query calls repeat during the persistent fault, and all finish on recovery.
+
+Final matrix: 313 passes, 156 sites (108 optional / 48 required), every T/P case
+reached and injected. Healthy optional-fault sends POST once; required faults
+recover FIFO/caller/event/lookup agreement. Affected JS: 161 search/React and
+331 delivery/receipt/clock/pending/transport cases pass, one existing legacy-bin
+skip. Oracle: 300/300 process and 300/300 wasm, plus 22 differential schedules /
+194 identical pages per host. Times 174.770 / 127.520 seconds. Affected Rust:
+66 pass; merged whole guide: 98 pass. Client/native builds, typecheck, 38 wasm
+codec/family tests, family/absence attribution, reference/whitespace and parent
+journal checks pass. All five targeted negative controls fail for their intended
+assertions. scripts/test.sh was not run.
+
+Every failure is in the report and round8/failure-index.json: the initial
+metadata drift/timeouts; 30 new-fixture reach failures from using nonexistent
+client.once (corrected to client.query); the expected mutation failures;
+read/path/skill and schema-inspection setup errors; expected merge conflicts;
+and the inherited wasm cap. No baseline or environmental test failure observed.
+The existing RG matrix-Lows ticket remains open; no sound-call-graph or complete
+historical-control-rerun claim is made.
+
+Wasm remains 2,039,451 B raw / 592,719 B GNU file-input gzip-9, zero delta from
+round 7 and 6,526 B above the unchanged 586,193 B cap (ours, inherited expected
+failure). SHA-256 7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d.
+Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt. This round adds no wasm input;
+prior composition state/ledger/filter/reset attribution remains. Supervisor owns
+the budget decision. Report acceptance note and LLP 3000.028 update accompany
+this append. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push, publication, other worktree edit, original evidence mutation or shared
+installation. Round-7 report remains as ROUND7.md.
+
+## 2026-09-28 — Lane OS round 9: linear overlap pricing and oracle coverage
+
+Read binding rounds 0–8 prompts, reports and OS journal entries, both round-7
+reviews and scoped fence/LLP/guide context; applied llp-orient read-only from the
+existing lane-ex skill copy. Fetched origin: main ae265b730 is already included,
+so no merge. Kept the round to the coordinator's subset check and its tests.
+
+Grok's blocking charge is repaired: reject current.length > retained.length
+before subset work, validate with a retained-ID Set, charge R + 2C steps for
+candidate construction, membership probes and suppression construction. Both
+Sets are prepaid on the original shared device ledger. At 100/100, subset work
+costs 300 steps rather than 1,360,100. No allowance, authorization, invocation
+count or keyset/cursor rule changes. Audited every coordinator charge and the
+adjacent Rust state/point-overlap charges; no second page-count product found.
+
+All cheap review gaps are covered: large 86/100 pages on process and wasm;
+generated match/position/expiry choices independent of category divisibility;
+expired current images removed before model shadowing; cut refusals require
+absence of a proved current prefix; offline word cuts compare the exact first
+32-word partial domain; the same-page seen Set has an intentionally unmarked
+pair defense-in-depth regression. The large generator stratifies both sizes and
+orders, while varying matching status and replacement placement independently.
+
+Before the fix, three SDK ledger cases and four named host cases fail the
+quadratic charge/length ordering. The expanded probe flags seeds 64, 68, 75,
+88, 92 and 100 on both hosts: 75's large page is the product defect, the other
+five are the expired-replacement model defect. Two tight comparison allowances
+need exactly one added Set-construction step. The first complete sweep passes
+all 600 seeds but fails both host coverage assertions for missing 86/first;
+stratification repairs that generator gap. Every failure and command is retained.
+
+Final acceptance: 300/300 seeds per host, 12 additional large-page scenarios per
+host, 22 current-only differential schedules / 194 identical pages per host,
+plus six named large/expiry host cases. Process 189.736 s, wasm 140.824 s; the
+oracle reports 8/8 tests. Each host has all six reuse match/placement cells,
+50 reuses (26 coffee, 24 tea), 15 expired replacements, six exact offline cuts
+and seven specifically justified no-current-prefix E_BOUND terminations.
+All 165 other affected JavaScript tests (including mounted React), 54 simulator
+search and 12 device merge tests, 98 whole-guide cases and 313 RG matrix checks
+pass. No await/census/classification/recipe change. Build/typecheck/reference
+checks pass. Six isolated negative controls fail as intended, including both
+hosts for cut refusal and offline truncation; live artifacts were not mutated.
+
+Canonical wasm remains 2,039,451 B raw / 592,719 B GNU file-input gzip-9,
+0/0 delta from round 8, SHA-256
+7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d.
+The unchanged 586,193 B cap fails by 6,526 B: ours, inherited, and the only
+remaining qualification failure. No Rust/wasm input changed; prior composition
+state/ledger/filter/reset attribution remains. No baseline or environmental
+failure observed. The report also records corrected operational path mistakes.
+
+Report: reports/20260928-os-ordinary-search/REPORT.md; previous report preserved
+as ROUND8.md. Acceptance note, scoped charge audit, LLP 3000.028 implementation
+note, command/results and compressed evidence accompany this append.
+No scripts/test.sh, budget raise, install, push or publication. The full builder
+store/floor and native Expo evidence are not rerun. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

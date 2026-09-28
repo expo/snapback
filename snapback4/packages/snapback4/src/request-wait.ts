@@ -11,11 +11,11 @@ export function waitForCaller<T>(work: Promise<T>, stopped: AbortSignal, known =
 }
 
 /** Consume a local client's POST reply even if its caller has gone away. */
-export function postForCaller(doFetch: typeof fetch, base: string, path: string, headers: Record<string, string>, body: unknown, stopped: AbortSignal, received = (_json: Record<string, unknown>, _status: number) => {}) {
+export function postForCaller(doFetch: typeof fetch, base: string, path: string, headers: Record<string, string>, body: unknown, stopped: AbortSignal, received = (_json: Record<string, unknown>, _status: number) => {}, decode?: (response: Response) => Promise<Record<string, unknown>>) {
   let arrived = false;
   const work = (async () => {
     const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body), ...(path.startsWith("/q/") ? { signal: stopped } : {}) });
-    const json = await response.json() as Record<string, unknown>;
+    const json = decode ? await decode(response) : await response.json() as Record<string, unknown>;
     received(json, response.status);
     arrived = !stopped.aborted;
     return { response, json };

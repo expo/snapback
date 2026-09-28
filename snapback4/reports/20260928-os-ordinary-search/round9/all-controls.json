@@ -1,0 +1,92 @@
+[
+  {
+    "name": "seen",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=seen set",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/seen/test/ordinary-search-ledger.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "Expected values"
+  },
+  {
+    "name": "cut-refusal",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=generated oracle",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/cut-refusal/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "unjustified cut refusal"
+  },
+  {
+    "name": "comparison-steps",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=mixed comparisons",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/comparison-steps/test/ordinary-search-ledger.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "E_BOUND"
+  },
+  {
+    "name": "tie-steps",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=equal-time Unicode IDs",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/tie-steps/test/ordinary-search-ledger.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "E_BOUND"
+  },
+  {
+    "name": "subset-steps",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=mixed comparisons",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/subset-steps/test/ordinary-search-ledger.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "E_BOUND"
+  },
+  {
+    "name": "offline-cut-prefix",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=generated oracle",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/offline-cut-prefix/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "offline word-cut exact discovered prefix"
+  }
+]

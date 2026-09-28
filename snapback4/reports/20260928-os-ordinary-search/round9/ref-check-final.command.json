@@ -1,0 +1,7 @@
+{
+  "command": [
+    "./ref-check",
+    "--verbose"
+  ],
+  "exit": 0
+}

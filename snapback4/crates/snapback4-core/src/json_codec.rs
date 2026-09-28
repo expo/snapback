@@ -90,6 +90,11 @@ pub fn to_vec<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, Error> {
     to_text(value).map(String::into_bytes)
 }
 
+/// Serialize into prepaid capacity with the same Vec writer as to_text.
+pub fn to_buffer<T: Serialize + ?Sized>(buffer: &mut Vec<u8>, value: &T) -> Result<(), Error> {
+    serde_json::to_writer(buffer, value)
+}
+
 /// The meter's exact tagged byte count, without a second result-sized value.
 pub fn value_bytes(value: &crate::value::Value) -> Result<u64, Error> {
     struct Counter(u64);

@@ -1,0 +1,95 @@
+{
+  "command": "bash scripts/test.sh",
+  "cwd": "snapback4",
+  "invocations": 1,
+  "exit_code": 1,
+  "summary": "== 1 failure(s) in 1775 s",
+  "failures": [
+    {
+      "stage": "wasm build",
+      "classification": "ours, expected",
+      "reason": "592722 B gzip exceeds unchanged 586193 B cap by 6529 B"
+    }
+  ],
+  "baseline_failures": [],
+  "environmental_failures": [],
+  "rust": {
+    "passed": 4235,
+    "failed": 0,
+    "ignored": 33,
+    "target_invocations": 981,
+    "stage_seconds": 949
+  },
+  "client": {
+    "main_passed": 3956,
+    "shards_passed": 56,
+    "passed": 4012,
+    "failed": 0,
+    "skipped": 10,
+    "stage_seconds": 464
+  },
+  "fixture_wrappers": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "client_models": {
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0,
+    "stage_seconds": 298
+  },
+  "oracle": [
+    {
+      "host": "process",
+      "seeds": 300,
+      "failed": [],
+      "ms": 97734,
+      "coverage": {
+        "at": 103,
+        "sync": 135,
+        "membership": 259,
+        "terminal:none": 303,
+        "reset": 70,
+        "link": 103,
+        "new": 151,
+        "body": 90,
+        "replacement": 82,
+        "expiry": 110,
+        "reopen": 53,
+        "differential-page": 194,
+        "generation": 36,
+        "terminal:words": 12,
+        "move": 8,
+        "terminal:meter": 1,
+        "refusal:E_BOUND": 6
+      }
+    },
+    {
+      "host": "wasm",
+      "seeds": 300,
+      "failed": [],
+      "ms": 77545,
+      "coverage": {
+        "at": 103,
+        "sync": 135,
+        "membership": 259,
+        "terminal:none": 303,
+        "reset": 70,
+        "link": 103,
+        "new": 151,
+        "body": 90,
+        "replacement": 82,
+        "expiry": 110,
+        "reopen": 53,
+        "differential-page": 194,
+        "generation": 36,
+        "terminal:words": 12,
+        "move": 8,
+        "terminal:meter": 1,
+        "refusal:E_BOUND": 6
+      }
+    }
+  ],
+  "log": "full-suite.log.gz"
+}

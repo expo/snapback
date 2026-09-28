@@ -1,0 +1,27 @@
+{
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "gzip": "GNU gzip -9, file input; no wasm-opt",
+  "round4": {
+    "raw": 2039944,
+    "gzip": 592440
+  },
+  "merged_before": {
+    "raw": 2038022,
+    "gzip": 592246
+  },
+  "validation_cleanup": {
+    "raw": 2037952,
+    "gzip": 592291
+  },
+  "final": {
+    "raw": 2038528,
+    "gzip": 592562,
+    "sha256": "b527ef012a469c73a5c1a191aa5cc098646146048a239901ebf986f61834e200",
+    "over_budget": 6369
+  },
+  "budget": 586193,
+  "wire_validation_saving_bytes": 173
+}

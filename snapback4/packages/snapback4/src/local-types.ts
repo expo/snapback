@@ -19,6 +19,7 @@ export interface Queued {
 }
 
 export interface StoreCapture {
+  generation?: number;
   backend_required?: boolean;
   store_id?: string | null;
   transfer_store_id?: string | null;

@@ -1,0 +1,13 @@
+{
+  "name": "wasm-census",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/wasm-codec-census.test.mjs",
+    "packages/snapback4/test/wasm-families.test.mjs",
+    "packages/snapback4/test/wasm-absent.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 14.292
+}

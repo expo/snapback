@@ -1,6 +1,6 @@
 # Search completion and work
 
-`check` and `check --cost` distinguish four independent search costs, each
+`check` and `check --cost` distinguish search admission and independent costs, each
 with a source site and rewrite:
 
 - **N_SEARCH_UNSCOPED:** the read rule varies within the searched index.

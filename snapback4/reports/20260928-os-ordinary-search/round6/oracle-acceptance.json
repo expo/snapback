@@ -1,0 +1,57 @@
+{
+  "summaries": [
+    {
+      "host": "process",
+      "seeds": 300,
+      "failed": [],
+      "ms": 145231,
+      "coverage": {
+        "at": 103,
+        "sync": 135,
+        "membership": 259,
+        "terminal:none": 303,
+        "reset": 70,
+        "link": 103,
+        "new": 151,
+        "body": 90,
+        "replacement": 82,
+        "expiry": 110,
+        "reopen": 53,
+        "differential-page": 194,
+        "generation": 36,
+        "terminal:words": 12,
+        "move": 8,
+        "terminal:meter": 1,
+        "refusal:E_BOUND": 6
+      }
+    },
+    {
+      "host": "wasm",
+      "seeds": 300,
+      "failed": [],
+      "ms": 109104,
+      "coverage": {
+        "at": 103,
+        "sync": 135,
+        "membership": 259,
+        "terminal:none": 303,
+        "reset": 70,
+        "link": 103,
+        "new": 151,
+        "body": 90,
+        "replacement": 82,
+        "expiry": 110,
+        "reopen": 53,
+        "differential-page": 194,
+        "generation": 36,
+        "terminal:words": 12,
+        "move": 8,
+        "terminal:meter": 1,
+        "refusal:E_BOUND": 6
+      }
+    }
+  ],
+  "additional_current_only_schedules_per_host": 22,
+  "differential_pages_per_host": 194,
+  "failed": []
+}

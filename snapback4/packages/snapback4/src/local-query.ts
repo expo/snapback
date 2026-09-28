@@ -1,3 +1,4 @@
+import { combinedCursor, ordinarySearch } from "./local-search.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 // Query publication procedure (LLP 3000.016 §2.2):
 // 1. Check session/incarnation after every await and before publication.
@@ -25,7 +26,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -41,6 +42,7 @@ export interface QueryEnvironment {
   authority: number;
   refreshing: Promise<unknown> | null;
   link: Link;
+  linkRevision?: number;
   caughtUp: boolean;
   identityChecked: boolean;
   lastSyncAt: number;
@@ -51,7 +53,9 @@ export interface QueryEnvironment {
   unavailable(): Refusal | null;
   queued(): Promise<Queued[]>;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
-  post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }>;
+  post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; searchIdentity?: string | undefined } | { ok: false }>;
+  searchPost(path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>): ReturnType<QueryEnvironment["post"]>;
+  refreshSearch?(name: string): void;
   installNative(signal?: AbortSignal): Promise<boolean>;
   notify(watch: Watch): void;
   offline(): Refusal;
@@ -74,6 +78,11 @@ export interface AnswerCache {
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {
   const program = env.backend.programs.find(p => p.name === op.name);
+  const search = env.backend.schema.operations?.[op.name]?.search;
+  let searchAttempt = false;
+  if (search && env.link !== "online" && combinedCursor((args as Record<string, unknown>)?.[search.cursor])) {
+    args = { ...args as object, [search.cursor]: null }; // the offline observation restarts in its own coverage domain
+  }
   const tables = program ? operationTables(program, env.backend.schema) : new Set<string>();
   const staticTables = new Set(tables);
   const held = env.backend.schema.operations?.[op.name]?.held ?? program?.held ?? op.held ?? false;
@@ -251,6 +260,13 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       possible = null; // No local execution can certify this partition/guest.
       const result = await server(); checkpoint(); return result; // Rule 3.
     }
+    if (search && env.link === "online" && /[\p{L}\p{N}]/u.test(String((args as Record<string, unknown>)?.[search.needle] ?? "")) && !await blocked()) {
+      checkpoint();
+      searchAttempt = true;
+      remember = false;
+      const result = await ordinarySearch(env, op.name, args, search, checkpoint, blocked); checkpoint();
+      return { origin: "composed", result: { ...result, read: result.read as Read<R>, tables } };
+    }
     const first = await local(); checkpoint();
     const result = await routeLocal(first); checkpoint(); return result;
   };
@@ -319,11 +335,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   try {
     const candidate = await route(); checkpoint();
     const result = await publish(candidate); checkpoint();
-    return result;
+    return { ...result, ...(searchAttempt ? { searchAttempt: true } : {}) };
   } catch (error) {
-    if (error instanceof Interrupted) return error.result;
+    if (error instanceof Interrupted) return { ...error.result, ...(searchAttempt ? { searchAttempt: true } : {}) };
     // An await that rejects still crosses a session/incarnation boundary.
-    try { checkpoint(); } catch (interruption) { if (interruption instanceof Interrupted) return interruption.result; throw interruption; }
+    try { checkpoint(); } catch (interruption) { if (interruption instanceof Interrupted) return { ...interruption.result, ...(searchAttempt ? { searchAttempt: true } : {}) }; throw interruption; }
     throw error;
   }
 }

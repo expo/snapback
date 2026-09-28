@@ -103,6 +103,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> { self.raw.effect_once(effect, key) }
     pub(crate) fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.raw.provisional_id_after(table, after) }
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
+    pub(crate) fn search_retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.search_retained_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
     pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }
     /// Device acquisition facts carry no row payload, like retained_row.

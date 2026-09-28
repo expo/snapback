@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "scripts/wasm-budget.mjs",
+    "metrics/wasm-budget.json",
+    "592719"
+  ],
+  "exit": 0,
+  "seconds": 0.026
+}

@@ -119,14 +119,18 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 arg(&request, "page")?; // Preserve the missing-argument diagnostic.
                 page_call(device, parse(request)?)?
             }
+            "search_state" => device.search_state(text(&request, "name")?, request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?)?,
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
                 // `unknown` names server-only knowledge (missing facts or presence), not every incomplete answer.
-                let (result, unknown, retained, components, provenance) = device.query_observation(text(&request, "name")?, text(&request, "viewer")?, &args, now, true);
+                let search = request.get("search").and_then(Json::as_bool) == Some(true);
+                let spent = request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?;
+                let (result, unknown, retained, components, provenance) = device.query_observation_search(text(&request, "name")?, text(&request, "viewer")?, &args, now, true, search, spent);
                 let mut reply = match result {
                     Ok(outcome) => {
                         let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "tables": outcome.tables });
+                        if search { reply["metered"] = encoded(&outcome.metered)?; }
                         if !outcome.unavailable && outcome.data.has_retained_rows() {
                             reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());
                         }

@@ -10,12 +10,12 @@
 **Battery gate:** `workout-apps`
 **Failure signature:** `sha256:a8bbcf108e8993e46dd9522ada5f49a6ed2da9cf6068f7c5e95461bf43125c48`
 **First observed run:** `local.20260927T084919Z.3a1f8b55d22c`
-**Last observed run:** `local.20260928T042704Z.b8400c29128e`
-**Last processed run:** `local.20260928T042704Z.b8400c29128e`
+**Last observed run:** `local.20260928T150340Z.ea7ecc896c16`
+**Last processed run:** `local.20260928T150340Z.ea7ecc896c16`
 **Detected at revision:** `3a1f8b55d22cbe2f79c58b0eb19e452fd02569a5`
-**Last observed revision:** `b8400c29128e21b6367ba8d420296bedf108dff5`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `ea7ecc896c166c31caf88f843e0c4dce4ea900b6`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ node scripts/run-workout-apps.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

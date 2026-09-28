@@ -6,12 +6,22 @@ fn args(values: &[(&str, &str)]) -> BTreeMap<String, Value> {
     values.iter().map(|(key, value)| ((*key).into(), if *key == "roomId" { Value::Id((*value).into()) } else { Value::String((*value).into()) })).collect()
 }
 
+// @ref LLP 3000.028#3.3 — an authored guard keeps the existing evaluator.
+// These controls intentionally exercise its non-uniform disclosure boundary;
+// the formerly bare member-audience word page now has an inferred server plan.
+fn nonuniform_source(source: &str) -> String {
+    source.replace("query all(q: text <=100, c: cursor ?):", "query all(q: text <=100, c: cursor ?):\n  require q != 'blocked' else BLOCKED")
+}
+
 #[test]
 fn calibration_uniform_words_continue_and_hidden_prefix_has_a_walk_bound() {
-    let bound = snapback4_lang::compile(&[("schema.q".into(), fixture::SOURCE.into())]);
+    let source = nonuniform_source(fixture::SOURCE) + "\nquery inferred(q: text <=100, c: cursor ?):\n  return messages matching q after c last 10 by byWords\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed(fixture::seed(54_990, 44_100).into_iter().filter(|(table, row)| table != "messages" || row.field("roomId").unwrap().as_str().unwrap() != "words")).unwrap();
+    let inferred = engine.query("inferred", Context::new("dev:alice", args(&[("q", "coffee")]))).unwrap();
+    assert!(inferred.complete && inferred.data.as_array().unwrap().len() == 10 && inferred.next.is_some());
     let cut = engine.query("all", Context::new("dev:alice", args(&[("q", "coffee")]))).unwrap();
     assert!(cut.data.as_array().unwrap().is_empty(), "44,100 unreadable candidates exceed the private walk bound");
     assert!(!cut.complete && cut.next.is_none());
@@ -45,7 +55,7 @@ mod disclosure;
 fn nonuniform_full_response_sweep_including_cut() {
     let mut worlds = Vec::new();
     for hidden in [0, 32, 33] {
-        let bound = snapback4_lang::compile(&[("schema.q".into(), disclosure::source())]);
+        let bound = snapback4_lang::compile(&[("schema.q".into(), nonuniform_source(&disclosure::source()))]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         engine.seed(disclosure::rows(hidden)).unwrap();

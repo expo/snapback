@@ -1,0 +1,11 @@
+{
+  "name": "native-build",
+  "command": [
+    "cargo",
+    "build",
+    "-p",
+    "snapback4"
+  ],
+  "exit": 0,
+  "seconds": 8.011
+}

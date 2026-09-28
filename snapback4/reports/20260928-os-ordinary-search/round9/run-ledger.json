@@ -1,0 +1,259 @@
+[
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-concurrency=1",
+      "snapback4-does-not-exist"
+    ],
+    "exit": 1,
+    "seconds": 0.027,
+    "name": "affected-js",
+    "classification": "ours"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "ordinary_search",
+      "--test",
+      "membership_search",
+      "--test",
+      "search_merge",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 21.208,
+    "name": "affected-rust",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-concurrency=1",
+      "packages/snapback4/test/astra-arguments.test.mjs",
+      "packages/snapback4/test/astra-invalid-input.test.mjs",
+      "packages/snapback4/test/astra-projection.test.mjs",
+      "packages/snapback4/test/astra-rebirth.test.mjs",
+      "packages/snapback4/test/cross-scope-review.test.mjs",
+      "packages/snapback4/test/identity-review.test.mjs",
+      "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+      "packages/snapback4/test/ordinary-search.test.mjs",
+      "packages/snapback4/test/react.test.mjs",
+      "packages/snapback4/test/retention-pages.test.mjs",
+      "packages/snapback4/test/review-probes.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 42.158,
+    "name": "affected-search",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "env",
+      "SB4_SEARCH_SEEDS=4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,75,76,80,84,88,92,96,100",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=generated oracle",
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 1,
+    "seconds": 34.755,
+    "name": "categories-before",
+    "classification": "ours"
+  },
+  {
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "exit": 0,
+    "seconds": 2.356,
+    "name": "client-build",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "python3",
+      "target/os-round9/controls.py"
+    ],
+    "exit": 0,
+    "seconds": 1.61,
+    "name": "controls",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "search_merge",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 35.475,
+    "name": "device-search",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 19.176,
+    "name": "guide",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=full last",
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 1,
+    "seconds": 2.615,
+    "name": "large-before",
+    "classification": "ours"
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/ordinary-search-ledger.test.mjs"
+    ],
+    "exit": 1,
+    "seconds": 0.14,
+    "name": "ledger-after",
+    "classification": "ours"
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "snapback4/packages/snapback4/test/ordinary-search-ledger.test.mjs"
+    ],
+    "cwd": "repository root",
+    "exit": 1,
+    "name": "ledger-before",
+    "classification": "ours"
+  },
+  {
+    "command": [
+      "env",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round9/matrix.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 17.969,
+    "name": "matrix",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "env",
+      "OS_CONTROL=offline-cut-prefix",
+      "python3",
+      "reports/20260928-os-ordinary-search/round9/controls.py"
+    ],
+    "exit": 0,
+    "seconds": 16.834,
+    "name": "offline-control",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 333.874,
+    "name": "oracle-final",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 1,
+    "seconds": 320.941,
+    "name": "oracle-first",
+    "classification": "ours"
+  },
+  {
+    "command": [
+      "./ref-check",
+      "--verbose"
+    ],
+    "exit": 0,
+    "name": "ref-check",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "typecheck"
+    ],
+    "exit": 0,
+    "seconds": 1.927,
+    "name": "typecheck",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/wasm-budget.mjs",
+      "metrics/wasm-budget.json",
+      "592719"
+    ],
+    "exit": 0,
+    "seconds": 0.026,
+    "name": "wasm-budget",
+    "classification": "pass"
+  },
+  {
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "exit": 1,
+    "seconds": 0.603,
+    "name": "wasm-build",
+    "classification": "ours"
+  }
+]

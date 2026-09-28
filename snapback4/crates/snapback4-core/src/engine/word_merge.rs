@@ -38,6 +38,8 @@ impl Runner<'_> {
         }
         let position = &self.word_cursor.as_ref().unwrap().1;
         crate::cursor::check_variant(position, variant)?;
+        #[cfg(feature = "server-search")]
+        let index = self.ordinary_search_cursor.as_ref().filter(|(physical, _)| physical == index).map_or(index, |(_, public)| public.as_str());
         position.check_descriptor(table, index, order, suffix)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
     }
@@ -229,12 +231,30 @@ impl Runner<'_> {
                     let trims = self.page_plan.shapes.iter().filter(|(_, shape)| shape.page == site).enumerate().map(|(n, (name, _))| {
                         word_heap::text(name) + max_key + word_heap::insertion::<String, super::super::shaping::ShapePosition>(self.shape_positions.len() + n)
                     }).sum::<u64>();
+                    // @ref LLP 3000.028#3.3 — the inferred current-scope alternative uses
+                    // the ordinary word cursor's identical ordering suffix. This is one
+                    // source position, not a combined retained/server continuation.
+                    let (position_index, position_prefix) = (&first.index, prefix_len);
+                    #[cfg(feature = "server-search")]
+                    let (position_index, position_prefix) = self.ordinary_search_cursor.as_ref()
+                        .filter(|(physical, _)| physical == &first.index)
+                        .map_or((position_index, position_prefix), |(_, public)| (public, prefix_len - 1));
+                    #[cfg(not(feature = "server-search"))]
+                    let cursor_index = index;
+                    #[cfg(feature = "server-search")]
+                    let cursor_index = &table.indexes[position_index];
                     self.meter.heap(shape_bytes + trims + word_heap::insertion::<String, PagePosition>(self.pages.len())
-                        + 3 * (word_heap::text(site) + word_heap::text(&first.table) + word_heap::text(&first.index))
+                        + 3 * (word_heap::text(site) + word_heap::text(&first.table) + word_heap::text(position_index))
                         + last.as_ref().map_or(0, |key| 2 * DisclosedKeys(key).heap())
-                        + word_heap::cursor_build(table, index, prefix_len, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(&first.index)))?;
+                        + word_heap::cursor_build(table, cursor_index, position_prefix, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(position_index)))?;
                 }
-                self.record_page(site.to_owned(), PagePosition { variant, view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
+                // Record exactly the descriptor admitted above.
+                let (position_index, position_prefix) = (&first.index, prefix_len);
+                #[cfg(feature = "server-search")]
+                let (position_index, position_prefix) = self.ordinary_search_cursor.as_ref()
+                    .filter(|(physical, _)| physical == &first.index)
+                    .map_or((position_index, position_prefix), |(_, public)| (public, prefix_len - 1));
+                self.record_page(site.to_owned(), PagePosition { variant, view_suffix: None, table: first.table.clone(), index: position_index.clone(), order, prefix_len: position_prefix, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
             }
             // @ref LLP 3000.027#1 — a full cursorless page needs no continuation to be complete.
         Ok(())

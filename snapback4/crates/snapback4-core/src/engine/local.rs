@@ -44,7 +44,13 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     if let Err(error) = require_query(program) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }
     if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }
     context.row_provenance |= schema.tables.values().any(|t| t.leave == crate::schema::LeavePolicy::DeliveredHistory);
-    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
+    let meter = if let Some(spent) = context.read_spent {
+        match Meter::resume(ceilings, spent) {
+            Ok(meter) => meter,
+            Err(error) => return (Err(error.refusal()), false, false, Default::default(), Default::default()),
+        }
+    } else { Meter::new(ceilings, Cut::Cap) };
+    let mut runner = Runner::new(rows, schema, context, meter, 0);
     runner.device = true;
     runner.component_observation = components;
     let result = (|| {
@@ -61,7 +67,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome {
+    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome { search_scopes: None,
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
         unavailable: runner.query_unavailable,
@@ -171,7 +177,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
         };
         let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
-        Ok(QueryOutcome {
+        Ok(QueryOutcome { search_scopes: None,
             #[cfg(feature = "sqlite")] delivery: None,
             #[cfg(feature = "sqlite")] delivery_meter: None, ephemeral: None,
             unavailable: runner.query_unavailable,

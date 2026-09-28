@@ -3,7 +3,7 @@ import { isReady } from "./contract.ts";
 import { peekObservation } from "./observe-watch.ts";
 const LOADING: Read<never> = { loading: true };
 
-/** A page resource: the pages a screen has asked for, concatenated, and a way to ask for one more. */
+/** The requested page chain, with one newest observed image per row ID. */
 export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
   private pages: { cursor: Cursor | null; observed: Observed<R>; unsubscribe: () => void }[] = [];
   private requested = 1;
@@ -12,6 +12,15 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
   private peeked: Read<R> | undefined;
   private cacheReads: Read<R>[] = [];
   private reconciling = false;
+  private imageRevision = 0;
+  private imageRevisions = new WeakMap<object, number>();
+  private noteImage(read: Read<R>) {
+    // Revalidation/freshness changes retain the same data array; they do not
+    // make an older row image newer than an image delivered on another page.
+    if (isReady(read) && Array.isArray(read.data) && !this.imageRevisions.has(read.data))
+      this.imageRevisions.set(read.data, ++this.imageRevision);
+    return read;
+  }
   constructor(private client: Client, private op: Query<A, R>, private args: A, private options?: ObserveOptions) {}
   private open(c: Cursor | null) {
     const observed = this.client.observe(this.op, { ...this.args, c }, this.options);
@@ -35,7 +44,7 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
       // requested depth, but discard the old suffix before opening a new one:
       // deduplication alone cannot recover rows an old boundary skipped.
       for (let i = 0; i < this.pages.length; i++) {
-        const read = this.pages[i]!.observed.getSnapshot();
+        const read = this.noteImage(this.pages[i]!.observed.getSnapshot());
         const next = isReady(read) && Array.isArray(read.data) ? read.next : null;
         if (!next || i + 1 >= this.requested || this.pages.slice(0, i + 1).some((p) => p.cursor === next)) {
           this.drop(i + 1);
@@ -70,13 +79,14 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
     let sources, reads: Read<R>[];
     do {
       sources = [...this.pages];
-      reads = sources.length ? sources.map(page => page.observed.getSnapshot()) : peeked ? [peeked] : [];
+      reads = sources.length ? sources.map(page => this.noteImage(page.observed.getSnapshot())) : peeked ? [this.noteImage(peeked)] : [];
       // A deadline check may synchronously drop a suffix through notify().
     } while (sources.length !== this.pages.length || sources.some((page, i) => page !== this.pages[i]));
     if (reads.length !== this.cacheReads.length || reads.some((read, i) => read !== this.cacheReads[i])) this.cache = null;
     this.cacheReads = reads;
     if (this.cache) return this.cache;
     const items: R[number][] = [];
+    const identities = new Map<string, { index: number; revision: number }>();
     let last: Read<R> = LOADING as Read<R>;
     let complete = true, fresh = true, revalidating = false;
     let cut: import("./contract.ts").ReadCut = null;
@@ -90,7 +100,24 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
       last = read;
       if (!isReady(read)) break;
       if (!Array.isArray(read.data)) { last = LOADING as Read<R>; break; }
-      items.push(...(read.data as readonly R[number][]));
+      // @ref LLP 3000.028#3.3 — keyset edits may repeat IDs across pages.
+      // Keep the first display position and the most recently observed image,
+      // including a refreshed earlier page. Only compiler-proved source row IDs are accumulation keys; arbitrary
+      // projections preserve ordinary list semantics, including a field named id.
+      const revision = this.imageRevisions.get(read.data)!;
+      for (const item of read.data as readonly R[number][]) {
+        const id = this.op.rowKey === "id" && item && typeof item === "object" && "id" in item ? item.id : undefined;
+        const previous = typeof id === "string" ? identities.get(id) : undefined;
+        if (previous) {
+          if (revision >= previous.revision) {
+            items[previous.index] = item;
+            previous.revision = revision;
+          }
+        } else {
+          if (typeof id === "string") identities.set(id, { index: items.length, revision });
+          items.push(item);
+        }
+      }
       complete &&= read.complete;
       if (read.cut === "meter" || (cut === null && read.cut === "words")) cut = read.cut;
       fresh &&= read.fresh;

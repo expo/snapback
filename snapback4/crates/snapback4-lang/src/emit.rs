@@ -100,6 +100,9 @@ pub fn typescript(bound: &Bound) -> String {
             } else if !fact.ephemeral_reads.is_empty() {
                 format!("{words}, ephemeralReads: {}", serde_json::to_string(&fact.ephemeral_reads).unwrap())
             } else { words };
+            // Only a page of source rows proves that `id` is row identity.
+            // Projected objects can give that field any authored meaning.
+            let words = if kind == "query" && matches!(program.result, Ty::Page(..)) { format!("{words}, rowKey: \"id\"") } else { words };
             let words = if fact.held { format!("{words}, held: true") } else { words };
             out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {}{words} }},\n", property(short), string_literal(&program.program.name)));
         }

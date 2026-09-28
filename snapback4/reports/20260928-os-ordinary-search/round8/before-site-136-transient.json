@@ -1,0 +1,17 @@
+[
+  {
+    "index": 136,
+    "id": "changes.ts:changeFeed:reader.read()#1",
+    "mode": "transient",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbed": false,
+    "retryDelays": [],
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

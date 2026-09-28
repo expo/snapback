@@ -1,0 +1,92 @@
+{
+  "astra-before.log.gz": [
+    "\u2716 review invalid search input preserves server refusal process (160.537933ms)",
+    "\u2716 review invalid search input preserves server refusal wasm (554.379031ms)",
+    "\u2716 review invalid mounted search does not retry its permanent refusal (319.977699ms)",
+    "\u2716 review Pages preserves distinct projected results sharing an id field (80.556002ms)",
+    "\u2716 review rebirth preserves immutable scope disjointness process (186.272614ms)",
+    "\u2716 review rebirth preserves immutable scope disjointness wasm (488.818561ms)",
+    "\u2716 failing tests:",
+    "\u2716 review invalid search input preserves server refusal process (160.537933ms)",
+    "\u2716 review invalid search input preserves server refusal wasm (554.379031ms)",
+    "\u2716 review invalid mounted search does not retry its permanent refusal (319.977699ms)",
+    "\u2716 review Pages preserves distinct projected results sharing an id field (80.556002ms)",
+    "\u2716 review rebirth preserves immutable scope disjointness process (186.272614ms)",
+    "\u2716 review rebirth preserves immutable scope disjointness wasm (488.818561ms)"
+  ],
+  "auth-boundary-before.log.gz": [
+    "\u2716 unauthenticated refusals do not disclose a store head or generation (212.030588ms)",
+    "\u2716 failing tests:",
+    "\u2716 unauthenticated refusals do not disclose a store head or generation (212.030588ms)"
+  ],
+  "generated-before.log.gz": [
+    "ORACLE_FAIL host=process seed=1",
+    "ORACLE_FAIL host=process seed=2",
+    "ORACLE_FAIL host=process seed=4",
+    "\u2716 ordinary search generated oracle process: 4 seeds (640.006034ms)",
+    "ORACLE_FAIL host=wasm seed=1",
+    "ORACLE_FAIL host=wasm seed=2",
+    "ORACLE_FAIL host=wasm seed=4",
+    "\u2716 ordinary search generated oracle wasm: 4 seeds (847.408147ms)",
+    "\u2716 failing tests:",
+    "\u2716 ordinary search generated oracle process: 4 seeds (640.006034ms)",
+    "\u2716 ordinary search generated oracle wasm: 4 seeds (847.408147ms)"
+  ],
+  "js-first.log.gz": [
+    "\u2716 decoder and coordinator cannot reset a nearly exhausted device scan ledger (1.115375ms)",
+    "\u2716 ordinary mixed search: real word-dense drain pages follow the combined keyset once (3190.202921ms)",
+    "\u2716 failing tests:",
+    "\u2716 decoder and coordinator cannot reset a nearly exhausted device scan ledger (1.115375ms)",
+    "\u2716 ordinary mixed search: real word-dense drain pages follow the combined keyset once (3190.202921ms)"
+  ],
+  "mutation-arguments.log.gz": [
+    "\u2716 review needle change restarts the combined cursor process (263.352639ms)",
+    "\u2716 review needle change restarts the combined cursor wasm (566.19928ms)",
+    "ORACLE_FAIL host=process seed=3",
+    "\u2716 ordinary search generated oracle process: 1 seeds (217.08309ms)",
+    "ORACLE_FAIL host=wasm seed=3",
+    "\u2716 ordinary search generated oracle wasm: 1 seeds (515.158231ms)",
+    "\u2716 failing tests:",
+    "\u2716 review needle change restarts the combined cursor process (263.352639ms)",
+    "\u2716 review needle change restarts the combined cursor wasm (566.19928ms)",
+    "\u2716 ordinary search generated oracle process: 1 seeds (217.08309ms)",
+    "\u2716 ordinary search generated oracle wasm: 1 seeds (515.158231ms)"
+  ],
+  "oracle-cuts.log.gz": [
+    "ORACLE_FAIL host=process seed=225",
+    "ORACLE_FAIL host=process seed=240",
+    "ORACLE_FAIL host=process seed=300",
+    "\u2716 ordinary search generated oracle process: 3 seeds (7377.136938ms)",
+    "ORACLE_FAIL host=wasm seed=225",
+    "ORACLE_FAIL host=wasm seed=240",
+    "ORACLE_FAIL host=wasm seed=300",
+    "\u2716 ordinary search generated oracle wasm: 3 seeds (6070.285687ms)",
+    "\u2716 failing tests:",
+    "\u2716 ordinary search generated oracle process: 3 seeds (7377.136938ms)",
+    "\u2716 ordinary search generated oracle wasm: 3 seeds (6070.285687ms)"
+  ],
+  "oracle-first.log.gz": [
+    "ORACLE_FAIL host=process seed=225",
+    "ORACLE_FAIL host=process seed=240",
+    "ORACLE_FAIL host=process seed=300",
+    "\u2716 ordinary search generated oracle process: 300 seeds (160359.355118ms)",
+    "ORACLE_FAIL host=wasm seed=225",
+    "ORACLE_FAIL host=wasm seed=240",
+    "ORACLE_FAIL host=wasm seed=300",
+    "\u2716 ordinary search generated oracle wasm: 300 seeds (123835.694167ms)",
+    "\u2716 failing tests:",
+    "\u2716 ordinary search generated oracle process: 300 seeds (160359.355118ms)",
+    "\u2716 ordinary search generated oracle wasm: 300 seeds (123835.694167ms)"
+  ],
+  "overlap-and-drain.log.gz": [
+    "\u2716 ordinary mixed search: real word-dense drain pages follow the combined keyset once (3418.947358ms)",
+    "\u2716 failing tests:",
+    "\u2716 ordinary mixed search: real word-dense drain pages follow the combined keyset once (3418.947358ms)"
+  ],
+  "wasm-final.log.gz": [
+    "wasm 2039451 B raw, 592719 B gzip (budget 586193: OVER by 6526 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+  ],
+  "wasm.log.gz": [
+    "wasm 2039451 B raw, 592719 B gzip (budget 586193: OVER by 6526 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "env",
+    "OS_CONTROL=offline-cut-prefix",
+    "python3",
+    "reports/20260928-os-ordinary-search/round9/controls.py"
+  ],
+  "exit": 0,
+  "seconds": 16.834
+}

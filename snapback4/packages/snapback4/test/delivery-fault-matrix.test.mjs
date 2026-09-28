@@ -48,14 +48,22 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear();
     const index = sites.indexOf(site), scenario = recipe(index);
     direct = [11,18,26,27,35,42,50,72].includes(index);
-    alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 137 ? 'changes.ts:changeFeed:doFetch' : undefined;
+    alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:doFetch' : undefined;
     let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
     const why = {code:'RG_KNOWN', family:'application', message:'known refusal'};
+    const queryPlan = {table:'messages',index:'wordsAt',column:'at',kind:'Time',order:'Desc',limit:2,needle:'q',cursor:'c',variant:null};
+    const ceilings = {examined:8192,index_entries:16384,rule_probes:8192,steps:1000000,heap_bytes:16<<20,output_bytes:1<<20,rows_written:1024};
+    const counts = () => Object.fromEntries(Object.keys(ceilings).map(key=>[key,0]));
     const hooks = {
       createLocalClient,
       ...(scenario === 'exit' ? {onSuspend(callback) { suspend = callback; return ()=>{}; }} : {}),
       async closing() { enabled = false; prepared = false; queueRelease?.(); for(let i=0;i<4;i++) { t.mock.timers.tick(5000); await drain(); } },
-      beforeCall(request) { if(scenario === 'acknowledgement' && !queueIds.length && request.op === 'keep_write') throw Error('prepare acknowledgement'); fault(); if(index === 98 && prepared && request.op === 'keep_write' && JSON.parse(request.value).id === first.id && !stack.getStore()?.includes(target)) throw Error('another path cannot repair the receipt before the target read'); },
+      beforeCall(request) { if(scenario === 'acknowledgement' && !queueIds.length && request.op === 'keep_write') throw Error('prepare acknowledgement'); fault();
+        // Only the query host replies are scripted. The real wasm outbox and
+        // all delivery host calls continue through the ordinary matrix fixture.
+        if (scenario === 'search' && prepared && request.op === 'search_state') return {ok:{epoch:'matrix',delivery:'matrix',left:['left'],ceilings,metered:request.spent ?? counts()}};
+        if (scenario === 'search' && prepared && request.op === 'query' && request.name === 'matrixQuery') return {ok:{data:[],complete:index !== 153,unknown:index === 153,tables:[],metered:request.spent ?? counts()}};
+        if(index === 98 && prepared && request.op === 'keep_write' && JSON.parse(request.value).id === first.id && !stack.getStore()?.includes(target)) throw Error('another path cannot repair the receipt before the target read'); },
       afterCall(request, reply) {
         if (!enabled) return;
         if (scenario === 'postcommit' && failures < budget) { failures++; throw error; }
@@ -67,8 +75,9 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
         if (path === '/probe') return Response.json({ok:true,store_id:'A',seq:11});
         if (scenario === 'acknowledgement' && queueIds.length && path === '/sync') return Response.json({snapshot:false,store_id:'A',generation:1,events:[],watermark:11,more:false});
         if (!prepared) return;
+        if(scenario === 'search' && path === '/q/matrixQuery') return index === 141 ? new Response('invalid JSON') : Response.json({data:[],complete:true,store_id:'A',head:11,generation:1,searchScopes:['live'],searchCurrent:[]});
         if(index === 12 && path.startsWith('/q/')) return Response.json({data:'A',complete:true,store_id:'A',head:11});
-        if(index === 136 && path === '/changes' && failures < budget) return {ok:true,status:200,headers:new Headers(),async json(){ fault();return {seq:11,store_id:'A'};}};
+        if(index === 137 && path === '/changes' && failures < budget) return {ok:true,status:200,headers:new Headers(),async json(){ fault();return {seq:11,store_id:'A'};}};
         if(index === 42 && path === '/changes' && failures < budget) return Response.json({denied:{...why,retryable:true}},{status:500});
         if(scenario === 'exit' && init.keepalive) return Response.json({state:'failed',why:{code:'E_STORE_REPLACED',family:'store',message:'replaced',retryable:[76,103].includes(index)}});
         if (scenario === 'native') {
@@ -109,7 +118,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
       api.media.options = {keep:'viewed',maxBytes:index === 113 ? 0 : 10};
       api.media.entries.set('asset', {id:'asset',bytes:1,used:0,confirmed:true,home:{store_id:'A',table:'messages',row:'A-0',column:'photo',generation:1,type:'image/png',expiresAt:null}});
       if (index === 113) hooks.beforeCall = request => { fault(); if(request.op==='asset_home') return {ok:{...api.media.entries.get('asset').home}}; };
-      if(index === 139) api.media.store = new MediaCache({call: request=>api.media.core.call(request)},'dev:alice',api.media.options).store;
+      if(index === 155) api.media.store = new MediaCache({call: request=>api.media.core.call(request)},'dev:alice',api.media.options).store;
       const remove = api.media.store.remove.bind(api.media.store);
       api.media.store.remove = async id => { fault(); return remove(id); };
       api.setReconcile();
@@ -143,8 +152,10 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
         return before(request);
       };
     }
+    if (scenario === 'search') api.queryFixture([148,149,152,153].includes(index) ? undefined : queryPlan,index === 148,index === 149);
     enabled = true;
-    if(index === 117) await assert.doesNotReject(()=>syncTransport(async()=>new Response('invalid JSON',{status:400}))('http://matrix.test',{}, {generation:1}),'legacy discovery tolerates an unreadable error body');
+    if (scenario === 'search') run(()=>f.client.query({kind:'query',name:'matrixQuery'},{q:'coffee',c:null}));
+    if(index === 118) await assert.doesNotReject(()=>syncTransport(async()=>new Response('invalid JSON',{status:400}))('http://matrix.test',{}, {generation:1}),'legacy discovery tolerates an unreadable error body');
     if(index === 13) {
       await api.syncOnce().catch(()=>{});
       assert.ok(api.retry,'pending receipt persistence guard schedules flush recovery');
@@ -164,6 +175,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     if (scenario === 'replay') run(()=>api.replayOnOpen());
     if (scenario === 'lookup') for(const id of [...queueIds,'missing']) run(()=>f.client.write(id));
       if (scenario === 'native') run(()=>api.installNative());
+    if (scenario === 'queryDecode') await assert.doesNotReject(()=>api.sendPost('/q/remote',{},undefined,undefined,false,undefined,async response=>{ fault(); return response.json(); }),'optional search decoding does not reject dispatch transport');
     if (scenario === 'query') await assert.doesNotReject(()=>api.sendPost('/q/remote',{}),'optional query bookkeeping does not reject dispatch transport');
     if (scenario === 'exit') {
       const entry = ok(await f.core.call({op:'queued'})).find(e=>e.id === queueIds[1]);
@@ -175,7 +187,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     release(); f.beforeCall(undefined);
     await drain(100);
     const initialPosts = f.sends.length;
-    if(index === 131) assert.equal((await f.client.pendingWrites()).find(w=>w.id===queueIds[1])?.state,'held','failed hold metadata retains the retryable head reason');
+    if(index === 132) assert.equal((await f.client.pendingWrites()).find(w=>w.id===queueIds[1])?.state,'held','failed hold metadata retains the retryable head reason');
     if(index === 68) assert.ok(api.retry,'final observation schedules flush retry');
     const initialFailures = failures, steadyRetryStart = retryDelays.length;
     await drain(100); assert.equal(failures, initialFailures, 'no retry spin while time is frozen');
@@ -188,6 +200,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
       if(index === 39) { api.setIdentity(false); run(()=>api.waitForChange()); }
       run(()=>f.changed(11));
     }
+      if (scenario === 'search') run(()=>f.client.query({kind:'query',name:'matrixQuery'},{q:'coffee',c:null}));
       if (scenario === 'replay') run(()=>api.replayOnOpen());
       if (scenario === 'lookup') for(const id of [...queueIds,'missing']) run(()=>f.client.write(id));
       if (scenario === 'native') run(()=>api.installNative());
@@ -205,6 +218,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     assert.ok(failures <= 100, 'fault retries remain bounded over eight five-second advances');
     enabled = false; prepared = false;
     for (let n = 0; n < 3; n++) { t.mock.timers.tick(5000); await drain(100); }
+    if (scenario === 'search') await Promise.all(sideWork);
     if(scenario === 'clock') await assert.doesNotReject(()=>api.clock.persist(),'clock persistence recovers after host recovery');
     if(scenario === 'media') await assert.doesNotReject(()=>api.media.reconcile(),'media recovers when its host recovers');
     const terminal = await Promise.all(tails);

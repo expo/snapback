@@ -16,6 +16,8 @@ pub(crate) struct Search {
 pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
     use snapback4_core::search_plan;
     let mut out = Vec::new();
+    let inferred = search_plan::ordinary::plan(schema, program);
+    let program = inferred.as_ref().map_or(program, |plan| &plan.program);
     let bindings = search_plan::bindings(schema, program);
     let merges = snapback4_lang::bind::merges(&program.body);
     let matching = |scan: &Scan| scan.prefix.iter().any(|key|matches!(key, IndexKeyExpr::WordPrefix(_)));
@@ -44,7 +46,7 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
     for merge in &merges {
         if search_plan::eligible(schema,merge) && let Some(rewrite) = search_plan::grouped(schema,merge,&bindings) {
             out.push(Search { code: "N_SEARCH_OPEN", site: merge.site.clone(), class: "one-read-opening",
-                message: "every authorized membership and head must be discovered in each server read before a globally ordered hit can be emitted; this compact plan refuses E_SEARCH_OPEN on an opening cut, without a continuation; reset the cursor when switching to grouped reads".into(),
+                message: format!("{}every authorized membership and head must be discovered in each server read before a globally ordered hit can be emitted; this compact plan refuses E_SEARCH_OPEN on an opening cut, without a continuation; reset the cursor when switching to grouped reads", inferred.as_ref().map_or(String::new(), |plan| format!("Inferred server audience {}. Device execution keeps the bare held-row scan. ", plan.audience))),
                 rewrite, guide: "search" });
         }
     }

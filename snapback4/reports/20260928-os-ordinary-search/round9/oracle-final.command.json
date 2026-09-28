@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 333.874
+}

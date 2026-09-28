@@ -1,0 +1,12 @@
+{
+  "name": "client-build",
+  "command": [
+    "bun",
+    "run",
+    "--cwd",
+    "packages/snapback4",
+    "build"
+  ],
+  "exit": 0,
+  "seconds": 2.397
+}

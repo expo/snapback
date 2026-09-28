@@ -1,0 +1,19 @@
+[
+  {
+    "index": 139,
+    "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
+    "mode": "transient",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbed": false,
+    "retryDelays": [
+      250
+    ],
+    "injected": 1,
+    "initialPosts": 1,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

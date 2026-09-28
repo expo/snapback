@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=1",
+    "snapback4-does-not-exist"
+  ],
+  "exit": 1,
+  "seconds": 0.027
+}

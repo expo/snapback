@@ -1,0 +1,70 @@
+[
+  {
+    "host": "process",
+    "seeds": 300,
+    "failed": [
+      225,
+      240,
+      300
+    ],
+    "ms": 160358,
+    "coverage": {
+      "projection": 74,
+      "at": 104,
+      "sync": 134,
+      "membership": 262,
+      "terminal:none": 301,
+      "invalid-input": 74,
+      "reset": 67,
+      "link": 98,
+      "argument-change": 74,
+      "new": 152,
+      "rebirth": 50,
+      "body": 89,
+      "replacement": 84,
+      "expiry": 106,
+      "reopen": 54,
+      "differential-page": 194,
+      "generation": 35,
+      "partial-safety": 6,
+      "move": 10,
+      "terminal:words": 4,
+      "terminal:meter": 1,
+      "refusal:E_BOUND": 7
+    }
+  },
+  {
+    "host": "wasm",
+    "seeds": 300,
+    "failed": [
+      225,
+      240,
+      300
+    ],
+    "ms": 123835,
+    "coverage": {
+      "projection": 74,
+      "at": 104,
+      "sync": 134,
+      "membership": 262,
+      "terminal:none": 301,
+      "invalid-input": 74,
+      "reset": 67,
+      "link": 98,
+      "argument-change": 74,
+      "new": 152,
+      "rebirth": 50,
+      "body": 89,
+      "replacement": 84,
+      "expiry": 106,
+      "reopen": 54,
+      "differential-page": 194,
+      "generation": 35,
+      "partial-safety": 6,
+      "move": 10,
+      "terminal:words": 4,
+      "terminal:meter": 1,
+      "refusal:E_BOUND": 7
+    }
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "name": "wasm-build",
+  "command": [
+    "bash",
+    "scripts/build-wasm.sh"
+  ],
+  "exit": 1,
+  "seconds": 0.596
+}

@@ -1,0 +1,441 @@
+[
+  {
+    "name": "affected-delivery",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-concurrency=4",
+      "packages/snapback4/test/store-reset-review.test.mjs",
+      "packages/snapback4/test/server-clock.test.mjs",
+      "packages/snapback4/test/server-clock-recovery.test.mjs",
+      "packages/snapback4/test/server-clock-regressions.test.mjs",
+      "packages/snapback4/test/pending-writes.test.mjs",
+      "packages/snapback4/test/app-local-receipts.test.mjs",
+      "packages/snapback4/test/app-receipts.test.mjs",
+      "packages/snapback4/test/legacy-receipts.test.mjs",
+      "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+      "packages/snapback4/test/delivery-cas.test.mjs",
+      "packages/snapback4/test/delivery-publication.test.mjs",
+      "packages/snapback4/test/delivery-refusal.test.mjs",
+      "packages/snapback4/test/transport-http.test.mjs",
+      "packages/snapback4/test/transport-outcomes.test.mjs",
+      "packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "packages/snapback4/test/sync-generation.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 66.226,
+    "summaries": [
+      "# tests 332",
+      "# pass 331",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 66187.217734"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "affected-device",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "search_merge"
+    ],
+    "exit": 0,
+    "seconds": 55.061,
+    "summaries": [
+      "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 425 filtered out; finished in 0.76s"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "affected-rust",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "ordinary_search",
+      "--test",
+      "membership_search",
+      "--test",
+      "search_merge",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 21.936,
+    "summaries": [
+      "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s",
+      "test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s",
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "affected-search",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-concurrency=1",
+      "packages/snapback4/test/astra-arguments.test.mjs",
+      "packages/snapback4/test/astra-invalid-input.test.mjs",
+      "packages/snapback4/test/astra-projection.test.mjs",
+      "packages/snapback4/test/astra-rebirth.test.mjs",
+      "packages/snapback4/test/cross-scope-review.test.mjs",
+      "packages/snapback4/test/identity-review.test.mjs",
+      "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+      "packages/snapback4/test/ordinary-search.test.mjs",
+      "packages/snapback4/test/react.test.mjs",
+      "packages/snapback4/test/retention-pages.test.mjs",
+      "packages/snapback4/test/review-probes.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 41.623,
+    "summaries": [
+      "# tests 161",
+      "# pass 161",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 41590.306922"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "client-build",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "exit": 0,
+    "seconds": 2.397,
+    "summaries": [],
+    "classification": "pass"
+  },
+  {
+    "name": "controls-expanded",
+    "command": [
+      "python3",
+      "reports/20260928-os-ordinary-search/round8/controls.py"
+    ],
+    "exit": 0,
+    "seconds": 15.892,
+    "summaries": [],
+    "classification": "pass"
+  },
+  {
+    "name": "controls",
+    "command": [
+      "python3",
+      "reports/20260928-os-ordinary-search/round8/controls.py"
+    ],
+    "exit": 0,
+    "seconds": 14.975,
+    "summaries": [],
+    "classification": "pass"
+  },
+  {
+    "name": "guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 38.734,
+    "summaries": [
+      "test result: ok. 98 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.23s"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-expanded-final",
+    "command": [
+      "env",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-expanded-final.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 17.463,
+    "summaries": [
+      "# tests 313",
+      "# pass 313",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 17424.926913"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-expanded",
+    "command": [
+      "env",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-expanded.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 17.203,
+    "summaries": [
+      "# tests 313",
+      "# pass 313",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 17165.704187"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-final",
+    "command": [
+      "env",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix.json",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 16.494,
+    "summaries": [
+      "# tests 283",
+      "# pass 283",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 16464.657465"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-qualified",
+    "command": [
+      "env",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-qualified.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 17.43,
+    "summaries": [
+      "# tests 313",
+      "# pass 313",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 17393.573981"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-reindexed",
+    "command": [
+      "env",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-reindexed.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 16.358,
+    "summaries": [
+      "# tests 283",
+      "# pass 283",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 16321.821351"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-search-query",
+    "command": [
+      "env",
+      "RG_MATRIX_SITE=139,140,141,142,143,144,145,146,147,148,149,150,151,152,153",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-search-query.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 6.911,
+    "summaries": [
+      "# tests 31",
+      "# pass 31",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 6876.376315"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "matrix-search",
+    "command": [
+      "env",
+      "RG_MATRIX_SITE=139,140,141,142,143,144,145,146,147,148,149,150,151,152,153",
+      "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-search.json",
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 1,
+    "seconds": 6.918,
+    "summaries": [
+      "# tests 31",
+      "# pass 1",
+      "# fail 30",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 6882.27771"
+    ],
+    "classification": "ours: new-fixture setup"
+  },
+  {
+    "name": "native-build",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exit": 0,
+    "seconds": 8.011,
+    "summaries": [],
+    "classification": "pass"
+  },
+  {
+    "name": "oracle",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 302.458,
+    "summaries": [
+      "# tests 2",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 302425.279675"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "ref-check",
+    "command": [
+      "bash",
+      "-c",
+      "cd .. && ./ref-check --verbose"
+    ],
+    "exit": 0,
+    "seconds": 3.006,
+    "summaries": [
+      "ref-check: ok \u2014 522 LLP docs, 9835 refs in 28445 files, 0 errors, 0 unchecked"
+    ],
+    "classification": "pass"
+  },
+  {
+    "name": "typecheck",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "typecheck"
+    ],
+    "exit": 0,
+    "seconds": 1.946,
+    "summaries": [],
+    "classification": "pass"
+  },
+  {
+    "name": "wasm-attribution",
+    "command": [
+      "node",
+      "scripts/attribute-wasm.mjs",
+      "--families",
+      "--check-families",
+      "--check-absent"
+    ],
+    "exit": 0,
+    "seconds": 0.383,
+    "summaries": [],
+    "classification": "pass"
+  },
+  {
+    "name": "wasm-build",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "exit": 1,
+    "seconds": 0.596,
+    "summaries": [],
+    "classification": "ours: inherited wasm cap"
+  },
+  {
+    "name": "wasm-census",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/wasm-codec-census.test.mjs",
+      "packages/snapback4/test/wasm-families.test.mjs",
+      "packages/snapback4/test/wasm-absent.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 14.292,
+    "summaries": [
+      "# tests 38",
+      "# pass 38",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 14258.153391"
+    ],
+    "classification": "pass"
+  }
+]

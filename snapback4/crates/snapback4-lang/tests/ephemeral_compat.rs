@@ -28,6 +28,21 @@ fn durable_schema_and_types_keep_base_bytes() {
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(schema, expected[&name].0, "schema bytes: {name}");
-        assert_eq!(types, expected[&name].1, "TypeScript bytes: {name}");
+        assert_eq!(strip_row_keys(&types), expected[&name].1, "TypeScript bytes: {name}");
     }
+}
+
+/// LLP 3000.028 §3.3 (lane OS) adds `rowKey` to generated query entries in `api`,
+/// so the SDK accumulates pages by source-row identity. Strip only that key, so
+/// every other emitted byte stays frozen.
+fn strip_row_keys(types: &str) -> String {
+    const KEY: &str = ", rowKey: \"";
+    let (mut out, mut rest) = (String::with_capacity(types.len()), types);
+    while let Some(at) = rest.find(KEY) {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + KEY.len()..];
+        rest = &after[after.find('"').expect("rowKey closing quote") + 1..];
+    }
+    out.push_str(rest);
+    out
 }

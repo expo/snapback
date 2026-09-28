@@ -347,18 +347,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let mut names = BTreeMap::new();
     for ((table_name, token), mut index) in requests.indexes {
         let table = catalog.tables.get_mut(&table_name).expect("requested table");
-        let mut components = index.columns.clone();
-        if components.last().map(String::as_str) == Some("id") && components.len() > 1 { components.pop(); }
-        if let Some((position, fields)) = &index.words { components.insert(*position, format!("words{}", fields.iter().map(|field| title(field)).collect::<String>())); }
-        let base = format!("by{}", components.iter().map(|column| {
-            if let Some(Expr::Call { name, args, .. }) = index.computed.get(column) {
-                format!("{}{}", title(name), args.first().map(crate::print::expression).map(|column| title(&column)).unwrap_or_default())
-            } else { title(column) }
-        }).collect::<String>());
-        let descriptor = (&index.columns, &index.words, computed_descriptor(table, &index.computed), index.unique);
-        let hash = snapback4_core::value::digest(&descriptor);
-        let mut name = format!("$intent:{base}:{}", &hash[..16]);
-        if table.indexes.iter().any(|index| index.name == name) { name = format!("$intent:{base}:{hash}"); }
+        let name = index_name(table, &index);
         index.name = name.clone();
         catalog.synthesized.insert((table_name.clone(), name.clone()));
         names.insert((table_name, token), name);
@@ -394,6 +383,22 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     }
     catalog.shapes = catalog.documents.iter().flat_map(|doc| doc.shapes.iter().cloned().map(|shape| (shape.name.clone(), shape))).collect();
     catalog.functions = catalog.documents.iter().flat_map(|doc| doc.functions.iter().cloned().map(|function| (function.name.clone(), function))).collect();
+}
+
+pub(super) fn index_name(table: &TableInfo, index: &IndexDecl) -> String {
+    let mut components = index.columns.clone();
+    if components.last().map(String::as_str) == Some("id") && components.len() > 1 { components.pop(); }
+    if let Some((position, fields)) = &index.words { components.insert(*position, format!("words{}", fields.iter().map(|field| title(field)).collect::<String>())); }
+    let base = format!("by{}", components.iter().map(|column| {
+        if let Some(Expr::Call { name, args, .. }) = index.computed.get(column) {
+            format!("{}{}", title(name), args.first().map(crate::print::expression).map(|column| title(&column)).unwrap_or_default())
+        } else { title(column) }
+    }).collect::<String>());
+    let descriptor = (&index.columns, &index.words, computed_descriptor(table, &index.computed), index.unique);
+    let hash = snapback4_core::value::digest(&descriptor);
+    let mut name = format!("$intent:{base}:{}", &hash[..16]);
+    if table.indexes.iter().any(|index| index.name == name) { name = format!("$intent:{base}:{hash}"); }
+    name
 }
 
 fn title(value: &str) -> String { let mut chars = value.chars(); chars.next().map(|first| first.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default() }

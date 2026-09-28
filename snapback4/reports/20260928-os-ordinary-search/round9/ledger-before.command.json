@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "snapback4/packages/snapback4/test/ordinary-search-ledger.test.mjs"
+  ],
+  "cwd": "repository root",
+  "exit": 1
+}
