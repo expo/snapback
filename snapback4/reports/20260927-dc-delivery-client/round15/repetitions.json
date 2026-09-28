@@ -1,0 +1,58 @@
+{
+  "cpus": [
+    92,
+    93,
+    94,
+    95
+  ],
+  "load_workers": 8,
+  "node": "v24.13.1",
+  "groups": [
+    {
+      "name": "delivery",
+      "requested": 200,
+      "pass": 200,
+      "fail": 0,
+      "tests_passed": 12000,
+      "tests_failed": 0
+    },
+    {
+      "name": "generation-viewer",
+      "requested": 100,
+      "pass": 100,
+      "fail": 0,
+      "tests_passed": 100,
+      "tests_failed": 0
+    },
+    {
+      "name": "serial-gate",
+      "requested": 100,
+      "pass": 100,
+      "fail": 0,
+      "tests_passed": 100,
+      "tests_failed": 0
+    }
+  ],
+  "worker_pids": [
+    1038549,
+    1038550,
+    1038551,
+    1038552,
+    1038553,
+    1038554,
+    1038555,
+    1038556
+  ],
+  "load_cpu_seconds": [
+    41.51,
+    40.05,
+    40.45,
+    41.89,
+    40.26,
+    41.04,
+    40.69,
+    41.56
+  ],
+  "workers_reaped": true,
+  "seconds": 96.428
+}

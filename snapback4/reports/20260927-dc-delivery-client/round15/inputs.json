@@ -1,0 +1,42 @@
+{
+  "merge": {
+    "before": "b66a2cee4",
+    "after": "b8400c29128e21b6367ba8d420296bedf108dff5",
+    "kind": "fast-forward",
+    "conflicts": []
+  },
+  "host": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "hostname": "expose-builder-pixel",
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)"
+  },
+  "files": {
+    "packages/snapback4/test/delivery.test.mjs": {
+      "sha256": "f6b9f674b03f1d8105052ce17fa4879363ca63a0bb49e30642bac1821138e37c",
+      "lines": 311
+    },
+    "packages/snapback4/src/delivery.ts": {
+      "sha256": "bf7fdb516b930e1236202b91fae3244a771001b5c64d887441708ce5614d4759",
+      "lines": 300
+    },
+    "packages/snapback4/src/delivery-state.ts": {
+      "sha256": "ff3751c93aa83fe7d89140451e7dfb439f558446c4594f180021c64c4b008e4e",
+      "lines": 129
+    },
+    "packages/snapback4/test/delivery-refusal.test.mjs": {
+      "sha256": "df7e652606a0100d115effef19b3737a113ea910e6a3f3065da5aa619e1c54c0",
+      "lines": 160
+    },
+    "packages/snapback4/test/delivery-clients.test.mjs": {
+      "sha256": "e64b6e3e24843288bbbc0c7954e8d3b3e37d745696b3339ed05f74a68e07df81",
+      "lines": 143
+    }
+  },
+  "wasm": {
+    "bytes": 2019815,
+    "sha256": "fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1",
+    "gzip_bytes": 585193
+  }
+}
