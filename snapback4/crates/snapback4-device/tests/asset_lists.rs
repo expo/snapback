@@ -87,7 +87,7 @@ fn sparse_markers<H: Host>(h: &mut H) {
     for (kind, empty, full) in [
         ("image <=100 ?", Json::Null, facts("a")),
         ("[image <=100] <=4 ?", json!([]), json!([facts("a")])),
-        ("[[image <=100] <=2] <=2 ?", json!([[], []]), json!([[facts("a")]])),
+        ("[[image <=100] <=2] <=2 ?", json!([[], []]), json!([[facts("a")], []])),
     ] {
         let (_, backend) = compile(&source(kind));
         let mut d = h.open(kind, Some(backend)).unwrap();
@@ -99,6 +99,10 @@ fn sparse_markers<H: Host>(h: &mut H) {
         apply(&mut d, "put", image(full.clone()), false);
         assert!(d.store().meta(marker).unwrap().is_some());
         assert_eq!(home(&mut d, "a", 1)["row"], "post");
+        h.close(kind, d);
+        let mut d = h.open(kind, None).unwrap();
+        assert!(d.store().meta(marker).unwrap().is_some(), "mixed nested media keeps its marker on reopen");
+        assert_eq!(home(&mut d, "a", 1)["row"], "post", "non-last nested media keeps custody on reopen");
         apply(&mut d, "put", image(empty), false);
         assert_eq!(d.store().meta(marker).unwrap(), None, "clear retires prior custody");
         h.close(kind, d);
@@ -106,6 +110,7 @@ fn sparse_markers<H: Host>(h: &mut H) {
         assert_eq!(home(&mut d, "a", 1), Json::Null, "clear survives reopen");
         apply(&mut d, "put", image(full), false);
         assert_eq!(home(&mut d, "a", 1)["row"], "post", "confirmed reacquisition restores custody");
+        h.close(kind, d);
     }
 }
 #[test] fn sparse_media_markers_memory() { sparse_markers(&mut Memory::new()); }

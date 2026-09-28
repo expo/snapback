@@ -1,5 +1,7 @@
 import { SearchBound } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
+import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
+import { deviceControl, coldSnapshot, coldReplyStatus, type DeviceControlSnapshot } from "./device-control.ts";
 import { publishDelivery } from "./local-publication.ts";
 import { localDelivery } from "./local-delivery.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
@@ -35,7 +37,7 @@ import { changeFeed } from "./changes.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
+import { lookupWrite, recoverReceipt, settleReceipt, successSequence, readQueued } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -297,18 +299,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     observeIncarnation(storeIdentity, true);
     for (const watch of watches.values()) { watch.publish({ denied }); notify(watch); }
   }
-  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the device validates head observations against private progress and retained image heads before replay or freshness decisions.
-  async function witnessRestore(storeId: unknown, head: unknown, capture: StoreCapture): Promise<boolean> {
-    if (!Number.isSafeInteger(head) || Number(head) < 0) return true;
-    if (typeof storeId !== "string" || storeId !== (capture.transfer_store_id ?? capture.store_id)) return false;
-    const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: head, more: false, store_id: storeId,
-      requested_watermark: capture.restore_watermark ?? capture.transfer_watermark ?? capture.watermark,
-      captured_restore_watermark: capture.restore_watermark, captured_restore_images_at: capture.restore_images_at,
-      captured_watermark: capture.watermark, send_revision: capture.send_revision } });
-    if (observed.denied) { refuseRestore(observed.denied); return true; }
-    deliveryWitness = true; deliveryQueue?.available();
-    return false;
-  }
+  const witnessRestore = restoreWitness(call, () => generation, refuseRestore,
+    () => { deliveryWitness = true; deliveryQueue?.available(); });
+  const witnessColdRestore = coldRestoreWitness((evidence, validated) => core[deviceRestore]!(evidence, validated),
+    () => partitionDenied, refuseRestore, () => { partitionDenied = null; pending.notify(); if (!closed && !sessionDead) void client.sync().catch(() => {}); });
   async function captureStore(): Promise<StoreCapture | undefined> {
     const reply = await call({ op: "sync_state", capture: false });
     if (reply.denied) return;
@@ -519,15 +513,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }).catch(() => {});
     return work;
   };
-  // Quiet presence refreshes retry without changing the link (LLP 3000.018 §3.2).
-  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, decode?: (response: Response) => Promise<Record<string, unknown>>) {
-    const work = sendPost(path, body, captured, eph, quiet, decode);
-    active.add(work); void work.finally(() => active.delete(work)).catch(() => {}); return work;
+  // A quiet request is a background presence refresh: its failure retries on the
+  // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
+  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>) {
+    const work = sendPost(path, body, captured, eph, quiet, control, decode);
+    active.add(work);
+    void work.finally(() => active.delete(work)).catch(() => {});
+    return work;
   }
-  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, decode?: (response: Response) => Promise<Record<string, unknown>>): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
-    if (closed || sessionDead) return { ok: false };
+  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+    if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return { ok: false };
     try {
-      const capture = path.startsWith("/q/") ? await captureStore() : undefined;
+      const capture = control ?? (path.startsWith("/q/") ? await captureStore() : undefined);
+      if (partitionDenied?.code === "E_STORE_RESTORE") return { ok: false };
       const request = requestCredentials();
       const reply = await postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode);
       if (!reply || (eph && !ephemeralReads.current(eph))) return { ok: false };
@@ -543,7 +541,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
       await refusedSession(denied, request.revision);
       if (link !== "online") setLink("online");
-      if (path.startsWith("/q/") && (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id) || await witnessRestore(json.store_id, json.head ?? json.seq, capture))) delete json.delivery;
+      if (control) {
+        const status = coldReplyStatus(control, json);
+        const now = core[deviceControl]?.();
+        if (status === "restore" && request.revision === credentialRevision && (!now || (now.transfer_store_id ?? now.store_id) === json.store_id)) {
+          const work = witnessColdRestore({ storeId: String(json.store_id), head: Number(json.head ?? json.seq), capture: control }, !now);
+          active.add(work); void work.finally(() => active.delete(work)).catch(() => {});
+        }
+        if (status !== "match") return { ok: false };
+      } else if (path.startsWith("/q/") && (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id) || await witnessRestore(json.store_id, json.head ?? json.seq, capture))) delete json.delivery;
       return { ok: true, json, obsoleteAuth };
     } catch (error) {
       if (error instanceof SearchBound) throw error;
@@ -551,10 +557,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return { ok: false };
     }
   }
-  // ----- the stream -----
   async function refusePartition(denied: Refusal, revision: number) {
     await refusedSession(denied, revision);
-    if (!denied.retryable) {
+    if (!denied.retryable && partitionDenied?.code !== "E_STORE_RESTORE") {
       if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
       partitionDenied = denied;
       if (denied.code === "E_STORE_RESTORE") pending.notify();
@@ -649,7 +654,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // retained image evidence before adoption can clear that evidence.
           const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true,
             ...(generationChanged ? { images_at: page.watermark } : {}) } : page });
-          if (observed.denied) { refuseRestore(observed.denied); return false; }
+          if (observed.denied || partitionDenied?.code === "E_STORE_RESTORE") { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
           adoptionCapture = observation.adoption_capture;
@@ -677,6 +682,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
         }
         if (link !== "online") setLink("online");
+        if (partitionDenied?.code === "E_STORE_RESTORE") return false;
         if (!denied) partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
         if (generationChanged || pageGeneration !== generation || (backendRequired && partitionCurrent)) observeIncarnation(storeIdentity, true);
@@ -691,7 +697,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
             const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture });
-            if (adopted.denied) return false;
+            if (adopted.denied || partitionDenied?.code === "E_STORE_RESTORE") return false;
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
             for (const watch of watches.values()) watchEphemeral(watch);
@@ -864,10 +870,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   // ----- reads -----
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
-  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view();
+    const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
+    const bypass = cold?.control;
+    if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = {
+      coldRead: bypass,
       get backend() { return backend!; },
       get partitionDenied() { return partitionDenied; },
       get credentialRevision() { return credentialRevision; },
@@ -883,15 +893,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
       principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
-      post: quiet ? (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, true) : post,
-      searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, decode),
+      post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined),
+      searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, undefined, decode),
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
       offline, get serverAnswers() { return answerCache; }, ephemeralReads,
     };
     const work = (async () => {
       for (let attempt = 0; ; attempt++) {
         const revision = incarnation, authority = answers.revision;
-        const result = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
+        const result = { ...await evaluateLocal(queryEnvironment, op, args, revision, authority, watch), controlCurrent: bypass?.current };
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
         if (result.ephemeralStale || (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest))) {
@@ -912,6 +922,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return publishDelivery(deliveryQueue, result, () => !unavailable()
       && result.incarnation === incarnation && result.authority === answers.revision
       && (result.credential === undefined || result.credential === credentialRevision)
+      && (!result.controlCurrent || result.controlCurrent())
       && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
       && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), publish, { client, watch });
@@ -965,7 +976,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
     const shown = watch.snapshot;
     try {
-      const result = await runLocal(watch.op, watch.args, undefined, true);
+      const result = await runLocal(watch.op, watch.args, undefined, true, watch);
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
@@ -973,7 +984,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running) return false;
-          watch.serverRead = true;
+          watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables;
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
@@ -1007,7 +1018,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
         if (closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion) return false;
-        watch.serverRead = served === true;
+        if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;
         watch.tables = tables;
@@ -1043,15 +1054,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  // ----- the outbox -----
-  async function queued(): Promise<Queued[]> {
-    const answer = await call({ op: "queued" });
-    if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
-    const entries = (answer.ok as Queued[] | undefined) ?? [];
-    for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
-    history.retainEmissions(entries.map(entry => entry.id));
-    return entries;
-  }
+  function queued() { return readQueued(call, mutationIds, history); }
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
   let flushing: Promise<void> | null = null;
@@ -1190,7 +1193,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     now: clock.issuedDeviceNow,
     act(op, args, options) {
       const response = closingResponses.request();
-      return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => unavailable() ?? (link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return response.take(); } });
+      return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return response.take(); } });
     },
     async query(op, args) {
       while (true) {
@@ -1215,7 +1218,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
-      const unavailableWhy = unavailable();
+      const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
       if (unavailableWhy) {
         const failed = { state: "failed" as const, id, why: unavailableWhy };
         if (!mutationIds.knows(id)) emitLocalFailure(failed);
@@ -1275,7 +1278,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     async upload(bytes) {
       if (refreshing) await refreshing;
-      const unavailableWhy = unavailable();
+      const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
@@ -1455,7 +1458,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
       exitDone = sendOnExit(entries, request.headers, () => {
-        const started = (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend();
+        const started = (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && partitionDenied?.code !== "E_STORE_RESTORE" && !rotating && credentialRevision === request.revision && beginSend();
         if (started) pending.notify();
         return started && !closed && !sessionDead && !rotating && credentialRevision === request.revision;
       });

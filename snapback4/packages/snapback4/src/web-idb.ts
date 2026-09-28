@@ -11,6 +11,41 @@ const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject
   tx.onabort = () => reject(tx.error);
 });
 
+// @ref LLP 3000.008.004#3 — deletion and publication share one strict save.
+/** A replacement removes every staged row. Prove the physical overflow range
+ * is covered by this delta before replacing its individual deletes. The read
+ * is capped by the delta, not by the size of a possibly unrelated partition.
+ * Reads, the range delete and all ordinary changes share the strict transaction.
+ */
+function clearDeletedRanges(store: IDBObjectStore, changes: Change[], write: (cleared: Set<string>) => void): void {
+  const candidates = new Map<string, Set<string>>(), mixed = new Set<string>();
+  for (const change of changes) {
+    if (!packedStore(change.s)) continue;
+    if (change.v !== null) mixed.add(change.s);
+    else {
+      let keys = candidates.get(change.s);
+      if (!keys) candidates.set(change.s, keys = new Set());
+      keys.add(change.k);
+    }
+  }
+  for (const [s, keys] of candidates) if (mixed.has(s) || keys.size < 512) candidates.delete(s);
+  const cleared = new Set<string>();
+  let pending = candidates.size;
+  if (!pending) { write(cleared); return; }
+  for (const [s, keys] of candidates) {
+    const range = IDBKeyRange.bound([s], [s, []]);
+    const request = store.getAllKeys(range, keys.size + 1);
+    request.onsuccess = () => {
+      try {
+        if (request.result.length <= keys.size && request.result.every(key => Array.isArray(key) && key.length === 2 && typeof key[1] === "string" && keys.has(key[1]))) {
+          store.delete(range); cleared.add(s);
+        }
+        if (!--pending) write(cleared);
+      } catch { try { store.transaction.abort(); } catch { /* Already aborted. */ } }
+    };
+  }
+}
+
 export function indexedDbStore(claim: Persistence["claim"]): Persistence {
   const packing = new Map<string, boolean>();
   const open = (name: string, create = true): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
@@ -39,32 +74,34 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
         const committed = done(tx), store = tx.objectStore("changes");
         let stale = false;
         try {
-          const groups = new Map<string, Change[]>();
-          for (const change of changes) {
-            if (packing.get(name) && packedStore(change.s)) {
-              const key = bucket(change.s, change.k);
-              if (!groups.has(key)) groups.set(key, []);
-              groups.get(key)!.push(change);
-            } else if (change.v === null) store.delete([change.s, change.k]);
-            else store.put(change);
-          }
-          // Keep every read/modify/write inside IDB's transaction, including
-          // simultaneous owners using separate Persistence instances.
-          for (const [key, delta] of groups) {
-            const request = store.get(["$bucket", key]);
-            request.onsuccess = () => {
-              try {
-                writeBucket(store, key, request.result, delta);
-              } catch { try { tx.abort(); } catch { /* An earlier request already aborted it. */ } }
-            };
-          }
+          clearDeletedRanges(store, changes, cleared => {
+            const groups = new Map<string, Change[]>();
+            for (const change of changes) {
+              if (packing.get(name) && packedStore(change.s)) {
+                const key = bucket(change.s, change.k);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(change);
+              } else if (change.v === null) { if (!cleared.has(change.s)) store.delete([change.s, change.k]); }
+              else store.put(change);
+            }
+            // Keep every read/modify/write inside IDB's transaction, including
+            // simultaneous owners using separate Persistence instances.
+            for (const [key, delta] of groups) {
+              const request = store.get(["$bucket", key]);
+              request.onsuccess = () => {
+                try {
+                  writeBucket(store, key, request.result, delta, cleared.has(key.slice(0, 1)));
+                } catch { try { tx.abort(); } catch { /* An earlier request already aborted it. */ } }
+              };
+            }
+            // Delivery changes are metadata. Check inside the live transaction,
+            // after all requests, so a held write can abort without publishing debt.
+            if (current) {
+              const guard = store.get([FORMAT.s, FORMAT.k]);
+              guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
+            }
+          });
         } catch (error) { try { tx.abort(); } catch { /* The failing operation may already have aborted it. */ } await committed.catch(() => {}); throw error; }
-        // Delivery changes are metadata. Check inside the live transaction,
-        // after all requests, so a held write can abort without publishing debt.
-        if (current) {
-          const guard = store.get([FORMAT.s, FORMAT.k]);
-          guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
-        }
         try { await committed; } catch (error) { if (!stale) throw error; }
         return !stale;
       } finally { db.close(); }

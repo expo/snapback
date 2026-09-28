@@ -1,0 +1,49 @@
+{
+  "baselineCommit": "1366c700caa749e5022601875a4e8a113457593f",
+  "instrumentation": "console.info elapsed immediately before original unchanged <=500ms assertion",
+  "originalTestSHA256": "33e11404de2de2be7a43fa860b59bb1adc12d157a60f56b49f23cd4bb223039c",
+  "results": [
+    {
+      "mode": "baseline",
+      "iteration": 1,
+      "exit": 0,
+      "log": "round8-adoption-baseline-1.log.gz",
+      "output": "ADOPTION_ELAPSED_MS 24.477422999999817\n\u2714 wasm: adoption replaces mounted ephemeral interests, including removal (1284.483993ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1399.911607\n"
+    },
+    {
+      "mode": "current",
+      "iteration": 1,
+      "exit": 0,
+      "log": "round8-adoption-current-1.log.gz",
+      "output": "ADOPTION_ELAPSED_MS 33.34839099999999\n\u2714 wasm: adoption replaces mounted ephemeral interests, including removal (1287.190129ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1404.06999\n"
+    },
+    {
+      "mode": "baseline",
+      "iteration": 2,
+      "exit": 0,
+      "log": "round8-adoption-baseline-2.log.gz",
+      "output": "ADOPTION_ELAPSED_MS 35.53282899999999\n\u2714 wasm: adoption replaces mounted ephemeral interests, including removal (1280.522312ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1399.944867\n"
+    },
+    {
+      "mode": "current",
+      "iteration": 2,
+      "exit": 0,
+      "log": "round8-adoption-current-2.log.gz",
+      "output": "ADOPTION_ELAPSED_MS 30.11341799999991\n\u2714 wasm: adoption replaces mounted ephemeral interests, including removal (1280.179453ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1400.746835\n"
+    },
+    {
+      "mode": "baseline",
+      "iteration": 3,
+      "exit": 0,
+      "log": "round8-adoption-baseline-3.log.gz",
+      "output": "ADOPTION_ELAPSED_MS 33.82902300000001\n\u2714 wasm: adoption replaces mounted ephemeral interests, including removal (1273.175131ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1390.08118\n"
+    },
+    {
+      "mode": "current",
+      "iteration": 3,
+      "exit": 0,
+      "log": "round8-adoption-current-3.log.gz",
+      "output": "ADOPTION_ELAPSED_MS 49.828205000000025\n\u2714 wasm: adoption replaces mounted ephemeral interests, including removal (1282.268469ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1407.239146\n"
+    }
+  ]
+}

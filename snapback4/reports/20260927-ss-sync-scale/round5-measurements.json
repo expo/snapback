@@ -1,0 +1,2017 @@
+{
+  "limits": {
+    "maxMainTaskMs": 200,
+    "liveP95Ms": 1000,
+    "acquisition1000Ms": 27000,
+    "acquisition100": "no worse than paired default"
+  },
+  "samples": [
+    {
+      "sample": "default-100-1",
+      "acquisitionMs": 4216.099999904633,
+      "duringP95": 2467.0999999046326,
+      "duringMax": 2467.0999999046326,
+      "duringCount": 5,
+      "duringTimeouts": 0,
+      "afterP95": 678.5999999046326,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 377,
+      "acquisitionLongTaskCount": 3,
+      "pages": 3,
+      "rows": 15744,
+      "jsonBytes": 4691272,
+      "fetchMs": 909.7999997138977,
+      "applyMs": [
+        284.59999990463257,
+        771.0999999046326,
+        1641.0999999046326
+      ],
+      "pagePeakHeap": 106222202,
+      "pageAcquisitionPeakHeap": 100418895,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 100,
+            "bytes": 34300
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 248,
+            "bytes": 64380
+          },
+          "messages": {
+            "rows": 528,
+            "bytes": 217674
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 248,
+            "bytes": 48758
+          }
+        },
+        "totalBytes": 5321380,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 68878336
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "default-100-2",
+      "acquisitionMs": 4215.599999904633,
+      "duringP95": 2451.3999996185303,
+      "duringMax": 2451.3999996185303,
+      "duringCount": 5,
+      "duringTimeouts": 0,
+      "afterP95": 683.6000003814697,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 376,
+      "acquisitionLongTaskCount": 3,
+      "pages": 3,
+      "rows": 15744,
+      "jsonBytes": 4691764,
+      "fetchMs": 892.5999999046326,
+      "applyMs": [
+        283.5,
+        798.5999999046326,
+        1613.1999998092651
+      ],
+      "pagePeakHeap": 97237374,
+      "pageAcquisitionPeakHeap": 97237374,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 100,
+            "bytes": 34300
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 248,
+            "bytes": 64380
+          },
+          "messages": {
+            "rows": 528,
+            "bytes": 218164
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 248,
+            "bytes": 48758
+          }
+        },
+        "totalBytes": 5321870,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 68812800
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "default-1000-1",
+      "acquisitionMs": 27065.800000190735,
+      "duringP95": 12516.799999713898,
+      "duringMax": 12516.799999713898,
+      "duringCount": 19,
+      "duringTimeouts": 0,
+      "afterP95": 823.2999997138977,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 6946,
+      "acquisitionLongTaskCount": 28,
+      "pages": 13,
+      "rows": 110972,
+      "jsonBytes": 42173530,
+      "fetchMs": 3758.5,
+      "applyMs": [
+        286.40000009536743,
+        845,
+        829.1000003814697,
+        564.3000001907349,
+        647.0999999046326,
+        598.5999999046326,
+        661.5999999046326,
+        775.8000001907349,
+        957.8000001907349,
+        1720.2000002861023,
+        1745.7000002861023,
+        394.19999980926514,
+        11537.599999904633
+      ],
+      "pagePeakHeap": 379967644,
+      "pageAcquisitionPeakHeap": 196038251,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 1000,
+            "bytes": 307790
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 2048,
+            "bytes": 530580
+          },
+          "messages": {
+            "rows": 90532,
+            "bytes": 37544373
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 2048,
+            "bytes": 403358
+          }
+        },
+        "totalBytes": 47905937,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 785645568
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "default-1000-2",
+      "acquisitionMs": 26875.800000190735,
+      "duringP95": 12718.699999809265,
+      "duringMax": 12718.699999809265,
+      "duringCount": 19,
+      "duringTimeouts": 0,
+      "afterP95": 935.4000000953674,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 6892,
+      "acquisitionLongTaskCount": 26,
+      "pages": 13,
+      "rows": 110972,
+      "jsonBytes": 42175301,
+      "fetchMs": 3722.300000667572,
+      "applyMs": [
+        282.69999980926514,
+        695.4000000953674,
+        705.7999997138977,
+        614.5,
+        594.4000000953674,
+        676.9000000953674,
+        697.8000001907349,
+        879,
+        1012.8999996185303,
+        1587.8000001907349,
+        1639.9000000953674,
+        341.19999980926514,
+        11664.199999809265
+      ],
+      "pagePeakHeap": 195576551,
+      "pageAcquisitionPeakHeap": 195576551,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 1000,
+            "bytes": 307790
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 2048,
+            "bytes": 530580
+          },
+          "messages": {
+            "rows": 90532,
+            "bytes": 37545262
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 2048,
+            "bytes": 403407
+          }
+        },
+        "totalBytes": 47906871,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 768737280
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "worker-100-1",
+      "acquisitionMs": 5559.39999961853,
+      "duringP95": 864.9000000953674,
+      "duringMax": 864.9000000953674,
+      "duringCount": 19,
+      "duringTimeouts": 0,
+      "afterP95": 790.0999999046326,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 0,
+      "acquisitionLongTaskCount": 0,
+      "pages": 3,
+      "rows": 16004,
+      "jsonBytes": 4754803,
+      "fetchMs": 919.300000667572,
+      "applyMs": [
+        290.8999996185303,
+        804.1999998092651,
+        2324.9000000953674
+      ],
+      "pagePeakHeap": 28580406,
+      "pageAcquisitionPeakHeap": 24283374,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 100,
+            "bytes": 34300
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 248,
+            "bytes": 64380
+          },
+          "messages": {
+            "rows": 542,
+            "bytes": 223232
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 248,
+            "bytes": 48758
+          }
+        },
+        "totalBytes": 5327526,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 68616192
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "worker-100-2",
+      "acquisitionMs": 5402.700000286102,
+      "duringP95": 834.2999997138977,
+      "duringMax": 834.2999997138977,
+      "duringCount": 19,
+      "duringTimeouts": 0,
+      "afterP95": 700.7999997138977,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 0,
+      "acquisitionLongTaskCount": 0,
+      "pages": 3,
+      "rows": 16004,
+      "jsonBytes": 4755293,
+      "fetchMs": 917.1999998092651,
+      "applyMs": [
+        317.09999990463257,
+        761.3000001907349,
+        2256.0999999046326
+      ],
+      "pagePeakHeap": 28739295,
+      "pageAcquisitionPeakHeap": 24266876,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 100,
+            "bytes": 34300
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 248,
+            "bytes": 64380
+          },
+          "messages": {
+            "rows": 542,
+            "bytes": 223722
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 248,
+            "bytes": 48758
+          }
+        },
+        "totalBytes": 5328012,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 68616192
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "worker-1000-1",
+      "acquisitionMs": 29189.10000038147,
+      "duringP95": 1182.0999999046326,
+      "duringMax": 2145.4000000953674,
+      "duringCount": 70,
+      "duringTimeouts": 0,
+      "afterP95": 800.3000001907349,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 52,
+      "acquisitionLongTaskCount": 5,
+      "pages": 13,
+      "rows": 111180,
+      "jsonBytes": 42223960,
+      "fetchMs": 3819.4000005722046,
+      "applyMs": [
+        309.2000002861023,
+        866.8000001907349,
+        719,
+        670.4000000953674,
+        626.1999998092651,
+        721.2000002861023,
+        750.8000001907349,
+        792.5,
+        1010.5999999046326,
+        1644.2000002861023,
+        1824.6000003814697,
+        371.40000009536743,
+        12309
+      ],
+      "pagePeakHeap": 86197319,
+      "pageAcquisitionPeakHeap": 86197319,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 1000,
+            "bytes": 307790
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 2048,
+            "bytes": 530580
+          },
+          "messages": {
+            "rows": 90580,
+            "bytes": 37563807
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 2048,
+            "bytes": 403358
+          }
+        },
+        "totalBytes": 47927383,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 786104320
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "worker-1000-2",
+      "acquisitionMs": 29156.099999904633,
+      "duringP95": 1355.3000001907349,
+      "duringMax": 2334.300000190735,
+      "duringCount": 62,
+      "duringTimeouts": 0,
+      "afterP95": 803.5999999046326,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 50,
+      "acquisitionLongTaskCount": 3,
+      "pages": 13,
+      "rows": 111024,
+      "jsonBytes": 42186596,
+      "fetchMs": 3836.500000476837,
+      "applyMs": [
+        302.40000009536743,
+        885.2999997138977,
+        856.5,
+        630.0999999046326,
+        597.5999999046326,
+        702.8999996185303,
+        818.5999999046326,
+        859.5999999046326,
+        1009.5,
+        1556.5999999046326,
+        1862,
+        404.80000019073486,
+        12040.599999904633
+      ],
+      "pagePeakHeap": 74565220,
+      "pageAcquisitionPeakHeap": 74565220,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 1000,
+            "bytes": 307790
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 2048,
+            "bytes": 530580
+          },
+          "messages": {
+            "rows": 90574,
+            "bytes": 37562230
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 2048,
+            "bytes": 403407
+          }
+        },
+        "totalBytes": 47925607,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 768802816
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "final-worker-100-1",
+      "acquisitionMs": 5290.900000095367,
+      "duringP95": 1686.4000000953674,
+      "duringMax": 1686.4000000953674,
+      "duringCount": 13,
+      "duringTimeouts": 0,
+      "afterP95": 696.5,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 50,
+      "acquisitionLongTaskCount": 1,
+      "pages": 3,
+      "rows": 15744,
+      "jsonBytes": 4692240,
+      "fetchMs": 1081.0,
+      "applyMs": [
+        294.40000009536743,
+        796.0999999046326,
+        2361.4000000953674
+      ],
+      "pagePeakHeap": 28214808,
+      "pageAcquisitionPeakHeap": 24141402,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 100,
+            "bytes": 34300
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 248,
+            "bytes": 64380
+          },
+          "messages": {
+            "rows": 536,
+            "bytes": 221984
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 248,
+            "bytes": 48807
+          }
+        },
+        "totalBytes": 5326071,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 68812800
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "final-worker-100-2",
+      "acquisitionMs": 4996.799999713898,
+      "duringP95": 1018.7000002861023,
+      "duringMax": 1018.7000002861023,
+      "duringCount": 17,
+      "duringTimeouts": 0,
+      "afterP95": 702.3000001907349,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 0,
+      "acquisitionLongTaskCount": 0,
+      "pages": 3,
+      "rows": 15952,
+      "jsonBytes": 4743944,
+      "fetchMs": 919.3999996185303,
+      "applyMs": [
+        310.09999990463257,
+        802.7999997138977,
+        2207.5999999046326
+      ],
+      "pagePeakHeap": 28487199,
+      "pageAcquisitionPeakHeap": 24222685,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 100,
+            "bytes": 34300
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 248,
+            "bytes": 64380
+          },
+          "messages": {
+            "rows": 540,
+            "bytes": 223908
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 248,
+            "bytes": 48807
+          }
+        },
+        "totalBytes": 5328163,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 68485120
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "final-worker-1000-1",
+      "acquisitionMs": 28945.299999713898,
+      "duringP95": 516.3000001907349,
+      "duringMax": 1426.4000000953674,
+      "duringCount": 101,
+      "duringTimeouts": 0,
+      "afterP95": 814.9000000953674,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 55,
+      "acquisitionLongTaskCount": 3,
+      "pages": 13,
+      "rows": 112740,
+      "jsonBytes": 42611436,
+      "fetchMs": 3792.699999809265,
+      "applyMs": [
+        310.09999990463257,
+        878.3000001907349,
+        802.7000002861023,
+        599.2999997138977,
+        657.0999999046326,
+        676.3999996185303,
+        711.0999999046326,
+        829.0999999046326,
+        972.1999998092651,
+        1691,
+        1769.5,
+        406.5,
+        12590.599999904633
+      ],
+      "pagePeakHeap": 86429007,
+      "pageAcquisitionPeakHeap": 86429007,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 1000,
+            "bytes": 307790
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 2048,
+            "bytes": 530580
+          },
+          "messages": {
+            "rows": 90587,
+            "bytes": 37568706
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 2048,
+            "bytes": 403407
+          }
+        },
+        "totalBytes": 47932625,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 787939328
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "sample": "final-worker-1000-2",
+      "acquisitionMs": 30258.599999904633,
+      "duringP95": 515,
+      "duringMax": 1312,
+      "duringCount": 102,
+      "duringTimeouts": 0,
+      "afterP95": 887.2999997138977,
+      "afterCount": 20,
+      "acquisitionLongestTaskMs": 53,
+      "acquisitionLongTaskCount": 4,
+      "pages": 13,
+      "rows": 112948,
+      "jsonBytes": 42663581,
+      "fetchMs": 3943.800000190735,
+      "applyMs": [
+        308.90000009536743,
+        867.0999999046326,
+        888,
+        565.4000000953674,
+        593.6999998092651,
+        736.8000001907349,
+        751.7000002861023,
+        773.3000001907349,
+        1012.4000000953674,
+        1781.6999998092651,
+        2295.699999809265,
+        529.3999996185303,
+        12875.200000286102
+      ],
+      "pagePeakHeap": 86435608,
+      "pageAcquisitionPeakHeap": 86435608,
+      "residency": {
+        "tables": {
+          "conversations": {
+            "rows": 1000,
+            "bytes": 307790
+          },
+          "dailyLikes": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dailyPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "digestProgress": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "dmPairs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followerCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingEdges": {
+            "rows": 500,
+            "bytes": 120500
+          },
+          "followingFeed": {
+            "rows": 1000,
+            "bytes": 434679
+          },
+          "followingPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingRemovedEvents": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "followingWork": {
+            "rows": 63,
+            "bytes": 28917
+          },
+          "follows": {
+            "rows": 5921,
+            "bytes": 1071701
+          },
+          "likes": {
+            "rows": 2000,
+            "bytes": 456000
+          },
+          "likesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "members": {
+            "rows": 2048,
+            "bytes": 530580
+          },
+          "messages": {
+            "rows": 90585,
+            "bytes": 37568759
+          },
+          "originalPosts": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "posts": {
+            "rows": 1000,
+            "bytes": 444000
+          },
+          "profiles": {
+            "rows": 1008,
+            "bytes": 487857
+          },
+          "reactions": {
+            "rows": 2000,
+            "bytes": 558500
+          },
+          "repliesReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "replyCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "repostCount": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "reposts": {
+            "rows": 1000,
+            "bytes": 289000
+          },
+          "repostsReceived": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "runs": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "typing": {
+            "rows": 0,
+            "bytes": 0
+          },
+          "unread": {
+            "rows": 2048,
+            "bytes": 403407
+          }
+        },
+        "totalBytes": 47932594,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 771293184
+      },
+      "chromium": "151.0.7922.34",
+      "ok": true,
+      "errors": []
+    }
+  ],
+  "quietInitial": {
+    "cpus": 96,
+    "load": [
+      1.75048828125,
+      1.80615234375,
+      1.5390625
+    ],
+    "cpuBusyPercent": 1.0424267695194414,
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "time": 1790563910.7402458
+  },
+  "initialRuns": [
+    {
+      "name": "default-100-1",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.4462890625,
+          1.75146484375,
+          1.537109375
+        ],
+        "cpuBusyPercent": 0.03646403083815179,
+        "time": 1790563962.2595057
+      }
+    },
+    {
+      "name": "worker-100-2",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.3994140625,
+          1.71875,
+          1.53125
+        ],
+        "cpuBusyPercent": 0.10939779120650135,
+        "time": 1790563985.3301752
+      }
+    },
+    {
+      "name": "default-100-2",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.26220703125,
+          1.65966796875,
+          1.5166015625
+        ],
+        "cpuBusyPercent": 0.6933583567928266,
+        "time": 1790564010.4544559
+      }
+    },
+    {
+      "name": "worker-1000-1",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.3837890625,
+          1.6552734375,
+          1.51953125
+        ],
+        "cpuBusyPercent": 0.03125,
+        "time": 1790564033.9235125
+      }
+    },
+    {
+      "name": "default-1000-1",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.2470703125,
+          1.58154296875,
+          1.50146484375
+        ],
+        "cpuBusyPercent": 0.8595092983278637,
+        "time": 1790564085.1610081
+      }
+    },
+    {
+      "name": "worker-1000-2",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.5546875,
+          1.61474609375,
+          1.517578125
+        ],
+        "cpuBusyPercent": 0.03125,
+        "time": 1790564135.1526694
+      }
+    },
+    {
+      "name": "default-1000-2",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.716796875,
+          1.6748046875,
+          1.544921875
+        ],
+        "cpuBusyPercent": 0.04166232684095407,
+        "time": 1790564186.7460096
+      }
+    }
+  ],
+  "finalRuns": [
+    {
+      "name": "final-worker-100-1",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.16748046875,
+          0.8642578125,
+          1.17333984375
+        ],
+        "cpuBusyPercent": 2.4658534042331315,
+        "time": 1790564642.207319
+      }
+    },
+    {
+      "name": "final-worker-100-2",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.23291015625,
+          0.9072265625,
+          1.1787109375
+        ],
+        "cpuBusyPercent": 0.12503256056264345,
+        "time": 1790564667.2870073
+      }
+    },
+    {
+      "name": "final-worker-1000-1",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.1298828125,
+          0.91455078125,
+          1.17333984375
+        ],
+        "cpuBusyPercent": 0.34904923157071943,
+        "time": 1790564692.1683683
+      }
+    },
+    {
+      "name": "final-worker-1000-2",
+      "exit": 0,
+      "quiet": {
+        "load": [
+          1.40283203125,
+          1.02197265625,
+          1.1953125
+        ],
+        "cpuBusyPercent": 0.5730061988852397,
+        "time": 1790564743.5441296
+      }
+    }
+  ],
+  "note": "Two fresh browser contexts per condition, serial live writer; final-worker includes cold fence and first-open fixes. JS heap is the page only, not total Worker memory. Apply wall durations include Worker RPC and durable persistence; overlapping calls cannot be summed into elapsed total."
+}
