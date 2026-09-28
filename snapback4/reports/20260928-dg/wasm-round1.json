@@ -1,0 +1,17 @@
+{
+  "before": {
+    "raw": 2019815,
+    "gzip": 585384,
+    "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625"
+  },
+  "after": {
+    "raw": 2019815,
+    "gzip": 585384,
+    "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625"
+  },
+  "rawDelta": 0,
+  "gzipDelta": 0,
+  "budget": 586193,
+  "byteIdentical": true,
+  "build": "scripts/build-wasm.sh, cached unchanged device inputs"
+}

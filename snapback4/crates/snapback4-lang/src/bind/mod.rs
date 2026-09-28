@@ -6,6 +6,7 @@ mod columns;
 mod ephemeral;
 mod defaults;
 mod maintains;
+pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
 pub mod program;

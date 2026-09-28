@@ -1,0 +1,50 @@
+job digest(periodStart: time, periodEnd: time)
+  returns null
+  digest: runs: server
+    Horizon: scan profiles by byId: sync public last 1200 by byId; selected byId (); result: page; explicit by (site schema.q:511:18 (profiles[])); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Server: point digestPosts by byGroup: online only; selected byGroup (author = reader, bucket = period); result: scalar; complete maintained group key (site schema.q:499:25 (digestPosts[reader, period]))
+      rewrite: remove `online only` from view digestPosts to inherit its source's sync, or read a compact synced projection
+    Server: scan follows by index (follower, id), chosen by the planner: online only; selected index (follower, id), chosen by the planner (follower = reader); result: page; read: follows[follower = reader] (site schema.q:500:15 (follows[follower = reader]))
+      rewrite: sync follows to its read-rule audience, or read a compact synced projection
+    Server: point digestPosts by byGroup: online only; selected byGroup (author = edge.followed, bucket = period); result: scalar; complete maintained group key (site schema.q:501:49 (digestPosts[edge.followed, period]))
+      rewrite: remove `online only` from view digestPosts to inherit its source's sync, or read a compact synced projection
+    Held: scan members by index (principal, id), chosen by the planner: held, no horizon; selected index (principal, id), chosen by the planner (principal = reader); result: page; read: members[principal = reader] (site schema.q:504:17 (members[principal = reader]))
+    Horizon: scan messages by index (conversation, tombstone, at), chosen by the planner: sync to members[.conversation] last 500 by byHistory; selected index (conversation, tombstone, at), chosen by the planner (conversation = conversation, tombstone = false); result: page; read: messages[conversation = conversation] where .at >= periodStart and .at < periodEnd and .sender != reader and .ordinal > seen and not .tombstone (site schema.q:496:16 (messages[conversation = conversation] where .at >= periodStart and .at < periodEnd and .sender != reader and .ordinal > seen and not .tombstone)); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Server: point digestFollowers by byGroup: online only; selected byGroup (followed = reader, bucket = period); result: scalar; complete maintained group key (site schema.q:509:26 (digestFollowers[reader, period]))
+      rewrite: remove `online only` from view digestFollowers to inherit its source's sync, or read a compact synced projection
+  job digest:
+    scale: per chunk — grows with follows in the domain `follows where .follower = reader`; members in the domain `members where .principal = reader`; messages in the domain `messages where .conversation = conversation and .tombstone = false`; messages skipped by `.sender != reader and .ordinal > seen` before the domain match; also, until background cleanup catches up, expired messages rows not yet swept, skipped before the domain live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work); whole job grows with rows visited/written by the sweep over `profiles`
+    system job: helpers share the chunk meter; inner recipient work must fit one chunk even when the outer sweep adapts. An oversized recipient parks with E_BOUND; no partial digest commits. A viewer query calling the helper keeps viewer authority and query bounds; first 50 is only a partial preview (guide jobs)
+      programs.digest.2: follows in the domain `follows where .follower = reader`; rewrite: cap the domain, page it, or add a maintained view for its aggregate
+      programs.digest.4: members in the domain `members where .principal = reader`; rewrite: cap the domain, page it, or add a maintained view for its aggregate
+      programs.digest.5: messages in the domain `messages where .conversation = conversation and .tombstone = false`; rewrite: cap the domain, page it, or add a maintained view for its aggregate
+      programs.digest.5: messages skipped by `.sender != reader and .ordinal > seen` before the domain match; rewrite: pin the filter column in the read, or add a view indexed by that predicate
+      programs.digest.5: expired messages rows not yet swept, skipped before the domain live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+    following following acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: newest 1000 by (at, id) globally
+      reposts: newest 1000 by (at, id) globally
+      follows: online only
+      followingFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      followingPosts originals: event state follows the source's engine slot; no owned event rows on devices
+      followingPosts reposts: event state follows the source's engine slot; no owned event rows on devices
+      followingRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    scan profiles.byId rows ≤ meter (16,384 examined) — system job: read rules pass
+      job domain: all inner work shares this chunk's meter; a refusal rolls back the chunk, never commits a partial total
+    point digestPosts.byGroup — system job: read rules pass
+    scan follows using index (follower, id), chosen by the planner rows ≤ meter (16,384 examined) — system job: read rules pass
+      selected index (follower, id), chosen by the planner (follower = reader); result: page; read: follows[follower = reader]
+      job domain: all inner work shares this chunk's meter; a refusal rolls back the chunk, never commits a partial total
+    point digestPosts.byGroup — system job: read rules pass
+    scan members using index (principal, id), chosen by the planner rows ≤ meter (16,384 examined) — system job: read rules pass
+      selected index (principal, id), chosen by the planner (principal = reader); result: page; read: members[principal = reader]
+      job domain: all inner work shares this chunk's meter; a refusal rolls back the chunk, never commits a partial total
+    prefix seek messages using index (conversation, tombstone, at), chosen by the planner rows ≤ meter (16,384 examined) — system job: read rules pass
+      selected index (conversation, tombstone, at), chosen by the planner (conversation = conversation, tombstone = false); result: page; read: messages[conversation = conversation] where .at >= periodStart and .at < periodEnd and .sender != reader and .ordinal > seen and not .tombstone
+      job domain: all inner work shares this chunk's meter; a refusal rolls back the chunk, never commits a partial total
+      filter over ≤ examined ceiling (16384)
+    point digestFollowers.byGroup — system job: read rules pass
