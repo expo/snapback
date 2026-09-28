@@ -1,0 +1,51 @@
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 10.12s
+     Running tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-99a0c9c58bd403f9)
+
+running 6 tests
+test ambiguous_count_star_refuses_without_prose_in_the_replacement ... ok
+test seek_operands_are_checked_in_the_enclosing_predicate_scope ... ok
+test multiline_repair_uses_tokens_and_preserves_the_whole_declaration ... ok
+test projected_view_repairs_use_inferred_field_types ... ok
+test nested_key_repairs_keep_conjuncts_bounds_and_order ... ok
+test optional_inclusive_comparisons_preserve_presence_in_early_late_and_other_modules ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/familiar_source_repairs.rs (target/debug/deps/familiar_source_repairs-68e7c198e87158d4)
+
+running 4 tests
+test same_named_columns_with_different_types_use_the_argument_fallback ... ok
+test fresh_parameters_consider_nested_bindings_only_in_the_current_declaration ... ok
+test argument_repairs_splice_only_the_comparison_and_keep_nested_source_and_results ... ok
+test nested_key_repair_preserves_the_reviewers_two_row_answer ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/familiar_verified_repairs.rs (target/debug/deps/familiar_verified_repairs-f021a783af6409d2)
+
+running 11 tests
+test a_remaining_error_in_the_affected_declaration_suppresses_the_repair ... ok
+test invalid_helper_body_cannot_offer_a_local_predicate_repair ... ok
+test independent_declaration_errors_do_not_hide_a_checked_repair ... ok
+test failed_key_candidates_have_neither_rewrite_nor_named_key_advice ... ok
+test nullable_unique_aggregate_keeps_tied_null_rows ... ok
+test a_capped_nonunique_aggregate_keeps_its_whole_page ... ok
+test sole_predicates_preserve_point_and_explicit_page_results ... ok
+test grouped_reads_and_trailing_comma_keys_keep_source_and_answers ... ok
+test delete_only_the_bad_conjunct_at_any_position_or_where_clause ... ok
+test aggregates_retry_point_keys_as_verified_single_row_pages_and_execute ... ok
+test named_equality_precedes_all_seek_operators_and_retains_other_operands ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-10a09d18001533fd)
+
+running 5 tests
+test unsafe_optional_conflicting_and_nonleading_equalities_stay_residual ... ok
+test full_unique_equality_keeps_the_original_page_type ... ok
+test unchanged_calibration_program_compiles ... ok
+test existing_prefix_constraints_survive ... ok
+test paired_plans_residual_order_limit_and_cross_spelling_cursors ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s

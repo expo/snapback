@@ -115,7 +115,7 @@ pub fn decode_cursor(schema: &Schema, token: &str) -> Result<CursorPosition, Cur
         (crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?,None)
     } else { return Err(CursorError::Version(version.try_into().map_err(|_| CursorError::Encoding)?)); };
     let position = CursorPosition { table: tagged.1, index: tagged.2, order: tagged.3, suffix: tagged.4, values: tagged.5, scope, inclusive: version == 3 };
-    validate_values(schema, &position.table, &position.suffix, &position.values)?;
+    // Canonical re-encoding also validates the typed values; do it once.
     if encode_cursor(schema, &position)? != token {
         return Err(CursorError::Encoding);
     }
@@ -131,14 +131,18 @@ pub fn decode_cursor_for(
     suffix: &[CursorColumn],
 ) -> Result<Vec<Value>, CursorError> {
     let position = decode_cursor(schema, token)?;
-    if position.table != table
-        || position.index != index
-        || position.order != order
-        || position.suffix != suffix
-    {
-        return Err(CursorError::Descriptor);
-    }
+    position.check_descriptor(table, index, order, suffix)?;
     Ok(position.values)
+}
+
+impl CursorPosition {
+    #[inline(never)]
+    pub(crate) fn check_descriptor(&self, table: &str, index: &str, order: Order, suffix: &[CursorColumn]) -> Result<(), CursorError> {
+        if self.table != table || self.index != index || self.order != order || self.suffix != suffix {
+            return Err(CursorError::Descriptor);
+        }
+        Ok(())
+    }
 }
 
 fn validate_values(

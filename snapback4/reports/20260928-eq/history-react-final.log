@@ -1,0 +1,39 @@
+✔ React/IndexedDB: original receipt hook keeps one ordinary history through delayed decorations, leave, remount, reopen and rejoin (3482.994555ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-rV9gJG/snapshots.jsonl
+✖ ordinal: paired history, acquisition floor and membership lifecycle (12986.094488ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-cfsaYr/snapshots.jsonl
+✔ timestamp: paired history, acquisition floor and membership lifecycle (19006.695985ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-otUOjZ/snapshots.jsonl
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36012.10539
+
+✖ failing tests:
+
+test at experiments/p19-one-query/equality/history.test.mjs:12:33
+✖ ordinal: paired history, acquisition floor and membership lifecycle (12986.094488ms)
+  AssertionError [ERR_ASSERTION]: process:acquired fallback
+  + actual - expected
+
+  + [
+  +   '/q/historyBracket'
+  + ]
+  - []
+
+      at pair (file:///home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/equality/harness.mjs:122:26)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/equality/history.test.mjs:91:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/q/historyBracket' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

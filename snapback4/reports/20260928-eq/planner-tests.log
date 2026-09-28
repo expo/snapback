@@ -1,0 +1,81 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling typenum v1.20.1
+   Compiling libm v0.2.16
+   Compiling shlex v2.0.1
+   Compiling subtle v2.6.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling vcpkg v0.2.15
+   Compiling serde_core v1.0.229
+   Compiling cc v1.4.5
+   Compiling pkg-config v0.3.34
+   Compiling generic-array v0.14.7
+   Compiling wasmi_ir v2.0.0
+   Compiling foldhash v0.2.0
+   Compiling wasmparser v0.228.0
+   Compiling zmij v1.0.23
+   Compiling bitflags v2.13.2
+   Compiling syn v3.0.5
+   Compiling libc v0.2.189
+   Compiling hashbrown v0.17.1
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling wasmi_core v2.0.0
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling tinyvec_macros v0.1.1
+   Compiling base64ct v1.8.3
+   Compiling serde_json v1.0.151
+   Compiling cfg-if v1.0.4
+   Compiling libsqlite3-sys v0.38.2
+   Compiling wasmi v2.0.0
+   Compiling thiserror v2.0.20
+   Compiling serde v1.0.229
+   Compiling rand_core v0.6.4
+   Compiling getrandom v0.3.4
+   Compiling password-hash v0.5.0
+   Compiling hashlink v0.12.2
+   Compiling tinyvec v1.13.2
+   Compiling blake2 v0.10.6
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling spin v0.9.9
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling itoa v1.0.18
+   Compiling wasmi_collections v2.0.0
+   Compiling memchr v2.8.3
+   Compiling fallible-iterator v0.3.0
+   Compiling smallvec v1.16.1
+   Compiling unicode-normalization v0.1.25
+   Compiling argon2 v0.5.3
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 02s
+     Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-10a09d18001533fd)
+
+running 4 tests
+test unsafe_optional_conflicting_and_nonleading_equalities_stay_residual ... ok
+test unchanged_calibration_program_compiles ... FAILED
+test existing_prefix_constraints_survive ... ok
+test paired_plans_residual_order_limit_and_cross_spelling_cursors ... ok
+
+failures:
+
+---- unchanged_calibration_program_compiles stdout ----
+
+thread 'unchanged_calibration_program_compiles' (2635610) panicked at crates/snapback4-lang/tests/selected_prefix.rs:78:5:
+[Diagnostic { site: Site { file: "builder.q", line: 515, col: 1 }, code: "E_QUARRY_UNKNOWN", message: "schedule dailyDigest names bare job digest; builder.q declares it as builder.digest", rewrite: "builder.digest", guide: "jobs", mechanical: true, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    unchanged_calibration_program_compiles
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p snapback4-lang --test selected_prefix`

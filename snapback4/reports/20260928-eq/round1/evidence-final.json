@@ -1,0 +1,30 @@
+{
+  "history-final-ordinal": {
+    "source": "experiments/p19-one-query/.work/eq-small-VJywXt/snapshots.jsonl",
+    "sha256": "e615548d3f415b838ef0f474097eb6a6ef00f0e228a63925c04b5a78fd0c4e9d",
+    "bytes": 2763877,
+    "observations": 458,
+    "paired_observations": 154
+  },
+  "history-final-timestamp": {
+    "source": "experiments/p19-one-query/.work/eq-small-G59gGB/snapshots.jsonl",
+    "sha256": "513bf7c3da6f36a24d113981f3c7e199a98963d3e19191871ae919b00e3c11d2",
+    "bytes": 2759455,
+    "observations": 460,
+    "paired_observations": 154
+  },
+  "history-final-calibration": {
+    "source": "experiments/p19-one-query/.work/eq-scale-m01alY/snapshots.jsonl",
+    "sha256": "a115ad954947b3780ef9e2474c0fdccd90b54c909dd6206e8dd970045b76225b",
+    "bytes": 3245951,
+    "observations": 459,
+    "paired_observations": 154
+  },
+  "history-final-react": {
+    "source": "experiments/p19-one-query/.work/eq-small-nUXtSQ/snapshots.jsonl",
+    "sha256": "e5805b2c31f900de0d30eff301294091f68b968e3b5c75f343b756080fbd1b60",
+    "bytes": 17697,
+    "observations": 2,
+    "paired_observations": 0
+  }
+}

@@ -35,6 +35,7 @@ fn builder_public_aggregate_refuses_both_edits_and_explains_each_repair() {
             let d = refusal(&b, if sync { "E_QUARRY_SYNTAX" } else { "E_SYNC" });
             contains(&d.message, &[name, "horizon-free public sync", "no horizon", &format!("from {}", if name == "ownLikes" { "likes" } else { "reposts" }), &format!("read <- .{owner} = viewer"), "cannot declare a separate sync audience"]);
             contains(&d.rewrite, &["read <- allow", "every device", "other viewers' keys", "online only", "lose offline aggregate/absence coverage", "test --residency", "guide maintains", "guide offline-interactions"]);
+            contains(&d.rewrite, &["viewer-owned existence", "eligible public window", "source owner-key coverage", "ordinary `exists`", "does not supply aggregate totals"]);
             excludes(&d.rewrite.to_lowercase(), &["narrow the public source", "sync privately"]);
             assert_eq!(d.site.line, source.lines().position(|line| line == if sync { format!("  sync to .{owner}") } else { format!("  read <- .{owner} = viewer") }.as_str()).unwrap() as u32 + 1);
             let public = clean(&source.replace(&edit, &format!("{declaration}\n  read <- allow")));

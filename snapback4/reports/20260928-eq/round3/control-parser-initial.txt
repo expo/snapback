@@ -1,0 +1,12 @@
+Ours: after the expected two mutation failures, controls.py initially exited 1:
+
+  File "snapback4/reports/20260928-eq/round3/controls.py", line 113, in main
+    assert text.count("data: Array([]), complete: false, cut: Some(Meter)") == 2
+AssertionError
+
+The actual QueryOutcome debug output inserts `unavailable: false` between
+data and complete. The corrected report-only parser checks each field on
+each of the two unwrap_err failure lines, including a nonempty next token.
+No product/test assertion was changed. The private source was restored by
+finally. The preserved mutation log was revalidated; the run resumed at the
+OR mutation without repeating the successful mint/unmutated/mutation tests.

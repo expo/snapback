@@ -1,0 +1,20 @@
+{
+  "before": {
+    "raw": 2017908,
+    "gzip": 585100,
+    "sha256": "1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a"
+  },
+  "after": {
+    "raw": 2017908,
+    "gzip": 585100,
+    "sha256": "1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a"
+  },
+  "delta": {
+    "raw": 0,
+    "gzip": 0
+  },
+  "budget": 586193,
+  "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "bindgen": "wasm-bindgen 0.2.127",
+  "headroom": 1093
+}

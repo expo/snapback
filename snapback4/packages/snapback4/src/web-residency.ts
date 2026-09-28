@@ -35,7 +35,9 @@ export class WebResidency {
       if (s === "m" && k === "device:backend") {
         const schema = v === null ? undefined : JSON.parse(v).schema;
         const hidden = new Set((schema?.maintains ?? []).filter((m: { private?: unknown }) => m.private).map((m: { target: string }) => m.target));
-        this.names = Object.keys(schema?.tables ?? {}).filter(name => !hidden.has(name) && !name.startsWith("$"));
+        // @ref LLP 3000.028#3.4 — builders measure their explicit owner-key partitions alongside the public window.
+        const ownKeys = new Set((schema?.maintains ?? []).filter((m: { own_keys?: unknown }) => m.own_keys).map((m: { target: string }) => m.target));
+        this.names = Object.keys(schema?.tables ?? {}).filter(name => !hidden.has(name) && (!name.startsWith("$") || ownKeys.has(name)));
       }
     }
   }

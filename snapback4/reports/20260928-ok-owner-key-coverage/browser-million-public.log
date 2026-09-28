@@ -1,0 +1,25 @@
+(node:3335785) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+1000000 public empty owner-progress 100000
+1000000 public empty owner-progress 200000
+1000000 public empty owner-progress 300000
+1000000 public empty owner-progress 400000
+1000000 public empty owner-progress 500000
+1000000 public empty owner-progress 600000
+1000000 public empty owner-progress 700000
+1000000 public empty owner-progress 800000
+1000000 public empty owner-progress 900000
+1000000 public empty owner-progress 1000000
+Debugger listening on ws://127.0.0.1:9229/cc5fc634-5d46-4ebf-bf8e-3655d14f5eb5
+For help, see: https://nodejs.org/en/docs/inspector
+Debugger attached.
+Debugger ending on ws://127.0.0.1:9229/cc5fc634-5d46-4ebf-bf8e-3655d14f5eb5
+For help, see: https://nodejs.org/en/docs/inspector
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.evaluate: Target page, context or browser has been closed
+    at /home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-browser.mjs:64:29
+
+Node.js v24.13.1

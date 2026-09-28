@@ -1,0 +1,19 @@
+{
+  "toolchain": "Rust 1.97.0 / wasm-bindgen 0.2.127; no wasm-opt on PATH; GNU file-input gzip -9",
+  "baseline": {
+    "raw": 2020387,
+    "gzip": 586133,
+    "sha256": "4f97bd8c5edc0100398cda8df1993221264861def35f2b47fb2f8fe5f5efbc3a"
+  },
+  "final": {
+    "raw": 2020770,
+    "gzip": 586142,
+    "sha256": "8d88256858e583b936a5aa0bf1ee170aa94d252afe4d1369f16c0c460b55557b"
+  },
+  "delta": {
+    "raw": 383,
+    "gzip": 9
+  },
+  "budget": 586193,
+  "headroom": 51
+}

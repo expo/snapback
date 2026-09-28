@@ -1,0 +1,135 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:179:5
+    |
+179 | /     d.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+180 | |         AuthAction::Insert {table_name:"_meta"} => Authorization::Deny,
+181 | |         _=>Authorization::Allow,
+182 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+179 |     let _ = d.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:184:5
+    |
+184 |     d.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+184 |     let _ = d.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:198:5
+    |
+198 | /     e.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+199 | |         AuthAction::Insert {table_name:"_generations"} => Authorization::Deny,
+200 | |         _=>Authorization::Allow,
+201 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+198 |     let _ = e.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:203:5
+    |
+203 |     e.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+203 |     let _ = e.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: `snapback4-device` (test "own_keys") generated 4 warnings
+    Finished `test` profile [optimized + debuginfo] target(s) in 51.70s
+     Running tests/own_keys.rs (target/debug/deps/own_keys-732d2347c5ffa0e3)
+
+running 6 tests
+test source_and_keys_share_the_unchanged_write_meter_and_rollback ... ok
+
+thread 'memory' (4107026) panicked at crates/snapback4-device/tests/own_keys.rs:68:5:
+even a direct caller switch cannot borrow Alice's acquired marker
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test memory ... FAILED
+
+thread 'snapshot_and_catchup_payloads_never_disclose_another_owners_keys' (4107028) panicked at crates/snapback4-device/tests/own_keys.rs:146:9:
+assertion `left == right` failed: alice: [StreamEvent { table: "$ownKeys:likes", kind: "del", id: "[{\"Id\":\"alice\"},{\"Id\":\"alice-secret\"}]", data: None }, StreamEvent { table: "$ownKeys:likes", kind: "del", id: "[{\"Id\":\"alice\"},{\"Id\":\"alice-secret\"}]", data: None }, StreamEvent { table: "$ownKeys:likes", kind: "put", id: "[{\"Id\":\"alice\"},{\"Id\":\"alice-new\"}]", data: Some(Object {"id": String("[{\"Id\":\"alice\"},{\"Id\":\"alice-new\"}]"), "owner": String("alice"), "post": String("alice-new"), "value": Number(1)}) }, StreamEvent { table: "$ownKeys:likes", kind: "del", id: "[{\"Id\":\"bob\"},{\"Id\":\"bob-secret\"}]", data: None }]
+  left: 4
+ right: 2
+test snapshot_and_catchup_payloads_never_disclose_another_owners_keys ... FAILED
+test adoption_failure_never_publishes_an_empty_key_set ... ok
+test failed_partition_publication_keeps_absence_unavailable ... ok
+
+thread 'sqlite' (4107030) panicked at crates/snapback4-device/tests/own_keys.rs:68:5:
+even a direct caller switch cannot borrow Alice's acquired marker
+test sqlite ... FAILED
+
+failures:
+
+failures:
+    memory
+    snapshot_and_catchup_payloads_never_disclose_another_owners_keys
+    sqlite
+
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p snapback4-device --test own_keys`
+     Running tests/own_keys.rs (target/debug/deps/own_keys-54df116136b1e4b3)
+
+running 3 tests
+test policy_is_explicit_and_only_caller_existence_uses_it ... ok
+
+thread 'unsafe_policies_refuse_at_the_sync_line' (4107042) panicked at crates/snapback4-lang/tests/own_keys.rs:65:9:
+accepted unsafe policy:
+table likes:
+  post: id
+  owner: principal
+  at: time
+  unique post, owner
+  immutable post, owner
+  public 'likes'
+  insert <- .owner = viewer or allow
+  delete <- .owner = viewer
+  sync public last 2 by .at with own keys .owner
+query own(post: id):
+  return exists likes[post, viewer]
+query other(post: id, owner: principal):
+  return exists likes[post, owner]
+query image(post: id):
+  return likes[post, viewer]
+query filtered(post: id):
+  return exists likes[post = post, owner = viewer, at = 10]
+mutation add(post: id):
+  insert likes { post, owner: viewer, at: now }
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test unsafe_policies_refuse_at_the_sync_line ... FAILED
+test full_builder_original_and_restored_bodies_compile ... ok
+
+failures:
+
+failures:
+    unsafe_policies_refuse_at_the_sync_line
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-lang --test own_keys`
+error: 2 targets failed:
+    `-p snapback4-device --test own_keys`
+    `-p snapback4-lang --test own_keys`

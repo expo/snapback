@@ -179,7 +179,8 @@ fn deploy_removal_uses_the_same_destructive_flag_as_maintained_views() {
         let r = dir.command(&["deploy", "release", "--allow-destructive"]); assert!(r.status.success(), "{r:?}");
         let e = Engine::open(Store::open(&path).unwrap()).unwrap();
         assert_eq!(e.store().rows("posts").unwrap().len(), 1);
-        assert!(e.schema().timelines.is_empty()); assert!(e.schema().maintains.is_empty());
+        assert!(e.schema().timelines.is_empty());
+        assert!(e.schema().maintains.iter().all(|m| m.own_keys.is_some()), "source owner-key policies survive retirement of the feed");
     }
 }
 
@@ -225,7 +226,7 @@ fn redefinition_refuses_atomically_and_delivery_keeps_running() {
     let generation = e.generation(); let seq = e.seq().unwrap();
     // Both a broadened predicate and changed source mappings refuse before any
     // copy, admission record or dependent count can be deleted/reconstructed.
-    let alternate = source().replace("posts", "entries").replace("follows", "links")
+    let alternate = source().replace("posts", "entries").replace("follows", "links").replace("likes", "alternateLikes")
         .replace("activity", "alternateActivity").replace("following", "alternateFollowing")
         .replace("mutation ", "mutation alternate_").replace("query ", "query alternate_");
     for revised in [s.replace(".parentId = null and not .removed", "not .removed"),
@@ -562,6 +563,7 @@ fn check_and_adoption_agree_across_expiry_through_changes_and_following_presence
     // Astra's repro: inherited expiry remains physically present until a
     // read-through change retires it, before Following checks occupancy.
     let base = source().split("mutation post").next().unwrap().to_owned()
+        .replace(" with own keys .actorId", "")
         .replace("  sync public last 1000 by .at", "  online only")
         .replace("  public 'public posts and replies'", "  group: groups\n  immutable group\n  read through .group");
     let base = format!("table groups:\n  deadline: time ?\n  immutable deadline\n  public\n  expire at .deadline\n  online only\n{base}\nmutation addPost(group: groups, expiresAt: time ?):\n  return insert posts {{ group, expiresAt, authorId: viewer, parentId: null, at: now }}\n");

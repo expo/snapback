@@ -52,6 +52,7 @@ table messages:
   body: text <=2000
   at: time
   search body
+  by byHistory: conversation, at, id
   read <- exists participants[.conversation, viewer]
   retain delivered-history
   sync to participants[.conversation] by .personId last 500 by .at
@@ -60,7 +61,10 @@ query conversationScreen(c: threads):
   return threads[c]
 
 query history(c: threads, page: cursor ?):
-  return messages where .conversation = c last 20 by .at after page
+  return messages where .conversation = c last 20 by byHistory after page
+
+query historyBracket(c: threads, page: cursor ?):
+  return messages[conversation = c] last 20 by byHistory after page
 
 query searchHeld(q: text <=100, page: cursor ?) held:
   return messages matching q last 20 by .at after page
@@ -76,6 +80,11 @@ retained page local, online and offline. Pin `conversationScreen` by id.
 Keep receipts, profiles, quotes and reactions in separate queries rendered
 beside history, as `guide app` and `guide receipts` show. A decoration that
 loads or refuses must not take the page with it.
+
+On an explicitly indexed page, safe, non-optional leading equalities establish
+the bracket prefix and coverage. Extraction stops at a residual predicate,
+seek column or final index column. Other predicates and order stay intact;
+old cursors retain their validated index, scope and generation.
 
 Use `held` only for a read the server cannot answer, such as `searchHeld`
 over every chat this device holds. It never falls back, even online.
@@ -246,6 +255,14 @@ including when an explicit backend would replace an unsupported kept backend.
 Downgrading a device below the store's version is unsupported.
 Backends without these forms keep their existing encoding and remain compatible
 with 0.2.33 devices.
+
+`with own keys .principal` after a public window acquires all of this viewer's
+immutable unique keys. See `guide feeds`. Only non-expiring public sources
+with caller-owned writes qualify. Another principal's miss, row images and
+counts keep their coverage. The source owner index, maintained keys and private
+log cost server work; device bytes grow with lifetime keys. Adoption backfills
+before publication; even zero keys need durable whole acquisition. Devices
+without `owner-key-coverage` refuse the backend.
 
 `online only` optionally documents a table with no sync. On a maintained `view`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
@@ -452,4 +469,6 @@ without a horizon, and the conflicting explicit read. Keep the public read
 (or omit it) for the public offline summary, or use `online only` and lose
 offline aggregate/absence coverage. A view cannot declare a separate sync
 audience; do not narrow its public source to make it private. See `guide
-maintains` and `guide offline-interactions` for the replica census."##;
+maintains` and `guide offline-interactions` for the replica census and the
+explicit source owner-key coverage alternative for viewer-owned existence.
+That alternative keeps the public window; it does not supply aggregate totals."##;

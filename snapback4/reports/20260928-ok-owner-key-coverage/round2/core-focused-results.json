@@ -1,0 +1,28 @@
+[
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "schema::",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 0.081
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "timeline_authority_tests",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 0.079
+  }
+]

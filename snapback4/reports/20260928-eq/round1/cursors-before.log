@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 10.83s
+     Running tests/selected_prefix_cursors.rs (target/debug/deps/selected_prefix_cursors-4845e3d3ccf53e29)
+
+running 1 test
+test baseline_minted_continuations_match_new_suffix_pages ... FAILED
+
+failures:
+
+---- baseline_minted_continuations_match_new_suffix_pages stdout ----
+
+thread 'baseline_minted_continuations_match_new_suffix_pages' (4103949) panicked at crates/snapback4-lang/tests/selected_prefix_cursors.rs:53:67:
+called `Result::unwrap()` on an `Err` value: Refusal { code: "E_INPUT", family: "input", message: "E_INPUT: cursor: cursor token describes a different table, index, order, or suffix", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    baseline_minted_continuations_match_new_suffix_pages
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test selected_prefix_cursors`

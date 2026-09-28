@@ -1,0 +1,38 @@
+[
+  {
+    "check": "compiler-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "own_keys",
+      "--test",
+      "guide",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 72.77
+  },
+  {
+    "check": "native-build",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exit": 0,
+    "seconds": 30.83
+  },
+  {
+    "check": "wasm-build",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "exit": 0,
+    "seconds": 26.91
+  }
+]

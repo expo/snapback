@@ -1,0 +1,12 @@
+✔ ordinal: paired history, acquisition floor and membership lifecycle (19152.241585ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-9a0xpy/snapshots.jsonl
+✔ timestamp: paired history, acquisition floor and membership lifecycle (17770.212846ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-OpeqJy/snapshots.jsonl
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37029.092682

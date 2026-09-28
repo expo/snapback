@@ -104,6 +104,8 @@ pub struct SeekBound {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadExpr {
+    /// Original prefix length, only for a normalized explicit cursor page.
+    pub cursor_prefix: Option<usize>,
     /// Computed lane keys introduced by the planner, never written as fields.
     pub computed: std::collections::BTreeMap<String, Expr>,
     /// Column order in the intent spelling; an index name remains `index`.
@@ -306,6 +308,7 @@ pub struct ColumnAggregate {
 pub struct SyncDecl {
     pub audience: SyncAudience,
     pub horizon: Option<(u32, SyncOrder)>,
+    pub own_keys: Option<String>,
     pub site: Site,
 }
 

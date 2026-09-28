@@ -1,0 +1,58 @@
+{
+  "chromium": "151.0.7922.34",
+  "results": [
+    {
+      "keys": 1000000,
+      "mode": "keys",
+      "viewer": "empty",
+      "pageSize": 10000,
+      "coldOpenerMs": 514.5,
+      "pages": 1,
+      "decodedRows": 2000,
+      "wireBytes": 303493,
+      "peakJsHeap": 93092434,
+      "peakWasmHeap": 7340032,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          }
+        },
+        "totalBytes": 309812,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 7340032
+      },
+      "estimate": {
+        "quota": 10739000937,
+        "usage": 1582697,
+        "usageDetails": {
+          "indexedDB": 1582697
+        }
+      },
+      "storage": {
+        "usage": 1582697,
+        "quota": 16135270111,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1582697
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    }
+  ]
+}

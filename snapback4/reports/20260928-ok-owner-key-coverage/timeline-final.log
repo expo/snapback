@@ -1,0 +1,35 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 19.48s
+     Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-ccff1a22e1ddf5e4)
+
+running 15 tests
+test deploy_removal_uses_the_same_destructive_flag_as_maintained_views ... ok
+test a_new_view_preserves_preexisting_application_tables_with_owned_names ... ok
+test failed_retirement_restores_dependent_aggregates_and_indexes ... ok
+test retirement_cancels_pending_delivery_and_rolls_back_with_a_failed_adoption ... ok
+snapback4 dev: http://127.0.0.1:38167  (schema: snapback/, types: /tmp/sb4-timeline-adopt-3098046-6/snapback/generated/api.ts)
+store: /tmp/sb4-timeline-adopt-3098046-6/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+test two_step_replacement_uses_a_fresh_owned_namespace ... ok
+test dev_removes_populated_view_and_preserves_sources_and_other_views ... ok
+test following_declared_before_events_passes_check_and_unchanged_adoption ... ok
+test unfinished_experimental_rebuild_is_fenced_but_can_be_removed ... ok
+test atomic_launch_dev_is_automatic_and_deploy_prints_estimate_and_requires_opt_in ... ok
+test retirement_resets_dependent_aggregates_even_when_all_names_survive ... ok
+test redefinition_refuses_atomically_and_delivery_keeps_running ... ok
+test sparse_literal_defaults_agree_in_check_and_atomic_launch ... ok
+test check_and_adoption_agree_across_expiry_through_changes_and_following_presence ... ok
+test check_and_runtime_refuse_the_copy_ceiling_and_owned_name_reuse ... ok
+test check_notes_atomic_launch_and_agrees_with_runtime_over_retained_sources ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s

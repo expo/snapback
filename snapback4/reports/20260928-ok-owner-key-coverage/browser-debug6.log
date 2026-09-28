@@ -1,0 +1,5 @@
+context {"id":1,"result":{"result":{"type":"boolean","value":true}}}
+tab {"id":2,"result":{"result":{"type":"object","value":{"ready":"complete","memory":360474609}}}}
+storage {"id":3,"result":{"result":{"type":"object","value":{"usage":94702079,"quota":16859304094,"overrideActive":false,"usageBreakdown":[{"storageType":"file_systems","usage":0},{"storageType":"indexeddb","usage":94702079},{"storageType":"cache_storage","usage":0},{"storageType":"service_workers","usage":0}]}}}}
+pending {"id":4,"result":{"result":{"type":"object","value":{"callbacks":[{"type":"Frame","method":"evaluateExpression"},{"type":"Frame","method":"evaluateExpression"}],"browser":true}}}}
+locks {"id":5,"result":{"result":{"type":"object","value":{"held":[{"clientId":"EBBF673ADA8E0BE913140B4E8F777C02","mode":"exclusive","name":"owner-cost"}],"pending":[]}}}}

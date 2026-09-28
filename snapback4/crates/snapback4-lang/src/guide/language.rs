@@ -190,15 +190,16 @@ table likes:
   postId: posts
   principal: principal
   at: time
-  immutable postId
+  unique postId, principal
+  immutable postId, principal
   public 'likes are public'
   insert <- .principal = viewer
-  online only
+  sync public last 2000 by .at with own keys .principal
 view receivedLikes: count likes by .postId.authorId -- one immutable hop to a public target; attribution is recorded by the engine
   online only
 
-view messageCounts: count messages by .roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
-                                                     -- read derives the source's membership rule because roomId is a bare group key
+view messageCounts: count messages by .roomId       -- maintained count by group; missing groups return 0
+                                                     -- read inherits membership through roomId
 view scoreTotals: sum posts of .score by .authorId  -- count, or sum of an int, decimal or money column
   online only                         -- mutations reading this view never predict
 
