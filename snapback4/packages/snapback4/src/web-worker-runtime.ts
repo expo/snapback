@@ -6,13 +6,14 @@ import type { Change } from "./web.ts";
 import type { DeviceOpening } from "./local-device.ts";
 import type { DeviceControlSnapshot } from "./device-control.ts";
 import type { Queued } from "./local-types.ts";
+import type { WorkerWasmSource } from "./web-worker-host.ts";
 
 export interface WorkerRequest {
   id: number;
   action: "open" | "invoke" | "commit" | "prepare-conditional" | "finish-conditional";
   name?: string;
   backend?: DeviceOpening | null;
-  wasm?: string;
+  wasm?: WorkerWasmSource;
   request?: Record<string, unknown>;
   extra?: Change[];
 }

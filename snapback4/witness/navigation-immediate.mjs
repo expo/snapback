@@ -45,7 +45,7 @@ query removed(conversationId: conversations):
 query roster(conversationId: conversations):
   return memberships[conversationId] first 50 by byConversationPrincipal
 `;
-const witness = await launch({ seed, extraSource });
+const witness = await launch({ seed, extraSource, worker: process.env.SS_WORKER === "1" });
 const { page, api } = witness;
 const origin = new URL(page.url()).origin;
 const query = async (name, n) => (await fetch(`${api}/q/media.${name}`, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: `c${n}` } }) }).then(r => r.json())).data;

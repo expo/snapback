@@ -8,7 +8,7 @@ import { terminalReceipts, receiptHistory, lookupReceipts } from "./web-receipts
 import { admissionHost } from "./admission.ts";
 import { admissionAuthorityHost, admissionAuthorityRefusal } from "./admission-authority.ts";
 import { AdmissionJournal, AdmissionError, bindingRefusal, journalStoreBinding, writeRefusal } from "./web-journal.ts";
-import { WebWorkerHost, StaleWorkerCommit, type WorkerTransaction } from "./web-worker-host.ts";
+import { WebWorkerHost, StaleWorkerCommit, type WorkerTransaction, type WorkerWasmSource } from "./web-worker-host.ts";
 import { WebWorkerSuspend } from "./web-worker-suspend.ts";
 import { adoptWorkerOrphans } from "./web-worker-orphans.ts";
 import { successSequence } from "./local-receipts.ts";
@@ -17,7 +17,7 @@ import type { Write } from "./contract.ts";
 class KnownAdmissionRefusal extends Error { constructor(readonly reply: Record<string, unknown>) { super("admission cancellation failed"); } }
 
 /** Internal adapter. The public opt-in is wired only after protocol parity. */
-export async function openWorkerDevice(name: string, backend: DeviceOpening | null, wasm?: string): Promise<DeviceCore> {
+export async function openWorkerDevice(name: string, backend: DeviceOpening | null, wasm?: WorkerWasmSource): Promise<DeviceCore> {
   const persist = indexedDbPersistence(), claim = await claimStore(persist, name, true);
   if (!claim) throw new Error("webDevice: persistence could not claim an exclusive device store");
   const host = new WebWorkerHost(claim);

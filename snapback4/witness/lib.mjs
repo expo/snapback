@@ -95,7 +95,7 @@ export async function devServer({ seed, extraSource = "", sourceDir, port = 0, c
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
-export async function launch({ seed, extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset }) {
+export async function launch({ seed, extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset, worker = false }) {
   const require = createRequire(join(root, "package.json"));
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
@@ -106,7 +106,7 @@ export async function launch({ seed, extraSource = "", headless = true, sourceDi
   const entry = join(harness, "harness.ts");
   // Keep defaults in their own module: custom entries may import the same
   // public names without redeclaring bootstrap bindings in one module.
-  writeFileSync(join(harness, "bootstrap.ts"), `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nimport { createApp } from "${join(root, "packages/snapback4/src/app.ts")}";\nimport { localStorageSessionStore } from "${join(root, "packages/snapback4/src/auth.ts")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice, createApp, localStorageSessionStore });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice(), ...options });\n`);
+  writeFileSync(join(harness, "bootstrap.ts"), `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nimport { createApp } from "${join(root, "packages/snapback4/src/app.ts")}";\nimport { localStorageSessionStore } from "${join(root, "packages/snapback4/src/auth.ts")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice, createApp, localStorageSessionStore });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice({ worker: ${worker} }), ...options });\n`);
   writeFileSync(entry, `import "./bootstrap.ts";\n${entrySource}\n`);
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
   await build({ root: harness, logLevel: "silent", plugins: [{ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } }], build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });

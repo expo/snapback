@@ -5,6 +5,7 @@ import { indexedDbStore } from "./web-idb.ts";
 import { PageDeviceControl } from "./device-control.ts";
 
 type Reply = Record<string, any>;
+export type WorkerWasmSource = string | BufferSource | WebAssembly.Module;
 export interface WorkerTransaction {
   readonly journal: readonly Change[];
   invoke: JournalInvoke;
@@ -40,7 +41,7 @@ export class WebWorkerHost {
   constructor(private readonly claim: PersistenceClaim,
     private readonly createWorker = () => new Worker(new URL("./web-worker-entry.js", import.meta.url), { type: "module" })) {}
 
-  open(backend: DeviceOpening | null = null, wasm?: string): Promise<Change[]> {
+  open(backend: DeviceOpening | null = null, wasm?: WorkerWasmSource): Promise<Change[]> {
     if (this.opening || this.closing) return Promise.reject(new Error("the Worker host is already open or closed"));
     this.opening = (async () => {
       try { const saved = await this.start(backend, wasm); this.opened = true; return saved; }
@@ -57,7 +58,7 @@ export class WebWorkerHost {
 
   private release(): Promise<void> { return this.released ??= this.claim.release(); }
 
-  private wasm: string | undefined;
+  private wasm: WorkerWasmSource | undefined;
   private async start(backend: DeviceOpening | null, wasm = this.wasm): Promise<Change[]> {
     this.wasm = wasm;
     // A replacement Worker PAGE must wait too: navigation can release its store
@@ -187,7 +188,7 @@ export class WebWorkerHost {
       await navigator.locks.request(lease, async () => {
         const persist = indexedDbStore(async () => null);
         await persist.read!(this.claim.name, "m", "device:store_id");
-        await persist.read!("snapback4-wasm", "url", this.wasm ?? "");
+        await persist.read!("snapback4-wasm", "url", typeof this.wasm === "string" ? this.wasm : "");
       });
     })().then(() => { this.stopping = undefined; });
     // Keep a failed barrier sticky. A later close/restore must not infer that

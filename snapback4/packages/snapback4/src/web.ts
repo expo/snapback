@@ -21,6 +21,8 @@ import { successSequence } from "./local-receipts.ts";
 import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
 import { cachedWasm, wasmMemoryBytes, type WasmSource } from "./web-wasm.ts";
 import { WebDevice } from "./wasm/snapback4_device.js";
+import { openWorkerDevice } from "./web-worker-device.ts";
+import type { WorkerWasmSource } from "./web-worker-host.ts";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
  * outbox, `b` confirmed images, `s` staged snapshot), the key, the value;
@@ -59,6 +61,9 @@ export interface PersistenceClaim {
 }
 
 export interface WebDeviceOptions {
+  /** Run the browser VM and default IndexedDB persistence in a dedicated
+   * Worker. Custom persistence remains available on the ordinary host. */
+  readonly worker?: boolean;
   /** The wasm: a URL, a Response, bytes or a compiled module. By default
    * `snapback4_device_bg.wasm` beside this module, which bundlers copy. */
   readonly wasm?: WasmSource | Promise<WasmSource>;
@@ -71,6 +76,21 @@ const ephemeral = new WeakSet<Persistence>();
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
+  if (options.worker) {
+    if (options.persist) throw new Error("webDevice: worker:true uses default IndexedDB; use webDevice({ persist }) for an injected persistence provider");
+    let supplied: Promise<WorkerWasmSource | undefined> | undefined;
+    return { async open(name, backend) {
+      supplied ??= Promise.resolve(options.wasm).then(async source => {
+        if (source instanceof URL) return source.toString();
+        if (source instanceof Response) {
+          if (!source.ok) throw new Error(`wasm: HTTP ${source.status}`);
+          return source.arrayBuffer();
+        }
+        return source;
+      });
+      return openWorkerDevice(name, backend, await supplied);
+    } };
+  }
   const persist = options.persist ?? indexedDbPersistence();
   if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
   return {

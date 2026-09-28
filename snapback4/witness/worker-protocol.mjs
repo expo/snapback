@@ -55,10 +55,9 @@ serveWorker(globalThis);
 writeFileSync(join(dir, 'entry.js'), `
 import { WebWorkerHost } from '${sdk}/web-worker-host.js';
 import { WebWorkerSuspend } from '${sdk}/web-worker-suspend.js';
-import { openWorkerDevice } from '${sdk}/web-worker-device.js';
 import { deliveryCommit } from '${sdk}/local-device.js';
 import { AdmissionJournal } from '${sdk}/web-journal.js';
-import { indexedDbPersistence } from '${sdk}/web.js';
+import { indexedDbPersistence, webDevice } from '${sdk}/web.js';
 const backend = ${JSON.stringify(schema)};
 const persist = indexedDbPersistence();
 const cores = new Map();
@@ -123,7 +122,15 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
-  async coreOpen(id, name, kept = false) { cores.set(id, await openWorkerDevice(name, kept ? null : backend)); },
+  async coreWasm(kind) {
+    const response = await fetch(new URL('${sdk}/wasm/snapback4_device_bg.wasm', import.meta.url));
+    const bytes = await response.arrayBuffer();
+    const wasm = kind === 'module' ? await WebAssembly.compile(bytes) : kind === 'response' ? new Response(bytes) : bytes;
+    const opener = webDevice({ worker: true, wasm: Promise.resolve(wasm) });
+    let core = await opener.open('wasm-' + kind, backend); await core.close();
+    core = await opener.open('wasm-' + kind, null); await core.close(); return true;
+  },
+  async coreOpen(id, name, kept = false, worker = true) { cores.set(id, await webDevice({ worker }).open(name, kept ? null : backend)); },
   coreCall: (id, request) => cores.get(id).call(request),
   coreClose: id => cores.get(id).close(),
   async coreAcquire(id) { for (const request of [first, second, terminal]) ok(await cores.get(id).call(request)); },
@@ -195,6 +202,7 @@ const url = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true });
 const results = [], pageErrors = [];
 const run = async (name, body) => {
+  if (process.env.SS_WORKER_CASE && !new RegExp(process.env.SS_WORKER_CASE).test(name)) return;
   const at = performance.now(), context = await browser.newContext();
   const page = await context.newPage();
   page.on('pageerror', e => pageErrors.push({ name, error: e.message }));
@@ -242,6 +250,39 @@ try {
     assert.equal(result.restored.predictions, null); assert.equal(result.stillPending.predictions, null);
     assert.ok(result.pending.queuedRevision > result.before.queuedRevision);
     return result;
+  });
+  await run('Worker accepts supplied bytes, Response promises and compiled wasm modules', async page => {
+    return page.evaluate(async () => { const results = []; for (const kind of ['bytes', 'response', 'module']) results.push(await w.coreWasm(kind)); return results; });
+  });
+  await run('public Worker option reopens offline through the bundled entry', async (page, context) => {
+    await page.evaluate(async () => { await w.coreOpen('a', 'public-offline'); await w.coreAcquire('a'); await w.coreAdmit('a', 'kept-write'); await w.coreClose('a'); });
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+    const fetched = wasmRequests; await context.setOffline(true);
+    await page.reload(); await page.waitForFunction(() => window.w);
+    const result = await page.evaluate(async () => {
+      await w.coreOpen('a', 'public-offline', true);
+      const state = await w.coreCall('a', { op: 'sync_state', capture: false });
+      const queued = await w.coreCall('a', { op: 'queued' }); await w.coreClose('a'); return { state, queued };
+    });
+    assert.equal(result.state.ok.acquired, true); assert.deepEqual(result.queued.ok.map(e => e.id), ['kept-write']);
+    assert.equal(wasmRequests, fetched); return result;
+  });
+  await run('navigation from busy Worker to default waits for strict persistence', async page => {
+    await page.evaluate(async () => {
+      await w.open('mixed'); await w.acquire(); await w.call({ op: 'clear_rows' }); await w.call(w.first); await w.call(w.second);
+      w.arm('during-commit'); window.abandoned = w.call(w.terminal).catch(() => {}); await w.hit();
+    });
+    await page.reload(); await page.waitForFunction(() => window.w);
+    const result = await page.evaluate(async () => {
+      await w.coreOpen('default', 'mixed', true, false);
+      const state = await w.coreCall('default', { op: 'sync_state', capture: false });
+      await w.coreAcquire('default'); await w.coreAdmit('default', 'default-write'); await w.coreClose('default');
+      await w.coreOpen('worker', 'mixed', true);
+      const queued = await w.coreCall('worker', { op: 'queued' }); await w.coreClose('worker');
+      return { state, queued };
+    });
+    assert.equal(result.state.ok.acquired, false);
+    assert.deepEqual(result.queued.ok.map(e => e.id), ['default-write']); return result;
   });
   await run('an uncommitted call cannot return or hitchhike on a later commit', async page => {
     const result = await page.evaluate(async () => {
