@@ -1,0 +1,26 @@
+{
+  "step": "publication-dry-run",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_RUST_TEST_PROCESSES",
+    "-u",
+    "SNAPBACK4_TEST_SERIAL_CLIENT_FILES",
+    "-u",
+    "SNAPBACK4_BIN",
+    "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run",
+    "--linux-receipt",
+    "target/incoming/linux-0.4.7/receipt.json",
+    "--linux-tarball",
+    "target/incoming/linux-0.4.7/snapback4-linux-x64-0.4.7.tgz"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-047/snapback4",
+  "start": 1790569130.05407,
+  "end": 1790573065.62531,
+  "seconds": 3935.571,
+  "exit": 1
+}

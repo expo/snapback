@@ -1,0 +1,32 @@
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: offline-done
+witness: backend-ready
+witness: reconnect-signaled
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+witness: complete — /Users/ccheever/projects/snapback-pub-047/snapback4/reports/20260928-expo-0.4.7/offline-ios-run.json
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-relaunch
+witness: relaunch
+witness: offline-relaunched
+witness: waiting-offline-done
+witness: offline-done
+witness: backend-ready
+witness: reconnect-signaled
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+witness: complete — /Users/ccheever/projects/snapback-pub-047/snapback4/reports/20260928-expo-0.4.7/restart-ios-run.json
+{"witness":"published-ios","ok":true,"ms":25459,"artifacts":"/Users/ccheever/projects/snapback-pub-047/snapback4/reports/20260928-expo-0.4.7"}
