@@ -79,4 +79,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
 ```
 
 `useAsset` revokes on unmount: use this ownership for one-view photos. Never refetch one (`E_ASSET_VIEWED` on the second fetch); this is a transient handle, not a media cache.
-Typing: see `snapback4 guide ephemeral`.
+Integrated messaging app and all three lifetimes: `snapback4 new my-social --template social`, then `snapback4 guide social`. Typing schema: `guide ephemeral`.

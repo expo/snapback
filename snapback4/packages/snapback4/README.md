@@ -5,7 +5,7 @@ Rust interpreter as the server. The package carries the TypeScript client and th
 
 ## Start here: your first working account screen
 
-Follow this `README.md` through password signup, profile, avatar and reopen. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`).
+Follow this `README.md` through password signup, profile, avatar and reopen. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). For messaging apps: `npx snapback4 new my-social --template social` installs the Expo Router starter; `guide social` explains typing, once-media and revalidation.
 
 ### 1. Create and run the backend
 

@@ -18,6 +18,8 @@ mod shapes;
 mod presence;
 #[path = "guide/receipts.rs"]
 mod receipts;
+#[path = "guide/social.rs"]
+mod social;
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
@@ -58,7 +60,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "social", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -458,6 +460,7 @@ the cell with the same ids does not claim them. Readers still get
 E_ASSET_UNKNOWN (the upload owner can still preview) until a write places and
 claims fresh uploads in the cell."##,
         "client" => include_str!("guide/client.md"),
+        "social" => social::CARD,
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,
