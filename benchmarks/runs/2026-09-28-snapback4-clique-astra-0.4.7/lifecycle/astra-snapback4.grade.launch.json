@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-28T13:19:26.324802+00:00",
+  "command": [
+    "/usr/bin/nohup",
+    "python3",
+    "/Users/ccheever/clique-sb4-20260928-astra-cal25/scripts/run_phase.py",
+    "grade",
+    "astra"
+  ],
+  "runnerPid": 98443,
+  "launch": "nohup background; dedicated process session"
+}

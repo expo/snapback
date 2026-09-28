@@ -1,0 +1,134 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-choreography",
+      "note": "receipt 'm8-a02-insights-like-refresh' passed: likes-received 24 -> 25 across a refresh (refreshMs 1627)"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-a08-a12",
+      "note": "Shortened digest (period 120 s). With every client closed, the period emitted exactly one digest per active user (maxPerUser 1, one distinct periodEnd). The target persona's payload was newFollowers 1, newPostsInFollowing 2, unreadMessages 3, unreadChats 1 - matching the grader's seeded activity exactly."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-a08-a12",
+      "note": "A freshly-registered persona with no graph, no content and no inbound messages received no digest in the period."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-a08-a12",
+      "note": "The following period ran with zero activity and emitted zero digest payloads."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-a11",
+      "note": "Graded through a grader-owned push worker with NO provider-side dedupe, so a server double-emit could not be masked. The backend was stopped and restarted mid-period and again after emission: exactly one digest per (user, periodEnd), one distinct effect id."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-a08-a12",
+      "note": "Five messages sent into a group the target user is not a member of; the target's digest still reported unreadMessages 3 / unreadChats 1 from the DM alone - the off-limits chat contributed nothing."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-choreography",
+      "note": "receipt 'm8-a13-same-account-message-live' passed (visibleMs 3334.2)"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-choreography",
+      "note": "receipt 'm8-a14-cross-device-read-state' passed (clearVisibleMs 2064.9)"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-choreography",
+      "note": "receipt 'm8-a15-dual-offline-convergence' passed (firstFlushMs 2886.7, secondFlushMs 6224.3)"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-choreography",
+      "note": "receipt 'm8-a16-dual-offline-receipts' passed (firstReadMs 1518.2, secondReadMs 5909.9)"
+    },
+    "m8-a17": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-native-artifact",
+      "note": "No scoreable native artifact exists. The M8 segment summary records supplementalExternal ios-simulator-m8 as pass:null, receipt:null, status 'not-recorded'; artifacts/m8-ios/ is a Hermes bundle export, not the m8-ios-screen.mp4 + m8-ios-receipts.jsonl + m8-ios-run.json triple simulator.md requires. Recorded as not passed and never inherited from the M8 web segment."
+    },
+    "m8-a18": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md#m8-native-artifact",
+      "note": "No scoreable native artifact exists. The M8 segment summary records supplementalExternal ios-simulator-m8 as pass:null, receipt:null, status 'not-recorded'; artifacts/m8-ios/ is a Hermes bundle export, not the m8-ios-screen.mp4 + m8-ios-receipts.jsonl + m8-ios-run.json triple simulator.md requires. Recorded as not passed and never inherited from the M8 web segment."
+    }
+  }
+}
