@@ -78,7 +78,7 @@ async function open(name, fault = true, kept = false) {
     return worker;
   }) : new WebWorkerHost(claim);
   const saved = await host.open(kept ? null : backend);
-  journal = new AdmissionJournal(claim.name, true); journal.load(saved);
+  journal = new AdmissionJournal(claim.name, true, id => host.control.capture(id)); journal.load(saved);
   window.nameOfStore = claim.name;
   if (!kept) await call({ op: 'observe_store', page: { snapshot: false, generation: 1, events: [], watermark: 0, more: false, store_id: 'worker-store', requested_watermark: 0 } });
   return claim.name;
@@ -118,6 +118,7 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
+  control: () => host.control.read(), pending: id => host.control.capture(id), admitted: id => host.control.admitted(id),
   async acquire() { await call(first); await call(second); await call(terminal); },
   arm(point, crash = false) { hit = new Promise(r => signal = r); worker.postMessage({ test: 'arm', point, crash }); },
   hit: () => hit,
@@ -190,6 +191,25 @@ try {
       assert.equal(wasmRequests, fetched, 'reopen uses the durable wasm cache');
       return { acquired: state.acquired, offlineShell: true, wasmFetchesOnReopen: wasmRequests - fetched };
     } finally { denyWasm = false; }
+  });
+  await run('durable control snapshot stays conservative during a blocked publication', async page => {
+    const result = await page.evaluate(async () => {
+      await w.open('control'); await w.acquire(); await w.call({ op: 'clear_rows' }); await w.call(w.first); await w.call(w.second);
+      const before = w.control();
+      w.arm('before-commit'); const publication = w.call(w.terminal).catch(e => String(e)); await w.hit();
+      const during = w.control(); w.pending('newer');
+      const pending = w.control();
+      await w.terminate(); await publication;
+      const discarded = w.control(); await w.call({ op: 'state' });
+      const restored = w.control(); w.admitted('older'); const stillPending = w.control();
+      return { before, during, pending, discarded: discarded ?? null, restored, stillPending };
+    });
+    assert.equal(result.before.acquired, false); assert.equal(result.during.acquired, false);
+    assert.equal(result.during.generation, 1); assert.equal(result.during.transfer_store_id, 'worker-store');
+    assert.equal(result.pending.predictions, null); assert.equal(result.discarded, null);
+    assert.equal(result.restored.predictions, null); assert.equal(result.stillPending.predictions, null);
+    assert.ok(result.pending.queuedRevision > result.before.queuedRevision);
+    return result;
   });
   await run('an uncommitted call cannot return or hitchhike on a later commit', async page => {
     const result = await page.evaluate(async () => {

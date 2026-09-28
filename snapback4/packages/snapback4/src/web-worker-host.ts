@@ -2,6 +2,7 @@ import type { Change, PersistenceClaim } from "./web.ts";
 import type { DeviceOpening } from "./local-device.ts";
 import type { JournalInvoke } from "./web-journal-execution.ts";
 import { indexedDbStore } from "./web-idb.ts";
+import { PageDeviceControl } from "./device-control.ts";
 
 type Reply = Record<string, any>;
 export interface WorkerTransaction {
@@ -17,6 +18,7 @@ export interface WorkerTransaction {
 // The caller owns page capture/authority and must use transaction() for each
 // complete call. No injected Persistence functions cross postMessage.
 export class WebWorkerHost {
+  readonly control = new PageDeviceControl();
   private worker: Worker | undefined;
   private lease: string | undefined;
   private attached = false;
@@ -78,6 +80,7 @@ export class WebWorkerHost {
     const reply = await this.rpc({ action: "open", name: this.claim.name, backend, ...(wasm ? { wasm } : {}) });
     this.journal.clear();
     this.remember(reply.journal);
+    this.control.publish(reply.control);
     return [...this.journal.values()];
   }
 
@@ -85,6 +88,7 @@ export class WebWorkerHost {
     for (const change of changes) {
       const key = JSON.stringify([change.s, change.k]);
       if (change.v === null) this.journal.delete(key); else this.journal.set(key, change);
+      if (change.s === "j" && change.v !== null && !change.k.startsWith("exit:")) this.control.admitted(change.k);
     }
   }
 
@@ -97,16 +101,25 @@ export class WebWorkerHost {
       try { if (!this.worker) { await this.stopping; await this.start(null); } }
       catch (error) { await this.stop(); throw error; }
       let active = true, dirty = false;
+      const unblock: (() => void)[] = [];
       const owner = this.worker;
       const check = () => { if (!active || this.worker !== owner) throw new Error("the Worker transaction has ended"); };
       const transaction: WorkerTransaction = {
         journal: [...this.journal.values()],
-        invoke: async request => { check(); dirty = true; return this.rpc({ action: "invoke", request }); },
+        invoke: async request => {
+          check(); dirty = true;
+          const state = this.control.read(), page = request.page as Record<string, unknown> | undefined;
+          const staging = request.op === "apply" && state && !state.acquired && page?.store_id === (state.transfer_store_id ?? state.store_id)
+            && page?.generation === state.generation;
+          if (!staging && !["state", "sync_state", "query", "backend", "meta", "queued", "residency", "next_submission"].includes(String(request.op))) unblock.push(this.control.block());
+          return this.rpc({ action: "invoke", request });
+        },
         commit: async (extra = []) => {
           check();
           const reply = await this.rpc({ action: "commit", extra });
           dirty = false;
           this.remember(reply.journal);
+          this.control.publish(reply.control);
           return reply.journal;
         },
       };
@@ -116,7 +129,7 @@ export class WebWorkerHost {
         if (dirty) throw new Error("a Worker transaction must commit before returning its result");
         return value;
       } catch (error) { await this.stop(); throw error; }
-      finally { active = false; }
+      finally { active = false; for (const done of unblock) done(); }
     });
     this.chain = result.catch(() => {});
     return result;
@@ -138,6 +151,7 @@ export class WebWorkerHost {
   }
 
   private stop(): Promise<void> {
+    this.control.discard();
     if (this.stopping) return this.stopping;
     const worker = this.worker, lease = this.lease, attached = this.attached;
     this.worker = undefined;

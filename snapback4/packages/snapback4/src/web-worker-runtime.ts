@@ -4,6 +4,8 @@ import { indexedDbStore } from "./web-idb.ts";
 import { WebResidency } from "./web-residency.ts";
 import type { Change } from "./web.ts";
 import type { DeviceOpening } from "./local-device.ts";
+import type { DeviceControlSnapshot } from "./device-control.ts";
+import type { Queued } from "./local-types.ts";
 
 export interface WorkerRequest {
   id: number;
@@ -23,6 +25,9 @@ export class WorkerRuntime {
   private readonly residency = new WebResidency();
   private device: WebDevice | undefined;
   private name: string | undefined;
+  private acquisition = 0;
+  private queuedRevision = 0;
+  private control: DeviceControlSnapshot | undefined;
 
   async execute(message: WorkerRequest): Promise<unknown> {
     if (message.action === "open") {
@@ -34,14 +39,17 @@ export class WorkerRuntime {
       this.residency.reset(saved);
       const changes = await this.commit([]);
       // No row images, staging or large change vector reaches the page.
-      return { journal: [...this.journalChanges(saved), ...changes] };
+      return { journal: [...this.journalChanges(saved), ...changes], control: this.control };
     }
     if (!this.device || !this.name) throw new Error("the Worker device must be restored before another call");
     if (message.action === "invoke") {
       if (message.request?.op === "residency") return { ok: this.residency.snapshot(wasmMemoryBytes()) };
       return JSON.parse(this.device.call(JSON.stringify(message.request)));
     }
-    if (message.action === "commit") return { journal: await this.commit(message.extra ?? []) };
+    if (message.action === "commit") {
+      const journal = await this.commit(message.extra ?? []);
+      return { journal, control: this.control };
+    }
     throw new Error("unknown Worker command");
   }
 
@@ -56,6 +64,27 @@ export class WorkerRuntime {
     const changes = [...JSON.parse(this.device!.drain()) as Change[], ...extra];
     if (changes.length) await this.persist.save(this.name!, changes);
     this.residency.apply(changes);
+    if (changes.some(c => c.s === "o")) this.queuedRevision++;
+    const invoke = (request: Record<string, unknown>) => JSON.parse(this.device!.call(JSON.stringify(request))).ok;
+    const state = invoke({ op: "sync_state", capture: false });
+    const entries = invoke({ op: "queued" }) as Queued[];
+    const predictions = new Set<string>();
+    let unknown = false;
+    for (const entry of entries) if (entry.predictable === true && entry.observed_seq == null) {
+      if (!Array.isArray(entry.predicted)) unknown = true;
+      else for (const row of entry.predicted) {
+        const slash = row.indexOf("/");
+        if (slash <= 0) unknown = true; else predictions.add(row.slice(0, slash));
+      }
+    }
+    if (!this.control || state.store_id !== this.control.store_id || state.transfer_store_id !== this.control.transfer_store_id
+      || state.generation !== this.control.generation || state.acquired !== this.control.acquired) this.acquisition++;
+    const { store_id, transfer_store_id, generation, acquired, backend_required, restore_refusal,
+      watermark, transfer_watermark, restore_watermark, restore_images_at, send_revision } = state;
+    this.control = { store_id, transfer_store_id, generation, acquired, backend_required, restore_refusal,
+      watermark, transfer_watermark, restore_watermark, restore_images_at, send_revision,
+      acquisition: this.acquisition, queuedRevision: this.queuedRevision,
+      issuedFloor: Number(invoke({ op: "meta", key: "server-clock-floor" }) ?? 0), predictions: unknown ? null : [...predictions] };
     return this.journalChanges(changes);
   }
 

@@ -101,7 +101,7 @@ export class AdmissionJournal {
   private stagedExits = new Map<string, string>();
   private storeId: string | undefined;
   private sequence = 0;
-  constructor(private readonly name: string, private readonly exclusive: boolean) {}
+  constructor(private readonly name: string, private readonly exclusive: boolean, private readonly captured?: (id: string) => void) {}
 
   // Keep the captured identity on the wire even if the endpoint changes after
   // local validation. Legacy outboxes use their kept device's identity.
@@ -206,6 +206,7 @@ export class AdmissionJournal {
       const total = held.reduce((n, key) => n + bytes(key) + bytes(store.getItem(key) ?? ""), 0);
       if (held.length >= JOURNAL_RECORDS || total + bytes(key) + bytes(text) > JOURNAL_BYTES) return refuse("the admission journal is full (32 records or 256 KiB); wait for queued writes to commit before retrying");
       store.setItem(key, text);
+      this.captured?.(entry.id);
       return record;
     } catch (error) { if (!browserAdmission()) return; throw error instanceof AdmissionError ? error : new AdmissionError(`localStorage could not keep the mutation: ${String(error)}`); }
   }

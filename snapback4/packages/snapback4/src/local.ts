@@ -1,4 +1,5 @@
 import { deliveryCommit } from "./local-device.ts";
+import { deviceControl, coldSnapshot, coldReplyMatches, type DeviceControlSnapshot } from "./device-control.ts";
 import { publishDelivery } from "./local-publication.ts";
 import { localDelivery } from "./local-delivery.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
@@ -34,7 +35,7 @@ import { changeFeed } from "./changes.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
+import { lookupWrite, recoverReceipt, settleReceipt, successSequence, readQueued } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -519,16 +520,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   // A quiet request is a background presence refresh: its failure retries on the
   // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
-  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false) {
-    const work = sendPost(path, body, captured, eph, quiet);
+  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot) {
+    const work = sendPost(path, body, captured, eph, quiet, control);
     active.add(work);
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
-  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
-      const capture = path.startsWith("/q/") ? await captureStore() : undefined;
+      const capture = control ?? (path.startsWith("/q/") ? await captureStore() : undefined);
       const request = requestCredentials();
       const reply = await postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status));
       if (!reply || (eph && !ephemeralReads.current(eph))) return { ok: false };
@@ -545,7 +546,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
       await refusedSession(denied, request.revision);
       if (link !== "online") setLink("online");
-      if (path.startsWith("/q/") && (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id) || await witnessRestore(json.store_id, json.head ?? json.seq, capture))) delete json.delivery;
+      if (control) {
+        if (!coldReplyMatches(control, json)) return { ok: false };
+      } else if (path.startsWith("/q/") && (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id) || await witnessRestore(json.store_id, json.head ?? json.seq, capture))) delete json.delivery;
       return { ok: true, json, obsoleteAuth };
     } catch {
       if (!quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
@@ -865,10 +868,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   // ----- reads -----
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
-  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view();
+    const cold = coldSnapshot(core[deviceControl], !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
+    const bypass = cold?.control;
+    if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = {
+      coldRead: bypass,
       get backend() { return backend!; },
       get partitionDenied() { return partitionDenied; },
       get credentialRevision() { return credentialRevision; },
@@ -883,14 +890,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
       principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
-      post: quiet ? (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, true) : post,
+      post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined),
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
       offline, get serverAnswers() { return answerCache; }, ephemeralReads,
     };
     const work = (async () => {
       for (let attempt = 0; ; attempt++) {
         const revision = incarnation, authority = answers.revision;
-        const result = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
+        const result = { ...await evaluateLocal(queryEnvironment, op, args, revision, authority, watch), controlCurrent: bypass?.current };
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
         if (result.ephemeralStale || (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest))) {
@@ -911,6 +918,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return publishDelivery(deliveryQueue, result, () => !unavailable()
       && result.incarnation === incarnation && result.authority === answers.revision
       && (result.credential === undefined || result.credential === credentialRevision)
+      && (!result.controlCurrent || result.controlCurrent())
       && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
       && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), publish, { client, watch });
@@ -965,7 +973,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
     const shown = watch.snapshot;
     try {
-      const result = await runLocal(watch.op, watch.args, undefined, true);
+      const result = await runLocal(watch.op, watch.args, undefined, true, watch);
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
@@ -973,7 +981,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running) return false;
-          watch.serverRead = true;
+          watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables;
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
@@ -1007,7 +1015,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
         if (closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion) return false;
-        watch.serverRead = served === true;
+        watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true;
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;
         watch.tables = tables;
@@ -1043,15 +1051,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  // ----- the outbox -----
-  async function queued(): Promise<Queued[]> {
-    const answer = await call({ op: "queued" });
-    if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
-    const entries = (answer.ok as Queued[] | undefined) ?? [];
-    for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
-    history.retainEmissions(entries.map(entry => entry.id));
-    return entries;
-  }
+  function queued() { return readQueued(call, mutationIds, history); }
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
   let flushing: Promise<void> | null = null;
