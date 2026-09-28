@@ -1,0 +1,11 @@
+{
+  "lane": "astra-snapback4",
+  "phase": "score",
+  "pid": 45251,
+  "endedAt": "2026-09-28T03:40:55Z",
+  "endedEpoch": 1790566855,
+  "wallSeconds": 161.083,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260927-astra-cal24/scores/astra/raw.out",
+  "stderr": "/Users/ccheever/clique-sb4-20260927-astra-cal24/scores/astra/raw.err"
+}

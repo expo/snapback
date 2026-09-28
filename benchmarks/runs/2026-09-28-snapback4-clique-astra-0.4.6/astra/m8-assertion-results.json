@@ -1,0 +1,124 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "sha256:e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p3-m8 · grading/m8-insights-probe.json · grading/m8-web-insights.json",
+      "note": "All six server-computed totals matched an independent derivation built from different primitives than the builder suite uses (per-post likeCount/repostCount counters, api.replies paging per authored post, api.social follower/following counters): {posts:55,likesReceived:12,repostsReceived:11,repliesReceived:7,followers:4,following:2}. The Insights screen renders the same six tiles plus 7 day rows."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl · m8-a02-insights-like-refresh passed (beforeLikes 6 -> afterLikes 7, refreshMs 2010.5)"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p3-m8 · grading/m8-insights-probe.json",
+      "note": "A post created during the probe raised today's bucket from 13 to 14, and the seven day keys were exactly the consecutive UTC epoch-days 20718..20724 ending at floor(insights.at/86400000) — server-time UTC boundaries, not client local days."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p3-m8",
+      "note": "All 7 days present with integer counters; 5 of them were all-zero days rendered as zeros rather than omitted (0/0,0/0,0/0,0/0,0/0,42/4,14/8), and the web screen renders exactly 7 day rows."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p3-m8 · grading/results-m8b.json",
+      "note": "On a fresh isolated instance (port 49366): the 3-like post published inside the trailing 24 h ranks first with likeCount 3, ahead of two 2-like posts."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p3-m8 · grading/results-m8b.json",
+      "note": "A post liked by all three users and then aged past the window by advancing the isolated server clock 25 h is absent from Trending, although it still carries likeCount=3."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p3-m8 · grading/results-m8b.json",
+      "note": "Two posts tied at 2 likes ranked newest-first: the later post at index 1, the earlier at index 2."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#p3-m8-digest · grading/m8-digest-probe.json",
+      "note": "Grader-written digest fixture on an isolated instance under the shortened config (period 120 s). Every client was closed before the boundary. Exactly three payloads landed, one per active user, with counts matching my own hand-derivation: GA {1,1,1,1}, GB {1,1,1,1}, GC {0,0,2,2}. Replies were correctly excluded from newPostsInFollowing, a tombstoned message and the recipient's own message were excluded from unreadMessages, and a seen-through message did not count."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#p3-m8-digest · grading/m8-digest-probe.json",
+      "note": "The fourth persona had no activity in the period and received no payload at all — all-zero digests are omitted, not sent as zeros."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#p3-m8-digest · grading/m8-digest-probe.json",
+      "note": "The following period ran to its boundary with no new activity and no clients: zero digest payloads for that periodEnd."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#p3-m8-digest · grading/m8-digest-probe.json",
+      "note": "The backend was stopped and restarted mid-period with the same clock offset while all clients stayed closed; the first period still shows exactly three payloads afterwards — no double emission. Emission is deduplicated by recipient and period end."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#p3-m8-digest · grading/m8-digest-probe.json · grading/results-trust.json",
+      "note": "Two arms, both clean. A DM between two other users contributed 0 to the non-member's digest, and a group message sent before the target was removed contributed 0 once the membership ended — the target's count stayed at the single legitimately unread DM message. The third persona, who IS a member of both, correctly counted 2 messages across 2 chats, so the zeroes are authorization and not a dropped counter."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl · m8-a13-same-account-message-live passed (visibleMs 8316.9)"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl · m8-a14-cross-device-read-state passed (clearVisibleMs 1083)"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl · m8-a15-dual-offline-convergence passed (firstFlushMs 13556, secondFlushMs 20338.5; no loss, no duplicates, server-arrival order)"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl · m8-a16-dual-offline-receipts passed (firstReadMs 23261.2, secondReadMs 23655.4)"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl (segment summary, supplementalExternal) · choreography/simulator.md",
+      "note": "No qualifying native artifact exists. The M8 segment summary records supplementalExternal ios-simulator-m8 with status \"not-recorded\", pass:null, and choreography/simulator.md requires a bound recording, receipts and run manifest for this proof; artifacts/m8-ios/ holds only an exported Expo/Hermes bundle. The frozen grader prompt forbids substituting builder assertions or re-running the simulator myself. (compose offline, kill and relaunch still offline, queued messages still pending)"
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo-1790561227636.jsonl (segment summary, supplementalExternal) · choreography/simulator.md",
+      "note": "No qualifying native artifact exists. The M8 segment summary records supplementalExternal ios-simulator-m8 with status \"not-recorded\", pass:null, and choreography/simulator.md requires a bound recording, receipts and run manifest for this proof; artifacts/m8-ios/ holds only an exported Expo/Hermes bundle. The frozen grader prompt forbids substituting builder assertions or re-running the simulator myself. (ordered flush to read after the offline restart)"
+    }
+  }
+}
