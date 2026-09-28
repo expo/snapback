@@ -60,7 +60,12 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
-    let granted = lock(&shared.engine).asset_access_request(&principal, id, shared.now(), range_requested);
+    let (granted, refusal_cut) = {
+        let mut engine = lock(&shared.engine);
+        let granted = engine.asset_access_request(&principal, id, shared.now(), range_requested);
+        let cut = engine.seq().ok();
+        (granted, cut)
+    };
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -72,11 +77,11 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
                 _ if refusal.retryable => 503,
                 _ => 500,
             };
-            return respond(request, status, json!({ "denied": refusal_json(&refusal) }));
+            return respond(request, status, json!({ "denied": refusal_json(&refusal), "seq": refusal_cut }));
         }
     };
     let Ok(mut file) = std::fs::File::open(&grant.path) else {
-        return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")) }));
+        return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")), "seq": grant.seq }));
     };
     let total = grant.bytes;
     let range = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range"))

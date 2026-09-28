@@ -110,12 +110,12 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
   try {
     const response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
     if (response.status >= 500) return { denied: { code: "E_OFFLINE", family: "link", message: "the asset server is unavailable", retryable: true } };
-    if (!response.ok) {
-      const json = (await response.json().catch(() => null)) as { denied?: Refusal } | null;
-      return { denied: json?.denied ?? { code: response.status === 410 ? "E_ASSET_VIEWED" : "E_ASSET_UNKNOWN", family: "asset", message: response.status === 410 ? "this photo was for one view, and it was viewed" : "no asset is served under that id to this viewer" } };
-    }
     let meta: { seq?: number; nextExpiry?: number | null } = {};
     try { meta = JSON.parse(response.headers.get("x-snapback-asset-read") ?? "{}"); } catch {}
+    if (!response.ok) {
+      const json = (await response.json().catch(() => null)) as { denied?: Refusal; seq?: number; head?: number } | null;
+      return assetEvidence({ denied: json?.denied ?? { code: response.status === 410 ? "E_ASSET_VIEWED" : "E_ASSET_UNKNOWN", family: "asset", message: response.status === 410 ? "this photo was for one view, and it was viewed" : "no asset is served under that id to this viewer" } }, { ...meta, ...(typeof (json?.seq ?? json?.head) === "number" ? { seq: json!.seq ?? json!.head! } : {}) });
+    }
     const accepted = (read: AssetRead) => assetEvidence(read, meta);
     const blob = await response.blob();
     release = ownBlob(blob);

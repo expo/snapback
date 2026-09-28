@@ -1201,11 +1201,18 @@ Every policy withdraws on invalidation evidence: changed read dependencies,
 unknown footprints, denial, expiry, schema/rule changes, sign-out/account or
 credential change, and store replacement/restore. The existing protocol names
 tables. Direct public-row lookups by immutable unique keys can retain through
-proved public inserts/updates; unrelated mutation footprints also preserve them.
+proved public inserts/updates; known unrelated mutation footprints also preserve
+them. Unseen gaps, saturated change intervals and relevant predictions still
+withdraw. A historical replay cannot invalidate an observation already validated
+through both the receipt and its current head.
 Every other changed dependency remains conservative. A pending sync cannot let
 a prediction or a new query resurrect pre-evidence replica data. Accepted
-one-shot and watch replacements reconcile all matching retention policies,
-including nonempty subsets; a transport failure does not become authority.
+one-shot and watch replacements reach every exactly matching read across
+retention policies, including nonempty subsets. Other queries and argument sets
+that depend on the affected tables withdraw, and new local evaluations remain
+fenced until the replica applies that evidence. Unknown footprints are global;
+explicit empty server footprints have no data dependencies. A transport failure
+does not become authority. Known cuts cannot erase a pending cutless fence.
 This is not a claim of instantaneous remote revocation: offline clients can only
 process evidence they receive. Row deadlines still apply while offline.
 A new null or empty result replaces old rows; a facade cannot retain a different
@@ -1364,6 +1371,9 @@ safe integer; zero retains no bytes). Storage belongs
 to this server, principal and device: IndexedDB on the web, files in Documents
 with the Expo opener, and device metadata with the process opener. `client.asset`
 and `useAsset` use retained bytes offline and revalidate every online fetch.
+Authoritative asset refusals compare their cut with grant cuts before revoking
+SDK handles or cached media; request-start order breaks ties and orders replies
+without a cut. Older in-flight grants cannot cross a newer refusal.
 A home row leaving its partition, being deleted or cleared, or expiring purges
 its bytes (including offline expiry); sign-out purges them too. Stream changes
 are checked before sync completes, and reopening checks lifetimes before reads.

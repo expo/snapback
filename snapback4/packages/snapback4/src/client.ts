@@ -1,3 +1,4 @@
+import { ReadIndex } from "./read-index.ts";
 import { RememberedAnswers } from "./local-reads.ts";
 import { readKey, readInputs, invalidateReadEvidence } from "./read-observation.ts";
 import { AssetLifetime } from "./asset-lifetime.ts";
@@ -55,7 +56,7 @@ export interface ClientOptions {
 }
 
 interface QueryResult<R> {
-  generation?: number; stablePuts?: string[]; ticket?: number; delivery?: unknown; credential?: number | undefined;
+  dependencyFree?: boolean; generation?: number; stablePuts?: string[]; ticket?: number; delivery?: unknown; credential?: number | undefined;
   read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null;
   transportOffline?: boolean; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown;
   /** The server's presence refresh interval (LLP 3000.018). */
@@ -201,7 +202,7 @@ export function createClient(options: ClientOptions): Client {
     for (const listener of writeListeners) listener(write);
     return write;
   };
-  const watches = new Map<string, Watch>();
+  const watches = new ReadIndex<Watch>();
   const answerOrder = new RememberedAnswers();
   const assetLifetime = new AssetLifetime(() => clock.estimatedServerNow());
   const resetWatches = (publish = true) => {
@@ -232,7 +233,7 @@ export function createClient(options: ClientOptions): Client {
     if (minimumGeneration !== undefined && (!Number.isSafeInteger(next.generation) || next.generation < minimumGeneration)) return false;
     const firstBackend = !backend;
     // @ref LLP 3000.017#3.3 — capability installation retires pre-discovery answers, including in-flight reads.
-    if (firstBackend) { queryEpoch++; answerOrder.clear(); }
+    if (firstBackend) { queryEpoch++; answerOrder.clear(); watches.clearAuthority(); }
     backend = next;
     ephemeralAdvertised = Object.values(next.schema.tables).some(table => table.ephemeral);
     for (const watch of watches.values()) watchEphemeral(watch);
@@ -251,7 +252,7 @@ export function createClient(options: ClientOptions): Client {
     // Until the interests are known, query polling keeps durable changes live.
     // @ref LLP 3000.023#3.4 — discovery withdraws; copying an answer through reset loses its episode.
     schemaLoading = true;
-    queryEpoch++; answerOrder.clear();
+    queryEpoch++; answerOrder.clear(); watches.clearAuthority();
     const deliver = resetWatches(false); deliver();
     for (const watch of watches.values()) { notify(watch); void refresh(watch); }
     const fallback = setInterval(() => {
@@ -366,7 +367,7 @@ export function createClient(options: ClientOptions): Client {
     // @ref LLP 3000.023#3.4 — even lingering approvals withdraw before callbacks can inspect a peer.
     const deliver = deferReadNotifications(() => {
       assetLifetime.invalidate(); endLingering(watches.values());
-      queryEpoch++; answerOrder.clear();
+      queryEpoch++; answerOrder.clear(); watches.clearAuthority();
       // Terminal connectivity is observable without discarding the session that
       // createApp may validate on its replacement client.
       link = "signed-out";
@@ -399,7 +400,7 @@ export function createClient(options: ClientOptions): Client {
     storeIdentity = id;
     if ((receipt || query) && typeof json.generation === "number" && (generation === undefined || json.generation > generation)) {
       const changed = generation !== undefined; generation = json.generation;
-      if (changed) { queryEpoch++; answerOrder.clear(); resetWatches(); for (const peer of watches.values()) void refresh(peer); }
+      if (changed) { queryEpoch++; answerOrder.clear(); watches.clearAuthority(); resetWatches(); for (const peer of watches.values()) void refresh(peer); }
     }
     if (dispatch.store !== id) { dispatch.store = id; dispatch.owner?.observe(id); }
     // Replayed receipts name a historical commit; their head is the current
@@ -591,7 +592,7 @@ export function createClient(options: ClientOptions): Client {
     if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { ...(typeof json.generation === "number" ? { generation: json.generation } : {}), stablePuts: Array.isArray(json.stablePuts) ? json.stablePuts as string[] : [], delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    return { dependencyFree: Array.isArray(json.tables) && json.tables.length === 0, ...(typeof json.generation === "number" ? { generation: json.generation } : {}), stablePuts: Array.isArray(json.stablePuts) ? json.stablePuts as string[] : [], delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
   }
 
   const currentRead = (result: QueryResult<unknown>, watch?: Watch) => {
@@ -611,12 +612,13 @@ export function createClient(options: ClientOptions): Client {
       if (source && !("data" in source.snapshot)) scheduleExpiry(source, result.nextExpiry);
       return true;
     }
+    if (result.seq < watches.minimum(new Set(result.tables))) return false;
     if (!answerOrder.delete(readKey(op, args), { seq: result.seq, ticket: result.ticket ?? 0 })) return false;
-    invalidateReadEvidence(watches.values(), op, args, result.read, peer => {
+    invalidateReadEvidence(watches, op, args, result.read, peer => {
       peer.stablePuts = result.stablePuts ?? []; peer.serverSeq = result.seq; peer.validThrough = result.seq; peer.tables = new Set(result.tables);
       scheduleExpiry(peer, result.nextExpiry);
       schedulePresence(peer, true, result.refresh);
-    }, source, () => { if (source) { source.stablePuts = result.stablePuts ?? []; source.serverSeq = result.seq; source.validThrough = result.seq; scheduleExpiry(source, result.nextExpiry); source.update(result.read); } return true; });
+    }, source, () => { if (source) { source.stablePuts = result.stablePuts ?? []; source.serverSeq = result.seq; source.validThrough = result.seq; scheduleExpiry(source, result.nextExpiry); source.update(result.read); } return true; }, new Set(result.tables), result.seq, peer => { void refresh(peer); }, result.dependencyFree);
     return true;
   }
 
@@ -805,7 +807,7 @@ export function createClient(options: ClientOptions): Client {
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
         if (changedGeneration) {
           const deliver = resetWatches(false);
-          queryEpoch++; answerOrder.clear();
+          queryEpoch++; answerOrder.clear(); watches.clearAuthority();
           deliver();
           for (const watch of watches.values()) notify(watch);
           if ((backend || ephemeralAdvertised) && !await loadBackend(json.generation)) continue;
@@ -817,7 +819,7 @@ export function createClient(options: ClientOptions): Client {
           const touched = new Set(inputs);
           // @ref LLP 3000.029#4 — invalidate every affected answer before any
           // callback can inspect a peer, then start asynchronous revalidation.
-          const affected = [...watches.values()].filter(watch => changedGeneration || ((watch.serverSeq === undefined || watch.serverSeq < json.seq) && (!inputs || watch.tables.size === 0 || [...watch.tables].some(t => touched.has(t)))));
+          const affected = [...watches.affected(changedGeneration ? undefined : inputs)].filter(watch => changedGeneration || ((watch.serverSeq === undefined || watch.serverSeq < json.seq) && (!inputs || watch.tables.size === 0 || [...watch.tables].some(t => touched.has(t)))));
           const deliver = deferReadNotifications(() => {
             if (!inputs || touched.size) assetLifetime.invalidate(json.seq);
             for (const watch of affected) {
@@ -863,18 +865,19 @@ export function createClient(options: ClientOptions): Client {
       // @ref LLP 3000.029#7 — actual receipt footprints spare unrelated watches.
       const inputs = Array.isArray(json.tables) ? json.tables as string[] : undefined;
       const stable = Array.isArray(json.nonRevoking) ? json.nonRevoking as string[] : [];
+      const affected = watches.affected(inputs);
       deferReadNotifications(() => {
         if (!inputs || inputs.length) assetLifetime.invalidate(at);
         for (const watch of watches.values()) {
-          if (!inputs || at > (watch.validThrough ?? 0) + 1 || watch.tables.size === 0 || inputs.some(table => watch.tables.has(table) && (!stable.includes(table) || !watch.stablePuts?.includes(table)))) {
-            watch.reset({ loading: true }); scheduleExpiry(watch, null);
-          } else watch.reload();
+          if ((watch.validThrough ?? -1) < Math.max(at, Number(json.head ?? at)) && (!inputs || Number(json.head ?? at) > at || at > (watch.validThrough ?? 0) + 1 || watch.tables.size === 0 || inputs.some(table => watch.tables.has(table) && (!stable.includes(table) || !watch.stablePuts?.includes(table))))) {
+            watch.reset({ loading: true }); scheduleExpiry(watch, null); affected.add(watch);
+          } else if (affected.has(watch)) watch.reload();
           watch.validThrough = Math.max(watch.validThrough ?? 0, at);
         }
       })();
       entry.resolve(outcome);
       emitWrite(outcome);
-      for (const watch of watches.values()) void refresh(watch);
+      for (const watch of affected) void refresh(watch);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
@@ -1022,7 +1025,7 @@ export function createClient(options: ClientOptions): Client {
       return uploaded;
     },
     async asset(id) {
-      const assetRevision = assetLifetime.revision;
+      const assetRevision = assetLifetime.revision, assetTicket = assetLifetime.begin();
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
@@ -1044,7 +1047,7 @@ export function createClient(options: ClientOptions): Client {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      const owned = assetLifetime.own(read, assetRevision, id);
+      const owned = assetLifetime.own(read, assetRevision, id, assetTicket);
       void poll();
       return owned;
     },

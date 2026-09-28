@@ -10,10 +10,11 @@ import { server } from "./helpers/app-server.mjs";
 import { profileSchema, profileRows } from "./helpers/retention-profile.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 
-for (const tier of ["wasm", "online"]) test(`Astra 5 browser ${tier}: builder profile gate survives another profile update and unrelated mutation`, async t => {
+for (const tier of ["wasm", "online"]) test(`Astra 5 browser ${tier}: builder profile gate survives another profile update and unrelated mutation`, { timeout: 30000 }, async t => {
   const { url, dir } = await server(t, undefined, profileSchema);
   const seed = await fetch(url + "/seed", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify(profileRows) }).then(r => r.json());
   assert.equal(seed.seeded, 2);
+  await fetch(url + "/m/unrelated", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ id: "00000000000000000000000001", args: {} }) });
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
   const { createServer } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
@@ -58,11 +59,32 @@ for (const tier of ["wasm", "online"]) test(`Astra 5 browser ${tier}: builder pr
   const changed = await fetch(url + "/m/saveProfile", { method: "POST", headers: { "x-snapback-persona": "bob" }, body: JSON.stringify({ id: "bob-profile", args: { displayName: "Bob changed", handle: "bob", bio: null, location: null, link: null } }) }).then(r => r.json());
   assert.equal(changed.state, "sent", JSON.stringify(changed));
   await page.waitForFunction(before => window.profileReads > before && !window.read?.revalidating, before);
+  t.diagnostic("sequential unrelated write");
   await page.evaluate(() => window.unrelated());
+  t.diagnostic("sequential unrelated write settled");
   await page.waitForFunction(() => window.read?.data && !window.read.revalidating);
   assert.equal(await page.locator("#draft").inputValue(), "unfinished message");
   assert.equal(await page.evaluate(() => window.mounts), 1);
   assert.equal(await page.evaluate(() => location.pathname), "/conversation/bob");
+  if (tier === 'online') {
+    const replay = await page.evaluate(() => window.replay());
+    assert.equal(replay.replayed, true, JSON.stringify(replay));
+    await page.waitForTimeout(50);
+    assert.equal(await page.locator("#draft").count(), 1, "historical receipt cannot withdraw validated profile");
+    await page.evaluate(() => window.release());
+    await page.waitForFunction(() => window.read?.data && !window.read.revalidating);
+  } else {
+    await page.evaluate(() => window.holdProfileSync());
+    await fetch(url + "/m/saveProfile", { method: "POST", headers: { "x-snapback-persona": "bob" }, body: JSON.stringify({ id: "bob-overlap", args: { displayName: "Bob overlaps", handle: "bob", bio: null, location: null, link: null } }) });
+    await page.waitForFunction(() => window.syncCaptured);
+    t.diagnostic("overlap sync captured");
+    await page.evaluate(() => window.predictNote());
+    t.diagnostic("overlap prediction admitted");
+    await page.evaluate(() => window.releaseProfileSync());
+    await page.waitForFunction(() => window.read?.data && !window.read.revalidating);
+  }
+  assert.equal(await page.locator("#draft").inputValue(), "unfinished message");
+  assert.equal(await page.evaluate(() => window.mounts), 1);
   assert.deepEqual(errors, []);
   const result = await page.evaluate(() => ({ route: location.pathname, mounts: window.mounts, loadingAfterData: window.flashes, profile: window.read.data.handle }));
   assert.equal(result.loadingAfterData, 0);
@@ -77,18 +99,22 @@ import { SnapbackProvider, useQuery } from "snapback4/react";
 import { createLocalClient } from "snapback4/local";
 import { createClient } from "snapback4/client";
 import { ownDispatch } from "snapback4/online-dispatch";
-import { webDevice, memoryPersistence } from "snapback4/web";
+import { webDevice } from "snapback4/web";
 const tier = TIER;
-window.profileReads = 0;
+window.profileReads = 0; window.applies = 0;
 window.stage = "wasm";
 const wasm = new Uint8Array(await fetch(WASM_URL).then(r => r.arrayBuffer()));
-const underlying = webDevice({ wasm, persist: memoryPersistence() });
-let held = false, release;
+const underlying = webDevice({ wasm });
+let held = false, release, syncRelease, noteRelease;
+let syncHeld = false, noteHeld = false, syncGate = Promise.resolve(), noteGate = Promise.resolve();
 let gate = Promise.resolve();
 window.stage = "client";
 const fetcher = async (input, init) => {
   if (held && new URL(input).pathname === '/q/myProfile') await gate;
+  const path = new URL(input).pathname;
+  if (noteHeld && path === '/m/unrelated') await noteGate;
   const result = await fetch(input, init);
+  if (syncHeld && path === '/sync') { window.syncCaptured = true; await syncGate; }
   if (new URL(input).pathname === '/q/myProfile') window.profileReads++;
   return result;
 };
@@ -98,6 +124,7 @@ const client = tier === 'online' ? createClient(options) : await createLocalClie
   return { ...core, async call(request, committed) {
     if (held && request.op === "query") await gate;
     const result = await core.call(request, committed);
+    if (request.op === 'apply') window.applies++;
     if (request.op === 'query' && request.name === 'myProfile') window.profileReads++;
     return result;
   } };
@@ -125,8 +152,12 @@ function EnsureProfile() {
 }
 const root = createRoot(document.getElementById("root"));
 root.render(<SnapbackProvider client={client}><EnsureProfile /></SnapbackProvider>);
-window.revalidate = () => { held = true; gate = new Promise(resolve => { release = resolve; }); if (tier === 'online') void client.mutate({ kind: 'mutation', name: 'unrelated' }, {}); else void client.sync(); };
-window.unrelated = () => client.mutate({ kind: 'mutation', name: 'unrelated' }, {});
+window.revalidate = () => { held = true; gate = new Promise(resolve => { release = resolve; }); if (tier === 'online') { void client.mutate({ kind: 'mutation', name: 'saveProfile' }, { displayName: 'alice', handle: 'alice', bio: null, location: null, link: null }); } else void client.sync(); };
+window.unrelated = async () => { const write = await client.mutate({ kind: 'mutation', name: 'unrelated' }, {}); if (write.state === 'failed') throw Error(JSON.stringify(write)); return write; };
 window.release = () => { held = false; release(); };
-window.finish = async () => { root.unmount(); await client.close(); };
+window.replay = () => { held = true; gate = new Promise(resolve => { release = resolve; }); return client.mutate({ kind: 'mutation', name: 'unrelated' }, {}, { id: '00000000000000000000000001' }); };
+window.holdProfileSync = () => { syncHeld = true; noteHeld = true; window.syncCaptured = false; syncGate = new Promise(r => syncRelease = r); noteGate = new Promise(r => noteRelease = r); };
+window.predictNote = async () => { const write = await client.mutate({ kind: 'mutation', name: 'unrelated' }, {}, { waitSeconds: 0 }); if (write.state === 'failed') throw Error(JSON.stringify(write)); for (let i = 0; i < 500; i++) { if ((await client.pendingWrites()).some(w => w.predicted.length)) return; await new Promise(r => setTimeout(r, 10)); } throw Error('notes prediction missing: ' + JSON.stringify(await client.pendingWrites())); };
+window.releaseProfileSync = async () => { const applied = window.applies; syncHeld = false; syncRelease(); for (let i = 0; i < 500 && window.applies === applied; i++) await new Promise(r => setTimeout(r, 10)); if (window.applies === applied) throw Error("held sync did not apply"); noteHeld = false; noteRelease(); await client.sync(); };
+window.finish = async () => { root.unmount(); window.refreshPeer?.close(); await client.close(); };
 `;

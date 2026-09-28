@@ -105,6 +105,7 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
       } },
       fetch: async (input, init) => {
         const path = new URL(input).pathname;
+        if (mode === "preflight-fails" && path.startsWith("/m/")) throw new TypeError("no generation evidence from a concurrent receipt");
         if (mode === "offline") throw new TypeError("offline reopen");
         if (mode === "before-catchup" && (path === "/probe" || path === "/changes" || path.startsWith("/q/"))) throw new TypeError("offline before catch-up");
         if (restore && path === "/probe") {
@@ -119,7 +120,7 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
         }
         if (path === "/sync") {
           const body = JSON.parse(init.body);
-          if (mode === "sync-fails" || (mode === "after-page" && snapshots > 0) || (mode === "before-catchup" && body.stream)) throw new TypeError("interrupted acquisition");
+          if (["sync-fails", "preflight-fails"].includes(mode) || (mode === "after-page" && snapshots > 0) || (mode === "before-catchup" && body.stream)) throw new TypeError("interrupted acquisition");
           const response = await fetch(input, { ...init, body: JSON.stringify({ ...body, limit: 2 }) });
           const page = await response.clone().json();
           if (page.snapshot) snapshots++;
@@ -292,7 +293,7 @@ for (const tier of ["wasm", "process"]) {
     const evolved = source.replace("  body: text <=100", "  body: text <=100\n  tag: text <=20 default 'new'");
     writeFileSync(f.schemaPath, evolved);
     await until(async () => (await f.backend()).generation !== old.generation, "server did not adopt the new generation");
-    await client.close(); f.mode("sync-fails"); client = await f.open();
+    await client.close(); f.mode("preflight-fails"); client = await f.open();
     assert.equal(client.acquired, true, "failed preflight preserves the acquired old generation");
     const inherited = await client.query(query("all"), {});
     assert.equal(inherited.complete, true); assert.equal(inherited.fresh, false); assert.equal(inherited.data.length, 7);

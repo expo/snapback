@@ -75052,3 +75052,54 @@ passed. Wasm is unchanged at 2,040,545 B raw / 593,008 B gzip, 711 B below cap.
 Reference validation and scoped formatting pass. All measurement servers were
 stopped; all stores, tools and binaries stayed in this worktree. No push or
 publication. Full evidence: [PF report](reports/20260928-pf-scale-curves/REPORT.md).
+
+
+## 2026-09-28 — LV round 2: dependency fences and bounded reconciliation
+
+Fetched origin and merged main first (`49a7215f3`); preserved both journal tails.
+Read prior LV prompts/reports and both complete round-1 reviews, checking Grok
+at the start and before completion. Astra's cross-key disclosure reproductions
+require authority to follow data dependencies. LLP 3000.029 §8 and its Revised
+line now record that design and disclosure induction.
+
+Canonical-key and dependency-table indexes replace per-result observation scans.
+Exactly matching owners share checked replacements; overlapping argument/alias
+owners withdraw without shape copying, and new local evaluations remain fenced
+until published apply. Unknown cuts use independent request serials. Explicit
+empty server footprints prove no data dependency, while absent metadata remains
+conservative. Cost regression: 400 replacements visit 800 owners, not 160,000.
+
+Historical online replays preserve profiles already validated through the
+receipt and its head. Replica profile applies track prediction effects by table,
+so held profile sync plus an unrelated notes prediction keeps the mounted gate.
+Both comparative-schema browser witnesses retain `/conversation/bob`, the draft,
+one mount and zero loading-after-data publications. Asset refusals compare cuts
+and request order before touching newer handles or retained bytes; older grants
+cannot cross a newer refusal. Change polls reuse per-generation program proofs.
+
+Forty independent seeded histories now generate overlapping argument sets and
+shaped aliases, real remote-only evidence and randomly drained completions.
+The model kills removal of replacement publication. Ten JS mutants and the
+separate Rust proof-cache mutant are killed; the previously surviving per-asset
+in-flight refusal guard is among them. The guide, operations manual and only
+the reads-06 fact snapshot follow the new behavior. local.ts stays at 1,485 lines.
+
+Required `scripts/test.sh` ran exactly once: `== 2 failure(s) in 1167 s`
+(cargo test; client tests). It was an intermediate red run. The main client
+worker reports 4,508 tests / 4,482 pass / 15 fail / 1 cancelled / 10 skipped;
+a separate acquisition shard reports 11/12; all 79 complete client model tests
+pass. Every failure is named and attributed in the round-2 failure inventory.
+Only the failed-preflight acquisition race is demonstrated baseline; its fixture
+now holds the independent mutation receipt too. Other product, fixture and
+verification-setup failures are ours. No environmental product-test exemption.
+No new Expo UI claim on this Linux host without a dedicated iOS simulator.
+
+Final canonical affected tests: 1,417/1,417; bounded HTTP Rust: 156 pass,
+4 ignored; whole guide: 98/98. TypeScript build/declarations and reference audit
+pass (523 LLPs, 9,866 refs, zero errors); all 156 delivery await sites retain
+their classifications and the 313-case fault matrix passes. Wasm remains
+2,040,999 B raw / 593,213 B gzip-9, unchanged digest and cap (506 B headroom).
+
+Report: `reports/20260928-lv-hook-retention/round2/REPORT.md`, with failure names,
+logs, input digests, mutation runner/results and wasm measurement. Local commit
+with the GPT-6 Astra co-author trailer; no push, publication or shared installs.

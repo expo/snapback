@@ -1,0 +1,58 @@
+[
+  {
+    "name": "overlap-withdrawal",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "round 2.*(subset|null withdraws)"
+  },
+  {
+    "name": "dependency-fence",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "round 2.*remote null"
+  },
+  {
+    "name": "profile-prediction",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 5 browser wasm"
+  },
+  {
+    "name": "profile-replay",
+    "killed": false,
+    "status": 0,
+    "signal": null,
+    "pattern": "Astra 5 browser online"
+  },
+  {
+    "name": "asset-order",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "round 2.*old-refusal"
+  },
+  {
+    "name": "asset-inflight-refusal",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "per-asset refusal|round 2.*old-grant"
+  },
+  {
+    "name": "index-scan",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "indexed replacements"
+  },
+  {
+    "name": "unknown-cut",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "unknown-cut dependency"
+  }
+]

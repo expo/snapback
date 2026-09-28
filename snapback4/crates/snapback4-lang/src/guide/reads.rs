@@ -68,8 +68,9 @@ refusals, expiry, sign-out/account change, credentials, schema adoption and stor
 replacement/restore withdraw immediately for every option. Dependency changes
 remain conservative, except for proved public puts to a direct immutable-key
 public lookup. Rule-probe tables are dependencies too. New authoritative
-replacements reach every matching watch, including nonempty subsets; old
-replica reads stay fenced until sync applies the evidence.
+replacements reach every exactly matching watch, including nonempty subsets.
+Other queries and arguments depending on the affected tables withdraw; new
+local reads of those tables stay fenced until sync applies the evidence.
 A null point or empty page replaces the old answer. Snapshots check deadlines
 even before delayed timers run. No application result cache is needed or safe.
 `usePage` retains a valid prefix while a later page loads, and resets its suffix

@@ -39,9 +39,12 @@ cannot unmount its children during plain revalidation after data has appeared.
 Keep routes owned by identity so actual invalidation can also preserve navigation.
 A changed dependency (including rule probes), denial, deadline or account/backend
 change withdraws immediately and fences old replica reads until sync applies it.
+That fence follows the affected tables across query aliases and arguments; only
+an exact query/argument match can share a replacement answer.
 A direct public-profile lookup by an immutable unique key stays visible through
-non-deleting public updates and unrelated mutations. Other dependency changes
-remain conservative. `{ keep: false }` opts out of retention.
+a proved non-deleting public put or a known unrelated footprint. Unseen commit
+gaps, saturated change logs and predictions affecting that table still withdraw.
+Other dependency changes remain conservative. `{ keep: false }` opts out of retention.
 Reset user-owned state on account/backend change.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
 For search, use one ordinary query per scope through `usePage`, as the social

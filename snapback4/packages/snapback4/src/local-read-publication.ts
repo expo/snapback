@@ -1,3 +1,4 @@
+import type { ReadIndex } from "./read-index.ts";
 import type { ServerClock } from "./clock.ts";
 import { armReadExpiry, correctReadExpiries, type ReadDeadlines } from "./read-expiry.ts";
 import { notifyLocalWatch as notify } from "./local-reads.ts";
@@ -9,23 +10,25 @@ import { putRetention } from "./read-nonrevoking.ts";
 
 type Result = {
   op: Query<unknown, unknown>; args: unknown; read: Read<unknown>; tables: Set<string>;
-  invalidated?: boolean; serverOnly?: boolean; seq?: number | undefined;
+  dependencyFree?: boolean; evidenceSerial?: number; invalidated?: boolean; serverOnly?: boolean; seq?: number | undefined;
   nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean;
 };
 // @ref LLP 3000.029#7 — the last synchronous gate also covers direct reads and
 // other observations created while a replica cut is pending.
-export function reconcileLocalRead(answers: LocalReads, watches: Iterable<LocalWatch>, backend: BackendJson | null,
+export function reconcileLocalRead(answers: LocalReads, watches: ReadIndex<LocalWatch>, backend: BackendJson | null,
   result: Result, publish: () => boolean,
-  expiry: (watch: LocalWatch, device: number | null, server?: number | null, wakeup?: boolean) => void, watch?: LocalWatch): boolean {
+  expiry: (watch: LocalWatch, device: number | null, server?: number | null, wakeup?: boolean) => void, watch?: LocalWatch, refresh: (watch: LocalWatch) => void = () => {}): boolean {
   const key = readKey(result.op, result.args);
   if (!result.serverOnly && answers.blocked(key, result.tables)) return "loading" in result.read && publish();
+  if (result.serverOnly && (!answers.accepts(result.tables, result.seq, result.evidenceSerial ?? answers.evidenceSerial)
+    || (result.seq !== undefined && result.seq < watches.minimum(result.tables)))) return false;
   if (!result.invalidated) return publish();
-  answers.replacement(key, result.seq);
+  if (!result.dependencyFree) answers.replacement(key, result.seq, result.tables);
   return invalidateReadEvidence(watches, result.op, result.args, result.read, peer => {
     peer.stablePuts = putRetention(backend, result.op.name); peer.tables = new Set(result.tables);
     peer.serverRead = true; peer.serverOnly = result.serverOnly === true; peer.serverSeq = result.seq;
     expiry(peer, result.nextExpiry, result.serverExpiry, result.localWakeup);
-  }, watch, publish);
+  }, watch, publish, result.tables, result.seq, refresh, result.dependencyFree);
 }
 
 export function localReadDeadlines(watches: Map<string, LocalWatch>, answers: LocalReads, clock: ServerClock,

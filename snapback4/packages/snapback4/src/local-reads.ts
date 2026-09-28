@@ -150,36 +150,45 @@ export class LocalReads {
   private appliedCut = 0;
   private reportedCut = 0;
   evidenceSerial = 0;
-  private readonly unknownKeys = new Map<string, number>();
+  private readonly unknownTables = new Map<string, number>();
   private readonly tableCuts = new Map<string, number>();
-  private readonly keyCuts = new Map<string, number>();
-  // @ref LLP 3000.029#7 — new evaluations are fenced until published apply.
+  // @ref LLP 3000.029#8 — authority floors depend on data, never query spelling.
   fence(tables: readonly string[] | undefined, cut: number): void {
     for (const table of tables ?? ["*"]) this.tableCuts.set(table, Math.max(cut, this.tableCuts.get(table) ?? 0));
   }
-  replacement(key: string, cut?: number): void {
-    if (cut === undefined) this.unknownKeys.set(key, ++this.evidenceSerial); else this.unknownKeys.delete(key);
-    const previous = this.keyCuts.get(key) ?? 0;
-    this.keyCuts.set(key, Math.max(cut ?? Infinity, Number.isFinite(previous) ? previous : 0));
+  replacement(_key: string, cut?: number, tables: Set<string> = new Set()): void {
+    const inputs = tables.size ? [...tables] : ["*"];
+    if (cut === undefined) {
+      const serial = ++this.evidenceSerial;
+      for (const table of inputs) this.unknownTables.set(table, serial);
+    } else this.fence(inputs, cut);
   }
-  minimum(key: string, tables: Set<string>): number {
-    return Math.max(this.keyCuts.get(key) === Infinity || (this.keyCuts.get(key) ?? 0) <= this.appliedCut ? 0 : this.keyCuts.get(key) ?? 0, this.tableCuts.get("*") ?? 0,
-      ...[...this.tableCuts].filter(([table]) => !tables.size || tables.has(table)).map(([, cut]) => cut));
+  private maximum(slots: Map<string, number>, tables: Set<string>): number {
+    let maximum = slots.get("*") ?? 0;
+    for (const table of tables.size ? tables : slots.keys()) maximum = Math.max(maximum, slots.get(table) ?? 0);
+    return maximum;
   }
-  blocked(key: string, tables: Set<string>): boolean { return this.keyCuts.get(key) === Infinity || this.minimum(key, tables) > this.appliedCut; }
+  minimum(_key: string, tables: Set<string>): number { return this.maximum(this.tableCuts, tables); }
+  blocked(key: string, tables: Set<string>): boolean {
+    return this.maximum(this.unknownTables, tables) > 0 || this.minimum(key, tables) > this.appliedCut;
+  }
+  accepts(tables: Set<string>, cut: number | undefined, requestSerial: number): boolean {
+    return this.maximum(this.unknownTables, tables) <= requestSerial
+      && (cut === undefined || cut >= this.maximum(this.tableCuts, tables));
+  }
   applied(cut: number, complete = false, requestSerial = this.evidenceSerial): void {
     this.appliedCut = Math.max(this.appliedCut, cut);
     this.reportedCut = Math.max(this.reportedCut, cut);
-    for (const slots of [this.tableCuts, this.keyCuts]) for (const [key, minimum] of slots)
-      if (minimum <= this.appliedCut || (complete && minimum === Infinity && (this.unknownKeys.get(key) ?? Infinity) <= requestSerial)) { slots.delete(key); this.unknownKeys.delete(key); }
+    for (const [table, minimum] of this.tableCuts) if (minimum <= this.appliedCut) this.tableCuts.delete(table);
+    if (complete) for (const [table, serial] of this.unknownTables) if (serial <= requestSerial) this.unknownTables.delete(table);
   }
 
 
   // A receipt covers its own commit only. A gap is an unknown footprint.
   receipt(watches: Iterable<LocalWatch>, json: Record<string, unknown>): boolean {
-    const cut = Number(json.seq);
+    const at = Number(json.seq), cut = Math.max(at, Number(json.head ?? at));
     if (!Number.isSafeInteger(cut) || cut <= this.reportedCut) return false;
-    const touched = cut === this.reportedCut + 1 && Array.isArray(json.tables) ? json.tables as string[] : undefined;
+    const touched = cut === at && cut === this.reportedCut + 1 && Array.isArray(json.tables) ? json.tables as string[] : undefined;
     const stable = Array.isArray(json.nonRevoking) ? json.nonRevoking as string[] : [];
     this.changed([...watches].filter(w => !w.serverOnly || w.serverSeq === undefined || w.serverSeq < cut), touched, cut, stable);
     return true;
@@ -215,7 +224,7 @@ export class LocalReads {
   clear(watches: Iterable<LocalWatch>, reset = true): void {
     this.revision++;
     this.serverAnswers.clear();
-    this.tableCuts.clear(); this.keyCuts.clear(); this.unknownKeys.clear(); this.appliedCut = 0; this.reportedCut = 0;
+    this.tableCuts.clear(); this.unknownTables.clear(); this.appliedCut = 0; this.reportedCut = 0;
     for (const watch of watches) {
       if (reset) watch.reset({ loading: true }); else watch.reload();
       if (reset || !watch.retain) {

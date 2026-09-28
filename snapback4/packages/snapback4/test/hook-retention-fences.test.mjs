@@ -22,6 +22,7 @@ table members:
   unique room, principal
   immutable room, principal
   read <- exists members[.room, viewer]
+  insert <- exists members[.room, viewer]
   delete <- allow
   sync to members[.room]
 table secrets:
@@ -31,8 +32,18 @@ table secrets:
   sync to members[.room]
 query secret():
   return secrets['private']
+query secretAlias():
+  return { row: secrets['private'] }
+table remote:
+  read <- allow
+  online only
+query remoteSecret():
+  require exists remote['flag'] else MISSING
+  return secrets['private']
 mutation kick():
   delete members[room = 'room', principal = 'dev:bob']
+mutation restore():
+  insert members { room: 'room', principal: 'dev:bob' }
 table own:
   owner: principal
   body: text
@@ -66,10 +77,11 @@ async function fixture(t, source = schema, seed = source === schema) {
   const f = await server(t, undefined, source);
   f.post = (path, body, persona = "alice") => fetch(f.url + path, { method: "POST", headers: { "x-snapback-persona": persona }, body: JSON.stringify(body) }).then(r => r.json());
   if (seed) assert.equal((await f.post('/seed', [
+    { table: 'remote', row: { id: 'flag' } },
     ...['alice','bob'].map(p => ({ table: 'members', row: { id: p, room: 'room', principal: 'dev:' + p } })),
     { table: 'secrets', row: { id: 'private', room: 'room', body: 'secret' } },
     ...['A','B'].map(id => ({ table: 'own', row: { id, owner: 'dev:bob', body: id } })),
-  ])).seeded, 5);
+  ])).seeded, 6);
   return f;
 }
 function parked(input, init) {
@@ -263,4 +275,79 @@ mutation disable():
   await until(() => delivered);
   await until(() => watch.getSnapshot().loading);
   assert.notEqual(watch.getSnapshot().data?.body, 'secret');
+});
+
+
+for (const tier of ['online', 'process', 'wasm']) {
+  test(`round 2 ${tier}: subset replacement withdraws different arguments`, async t => {
+    const { f, client } = await replacementClient(t, tier);
+    const matching = client.observe(q('list'), { a: 1, b: 2 }); matching.subscribe(() => {});
+    const overlapping = client.observe(q('list'), { a: 2, b: 2 }); overlapping.subscribe(() => {});
+    t.after(async () => { matching.close(); overlapping.close(); await client.close(); });
+    await until(() => matching.getSnapshot().data?.length === 2 && overlapping.getSnapshot().data?.length === 2);
+    await f.post('/m/transfer', { id: 'subset', args: {} });
+    assert.deepEqual((await client.query(q('list'), { b: 2, a: 1 })).data.map(r => r.id), ['B']);
+    assert.deepEqual(matching.getSnapshot().data.map(r => r.id), ['B']);
+    assert.ok(!overlapping.getSnapshot().data?.some(row => row.id === 'A'), 'different arguments cannot retain A');
+  });
+  test(`round 2 ${tier}: null withdraws a differently shaped alias`, async t => {
+    const { f, client } = await replacementClient(t, tier);
+    const alias = client.observe(q('secretAlias'), {}); alias.subscribe(() => {});
+    t.after(async () => { alias.close(); await client.close(); });
+    await until(() => alias.getSnapshot().data?.row?.body === 'secret');
+    await f.post('/m/kick', { id: 'alias-revoke', args: {} });
+    assert.equal((await client.query(q('secret'), {})).data, null);
+    assert.ok(!('data' in alias.getSnapshot()), 'alias must withdraw, not receive point-shaped null');
+  });
+}
+for (const tier of ['process', 'wasm']) test(`round 2 ${tier}: remote null fences a new local alias until apply`, async t => {
+  const f = await fixture(t), held = gate(); let hold = false;
+  const device = tier === 'process' ? processDevice({ dir: join(f.dir, 'device'), binary })
+    : webDevice({ wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() });
+  const client = await createLocalClient({ url: f.url, persona: 'bob', device,
+    fetch: async (input, init) => { if (hold && new URL(input).pathname === '/sync') await held.promise; return parked(input, init); } });
+  t.after(async () => { held.resolve(); await client.close(); });
+  await client.sync();
+  assert.equal((await client.query(q('secret'), {})).data.body, 'secret');
+  hold = true;
+  await f.post('/m/kick', { id: 'new-alias-kick', args: {} });
+  assert.equal((await client.query(q('remoteSecret'), {})).data, null);
+  const answer = await client.query(q('secret'), {});
+  assert.notEqual(answer.data?.body, 'secret', 'new local evaluation cannot cross remote evidence');
+  hold = false; held.resolve(); await client.sync();
+  assert.equal((await client.query(q('secret'), {})).data, null, 'fence recovers after apply');
+});
+
+for (const tier of ['online', 'process']) for (const order of ['old-refusal', 'old-grant']) test(`round 2 ${tier}: ${order} cannot overtake newer asset authority`, async t => {
+  const f = await fixture(t, schema.replace('table photos:\n  photo:', 'table photos:\n  room: text <=40\n  photo:').replace('read <- allow\n  insert <- allow\n  delete <- allow\n  sync public', 'read <- exists members[.room, viewer]\n  insert <- allow\n  delete <- allow\n  sync to members[.room]').replace('insert photos { photo }', "insert photos { room: 'room', photo }"), true);
+  const release = gate(); let mode = null, captured = false, offline = false;
+  const fetcher = async (input, init) => {
+    if (offline && new URL(input).pathname.startsWith('/assets/')) throw Error('offline');
+    const response = await parked(input, init);
+    if (mode && new URL(input).pathname.startsWith('/assets/')) { const expected = mode; mode = null;
+      assert.equal(response.ok, expected === 'grant'); captured = true; await release.promise; }
+    return response;
+  };
+  const options = { url: f.url, persona: 'bob', fetch: fetcher };
+  const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options,
+    assets: { keep: 'viewed', maxBytes: 10000 }, device: processDevice({ dir: join(f.dir, 'device'), binary }) });
+  t.after(async () => { release.resolve(); await client.close(); });
+  const uploaded = await client.upload(png); assert.equal(uploaded.ok, true);
+  assert.equal((await f.post('/m/place', { id: 'place', args: { photo: { id: uploaded.asset.id } } }, 'bob')).state, 'sent');
+  if (tier === 'process') await client.sync();
+  if (order === 'old-refusal') await f.post('/m/kick', { id: 'kick', args: {} });
+  mode = order === 'old-refusal' ? 'refusal' : 'grant';
+  const old = client.asset(uploaded.asset.id); await until(() => captured);
+  if (order === 'old-refusal') {
+    await f.post('/m/restore', { id: 'restore', args: {} });
+    if (tier === 'process') await client.sync();
+    const grant = await client.asset(uploaded.asset.id); assert.ok(grant.url);
+    release.resolve(); assert.equal((await old).denied?.code, 'E_ASSET_UNKNOWN');
+    assert.ok(grant.url, 'older refusal cannot revoke newer authorized handle');
+    if (tier === 'process') { offline = true; assert.ok((await client.asset(uploaded.asset.id)).url, 'older refusal cannot delete newer cached media'); }
+  } else {
+    await f.post('/m/kick', { id: 'kick', args: {} });
+    assert.equal((await client.asset(uploaded.asset.id)).denied?.code, 'E_ASSET_UNKNOWN');
+    release.resolve(); assert.equal((await old).denied?.code, 'E_ASSET_UNKNOWN', 'per-asset refusal must fence the older in-flight grant');
+  }
 });

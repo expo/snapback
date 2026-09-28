@@ -1,0 +1,572 @@
+[
+  {
+    "log": "affected-final.log.gz",
+    "test": "web IndexedDB device withdraws expired inbox data in useQuery and usePage",
+    "classification": "ours",
+    "resolution": "Overlapping reconciliation legitimately causes additional authoritative replies. The artificial deadline is now attached consistently to every reply in the deadline phase, instead of only the first reply per key."
+  },
+  {
+    "log": "affected-final.log.gz",
+    "test": "web held typing: deadline republishes locally and clock advance expires on the next query response without a deletion",
+    "classification": "ours",
+    "resolution": "An explicitly empty server dependency footprint was treated as unknown/global. It now certifies no data dependencies, preventing a constant clock query from fencing unrelated held data."
+  },
+  {
+    "log": "affected-first.log.gz",
+    "test": "native: synced list elements survive offline reopen and drop revokes only that element",
+    "classification": "ours",
+    "resolution": "Cached media was stamped with its download cut instead of the locally revalidated authority cut. Capture the device watermark before validating the cached home; both stores pass offline reopen."
+  },
+  {
+    "log": "affected-first.log.gz",
+    "test": "wasm: synced list elements survive offline reopen and drop revokes only that element",
+    "classification": "ours",
+    "resolution": "Cached media was stamped with its download cut instead of the locally revalidated authority cut. Capture the device watermark before validating the cached home; both stores pass offline reopen."
+  },
+  {
+    "log": "baseline-acquisition.log.gz",
+    "test": "wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows",
+    "classification": "baseline",
+    "resolution": "The merged baseline reproduces the failed-preflight generation race when a queued write receipt observes adoption first. The fixture now withholds that independent write as well as the failed sync; both stores pass."
+  },
+  {
+    "log": "browser-idb.log.gz",
+    "test": "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "browser-idb.log.gz",
+    "test": "Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "browser-replay-qualified.log.gz",
+    "test": "Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "browser-third.log.gz",
+    "test": "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "guide-final.log.gz",
+    "test": "familiar::every_moved_fact_has_its_why_or_details_home",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "model-overlap.log.gz",
+    "test": "independent fence model seed 12",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "model-seed12.log.gz",
+    "test": "independent fence model seed 12",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "mutations-canonical.log.gz",
+    "test": "Error: mutation did not match: replacement-call",
+    "classification": "ours",
+    "resolution": "Intermediate build/staging/mutation-runner setup error. Corrected before final qualification."
+  },
+  {
+    "log": "proof-cache.log.gz",
+    "test": "error[E0061]: this function takes 3 arguments but 2 arguments were supplied",
+    "classification": "ours",
+    "resolution": "Intermediate build/staging/mutation-runner setup error. Corrected before final qualification."
+  },
+  {
+    "log": "proof-cache.log.gz",
+    "test": "error[E0063]: missing field `change_proofs` in initializer of `serve::Shared`",
+    "classification": "ours",
+    "resolution": "Intermediate build/staging/mutation-runner setup error. Corrected before final qualification."
+  },
+  {
+    "log": "proof-cache.log.gz",
+    "test": "error: could not compile `snapback4` (bin \"snapback4\" test) due to 2 previous errors",
+    "classification": "ours",
+    "resolution": "Intermediate build/staging/mutation-runner setup error. Corrected before final qualification."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "an invalid store_id receipt cannot erase another confirmed entry",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "an invalid table receipt cannot erase another confirmed entry",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "an invalid row receipt cannot erase another confirmed entry",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "an invalid column receipt cannot erase another confirmed entry",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "an invalid missing receipt cannot erase another confirmed entry",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "native image/png bytes survive a fresh cache opener; response ownership ends after copying",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with valid receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with absent receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with malformed receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with incomplete receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with no table receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with no row receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once responses with no column receipts remove stale ordinary bytes without reading or storing the once Blob",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "once falls back to a transient data URI without a second fetch or durable bytes",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "retention drops old inferred homes and refuses downloads without a valid home receipt",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "retained receipt store binding is revalidated on read",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "retained receipt store binding is revalidated on reconcile",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "retained receipt store binding is revalidated on reopen",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "retained receipt store binding is revalidated on unbound reopen",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected.log.gz",
+    "test": "a foreign once receipt checks the entry after serialized writes and never copies its body",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "qualified-affected2.log.gz",
+    "test": "retained asset homes and expiry use the same estimated time as device reads",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "Astra 1 process: revoked rows cannot reappear during pending sync after unrelated prediction",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "Astra 1 wasm: revoked rows cannot reappear during pending sync after unrelated prediction",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "Astra 4 online: asset refusal revokes existing grants and listeners; failures preserve grants",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "Astra 4 process: asset refusal revokes existing grants and listeners; failures preserve grants",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "Grok: withheld reply cannot advance the retained body cut past a later changes revocation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "authoritative E_ASSET_VIEWED and HTTP transport failure preserve the already granted first view",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "online: receipt after an unseen commit gap fences old authority",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "process: receipt after an unseen commit gap fences old authority",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "online: public rule witnesses do not qualify as harmless profile puts",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "process: public rule witnesses do not qualify as harmless profile puts",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "round 2 process: remote null fences a new local alias until apply",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "round 2 wasm: remote null fences a new local alias until apply",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "round 2 online: old-refusal cannot overtake newer asset authority",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "round 2 online: old-grant cannot overtake newer asset authority",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "round 2 process: old-refusal cannot overtake newer asset authority",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-first.log.gz",
+    "test": "round 2 process: old-grant cannot overtake newer asset authority",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-qualified.log.gz",
+    "test": "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "regressions-second.log.gz",
+    "test": "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+    "classification": "ours",
+    "resolution": "Intermediate implementation or fixture failure; see the phase notes and linked raw output. Final affected/guide/Rust qualification passes."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::refresh_rotates_and_logout_all_revokes_every_session",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::a_presence_answer_asks_its_client_to_refresh",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::full_poll_admission_preserves_short_request_progress",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "rust-http-qualified.log.gz",
+    "test": "serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops",
+    "classification": "ours",
+    "resolution": "Verification setup used host-default Rust parallelism, exhausting file descriptors (OS error 24) and causing reset/timeout and timing failures. Bounded --test-threads=4 passes all 156 cases; no product change was made for this run."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "serve::changes::column_tests::repeated_polls_build_program_proofs_once_per_generation",
+    "classification": "ours",
+    "resolution": "The first test tried to increment generation by adopting identical inputs. It now changes the read rule, asserting cache reuse before adoption and fresh proofs afterward."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows",
+    "classification": "baseline",
+    "resolution": "The merged baseline reproduces the failed-preflight generation race when a queued write receipt observes adoption first. The fixture now withholds that independent write as well as the failed sync; both stores pass."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "native: synced list elements survive offline reopen and drop revokes only that element",
+    "classification": "ours",
+    "resolution": "Cached media was stamped with its download cut instead of the locally revalidated authority cut. Capture the device watermark before validating the cached home; both stores pass offline reopen."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "wasm: synced list elements survive offline reopen and drop revokes only that element",
+    "classification": "ours",
+    "resolution": "Cached media was stamped with its download cut instead of the locally revalidated authority cut. Capture the device watermark before validating the cached home; both stores pass offline reopen."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "every local prediction invalidates observations, including unrelated tables",
+    "classification": "ours",
+    "resolution": "The old assertion required unrelated tables to refetch. Indexed invalidation now refreshes only affected observations; the updated test verifies the affected read reruns and the unrelated read does not."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "W8R1a online opted-out server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "resolution": "The no-op pulse no longer triggers a blanket refetch. The fixture now mutates the observed tables and still asserts opt-out withdrawal during that replacing fetch."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "process: kept typing withdraws on member commits and rejects expired held replies",
+    "classification": "ours",
+    "resolution": "Initial-read timeout in the intermediate full run. All three tiers pass the isolated follow-up and final affected run. No baseline or environmental exemption is claimed."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "createApp keep=true: useQuery and usePage preserve owned inputs through 20 invalidations, loaded cursors and removal",
+    "classification": "ours",
+    "resolution": "Intermediate browser failure/cancellation while sources were being edited. Frozen-source final affected run passes; no baseline exemption is claimed."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "wasm keep=undefined: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "resolution": "Settlement may preserve an already checked replacement when its footprint is empty. The test accepts only the new replacement (never the old body) and still checks deadline withdrawal while the next read is held."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "wasm keep=true: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "resolution": "Settlement may preserve an already checked replacement when its footprint is empty. The test accepts only the new replacement (never the old body) and still checks deadline withdrawal while the next read is held."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "process keep=undefined: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "resolution": "Settlement may preserve an already checked replacement when its footprint is empty. The test accepts only the new replacement (never the old body) and still checks deadline withdrawal while the next read is held."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "process keep=true: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "resolution": "Settlement may preserve an already checked replacement when its footprint is empty. The test accepts only the new replacement (never the old body) and still checks deadline withdrawal while the next read is held."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "maintained columns: sqlite watches use server values across interrupted sync and reopen (queued tail)",
+    "classification": "ours",
+    "resolution": "Dependency evidence from a receipt now fences the unpublished old base. The test separately checks that the core still holds the old image and that the public query/watch are loading until apply."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "maintained columns: web watches use server values across interrupted sync and reopen (queued tail)",
+    "classification": "ours",
+    "resolution": "Dependency evidence from a receipt now fences the unpublished old base. The test separately checks that the core still holds the old image and that the public query/watch are loading until apply."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "web IndexedDB device withdraws expired inbox data in useQuery and usePage",
+    "classification": "ours",
+    "resolution": "Overlapping reconciliation legitimately causes additional authoritative replies. The artificial deadline is now attached consistently to every reply in the deadline phase, instead of only the first reply per key."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "wasm: a reply that names no store cut is ordered by when its read began",
+    "classification": "ours",
+    "resolution": "The early server gate incorrectly interpreted a missing cut as zero. Cutless replies now use request order and the final dependency evidence serial check."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "process: a reply that names no store cut is ordered by when its read began",
+    "classification": "ours",
+    "resolution": "The early server gate incorrectly interpreted a missing cut as zero. Cutless replies now use request order and the final dependency evidence serial check."
+  },
+  {
+    "log": "test-sh.log.gz",
+    "test": "web held typing: deadline republishes locally and clock advance expires on the next query response without a deletion",
+    "classification": "ours",
+    "resolution": "An explicitly empty server dependency footprint was treated as unknown/global. It now certifies no data dependencies, preventing a constant clock query from fencing unrelated held data."
+  }
+]

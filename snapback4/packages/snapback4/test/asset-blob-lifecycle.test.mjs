@@ -68,6 +68,7 @@ async function deviceFiles(t) {
   function openCore() {
     return {
       async call({ op, key, value, id, home: receipt }) {
+        if (op === "state") return { ok: { watermark: 1 } };
         if (op === "asset_home") return { ok: ["store_id", "table", "row", "column"].every(key => receipt?.[key] === homes.get(id)?.[key]) ? homes.get(id) : null };
         assert.equal(key, "media:manifest");
         if (op === "meta") return { ok: (await read(join(directory, "manifest")))?.toString() ?? null };

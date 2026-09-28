@@ -1,3 +1,4 @@
+import type { ReadIndex, IndexedRead } from "./read-index.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deferReadNotifications, deliverReadNotifications } from "./read-notifications.ts";
@@ -170,11 +171,19 @@ export function readInputs(previous: Set<string>, next: Iterable<string>, retain
   return retained && previous.size === 0 ? previous : new Set([...(retained ? previous : []), ...next]);
 }
 
-// @ref LLP 3000.029#7 — accepted whole replacements reach every policy before callbacks.
-export function invalidateReadEvidence<W extends ReadObservation<unknown> & { op: { name: string }; args: unknown; subscribers: Set<() => void> }>(watches: Iterable<W>,
-  op: { name: string }, args: unknown, read: Read<unknown>, install: (watch: W) => void = () => {}, source?: W, publish: () => boolean = () => true): boolean {
-  const deliveries: (() => void)[] = [];
-  for (const watch of watches) if (watch !== source && watch.op.name === op.name && readKey(watch.op, watch.args) === readKey(op, args)) {
+// @ref LLP 3000.029#8 — withdraw overlapping shapes before any callbacks.
+export function invalidateReadEvidence<W extends IndexedRead>(watches: ReadIndex<W>,
+  op: { name: string }, args: unknown, read: Read<unknown>, install: (watch: W) => void = () => {}, source?: W, publish: () => boolean = () => true,
+  tables: Set<string> = new Set(), cut?: number, refresh: (watch: W) => void = () => {}, dependencyFree = false): boolean {
+  const deliveries: (() => void)[] = [], withdrawn: W[] = [];
+  const matching = new Set(watches.matching(op, args));
+  for (const watch of watches.evidence(tables, cut, dependencyFree)) {
+    if (watch === source || matching.has(watch) || (cut !== undefined && (watch.validThrough ?? watch.serverSeq ?? -1) >= cut)) continue;
+    clearTimeout(watch.expiryTimer ?? undefined); watch.expiryTimer = null; watch.deadlines = undefined;
+    deliveries.push(watch.reset({ loading: true }, true)); withdrawn.push(watch);
+    deliveries.push(() => { for (const notify of watch.subscribers) notify(); });
+  }
+  for (const watch of matching) if (watch !== source) {
     clearTimeout(watch.expiryTimer ?? undefined); watch.expiryTimer = null; watch.deadlines = undefined;
     install(watch);
     deliveries.push(deferReadNotifications(() => watch.publish(read)));
@@ -183,5 +192,6 @@ export function invalidateReadEvidence<W extends ReadObservation<unknown> & { op
   let accepted = false;
   deliveries.push(deferReadNotifications(() => { accepted = publish(); }));
   deliverReadNotifications(deliveries);
+  for (const watch of withdrawn) refresh(watch);
   return accepted;
 }

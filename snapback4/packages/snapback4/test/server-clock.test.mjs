@@ -5,6 +5,7 @@ import { ServerClock, sampleChanges } from '../dist/clock.js';
 function store() {
   const meta = new Map();
   return { meta, async call(request) {
+    if (request.op === 'state') return { ok: { watermark: 1 } };
     if (request.op === 'queued') return { ok: [] };
     if (request.op === 'meta') return { ok: meta.get(request.key) ?? null };
     if (request.op === 'set_meta') { meta.set(request.key, request.value); return { ok: true }; }

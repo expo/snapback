@@ -880,7 +880,7 @@ query search():
 });
 
 for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} opted-out server-run observations retain nothing during a replacing fetch`, { timeout: 30000 }, async t => {
-  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only") + "\nmutation pulse(): server\n  return null\n");
+  const f = await fixture(t, false, cutSource.replace("  sync public", "  update <- allow\n  online only").replace("  sync to .owner", "  update <- .owner = viewer\n  online only") + "\nmutation pulse(): server\n  update entries['r0'] { body: 'coffee' }\n  update privateWords['p0'] { body: 'cof0' }\n  return null\n");
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
   seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
   for (let n = 0; n < seeds.length; n += 1000) await f.post("/seed", seeds.slice(n, n + 1000));

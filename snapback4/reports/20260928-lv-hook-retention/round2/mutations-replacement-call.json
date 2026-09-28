@@ -1,0 +1,9 @@
+[
+  {
+    "name": "replacement-call",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "round 2.*remote null"
+  }
+]

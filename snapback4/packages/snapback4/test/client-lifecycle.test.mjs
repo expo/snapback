@@ -567,7 +567,7 @@ test("a failed native replacement falls back without a stale local answer and is
   await client.close();
 });
 
-test("every local prediction invalidates observations, including unrelated tables", { timeout: 5000 }, async (t) => {
+test("local predictions rerun affected observations without scanning unrelated tables", { timeout: 5000 }, async (t) => {
   const backend = {
     generation: 1,
     schema: { tables: {
@@ -601,7 +601,8 @@ test("every local prediction invalidates observations, including unrelated table
   const ua = a.subscribe(() => {}), ub = b.subscribe(() => {});
   await until(() => runs.readA === 1 && runs.readB === 1, "initial observations did not run");
   const write = client.mutate(mutation("changeA"), {});
-  await until(() => runs.readA >= 2 && runs.readB >= 2, "a local commit must invalidate every observation");
+  await until(() => runs.readA >= 2, "the predicted table must rerun its observation");
+  assert.equal(runs.readB, 1, "a known unrelated dependency needs no refresh");
   ua(); ub(); a.close(); b.close(); await client.close();
   assert.equal((await write).state, "pending");
 });

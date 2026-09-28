@@ -35,3 +35,19 @@ export function putRetention(backend: BackendJson | null | undefined, name: stri
   if (!index?.unique || index.components.length !== read.key.length || !index.components.every(c => "Column" in c && (c.Column === "id" || immutable.includes(c.Column)))) return [];
   return nonRevokingPuts(backend, { events: [{ table: read.table, kind: "put" }] });
 }
+
+// Admissions and settlements during a sync matter only to their dependencies.
+// Unknown footprints and scope changes spoil every table's proof.
+export class PredictionEffects {
+  revision = 0;
+  private unknown = 0;
+  private readonly changedAt = new Map<string, number>();
+  changed(tables?: readonly string[]): void {
+    const revision = ++this.revision;
+    if (tables === undefined) this.unknown = revision;
+    else for (const table of tables) this.changedAt.set(table, revision);
+  }
+  unaffected(table: string, captured: number): boolean {
+    return captured >= this.unknown && captured >= (this.changedAt.get(table) ?? 0);
+  }
+}
