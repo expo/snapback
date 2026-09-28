@@ -308,7 +308,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
-    let readers = Mutex::new(QueryReaders::new(&engine));
+    let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
@@ -664,6 +664,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
         200
     } else { status };
     let refused = refused || encoded.is_err();
+    let _evidence = dev_refusals::response::response(&bytes.0);
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared {
@@ -844,6 +845,7 @@ fn handle(mut request: Request, shared: &Shared) {
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
+    let _evidence = dev_refusals::response::begin(shared, &path);
     if path == token::ENDPOINT { return token::handle(request, shared); }
     // This exact declared POST path is the only non-loopback development
     // exception. Core doors, mismatched methods and query variants stay fenced.
@@ -1136,6 +1138,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[cfg(test)]
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
+                        let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), reader.generation());
                         let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
                         (outcome, cut, metadata, reads_presence)
@@ -1148,6 +1151,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
+                        if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
                         let (outcome, cut) = engine.query_at(&op, context);
                         (outcome, cut, metadata, reads_presence)
                     },
@@ -1225,7 +1229,6 @@ fn handle(mut request: Request, shared: &Shared) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let capture;
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
@@ -1236,8 +1239,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    capture = dev_refusals::Capture::new(shared, &op);
-                    if let Some(capture) = &capture { context = capture.context(context); }
+                    if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
@@ -1371,7 +1373,7 @@ mod poison_tests {
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
-            readers: Mutex::new(QueryReaders::new(&engine)),
+            readers: Mutex::new(QueryReaders::new(&engine, &Default::default())),
             engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(Bound { refusal_sites: Default::default(), view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),

@@ -193,7 +193,10 @@ impl<'r> Runner<'r> {
         // @ref LLP 3000.015#2 — one prepaid, restoring scope: a partial conjunction denial costs the same static allowance as a uniform denial.
         let verdict = self.authorized_scratch(self.rule_scratch(rule), &[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
             rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner, allowance })
-        })?;
+        });
+        self.trace_authorization(&verdict, name, Effect::Read, "read rule");
+        let verdict = verdict?;
+        if !verdict { self.filtered_clause(name, "read rule"); }
         let admitted = verdict && !self.read_capped();
         Ok((admitted, if uniform && admitted { expiry.defer() } else { Default::default() }))
     }
@@ -306,8 +309,7 @@ impl<'r> Runner<'r> {
             });
             runner.evaluate_sequence_rule(allowance, table_name, &rule, effect, old.as_ref(), &next)
         }).map_err(|error| error.authorization_context(table_name, effect));
-        #[cfg(feature = "sqlite")]
-        if effect != Effect::Read && matches!(result, Ok(false)) { self.refusing_clause(table_name, &format!("{effect} rule")); }
+        self.trace_rule_result(&result, table_name, effect);
         result
     }
 
@@ -833,7 +835,10 @@ impl<'r> Runner<'r> {
         let result = self.authorized_scratch(bytes, &[], |runner, allowance| {
             let mut cursor = bounds.clone();
             loop {
-                if *remaining == 0 || runner.tx.remaining() == 0 { return Ok(Vec::new()); }
+                if *remaining == 0 || runner.tx.remaining() == 0 {
+                    runner.filtered_phase(&scan.table, "authorization allowance (read)", "read rule");
+                    return Ok(Vec::new());
+                }
                 let Some((mut row, key)) = runner.tx.scan(allowance, &scan.table, &scan.index, prefix, &cursor, dir, 1)?.pop() else { return Ok(Vec::new()); };
                 cursor.after = crate::key::decode(&key).map(|key| key.into_iter().skip(prefix.len()).collect());
                 materialize_optional_fields(&mut row, table);
@@ -842,7 +847,10 @@ impl<'r> Runner<'r> {
             }
         });
         match result {
-            Err(RuntimeError::AuthorizationBudget { .. }) => Ok(Vec::new()),
+            Err(RuntimeError::AuthorizationBudget { .. }) => {
+                self.filtered_phase(&scan.table, "authorization allowance (read)", "read rule");
+                Ok(Vec::new())
+            },
             other => other,
         }
     }

@@ -26,7 +26,7 @@ fn generation_case(reader: bool, stream: bool) {
         let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("n: int", "n: int\n  added: int default 0"))]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        lock(&host.shared.readers).replace(&engine);
+        lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
         *lock(&host.shared.generation) = generation;
         *lock(&host.shared.bound) = bound;
         (generation, engine.store().meta("store_id").unwrap().unwrap(), engine.seq().unwrap())

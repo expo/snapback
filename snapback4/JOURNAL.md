@@ -73682,3 +73682,63 @@ installation or shared path change. Source caps and reference/whitespace audits
 pass. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 Report and complete evidence: reports/20260928-mp-modeling-papercuts/round1/REPORT.md.
+
+## 2026-09-28 — Lane MP round 2: response-owned refusal evidence
+
+Read both prior prompts, reports and journal entries, Astra's full round-1
+NOT READY review and Grok's completed READY review. First fetched origin and
+merged main 129ffc368 into b7775db58, including RG and FL. The only conflict
+was LLP 3000.015's Revised header; both histories were kept. Both parent
+journals remain ordered subsequences. Grok was checked before work and again
+before commit; its three Lows and both additional test gaps are addressed.
+
+Both dev query branches now collect authorization refusals, with source sites
+owned by the checked-out reader generation. The process regression exhausts
+authorization over 8,193 expiring grants and replaces an unrelated earlier
+mutation cause. Capture exhaustion preserves the read-through authorization
+phase and its declaration instead of naming an unevaluated insert rule.
+
+The common dev JSON response layer records E_RULE and NOT_FOUND with operation,
+code and request identity, including replay and paths with no collector. Its
+fallback is explicitly `cause not instrumented`. Read denials/empty results
+also replace older evidence; conservative unknown empty reads are not claimed
+to prove rule denial. A native atomic shared-memory watermark prevents
+`why recent` from displaying an older persisted cause while the newest record
+is pending or dropped. Handoffs stay nonblocking after the response, and the
+writer retains 32 records in response-sequence order. The saturation test
+recovers and asserts a positive persisted dropped count. Caller bytes and
+every logical meter field remain identical; production starts no collection.
+
+Grok's same-group residual equality now receives the sequence note, while the
+cross-group access witness stays silent and admits its first insert. The why
+card uses the declared column/parent. Stale temporary files no longer wedge
+the sole writer. Aggregate equivalence now covers point and nested shapes,
+with a readable control. A FIFO barrier proves that why rejects a producer
+which stops after the first live-lock check but before the snapshot is read.
+LLPs 3000.014/3000.015 and guide/operations text record the resulting behavior.
+
+Affected matrix: 388 passed; final whole guide: 94 passed; MP target: 18
+passed; focused native refusal tests: 16 passed; final process tests: 8 passed.
+Seven deliberate removal probes each fail their regression and restore source
+bytes afterward. Source files remain under 1,500 lines. The reference and
+whitespace audits pass. Every development failure is attributed in round2's
+VALIDATION.md, with raw evidence; no environmental failure or waiver.
+
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1034 s`, exit 1. The
+wasm overrun is inherited. The cargo-test artifact failure was ours: the new
+included HTTP test helper was also discovered as a standalone integration
+target (93 missing-parent/import errors). Moved it to serve_refusals/mod.rs.
+The separate complete Rust recovery passes: 4,246 passed, 0 failed, 33 existing
+ignored, including doctests; the final eighth process test passes separately.
+All other full-script stages passed, including 4,194 client tests (10 existing
+skips), 79 model tests and 9 fixture tests. The original script red is retained;
+it was not rerun or relabeled green.
+
+Final wasm: 2,019,925 B raw / 586,252 B gzip, −135 / −45 B against the rebuilt
+merged baseline (2,020,060 / 586,297). The unchanged 586,193 B cap still fails
+by 59 B, reduced from the inherited 104 B. The earlier full-script artifact
+was 586,235 B gzip; the final source-cap helper extraction changes it by +17 B.
+No budget raise, tool installation, shared-path change, push or publication.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+Report and complete evidence: reports/20260928-mp-modeling-papercuts/round2/REPORT.md.

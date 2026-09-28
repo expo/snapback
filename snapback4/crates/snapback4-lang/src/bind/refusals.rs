@@ -11,7 +11,7 @@ pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
         for rule in &info.decl.rules {
             out.insert((name.clone(), format!("{} rule", rule.effect.word())), rule.site.to_string());
             if info.through.is_some() && rule.effect == ast::Effect::Read {
-                for cause in ["read through parent missing or expired", "read through parent read rule", "read through parent reference"] {
+                for cause in ["read through capture", "read through parent missing or expired", "read through parent read rule", "read through parent reference"] {
                     out.insert((name.clone(), cause.into()), rule.site.to_string());
                 }
             }
@@ -31,14 +31,14 @@ pub(super) fn sequence_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
     let mut out = Vec::new();
     for (name, info) in &catalog.tables {
         let Some(table) = schema.table(name) else { continue };
-        let RuleExpr::Exists { table: witness, index, key, .. } = &table.rules.read else { continue };
-        if witness != name || !key.contains(&RuleTerm::Viewer) { continue; }
+        let RuleExpr::Exists { table: witness, index, key, equalities, .. } = &table.rules.read else { continue };
+        if witness != name { continue; }
         for column in info.decl.columns.iter().filter(|col| col.sequence.is_some()) {
             let reference = column.sequence.as_ref().unwrap();
             let Some(index) = table.index(index) else { continue };
             // A same-table witness only proves a nonempty sequence group when
             // the witness's parent column is pinned to this row's parent.
-            if !index.columns().iter().zip(key).any(|(column, term)|
+            if !index.columns().iter().zip(key).chain(equalities.iter().map(|(column,term)|(column,term))).any(|(column, term)|
                 column == reference && term == &RuleTerm::Field(reference.clone())) { continue; }
             let Some(ast::ScalarType { kind: ast::TypeKind::Ref { table: parent }, .. }) = info.columns.get(reference) else { continue };
             out.push(Diagnostic::new(&column.site, "N_SEQUENCE_READ",

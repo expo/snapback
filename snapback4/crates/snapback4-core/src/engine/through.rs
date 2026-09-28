@@ -51,7 +51,13 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn capture_insert(
+    pub(super) fn capture_insert(&mut self, name: &str, row: Supplied) -> Result<Supplied, RuntimeError> {
+        let result = self.capture_insert_inner(name, row);
+        self.trace_authorization(&result, name, Effect::Insert, "read through capture");
+        result
+    }
+
+    fn capture_insert_inner(
         &mut self,
         name: &str,
         row: Supplied,

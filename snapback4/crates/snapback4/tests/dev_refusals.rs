@@ -104,7 +104,7 @@ fn writer_evicts_the_oldest_of_more_than_32_records() {
 }
 #[test]
 fn blocked_stderr_cannot_block_responses_or_later_mutations() {
- let dev=Host::start(Project::new(),true,true);
+ let mut dev=Host::start(Project::new(),true,true);
  #[cfg(target_os="linux")] {
   use std::os::fd::AsRawFd;
   // Pin capacity: this host can otherwise grant a pipe up to 1 MiB.
@@ -115,4 +115,139 @@ fn blocked_stderr_cannot_block_responses_or_later_mutations() {
  // pipes. A synchronous logger blocks subsequent requests while holding Engine.
  for _ in 0..4096 {dev.refuse("add");}
  let reply=dev.request("add","dev:alice","x-snapback-persona: alice");assert_eq!(reply["state"],"sent","{reply}");
+ let stale=dev.project.why(&[]);
+ assert!(!stale.status.success(),"a blocked writer must never advertise its older cause");
+ assert!(String::from_utf8_lossy(&stale.stderr).contains("pending or dropped"));
+ let mut pipe=dev.child.stderr.take().unwrap();
+ let drain=std::thread::spawn(move || {let _=std::io::copy(&mut pipe,&mut std::io::sink());});
+ // Once drained, a final named refusal proves that persistence has recovered.
+ let deadline=Instant::now()+Duration::from_secs(10);
+ let recovered=loop {
+  let reply=dev.refuse("add39");
+  let path=dev.project.record_path(reply["store_id"].as_str().unwrap());
+  let record:Value=serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+  if record["records"].as_array().unwrap().last().unwrap()["operation"]=="add39" {break record;}
+  assert!(Instant::now()<deadline,"writer did not recover");
+  std::thread::sleep(Duration::from_millis(10));
+ };
+ assert!(recovered["dropped"].as_u64().unwrap()>0,"saturation must report lost evidence: {recovered}");
+ drop(dev);
+ drain.join().unwrap();
+}
+
+impl Host {
+ fn post(&self,path:&str,payload:Value)->Value {
+  let body=payload.to_string();let mut socket=TcpStream::connect(&self.address).unwrap();
+  socket.set_read_timeout(Some(Duration::from_secs(15))).unwrap();
+  write!(socket,"POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{body}",body.len()).unwrap();
+  let mut reply=String::new();socket.read_to_string(&mut reply).unwrap();
+  serde_json::from_str(reply.split_once("\r\n\r\n").unwrap().1).unwrap()
+ }
+}
+const EXHAUSTION: &str = "use personas alice\ntable parents:\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nquery point(id: parents):\n  return parents[id]\nmutation child(parent: parents):\n  return insert children {parent}\nmutation previous():\n  return insert parents {}\n";
+#[test]
+fn real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase() {
+ let project=Project::new();fs::write(project.0.join("snapback/schema.q"),EXHAUSTION).unwrap();
+ let dev=Host::start(project,true,false);
+ let previous=dev.post("/m/previous",json!({}));assert_eq!(previous["why"]["code"],"E_RULE","{previous}");
+ let store=previous["store_id"].as_str().unwrap();dev.project.wait_record(store,"previous");
+ let now=snapback4_core::now_ms();
+ let mut rows=vec![json!({"table":"parents","row":{"id":"p"}})];
+ rows.extend((0..8193).map(|n|json!({"table":"grants","row":{"id":format!("g{n}"),"parent":"p","until":now+3600000+n}})));
+ let seed=dev.post("/seed",json!(rows));assert_eq!(seed["seeded"],8194,"{seed}");
+ let query=dev.post("/q/point",json!({"args":{"id":"p"}}));assert_eq!(query["denied"]["code"],"E_RULE","{query}");
+ let record=dev.project.wait_record(store,"point");let point=record["records"].as_array().unwrap().last().unwrap();
+ assert_eq!(point["clause"],"authorization allowance (read)");assert_eq!(point["phase"],"read rule");
+ assert!(point["site"].as_str().unwrap().ends_with("schema.q:3:3"),"{point}");
+ assert_eq!(point["code"],"E_RULE");assert!(point["requestId"].as_u64().unwrap()>0);
+ let child=dev.post("/m/child",json!({"args":{"parent":"p"}}));assert_eq!(child["why"]["code"],"E_RULE","{child}");
+ let record=dev.project.wait_record(store,"child");let capture=record["records"].as_array().unwrap().last().unwrap();
+ assert_eq!(capture["clause"],"authorization allowance (insert)");assert_eq!(capture["phase"],"read through capture");
+ assert!(capture["site"].as_str().unwrap().ends_with("schema.q:15:3"),"{capture}");
+ assert_eq!(capture["generation"],point["generation"]);
+}
+
+#[test]
+fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
+ let project=Project::new();
+ let source=format!("{SOURCE}\nquery injected():\n  require false else NOT_FOUND\n  return null\nmutation injectedWrite():\n  require false else NOT_FOUND\n  return null\nquery missing():\n  require false else NOT_FOUND\n  return null\nquery page():\n  return rows first 5 by .id\nquery absent():\n  return rows['absent']\nquery afterRead():\n  ignored = rows['hidden']\n  require false else NOT_FOUND\n  return ignored\n");
+ fs::write(project.0.join("snapback/schema.q"),source).unwrap();let dev=Host::start(project,true,false);
+ let previous=dev.refuse("add");let store=previous["store_id"].as_str().unwrap();dev.project.wait_record(store,"add");
+ let mut last_id=0;
+ for (path,op,code,payload) in [
+  ("/q/injected","injected","NOT_FOUND",json!({})),
+  ("/m/injectedWrite","injectedWrite","NOT_FOUND",json!({"id":"replayed"})),
+  ("/m/injectedWrite","injectedWrite","NOT_FOUND",json!({"id":"replayed"})),
+  ("/q/missing","missing","NOT_FOUND",json!({})),
+  ("/q/absent","absent","EMPTY_READ",json!({})),
+ ] {
+  let reply=dev.post(path,payload);
+  if code=="EMPTY_READ" {assert!(reply["data"].is_null());} else {assert_eq!(reply.get("why").unwrap_or(&reply["denied"])["code"],code,"{reply}");}
+  let deadline=Instant::now()+Duration::from_secs(10);
+  loop {
+   let records=dev.project.wait_record(store,op);let record=records["records"].as_array().unwrap().last().unwrap();
+   let id=record["requestId"].as_u64().unwrap();
+   if id>last_id {assert_eq!(record["code"],code);assert_eq!(record["clause"],"cause not instrumented");assert!(record["site"].is_null());last_id=id;break;}
+   assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(10));
+  }
+ }
+ let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}}]));assert_eq!(seed["seeded"],1);
+ let page=dev.post("/q/page",json!({}));assert_eq!(page["data"],json!([]),"{page}");
+ let records=dev.project.wait_record(store,"page");let record=records["records"].as_array().unwrap().last().unwrap();
+ assert_eq!(record["clause"],"read rule");assert_eq!(record["code"],"FILTERED_READ");
+ assert!(record["site"].as_str().unwrap().ends_with("schema.q:4:3"));
+ let terminal=dev.post("/q/afterRead",json!({}));assert_eq!(terminal["denied"]["code"],"NOT_FOUND");
+ let records=dev.project.wait_record(store,"afterRead");let record=records["records"].as_array().unwrap().last().unwrap();
+ assert_eq!(record["clause"],"cause not instrumented","an earlier filtered read is not this terminal refusal's cause");
+ let refused=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"bob"}}));assert_eq!(refused["why"]["code"],"E_RULE");
+ let first=dev.project.wait_record(store,"add");let first=first["records"].as_array().unwrap().last().unwrap();let first_id=first["requestId"].as_u64().unwrap();
+ assert_eq!(first["clause"],"insert rule");
+ let replay=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"bob"}}));assert_eq!(replay["why"]["code"],refused["why"]["code"]);
+ let deadline=Instant::now()+Duration::from_secs(10);
+ loop {
+  let record=dev.project.wait_record(store,"add");let record=record["records"].as_array().unwrap().last().unwrap();
+  if record["requestId"].as_u64().unwrap()>first_id {assert_eq!(record["clause"],"cause not instrumented");assert_eq!(record["code"],"E_RULE");break;}
+  assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(10));
+ }
+
+}
+
+#[test]
+fn a_stale_temporary_save_does_not_wedge_later_evidence() {
+ let dev=Host::start(Project::new(),true,false);
+ let reply=dev.refuse("add");let store=reply["store_id"].as_str().unwrap();dev.project.wait_record(store,"add");
+ let path=dev.project.record_path(store);fs::write(path.with_extension("tmp"),"abandoned replacement").unwrap();
+ dev.refuse("add1");let saved=dev.project.wait_record(store,"add1");
+ assert_eq!(saved["records"].as_array().unwrap().last().unwrap()["operation"],"add1");
+ assert!(!path.with_extension("tmp").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn why_rechecks_liveness_after_reading_the_snapshot() {
+ use std::os::unix::{ffi::OsStrExt, fs::OpenOptionsExt};
+ let mut dev=Host::start(Project::new(),true,false);
+ let reply=dev.refuse("add");let store=reply["store_id"].as_str().unwrap();dev.project.wait_record(store,"add");
+ let path=dev.project.record_path(store);let snapshot=fs::read(&path).unwrap();
+ fs::remove_file(&path).unwrap();
+ let name=std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+ assert_eq!(unsafe {libc::mkfifo(name.as_ptr(),0o600)},0);
+ let why=Command::new(BIN).current_dir(&dev.project.0).args(["why","recent"]).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+ let end=Instant::now()+Duration::from_secs(5);
+ let mut pipe=loop {
+  match fs::OpenOptions::new().write(true).custom_flags(libc::O_NONBLOCK).open(&path) {
+   Ok(pipe)=>break pipe,
+   Err(error) if error.raw_os_error()==Some(libc::ENXIO)=>{},
+   Err(error)=>panic!("{error}"),
+  }
+  assert!(Instant::now()<end,"why never opened the snapshot");
+  std::thread::sleep(Duration::from_millis(10));
+ };
+ // The FIFO writer can open only after why passed its first live-lock check.
+ // Hold its JSON read until the producer has died, then release a valid snapshot.
+ dev.child.kill().unwrap();dev.child.wait().unwrap();
+ pipe.write_all(&snapshot).unwrap();drop(pipe);
+ let answer=why.wait_with_output().unwrap();
+ assert!(!answer.status.success());
+ assert!(String::from_utf8_lossy(&answer.stderr).contains("stopped while reading"),"{}",String::from_utf8_lossy(&answer.stderr));
 }

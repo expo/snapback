@@ -348,7 +348,7 @@ impl<'a> Runner<'a> {
             self.statements(&program.body, &program.name)
         })();
         if let Err(RuntimeError::AuthorizationBudget { table, effect }) = &result {
-            self.refusing_clause(table, &format!("authorization allowance ({effect})"));
+            self.trace_unlocated_budget(table, *effect);
         }
         // @ref LLP 3000.024#decision — the page plan follows the generated
         // result binding through return. Keep the final copy charge, and use

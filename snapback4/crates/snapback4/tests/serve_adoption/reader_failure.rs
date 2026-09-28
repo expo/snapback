@@ -69,8 +69,8 @@ fn failed_reader_factory_recovers_on_maintenance() {
         std::fs::rename(&path, &missing).unwrap();
         {
             let mut readers = lock(&host.shared.readers);
-            if startup { *readers = QueryReaders::new(&engine); }
-            else { readers.replace(&engine); }
+            if startup { *readers = QueryReaders::new(&engine, &lock(&host.shared.bound).refusal_sites); }
+            else { readers.replace(&engine, &lock(&host.shared.bound).refusal_sites); }
             assert!(readers.source.is_none());
         }
         let started = Instant::now();

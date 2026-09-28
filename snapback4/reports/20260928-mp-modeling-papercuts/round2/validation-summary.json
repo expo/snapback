@@ -1,0 +1,46 @@
+{
+  "rust_recovery": {
+    "exit": 0,
+    "passed": 4246,
+    "failed": 0,
+    "ignored": 33,
+    "summaries": 987
+  },
+  "final_process": {
+    "passed": 8,
+    "failed": 0
+  },
+  "guide": {
+    "passed": 94,
+    "failed": 0
+  },
+  "full_script": {
+    "invocations": 1,
+    "exit": 1,
+    "exact_summary": "== 2 failure(s) in 1034 s",
+    "failures": {
+      "wasm build": "baseline: inherited overrun",
+      "cargo test": "ours: helper compiled as standalone integration target; moved; complete Rust recovery passed"
+    }
+  },
+  "wasm": {
+    "baseline": {
+      "raw": 2020060,
+      "gzip": 586297
+    },
+    "final": {
+      "raw": 2019925,
+      "gzip": 586252
+    },
+    "delta": {
+      "raw": -135,
+      "gzip": -45
+    },
+    "gzip_budget": 586193,
+    "final_overrun": 59,
+    "sha256": "39dbc171e30ed10ac19152381cf3e7ae0908afaf0b01ae285c2341ce542480b5"
+  },
+  "journal": "append only",
+  "grok_review": "final contents unchanged",
+  "no_push_or_publication": true
+}

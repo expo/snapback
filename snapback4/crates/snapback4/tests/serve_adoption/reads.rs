@@ -82,7 +82,7 @@ fn adoption_keeps_queries_and_sync_readable_and_serializes_writes_once() {
                     None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>,
                 )
                 .unwrap();
-            lock(&shared.readers).replace(&engine);
+            lock(&shared.readers).replace(&engine, &candidate.refusal_sites);
             *lock(&shared.bound) = candidate;
             *lock(&shared.generation) = generation;
         });

@@ -69,6 +69,36 @@ fn cause_args(parent: &str, key: &str, owner: &str, author: &str) -> std::collec
     use snapback4_core::Value;
     [("parent".into(),Value::Id(parent.into())),("key".into(),Value::String(key.into())),("owner".into(),Value::Id(owner.into())),("author".into(),Value::Id(author.into()))].into()
 }
+
+#[test]
+fn query_and_capture_evidence_preserves_bytes_meters_and_the_authorizing_phase() {
+    use snapback4_core::{engine::{runner::Runner, refusal_trace::RefusalTrace}, meter::{Meter, Ceilings, Cut}, Value};
+    let source = "table parents:\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nquery point(id: parents):\n  return parents[id]\nmutation child(parent: parents):\n  return insert children {parent}\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut e = engine(source);
+    load(&mut e, "parents", json!({"id":"p"}));
+    e.load((0..8193).map(|n| ("grants".into(), wire::row_from_json(&e.schema().tables["grants"], &json!({"id":format!("g{n}"),"parent":"p","until":10000+n})).unwrap())).collect::<Vec<_>>()).unwrap();
+    for (op, arg, phase, site) in [("point", "id", "read rule", "schema.q:2:3"), ("child", "parent", "read through capture", "schema.q:14:3")] {
+        let mut pairs = Vec::new();
+        for traced in [false, true] {
+            let trace = RefusalTrace::default();
+            let context = Context::new("alice", [(arg.into(), Value::Id("p".into()))].into()).at(100).with_ids(["child".into()]);
+            let tx = e.store_mut().read_transaction().unwrap();
+            let program = &bound.programs.iter().find(|p|p.program.name==op).unwrap().program;
+            let mut runner = Runner::new(&tx, &bound.schema, if traced {context.with_refusal_trace(trace.clone())} else {context}, Meter::new(Ceilings::default(), if op=="point" {Cut::Cap} else {Cut::Abort}), 0);
+            let why = runner.run(program).unwrap_err().refusal();
+            assert_eq!(why.code, "E_RULE");
+            pairs.push((serde_json::to_vec(&why).unwrap(), runner.metered()));
+            if traced {
+                let cause = trace.take().unwrap();
+                assert_eq!(cause.phase, phase);
+                assert_eq!(bound.refusal_sites[&(cause.table, cause.phase)], site);
+            } else { assert!(trace.take().is_none()); }
+        }
+        assert_eq!(pairs[0], pairs[1], "{op}: trace cannot change bytes or meters");
+    }
+}
 #[test]
 fn developer_gets_each_cause_without_changing_one_byte_of_the_refusal() {
     use snapback4_core::engine::refusal_trace::RefusalTrace;
@@ -283,18 +313,38 @@ fn sequence_note_uses_declared_column_and_never_marks_a_different_witness_table(
 
 #[test]
 fn missing_hidden_and_expired_aggregate_parents_have_identical_metadata() {
-    let source="table parents:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  kind: text <=20\n  immutable parent\n  cap 20 by parent\n  read through .parent\n  online only\nview totals: count children by .parent, .kind\n  online only\nquery groups(parent: parents):\n  return totals[parent = parent] by .kind\n";
+    let source="table parents:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  kind: text <=20\n  immutable parent\n  cap 20 by parent\n  read through .parent\n  online only\nview totals: count children by .parent, .kind\n  online only\nquery groups(parent: parents):\n  return totals[parent = parent] by .kind\nquery point(parent: parents):\n  return totals[parent = parent, kind = 'heart']\nquery nested(parent: parents):\n  return {outer: {total: totals[parent = parent, kind = 'heart']}}\n";
     let mut e=engine(source);let now=snapback4_core::now_ms();
-    for (id,owner,until) in [("hidden_","bob",now+200000),("expired","alice",now+50000)] {
+    for (id,owner,until) in [("hidden_","bob",now+200000),("expired","alice",now+50000),("readabl","alice",now+200000)] {
         load(&mut e,"parents",json!({"id":id,"owner":owner,"until":until}));
         load(&mut e,"children",json!({"id":id,"parent":id,"kind":"heart"}));
     }
-    let query=|e:&mut Engine,id:&str| e.query("groups",Context::new("alice",[("parent".into(),snapback4_core::Value::Id(id.into()))].into()).at(now+100000)).unwrap();
+    for op in ["groups", "point", "nested"] {
+    let query=|e:&mut Engine,id:&str| e.query(op,Context::new("alice",[("parent".into(),snapback4_core::Value::Id(id.into()))].into()).at(now+100000)).unwrap();
     let missing=query(&mut e,"missing");
+    assert_ne!(query(&mut e,"readabl").data, missing.data, "{op}: readable control");
     for id in ["hidden_","expired"] {
         let out=query(&mut e,id);
         assert_eq!(out.data,missing.data,"{id}");assert_eq!(out.metered,missing.metered,"{id}");
         assert_eq!(out.next,missing.next,"{id}");assert_eq!(out.next_expiry,missing.next_expiry,"{id}");
         assert_eq!(out.tables,missing.tables,"{id}");assert_eq!(out.complete,missing.complete,"{id}");
     }
+}
+}
+
+#[test]
+fn residual_sequence_parent_equality_proves_the_group_but_cross_group_does_not() {
+    for (column, noted) in [("parent", true), ("access", false)] {
+        let source=format!("table parents:\n  public\n  online only\ntable members:\n  parent: parents\n  access: parents\n  slot: text <=20\n  ordinal: sequence by parent\n  unique bySlot: slot\n  read <- exists members[slot = 'witness', {column} = .parent]\n  insert <- allow\n  online only\nmutation add(parent: parents):\n  return insert members {{parent, access: parent, slot: 'new'}}\n");
+        let bound=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert_eq!(bound.notes.iter().any(|d|d.code=="N_SEQUENCE_READ"),noted,"{column}: {:?}",bound.notes);
+        let mut e=engine(&source);
+        load(&mut e,"members",json!({"id":"witness","parent":"other","access":"empty","slot":"witness"}));
+        let result=e.mutate("add",None,Context::new("alice",[("parent".into(),snapback4_core::Value::Id("empty".into()))].into())).unwrap();
+        assert_eq!(matches!(result.state,WriteState::Failed {..}),noted,"{column}: {result:?}");
+    }
+    let why=snapback4_lang::guide::explain_code("N_SEQUENCE_READ").unwrap();
+    assert!(why.contains("declared sequence column"));
+    assert!(!why.contains("each message"));
 }

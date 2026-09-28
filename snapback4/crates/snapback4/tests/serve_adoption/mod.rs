@@ -24,7 +24,7 @@ fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
         let mut engine = lock(&shared.engine);
         let (generation, _) = adoption::adopt_candidate(&shared, &mut engine, &b, || panic!("unexpected reopen")).unwrap();
         engine.store().conn().commit_hook(None::<fn()->bool>).unwrap();
-        lock(&shared.readers).replace(&engine);
+        lock(&shared.readers).replace(&engine, &b.refusal_sites);
         *lock(&shared.bound) = b; *lock(&shared.generation) = generation;
     });
     waiting.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -270,7 +270,7 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
         lock(&host.shared.adoption).refused(&error, engine.generation());
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
         lock(&host.shared.adoption).recovered();
-        lock(&host.shared.readers).replace(&engine);
+        lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }

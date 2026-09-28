@@ -47,7 +47,7 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
     {
         let mut engine = lock(&host.shared.engine);
         let (next, _) = adoption::adopt_candidate(&host.shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap();
-        lock(&host.shared.readers).replace(&engine);
+        lock(&host.shared.readers).replace(&engine, &candidate.refusal_sites);
         *lock(&host.shared.bound) = candidate;
         *lock(&host.shared.generation) = next;
     }
