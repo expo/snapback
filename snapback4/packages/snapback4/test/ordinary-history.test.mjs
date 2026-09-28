@@ -11,6 +11,7 @@ import { memoryPersistence, webDevice } from "../dist/web.js";
 import { binary, server, until } from "./helpers/app-server.mjs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { syncControl, parkedChanges } from "./helpers/sync-control.mjs";
 import { History } from "./fixtures/ordinary-history.mjs";
 
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
@@ -19,7 +20,7 @@ const query = name => ({ kind: "query", name });
 const mutation = name => ({ kind: "mutation", name });
 const card = name => readFileSync(new URL(`../../../crates/snapback4-lang/src/guide/${name}.rs`, import.meta.url), "utf8").match(/```quarry\n([\s\S]*?)\n```/)[1];
 
-async function fixture(t, tier, source) {
+async function fixture(t, tier, source, controlled = false) {
   const { url, dir } = await server(t, "", source);
   const clients = [], requests = [], observations = [], gates = new Set();
   let offline = false, frozen = false, core;
@@ -33,6 +34,7 @@ async function fixture(t, tier, source) {
       return reply;
     } };
   } };
+  const control = syncControl(t);
   const transport = async (input, init) => {
     if (offline) throw new TypeError("test network offline");
     const path = new URL(input).pathname;
@@ -44,13 +46,14 @@ async function fixture(t, tier, source) {
     });
     if (offline) throw new TypeError("test network offline");
     requests.push(path);
-    return fetch(input, init);
+    if (controlled && path === "/changes") return parkedChanges(init.signal);
+    return control.fetch(input, init);
   };
   const options = { url, persona: "bob", device, fetch: transport, waitSeconds: 0 };
   const open = async () => { const client = await createLocalClient(options); clients.push(client); return client; };
   const online = persona => { const client = createClient({ url, persona }); clients.push(client); return client; };
   t.after(async () => { frozen = false; offline = true; for (const release of [...gates]) release(); for (const client of clients) await client.close(); });
-  return { url, open, online, requests, observations,
+  return { url, open, online, requests, observations, control,
     freeze() { frozen = true; },
     network(on) { offline = !on; frozen = false; for (const release of [...gates]) release(); },
     seed: async rows => { const reply = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify(rows) }).then(r => r.json()); assert.equal(reply.seeded, rows.length, JSON.stringify(reply)); },
@@ -193,9 +196,9 @@ const guides = [
   { name: "receipts", source: card("receipts"), history: "history", screen: "conversationScreen", argument: "conversation", members: "members", body: "text", leave: "leave" },
   { name: "comparative", source: comparative, history: "history", screen: "conversationById", argument: "conversation", members: "members", body: "text", leave: "removeMember" },
 ];
-for (const tier of ["wasm", "process"]) for (const g of guides) {
-  test(`${tier}: ${g.name} screen and history after leave, remount and offline/online reopen`, { timeout: 30000 }, async t => {
-    const f = await fixture(t, tier, g.source), alice = f.online("alice"), bobHttp = f.online("bob");
+for (const tier of ["wasm", "process"]) for (const g of guides) for (const controlled of g.name === "receipts" ? [false, true] : [false]) {
+  test(`${tier}: ${g.name} screen and history after leave, remount and offline/online reopen${controlled ? " (older sync held across leave)" : ""}`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, g.source, controlled), alice = f.online("alice"), bobHttp = f.online("bob");
     const args = { [g.argument]: "chat" }, groupKey = g.argument;
     const chat = { id: "chat", title: "Retained conversation", creatorId: "dev:alice" };
     const membership = (name, role) => ({ id: `member-${name}`, [groupKey]: "chat", principal: `dev:${name}`, ...(g.name === "app" ? { role, joinedAt: 1 } : { joinedOrdinal: 0, ...(g.name === "comparative" ? { role, handle: name } : {}) }) });
@@ -219,9 +222,15 @@ for (const tier of ["wasm", "process"]) for (const g of guides) {
       return () => { stops.forEach(stop => stop()); parent.close(); history.close(); };
     };
     await assertScreen(); let unmount = await mount();
+    let older, held;
+    if (controlled) {
+      await bob.sync(); held = f.control.hold();
+      older = bob.sync(); await held.ready;
+    }
     if (g.name === "comparative") await sent(alice, g.leave, { conversation: "chat", principal: "dev:bob" });
     else await sent(bobHttp, g.leave, args);
-    await bob.sync();
+    const synced = bob.sync(); held?.release();
+    await synced; await older;
     // The guide memberships are until-revoked; the comparative originally retains members too.
     if (g.name !== "comparative") assert.deepEqual((await bob.query(query("inbox"), {})).data, []);
     assert.equal((await bobHttp.query(query(g.screen), args)).data, null, "retention grants no server authority");

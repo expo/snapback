@@ -99,7 +99,7 @@ test("ordinary publication keeps stream mode through false snapshot mode and an 
       const request = JSON.parse(init.body); requests.push(request);
       if (requests.length === 1) return Response.json({ snapshot: false, store_id: "S", events: [], watermark: 7, images_at: 9, more: true, generation: 1 });
       if (!interrupted) { interrupted = true; throw new TypeError("lose the next request after deferral"); }
-      if (!request.stream) return new Response("missing stream mode", { status: 503 });
+      if (watermark === 0 && !request.stream) return new Response("missing stream mode", { status: 503 });
       return Response.json({ snapshot: false, store_id: "S", events: [], watermark: 9, images_at: 9, more: false, generation: 1 });
     },
   });
@@ -107,8 +107,9 @@ test("ordinary publication keeps stream mode through false snapshot mode and an 
   assert.equal(watermark, 0);
   await client.sync();
   assert.equal(watermark, 9);
-  assert.deepEqual(requests.map(r => [r.from, r.stream]), [[0, false], [7, true], [7, true]]);
-  assert.deepEqual(ownership, [false, false], "ordinary deferral must never claim a snapshot owner");
+  // Startup already began recovery; the explicit follow-up uses published progress.
+  assert.deepEqual(requests.map(r => [r.from, r.stream]), [[0, false], [7, true], [7, true], [9, false]]);
+  assert.deepEqual(ownership, [false, false, false], "ordinary deferral must never claim a snapshot owner");
 });
 
 test("change polling takes published native progress after another owner advances", { timeout: 5000 }, async t => {

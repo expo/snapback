@@ -378,6 +378,7 @@ completion changes. Await `client.sync()` when `client.link() === "online"`
 only for an operation that needs offline prediction immediately. A sync
 interrupted by link loss or a refused partition can return without acquisition,
 so `acquired` remains the authority.
+`await client.sync()` waits for a round begun after the call (sharing one follow-up if a round is in flight), so a successful sync reflects server commits acknowledged before the call instead of an older response; offline and refusal results still apply.
 Network fetch failures resolve `sync()` normally and set `link()` to `"offline"`;
 the public method resolves without a value. A transient network failure must
 not block opening. An opener's catch should close and rethrow only an unexpected

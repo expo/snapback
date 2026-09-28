@@ -72050,3 +72050,60 @@ No new comparative or crash qualification. No tool installed, push or
 publication. The commit carries the required Astra co-author trailer.
 Report and durable evidence: reports/20260927-dc-delivery-client/ROUND14.md
 and round14/ beside it.
+
+## 2026-09-28 — Lane SY: explicit sync observes a round begun after its call
+
+Fetched and merged origin/main first: already up to date at ede1f1177.
+Used the populated sibling llp-orient skill read-only. Recorded the author's
+ruling in LLP 3000 section 7 and one sentence each in the sync card and the
+operations manual. Explicit local sync now shares one follow-up among callers
+that encounter the same in-flight round; the new attempt owns success, offline
+completion or rejection, even if the older round failed. Internal syncOnce
+callers retain coalescing. Browser, process, Expo and custom handles share this
+TypeScript path. Acquisition/publication and lifecycle fences stay in that path.
+
+Ported DC's held-response leave interleaving and SS's held-response revocation
+interleaving through fetch injection on process/native and wasm. All four fail
+against merged baseline local.ts and pass after the fix. Original assertions
+are unchanged (AST comparison: 79 history, 161 asset-list assertions). Seven
+scheduler tests cover the ten-call burst, a caller during its follow-up,
+background wakes, offline fetch and device rejection, including failure of the
+older round. Five fail on baseline; both preserved wake tests fail under a
+loader that deliberately doubles the background round. Closed the DC ticket
+and imported the SS ticket's text with its resolution under issues/closed/.
+
+Affected sync/local/history/assets/React: 199 passed, 0 failed, 1 existing
+legacy-binary skip. Whole guide: 92/92. Original test source loaded byte-for-byte
+from the baseline: DC 50/50 isolated repetitions and SS 50/50. Build/typecheck,
+docs budget and references pass (521 LLPs, 9,746 refs, zero errors/unchecked).
+No new browser or iOS simulator witness claim.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+`== 1 failure(s) in 1893 s` — client tests. Its two failures are ours:
+repair-b-round7's ordinary interrupted publication and repair-b's interrupted
+snapshot catch-up expected three requests where the ruling requires four.
+Both mocks now accept and verify the follow-up from published progress while
+retaining the staged-mode assertions. All 75 Repair B/scheduler tests pass
+afterward; both updated fixtures fail on baseline. No runtime correction or
+second full-suite run. All other phases pass: Rust 4,144 / 30 ignored, doctests,
+client shards 56/56, models 79/79, wrappers 9/9. Client main before those fixture
+updates: 3,839 passed / 2 failed / 10 skipped. Full-suite baseline failures 0,
+environmental failures 0. The inherited 60-second suite budget remains exceeded.
+
+Other lane-owned failures are retained in the report: a misplaced test fetch
+hook caused four initial asset-control timeouts; two guide runs found the new
+sentence in the short introduction before it was moved below the example; the
+first DC repetition batch lost iteration 37 to our overlapping wasm-directory
+replacement (ENOENT, case never ran), then the final original-source batch
+passed all 50; two edit-command path mistakes and a trailing ticket blank line
+were corrected. Intended baseline and mutation failures are separately listed.
+
+Fresh baseline and suite-rebuilt wasm are byte-identical: 2,019,815 B raw /
+585,384 B gzip, delta 0 / 0, 809 B below the unchanged 586,193 B budget;
+SHA-256 083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+No device/core, dependency, version, meter or budget change. Node 24.13.1,
+Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo jobs/Rust test
+processes, debug info and incremental off, packaged SQLite flags, fd limit
+65,536. No tool installed or shared tool path changed. Report and compressed
+evidence: reports/20260928-sy-sync-after-call/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -1,6 +1,6 @@
 # Snapback 4: ordinary-history assertion races a sync round begun before leave
 
-Status: Open
+Status: Closed
 Date: 2026-09-27
 Scope: Snapback 4 raw local sync / ordinary-history fixture
 Found by: lane DC round 13 full-suite recovery
@@ -35,3 +35,20 @@ call, or whether this fixture must wait for observable inbox convergence.
 Preserve retained screen/history behavior, authorization and all assertions
 about eventual post-leave state. Round 13 leaves this independent behavior
 unchanged and reports the full-suite failure as baseline.
+
+## Resolution — 2026-09-28, lane SY
+
+The author ruled that explicit `sync()` must wait for a round begun after its
+call. The shared local TypeScript client now groups callers by the in-flight
+round they encountered and awaits one shared follow-up, on every device host.
+Background rounds retain ordinary coalescing; the follow-up owns the existing
+offline result or rejection, including when the older round failed.
+
+The original assertions are preserved. A committed fetch-injection case holds
+an older real response across the server commit on both process and wasm,
+and requires the revoked membership/home to be gone after explicit sync.
+Both fail against the merged baseline and pass with the correction. Scheduler
+cases check ten callers, subsequent callers, background wakes, offline fetch,
+and device rejection. The original unforced cases are also repeated in
+isolated processes. Full qualification and failure attribution are in the
+[SY report](../../snapback4/reports/20260928-sy-sync-after-call/REPORT.md).

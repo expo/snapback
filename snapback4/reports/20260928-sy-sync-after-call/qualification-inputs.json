@@ -1,0 +1,44 @@
+{
+  "baseline": "ede1f11773671436a1e9ce9ec09416500cd7e946",
+  "branch": "sb4-intent/sy-sync-after-call",
+  "machine": "expose-builder-pixel",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "tools": {
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "wasm-bindgen": "wasm-bindgen 0.2.127"
+  },
+  "environment": {
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "SNAPBACK4_RUST_TEST_PROCESSES": "8",
+    "RUST_TEST_THREADS": "8",
+    "fd_limit": 65536
+  },
+  "sha256": {
+    "snapback4/packages/snapback4/src/local.ts": "a535dd669e5429fff2cb5ffb458d66b396589a97873d6775712e5c8358a54993",
+    "snapback4/packages/snapback4/src/local-sync.ts": "7450013f950756a7bd95c4a0f2c962df34bb30c4546b4d518a87d377ac7c7511",
+    "snapback4/packages/snapback4/test/ordinary-history.test.mjs": "a5ff622a7fc611da49bf014632ee7a09089dd724763b8fa50289bb5ca7504b84",
+    "snapback4/packages/snapback4/test/asset-lists.test.mjs": "427a84b0133ef08ecad8714683ad25b69b17be584f8471c174c5467eef51aa45",
+    "snapback4/packages/snapback4/test/sync-after-call.test.mjs": "2aa7220f6ff04aeeec3c804c4589b85de498beec941236401677de37698e0a5b",
+    "snapback4/packages/snapback4/test/helpers/sync-control.mjs": "265adc01236ca595139afb299871753e44b2a5a57a37ca138c41df8e0f869494",
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": "84d15efe8d39d680c2f7598f4f45dd21a52996b57029ca81cbe36ef69d591128"
+  },
+  "post_suite_test_adjustments": {
+    "snapback4/packages/snapback4/test/repair-b.test.mjs": {
+      "full_suite_sha256": "932ef9caca4606d428a9fad87814807d8c71ca42759df478faca2ac5dfebe51a",
+      "final_sha256": "47fc849144c1ac0bca43307fa01699da0cf313a8d6d2fbd4d0a69946eda7f67b",
+      "validation": "repair-b-final.log.gz: 75 passed; negative-recovery-followup.log.gz: both expected failures on baseline local client"
+    },
+    "snapback4/packages/snapback4/test/repair-b-round7.test.mjs": {
+      "full_suite_sha256": "67d0a27e5c409b6062c8b72e489a11f610664d980d681fdc7da3f13d9677acec",
+      "final_sha256": "20fc55df67e5bbe6901e0db75a08cba2706b1826d58de726d1c90e53d7458fc7",
+      "validation": "repair-b-final.log.gz: 75 passed; negative-recovery-followup.log.gz: both expected failures on baseline local client"
+    }
+  }
+}
