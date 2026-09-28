@@ -83,6 +83,11 @@ fn nonuniform_meter_domains_refuse_but_an_explicit_page_compiles() {
     for body in ["query total():\n  n = 0\n  for m in members[principal = viewer] by byPrincipalRoom:\n    n = n + 1\n  return n\n", "query total(c: cursor ?):\n  return merge members after c first 20 by byRoomPrincipal:\n    [m.roomId] for m in members[principal = viewer] by byPrincipalRoom\n"] {
         let error = rejected(&schema, body, "E_QUARRY_BOUND");
         assert!(error.rewrite.contains("first N") && error.rewrite.contains("unread"));
+        assert!(error.rewrite.starts_with("use `first N`:"), "{error:?}");
+        assert!(error.rewrite.contains("cursor") && error.rewrite.contains("pin the deciding columns"), "{error:?}");
+        for unrelated in ["caller chain", "helper", "system authority", "scheduled job", "system job", "partial preview", "complete total", "recipient"] {
+            assert!(!error.message.contains(unrelated) && !error.rewrite.contains(unrelated), "{error:?}");
+        }
         checked(&format!("{schema}\n{}", body.replace("members[principal = viewer] by byPrincipalRoom", "members[principal = viewer] by byPrincipalRoom first 50")));
     }
 }

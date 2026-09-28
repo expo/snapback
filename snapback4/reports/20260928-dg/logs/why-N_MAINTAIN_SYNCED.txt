@@ -1,0 +1,23 @@
+N_MAINTAIN_SYNCED: maintains inherit public sync or a group audience with unbounded recipients or multiple values per group; one grouped note retains every maintain's source site and names mutations that would stop predicting if online only opts out. snapback4 test --residency measures its cold rows.
+
+## Operations
+
+N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
+with unbounded recipients or multiple values per group. It names mutations
+that would stop predicting if the view goes online only. Inherited sync has no
+horizon; `online only` also loses offline aggregate/absence coverage. See
+`guide maintains` and `guide offline-interactions` for the replica census. Repeats share one
+note with a line and source location for every view. Check prints these
+facts without pre-adoption counts: a new view has no stored rows yet. Run
+`test --residency --fixture dir --as alice` to measure cold rows and compact
+JSON row bytes. The default report shows the eight costliest table/persona
+pairs by bytes (then rows), one summed remainder and reconciled totals.
+`check --residency --fixture dir --as alice` prints the same bounded report.
+Without a fixture, check measures the active dev-store schema read-only;
+it never adopts current source for measurement. With no store it says not
+measured and names the fixture command. Add `--verbose` for every table,
+facts and notes (and on test, query meters and aggregate row counts).
+Measurements exclude transport framing, are not process RSS, and are not
+estimates for another fixture.
+
+Full card: snapback4 guide residency

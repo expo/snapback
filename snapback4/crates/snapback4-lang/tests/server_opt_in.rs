@@ -161,7 +161,7 @@ fn why_and_discovery_keep_the_opt_in_one_step_away() {
     let listing = guide::listing();
     let mut lines = listing.lines();
     let core = lines.next().unwrap();
-    assert!(!core.contains("actions") && !core.contains("routes"));
+    assert!(!core.split([',', ' ']).any(|keyword| matches!(keyword, "actions" | "routes")));
     assert!(core.contains("effects") && core.contains("services") && core.contains("jobs"));
     assert_eq!(lines.next(), Some("with use server: actions, routes"));
     for name in ["actions", "routes"] { assert!(guide::card(name).unwrap().contains("use server")); }

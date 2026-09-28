@@ -1,0 +1,1 @@
+PASS: builder source, run log, full SQLite and WAL are byte-identical to the before hashes. Originals read only as bytes.

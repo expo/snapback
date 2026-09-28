@@ -73,12 +73,26 @@ impl Binder<'_> {
         let index = &table.indexes[&scan.index];
         let pinned = index.columns().into_iter().take(scan.prefix.len()).collect::<std::collections::BTreeSet<_>>();
         let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
-        let mut leading = used.difference(&pinned).cloned().collect::<Vec<_>>();
+        let missing = used.difference(&pinned).cloned().collect::<Vec<_>>();
+        let mut leading = missing.clone();
         for column in index.columns().into_iter().skip(scan.prefix.len()) { if !leading.contains(&column) { leading.push(column); } }
         let mut page = read.clone();
-        page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: None, site: read.site.clone() });
-        Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
-            format!("use `first N`: `{}`; for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", self.catalog.source.expression(&A::Read(page.clone())), leading.join(", "))).guide("bounds"))
+        page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
+        // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — preserve the refusal at the loop, with its callers and the cost of truncating a total.
+        let jobs = self.call_chain.last().filter(|_| self.call_chain.len() > 1)
+            .map(|(helper, _)| self.helper_job_callers(helper)).unwrap_or_default();
+        if self.caller_kind != ProgramKind::Query || jobs.is_empty() {
+            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
+                format!("use `first N`: `{}` (declare `c: cursor ?` and follow its cursor); for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", self.catalog.source.expression(&A::Read(page)), leading.join(", "))).guide("bounds"));
+        }
+        let chain = self.call_chain.iter().map(|(name, site)| format!("{name} (at {site})")).collect::<Vec<_>>().join(" -> ");
+        let job = format!("the system job caller(s) {}", jobs.join(", "));
+        let authored = self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| self.catalog.source.expression(&A::Read(read.clone())));
+        let rule = if missing.is_empty() { "read rule".into() } else { format!("{}-based read rule", missing.join(", ")) };
+        let context = format!("; viewer query caller chain: {chain}. `{authored}` does not decide its {rule}; a helper grants no system authority");
+        Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns{context}", scan.table, scan.index),
+            format!("use `first N` only for a separately named paged preview: `{}` (declare `c: cursor ?` and follow its cursor); `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE). Or keep the complete scheduled job: this loop is permitted under {job}'s chunk meter. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total. See guide jobs",
+                self.catalog.source.expression(&A::Read(page)), leading.join(", "))).guide("bounds"))
     }
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.

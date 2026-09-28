@@ -72200,3 +72200,145 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+
+## 2026-09-28 — Lane DG: inherited audiences and helper query bounds
+
+First fetched and merged origin/main: already up to date at a745b110f.
+Read accepted LLP 3000.028 in full, the Snapback 4 fence/design brief,
+exclusions, journal and relevant guide cards. Used llp-orient read-only from
+the initialized lane-a5 skill; no other lane or original evidence was changed.
+
+M6 retains the explicit-sync and narrower-read refusals, naming the resolved
+public source audience, inherited lack of a horizon, conflicting read and
+site, and each repair's offline consequence. The syntax diagnostic resolves
+cross-file declarations without admitting an operation. No repair narrows the
+public source. M8 retains the helper-loop refusal with the query/helper caller
+chain, authored read and deciding columns. A named first-50 preview needs its
+cursor; a complete scheduled total remains subject to the job chunk meter,
+and an oversized recipient parks without committing a partial digest.
+
+The compiler notes, why output and guide agree. Added the compiled
+'offline-interactions' card, with the 6,012-row / 1,342,672 logical-byte public
+census and the explicitly unimplemented owner-key alternative. why digest now
+prints the existing 16,384 examined-row job ceiling and system read authority,
+correcting presentation that used the 8,192 query ceiling. No runtime,
+authority, disclosure, schema serialization, client or meter change.
+
+Acceptance uses the full P19 builder, both invalid edits on both interaction
+views, direct/transitive helper callers and cross-file declarations. Original
+builder API is byte-identical to baseline. A 100-chat preview takes two pages;
+the unchanged job returns the full total. A 16,400-message recipient parks
+with zero effects/keys. On a writable full-store copy, u0500 has 4,460 unread
+messages across two pages; all 53 emitted recipients match independent source
+row enumeration. Only the copy disables development replay suppression; no
+worker or provider runs. Original evidence hashes remain unchanged.
+
+Final affected checks: 273 pass, including whole guide 92/92 and CLI 74/74;
+the explicit full-store witness adds one pass. The single requested full suite
+exited 1 with exact summary `== 1 failure(s) in 1850 s`, naming `cargo test`.
+Its four failures were ours: ergonomics' old syntax message, residency's old
+note, server_opt_in's substring keyword check, and the guide's one-word budget
+overrun. Each was corrected and its entire target passed afterward; the full
+suite was not rerun. All other stages passed, including client tests and 79
+model tests. No baseline or environmental test/build failures. Total duration
+exceeds the documented 60-second suite budget; no budget changed and no
+baseline timing comparison was run. The report preserves all development
+failures, including fixture/setup errors, and their corrected results.
+
+Wasm is byte-identical before/after: 2,019,815 B raw / 585,384 B gzip, delta
+0/0, 809 B below the unchanged 586,193 B cap. No tool installed or shared tool
+path changed. LLP 3000.028 has a Revised line and bounded implementation notes;
+remaining owner-key/history/search/integrated-client work is not claimed here.
+Report and compressed evidence: reports/20260928-dg/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+## 2026-09-28 — Lane DG round 1: scope the audience and helper explanations
+
+Fetched and merged origin/main first: already up to date, no conflicts.
+Read the round-0 prompt/report/entry and both full reviews (Astra READY,
+Grok READY WITH CHANGES). Kept the builder's M6/M8 explanations and removed
+their overreach. M6's offline-loss sentence now requires the proved public
+inherited conflict; generic view sync refuses with remove-to-inherit or
+replace-with-online-only. An unsynced public read grants no partition.
+M8's caller chain and partial-total/job explanation now require an active
+helper with a direct or transitive job caller. Ordinary non-uniform queries
+and query-only helpers keep the first-N/cursor or deciding-column repair.
+
+Compiler-only helper metadata restricts the cost paragraph to jobs with
+non-uniform meter reads inside helpers. Each scan and point retains its
+visibility text; the real 16,384-row job ceiling stays. N_MAINTAIN_SYNCED's
+registry definition names no horizon and offline aggregate/absence loss.
+Guide cards and LLP 3000.028 §10/Revised line document the scope. No runtime,
+authority, disclosure, wire/schema format, dependency or budget changes.
+
+New regressions cover unsynced/online-only sources, public conflicts, the
+existing prefix_reads total and merge, query-only helpers, unrelated job
+costs, transitive job calls and a completed sibling helper. Explicit mutations
+all fail: appending the prohibited public-source narrowing sentence, removing
+callee traversal, and removing call_chain.pop. All sources were restored;
+the diagnostic target passes afterward.
+
+Final affected targets: 278 pass, including the whole guide 92/92 and CLI
+75/75; one external full-store witness intentionally ignored (round-0 evidence
+retained). Both ordinary job/preview runtime witnesses pass. The explicit
+diagnostics-registry check passes; ref-check reports 522 LLPs, 9,751 refs,
+zero errors/unchecked. Wasm build passes, byte-identical at 2,019,815 B raw /
+585,384 B gzip (delta 0/0, 809 B under the unchanged budget).
+
+Failure attribution: six pre-fix regression failures reproduce our round-0
+defects. The first affected run had one further failure, our residency exact-text
+expectation still pinning the removed generic sentence; corrected, then all
+40 residency tests passed. Three deliberate mutation assertions fail as intended.
+No baseline or environmental test/build failures. ROUND1.md also records two
+corrected source-path lookup errors and existing baseline compiler warnings.
+
+Did not run scripts/test.sh, per the round-1 instruction; the supervisor's
+landing suite is next. Report: reports/20260928-dg/ROUND1.md, with compressed
+logs and wasm-round1.json. No tools installed, other-lane/shared paths changed,
+push or publication. Local commit carries the co-author trailer.
+
+## 2026-09-28 — Lane DG round 2: query-cap eligibility and dedicated why gates
+
+Fetched and merged origin/main first: already up to date, no conflicts.
+Read both previous prompts/reports/entries and the complete round-1 Grok
+READY WITH CHANGES review. Kept the existing helper and non-uniform checks,
+and gated job-cost metadata on the query's examined ceiling: a pinned cap
+of 10 makes the helper query-eligible and removes the partial-preview advice;
+10,000 and no cap still record it. A cap on unpinned columns does not qualify.
+The query ceiling is 8,192, not the job's 16,384. No admission, authority,
+disclosure, IR, runtime meter or device change.
+
+E_QUARRY_SYNTAX's dedicated why page now leads with the generic sync-line
+repair and requires proved horizon-free public inheritance plus a narrower
+explicit read before explaining offline loss. E_QUARRY_BOUND's why page
+requires a non-uniform meter read inside a helper reached by a job before
+promising caller-chain/job context. The tests assert these conditional
+statements and reject the old ungated sentences. The builder's job-caller
+regression now reaches digestCounts through jobCounts and wrappedCounts.
+
+Compiler coverage checks loop and count-aggregate reads with cap 10, cap
+10,000, no cap, and a cap on an unpinned column. CLI coverage checks both
+why sweep and check --cost, with the legal preview present in the cap-10
+program. All four deliberate mutations fail their intended assertions:
+using the job ceiling, restoring either old why page independently, and
+expanding only direct job callees. Mutation source was restored before
+final checks.
+
+Final affected targets: 280 pass, including the whole guide 92/92 and CLI
+76/76; one external-store witness intentionally ignored as in round 1.
+Both ordinary runtime witnesses pass. The explicit diagnostics-registry
+rerun passes. Root ref-check: 522 LLPs, 9,751 refs, zero errors/unchecked.
+Wasm rebuilt after target removal is byte-identical to the preserved round-1
+artifact: 2,019,815 B raw / 585,384 B gzip, delta 0/0, 809 B under the unchanged
+budget. No tool installed or shared path changed.
+
+Failure attribution: two pre-fix assertions reproduce our round-1 defects;
+four deliberate mutation assertions fail as intended. No final, baseline
+or environmental test/build failures. Expected missing skill/target state
+was environmental setup, and one rejected doc-only patch context was ours;
+ROUND2.md records both. Existing compiler warnings remain baseline warnings.
+Did not run scripts/test.sh, per instruction; the supervisor owns landing
+qualification. Report and logs: reports/20260928-dg/ROUND2.md. LLP 3000.028
+Revised line and implementation notes updated. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
