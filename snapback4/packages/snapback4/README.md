@@ -238,14 +238,14 @@ query inbox(c: cursor ?):
   return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
 query history(conversation: conversations, c: cursor ?):
   return messages where .conversation = conversation last 20 by .at after c
-query searchHeld(q: text <=100, c: cursor ?) held:
+query search(q: text <=100, c: cursor ?):
   return messages matching q last 20 by .at after c
 ```
 
-Render receipts, profiles, quotes and reactions from their own queries beside history so a decoration that loads or
-refuses does not take the page with it. Run `npx snapback4 guide receipts` for the complete receipt model,
-SDK delivery reporting and screen-owned visible `seen` reporting. Use `held` only for a read the server cannot
-answer, such as the all-chat word search above. It has no server fallback; HTTP clients receive `E_QUERY_HELD`.
+Render receipts, profiles, quotes and reactions separately so loading or refusal preserves history. Run `npx snapback4 guide receipts` for the complete model,
+SDK delivery reporting and screen-owned visible `seen` reporting. Ordinary search combines current server hits
+with retained device hits online; `usePage` accumulates by ID. Show “Partial results” only for `complete: false`.
+This windowed search emits `N_SYNC_ORDER` for device coverage and `N_NEVER_COMPLETE` for empty-needle browsing (`guide search`).
 
 `cap 50 by conversation` is this product's maximum group size, enforced on writes. Choose caps only for actual product
 limits: the engine chooses its own execution bounds, and `sync last 500` bounds acquisition, not how many messages may

@@ -1,0 +1,9 @@
+{
+  "command": "bash scripts/test.sh",
+  "started": "2026-09-28T16:35:56.586105+00:00",
+  "input_commit": "aa4763bc55f8a81c53a9106a540d9598ed03f560",
+  "pid": 1801392,
+  "exit": 1,
+  "seconds": 1351.7629222869873,
+  "finished": "2026-09-28T16:58:28.349031+00:00"
+}

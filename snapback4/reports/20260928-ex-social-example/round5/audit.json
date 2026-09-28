@@ -1,0 +1,22 @@
+{
+  "base": "aa4763bc55f8a81c53a9106a540d9598ed03f560",
+  "source_lines": {
+    "snapback4/crates/snapback4-lang/src/guide/app.rs": 137,
+    "snapback4/crates/snapback4-lang/src/guide/receipts.rs": 350,
+    "snapback4/crates/snapback4-lang/src/guide/search.rs": 197,
+    "snapback4/crates/snapback4-lang/src/guide/social.rs": 79,
+    "snapback4/crates/snapback4-lang/src/guide/sync.rs": 472,
+    "snapback4/crates/snapback4-lang/tests/guide.rs": 1487,
+    "snapback4/crates/snapback4-lang/tests/guide/client.rs": 62,
+    "snapback4/crates/snapback4/src/verbs/init/social/Search.tsx": 32,
+    "snapback4/packages/snapback4/test/helpers/social-browser.mjs": 246,
+    "snapback4/packages/snapback4/test/social-browser.test.mjs": 474,
+    "snapback4/packages/snapback4/test/social-starter.test.mjs": 218
+  },
+  "sources_within_1500": true,
+  "wasm_input_changes": [],
+  "readme_lines": 300,
+  "current_branch": "sb4-intent/ex-social-example",
+  "journal_append_only": true,
+  "journal_entries_added": 1
+}

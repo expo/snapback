@@ -74854,3 +74854,59 @@ note, command/results and compressed evidence accompany this append.
 No scripts/test.sh, budget raise, install, push or publication. The full builder
 store/floor and native Expo evidence are not rerun. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EX round 5: adopt ordinary search after landing
+
+First fetched and merged origin/main, fast-forward be9ca4f44 to aa4763bc5,
+including EX rounds 0–4 at ae265b730 and landed OS. No conflicts. Read the
+prior prompts/reports/entries and the landed search card/LLP 3000.028 §3.3;
+applied llp-orient. The actual landed round-7 decision supersedes the merge
+message's immutable-scope admission description. Starter conversation and at
+were already immutable; both remain, with their stable-position intent stated.
+
+Replaced searchHeld/searchNewest and their rewrite warning with one ordinary
+all-chat search; the pinned searchChat remains. Search.tsx renders SDK usePage
+items/continuation and the combined ReadState, without a connectivity switch
+or application accumulation. Partial results depends only on an incomplete
+ready read. Updated client/search/offline-interactions/social and adjacent
+cards, starter/package READMEs and CLIENT-AND-OPERATIONS. Optional explicitly
+narrower scopes remain distinct features, never an online/offline pair.
+Executable ordinary examples document their two coverage notes, pinned by
+code/count/query-site against the actual published blocks. Retained search
+examples now declare retain delivered-history. Moved the expanded guide test
+into its existing helper to preserve the source cap; README remains 300/300.
+
+Three real browser/wasm witnesses mount generated Search.tsx: live plus departed
+search, leave followed by search, and exact 20/40/45 accumulation without a
+duplicate. Twenty live matches are below the 500-row replica window; 25 departed
+matches were acquired before leave. Complete current pages with continuation
+show no partial label; retained unknown coverage stays partial, even empty.
+Restoring both pre-OS schema and screen only in temporary generated output
+fails all three at the exact combined-prefix assertion. No search answers,
+cursors, metadata or leave transitions are mocked. Native host views remain
+DOM counterparts; this is not native Expo lifecycle qualification.
+
+Ran scripts/test.sh exactly once, exit 1: `== 1 failure(s) in 1352 s`, category
+client tests. Rust 4,250 pass / 0 fail / 33 ignored; client shards 4,421 pass /
+1 fail / 10 skipped; models 79/79; fixtures 9/9. The sole full-run failure is
+ours: the new public-client smoke assumed search data was immediately ready
+and called map on undefined. The log does not identify the non-ready variant.
+Fixed the assertion to await loading, fail on refusal, and still require the
+exact retained ID. No application implementation changed after the full run.
+The two search-card retention declarations also followed that snapshot.
+Final affected checks pass: browser/starter/initializer 24/24, whole guide
+98/98, published search consumers 17/17, CLI build. Earlier compiler consumers
+pass 61/61. No second full run or all-green full-suite claim. Other corrected
+failures were ours: two initial guide-note expectations and a mutation-wrapper
+binary path. Expected mutation failures remain separate. Baseline and
+environmental qualification failures: zero.
+
+Fresh production wasm before and during the suite is byte-identical:
+2,039,451 B raw / 592,719 B GNU file-input gzip-9; unchanged 593,719 B budget,
+1,000 B headroom, SHA-256
+7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d.
+No SDK/core/device/build/budget, dependency or publication-version changes.
+Report and evidence: reports/20260928-ex-social-example/round5/REPORT.md;
+LLP 3000.028 §8 and Revised record adoption. Native Expo/Hermes lifecycle
+qualification remains outstanding. No shared installation, push or publication.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
