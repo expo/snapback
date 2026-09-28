@@ -64,8 +64,11 @@ impl Requests {
 
     pub(super) fn read(&mut self, tables: &BTreeMap<String, TableInfo>, read: &mut ReadExpr, rule: bool) {
         if super::validate_key_names(read).is_err() { return; }
-        if read.index.is_some() { return; }
         let Some(table) = tables.get(&read.table) else { return; };
+        if read.index.is_some() {
+            if !rule { self.selected_prefix(table, read); }
+            return;
+        }
         let named = !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_some());
         let covered = named && table.indexes.iter().any(|index| table.total_unique(index)
             && index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))));
@@ -172,6 +175,41 @@ impl Requests {
         }
         read.index = Some(if let Some(index) = extremum_index.or_else(|| candidates.first().copied()) { index.name.clone() }
             else { self.index_computed(table, columns, words, read.computed.clone(), &read.site, true) });
+    }
+    // @ref LLP 3000.028#3.2 — an explicit index has the same coverage as
+    // its bracket prefix, but only for present, infallible binding values.
+    fn selected_prefix(&self, table: &TableInfo, read: &mut ReadExpr) {
+        let Some(index) = table.indexes.iter().find(|index| Some(&index.name) == read.index.as_ref()) else { return; };
+        if !index.is_plain() || read.keys.len() > index.columns.len() { return; }
+        // Preserve positional keys and reject gaps/mismatches through the
+        // ordinary binder. Never repair an invalid authored constraint here.
+        if read.keys.iter().enumerate().any(|(n, key)| key.column.as_ref().is_some_and(|column| column != &index.columns[n])) { return; }
+        let Some(predicate) = read.filter.as_ref() else { return; };
+        let original_prefix = read.keys.len();
+        let mut conjuncts = Vec::new();
+        split(*predicate.clone(), &mut conjuncts);
+        for column in &index.columns[read.keys.len()..] {
+            if !table.columns.get(column).is_some_and(|ty| !ty.optional) { break; }
+            let candidates: Vec<_> = conjuncts.iter().enumerate().filter_map(|(n, predicate)| {
+                if !matches!(predicate, Expr::Binary { op, .. } if op == "=") { return None; }
+                equality(predicate, table).filter(|(name, _)| name == column).map(|(_, value)| (n, value))
+            }).collect();
+            // Multiple equalities may conflict. Leave all of them residual;
+            // no arbitrary choice may acquire a different coverage domain.
+            let [(n, value)] = candidates.as_slice() else { break; };
+            if !self.contexts.safe(read, value) { break; }
+            // Removing the final predicate must not turn an unpaged scan
+            // into a scalar unique lookup (or a maintained scalar total).
+            if index.unique && read.keys.len() + 1 == index.columns.len() && conjuncts.len() == 1
+                && read.range.is_none() && read.order_keys.is_empty() && read.matching.is_none() && read.seeks.is_empty() { break; }
+            let predicate = conjuncts.remove(*n);
+            // Existing positional prefixes must stay positional, too.
+            let named = read.keys.first().is_none_or(|key| key.column.is_some());
+            read.keys.push(KeyPart { column: named.then(|| column.clone()), value: value.clone(), site: predicate.site().clone() });
+        }
+        // An unchanged predicate keeps its original source span, which is
+        // also the input to source-preserving diagnostic repairs.
+        if read.keys.len() != original_prefix { read.filter = conjunction(conjuncts); }
     }
 }
 

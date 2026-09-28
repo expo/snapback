@@ -52,6 +52,7 @@ table messages:
   body: text <=2000
   at: time
   search body
+  by byHistory: conversation, at, id
   read <- exists participants[.conversation, viewer]
   retain delivered-history
   sync to participants[.conversation] by .personId last 500 by .at
@@ -60,7 +61,10 @@ query conversationScreen(c: threads):
   return threads[c]
 
 query history(c: threads, page: cursor ?):
-  return messages where .conversation = c last 20 by .at after page
+  return messages where .conversation = c last 20 by byHistory after page
+
+query historyBracket(c: threads, page: cursor ?):
+  return messages[conversation = c] last 20 by byHistory after page
 
 query searchHeld(q: text <=100, page: cursor ?) held:
   return messages matching q last 20 by .at after page
@@ -76,6 +80,11 @@ retained page local, online and offline. Pin `conversationScreen` by id.
 Keep receipts, profiles, quotes and reactions in separate queries rendered
 beside history, as `guide app` and `guide receipts` show. A decoration that
 loads or refuses must not take the page with it.
+
+With a selected index, a safe, non-optional leading equality establishes the
+same prefix and local coverage as its bracket spelling. Other predicates,
+order and cursor remain intact. Optional, fallible or conflicting equalities
+stay residual.
 
 Use `held` only for a read the server cannot answer, such as `searchHeld`
 over every chat this device holds. It never falls back, even online.

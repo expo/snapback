@@ -72200,3 +72200,56 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+
+## 2026-09-28 — Lane EQ: equality coverage on a selected index
+
+First fetched origin and merged origin/main; already up to date at
+`a745b110f2187004abb1cec8380b33b6d1396108`. Read LLP 3000.028 in full and
+oriented to its history acceptance and the selected-index planner. Safe,
+explicit equality now extends a selected plain index's contiguous prefix.
+Residual predicates, existing keys, ordering, cursor and page type survive;
+unsafe/optional/conflicting values, bare Boolean filters and gaps stay
+residual. No authorization, disclosure, meter, schema or runtime change.
+
+The separate P19 equality fixture removes historyHeld and the archived query
+selector. The immutable original still compiles; every surviving operation's
+IR and the schema match. Public process/wasm witnesses pass paired spelling,
+empty and 10,000-message groups, the exact 500-row floor, a timestamp-tie
+variant, durable publication, departure, remount, offline reopen and rejoin.
+The full-scale arm uses a private copy of the calibration store and original
+membership mutations; input hashes remain unchanged. React/IndexedDB runs the
+copied receipt hook through delayed route/progress reads without lost IDs,
+duplicates, draft or focus. Native Expo remains unqualified: Linux has no
+xcrun or available Mac/Fleet/SSH target. Full section 7.1 is not claimed.
+
+Final affected compiler/diagnostic tests: 34/34; whole guide: 92/92. Added
+named/positional prefix-extension assertions: 5/5. Settled process/wasm/React
+witnesses: 3/3; copied calibration-store witness: 1/1. scripts/test.sh ran
+once, with eight Cargo jobs and serial client files. Exact summary:
+`== 1 failure(s) in 5060 s`, listing `cargo test`. Its sole failed target was
+familiar_repairs, nested_key_repairs_keep_conjuncts_bounds_and_order: ours,
+fixed by extracting only explicit equalities, with final affected checks
+passing. Other suite phases passed: clients 3,901 passed, zero failed, ten
+existing environment-gated skips; models 79/79 with full seed counts.
+
+Every failure: ours, initial namespace fixture, source-coordinate comparison,
+and publication-watch request attribution; plus the introduced diagnostic
+regression in the full suite and its first targeted retry. All corrected;
+five failing invocations, four distinct issues. Baseline test failures: zero.
+Environmental test failures: zero; native Expo and ten opt-in client checks
+are unrun/skipped, with exact reasons in the report. The full suite retains
+its original red and is not represented as a final-tree green rerun.
+
+Wasm: 2,019,815 B raw / 585,384 B gzip, byte-identical to the same-toolchain
+baseline, delta 0/0; unchanged budget 586,193 B, 809 B headroom. No tool
+installed, shared tool path changed, push or publication. LLP 3000.028's
+Revised line and implementation notes record this scope and qualification
+limit. Report and durable observations: reports/20260928-eq/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+The staged whitespace audit also found trailing blanks in seven captured
+text logs (ours); trimming only trailing whitespace/blank EOF resolves them.
+Failure text and exact summaries are unchanged; compressed observations
+remain byte-exact against their manifest. Final reference audit: 522 LLPs,
+9,752 refs, zero errors/unchecked.
