@@ -1,0 +1,142 @@
+[
+  {
+    "file": "affected-post-suite.log.gz",
+    "uncompressed_bytes": 2500,
+    "uncompressed_sha256": "7220b56beaf3dc21ceb8584f0a0408d523230dbf4af5324441ae6feeb59d956a"
+  },
+  {
+    "file": "affected.log.gz",
+    "uncompressed_bytes": 2198,
+    "uncompressed_sha256": "40decfb468709adf3107c72501475d05c51a1abe9ae76c76e93d5254394ff52e"
+  },
+  {
+    "file": "build-final.log.gz",
+    "uncompressed_bytes": 872,
+    "uncompressed_sha256": "e9c2b6b3ca94ea4d5de1514f87aa2a783f12f6fd791a6092c8ff1bec26a69e27"
+  },
+  {
+    "file": "build-post-suite.log.gz",
+    "uncompressed_bytes": 661,
+    "uncompressed_sha256": "f7606006ded044c2bbf5343e2846f4a3db2817fa5b51bf3b839be0bda8fb062d"
+  },
+  {
+    "file": "build-qualified.log.gz",
+    "uncompressed_bytes": 661,
+    "uncompressed_sha256": "fde21fad972c6192675f29ca599ac3a29ee38142959fb9882fd15858feddb47f"
+  },
+  {
+    "file": "build.log.gz",
+    "uncompressed_bytes": 2941,
+    "uncompressed_sha256": "3ef236574845fe374c29b023d06cbcecbead122cf68a941bfc7c8b693a332e27"
+  },
+  {
+    "file": "card-consumers.txt.gz",
+    "uncompressed_bytes": 3004,
+    "uncompressed_sha256": "6cfc85423b0db15afa4e85f8d9256192a859b3dcba2b3930818f160349822a2f"
+  },
+  {
+    "file": "client-build.log.gz",
+    "uncompressed_bytes": 201,
+    "uncompressed_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+  },
+  {
+    "file": "guide-consumers.log.gz",
+    "uncompressed_bytes": 5542,
+    "uncompressed_sha256": "b1a612f653831f4f0b6d2d09578c58413d5f1f6982e7ac9d4d14bbfc86dc966d"
+  },
+  {
+    "file": "guide-final-layout.log.gz",
+    "uncompressed_bytes": 7151,
+    "uncompressed_sha256": "f6d46a1c1d3238176c6012ad1b0547ef207d1c677e42c8da8db61edf58a02e5c"
+  },
+  {
+    "file": "guide-final.log.gz",
+    "uncompressed_bytes": 7143,
+    "uncompressed_sha256": "0d9f7070227e7132d588750a5b1747c7f67dfb3caa632de78b943c3896ec97b7"
+  },
+  {
+    "file": "guide-post-suite.log.gz",
+    "uncompressed_bytes": 7416,
+    "uncompressed_sha256": "aed716b8870f7c6da861c6bc215dd8ef606e5b03eca6d689210d9a6c7bda6602"
+  },
+  {
+    "file": "guide-qualified.log.gz",
+    "uncompressed_bytes": 7250,
+    "uncompressed_sha256": "cba234362a971f81c1c93ec708f000bd795bfe46bd3be526d2bbdc5f0283b1c5"
+  },
+  {
+    "file": "guide.log.gz",
+    "uncompressed_bytes": 13406,
+    "uncompressed_sha256": "0e74e13800628de923adf49bb9066d2f44297f8975edfbce2388b111b5052a59"
+  },
+  {
+    "file": "init-recipe.log.gz",
+    "uncompressed_bytes": 418,
+    "uncompressed_sha256": "4aadb9e9622008bb9c1afbcc3a0bd272f8c237f1071768792f775e67e742c864"
+  },
+  {
+    "file": "mutant-split-final.log.gz",
+    "uncompressed_bytes": 9639,
+    "uncompressed_sha256": "5d1643226f75dd5fcd21284ce4571ebd98a35c39135ade9ab58d367c7ad5d67a"
+  },
+  {
+    "file": "mutant-split-qualified.log.gz",
+    "uncompressed_bytes": 9512,
+    "uncompressed_sha256": "74086a1aee9103d0be353ea7e5bca2960d59382fca1fe9cf87d2ba8d0a1af93e"
+  },
+  {
+    "file": "mutant-split.log.gz",
+    "uncompressed_bytes": 1013,
+    "uncompressed_sha256": "7682bd1c545d157ddf1e703a77277507ce0fd56e98697b1dbcf7b6423d546eee"
+  },
+  {
+    "file": "post-suite-changes.patch.gz",
+    "uncompressed_bytes": 1838,
+    "uncompressed_sha256": "24c31cccb57e7c97f6fc72d3b8bfc4762e36266cc6c19692ff9b044c2a572005"
+  },
+  {
+    "file": "ref-check-final.log.gz",
+    "uncompressed_bytes": 80,
+    "uncompressed_sha256": "8dd8a009df90c1877de45eaae6f8875f5a509921f524df4d90410312d2bb0fb8"
+  },
+  {
+    "file": "ref-check.log.gz",
+    "uncompressed_bytes": 80,
+    "uncompressed_sha256": "49168febfb4379133771f175d8275498740df5c3e491835080c041fe36f8e15e"
+  },
+  {
+    "file": "search-browser-final.log.gz",
+    "uncompressed_bytes": 489,
+    "uncompressed_sha256": "3f68c3d79401bdbaf18a43d31fe038a4a2e23f04def3a48f67891c3a8ff5310e"
+  },
+  {
+    "file": "search-browser.log.gz",
+    "uncompressed_bytes": 488,
+    "uncompressed_sha256": "f172af39c7f0550ce47762ad44fedefde875bc0f89565264c4ba850688614b3e"
+  },
+  {
+    "file": "search-global-post-suite.log.gz",
+    "uncompressed_bytes": 2074,
+    "uncompressed_sha256": "2532628ba5f85a29ec8d5ad1ab72274adea18b3708e4a6c8f8bde8b6096e6f85"
+  },
+  {
+    "file": "search-global.log.gz",
+    "uncompressed_bytes": 2104,
+    "uncompressed_sha256": "e55fec606ec7ca0f482d0700f463dc60c6638bdbbca11cd3b30b875c176fbd24"
+  },
+  {
+    "file": "test-sh.log.gz",
+    "uncompressed_bytes": 713092,
+    "uncompressed_sha256": "95a8ec0f94b53c6ff985863938c2ee0f0bdc93f833e2260b46a2b2f7dac6c204"
+  },
+  {
+    "file": "tested-diff.patch.gz",
+    "uncompressed_bytes": 43666,
+    "uncompressed_sha256": "1ba709e61f026c71c244a862c1e4f1d3b235bc666f021fde9b1afe27efa710e6"
+  },
+  {
+    "file": "wasm-before-build.log.gz",
+    "uncompressed_bytes": 7770,
+    "uncompressed_sha256": "10f8d93254ff1fdc1700cb3c9fff30e2d0560e80437550a637bc9428b5f44723"
+  }
+]

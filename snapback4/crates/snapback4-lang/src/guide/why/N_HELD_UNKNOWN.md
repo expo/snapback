@@ -8,8 +8,8 @@ expressions. It is conservative: the branch need not run on every call.
 
 Move the read to its own query, or drop `held`. Keep a thread's history as an
 ordinary bare message page and render receipts, profiles, quotes and reactions
-from separate queries. Keep `held` for a read the server cannot answer, such
-as word search over every chat held on the device. A horizon or a word index
+from separate queries. Ordinary search combines current server and retained
+device hits; reserve `held` for an explicitly device-only scope. A horizon or a word index
 alone does not cause this note. This advice changes neither rules nor routing;
 the server still refuses a held query with E_QUERY_HELD.
 

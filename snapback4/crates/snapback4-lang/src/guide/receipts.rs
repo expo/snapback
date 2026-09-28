@@ -202,8 +202,8 @@ An online-only client cannot recover these retained rows.
 
 Render `messageReceipts`, profiles, quotes and reactions from their own
 queries beside history. A decoration that loads or refuses leaves the page
-intact. Use `held` only for a read the server cannot answer, such as word
-search over every chat held on a device. An ordinary history can ask the
+intact. Use ordinary search for current and retained hits in either link state
+(`guide search`). An ordinary history can ask the
 server before acquisition or past its horizon; a left group's retained page
 stays local.
 

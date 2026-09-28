@@ -1,4 +1,4 @@
-use super::card;
+use super::{card, quarry, compile};
 #[path = "published.rs"]
 mod published;
 
@@ -30,4 +30,33 @@ fn published_text_needs_no_checkout_or_lane_reports() {
             assert!(!(words[0].eq_ignore_ascii_case("lane") && lane_name(words[1].trim_end_matches("'s"))) && !(lane_name(words[0]) && words[1].starts_with("round-")), "{name}: lane reference {words:?}");
         }
     }
+}
+
+#[test]
+fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
+    let text = card("search").unwrap();
+    let section = text.split_once("## Search every chat I'm in").expect("the search forms").1.split("\n## ").next().unwrap();
+    let blocks = quarry(section);
+    assert_eq!(blocks.len(), 1);
+    let block = &blocks[0];
+    let (document, errors) = snapback4_lang::parse_document("schema.q", block);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(document.programs.len(), 4);
+    for form in ["searchHeld", "searchGrouped", "search", "searchNewest"] {
+        let declaration = document.programs.iter().find(|query| query.name == form).expect(form);
+        assert_eq!(declaration.args.iter().filter(|arg| arg.type_.kind == snapback4_lang::ast::TypeKind::Cursor).count(), 1, "{form}");
+    }
+    for sentence in ["do not exchange them", "change both", "never advance past it", "Server batches", "Install the bounded server walk"] {
+        assert!(!section.contains(sentence), "obsolete protocol: {sentence}");
+    }
+    assert!(block.contains("query search(q: text <=100, c: cursor ?):\n  return messages matching q last 20 by .at after c"));
+    // The explicit held scope still diagnoses missing sync. Ordinary search's
+    // inferred audience requires sync, so exercise this old control separately.
+    let explicit_scopes = block.replace("query search(q: text <=100, c: cursor ?):\n  return messages matching q last 20 by .at after c\n", "");
+    let server = explicit_scopes.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
+    // Turning off every sync deliberately makes searchHeld an unsynced held read.
+    let bound = compile(&server);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(!bound.notes.is_empty());
+    assert!(bound.notes.iter().all(|note| note.code == "N_HELD_UNKNOWN" && note.message.contains("searchHeld")), "{:?}", bound.notes);
 }

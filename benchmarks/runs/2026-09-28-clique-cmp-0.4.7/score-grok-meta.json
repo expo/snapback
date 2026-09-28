@@ -1,0 +1,26 @@
+{
+  "wave": "grok",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "start": 1790612942,
+  "end": 1790613321,
+  "exit": 0,
+  "command": [
+    "/home/ccheever/.local/bin/grok",
+    "--prompt-file",
+    "/home/ccheever/clique-cmp-20260928-047/scores/grok/prompt.md",
+    "--cwd",
+    "/home/ccheever/clique-cmp-20260928-047",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "plain",
+    "--disable-web-search",
+    "--permission-mode",
+    "auto",
+    "--max-turns",
+    "300"
+  ]
+}

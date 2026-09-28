@@ -1,9 +1,10 @@
 ## Search every chat I'm in
 
-Use **newest** for a globally ordered page when discovery fits one read.
-Use **grouped** to page matching chats with previews. Return bare hits and
-read chat details separately. Both forms enforce source rules on the server
-and over held device rows.
+Use one ordinary **search** for a globally ordered page across current and
+retained conversations, as the social starter does. Use **grouped** to page
+current matching chats with previews when discovery cannot fit one read.
+Return bare hits and read chat details separately. Table rules protect server
+reads; retained device images confer no server authority.
 
 A single bare ordinary word page such as
 `return messages matching q where not .tombstone last 20 by .at after c`
@@ -93,12 +94,13 @@ table members:
   sync to members[.roomId]
 
 table messages:
-  immutable roomId
+  immutable roomId, at
   roomId: id
   body: text <=4000
   at: time
   search body
   read <- exists members[.roomId, viewer]
+  retain delivered-history
   sync to members[.roomId] last 200 by .at
 
 query searchHeld(q: text <=100, c: cursor ?) held:
@@ -108,12 +110,25 @@ query searchHeld(q: text <=100, c: cursor ?) held:
 query searchGrouped(q: text <=100, c: cursor ?):
   return members[principal = viewer] after c first 20 by .roomId where exists (messages[roomId = .roomId] by .at matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at }
 
--- one newest-first stream across chats: for a first screen; complete while the chats open in one read
+-- One ordinary newest-first stream in either link state, including after leave.
+query search(q: text <=100, c: cursor ?):
+  return messages matching q last 20 by .at after c
+
+-- Optional current-membership-only scope; excludes departed images deliberately.
 query searchNewest(q: text <=100, c: cursor ?):
   return messages matching q where exists members[.roomId, viewer] last 20 by .at after c
 ```
 
-**Newest.** The compact server plan discovers compact membership keys, opens one authorized
+`searchHeld` and `searchNewest` are optional, deliberately narrower domains:
+device-only and current-membership-only respectively. Do not switch between
+them based on connectivity. The starter uses ordinary `search` in both states.
+
+**Ordinary search.** Call `usePage(api.search, { q })` and render its `items`.
+The SDK accumulates by source row ID; do not append or deduplicate pages yourself.
+Show “Partial results” only for a ready combined read with `complete: false`.
+Stale retained hits and a non-null `next` alone do not mean incomplete.
+
+The compact server plan discovers compact membership keys, opens one authorized
 order key per chat and materializes only emitted hits. Inner word expansion
 keeps one best head, rescanning and paying again on refill. Pass `c: read.next`.
 Every page must rediscover every chat; this is a live cursor, not a snapshot
@@ -151,7 +166,11 @@ later groups are dropped so the next request retries them. Each chat shows
 three hits; use a pinned-chat search for more messages. This pages chats,
 not every matching message in the corpus.
 
-**Diagnostics.** `check` and `check --cost` separately name **N_SEARCH_UNSCOPED**
+**Diagnostics.** The ordinary windowed examples intentionally emit
+**N_SYNC_ORDER** for unknown unscoped device coverage and **N_NEVER_COMPLETE**
+for the empty-needle browse branch. These notes do not deny the inferred
+non-empty current server plan; retained coverage can still be incomplete.
+`check` and `check --cost` separately name **N_SEARCH_UNSCOPED**
 (add the membership predicate), **N_SEARCH_OPEN** (use grouped),
 **N_SEARCH_WORDS** (longer first term or pinned chat), and **N_SEARCH_SHAPE**
 (remove repeated peer/detail subqueries from each hit). Every entry has a site,
@@ -177,4 +196,5 @@ This example acquires 200 messages per chat, so device searches report incomplet
 history, even for empty matches. Label offline results as searched on this device.
 `searchHeld` is device-only; the server refuses E_QUERY_HELD.
 The local clients never fall back to the server for a held query, even at a
-horizon, meter cut or word cut. Use grouped/newest online for full history.
+horizon, meter cut or word cut. Choose this scope only for an explicitly
+device-only feature; ordinary search above owns online/offline routing.
