@@ -21,7 +21,7 @@ import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 //    Future remembered wakeups carry that provenance to the watch timer.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
-import { operationTables, type BackendJson } from "./backend.ts";
+import { ephemeralTables as schemaEphemeralTables, operationTables, type BackendJson } from "./backend.ts";
 import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
@@ -93,7 +93,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   let possible = program && !program.native ? new Set(staticTables) : null;
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null };
   const key = readKey(op, args);
-  const ephemeralTables = env.backend.schema.operations?.[op.name]?.ephemeralReads ?? program?.ephemeralReads ?? [];
+  const ephemeralTables = schemaEphemeralTables(env.backend.schema, op.name);
   const ephemeral = ephemeralTables.length > 0;
   let remember = !ephemeral;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;

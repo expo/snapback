@@ -46,7 +46,7 @@ import { readLocalAsset, MediaCache, assetRetention, changesMediaAuthority, type
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
-import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
+import { ephemeralTables as schemaEphemeralTables, operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import {
@@ -961,7 +961,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
       && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), () => reconcileLocalRead(answers, watches, backend, result, publish, scheduleExpiry, watch, peer => { void rerun(peer); }), { client, watch });
   }
-  function watchEphemeral(watch: Watch) { watchLocalEphemeral(watch, backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [], ephemeralReads,
+  function watchEphemeral(watch: Watch) { watchLocalEphemeral(watch, schemaEphemeralTables(backend!.schema, watch.op.name), ephemeralReads,
       () => watches.get(watch.key) === watch, () => scheduleExpiry(watch, null), () => { void rerun(watch); });
   }
   function rerunTables(tables: Set<string>) { rerunLocalTables(watches.affected(tables), tables, rerun); }

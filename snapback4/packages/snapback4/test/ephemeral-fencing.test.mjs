@@ -6,9 +6,38 @@ import { createLocalClient } from '../dist/local.js';
 import { defaultFetch } from '../dist/node-fetch.js';
 import { EphemeralReads } from '../dist/ephemeral-reads.js';
 import { ReadObservation } from '../dist/read-observation.js';
+import { changeFeed } from '../dist/changes.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+
+test('pre-discovery peers published only by a matching direct read inherit its ephemeral footprint', async t => {
+  const held = deferred(), entered = deferred(), discovery = deferred();
+  let requests = 0, epoch = 1;
+  const packet = () => ({ data: epoch === 1 ? 'secret' : null, seq: 0, tables: ['secrets'], ephemeral: { incarnation: 'A', epoch } });
+  const client = createClient({ url: 'http://peer.test', persona: 'alice', fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/schema' || path === '/changes') {
+      if (path === '/schema') discovery.resolve();
+      return new Promise((_, reject) => {
+        if (init.signal.aborted) reject(Error('closed'));
+        else init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+      });
+    }
+    if (path === '/q/secret' && ++requests === 1) { entered.resolve(); return held.promise; }
+    return Response.json(packet(), { headers: { 'X-Snapback-Ephemeral': '1' } });
+  } });
+  t.after(async () => { held.resolve(Response.json(packet())); await client.close(); });
+  const q = name => ({ kind: 'query', name });
+  await client.query(q('warm'), {});
+  const watch = client.observe(q('secret'), {}); t.after(() => watch.close());
+  await entered.promise; await discovery.promise;
+  await client.query(q('secret'), {});
+  assert.equal(watch.getSnapshot().data, 'secret', 'same-key direct read supplied the first answer');
+  epoch = 2;
+  await client.query(q('evidence'), {});
+  assert.notEqual(watch.getSnapshot().data, 'secret', 'a peer without its own completed fetch is registered');
+});
 
 test('dependency epochs cover owners, direct replies, remounts and the final publication gap', t => {
   const stop = new AbortController(), reads = new EphemeralReads(stop.signal);
@@ -35,9 +64,15 @@ test('dependency epochs cover owners, direct replies, remounts and the final pub
   assert.equal(reads.accept(delayed, version(0)), false, 'ownerless alias is fenced');
   assert.equal(reads.accept(independent, version(0)), true, 'unrelated table remains independent');
   assert.equal(other.snapshot.data, 'old');
-  reads.remove(a); reads.remove(b);
+  reads.remove(a); reads.remove(b); reads.remove(other);
+  assert.equal(reads.parameters().tables.length, 0, 'the final owner is gone');
+  assert.equal(reads.accept(delayed, version(0)), false, 'buffered reply is fenced with no owners');
   assert.equal(reads.accept(reads.request(['secrets']), version(1)), false, 'floors outlive owners');
   assert.equal(reads.accept(reads.request(), version(1)), false, 'unknown dependencies fail closed');
+  checking = false;
+  reads.add(a, ['secrets'], () => a.reset({ loading: true }, true));
+  assert.equal(reads.accept(reads.request(['secrets']), version(1), a), false, 'remount inherits the floor');
+  assert.equal(reads.accept(reads.request(['secrets']), version(2), a), true, 'current remount recovers');
   stop.abort(); [a, b, other].forEach(w => w.retire());
 });
 
@@ -50,6 +85,23 @@ test('withheld epochs do not advance floors and changes fence ownerless replies'
   assert.equal(reads.accept(reads.request(['secrets']), version(2)), false, 'poll floor does not require a mounted owner');
   assert.equal(reads.accept(reads.request(['signals']), version(2)), true);
   stop.abort();
+});
+test('unknown response footprints meet all floors and receive every table change', async () => {
+  const stop = new AbortController(), reads = new EphemeralReads(stop.signal), owner = {};
+  const version = epoch => ({ incarnation: 'A', epoch });
+  let withdrawn = 0;
+  reads.accept(reads.request([]), version(0));
+  reads.add(owner, ['*'], () => { withdrawn++; });
+  assert.ok(reads.accept(reads.request(), version(1), owner));
+  withdrawn = 0;
+  assert.ok(reads.accept(reads.request(['secrets']), version(2)));
+  assert.equal(withdrawn, 1, 'a known table also withdraws unknown owners');
+  assert.equal(reads.valid(reads.request(['*']), version(1)), false, 'unknown publication meets table floors');
+  const poll = changeFeed(async input => {
+    assert.equal(new URL(input).searchParams.has('ephTables'), false, 'unknown interests poll every table');
+    return Response.json({ seq: 0, tables: [] });
+  }, 'http://unknown.test', stop.signal, () => {}, () => {});
+  try { await poll(0, 0, {}, undefined, reads.parameters()); } finally { stop.abort(); }
 });
 test('ephemeral replacement visits only advancing dependency buckets', () => {
   const stop = new AbortController(), reads = new EphemeralReads(stop.signal), version = epoch => ({ incarnation: 'A', epoch });

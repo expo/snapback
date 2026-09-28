@@ -75208,3 +75208,44 @@ ac18ec094d1c596bda96caa164870f25192a1463397f5bd97f57e436338fe0bc.
 Zero growth; no fresh wasm build claimed because no runtime Rust changed.
 Report: reports/20260928-lv-hook-retention/round4/REPORT.md. Local co-authored
 commit only; no push, publication, deployment or shared tool installation.
+
+## 2026-09-29 — LV round 5: ephemeral fences before discovery
+
+Lane `sb4-intent/lv-hook-retention`, from `a595e5da6`. Read rounds 0–4,
+LLP 3000.029 and Astra's complete round-4 NOT READY review. Applied llp-orient.
+Fetch observed origin/main at `dc21eb085`; no merge. Grok's completed round-3
+review has no additional unresolved finding; no round-4 Grok file was present.
+
+Every online query captures its incarnation revision before dispatch, even with
+no generated hint or loaded schema. Wire epochs and returned complete footprints
+now fence pre-discovery watches and ownerless direct reads. Matching peers whose
+first answer comes solely from a direct read inherit its footprint. Unknown
+wire footprints cover every table/floor and poll without a table filter.
+Schema-backed clients derive missing ephemeral operation facts from the complete
+read certificate, or conservatively all ephemeral tables when it is absent.
+This closes the same missing-metadata bypass on process and wasm and prevents
+remembered replica answers on those paths. LLP 3000.029 §10 and Revised record
+the clarification; authorization, meters, client options and wasm stay unchanged.
+
+All seven new HTTP regressions fail on round 4 with actual disclosure; the fix
+passes them. The lifetime test now removes all three owners before delivering
+a buffered old reply and checks stale/current remounts. Seven isolated mutations
+fail their intended assertions, including Astra's last-owner floor-clear mutant.
+Online joins process/wasm in the final-publication continuation regression.
+
+Final affected suite: 1,277 pass, zero failed/cancelled/skipped, including both
+browser witnesses (one mount, zero loading flashes), independent models, costs
+and the delivery fault matrix. Whole guide: 98/98. Client build/declarations,
+typecheck, reference audit and whitespace pass. One intermediate process test
+timed out before initial watches loaded: classified ours, cause unconfirmed,
+with no baseline/environmental exemption. The unchanged product passes the
+isolated rerun, 12 repetitions, focused run and broad run. Every expected red,
+that timeout and setup error is recorded under round5/FAILURES.md.
+`scripts/test.sh` was not run; the supervisor's landing suite follows.
+
+Existing wasm is byte-identical: 2,042,203 B raw / 593,640 B GNU gzip-9,
+zero growth and 79 B below the unchanged 593,719 B cap; SHA-256
+ac18ec094d1c596bda96caa164870f25192a1463397f5bd97f57e436338fe0bc.
+No fresh wasm build or native UI qualification claimed. Report:
+reports/20260928-lv-hook-retention/round5/REPORT.md. No tool installation,
+push, publication or deployment. Local commit carries the GPT-6 Astra co-author.

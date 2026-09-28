@@ -47,7 +47,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     arm();
     try {
       if (lifetime.aborted || restart?.aborted) controller.abort();
-      const parameters = ephemeral ? `&eph=${ephemeral.epoch}&ephi=${encodeURIComponent(ephemeral.incarnation)}&ephTables=${encodeURIComponent(ephemeral.tables.join(","))}` : "";
+      const parameters = ephemeral ? `&eph=${ephemeral.epoch}&ephi=${encodeURIComponent(ephemeral.incarnation)}${ephemeral.tables.includes("*") ? "" : `&ephTables=${encodeURIComponent(ephemeral.tables.join(","))}`}` : "";
       const work = (async () => {
         const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal });
         if (controller.signal.aborted) throw controller.signal.reason;

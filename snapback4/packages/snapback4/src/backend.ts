@@ -67,6 +67,12 @@ export interface BackendJson {
   native?: NativeJson | null;
 }
 
+// @ref LLP 3000.029#10 — missing operation facts are unknown, not dependency-free.
+export function ephemeralTables(schema: SchemaJson, name: string): string[] {
+  return schema.operations?.[name]?.ephemeralReads
+    ?? (schema.operations?.[name]?.reads ?? Object.keys(schema.tables)).filter(table => schema.tables[table]?.ephemeral);
+}
+
 /** The tables an operation reads or writes, its rules' included: what
  * decides whether a read can run on the device and a write can predict. */
 export function operationTables(program: ProgramJson, schema: SchemaJson): Set<string> {

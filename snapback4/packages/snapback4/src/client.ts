@@ -8,8 +8,8 @@ export type { DeliveryRefused } from "./delivery-state.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
-import type { BackendJson } from "./backend.ts";
-import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
+import { ephemeralTables as schemaEphemeralTables, type BackendJson } from "./backend.ts";
+import { EphemeralReads, ephemeralVersion, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission } from "./admission.ts";
 import { serverClock } from "./clock.ts";
@@ -219,7 +219,7 @@ export function createClient(options: ClientOptions): Client {
   let backend: BackendJson | undefined;
   let backendLoaded = false, ephemeralAdvertised = false, schemaLoading = false;
   const ephemeralTables = (op: Query<unknown, unknown>) => backend
-    ? backend.schema.operations?.[op.name]?.ephemeralReads ?? [] : op.ephemeralReads ?? [];
+    ? schemaEphemeralTables(backend.schema, op.name) : op.ephemeralReads ?? [];
   const hasEphemeral = () => backend ? Object.values(backend.schema.tables).some(table => table.ephemeral)
     : ephemeralAdvertised || [...watches.values()].some(watch => ephemeralTables(watch.op).length);
   async function refreshBackend(minimumGeneration: number | undefined) {
@@ -572,10 +572,12 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function runQuery<A, R>(op: Query<A, R>, args: A, quiet = false): Promise<QueryResult<R>> {
-    const eph = ephemeralTables(op).length ? ephemeralReads.request(ephemeralTables(op)) : undefined;
+    // @ref LLP 3000.029#10 — capture before discovery, then fence wire evidence.
+    const tables = ephemeralTables(op), eph = ephemeralReads.request(tables.length ? tables : undefined);
     const ticket = answerOrder.begin();
     const result = await runQueryOnce(op, args, eph, quiet);
-    return { ...result, ticket, ...(eph ? { ephemeralRequest: eph } : {}) };
+    if (ephemeralVersion(result.ephemeral) && !eph.tables && result.tables.length) eph.tables = result.tables;
+    return { ...result, ticket, ephemeralRequest: eph };
   }
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
@@ -601,8 +603,10 @@ export function createClient(options: ClientOptions): Client {
       && (result.generation === undefined || generation === undefined || result.generation >= generation)
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
-      && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch, undefined, !result.transportOffline && !("loading" in result.read)));
-    return current;
+      && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest));
+    if (!current) return false;
+    if (watch && ephemeralVersion(result.ephemeral)) watchEphemeral(watch, result.ephemeralRequest?.tables ?? ["*"]);
+    return !result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch, undefined, !result.transportOffline && !("loading" in result.read));
   };
 
   function reconcile(result: QueryResult<unknown>, op: { name: string }, args: unknown, source?: Watch): boolean {
@@ -616,6 +620,7 @@ export function createClient(options: ClientOptions): Client {
     if (result.seq < watches.minimum(new Set(result.tables))) return false;
     if (!answerOrder.delete(readKey(op, args), { seq: result.seq, ticket: result.ticket ?? 0 })) return false;
     invalidateReadEvidence(watches, op, args, result.read, peer => {
+      if (ephemeralVersion(result.ephemeral)) currentRead(result, peer);
       peer.stablePuts = result.stablePuts ?? []; peer.serverSeq = result.seq; peer.validThrough = result.seq; peer.tables = new Set(result.tables);
       scheduleExpiry(peer, result.nextExpiry);
       schedulePresence(peer, true, result.refresh);
@@ -628,8 +633,7 @@ export function createClient(options: ClientOptions): Client {
       () => !closed && !storeRefusal && credentials && currentRead(result));
   }
 
-  function watchEphemeral(watch: Watch) {
-    const tables = ephemeralTables(watch.op);
+  function watchEphemeral(watch: Watch, tables = ephemeralTables(watch.op)) {
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, reset => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;

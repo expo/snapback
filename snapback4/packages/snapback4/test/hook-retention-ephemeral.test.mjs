@@ -31,20 +31,28 @@ query evidence():
 query delayed():
   return secrets['S']
 `;
-for (const tier of ['online', 'process', 'wasm']) for (const mode of ['withdrawal', 'buffered direct reply']) {
-  test(`round 4 ${tier}: ephemeral replacement fences ${mode} at equal durable cut`, { timeout: 20000 }, async t => {
+for (const scenario of ['online', 'process', 'wasm', 'online pre-discovery', 'online direct-only', 'process missing metadata', 'wasm missing metadata']) for (const mode of ['withdrawal', 'buffered direct reply']) {
+  if (scenario.includes('direct-only') && mode === 'withdrawal') continue;
+  const tier = scenario.split(' ')[0], preDiscovery = scenario.includes('pre-discovery'), directOnly = scenario.includes('direct-only');
+  test(`${scenario}: ephemeral replacement fences ${mode} at equal durable cut`, { timeout: 20000 }, async t => {
     const f = await server(t, undefined, source), release = Promise.withResolvers(), buffered = Promise.withResolvers();
     const post = (path, body) => fetch(f.url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) }).then(r => r.json());
     assert.equal((await post('/m/put', { args: {} })).state, 'sent');
-    let hold = false, oldPacket, evidencePacket, checkCallbacks = false;
+    let hold = false, oldPacket, evidencePacket, checkCallbacks = false, schemas = 0;
     const opts = { url: f.url, persona: 'alice', fetch: async (input, init) => {
       const path = new URL(input).pathname;
+      if (path === '/schema') { schemas++; if (preDiscovery) await release.promise; }
       if (path === '/changes') return new Promise((_, reject) => {
         const abort = () => reject(Error('closed'));
         if (init.signal.aborted) abort(); else init.signal.addEventListener('abort', abort, { once: true });
       });
       if (hold && ['/q/mounted', '/q/shaped', '/sync'].includes(path)) await release.promise;
       const response = await fetch(input, init);
+      if (path === '/schema' && scenario.includes('missing metadata')) {
+        const backend = await response.json();
+        for (const op of [...Object.values(backend.schema.operations), ...backend.programs]) delete op.ephemeralReads;
+        return Response.json(backend);
+      }
       if (path === '/q/delayed' && !oldPacket) {
         oldPacket = await response.json(); await buffered.promise;
         return Response.json(oldPacket); // Buffered transport deliberately ignores later abort.
@@ -55,14 +63,18 @@ for (const tier of ['online', 'process', 'wasm']) for (const mode of ['withdrawa
     const device = tier === 'process' ? processDevice({ dir: join(f.dir, 'device'), binary })
       : tier === 'wasm' ? webDevice({ wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() }) : undefined;
     const client = tier === 'online' ? createClient(opts) : await createLocalClient({ ...opts, device });
-    const watches = [client.observe(q('mounted'), {}), client.observe(q('shaped'), {}, { keep: true }), client.observe(q('mounted'), {}, { keep: false })];
+    const watches = directOnly ? [] : [client.observe(q('mounted'), {}), client.observe(q('shaped'), {}, { keep: true }), client.observe(q('mounted'), {}, { keep: false })];
     const disclosed = () => watches.some(w => w.getSnapshot().data?.body === 'secret' || w.getSnapshot().data?.row?.body === 'secret');
     const callbackDisclosure = [];
     watches.forEach(w => w.subscribe(() => { if (checkCallbacks) callbackDisclosure.push(disclosed()); }));
     t.after(async () => { checkCallbacks = false; hold = false; release.resolve(); buffered.resolve(); watches.forEach(w => w.close()); await client.close(); });
     if (tier !== 'online') await client.sync();
-    await until(() => watches.every(w => 'data' in w.getSnapshot()), 'initial ephemeral owners');
-    assert.equal(watches[0].getSnapshot().data.body, 'secret');
+    if (preDiscovery) await until(() => schemas === 1, 'discovery held');
+    if (directOnly) assert.equal((await client.query(q('mounted'), {})).data.body, 'secret');
+    else {
+      await until(() => watches.every(w => 'data' in w.getSnapshot()), 'initial ephemeral owners');
+      assert.equal(watches[0].getSnapshot().data.body, 'secret');
+    }
     hold = true;
     const delayed = client.query(q('delayed'), {});
     await until(() => oldPacket, 'epoch-1 reply buffered');
@@ -82,16 +94,17 @@ for (const tier of ['online', 'process', 'wasm']) for (const mode of ['withdrawa
     const late = await delayed;
     assert.notEqual(late.data?.body, 'secret', 'direct replies without an owner meet dependency epoch floors');
     checkCallbacks = false; hold = false; release.resolve();
-    await until(() => watches[0].getSnapshot().data === null, 'current epoch recovers');
+    if (directOnly) { assert.equal(schemas, 0, 'only direct reads: no discovery ever starts'); assert.equal((await client.query(q('mounted'), {})).data, null); }
+    else await until(() => watches[0].getSnapshot().data === null, 'current epoch recovers');
   });
 }
 
-for (const tier of ['process', 'wasm']) test(`round 4 ${tier}: epoch evidence in the final publication continuation fences a direct reply`, async t => {
+for (const tier of ['online', 'process', 'wasm']) test(`${tier}: epoch evidence in the final publication continuation fences a direct reply`, async t => {
   const f = await server(t, undefined, source), release = Promise.withResolvers();
   const post = (path, body) => fetch(f.url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) }).then(r => r.json());
   await post('/m/put', { args: {} });
   let packet, evidence, injected = false;
-  const client = await createLocalClient({ url: f.url, persona: 'alice', device: tier === 'process'
+  const options = { url: f.url, persona: 'alice', device: tier === 'process'
     ? processDevice({ dir: join(f.dir, 'device'), binary })
     : webDevice({ wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() }),
     fetch: async (input, init) => {
@@ -103,10 +116,11 @@ for (const tier of ['process', 'wasm']) test(`round 4 ${tier}: epoch evidence in
       if (new URL(input).pathname === '/q/delayed' && !packet) { packet = await response.json(); await release.promise; return Response.json(packet); }
       return response;
     },
-  });
+  };
+  const client = tier === 'online' ? createClient(options) : await createLocalClient(options);
   const accept = EphemeralReads.prototype.accept;
   t.after(async () => { EphemeralReads.prototype.accept = accept; release.resolve(); await client.close(); });
-  await client.sync();
+  if (client.sync) await client.sync();
   assert.equal((await client.query(q('evidence'), {})).data.body, 'secret');
   const delayed = client.query(q('delayed'), {});
   await until(() => packet);

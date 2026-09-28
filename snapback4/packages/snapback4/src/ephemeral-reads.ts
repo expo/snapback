@@ -100,7 +100,10 @@ export class EphemeralReads {
     if (!version) return true;
     if (version.incarnation !== this.incarnation) return false;
     let floor = Math.max(this.incarnationFloor, this.floors.get("*") ?? 0);
-    for (const table of tables ?? request.tables ?? this.floors.keys()) floor = Math.max(floor, this.floors.get(table) ?? 0);
+    for (const table of tables ?? request.tables ?? this.floors.keys()) {
+      if (table === "*") for (const epoch of this.floors.values()) floor = Math.max(floor, epoch);
+      else floor = Math.max(floor, this.floors.get(table) ?? 0);
+    }
     return version.epoch >= floor;
   }
   private advance(version: EphemeralVersion, tables?: Iterable<string>) {
@@ -108,6 +111,7 @@ export class EphemeralReads {
     for (const table of tables ?? ["*"]) if (version.epoch > (this.floors.get(table) ?? -1)) {
       this.floors.set(table, version.epoch);
       for (const owner of table === "*" ? this.interests.keys() : this.byTable.get(table) ?? []) affected.add(owner);
+      for (const owner of this.byTable.get("*") ?? []) affected.add(owner);
     }
     const deliveries: (() => void)[] = [];
     for (const owner of affected) {
