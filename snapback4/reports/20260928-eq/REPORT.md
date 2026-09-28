@@ -1,5 +1,9 @@
 # Lane EQ — selected-index equality coverage
 
+**Round 3:** see [the test-only follow-up](round3/REPORT.md) for composite
+unfinished-shape cursors in both directions, residual disjunction coverage,
+mutation evidence and the requested guide/server/device continuation checks.
+
 **Round 2:** see [the cursor correction report](round2/REPORT.md) for
 immediate no-progress refusal after legacy cursor conversion, current-format
 prefix rejection coverage and current affected-test/wasm qualification.

@@ -1,0 +1,13 @@
+{
+  "ref_check_exit": 0,
+  "ref_check_log_sha256": "90c0bbeb30e3cfbb9c054a645bc5aafa424f5bb8deeb0b3a0d4f01b5dcd0930b",
+  "source_scope": "Tests, fixtures, reports and one journal append only",
+  "journal_append_only": true,
+  "production_sources_match_base": true,
+  "fixture_and_log_hashes_valid": true,
+  "all_control_patches_apply_to_base": true,
+  "staged_whitespace_exit": 0,
+  "final_passed": 310,
+  "final_failed": 0,
+  "final_ignored": 0
+}

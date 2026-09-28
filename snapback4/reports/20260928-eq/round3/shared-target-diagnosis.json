@@ -1,0 +1,17 @@
+[
+  {
+    "dependency_file": "snapback4/target/debug/deps/snapback4_lang-2f36e99bc2285367.d",
+    "references_private_mutation_copy": false,
+    "first_source": "crates/snapback4-lang/src/lib.rs"
+  },
+  {
+    "source": "crates/snapback4-lang/src/bind/intent.rs",
+    "lane_sha256": "fe8d325387987eb78a8b37b4e03a1d442f5733325dc5fff98e15ac45f1f43618",
+    "copy_sha256": "fe8d325387987eb78a8b37b4e03a1d442f5733325dc5fff98e15ac45f1f43618"
+  },
+  {
+    "source": "crates/snapback4-core/src/engine/read.rs",
+    "lane_sha256": "45459e0a8e526267f1a285dfed74af1815ea0c9e619598c99b6fb2b8a958ee9c",
+    "copy_sha256": "45459e0a8e526267f1a285dfed74af1815ea0c9e619598c99b6fb2b8a958ee9c"
+  }
+]

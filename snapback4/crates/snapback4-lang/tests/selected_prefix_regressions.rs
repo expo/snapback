@@ -99,3 +99,18 @@ fn normalization_cannot_repair_an_originally_invalid_seek() {
         assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{:?}", b.diagnostics);
     }
 }
+
+#[test]
+fn disjunction_stays_residual_and_returns_rows_from_both_arms() {
+    for direction in ["first", "last"] {
+        let b = bound(format!("{TABLE}query page(k: int):\n  return t where .key = k or .second = 0 {direction} 20 by byFull\n"));
+        let prefix = ir::scans(&b.programs[0].program)[0].prefix.clone();
+        // r1 satisfies only the key arm, r0 only the second arm; r2 neither.
+        let result = engine(b).query("page", ctx()).unwrap();
+        let ids: Vec<_> = result.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().clone()).collect();
+        let expected = if direction == "first" { ["r0", "r1"] } else { ["r1", "r0"] };
+        assert_eq!(ids, expected.map(|id| Value::Id(id.into())), "{direction}: neither disjunct may become a required pin");
+        assert!(result.complete);
+        assert!(prefix.is_empty(), "the whole disjunction must remain residual");
+    }
+}

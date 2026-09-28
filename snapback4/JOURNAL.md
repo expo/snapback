@@ -72965,3 +72965,52 @@ push or publication. LLP 3000.028's Revised line and implementation notes,
 fixture provenance and reports/20260928-eq/round2/REPORT.md record the scope,
 commands, exact results, every failure and raw evidence hashes. The local
 commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-28 — Lane EQ round 3: composite shape and residual disjunction tests
+
+Read rounds 0–2 prompts, reports and EQ entries, Astra's complete round-2
+READY WITH CHANGES review and the preceding Astra/Grok reviews. This round
+is test-only on round-2 commit 361ca4cea. Fetched origin/main 5763da073;
+it has seven new commits, but did not merge because the round-3 source
+freeze and supervisor's running landing suite supersede the earlier merge
+instruction. Product source and LLPs remain unchanged; this is one append.
+
+The unfinished-shape helper retains both one-column tests and adds first/last
+cases with index (lane, bucket, id), predicate lane = 0 and bucket = 7,
+one item and 9,000 details under the unchanged 8,192-row meter. Two actual
+baseline-engine inclusive tokens, minted in a private copy with only the
+pre-EQ selected-index compiler path restored, refuse on their first follow.
+Current normalized tokens must do the same. The removed == 1 shape mutation
+leaves all 14 previous EQ tests green but fails both new composite tests
+with the extra empty meter-cut page and cursor (15 passed / 2 failed overall).
+
+The disjunction regression requires both arms' rows in first/last order for
+.key = k or .second = 0, with a third nonmatching row excluded and no prefix.
+Making split recurse through or fails its returned-ID assertion. Mutations
+only touched private copies and were restored. No product correction.
+
+Final qualification: 17 EQ, 92 whole-guide, 67 server continuation/shape and
+134 device continuation/shape tests pass: 310 passed, zero failed or ignored.
+Reference, whitespace, source-scope, evidence-hash and append-only checks pass.
+scripts/test.sh was not run, as instructed. Round 1's historical
+== 1 failure(s) in 1856 s (cargo test, the subsequently fixed positional Scan
+decoder) is unchanged; the supervisor owns the landing suite. Historical
+history/browser observations and the unrun native Expo gap remain unchanged.
+
+Every failure is recorded in reports/20260928-eq/round3/REPORT.md. All are
+ours: three intentional mutation test failures; a corrected report-parser
+assertion; an initially shared Cargo target reusing the or mutant, causing
+one EQ and two guide failures; and exploratory path/cache inspection errors.
+Qualification stopped on that unexpected invocation. No source/test edits
+followed; separate target directories plus clearing the three affected
+package artifacts restored the identical-source green results above.
+Baseline/environmental test failures: zero. Failed logs remain preserved.
+
+Existing round-2 wasm remeasured without rebuilding: 2,020,770 B raw /
+586,142 B GNU file-input gzip-9, zero growth, unchanged 586,193 B cap,
+51 B headroom; SHA-256 8d88256858e583b936a5aa0bf1ee170aa94d252afe4d1369f16c0c460b55557b.
+No tool install, budget/version change, push or publication. Tests, fixtures,
+mutation patches, commands, exact summaries and hashes are in the round-3
+report directory. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

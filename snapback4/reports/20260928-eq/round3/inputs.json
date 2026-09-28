@@ -1,0 +1,11 @@
+{
+  "base_commit": "361ca4ceaf9fc3ec37bcad83c51f345ddbbeed22",
+  "fetched_origin_main": "5763da0734164738dbb4a05b0fd4fb9eea4cb5b3",
+  "merge": "Not performed: round 3 is test-only on the round-2 source under the supervisor landing suite",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "source_sha256": {
+    "snapback4/crates/snapback4-core/src/engine/read.rs": "45459e0a8e526267f1a285dfed74af1815ea0c9e619598c99b6fb2b8a958ee9c",
+    "snapback4/crates/snapback4-lang/src/bind/intent.rs": "fe8d325387987eb78a8b37b4e03a1d442f5733325dc5fff98e15ac45f1f43618"
+  }
+}

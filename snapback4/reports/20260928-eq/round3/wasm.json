@@ -1,0 +1,11 @@
+{
+  "artifact": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "measurement": "Existing round-2 artifact, remeasured without rebuilding",
+  "raw_bytes": 2020770,
+  "gzip_bytes": 586142,
+  "sha256": "8d88256858e583b936a5aa0bf1ee170aa94d252afe4d1369f16c0c460b55557b",
+  "budget_bytes": 586193,
+  "headroom_bytes": 51,
+  "raw_delta_from_round2": 0,
+  "gzip_delta_from_round2": 0
+}
