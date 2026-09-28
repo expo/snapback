@@ -73328,3 +73328,54 @@ Report and all attempts: reports/20260928-ex-social-example/round2/REPORT.md.
 LLP 3000.028 §8 and its Revised line record this round. No tool install,
 dependency/version/budget change, push or publication. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EX round 3: optional bridge and renewal generations
+
+Read the three prior prompts, reports and EX entries, Astra's complete
+round-2 READY WITH CHANGES and Grok's completed round-1 READY review.
+Kept the round-2 branch base; no main merge, push or publication. Ordinary
+search adoption remains for a later round while OS is reviewed.
+
+FOLLOWING-ADOPTION.md routes plain modules to manual wiring and limits
+feedApp helpers to installations already carrying the separate app bridge.
+Its manual section retains paused writes, owner-context bounded checkpoints,
+ordered backfill, timestamps and replay/removal restrictions. A module-only
+regression compiles that manual and rejects an unavailable feedAppPublish.
+Independently, the actual published 0.2.33 installer on the fleet Mac emitted
+a plain feed module with no repository source/generator. The packed manual
+passes its published compiler, and feedAppPublish fails E_QUARRY_UNKNOWN.
+Published Linux 0.4.7 gives the same pair after explicit-key updates to the
+old module; the untouched legacy source's positional-key refusals are retained
+as baseline incompatibility, not concealed by injected bridge definitions.
+
+The guard strips Markdown formatting before classifying paths, requires
+GitHub file links to identify the actual shipped package path, and recognizes
+hyphen/underscore/compact/colon LLP spellings. All four Astra counterexamples
+are pinned. Typing renewals capture generations; stop invalidates them, and
+only the live current generation may react to failure. The browser completes
+a newer renewal before releasing an older failed outcome, then requires
+continued renewal and an idle stop before expiry. A current failure still
+stops renewal without cleanup. Removing the fence kills exactly that subtest.
+
+Final qualification: whole guide 97/97, bridge 13/13, affected browser/starter/
+init 20/20 (including new/check, full app and four snippet typechecks, public
+smoke and cold native/wasm owner coverage). Final browser with the current
+failure control passes 11/11, counted within the 20. CLI build, package
+typecheck, package contents and README 300/300 budget pass. No scripts/test.sh.
+
+Failures: ours, the stricter guard first omitted documented backend.json,
+corrected by its exact app-input entry; baseline, unmodified published 0.2.33
+module's positional-key refusals on published 0.4.7; ours, the first fixture
+update left two newly reached ambiguous sites, corrected with explicit readerId.
+Expected negative controls: stale-renewal mutant and missing app-bridge helper.
+Environmental test failures: zero. Report includes setup path misses and all logs.
+
+Wasm remeasured, not rebuilt: byte-identical to round 2, 2,018,847 B raw /
+585,970 B GNU file-input gzip-9; unchanged 586,193 B budget, 223 B headroom.
+SHA-256 9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1.
+No device/core/build/budget changes. Native Expo/Hermes lifecycle qualification
+remains outstanding; the Mac compiler check adds no native UI evidence.
+LLP 3000.028 §8 and its Revised line record this round. Report and evidence:
+reports/20260928-ex-social-example/round3/REPORT.md. Task-local package files
+only; no shared tool installation. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

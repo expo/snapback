@@ -67,6 +67,24 @@ fn engine(generated: bool) -> Engine {
     Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
 }
 #[test]
+fn module_only_adoption_uses_manual_wiring_and_cannot_call_app_bridge_helpers() {
+    let doc = include_str!("../../../packages/snapback4/FOLLOWING-ADOPTION.md");
+    let (prerequisite, bridge) = doc.split_once("## Installations that already contain the app bridge").unwrap();
+    assert!(prerequisite.contains("plain `feed` module"));
+    assert!(prerequisite.contains("manual wiring below"));
+    assert!(prerequisite.contains("no app-bridge installer or helper definitions"));
+    assert!(bridge.starts_with("\n\nOnly if your app already contains"));
+    let app = manual();
+    assert!(!app.contains("feedApp"));
+    let feed = recipe::following("feed", "feed").unwrap();
+    let sources = |app: String| [("feed.q".into(), feed.clone()), ("social.q".into(), app)];
+    let bound = snapback4_lang::compile(&sources(app.clone()));
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let bad = snapback4_lang::compile(&sources(format!("{app}\nmutation publishExisting(postId: posts):\n  feedAppPublish(postId)\n")));
+    assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNKNOWN" && d.message.contains("feedAppPublish")), "{:?}", bad.diagnostics);
+}
+
+#[test]
 fn existing_public_bridge_keeps_helpers_out_of_the_client_api() {
     let bound = built(true);
     assert_no_helpers_in_api(&bound);

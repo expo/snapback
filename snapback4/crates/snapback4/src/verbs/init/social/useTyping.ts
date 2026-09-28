@@ -9,15 +9,18 @@ export function useTyping(online: Client | null, conversation: string) {
   useEffect(() => {
     setRead({ loading: true });
     if (!online) return;
-    let alive = true, active = false, touched = 0;
+    let alive = true, active = false, touched = 0, generation = 0;
     const stop = (cleanup = true) => {
+      generation++;
       const wasActive = active; active = false;
       if (wasActive && cleanup) void online.mutate(api.stopTyping, { conversation });
     };
     const renew = () => {
       if (!active || online.link() !== "online") return;
+      const call = ++generation;
       void online.mutate(api.setTyping, { conversation }).then(signal => {
-        if (signal.state === "failed") stop(false);
+        // A late failure cannot cancel a newer renewal or a restarted lease.
+        if (alive && call === generation && signal.state === "failed") stop(false);
       });
     };
     const owned = {

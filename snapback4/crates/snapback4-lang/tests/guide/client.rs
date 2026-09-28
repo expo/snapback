@@ -21,6 +21,7 @@ fn published_text_needs_no_checkout_or_lane_reports() {
     for (name, doc) in docs {
         // Source annotations explain the code; published prose must explain itself.
         let text = doc.lines().filter(|line| !line.contains(concat!("@", "ref "))).collect::<Vec<_>>().join(" ");
+        assert!(!published::contains_llp_reference(&text), "{name}: inaccessible LLP reference");
         for forbidden in ["LLP ", "snapback4/reports/", "../reports/", "ROUND2.md", "round2-measurements.json", "see its report", ".test.mjs", "reports/20", "../llp/"] {
             assert!(!text.contains(forbidden), "{name}: inaccessible {forbidden}");
         }

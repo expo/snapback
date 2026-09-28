@@ -37,25 +37,42 @@ const APP_FILES: &[&str] = &[
     "snapback4-sw.js", "contact.html", "about.html", "store.sqlite",
     "<dir>/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
     "<segment>-ios-receipts.jsonl", "/api.ts", "/native.wasm",
-    "index.html", "<table>.jsonl", "releases.jsonl",
+    "index.html", "<table>.jsonl", "releases.jsonl", "backend.json",
 ];
 
 fn accessible(target: &str, shipped: &BTreeSet<String>, application_path: bool) -> bool {
     let target = target.split(['#', '?']).next().unwrap();
     if target.is_empty() { return true; }
-    let target = if let Some((_, path)) = target.split_once("/blob/") {
-        path.split_once('/').map_or(path, |(_, path)| path)
-    } else if let Some(path) = target.strip_prefix("https://raw.githubusercontent.com/") {
-        path.splitn(4, '/').nth(3).unwrap_or(path)
-    } else if target.starts_with("https://") || target.starts_with("http://") {
+    let repository_path = if let Some(path) = target.strip_prefix("https://github.com/expo/snapback/blob/") {
+        Some(path.split_once('/').map_or(path, |(_, path)| path))
+    } else if let Some(path) = target.strip_prefix("https://raw.githubusercontent.com/expo/snapback/") {
+        Some(path.split_once('/').map_or(path, |(_, path)| path))
+    } else { None };
+    if let Some(path) = repository_path {
+        // A repository-root README is not the package README. Require the
+        // actual package directory before testing shipped-file membership.
+        return path.strip_prefix("snapback4/packages/snapback4/")
+            .is_some_and(|path| shipped.contains(path));
+    }
+    if target.starts_with("https://") || target.starts_with("http://") {
         // Web pages need no local file. File links still require shipped bytes.
         let path = target.split_once("://").unwrap().1.split_once('/').map_or("", |(_, p)| p);
-        if !path.rsplit('/').next().unwrap().contains('.') { return true; }
-        path
-    } else { target };
+        return !path.rsplit('/').next().unwrap().contains('.');
+    }
     let target = target.strip_prefix("snapback4/packages/snapback4/").unwrap_or(target);
     let target = target.strip_prefix("./").unwrap_or(target);
     shipped.contains(target) || (application_path && APP_FILES.contains(&target))
+}
+
+pub(super) fn contains_llp_reference(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    lower.match_indices("llp").any(|(index, _)| {
+        let before = lower[..index].chars().next_back();
+        let after = lower[index + 3..].trim_start_matches(|c: char|
+            c.is_whitespace() || "-–—_:#*`".contains(c));
+        !before.is_some_and(|c| c.is_ascii_alphanumeric())
+            && after.starts_with(|c: char| c.is_ascii_digit())
+    })
 }
 
 fn unshipped(doc: &str, shipped: &BTreeSet<String>) -> Vec<String> {
@@ -65,6 +82,7 @@ fn unshipped(doc: &str, shipped: &BTreeSet<String>) -> Vec<String> {
         if line.trim_start().starts_with("```") { fenced = !fenced; continue; }
         // Snippets create app files and import app modules; this checks prose.
         if fenced || line.contains(concat!("@", "ref ")) { continue; }
+        if contains_llp_reference(line) { failures.push(line.to_owned()); }
         let reference = line.trim_start().starts_with('[').then(|| line.split_once("]:")).flatten();
         let line = reference.map_or(line, |(_, target)| target);
         for token in line.split_whitespace() {
@@ -72,8 +90,10 @@ fn unshipped(doc: &str, shipped: &BTreeSet<String>) -> Vec<String> {
             // and reference-style link definitions all reach the same check.
             let link_target = token.rsplit_once("](");
             let token = link_target.map_or(token, |(_, target)| target);
-            let token = token.trim_start_matches(|c: char| "`[()\"'".contains(c))
-                .trim_end_matches(|c: char| "`[]()\"',;:.".contains(c));
+            // Remove Markdown emphasis/code delimiters before classifying a
+            // bare path, including punctuation outside the closing delimiter.
+            let token = token.trim_start_matches(|c: char| "*_~`[()\"'".contains(c))
+                .trim_end_matches(|c: char| "*_~`[]()\"',;:.".contains(c));
             let token = if token.starts_with("<http") { token.trim_matches(['<', '>']) } else { token };
             let linked = link_target.is_some() || token.starts_with("http://") || token.starts_with("https://")
                 || reference.is_some();
@@ -109,6 +129,17 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
     for text in [
         "must follow the [adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md)",
         "See `src/recipe/ADOPTION.md`.",
+        "Required procedure: **src/recipe/ADOPTION.md**.",
+        "Required procedure: **ADOPTION.md**.",
+        "Required procedure: [instructions](https://github.com/expo/snapback/blob/main/README.md).",
+        "Required procedure: LLP-3000.028.",
+        "Required procedure: __src/recipe/ADOPTION.md__.",
+        "Required procedure: *ADOPTION.md*.",
+        "Required procedure: LLP_3000.028.",
+        "Required procedure: LLP3000.028.",
+        "Required procedure: llp: 3000.028.",
+        "Read https://raw.githubusercontent.com/expo/snapback/main/README.md.",
+        "Read https://github.com/other/repo/blob/main/snapback4/packages/snapback4/README.md.",
         "Read [details](./unpublished-new-name.md).",
         "Read unlisted/new-file.rs first.",
         "<https://github.com/ccheever/snapback/blob/main/snapback4/crates/snapback4-device/include/snapback4.h>",
@@ -122,6 +153,11 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
     for text in ["Read [client](./CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./FOLLOWING-ADOPTION.md).", "[client]: ./CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`."] {
         assert!(unshipped(text, &shipped).is_empty(), "refused {text}");
     }
+    for text in [
+        "Read **FOLLOWING-ADOPTION.md**.",
+        "Read [client](https://github.com/expo/snapback/blob/main/snapback4/packages/snapback4/README.md).",
+        "Read https://raw.githubusercontent.com/expo/snapback/main/snapback4/packages/snapback4/README.md.",
+    ] { assert!(unshipped(text, &shipped).is_empty(), "refused {text}"); }
     let without_adoption = shipped.into_iter().filter(|p| p != "FOLLOWING-ADOPTION.md").collect();
     assert!(!unshipped("[adoption](./FOLLOWING-ADOPTION.md)", &without_adoption).is_empty());
 }

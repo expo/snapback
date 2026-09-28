@@ -184,9 +184,27 @@ export const onlineClientHarness = `
 export * from "real-client";
 import { createClient as realCreateClient } from "real-client";
 window.onlineArms = [];
+window.typingResults = [];
+let holdTyping = false, releaseTyping;
+window.holdTypingFailure = () => { holdTyping = true; };
+window.typingFailureHeld = () => !!releaseTyping;
+window.releaseTypingFailure = () => { releaseTyping(); releaseTyping = null; };
 export function createClient(options) {
-  const client = realCreateClient(options), observe = client.observe;
+  const client = realCreateClient(options), observe = client.observe, mutate = client.mutate;
   window.onlineArms.push(client);
+  client.mutate = async (op, args, options) => {
+    const held = op.name === "setTyping" && holdTyping;
+    if (held) holdTyping = false;
+    let signal = await mutate(op, args, options);
+    if (held) {
+      // Delay only the caller's result, leaving the real SDK lane free to
+      // complete a later renewal against the server before this refusal.
+      await new Promise(resolve => { releaseTyping = resolve; });
+      signal = { state: "failed", id: signal.id, why: { code: "E_RATE_LIMIT", message: "Held renewal refusal" } };
+    }
+    if (op.name === "setTyping") window.typingResults.push(signal.state);
+    return signal;
+  };
   client.observe = (op, args, options) => {
     window.observations.push({ op: op.name, args, options });
     return observe(op, args, options);

@@ -178,6 +178,45 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.evaluate(() => { window.composerNode = document.querySelector('[data-testid="composer"]'); });
   });
 
+  await t.test("a late failed renewal cannot stop a newer successful typing lease", async () => {
+    await composer.fill("start lease");
+    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await page.evaluate(() => window.holdTypingFailure());
+    await tick(); // Hold the interval renewal's result after it reaches the server.
+    await page.waitForFunction(() => window.typingFailureHeld());
+    const settled = await page.evaluate(() => window.typingResults.length);
+    await composer.fill("newer keystroke");
+    await page.waitForFunction(n => window.typingResults.length > n, settled);
+    assert.equal(await page.evaluate(() => window.typingResults.at(-1)), "sent");
+    await page.evaluate(() => window.releaseTypingFailure());
+    await page.waitForFunction(n => window.typingResults.length === n + 2, settled);
+    assert.equal(await page.evaluate(() => window.typingResults.at(-1)), "failed");
+    const renewals = await signalCount("setTyping"), stops = await signalCount("stopTyping");
+    await tick();
+    await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length > n, renewals, { timeout: 3000 });
+    await tick(); // Idle stop still owns the newer lease, before its server expiry.
+    await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/stopTyping" && r.account === "alice").length > n, stops);
+    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    const after = await signalCount("setTyping");
+    await tick();
+    assert.equal(await signalCount("setTyping"), after);
+    assert.ok((await page.evaluate(() => window.outboxes())).every(box => box.length === 0));
+
+    // The current generation's failure still ends renewal and relies on expiry.
+    await page.evaluate(() => window.holdTypingFailure());
+    await composer.fill("current refused renewal");
+    await page.waitForFunction(() => window.typingFailureHeld());
+    const outcomes = await page.evaluate(() => window.typingResults.length);
+    await page.evaluate(() => window.releaseTypingFailure());
+    await page.waitForFunction(n => window.typingResults.length > n, outcomes);
+    const failedRenewals = await signalCount("setTyping"), failedStops = await signalCount("stopTyping");
+    await tick();
+    assert.equal(await signalCount("setTyping"), failedRenewals);
+    assert.equal(await signalCount("stopTyping"), failedStops);
+    await page.evaluate(() => window.expire());
+    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+  });
+
   await t.test("typing expires, drops on disconnect, needs a fresh keystroke and never queues", async () => {
     await composer.fill("new activity");
     await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
