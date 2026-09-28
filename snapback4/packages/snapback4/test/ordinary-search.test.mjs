@@ -7,7 +7,7 @@ import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
-import { binary, server } from './helpers/app-server.mjs';
+import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
 
 const source = `use personas alice, bob
@@ -78,6 +78,7 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
     const path=new URL(input).pathname;
     if(path==='/changes') return parkedChanges(init.signal);
     if(path.startsWith('/q/')) {
+      const refusal = options.queryResponse?.(); if (refusal) return refusal;
       const response=await fetch(input,init);requests.push({body:JSON.parse(init.body),json:await response.clone().json()});
       if(hold){const current=hold;hold=null;current.arrived.resolve();await current.release.promise;}
       return response;
@@ -94,6 +95,26 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
     async reopen(){await client.close();client=await createLocalClient(clientOptions);await client.sync();},
     hold(){const value={arrived:gate(),release:gate()};hold=value;return value;}};
 }
+// @ref LLP 3000.029#11 — composed queries pass the same publication classification.
+for (const tier of ['process', 'wasm']) for (const code of ['E_HTTP_RESPONSE', 'E_OFFLINE', 'E_RATE_LIMIT', 'E_STORE', 'E_STORE_BUSY', 'E_AUTH']) test(`round 7 mixed search ${tier}: ${code} cannot replace a retained page`, async t => {
+  let failed = false;
+  const why = { code, family: code.startsWith('E_STORE') ? 'store' : code === 'E_AUTH' ? 'auth' : code === 'E_RATE_LIMIT' ? 'limit' : 'link', message: 'not evaluated', retryable: code !== 'E_STORE_BUSY' };
+  const f = await setup(t, tier, null, { queryResponse: () => !failed ? null : code === 'E_HTTP_RESPONSE'
+    ? new Response('{broken', { status: 404 }) : Response.json({ denied: why }, { headers: { 'Retry-After': '11' } }) });
+  const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
+  watch.subscribe(() => {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.length);
+  const before = ids(watch.getSnapshot()), snapshots = [];
+  watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+  failed = true;
+  assert.equal((await f.client.query(q, args)).denied?.code, code);
+  assert.deepEqual(ids(watch.getSnapshot()), before, 'direct composed diagnostic is not authority evidence');
+  const optOut = f.client.observe(q, args, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
+  await until(() => optOut.getSnapshot().denied?.code === code, 'opted-out composed query exposes its diagnostic');
+  assert.deepEqual(ids(watch.getSnapshot()), before);
+  assert.ok(snapshots.every(read => read.data?.length), 'composed diagnostic does not withdraw data');
+});
+
 for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retained first page, consumed prefixes and every ID exactly once`,async t=>{
   const f=await setup(t,tier), actual=[];
   let c;

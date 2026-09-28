@@ -353,6 +353,55 @@ for (const tier of ['online', 'process']) for (const order of ['old-refusal', 'o
 });
 
 // Round 6: admission has not evaluated row or asset authority.
+// Round 7: neither a decoder diagnostic nor a transport refusal evaluated it.
+for (const tier of ['online', 'process', 'wasm']) for (const failure of [200, 404, 'E_OFFLINE', 'E_STORE', 'E_STORE_BUSY', 'E_AUTH']) test(`round 7 ${tier}: ${typeof failure === 'number' ? `malformed HTTP ${failure}` : failure} preserves query authority and deadlines`, async t => {
+  const f = await fixture(t); let malformed = false, offline = false, attempts = 0, aliasRequests = 0;
+  const deadline = Date.now() + 60_000;
+  const fetcher = async (input, init) => {
+    const path = new URL(input).pathname;
+    if (offline && path !== '/changes') throw Error('round 7 offline');
+    if (path === '/q/secretAlias') aliasRequests++;
+    if (path !== '/q/remoteSecret') return parked(input, init);
+    attempts++;
+    if (malformed) return typeof failure === 'number' ? new Response('{broken', { status: failure })
+      : Response.json({ denied: { code: failure, family: failure === 'E_AUTH' ? 'auth' : failure === 'E_OFFLINE' ? 'link' : 'store', message: 'not evaluated', retryable: failure !== 'E_STORE_BUSY' } }, { status: 503 });
+    const response = await fetch(input, init);
+    return Response.json({ ...await response.json(), nextExpiry: deadline, refresh: 50 });
+  };
+  const client = tier === 'online' ? createClient({ url: f.url, persona: 'bob', fetch: fetcher }) : await createLocalClient({ url: f.url, persona: 'bob', fetch: fetcher,
+    device: tier === 'process' ? processDevice({ dir: join(f.dir, 'device'), binary }) : webDevice({ wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() }) });
+  t.after(() => client.close());
+  if (tier !== 'online') await client.sync();
+  const watch = client.observe(q('remoteSecret'), {}); watch.subscribe(() => {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.body === 'secret');
+  const owner = answerObservation(watch.getSnapshot()), deadlines = { ...owner.deadlines };
+  assert.equal(deadlines.server, deadline);
+  const snapshots = []; watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+  malformed = true;
+  const read = await client.query(q('remoteSecret'), {});
+  const code = typeof failure === 'number' ? 'E_HTTP_RESPONSE' : failure;
+  assert.equal(read.denied?.code, code);
+  if (typeof failure === 'number') assert.match(read.denied.message, new RegExp(`HTTP ${failure}`));
+  assert.equal(client.link(), 'online', 'delivered refusal keeps FU link semantics');
+  assert.equal(watch.getSnapshot().data?.body, 'secret', 'decoder failure is not replacement evidence');
+  assert.deepEqual(owner.deadlines, deadlines, 'direct failure preserves the original deadlines');
+  // A new opted-out owner receives its diagnostic without withdrawing its peer.
+  const optOut = client.observe(q('remoteSecret'), {}, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
+  await until(() => optOut.getSnapshot().denied?.code === code);
+  const beforeRefresh = attempts;
+  await until(() => attempts > beforeRefresh && watch.getSnapshot().revalidating, 'mounted background refresh attempted');
+  assert.equal(watch.getSnapshot().data?.body, 'secret');
+  assert.deepEqual(owner.deadlines, deadlines, 'background failure preserves the original deadlines');
+  assert.ok(snapshots.every(read => read.data?.body === 'secret'), 'no loading or denied publication after data');
+  optOut.close();
+  if (tier !== 'online') {
+    assert.equal((await client.query(q('secretAlias'), {})).data?.row?.body, 'secret');
+    assert.equal(aliasRequests, 0, 'decoder failure installed no replica fence');
+    offline = true;
+    assert.equal((await client.query(q('remoteSecret'), {})).data?.body, 'secret', 'decoder failure did not delete remembered data');
+  }
+});
+
 for (const tier of ['online', 'process', 'wasm']) for (const kind of ['asset', 'query']) test(`combined ${tier}: ${kind} overload preserves authority until real evidence`, async t => {
   const f = await fixture(t); let overload = false, attempts = 0;
   const why = { code: 'E_RATE_LIMIT', family: 'limit', message: 'busy', retryable: true };

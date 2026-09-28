@@ -1,0 +1,18 @@
+{
+  "base": "f689b2570fe98253feee829f067fceebed9dd78e",
+  "command": [
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "--test",
+    "--test-name-pattern=round 7",
+    "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-round7-control/packages/snapback4/test/hook-retention-fences.test.mjs",
+    "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-round7-control/packages/snapback4/test/ordinary-search.test.mjs"
+  ],
+  "exit": 1,
+  "isolated": "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-round7-control/packages/snapback4",
+  "sourceFiles": [
+    "client.ts",
+    "local-query.ts",
+    "http-response.ts"
+  ],
+  "note": "Other dist modules and canonical wasm are unchanged from round 6."
+}

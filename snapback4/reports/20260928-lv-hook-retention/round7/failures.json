@@ -1,0 +1,255 @@
+[
+  {
+    "test": "round 7 online: malformed HTTP 200 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected original six-case reproduction",
+    "log": "before.log.gz"
+  },
+  {
+    "test": "round 7 online: malformed HTTP 404 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected original six-case reproduction",
+    "log": "before.log.gz"
+  },
+  {
+    "test": "round 7 process: malformed HTTP 200 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected original six-case reproduction",
+    "log": "before.log.gz"
+  },
+  {
+    "test": "round 7 process: malformed HTTP 404 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected original six-case reproduction",
+    "log": "before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: malformed HTTP 200 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected original six-case reproduction",
+    "log": "before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: malformed HTTP 404 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected original six-case reproduction",
+    "log": "before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_HTTP_RESPONSE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "unexpected test-fixture assumption",
+    "log": "search.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_OFFLINE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "unexpected test-fixture assumption",
+    "log": "search.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_RATE_LIMIT cannot replace a retained page",
+    "classification": "ours",
+    "kind": "unexpected test-fixture assumption",
+    "log": "search.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_HTTP_RESPONSE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "unexpected test-fixture assumption",
+    "log": "search.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_OFFLINE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "unexpected test-fixture assumption",
+    "log": "search.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_RATE_LIMIT cannot replace a retained page",
+    "classification": "ours",
+    "kind": "unexpected test-fixture assumption",
+    "log": "search.log.gz"
+  },
+  {
+    "test": "round 7 online: malformed HTTP 200 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 online: malformed HTTP 404 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 online: E_OFFLINE preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 online: E_STORE preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 online: E_STORE_BUSY preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 online: E_AUTH preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 process: malformed HTTP 200 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 process: malformed HTTP 404 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 process: E_OFFLINE preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 process: E_STORE preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 process: E_STORE_BUSY preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 process: E_AUTH preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: malformed HTTP 200 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: malformed HTTP 404 preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: E_OFFLINE preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: E_STORE preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: E_STORE_BUSY preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 wasm: E_AUTH preserves query authority and deadlines",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_HTTP_RESPONSE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_RATE_LIMIT cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_STORE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_STORE_BUSY cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search process: E_AUTH cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_HTTP_RESPONSE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_RATE_LIMIT cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_STORE cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_STORE_BUSY cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "round 7 mixed search wasm: E_AUTH cannot replace a retained page",
+    "classification": "ours",
+    "kind": "expected isolated round-6 control",
+    "log": "audit-before.log.gz"
+  },
+  {
+    "test": "isolated control setup",
+    "classification": "ours",
+    "kind": "operational",
+    "detail": "ERR_MODULE_NOT_FOUND: TypeScript was assumed under packages/snapback4/node_modules; use the installed workspace typescript package. No install or live SDK modification."
+  },
+  {
+    "test": "createApp keep=true: useQuery and usePage preserve owned inputs through 20 invalidations, loaded cursors and removal",
+    "classification": "ours",
+    "kind": "verification interference",
+    "log": "affected.log.gz",
+    "detail": "TypeError reading window.latest.query.data during Vite live-source run. Source edit mtime and Vite error both 2026-09-29 01:42:15 +0200; source reload is the likely cause. Frozen-source full-file rerun passes without a test or product correction."
+  }
+]

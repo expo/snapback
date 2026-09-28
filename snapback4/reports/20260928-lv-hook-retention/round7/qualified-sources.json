@@ -1,0 +1,8 @@
+{
+  "llp/3000.029-hook-retention-with-invalidation.rfc.md": "96c4760320403f2d853d8a734725e0c6c5b697586256f53c4c72a8d18b73e354",
+  "snapback4/packages/snapback4/src/client.ts": "4d2b560bebb93990d1fd3e263d44420d0290c34a2abadc4f5b8637ca181f8c6b",
+  "snapback4/packages/snapback4/src/http-response.ts": "9220e4e5bfcadbc5eba27c936dbbd49fb20a69947760db4a2c520fade849efc6",
+  "snapback4/packages/snapback4/src/local-query.ts": "ec0f84647785f1774f71ad8c2c1ae702f4018b4824d4afa3a291dbd2d7dd8fed",
+  "snapback4/packages/snapback4/test/hook-retention-fences.test.mjs": "3450367e7f8d07add63fae0f831e7798269f5d00377967c51646bf2d8a98cf2a",
+  "snapback4/packages/snapback4/test/ordinary-search.test.mjs": "254764116ab0f62ebd6ca0f792facff5d87ebad3f6392e5e5cac6910cd7e7248"
+}

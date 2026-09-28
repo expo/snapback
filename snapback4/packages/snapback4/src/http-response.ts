@@ -10,6 +10,10 @@ export function refusal(value: unknown): Refusal | undefined {
   return value as Refusal;
 }
 export const overloaded = (why?: Refusal): boolean => why?.code === 'E_RATE_LIMIT' && why.retryable === true;
+// @ref LLP 3000.029#11 — diagnostics without evaluated authority cannot replace a read.
+export const nonAuthoritativeRefusal = (why?: Refusal): boolean =>
+  why?.code === 'E_RATE_LIMIT' || why?.code === 'E_HTTP_RESPONSE' || why?.code === 'E_OFFLINE'
+  || why?.code === 'E_STORE_BUSY' || (why?.retryable === true && (why.code === 'E_STORE' || why.code === 'E_AUTH'));
 export function transportRefusal(error?: unknown): Refusal {
   const failure = error as { code?: string; message?: string; cause?: { code?: string; message?: string } } | undefined;
   const cause = failure?.cause?.code ?? failure?.cause?.message ?? failure?.code ?? failure?.message;

@@ -75669,3 +75669,48 @@ d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
 No cap increase, shared tool installation, push or publication. Report:
 reports/20260928-lv-hook-retention/round6/REPORT.md. Local merge commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — Lane LV round 7: decoder failures are not authority
+
+Read rounds 0–6's prompts, reports and lane journal, LLP 3000.029, the Snapback 4
+fence and paved client/reads guide, FU's overload record, and Astra's complete
+round-6 NOT READY review. Applied llp-orient. Fetch left origin/main at dc21eb085;
+no merge. scripts/test.sh was not run; the supervisor owns landing qualification.
+
+A shared classifier routes decoder E_HTTP_RESPONSE through the existing admission
+exception before online reconciliation and local publication. Local classification
+also covers composed search. Direct/initial/opted-out callers retain diagnostics;
+retained owners keep their answer and original deadlines/presence interval, without
+memory deletion, replica fences or ephemeral floor changes. The full code audit
+also classifies E_OFFLINE, E_RATE_LIMIT, E_STORE_BUSY and retryable E_STORE/E_AUTH
+as unevaluated failures. Terminal scopes, evaluated denial/null/subset and ordered
+E_ASSET_UNKNOWN still withdraw. FU link state, retry/backoff, causes and once-view
+handling stay intact. LLP 3000.029 §11 records every route and the open authored/
+native refusal set. Three TypeScript production files change; no new/moved await,
+contract, Rust, dependency, budget or option.
+
+All 30 new real HTTP regressions pass: 18 online/process/wasm query cases and 12
+process/wasm composed-search cases. The original six malformed-200/404 cases fail
+on round 6 at the retained-data assertion. An isolated round-6 control of all final
+cases is 28 fail / 2 pass (26 retention assertions and two refresh-wait timeouts).
+Final frozen-source affected run: 1,017/1,017, including FU overload, all 333 matrix
+checks and three browser witnesses; both profile gates report one mount and zero
+loading flashes. Whole guide 98/98, server overload 3/3, build/typecheck, references
+(523 LLPs, 9,887 refs) and whitespace pass. All 166 matrix classifications remain.
+
+The broader run was 1,529 pass / 1 fail: a keep=true React browser read of the
+harness's window.latest during our in-run source edit. Vite error and source mtime
+coincide at 01:42:15 +0200, making reload interference the likely cause; classified
+ours. The full browser file then passes 2/2 with frozen sources and no code/test
+correction. Six earlier search fixture timeouts (empty sync did not revalidate)
+and one control TypeScript-path setup error are also ours, corrected. No baseline
+or environmental exemption, unresolved affected failure, second full suite or new
+Expo UI claim. Every name, negative control and attribution is under round7/.
+
+Existing wasm remains 2,042,203 B raw / 593,641 B gzip, zero growth and 78 B below
+the unchanged 593,719 B cap; SHA-256
+d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
+No new wasm build, tool installation, push or publication. Report:
+reports/20260928-lv-hook-retention/round7/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
