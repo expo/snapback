@@ -1,0 +1,70 @@
+{
+  "browser-final.log": {
+    "bytes": 1310,
+    "sha256": "26018f3a0a5f1e56dc15d3b646c9b8bab233266bcf944ca96ac4ae79e6319e9f"
+  },
+  "published-install.log": {
+    "bytes": 768,
+    "sha256": "4471635cace00eb0ebc377fc933f2aa675c8c768026270d0c6486a5213156e08"
+  },
+  "guide-qualified.log": {
+    "bytes": 7216,
+    "sha256": "2773bfd322921ccdcc7fe8210374b8d822fc19020cd4a341ffa8d2b263ebc970"
+  },
+  "guide.log": {
+    "bytes": 7668,
+    "sha256": "410db0307815fc8ccebf4890ea26e556f11ef6874d8a6a9c076dd0cc91fb03cf"
+  },
+  "published-check.log": {
+    "bytes": 2395,
+    "sha256": "0ac1d5b221fd7019ee4671ae722ad0e4373b0cbf81c364ca7b977b875622c75c"
+  },
+  "guide-final.log": {
+    "bytes": 7060,
+    "sha256": "0abeeec516128f0c7b5a92d42040211d318612684263f53ebe738a9e9e72f12a"
+  },
+  "ref-check.log": {
+    "bytes": 80,
+    "sha256": "97dc64fab64746fc5f11c3f1a62c3bc7182e38b3a5c1d37023addd96054672bd"
+  },
+  "feed-bridge.log": {
+    "bytes": 2082,
+    "sha256": "79fd39834f5ab429d835b3a259bd537a76bea60b76710ac16a7ad40cd08eefac"
+  },
+  "published-current-qualified.log": {
+    "bytes": 1721,
+    "sha256": "ab238b485a8f79b5d9e35e0c3dfd7588606d33499488ffe46603b20f423b7383"
+  },
+  "build.log": {
+    "bytes": 661,
+    "sha256": "2edd934ecdb6c971d08a6bafeb50ee3f4db5bedd0972ac11ecb46c7e709185f7"
+  },
+  "mutant-typing.log": {
+    "bytes": 1843,
+    "sha256": "490d5d196b25d51e3fcfc0c91e20e2009aecc0e5d16b6ae0e15f2e516d8cc59d"
+  },
+  "published-0233-check.log": {
+    "bytes": 1077,
+    "sha256": "5ca9383393b233c7be92925487f1b2537202e8d70a97f7df628751880cdf4734"
+  },
+  "published-named-keys.log": {
+    "bytes": 1630,
+    "sha256": "1c61b7a71cb746dc12b497172959054c0ffb6d6924a8e3ac935373d000d8cc1b"
+  },
+  "affected.log": {
+    "bytes": 2124,
+    "sha256": "f1fb47cd611201c2b75285d7e53b33480363dd4da57982a53e3507f0ef492dad"
+  },
+  "typecheck.log": {
+    "bytes": 32,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+  },
+  "docs-budget.log": {
+    "bytes": 552,
+    "sha256": "b3a801691331f199ca9530e9feb84a000dc50cd20fdd8e1e85d7d5ca90e8aec7"
+  },
+  "package-pack.json": {
+    "bytes": 20671,
+    "sha256": "3b0970edd983021184bd3c7d1d7aac18fda189cef7edf84bd9b93f67b4c10376"
+  }
+}

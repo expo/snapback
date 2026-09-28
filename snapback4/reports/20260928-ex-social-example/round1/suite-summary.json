@@ -1,0 +1,52 @@
+{
+  "command": "bash scripts/test.sh",
+  "runs": 1,
+  "exit": 1,
+  "exact_summary": "== 2 failure(s) in 1436 s",
+  "failed_categories": [
+    "cargo test",
+    "client tests"
+  ],
+  "rust": {
+    "passed": 4188,
+    "failed": 1,
+    "ignored": 33
+  },
+  "client_shards": {
+    "passed": 3939,
+    "failed": 2,
+    "skipped": 10
+  },
+  "client_models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "fixtures": {
+    "passed": 9,
+    "failed": 0
+  },
+  "failures": [
+    {
+      "class": "ours",
+      "test": "diagnostic_recipe_preserves_the_public_summary_and_offers_owner_key_existence",
+      "corrected": true,
+      "control": "own_keys 4/4"
+    },
+    {
+      "class": "baseline",
+      "test": "W6d native: two client POSTs with the caller id apply once after a lost reply",
+      "corrected": false,
+      "issue": "issues/20260927-snapback4-lost-reply-post-count-race.md",
+      "control": "passed"
+    },
+    {
+      "class": "baseline",
+      "test": "online: kept typing survives member commits and expires during a held re-read",
+      "corrected": false,
+      "cause": "unconfirmed",
+      "issue": "issues/20260928-snapback4-online-typing-burst-retention-failure.md",
+      "control": "passed"
+    }
+  ],
+  "environmental_failures": 0
+}

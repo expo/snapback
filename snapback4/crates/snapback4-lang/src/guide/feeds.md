@@ -382,7 +382,7 @@ Do not add sizing or promotion logic to a new application.
 
 Installed recipes and bridges retain their existing behavior. E_RECIPE_RETIRED
 means the installer wrote nothing; use the new view for a new app. Existing apps
-must follow the [adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md),
+must follow the [adoption instructions](./FOLLOWING-ADOPTION.md) in the installed `snapback4` package,
 including paused writes and dependency-ordered backfill. Recipe history is not imported by atomic launch; a new view starts now.
 
 FEED_PULL_CAP means the caller uses all 32 shared-author slots. Unfollow a shared author and retry with a new write ID.

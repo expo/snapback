@@ -356,9 +356,8 @@ device and IndexedDB saves in a dedicated Worker. The default remains
 it adds startup, another realm and RPC, and does not reduce the declared data.
 Custom persistence providers stay on the default device. The bundler must
 package the Worker entry and wasm asset; Vite and the Clique Metro web export
-are exercised by the browser witnesses. See the SS round-6 report for the
-real app's acquisition, longest tasks and qualification limits; these are
-fixture measurements, not a cold-start deadline for other declarations.
+are exercised by browser witnesses. These are fixture measurements,
+not a cold-start deadline for other declarations.
 On the copied Clique scale store in Chromium on Linux, two Worker runs from
 fresh navigation through login and readiness took 27.4–28.8 s for the
 1,000-conversation account and 4.05–4.17 s for the 100-conversation account.
@@ -430,8 +429,8 @@ grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on an aggregate view it opts
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
-Lane SS's 2026-09-27 round-2 measurement used the calibration #23 program/store
-at 100 conversations and a synthetic extension to 1,000, on expo-build-1000
+A 2026-09-27 measurement used a social messenger program/store
+at 100 conversations and a synthetic extension to 1,000
 (shared Linux x86_64, 96 reported CPUs; Node 24.13.1).
 Single cold runs with no concurrent writer acquired 15,588/110,088 rows:
 Node memory took 1.671/16.324 s; Node fake-IndexedDB took 2.022/21.036 s.
@@ -444,9 +443,7 @@ samples, no timeouts), still above the 1 s target; after acquisition it was
 also above target: 2.449 s (five samples). Terminal synchronous device work
 and persistence still stall live delivery. These are observed runs, not
 latency promises or a proven growth law; differing sample counts prevent a
-p95 distribution comparison. Method and raw measurements:
-`snapback4/reports/20260927-ss-sync-scale/ROUND2.md` and
-`round2-measurements.json`.
+p95 distribution comparison.
 
 ## Refusals
 

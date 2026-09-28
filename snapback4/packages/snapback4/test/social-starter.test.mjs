@@ -1,0 +1,210 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
+import ts from "typescript";
+import { createApp } from "snapback4/app";
+import { createClient } from "snapback4/client";
+import { memorySessionStore } from "snapback4/auth";
+import { webDevice, memoryPersistence } from "snapback4/web";
+import { createLocalClient } from "snapback4/local";
+import { processDevice } from "snapback4/native";
+import { binary, server, until } from "./helpers/app-server.mjs";
+import { parkedChanges } from "./helpers/sync-control.mjs";
+
+const root = resolve(import.meta.dirname, "../../..");
+function starter(t) {
+  // Under the workspace so TypeScript sees the installed public dependencies.
+  const dir = mkdtempSync(join(root, ".social-test-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const args of [["new", dir, "--template", "social"], ["check"]]) {
+    const result = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  }
+  return dir;
+}
+test("new requires an explicit template and names what init creates", t => {
+  const dir = mkdtempSync(join(root, ".social-test-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const result = spawnSync(binary, ["new", dir], { encoding: "utf8" });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Choose a template: social/);
+  assert.match(result.stderr, /schema-only setup use snapback4 init/);
+  assert.deepEqual(readdirSync(dir), []);
+});
+
+// @ref LLP 3000.028#7.3 — the starter must acquire owner coverage beyond its public window.
+for (const tier of ["native", "web"]) {
+  test(`social starter ${tier}: cold owner keys prove old likes and unqueried absence offline`, { timeout: 30_000 }, async t => {
+    const generated = starter(t), api = await generatedApi(generated);
+    const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+    const signup = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({
+      email: "cold@example.com", password: "cold-owner-coverage-password",
+    }) }).then(r => r.json());
+    assert.ok(signup.session, JSON.stringify(signup));
+    const owner = signup.session.principal;
+    const author = createClient({ url, token: signup.session.token });
+    t.after(() => author.close());
+    const created = await author.mutate(api.post, { body: "cold fixture" });
+    assert.equal(created.state, "sent", JSON.stringify(created));
+    const oldPost = created.result.id;
+    // The old own like is below all 2,000 public rows. Seed before opening any
+    // device: a warm stream of inserts would retain it even without the policy.
+    const rows = [{ table: "likes", row: { id: "old-like", post: oldPost, principal: owner, at: 1 } }];
+    for (let n = 0; n < 2_000; n++) rows.push({ table: "likes", row: {
+      id: `recent-like-${n}`, post: oldPost, principal: `dev:reader${n}`, at: n + 2,
+    } });
+    const seeded = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
+    assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
+    const device = tier === "native" ? processDevice({ binary, dir: join(dir, "device") })
+      : webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+    let offline = false, allowAcquisition = false;
+    const client = await createLocalClient({ url, session: signup.session, device,
+      fetch: (input, init) => {
+        const path = new URL(input).pathname;
+        if (offline || (path === "/sync" && !allowAcquisition)) throw new TypeError("disconnected");
+        if (path === "/changes") return parkedChanges(init.signal);
+        return fetch(input, init);
+      },
+    });
+    t.after(() => client.close());
+    offline = true;
+    assert.equal(client.acquired, false);
+    for (const post of [oldPost, "absent-before-acquisition"]) {
+      const read = await client.query(api.postState, { post });
+      assert.equal(read.loading, true, JSON.stringify(read));
+      assert.equal(read.data, undefined, "an unacquired owner has unknown coverage, never false");
+    }
+    offline = false; allowAcquisition = true;
+    await client.sync();
+    assert.equal(client.acquired, true);
+    assert.equal((await client.residency()).tables.likes.rows, 2_000, "the public window stays bounded");
+    offline = true;
+    await client.sync(); // Discover the transport loss before asking for stale reads.
+    for (const [post, liked] of [[oldPost, true], ["never-queried-absent-post", false]]) {
+      const read = await client.query(api.postState, { post });
+      assert.deepEqual(read.data, { liked }, JSON.stringify(read));
+      assert.equal(read.complete, true, "complete owner partition proves presence and absence");
+      assert.equal(read.fresh, false, "offline coverage is not freshness");
+    }
+  });
+}
+
+export async function generatedApi(dir) {
+  const source = readFileSync(join(dir, "snapback/generated/api.ts"), "utf8");
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  return (await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`)).api;
+}
+
+test("published social starter and guide snippets typecheck against generated operations", t => {
+  const dir = starter(t);
+  const guide = spawnSync(binary, ["guide", "social"], { encoding: "utf8" });
+  assert.equal(guide.status, 0, guide.stderr);
+  const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
+  assert.equal(snippets.length, 4);
+  for (const [, name, source] of snippets) {
+    assert.equal(source, readFileSync(join(dir, name), "utf8"), `${name}: card and installed file`);
+    writeFileSync(join(dir, name), source); // Compile the emitted guide text.
+  }
+  const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
+  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
+  assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+    getCanonicalFileName: name => name, getCurrentDirectory: () => dir, getNewLine: () => "\n",
+  }));
+});
+
+// @ref LLP 3000.028#8 — scaffold/check/dev and the installed client vocabulary.
+test("social starter runs through the public client: feed, likes, receipts, typing, media and retained history", { timeout: 90_000 }, async t => {
+  const dir = starter(t), api = await generatedApi(dir);
+  let output = "";
+  const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  server.stdout.on("data", bytes => { output += bytes; }); server.stderr.on("data", bytes => { output += bytes; });
+  t.after(async () => { if (server.exitCode === null) { const stopped = new Promise(resolve => server.once("exit", resolve)); server.kill("SIGTERM"); await stopped; } });
+  const url = await until(() => { assert.equal(server.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "social dev ready");
+  const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
+  const open = async () => {
+    const app = createApp({ url, sessionStore: memorySessionStore(), device: webDevice({ wasm, persist: memoryPersistence() }) });
+    t.after(() => app.close());
+    assert.equal((await app.ready).ok, true);
+    assert.equal((await app.auth.guest()).ok, true);
+    return app;
+  };
+  const alice = await open(), bob = await open();
+  const a = alice.client, b = bob.client;
+  const write = async (client, op, args) => {
+    const result = await client.mutate(op, args);
+    assert.equal(result.state, "sent", JSON.stringify(result));
+    return result.result;
+  };
+  await write(a, api.saveProfile, { name: "Alice" });
+  assert.equal((await a.query(api.profile, { principal: a.viewer() })).data.name, "Alice");
+  const post = await write(b, api.post, { body: "First social post" });
+  await write(a, api.follow, { principal: b.viewer() });
+  await until(async () => (await a.query(api.feed, {})).data?.some(row => row.post === post.id), "Following backfill");
+  await a.sync();
+  assert.deepEqual((await a.query(api.postState, { post: post.id })).data, { liked: false });
+  await write(a, api.setLike, { post: post.id, liked: true });
+  await until(async () => (await a.query(api.postState, { post: post.id })).data?.liked === true, "liked");
+  const conversation = await write(a, api.createConversation, { title: "Friends" });
+  await write(a, api.add, { conversation, principal: b.viewer() });
+  const message = await write(a, api.send, { conversation, text: "coffee tomorrow", photo: null });
+  await b.sync();
+  await until(async () => (await b.query(api.history, { conversation })).data?.[0]?.id === message, "ordinary history");
+  await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.[0]?.receipt === "delivered", "SDK delivery reporter");
+  await write(b, api.seen, { conversation, through: 1 });
+  await until(async () => (await a.query(api.messageReceipts, { conversation })).data?.[0]?.receipt === "read", "seen receipt");
+
+  let offline = false, dispatched = 0;
+  const online = createClient({ url, token: b.session().token, fetch: (input, init) => {
+    if (offline) return Promise.reject(new Error("disconnected"));
+    if (new URL(input).pathname === "/m/setTyping") dispatched++;
+    return fetch(input, init);
+  } });
+  t.after(() => online.close());
+  assert.equal((await online.mutate(api.setTyping, { conversation })).state, "sent");
+  assert.equal((await a.query(api.typingIn, { conversation })).data.length, 1);
+  await fetch(`${url}/dev/clock/advance`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ duration: "5s" }) });
+  assert.equal((await a.query(api.typingIn, { conversation })).data.length, 0);
+  offline = true;
+  // End the prior lease and discover the disconnect before testing a new hint;
+  // an equal renewal within 1s may legitimately reuse its last sent result.
+  await online.mutate(api.stopTyping, { conversation });
+  const dropped = await online.mutate(api.setTyping, { conversation });
+  assert.equal(dropped.state, "failed");
+  assert.deepEqual(await online.pendingWrites(), []);
+  assert.deepEqual(await b.pendingWrites(), []);
+  offline = false;
+  const before = dispatched;
+  await online.query(api.typingIn, { conversation });
+  assert.equal(dispatched, before, "no typing replay on reconnect");
+
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3e0AAAAASUVORK5CYII=", "base64");
+  const upload = await a.upload(png); assert.equal(upload.ok, true, JSON.stringify(upload));
+  await write(a, api.send, { conversation, text: "one photo", photo: { id: upload.asset.id } });
+  await b.sync();
+  const handle = await b.asset(upload.asset.id); assert.ok("url" in handle, JSON.stringify(handle)); handle.revoke();
+  assert.equal((await b.asset(upload.asset.id)).denied.code, "E_ASSET_VIEWED");
+  for (let n = 0; n < 21; n++) await write(a, api.send, { conversation, text: `history page ${n}`, photo: null });
+  await b.sync();
+  const firstPage = await b.query(api.history, { conversation });
+  assert.ok(firstPage.next, "history crosses its 20-message page");
+  const older = await b.query(api.history, { conversation, c: firstPage.next });
+  const olderReceipts = await b.query(api.messageReceipts, { conversation, c: firstPage.next });
+  assert.ok(older.data.length > 0 && "data" in olderReceipts);
+  assert.deepEqual(olderReceipts.data.map(row => row.id), older.data.map(row => row.id), "real receipt query accepts the exact history cursor");
+  const beforeLeave = firstPage.data.map(row => row.id);
+  await write(b, api.leave, { conversation }); await b.sync();
+  await write(a, api.send, { conversation, text: "after leave", photo: null }); await b.sync();
+  const retained = await b.query(api.history, { conversation });
+  assert.deepEqual(retained.data.map(row => row.id), beforeLeave, "ordinary history keeps only delivered images");
+  assert.equal((await online.mutate(api.setTyping, { conversation })).state, "failed", "revoked member cannot renew");
+  const search = await b.query(api.searchChat, { conversation, q: "coffee" });
+  assert.deepEqual(search.data.map(row => row.id), [message]);
+  const previous = b.viewer();
+  await bob.auth.logout(); await bob.auth.guest();
+  assert.notEqual(bob.client.viewer(), previous);
+  assert.deepEqual((await bob.client.query(api.history, { conversation })).data, [], "new account has no retained old history");
+});

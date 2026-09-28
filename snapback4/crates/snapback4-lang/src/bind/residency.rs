@@ -474,7 +474,7 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
                 if !site.rewrite.is_empty() { rewrites.insert(site.rewrite.as_str()); }
             }
             let reasons = causes.into_iter().map(|(cause, sites)| format!("{cause} (sites: {})", sites.into_iter().collect::<Vec<_>>().join(", "))).collect::<Vec<_>>().join("; ");
-            let message = if lost { "is no longer eligible to predict; queued without a row" } else if new_insert_limit { "has insert arms that never predict" } else { "remains eligible; may queue without a row past the horizon" };
+            let message = if new.ephemeral { "fails offline and is not queued" } else if lost { "is no longer eligible to predict; queued without a row" } else if new_insert_limit { "has insert arms that never predict" } else { "remains eligible; may queue without a row past the horizon" };
             notes.push(Diagnostic::new(&program.site, "N_NOT_PREDICTABLE", format!("{name} {message}: {reasons}"), rewrites.into_iter().collect::<Vec<_>>().join("; ")).guide("residency"));
         }
     }
@@ -513,7 +513,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };
-    if fact.ephemeral { word = if fact.renews { "ephemeral, renews" } else { "ephemeral" }.into(); }
+    if fact.ephemeral { word = format!("{}; fails offline and is not queued", if fact.renews { "ephemeral, renews" } else { "ephemeral" }); }
     if fact.held { word.push_str(" (held; server refuses E_QUERY_HELD; no server fallback)"); }
     if !fact.components.is_empty() { word.push_str(&format!("; components: {}", fact.components.iter().map(|component| component.field.as_str()).collect::<Vec<_>>().join(", "))); }
     let reads = horizons::reads(fact);
@@ -533,6 +533,10 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         // The insert explanation also names the upsert target; do not follow it
         // with the generic horizon warning that used to contradict that proof.
         if site.kind == "write target" && fact.sites.iter().any(|insert| inserts::blocked(insert) && insert.site == site.site && insert.table == site.table && insert.index == site.index) { continue; }
+        if fact.ephemeral {
+            lines.push(format!("    {:?}: {} (site {}); fails offline and is not queued", site.class, site.reason, site.site));
+            continue;
+        }
         if inserts::blocked(site) {
             let kind = if site.kind == inserts::UPSERT_BLOCKED { "upsert insert" } else { "insert if absent" };
             lines.push(format!("    {:?}: {kind} queues without a row: {} (site {}); {}", site.class, site.reason, site.site, inserts::PENDING));

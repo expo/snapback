@@ -1564,8 +1564,6 @@ A lost transport response also returns pending because admission may
 have succeeded. Actions never enter a device outbox or predict rows.
 `{ waitSeconds: 0 }` only admits or collects; the maximum/default is 25.
 `useAction(op)` returns `{ run, last, inFlight }`, mirroring `useMutation`.
-`Act`, including its pre-admission denial, is a new card word needing the
-author's ruling (LLP 2000.000 §8).
 
 ### Workers and services (`snapback4/worker`)
 
@@ -1676,7 +1674,7 @@ metadata and payload sizes/digests; `--values` opts into stored payloads.
 Mutation arguments and results are not recorded. Child sessions last at most
 one day; the host replaces the child within that window and revokes the old
 child's family at startup, including after SIGKILL. `dev --worker` is refused;
-use the conventional `snapback/worker.ts`, `.mts` or `.mjs` path. `apps/chat/snapback/worker.ts` is the invitation example:
+use the conventional `snapback/worker.ts`, `.mts` or `.mjs` path. The invitation example below belongs in that worker:
 it mints a session for `member:<email>` and returns only `{ principal }`.
 
 ### The mock (`snapback4/mock`)
@@ -1908,7 +1906,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire,
-  assets, client, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
+  assets, client, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
   presence, receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
@@ -2002,7 +2000,7 @@ response starts immediately and sends JSON whitespace every 2 seconds before the
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
 `denied`, including `E_AUTH` if the session ended while waiting. Every reply of a query that may read `connected[p]`, refusals included,
 carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
-5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it (LLP 3000.018). `POST /assets` (the file's bytes as the body,
+5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it. `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
 uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{
@@ -2190,12 +2188,10 @@ opens any backend now present, or checks that the store is still empty inside
 the installation transaction. Custom openers must forward that envelope
 unchanged. An older module rejects it; rebuild the native app when updating
 to this client. Generation changes use head validation and captured adoption
-with the persisted restore evidence intact. The module speaks the same call over a C ABI
-(`crates/snapback4-device/include/snapback4.h`: `sb4_open`, `sb4_call`,
-`sb4_free`, `sb4_close`) and, for a Rust host, through
-`snapback4_device::ffi::call`; `snapback4 device <store>` runs it as a
-process, one JSON line each way, which is how the Node tests drive the
-real module. Measured: 1.7 MB linked on iOS, SQLite included; 313 KB
+with the persisted restore evidence intact. For a custom Node host,
+`processDevice({ binary, dir })` from `snapback4/native` opens
+`snapback4 device <store>` as a process, exchanging one JSON line each way.
+Use this published adapter for the same native device protocol. Measured: 1.7 MB linked on iOS, SQLite included; 313 KB
 gzip as wasm.
 
 For Expo the module is the `snapback4-expo` package: `nativeDevice` is

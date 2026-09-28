@@ -57,7 +57,7 @@ fn authoring_census() {
         }
     }
     let recipe = snapback4_lang::recipe::following("feed","feed").unwrap();
-    let adoption_blocks=guide::quarry(include_str!("../../../snapback4-lang/src/recipe/ADOPTION.md"));
+    let adoption_blocks=guide::quarry(include_str!("../../../../packages/snapback4/FOLLOWING-ADOPTION.md"));
     assert_eq!(adoption_blocks.len(),1,"pair new adoption fragments with their example program");
     for (n,adoption) in adoption_blocks.into_iter().enumerate() {
         collect(&format!("recipe/installed/{}",n+1),vec![("feed.q".into(),recipe.clone()),("social.q".into(),adoption)],&mut seen,&mut private);
@@ -74,7 +74,7 @@ fn authoring_census() {
 // The preserved generated bridge has fn helpers rather than public operations.
 // These two wrappers are the existing backfill verbs from tests/feed_bridge.rs.
 pub(super) fn installed_bridge() -> Bound {
-    let original = guide::quarry(include_str!("../../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
+    let original = guide::quarry(include_str!("../../../../packages/snapback4/FOLLOWING-ADOPTION.md")).into_iter()
         .find(|b| b.starts_with("-- Existing installed feed module;")).unwrap();
     let app=original;
     let mut sources=vec![("feed.q".into(),snapback4_lang::recipe::following("feed","feed").unwrap()),("social.q".into(),app)];

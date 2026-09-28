@@ -1,0 +1,28 @@
+{
+  "exact_summary": "== 0 failure(s) in 1325 s",
+  "exit": 0,
+  "rust": {
+    "passed": 4210,
+    "failed": 0,
+    "ignored": 33,
+    "consumer_targets": 45,
+    "consumer_tests_passed": 1682
+  },
+  "client_shards": {
+    "tests": 3954,
+    "pass": 3944,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10,
+    "todo": 0,
+    "shards": 8
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "failures": []
+}

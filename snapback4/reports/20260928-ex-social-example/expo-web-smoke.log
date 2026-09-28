@@ -1,0 +1,10 @@
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+route.fetch: Invalid URL
+    at /home/ccheever/sb4-intent/lane-ex/snapback4/target/social-export-smoke.mjs:22:34 {
+  name: 'TypeError'
+}
+
+Node.js v24.13.1

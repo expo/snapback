@@ -1,0 +1,317 @@
+[
+  {
+    "target": "snapback4-core::lane_source",
+    "executions": 1,
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-core::review_walk",
+    "executions": 1,
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-device::device",
+    "executions": 437,
+    "passed": 436,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "snapback4-device::readauth",
+    "executions": 1,
+    "passed": 81,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-device::unread_range",
+    "executions": 1,
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::aggregate_copies",
+    "executions": 1,
+    "passed": 64,
+    "failed": 0,
+    "ignored": 4
+  },
+  {
+    "target": "snapback4-lang::attribution_guide",
+    "executions": 1,
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::audience_bounds",
+    "executions": 1,
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::constraint_diagnostics",
+    "executions": 1,
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::derived_maintains",
+    "executions": 1,
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::effect_reads",
+    "executions": 1,
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::ephemeral",
+    "executions": 1,
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::guide",
+    "executions": 1,
+    "passed": 97,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::held_unknown",
+    "executions": 1,
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::list_reference_repair",
+    "executions": 1,
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::maintains",
+    "executions": 1,
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::natural_forms",
+    "executions": 1,
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::own_keys",
+    "executions": 1,
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::presence",
+    "executions": 1,
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::receipt_gaps",
+    "executions": 1,
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::repairs",
+    "executions": 1,
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::residency_notes",
+    "executions": 1,
+    "passed": 41,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::routes",
+    "executions": 1,
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::row_keyed_views",
+    "executions": 1,
+    "passed": 31,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::search_guidance",
+    "executions": 1,
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::sequence_by",
+    "executions": 1,
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::server_opt_in",
+    "executions": 1,
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::shape_overrides",
+    "executions": 1,
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::sync_windows",
+    "executions": 1,
+    "passed": 40,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::timeline_guide",
+    "executions": 1,
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-lang::written_by",
+    "executions": 1,
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4-sim::clique",
+    "executions": 254,
+    "passed": 253,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "snapback4::check",
+    "executions": 1,
+    "passed": 76,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::clock",
+    "executions": 1,
+    "passed": 19,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::feed_bridge",
+    "executions": 1,
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::fix",
+    "executions": 1,
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::init",
+    "executions": 1,
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::latency",
+    "executions": 1,
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::maintenance_chunks",
+    "executions": 1,
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::maintenance_latency",
+    "executions": 1,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 4
+  },
+  {
+    "target": "snapback4::scale",
+    "executions": 1,
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::scale_row_ranges",
+    "executions": 1,
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::snapback4",
+    "executions": 1,
+    "passed": 191,
+    "failed": 0,
+    "ignored": 4
+  },
+  {
+    "target": "snapback4::timeline_adoption",
+    "executions": 1,
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "snapback4::witness",
+    "executions": 1,
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  }
+]

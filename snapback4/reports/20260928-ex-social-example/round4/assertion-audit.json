@@ -1,0 +1,11 @@
+{
+  "test_changes_only_replace_document_path": true,
+  "all_assertions_unchanged": true,
+  "published_document_unchanged": true,
+  "source_lines": {
+    "crates/snapback4-sim/tests/common/following_app.rs": 193,
+    "crates/snapback4-sim/tests/common/following_calibration.rs": 117,
+    "crates/snapback4-device/tests/readauth/census.rs": 89
+  },
+  "old_forwarder_removed": true
+}

@@ -1,0 +1,20 @@
+{
+  "base": "4d132df9caafa64f4429e2b8a79f062f1b5a35f7",
+  "changed_source_lines": {
+    "snapback4/crates/snapback4-lang/tests/guide/client.rs": 33,
+    "snapback4/crates/snapback4-lang/tests/guide/published.rs": 178,
+    "snapback4/crates/snapback4/src/verbs/init/social/useTyping.ts": 53,
+    "snapback4/crates/snapback4/tests/feed_bridge.rs": 393,
+    "snapback4/packages/snapback4/test/helpers/social-browser.mjs": 214,
+    "snapback4/packages/snapback4/test/social-browser.test.mjs": 365
+  },
+  "journal_append_only": true,
+  "wasm_inputs_unchanged": true,
+  "whitespace": "pass",
+  "ref_check": {
+    "docs": 522,
+    "refs": 9792,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

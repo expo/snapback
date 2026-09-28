@@ -1,0 +1,4 @@
+{"command": ["cargo", "test", "-p", "snapback4", "--test", "init"], "exit": 0, "seconds": 18.96}
+{"command": ["cargo", "test", "-p", "snapback4-device", "--test", "readauth"], "exit": 0, "seconds": 15.32}
+{"command": ["cargo", "test", "-p", "snapback4-device", "--test", "device"], "exit": 0, "seconds": 306.1}
+{"command": ["cargo", "test", "-p", "snapback4-sim", "--test", "clique"], "exit": 0, "seconds": 170.53}

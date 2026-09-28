@@ -73323,6 +73323,64 @@ Wasm remeasured unchanged: 2,019,815 B raw / 585,381 B gzip, SHA-256
 delta and does not rebuild wasm. Report, full audit, commands, controls and
 all failures: reports/20260928-rg-receipts-at-scale/round5/REPORT.md.
 Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-28 — EX: the published social starter and client ownership recipes
+
+First fetched and merged origin/main at 80036b466 (already up to date);
+repeated after the implementation checkpoint with the same result. Added
+`snapback4 new <dir> --template social`: an embedded Expo Router starter with
+Following, chats, a pinned conversation, search and profile. Its Quarry keeps
+retained ordinary history separate from decorations, uses SDK delivery
+reporting, has ephemeral typing and ordinary/once images. The public like
+summary's replica expansion and current all-chat search domain split are
+explicit until OK/OS land; EQ's bracket-safe ordinary history already works.
+No private API, new Quarry syntax, core/contract change or weakened rule.
+
+`guide social` renders the installed recipe modules verbatim, compiled with
+the generated API. The current-session online typing arm owns observation,
+renewal and cleanup without session rotation custody or an outbox. The once
+viewer lives above a transient list, owns one explicit-open handle, revokes
+late results and closes on identity reset. The URL pins the route, the
+composer owns its draft/focus above independent room/history/receipt states,
+and SDK revalidation retention stays explicit. FlatList visibility controls
+seen positions; delivery belongs solely to the SDK. Pending writes use the
+published hook. The package README and guide entry point to this starter.
+
+Affected package tests pass 11/11, including the full generated app and all
+four guide snippets typechecked, public-client scaffold/check/dev smoke, and
+Chromium lifetimes with real server typing/media and controlled read gaps.
+The final witness asserts actual list detachment/remount with no extra fetch
+or handle revoke, draft/focus through connectivity and read transitions,
+expiry/revocation/no typing replay, second-open E_ASSET_VIEWED, late close and
+account cleanup. A freshly generated production Expo web export also passes
+on the installed npm client: guest, Following post, chat/send, retained leave
+and stable draft, with no page errors. Native Expo/Hermes lifecycle witnesses
+remain for all three recipes; this Linux host has no simulator harness. Web
+and TypeScript evidence do not close that §8 requirement.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1423 s`, exit 1,
+category cargo test. Rust 4,173 passed / 3 failed / 31 ignored; client shards
+3,933 passed / 0 failed / 10 skipped; client models 79/79; fixtures 9/9.
+All three failures were EX-owned guide-listing presentation regressions:
+why_and_discovery_keep_the_opt_in_one_step_away,
+guide_lists_aliases_and_resolves_them_on_stdout, and
+guide_unknown_word_suggests_cards_on_stdout. Preserve the existing first two
+listing lines and established core prefix, placing the social pointer third
+and its card beside client. Final affected proof: server_opt_in 7/7,
+CLI check 76/76, whole guide 92/92, package tests 11/11. The suite's red
+snapshot is retained; no second full run or passing full-suite claim.
+No baseline or environmental test failures. The report records all corrected
+exploratory schema/type/docs/harness failures as ours.
+
+Wasm remains 2,019,815 B raw / 585,384 B GNU file-input gzip-9 (delta 0/0),
+809 B below the unchanged 586,193 B cap. SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+README remains 300/300 lines; references, whitespace and source lengths pass.
+Implementation notes and Revised line are in LLP 3000.028 §8. Commands,
+limits, exact failures and retained evidence are in
+reports/20260928-ex-social-example/REPORT.md. Local dependencies/install caches
+only; nothing pushed or published. Co-authored local commits use
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
 ## 2026-09-28 — Lane OK round 2: integrate DG diagnostics and SS Worker device
 
 Fetched and merged origin/main 80036b466 into ad9e1c76c. The three expected
@@ -73418,6 +73476,66 @@ GPT-6 Astra <noreply@openai.com>.
 
 Report, reproductions and full command logs:
 reports/20260928-mp-modeling-papercuts/REPORT.md.
+
+## 2026-09-28 — Lane EX round 1: recover every send and enforce client lifetimes
+
+Read the original EX prompt, round-0 report/journal and both full reviews.
+Merged origin/main 5763da073 into this lane in 3845a6ba5, retaining both
+journal histories and all LLP revision notes. Adopted the implemented owner
+key policy for likes and ordinary viewer-owned exists; OS/EQ wait for round 2.
+No push, publication, version, dependency, meter or budget change.
+
+The social starter now journals every submitted ID and complete arguments
+under account/backend, including attachments, before SDK dispatch. Each send
+observes its own pending/terminal/unknown outcome without replaying it. Edit
+restores a failed draft and attachment. Each message bubble gets its own
+receipt, and receipt pages share the actual history cursor/index. Removed
+quote, explained reposts and the retained-search membership-rewrite hazard.
+The no-template new command lists social and exits nonzero without writing.
+Compiler notes use the existing ephemeral fact to say signals fail offline
+and are not queued; durable online-only writes still queue, tested separately.
+Published prose now explains facts without repository reports or lane/LLP
+pointers, guarded across every compiled card and package reference.
+
+The React browser mounts the real route with controlled host views, focus,
+AppState and clock. It requires renewal, idle stop without blur before expiry,
+Send/navigation/unmount cleanup, no later renewal, correct keep options and
+revalidating-member refusal. The viewer's own read now traverses loading,
+recovery and withdrawal with both open and in-flight handles. A real
+createApp/wasm/IndexedDB scenario queues two offline sends, leaves through
+another password session, reconnects, and recovers both NOT_MEMBER failures,
+texts and attachment after remount. The stronger typing witness exposed arm
+close cancelling consumer stop; close now waits for started bounded signal
+calls. Eight targeted mutants fail their intended assertions.
+
+Affected tests pass 17/17; whole guide 94/94; prediction notes 41/41;
+owner-key regression 4/4; starter generation/check, generated app and four
+snippets typecheck, and public-client smoke including a real paged receipt
+cursor pass. Native Expo/Hermes lifecycle proof remains outstanding for all
+three recipes; DOM hosts and typechecking do not replace it.
+
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1436 s`, exit 1,
+categories cargo test and client tests. Rust 4,188 passed / 1 failed /
+33 ignored; client shards 3,939 passed / 2 failed / 10 skipped; models 79/79;
+fixtures 9/9. Three test failures: ours, the owner-key guide test's old example
+order, corrected with all semantic assertions retained (4/4 focused pass);
+baseline, the known native lost-reply one-POST/two-POST fixture race (existing
+ticket updated); baseline, online typing burst retention in unchanged code,
+cause unconfirmed (new ticket). Both client failures pass isolated controls;
+neither is erased or called resolved. No environmental classification and no
+second full suite. Final prose cleanup is covered by the 94-test guide pass.
+The report records every exploratory failure as ours and corrected, separately
+from the expected mutation reds and the full-suite snapshot.
+
+Wasm is byte-identical to merged main: 2,017,908 B raw / 585,100 B GNU
+file-input gzip-9, EX delta 0/0, 1,093 B below the unchanged 586,193 B cap.
+SHA-256 1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a.
+README remains 300/300; source cap, whitespace and references pass. LLP
+3000.028 §8 and its Revised line record this round. Evidence and limitations:
+reports/20260928-ex-social-example/round1/REPORT.md. Exact logs are compressed
+without changing their contents. Co-authored local commit uses
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
 ## 2026-09-28 — Lane EQ round 2: inclusive legacy cursors preserve shape refusal
 
 First fetched origin and merged origin/main (80036b466), preserving both
@@ -73742,3 +73860,164 @@ No budget raise, tool installation, shared-path change, push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 Report and complete evidence: reports/20260928-mp-modeling-papercuts/round2/REPORT.md.
+
+## 2026-09-28 — Lane EX round 2: cold owner keys and published client guidance
+
+Read both prior EX prompts/reports/entries and Astra's complete round-1
+READY WITH CHANGES review. Grok was checked before work, during it and before
+completion; only progress text was available, with no findings or verdict.
+Fetched and merged origin/main ea7ecc896 (EQ) in 9f4bef13f. Preserved both
+parent journal sequences and all Revised notes. OS remains for round 3.
+
+The generated starter's native and wasm tests now cold-acquire 2,001 likes,
+with the old own like outside the 2,000-row public window. Before acquisition
+postState remains loading with no Boolean. After acquisition and disconnection,
+the old own key and a never-queried absent key return complete stale true/false.
+Removing the policy only from temporary generated output fails both tiers at
+the old-like assertion. No warm row stream or cached miss supplies the proof.
+
+Published FOLLOWING-ADOPTION.md through the package files list, including the
+existing owner's helpers, paused writes, ordered/checkpointed backfill and
+compiled bridge example. Existing guide/bridge tests read that canonical copy;
+the old repository document forwards to it. The feeds card points to the
+installed document. Replaced source/report/test pointers in README and client/
+server reference prose. A positive guard checks all compiled cards and shipped
+Markdown against manifest-derived file membership, separating exact documented
+app paths from checkout dependencies. It rejects Astra's precise adoption URL,
+bare/unlisted paths, traversal, remote files and a removed-package-file control.
+An npm dry-run confirms 203 files, including the adoption document.
+
+The client card assigns delivery reporting to the SDK and visible seen to the
+screen, replacing obsolete background receipt hook advice; receipts/sync were
+audited. Starter history and receipt pages adopt the sync card's idiomatic
+where equality on the explicit ordinal index; the generated why plan selects
+the conversation prefix. Real cursor-sharing and retained-history smoke pass.
+
+Final affected qualification: 97 whole-guide, five starter (new/check, full app
+and four snippet typechecks, native/wasm coverage and public smoke), 14 browser/
+prior-init, and 12 published bridge tests pass: 128 total, zero final failures,
+zero skips/ignores. Client build/typecheck, README 300/300 budget, references,
+source caps and whitespace pass. Did not run scripts/test.sh, as instructed.
+
+All exploratory failures were ours: fixture import of timeline source rows;
+expecting E_OFFLINE instead of loading before acquisition; checking freshness
+before discovering disconnect; initial guard token trimming, app-path and
+numeric-ratio classification; and a mutation wrapper that orphaned two owned
+dev servers before its exec correction. Recorded PIDs were cleaned up. A too
+strict merge-prefix assertion was followed by an unintended local commit with
+markers; immediately repaired and amended before implementation, with full
+parent-line preservation verified. Setup path misses are also recorded.
+Baseline/environmental test failures: zero. Both expected mutation reds are
+retained separately. No production assertion was weakened or deleted.
+
+Fresh merged wasm: 2,018,847 B raw / 585,970 B GNU file-input gzip-9, unchanged
+586,193 B budget, 223 B headroom. SHA-256
+9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1.
+EX changes no wasm/core/device/build input relative to merged main; the +939
+raw/+870 gzip bytes versus EX round 1 follow the EQ integration. No invented
+pre-edit byte comparison is claimed. Native Expo/Hermes/iOS/Android lifecycle
+qualification remains outstanding; no complete §8, scale or calibration claim.
+Report and all attempts: reports/20260928-ex-social-example/round2/REPORT.md.
+LLP 3000.028 §8 and its Revised line record this round. No tool install,
+dependency/version/budget change, push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EX round 3: optional bridge and renewal generations
+
+Read the three prior prompts, reports and EX entries, Astra's complete
+round-2 READY WITH CHANGES and Grok's completed round-1 READY review.
+Kept the round-2 branch base; no main merge, push or publication. Ordinary
+search adoption remains for a later round while OS is reviewed.
+
+FOLLOWING-ADOPTION.md routes plain modules to manual wiring and limits
+feedApp helpers to installations already carrying the separate app bridge.
+Its manual section retains paused writes, owner-context bounded checkpoints,
+ordered backfill, timestamps and replay/removal restrictions. A module-only
+regression compiles that manual and rejects an unavailable feedAppPublish.
+Independently, the actual published 0.2.33 installer on the fleet Mac emitted
+a plain feed module with no repository source/generator. The packed manual
+passes its published compiler, and feedAppPublish fails E_QUARRY_UNKNOWN.
+Published Linux 0.4.7 gives the same pair after explicit-key updates to the
+old module; the untouched legacy source's positional-key refusals are retained
+as baseline incompatibility, not concealed by injected bridge definitions.
+
+The guard strips Markdown formatting before classifying paths, requires
+GitHub file links to identify the actual shipped package path, and recognizes
+hyphen/underscore/compact/colon LLP spellings. All four Astra counterexamples
+are pinned. Typing renewals capture generations; stop invalidates them, and
+only the live current generation may react to failure. The browser completes
+a newer renewal before releasing an older failed outcome, then requires
+continued renewal and an idle stop before expiry. A current failure still
+stops renewal without cleanup. Removing the fence kills exactly that subtest.
+
+Final qualification: whole guide 97/97, bridge 13/13, affected browser/starter/
+init 20/20 (including new/check, full app and four snippet typechecks, public
+smoke and cold native/wasm owner coverage). Final browser with the current
+failure control passes 11/11, counted within the 20. CLI build, package
+typecheck, package contents and README 300/300 budget pass. No scripts/test.sh.
+
+Failures: ours, the stricter guard first omitted documented backend.json,
+corrected by its exact app-input entry; baseline, unmodified published 0.2.33
+module's positional-key refusals on published 0.4.7; ours, the first fixture
+update left two newly reached ambiguous sites, corrected with explicit readerId.
+Expected negative controls: stale-renewal mutant and missing app-bridge helper.
+Environmental test failures: zero. Report includes setup path misses and all logs.
+
+Wasm remeasured, not rebuilt: byte-identical to round 2, 2,018,847 B raw /
+585,970 B GNU file-input gzip-9; unchanged 586,193 B budget, 223 B headroom.
+SHA-256 9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1.
+No device/core/build/budget changes. Native Expo/Hermes lifecycle qualification
+remains outstanding; the Mac compiler check adds no native UI evidence.
+LLP 3000.028 §8 and its Revised line record this round. Report and evidence:
+reports/20260928-ex-social-example/round3/REPORT.md. Task-local package files
+only; no shared tool installation. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EX round 4: every adoption witness reads the published text
+
+Read rounds 0–3 prompts, reports and EX journal entries. Kept branch
+sb4-intent/ex-social-example at its existing base; no main merge, push or
+publication. The supervisor's two round-2 init residency failures were ours:
+four test loaders still read the now-forwarding-only recipe document.
+Changed all four to packages/snapback4/FOLLOWING-ADOPTION.md. The example,
+calibration table and authorization census now consume the same text builders
+read. Every assertion and the exact census are unchanged; so is the package
+document. Removed the unused forwarder and updated the live legacy-fixture
+link. Historical records and deliberate inaccessible-path controls remain.
+
+Audited guides, recipes, package documents and the embedded starter README
+changed by rounds 0–3, including direct loaders, read aliases, compiled cards
+and CLI guide calls. Traced shared modules to their actual Cargo targets:
+65 source consumers across a conservative 45-target Rust inventory, seven
+package test files, docs-budget and the retained published-module checker.
+The latter's packed document matches the current file: manual wiring passes
+published 0.4.7 after the previously recorded explicit legacy-key adjustment;
+the absent feedAppPublish helper refuses with E_QUARRY_UNKNOWN as expected.
+
+Focused targets pass: init 21, readauth 81, device 436 (one existing ignored),
+simulator clique 253 (one existing ignored), whole guide 97. Then ran
+scripts/test.sh exactly once: `== 0 failure(s) in 1325 s`, exit 0.
+Rust 4,210 passed / 0 failed / 33 ignored; eight client shards 3,944 passed /
+0 failed / 10 skipped; models 79/79; fixtures 9/9. All builds, wasm budget,
+release guard, package and app typechecks, and README 300/300 budget pass.
+All mapped consumers ran. Starter new/check, full app and snippet typechecks,
+public-client smoke, cold native/wasm owner keys and browser lifetimes pass.
+No assertions, timeouts or test inventory were weakened. No post-suite source
+repair or second full run. Failures this round: ours 0, baseline 0,
+environmental 0. The report separately records expected negative controls
+and corrected inspection path/glob misses, not product failures.
+
+Fresh full-suite wasm remains 2,018,847 B raw / 585,970 B GNU file-input
+gzip-9, delta 0/0; unchanged 586,193 B cap, 223 B headroom. SHA-256
+9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1.
+No device/core/build/budget, dependency or version changes. LLP 3000.028 §8
+and its Revised line record this repair. Report and complete logs:
+reports/20260928-ex-social-example/round4/REPORT.md. Native Expo/Hermes
+lifecycle qualification and OS adoption remain outstanding. No shared tool
+installation. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+The final staged whitespace check caught two blank context lines in the raw
+retained diff artifact (ours, evidence formatting). Compressed the exact patch
+without changing its hash or content; the staged check then passes. This is
+recorded separately from the zero test failures. No tested source changed.

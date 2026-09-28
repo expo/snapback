@@ -1,0 +1,197 @@
+[
+  {
+    "path": "affected-final.log.gz",
+    "uncompressed_bytes": 2502,
+    "uncompressed_sha256": "9f9eae6d8b48395b3fcf4557d68f6a5367f508bdff063f733e995c0f06178000"
+  },
+  {
+    "path": "affected-green.log.gz",
+    "uncompressed_bytes": 1839,
+    "uncompressed_sha256": "dc85969b6189737f585a8836864193dee98c0ab02c570e7b6ac8f8dc9e4c28d3"
+  },
+  {
+    "path": "affected.log.gz",
+    "uncompressed_bytes": 2219,
+    "uncompressed_sha256": "75531726569f37c74fc6adb2e75f80f5abcc9677f65c63aa6db0fbdbda64ea0c"
+  },
+  {
+    "path": "browser-diagnostic.log.gz",
+    "uncompressed_bytes": 2840,
+    "uncompressed_sha256": "2bef424194630e839548fc6cb7b3d4e0d92fff63a1b34cabcc0dcbde2dee9a30"
+  },
+  {
+    "path": "browser-joined-session.log.gz",
+    "uncompressed_bytes": 1224,
+    "uncompressed_sha256": "b21fa84b72354ecee58f6fab4dff1791cf7bda375456ec92fa019d7bd52f786a"
+  },
+  {
+    "path": "browser-real-offline.log.gz",
+    "uncompressed_bytes": 2758,
+    "uncompressed_sha256": "eb171667421171164da0805de0a02556aa19e1d6e525e87b0577806df9efda48"
+  },
+  {
+    "path": "build-final-surface.log.gz",
+    "uncompressed_bytes": 673,
+    "uncompressed_sha256": "512bfea53f2d436ea271b9f7ef272f1b4f45e6dda8ca82b97ffb3ee7109ae2f7"
+  },
+  {
+    "path": "build-final.log.gz",
+    "uncompressed_bytes": 727,
+    "uncompressed_sha256": "53968022914a00992e49f0195d7bc5ac332b8623295b3b6e2da543189e1ed57c"
+  },
+  {
+    "path": "build-qualified.log.gz",
+    "uncompressed_bytes": 566,
+    "uncompressed_sha256": "e0307bea191e9278fa50d90384e0eedd47c5735d129e4ff39ef8f781e4c650fd"
+  },
+  {
+    "path": "build-tested.log.gz",
+    "uncompressed_bytes": 673,
+    "uncompressed_sha256": "e5203ca51c8b2a7539196be72115cb84b6d15313d8968283d4c88efc19a5a1dd"
+  },
+  {
+    "path": "build.log.gz",
+    "uncompressed_bytes": 777,
+    "uncompressed_sha256": "f806c04931dcfd9fbc5c7a8cc82bb7abc38a7f5539fb282895598ebd1219215a"
+  },
+  {
+    "path": "docs-budget.log.gz",
+    "uncompressed_bytes": 564,
+    "uncompressed_sha256": "b10ecc8b6ead5e5422088bbbb76aec89829a2301b842c3160e8cee701f3d9731"
+  },
+  {
+    "path": "full-failure-controls.log.gz",
+    "uncompressed_bytes": 515,
+    "uncompressed_sha256": "2b70de0329603fd1d6c95daa0620f825d3300f667106dc1539520f1ade449e85"
+  },
+  {
+    "path": "guide-and-notes-final.log.gz",
+    "uncompressed_bytes": 11384,
+    "uncompressed_sha256": "00d3a21dbd9b0e31d08f99465840f1371509122198edf7363b6b0e62855d2b49"
+  },
+  {
+    "path": "guide-and-notes-qualified.log.gz",
+    "uncompressed_bytes": 11648,
+    "uncompressed_sha256": "bdab13df77fbd564895c4ea6ee12c9a1ddf5b7bd13ff70949eeeca1ff2375c5c"
+  },
+  {
+    "path": "guide-and-notes.log.gz",
+    "uncompressed_bytes": 7517,
+    "uncompressed_sha256": "181af0fbc3fc0260bfa36458d455ddd14f6197f0d505f1e85305b4fdf5644f58"
+  },
+  {
+    "path": "guide-final-surface.log.gz",
+    "uncompressed_bytes": 10136,
+    "uncompressed_sha256": "3bd422df38fb9b757cb79c25a6af26e5ef0d43b813317a9ac1e826f7343e2357"
+  },
+  {
+    "path": "guide-hygiene-final.log.gz",
+    "uncompressed_bytes": 544,
+    "uncompressed_sha256": "7ffe94bb9ed985baaeb2b517245f09803244638bca3f648be20da550650a4fa6"
+  },
+  {
+    "path": "guide-notes-green.log.gz",
+    "uncompressed_bytes": 9995,
+    "uncompressed_sha256": "880eb994b24dbeeb5c74fc0cf2b9ab8f2769b7ec071ece55310d32d13b407ce2"
+  },
+  {
+    "path": "guide-post-hygiene.log.gz",
+    "uncompressed_bytes": 6913,
+    "uncompressed_sha256": "03b282828ddcb2eaabc4683932b699ffe5ba8206bc3e1142a41a761d0e9b5981"
+  },
+  {
+    "path": "mutant-allow-revalidating-member.log.gz",
+    "uncompressed_bytes": 2165,
+    "uncompressed_sha256": "c2c67cb7a0d2e556c5885db995faf8e89f3cc94f05c857c67b9a915608112f2d"
+  },
+  {
+    "path": "mutant-close-arm-before-stop.log.gz",
+    "uncompressed_bytes": 4073,
+    "uncompressed_sha256": "0e9aa0f1727136f7f1719a187b8858efb33320e720cbea98b8b0874ed6081080"
+  },
+  {
+    "path": "mutant-empty-renewal.log.gz",
+    "uncompressed_bytes": 1755,
+    "uncompressed_sha256": "a8e9f1ab2f1b57e99874484aa4978485f5b62fc17a8bd7e8511bbe4d247241fb"
+  },
+  {
+    "path": "mutant-keep-sensitive-reads.log.gz",
+    "uncompressed_bytes": 2202,
+    "uncompressed_sha256": "6144875551530d0602ce3a39af2450a7803c78d01441bfc7020c730cc7c3ccd2"
+  },
+  {
+    "path": "mutant-no-route-key.log.gz",
+    "uncompressed_bytes": 4229,
+    "uncompressed_sha256": "d811df066bc28140a0f8f6dbb3101667e760c342f432a8440ab347d65bc5f018"
+  },
+  {
+    "path": "mutant-no-route-visibility.log.gz",
+    "uncompressed_bytes": 1903,
+    "uncompressed_sha256": "11d9422974e3945d85bf6eacd37e2ec3b242b754115ebb6972af5bccee14cd00"
+  },
+  {
+    "path": "mutant-no-stop-on-cleanup.log.gz",
+    "uncompressed_bytes": 4034,
+    "uncompressed_sha256": "3ffe6e25513021d09cb66226eda4bab877f7fcba205c93b31b276b8b1c7047ab"
+  },
+  {
+    "path": "mutant-no-viewer-withdrawal.log.gz",
+    "uncompressed_bytes": 1960,
+    "uncompressed_sha256": "95a9e60f9d88c84fa5f92f15f929b1a5380d75e4370b715150459df80a0c0ddc"
+  },
+  {
+    "path": "mutation-run.log.gz",
+    "uncompressed_bytes": 872,
+    "uncompressed_sha256": "69d8e76049d24bf5ff16171cdbd9a8d674c89c70d2a02cd81e3f4c766f9c0785"
+  },
+  {
+    "path": "own-keys-post-suite.log.gz",
+    "uncompressed_bytes": 643,
+    "uncompressed_sha256": "9f4206dfaac072bc693aac38d9d84ac058950a4749a4d0bd2d83459d5e549440"
+  },
+  {
+    "path": "ref-check-final.log.gz",
+    "uncompressed_bytes": 80,
+    "uncompressed_sha256": "2b63ae5bbe92a0d4dcaf06ed3bbef108092b57f7906be52b0067f98ae3c0dfff"
+  },
+  {
+    "path": "ref-check.log.gz",
+    "uncompressed_bytes": 205,
+    "uncompressed_sha256": "55e9280c2977044a0601e0d90414f32db646686413e69be6fd44c49f10686c57"
+  },
+  {
+    "path": "social-app-custody.log.gz",
+    "uncompressed_bytes": 2713,
+    "uncompressed_sha256": "ad9aec8fb39a6e6bb23437d6764e92e2ba19f87c69d83dc33c69d24dbc7719e4"
+  },
+  {
+    "path": "social-final.log.gz",
+    "uncompressed_bytes": 2756,
+    "uncompressed_sha256": "a08807a207934b54cf4964b0cfd6e323d26e1e7c78a2fbc3a236ab644dcf8bbe"
+  },
+  {
+    "path": "social-initial.log.gz",
+    "uncompressed_bytes": 2841,
+    "uncompressed_sha256": "4dbc5d42f714192b687a1b18c7a0a53e01c9279dba1deaa0c42acca71466cae0"
+  },
+  {
+    "path": "social-qualified.log.gz",
+    "uncompressed_bytes": 3349,
+    "uncompressed_sha256": "b35cfcf8f27a359eed1a0bfed16a4feb111d6c38e0c1bba701bcd529a76e2f8a"
+  },
+  {
+    "path": "starter-check.log.gz",
+    "uncompressed_bytes": 6800,
+    "uncompressed_sha256": "77d69194620e92534145432c7c7f385289eb723037b9703005f7742e70fd2525"
+  },
+  {
+    "path": "test-sh.log.gz",
+    "uncompressed_bytes": 655380,
+    "uncompressed_sha256": "afc2e9db63212c5de9f22c28c0063e7519df9a81030d1b4abf4fae00396f15ec"
+  },
+  {
+    "path": "wasm-build.log.gz",
+    "uncompressed_bytes": 7770,
+    "uncompressed_sha256": "71675f1fbefaa8b9c222bcb69029f49e6f5d94babd55aa0ce38137ae183fa9fa"
+  }
+]
