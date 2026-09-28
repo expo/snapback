@@ -1,0 +1,23 @@
+{
+  "raw": 2039892,
+  "gzip_file_input_9": 592307,
+  "sha256": "35ce9ef347e691e5305ee45d1959dca0ff61d8b97fe920cdbb84a8bdad86a73e",
+  "budget": 586193,
+  "before_raw": 2044274,
+  "before_gzip": 593309,
+  "no_plan_raw": 2039006,
+  "no_plan_gzip": 591908,
+  "device_fences_before_codec_raw": 2040214,
+  "device_fences_before_codec_gzip": 592389,
+  "canonical_ledger_codecs_raw": 2040059,
+  "canonical_ledger_codecs_gzip": 592404,
+  "tools": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "wasm-bindgen": "wasm-bindgen 0.2.127",
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "twiggy": "twiggy-opt 0.8.0"
+  },
+  "before_compact_identity_raw": 2040062,
+  "before_compact_identity_gzip": 592408
+}

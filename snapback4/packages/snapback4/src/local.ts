@@ -1,4 +1,4 @@
-import { SearchBound } from "./local-search.ts";
+import { SearchBound, refreshSearchRoots } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
 import { deviceControl, coldSnapshot, coldReplyStatus, type DeviceControlSnapshot } from "./device-control.ts";
@@ -895,6 +895,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
       post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined),
       searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, undefined, decode),
+      refreshSearch: (name: string) => refreshSearchRoots(watches, name, backend?.schema.operations?.[name]?.search?.cursor, notify, rerun),
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
       offline, get serverAnswers() { return answerCache; }, ephemeralReads,
     };
@@ -941,9 +942,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       };
     });
   }
-  function rerunTables(tables: Set<string>) {
-    rerunLocalTables(watches.values(), tables, rerun);
-  }
+  function rerunTables(tables: Set<string>) { rerunLocalTables(watches.values(), tables, rerun); }
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
     const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
     armReadExpiry(watch, deadlines, clock,
@@ -966,9 +965,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     else scheduleExpiry(watch, null, d.server, d.localWakeup); // A local wakeup preserves the server deadline.
     return () => { deliver?.(); if (reset && watches.get(watch.key) === watch) notify(watch); };
   }
-  function armPresence(watch: Watch) {
-    armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); });
-  }
+  function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); }); }
   // @ref LLP 3000.018#3.2 — a presence refresh evaluates in the background and publishes only an answer
   // that nothing replaced meanwhile: expiry, invalidation and store replacement keep their own withdrawal.
   async function refreshPresence(watch: Watch) {

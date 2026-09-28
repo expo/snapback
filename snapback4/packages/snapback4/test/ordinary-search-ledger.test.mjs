@@ -8,12 +8,12 @@ const counts=()=>Object.fromEntries(Object.keys(ceilings).map(k=>[k,0]));
 const rows=(start,count)=>Array.from({length:count},(_,i)=>({id:`m${start-i}`,at:start-i,text:'coffee'}));
 const sourceCursor = c=>c?JSON.parse(Buffer.from(c,'base64url'))[5][0].Int:Infinity;
 const position = c=>JSON.parse(Buffer.from(c.slice(5),'base64url'));
-function fixture({retained=rows(200,20),live=rows(100,30),cut=false,exhaust=false,race}={}) {
+function fixture({retained=rows(200,20),live=rows(100,30),cut=false,exhaust=false,race,remainingSteps}={}) {
   let calls=0,epoch='a',now=0,scanUsed;
   const env={backend:{generation:1},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
     deviceNow:()=>now,serverNow:()=>now,
     async call(r){
-      if(r.op==='search_state')return {ok:{epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent??counts()}};
+      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent&&remainingSteps!==undefined?{...r.spent,steps:ceilings.steps-remainingSteps}:r.spent??counts()}};
       assert.equal(r.search,true);assert.ok(r.spent.heap_bytes>0);
       scanUsed={...r.spent,heap_bytes:exhaust?ceilings.heap_bytes-1:r.spent.heap_bytes+1000,steps:r.spent.steps+100};
       const found=retained.filter(x=>x.at<sourceCursor(r.args.c));
@@ -55,6 +55,19 @@ test('decoder and coordinator cannot reset a nearly exhausted device scan ledger
   assert.ok(alone.used.heap_bytes<ceilings.heap_bytes-1,'decode fits alone; the joined allowance is exhausted');
   assert.throws(()=>alone.resume(counts()),SearchBound,'receipts cannot lower prior work');
 });
+for (const tie of [false,true]) test(`mixed comparisons exhaust the shared step allowance (${tie?'equal-time Unicode IDs':'time order'})`,async()=>{
+  // The final state receipt leaves just enough for both mixed rows. One fewer
+  // step must refuse. These fixed allowances include all merge/output work;
+  // deleting either comparison charge makes the corresponding tight run pass.
+  const steps=tie?1656:1644;
+  const inputs={retained:[{id:'\u{10000}left',at:100,text:'coffee'}],live:[{id:'\ue000live',at:tie?100:101,text:'coffee'}]};
+  const enough=fixture({...inputs,remainingSteps:steps}),tight=fixture({...inputs,remainingSteps:steps-1});
+  const full=await enough.run(),cut=await tight.run();
+  assert.deepEqual(full.read.data.map(r=>r.id),tie?['\u{10000}left','\ue000live']:['\ue000live','\u{10000}left']);
+  assert.equal(cut.read.denied?.code,'E_BOUND');
+  assert.match(cut.read.denied.message,/steps/);assert.equal(cut.read.data,undefined);
+  assert.equal(enough.calls(),1);assert.equal(tight.calls(),1);
+});
 for(const race of ['membership','reset','edit','rejoin','expiry'])test(`mixed delivery withdraws ${race} race without refetch`,async()=>{
   const f=fixture({race});const result=await f.run();assert.equal(f.calls(),1);assert.deepEqual(result.read,{loading:true});
 });
@@ -67,4 +80,11 @@ test('state loss needs no server buffer: a fresh coordinator resumes every uncon
 test('an older device refuses composition explicitly instead of running a partial plan',async()=>{
   const f=fixture();f.env.call=async()=>({denied:{code:'E_INPUT',family:'input',message:'unknown op search_state'}});
   const result=await f.run();assert.equal(result.read.denied.code,'E_INPUT');assert.equal(f.calls(),0);
+});
+
+test('a current-only page still requires the authorized server audience proof',async()=>{
+  const f=fixture(),call=f.env.call,post=f.env.searchPost;
+  f.env.call=async request=>{const reply=await call(request);if(request.op==='search_state')reply.ok.left=[];return reply;};
+  f.env.searchPost=async(...args)=>{const reply=await post(...args);delete reply.json.searchScopes;return reply;};
+  const result=await f.run();assert.equal(f.calls(),1);assert.deepEqual(result.read,{loading:true});
 });

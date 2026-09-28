@@ -90,7 +90,7 @@ impl Runner<'_> {
                 self.meter.heap(word_heap::allocation(bytes as usize) * 2)?;
                 self.meter.step(1)?;
                 let mut encoded = Vec::with_capacity(bytes as usize);
-                serde_json::to_writer(&mut encoded, &[crate::wire::Plain(scope)])
+                crate::json_codec::to_buffer(&mut encoded, &[crate::wire::Plain(scope)])
                     .map_err(|e| RuntimeError::Input(e.to_string()))?;
                 let key = String::from_utf8(encoded).map_err(|e| RuntimeError::Input(e.to_string()))?;
                 if !self.meter.charge(MeterKind::OutputBytes, 4 + key.len() as u64 * 6)? {

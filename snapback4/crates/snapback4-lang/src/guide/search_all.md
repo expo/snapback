@@ -27,9 +27,13 @@ only past consumed hits. Unconsumed hits are recomputed on the next requested
 page and charged again. The coordinator and device scan share the existing
 per-page device read allowance. There is no saved search session.
 
-A membership, device-state or link change restarts an incompatible continuation.
-A transition during delivery withdraws the candidate; the next observation uses
-the new state. Retained edits stay at their delivered image and expiry still
+A membership, incarnation, generation or link change invalidates an incompatible
+continuation. Every combined cursor binds the server's authorized audience, even
+with no departed chats. An unsynced audience change withdraws the stale page and
+refreshes the first page of a live `usePage` observation. A one-shot query returns
+loading; request a fresh first page to restart. Each observation still makes one
+server call. An unrelated sync or an older-message edit preserves pagination.
+The broader delivery fence still withdraws changes that occur during a request. Retained edits stay at their delivered image and expiry still
 removes them. Rejoined scopes use the current server lane. The server’s bounded audience proof prevents a stale departed image from being merged after an unsynced rejoin; that observation waits for sync. Missing acquired
 history and constituent cuts remain incomplete. An incomplete empty answer means
 “Results may be incomplete,” never “No matches.” An online client without a

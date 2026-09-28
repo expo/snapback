@@ -72957,3 +72957,78 @@ LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
 Full file map, forms, failures, commands and retained evidence:
 reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — OS round 3: stable pagination and server audience binding
+
+First fetched and merged origin/main 80036b466 into the OS branch, preserving
+both journal tails and combining SS device-control/restore checks with the OS
+stream decoder and searchAttempt marker. Merge commit 5febc518d retains both
+serverOnly and searchAttempt. Read rounds 0–2 prompts, reports and OS entries,
+Astra's complete round-1/2 NOT READY review and the applicable fence/design
+material. Grok had no verdict at startup; did not wait. Read llp-orient from the
+populated lane-a5 skill copy because this lane's symlink was unpopulated. No
+other worktree changed, no tool installed, no push or publication.
+
+Separated the continuation epoch from the delivery capture. Continuations bind
+incarnation, backend/generation, acquisition validity and the relevant table's
+current/Left membership. Watermarks, unrelated sync, old-message edits and
+additional delivered IDs in current rejoined groups preserve consumed source
+positions. The broader delivery digest still withdraws replies when that state
+changes in flight. Both use the existing state and shared allowance; no new
+persistent registry or epoch.
+
+Every combined cursor now binds a SHA-256 digest of the complete authorized
+server searchScopes proof, checked even when there are no retained scopes.
+Audience changes withdraw stale suffixes. A live page chain reobserves its root
+and replaces the suffix; a one-shot caller receives loading and can request a
+fresh first page. Each observation still makes at most one server invocation.
+Digest scratch and work are charged to the same ledger. The original rejoin
+non-overlap check remains. No authorization rule or public Read field changed.
+
+Copied Astra's six process/wasm probes; all fail before the fixes. Enhanced them
+to traverse the full 65-ID oracle exactly once, count invocations and test fresh
+recovery. Added unsynced membership loss, actual Pages root/suffix refresh and
+hidden-sync delivery withdrawal on both hosts. Comparison-step boundaries now
+reach both time and equal-time Unicode-ID comparisons. Removing time charges
+fails both cases, removing ID charges fails the tie case, and removing both
+fails both. Removing the audience check fails all six gain/loss/live-chain
+cases. Mutations were confined to generated output and restored.
+
+Affected qualification: 53 Rust tests, 41 JavaScript tests including process,
+wasm and mounted React, and the whole 92-test guide pass. Build/typecheck,
+reference audit and original program/SQLite/WAL hashes pass. The full builder
+501-page evidence remains historical round-1 evidence; no fresh full-store or
+Expo qualification is claimed. Search guidance, LLP 3000.028 implementation
+notes and the report acceptance matrix now distinguish these scopes.
+
+Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1682 s`.
+Failed steps: wasm build and client tests. Rust 4,203 passed / 0 failed /
+31 ignored; client tests including shards 3,965 passed / 2 failed / 10 skipped;
+models 79/79; fixture wrappers 9/9. All other build, docs, release and app checks
+pass. Both client failures are ours from round 1: `web-reachable typed JSON
+calls all use the codec funnel` found the direct server audience writer, and
+`census kills parse, encoded, MQ components and container regressions` counted
+that real violation alongside its intended mutant. Routed the same prepaid Vec
+through json_codec::to_buffer without changing bytes or meter. After repair,
+36 codec/family, 51 affected Rust and 41 affected JS tests pass; native/client
+and wasm rebuilds complete. The full-suite log retains its original red result
+and was not rerun. No baseline or environmental qualification failures.
+
+Removed the unused plan serialization and redundant retained Boolean from both
+per-page state replies, reused canonical ledger serializers and avoided a
+generic map-removal path. Removing plan alone saves 5,268 raw / 1,401 gzip bytes.
+Final canonical wasm: 2,039,892 B raw / 592,307 B GNU file-input gzip-9, net
+round-3 saving 4,382 raw / 1,002 gzip. Composition versus round 0 still adds
+20,077 raw / 6,929 gzip. Final SHA-256:
+35ce9ef347e691e5305ee45d1959dca0ff61d8b97fe920cdbb84a8bdad86a73e.
+The late server codec repair leaves that artifact identical. Family/absence
+attribution passes; the report accounts for descriptor, state/digests, ledger,
+dispatch, retained filter, data and shared-code groups. The unchanged 586,193 B
+cap fails by 6,114 B: ours, expected, awaiting the supervisor's budget decision.
+No cap raised and no publication qualification claimed.
+
+All expected-red reproductions, mutations, the corrected two-test fixture setup
+failure, operational setup errors, measurements, commands and full suite output
+are retained in reports/20260928-os-ordinary-search/REPORT.md and round3/.
+ROUND2.md preserves the previous report. Local commits carry
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
