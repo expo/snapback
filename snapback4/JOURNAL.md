@@ -75155,3 +75155,56 @@ No new package dependencies or increases to meter limits or budgets. Reference
 and whitespace audits pass.
 Report: `reports/20260928-lv-hook-retention/round3/REPORT.md`. Local commit with
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push or publication.
+
+## 2026-09-29 — LV round 4: ephemeral evidence fences equal durable cuts
+
+Lane `sb4-intent/lv-hook-retention`, from `f32f75e37`. Read all prior lane
+prompts, reports/journal entries and LLP 3000.029, plus Astra's complete round-3
+review. Applied llp-orient. Fetch left origin/main unchanged at `9ef49d43c`;
+no merge. Grok was checked before work and before completion; its file still
+held progress notes without findings or a verdict. No review approval claimed.
+
+LLP 3000.029 §10 and its Revised line now require dependency-scoped ephemeral
+incarnation/epoch floors independently of durable cuts. Requests carry their
+compiled ephemeral inputs. Accepted answers and change polls withdraw older
+overlapping owners before callbacks, including the accepting owner's old body;
+direct reads and final asynchronous publication must meet the same floors.
+Floors survive unmounts and cannot be released by durable apply. Incarnation
+revision retirement and the poll coverage cursor keep their separate rules.
+Withheld/transport responses do not advance an answer's epoch. Matching local
+ephemeral replies now reconcile across retention policies, fixing a recovery
+race. Indexed epoch propagation visits 400 owners for 400 replacements, with
+no visits for same-epoch repeats. No runtime Rust, authorization or meter change.
+The ephemeral guide/manual now describe immediate withdrawal on received evidence.
+
+The original round-3 client fails all six real online/process/wasm regressions
+at seq=0 and epoch 1→2: mounted overlaps and buffered direct replies. They now
+pass, including grouped callbacks and recovery. Two further process/wasm cases
+deliver evidence between evaluation and final publication; removing the final
+check fails both. Forty independent ephemeral seeds generate 250 events each
+across aliases, delayed replies/publications, revocation/regrant, remounts,
+independent durable sequence changes and incarnation replacement. Removing
+query evidence fails 21 seeds; removing epoch floors fails 12 seeds and all
+three delayed-direct host cases. A poll-floor mutant also fails.
+
+Both row-keyed-view.q and row-view-inherited-member.q now enter the independent
+census, asserting compiler certificates and server/device metadata, with real
+HTTP process/wasm coverage. Removing maintain.row_key.table fails both Rust
+cases; the source was restored and all five census cases pass afterward.
+
+Final affected run: 1,264 passed, zero failed/cancelled/skipped, including both
+browser route witnesses and the complete delivery fault matrix. Additional
+final-publication and accepting-owner/cost tests pass 2+2; whole guide 98/98;
+Rust census 5/5; client build/declarations and typecheck pass; docs budget,
+reference and whitespace checks pass. All unexpected reds are ours and resolved:
+three intermediate host recovery timeouts and a missing-acquisition census
+fixture. Every failure and expected mutation is retained in the round-4 report.
+Per the round-4 instruction, scripts/test.sh was not run; the supervisor owns
+the landing suite. No new Expo/iOS UI qualification is claimed.
+
+The existing canonical wasm is byte-identical to round 3: 2,042,203 B raw /
+593,640 B gzip-9, 79 B under the unchanged 593,719 B cap, SHA-256
+ac18ec094d1c596bda96caa164870f25192a1463397f5bd97f57e436338fe0bc.
+Zero growth; no fresh wasm build claimed because no runtime Rust changed.
+Report: reports/20260928-lv-hook-retention/round4/REPORT.md. Local co-authored
+commit only; no push, publication, deployment or shared tool installation.

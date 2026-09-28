@@ -177,7 +177,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       while (true) {
         checkpoint();
         const credentials = env.credentialRevision;
-        const eph = ephemeral ? env.ephemeralReads.request() : undefined;
+        const eph = ephemeral ? env.ephemeralReads.request(ephemeralTables) : undefined;
         const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph); checkpoint();
         // A refetch within the attempt is a new read for the remembered answers (LLP 3000.018 §3.2).
         if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
@@ -286,7 +286,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       const { result, origin } = candidate;
       if (env.replicaBlocked?.(key, tables) && origin !== "server") return loading;
       if (origin === "server" && result.seq !== undefined && (env.evidenceMinimum?.(key, tables) ?? 0) > result.seq) return loading;
-      if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {
+      if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch, undefined, !("loading" in result.read))) {
         return { ...loading, ephemeralStale: true };
       }
       // Rules 1/5: no await between this deadline check and publication.
@@ -335,7 +335,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
           if (!accepted) return loading;
         } else {
           const accepted = env.serverAnswers.delete(key, result.seq);
-          result.invalidated = accepted && "denied" in result.read && result.read.denied.code !== "E_OFFLINE";
+          result.invalidated = accepted && ((ephemeral && "data" in result.read) || ("denied" in result.read && result.read.denied.code !== "E_OFFLINE"));
           if (!accepted) return loading;
         }
       }

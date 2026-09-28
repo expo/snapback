@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as turn } from 'node:timers/promises';
-import { ReadObservation } from '../dist/read-observation.js';
+import { ReadObservation, invalidateReadEvidence } from '../dist/read-observation.js';
+import { EphemeralReads } from '../dist/ephemeral-reads.js';
 import { ReadIndex } from '../dist/read-index.js';
 import { reconcileLocalRead } from '../dist/local-read-publication.js';
 import { LocalReads } from '../dist/local-reads.js';
@@ -143,4 +144,112 @@ test('finite dependency fence survives every intermediate apply for newly opened
     reads.applied(evidence);
     assert.equal(reads.blocked('finalAlias:{}', tables), false);
   }
+});
+
+// The ephemeral oracle owns server history and delivered revocations, never
+// production floors. Its epoch changes independently of the durable cut.
+class EphemeralHistory {
+  incarnation = 1; epoch = 1; seq = 0;
+  rows = { secrets: 1, signals: 1 };
+  log = []; revoked = { secrets: 0, signals: 0 };
+  change(table, grant) {
+    this.epoch++;
+    this.rows[table] = grant ? this.epoch : null;
+    if (!grant) this.log.push({ table, epoch: this.epoch });
+  }
+  packet(deps) {
+    return { seq: this.seq, version: { incarnation: String(this.incarnation), epoch: this.epoch },
+      data: deps.flatMap(table => this.rows[table] === null ? [] : [{ table, grant: this.rows[table], incarnation: this.incarnation }]) };
+  }
+  learn(packet, deps) {
+    if (packet.version.incarnation !== String(this.incarnation)) return;
+    for (const event of this.log) if (deps.includes(event.table) && event.epoch <= packet.version.epoch)
+      this.revoked[event.table] = Math.max(this.revoked[event.table], event.epoch);
+  }
+  restart() { this.incarnation++; this.epoch = 0; this.rows = { secrets: null, signals: null }; this.log = []; this.revoked = { secrets: 0, signals: 0 }; }
+  assert(read, label) {
+    const walk = value => {
+      if (!value || typeof value !== 'object') return;
+      if ('grant' in value) {
+        assert.equal(value.incarnation, this.incarnation, label + ': retired incarnation');
+        assert.ok(value.grant > this.revoked[value.table], `${label}: ${value.table} grant ${value.grant} <= learned revocation ${this.revoked[value.table]}`);
+      }
+      Object.values(value).forEach(walk);
+    }; walk(read.data);
+  }
+}
+
+for (let seed = 1; seed <= 40; seed++) test(`independent ephemeral epoch model seed ${seed}`, () => {
+  const model = new EphemeralHistory(), stop = new AbortController(), ephemeral = new EphemeralReads(stop.signal), index = new ReadIndex();
+  ephemeral.accept(ephemeral.request([]), model.packet([]).version);
+  const requests = [], publications = [], watches = [], trace = [];
+  let random = seed;
+  const rand = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return (random >>> 8) % n; };
+  const descriptors = [
+    { name: 'point', deps: ['secrets'] }, { name: 'alias', deps: ['secrets'] },
+    { name: 'list', deps: ['secrets'] }, { name: 'other', deps: ['signals'] },
+    { name: 'joined', deps: ['secrets', 'signals'] },
+  ];
+  const check = label => { for (const watch of watches) model.assert(watch.read(null), `${seed}:${label}:${trace.slice(-15)}`); };
+  const mount = i => {
+    const descriptor = descriptors[i % descriptors.length];
+    const watch = Object.assign(new ReadObservation([undefined, true, false][i % 3]), {
+      descriptor, op: { name: descriptor.name }, args: { subset: i % 2 }, tables: new Set(descriptor.deps), subscribers: new Set([() => check('callback')]),
+    });
+    watches[i] = watch; index.set(String(i), watch);
+    ephemeral.add(watch, descriptor.deps, () => {
+      const deliver = watch.reset({ loading: true }, true);
+      return () => { deliver(); check('ephemeral callback'); };
+    });
+  };
+  for (let i = 0; i < 10; i++) mount(i);
+  const start = owner => {
+    const descriptor = owner?.descriptor ?? descriptors[rand(descriptors.length)], args = owner?.args ?? { subset: rand(2) };
+    const before = owner?.snapshot; owner?.reload();
+    if (owner?.retain && before && 'data' in before) assert.equal(owner.snapshot.data, before.data, 'plain refresh retains');
+    requests.push({ owner, descriptor, args, request: ephemeral.request(descriptor.deps), packet: model.packet(descriptor.deps) });
+  };
+  const receive = candidate => {
+    const { packet, descriptor, request, owner } = candidate;
+    // A retired request is never evidence, independent of the client's counter.
+    if (packet.version.incarnation === String(model.incarnation)) model.learn(packet, descriptor.deps);
+    if (ephemeral.accept(request, packet.version, owner)) publications.push(candidate);
+    check('receive');
+  };
+  const publish = candidate => {
+    const { packet, descriptor, args, request, owner } = candidate;
+    if (owner && !watches.includes(owner)) return;
+    if (!ephemeral.valid(request, packet.version)) return;
+    const read = ready(descriptor.name === 'alias' ? { rows: packet.data } : packet.data);
+    invalidateReadEvidence(index, { name: descriptor.name }, args, read, () => {}, owner, () => { owner?.publish(read); return true; }, new Set(descriptor.deps), packet.seq);
+    model.assert(read, 'ownerless/completed answer'); check('publish');
+  };
+  try {
+    for (let step = 0; step < 250; step++) {
+      const event = rand(11), table = rand(2) ? 'secrets' : 'signals'; trace.push(event);
+      if (event < 2) model.change(table, event === 1);
+      if (event === 2) start(watches[rand(watches.length)]);
+      if (event === 3) start(undefined);
+      if (event === 4 && requests.length) receive(requests.splice(rand(requests.length), 1)[0]);
+      if (event === 5 && publications.length) publish(publications.splice(rand(publications.length), 1)[0]);
+      if (event === 6) {
+        const packet = model.packet([table]); model.learn(packet, [table]);
+        ephemeral.changed(ephemeral.pollRequest(), { ...packet.version, tables: [table] });
+      }
+      if (event === 7) { model.seq++; /* durable apply cannot release ephemeral evidence */ }
+      if (event === 8) {
+        const i = rand(watches.length); ephemeral.remove(watches[i]); index.delete(String(i)); watches[i].retire(); mount(i);
+      }
+      if (event === 9) {
+        model.restart(); ephemeral.changed(ephemeral.pollRequest(), { ...model.packet([]).version, tables: ['secrets', 'signals'] });
+      }
+      if (event === 10) {
+        while (requests.length) receive(requests.splice(rand(requests.length), 1)[0]);
+        while (publications.length) publish(publications.splice(rand(publications.length), 1)[0]);
+      }
+      check(step);
+    }
+    while (requests.length) receive(requests.shift());
+    while (publications.length) publish(publications.shift());
+  } finally { stop.abort(); watches.forEach(w => w.retire()); }
 });

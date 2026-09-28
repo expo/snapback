@@ -742,10 +742,15 @@ its discovery poll; durable-only clients make no extra schema request. Growing t
 table notifications rerun matching watches without a durable change or `/sync`.
 Watches also refetch at `nextExpiry`; incomplete ephemeral answers refresh at a
 fixed one-second cadence until complete or closed. No application expiry timer
-is needed. Offline ephemeral reads have no retained data.
+is needed. Ephemeral rows are never replicated or available to a new offline read;
+mounted answers still obey their original deadlines and learned invalidation.
 
 Query answers and polls carry an incarnation and epoch, separately from the
-durable sequence. Each watch rejects older epochs. Accepting a new incarnation
+durable sequence. Accepted answers and change notifications raise dependency
+epoch floors: older overlapping watches withdraw before callbacks, and delayed
+replies (including direct reads without a watch) cannot cross those floors.
+Unrelated ephemeral tables remain independent. Equal durable sequences and
+replica sync cannot release an ephemeral floor. Accepting a new incarnation
 advances the client's ephemeral request revision, invalidates outstanding
 requests, and reruns every ephemeral watch and the poll. Responses tagged with
 an older revision are discarded before considering their incarnation.

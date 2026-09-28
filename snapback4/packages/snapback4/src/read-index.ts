@@ -66,6 +66,8 @@ export class ReadIndex<W extends IndexedRead> extends Map<string, W> {
     return cut;
   }
   evidence(tables: Set<string>, cut?: number, dependencyFree = false): Set<W> {
+    // @ref LLP 3000.029#10 — these are durable cuts only. EphemeralReads
+    // checks dependency epochs independently, before this equal-cut shortcut.
     // An explicit empty server footprint certifies no data dependencies. Missing inputs remain unknown.
     if (dependencyFree) return new Set();
     if (cut === undefined) return this.affected(tables.size ? tables : undefined);

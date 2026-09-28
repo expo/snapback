@@ -4,6 +4,9 @@ use serde_json::{Value as Json, json};
 use snapback4_core::{engine::{Context, Engine}, ir::ProgramKind, value::Value};
 use snapback4_device::{device::{Backend, Device}, memory::MemoryStore};
 use std::collections::{BTreeMap, BTreeSet};
+#[allow(dead_code)]
+#[path = "../../snapback4/src/sync_wire.rs"]
+mod sync_wire;
 
 fn table_fields(value: &Json, out: &mut BTreeSet<String>) {
     match value {
@@ -45,6 +48,47 @@ fn expected(schema: &Json, body: &Json) -> BTreeSet<String> {
         if reachable.len() == before { return reachable; }
     }
 }
+
+fn row_key_census(source: &str, inherited: bool) {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let schema = serde_json::to_value(&bound.schema).unwrap();
+    let programs: Vec<_> = bound.programs.iter().map(|p| p.program.clone()).collect();
+    let mut server = Engine::memory(bound.schema.clone(), programs.clone()).unwrap();
+    let mut device = Device::open_store(MemoryStore::new(), Some(Backend { generation: 1, schema: bound.schema.public_projection(), programs: programs.clone() })).unwrap();
+    let snapshot = server.snapshot_acquisition_page_at("alice", None, 1000, 1000).unwrap();
+    assert!(snapshot.next.is_none());
+    let page = serde_json::from_slice(&serde_json::to_vec(&sync_wire::SnapshotReply {
+        now: 1000, sent: Default::default(), acknowledged: server.acknowledged("alice", &[], snapshot.watermark).unwrap(),
+        acquisitions: snapshot.acquisitions, events: sync_wire::SyncEvents::Snapshot(snapshot.events),
+        generation: server.generation(), store_id: server.store().meta("store_id").unwrap().unwrap(),
+        held: snapshot.held, more: false, next: None, after: None, snapshot: true, watermark: snapshot.watermark,
+    }).unwrap()).unwrap();
+    device.apply(&page, true).unwrap();
+    for program in programs.iter().filter(|p| p.kind == ProgramKind::Query) {
+        let want = expected(&schema, &serde_json::to_value(&program.body).unwrap());
+        if matches!(program.name.as_str(), "countFor" | "unreadFor" | "unreadRows") {
+            let mut named = BTreeSet::from(["members".into(), "messages".into(), "unread".into()]);
+            if inherited { named.insert("rooms".into()); }
+            assert_eq!(want, named, "independent oracle must exercise the row-key edge");
+        }
+        let args = if program.name == "unreadFor" { json!({"member":"missing"}) } else { json!({}) };
+        let context = Context::new("alice", if program.name == "unreadFor" { BTreeMap::from([("member".into(), Value::Id("missing".into()))]) } else { BTreeMap::new() }).at(1000);
+        let remote: BTreeSet<_> = server.query(&program.name, context).unwrap().tables.into_iter().collect();
+        let local: BTreeSet<_> = device.query(&program.name, "alice", &args, 1000).unwrap().tables.into_iter().collect();
+        let compiled: BTreeSet<_> = bound.schema.operations[&program.name].reads.as_ref().unwrap().iter().cloned().collect();
+        for (host, got) in [("compiler", compiled), ("server", remote.clone()), ("device", local.clone())] {
+            assert!(want.is_subset(&got), "{host}:{} expected {want:?}, got {got:?}", program.name);
+        }
+        assert_eq!(remote, local, "{}: server/device metadata agrees", program.name);
+    }
+}
+
+#[test]
+fn row_keyed_view_census() { row_key_census(include_str!("fixtures/row-keyed-view.q"), false); }
+
+#[test]
+fn row_view_inherited_member_census() { row_key_census(include_str!("fixtures/row-view-inherited-member.q"), true); }
 
 #[test]
 fn timeline_reads_include_all_maintained_inputs_before_any_row_exists() {

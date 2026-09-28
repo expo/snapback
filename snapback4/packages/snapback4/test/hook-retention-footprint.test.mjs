@@ -174,23 +174,26 @@ function expectedFootprints(backend) {
     return { program, expected: [...reachable].sort() };
   });
 }
-for (const tier of ['process', 'wasm']) test(`round 3 ${tier}: compiled-schema census bounds every server and device read footprint`, async t => {
-  const f = await fixture(t), backend = await fetch(f.url + '/schema', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
+for (const tier of ['process', 'wasm']) for (const census of ['transitive', 'row-keyed-view', 'row-view-inherited-member']) test(`${tier}: ${census} compiled-schema census bounds every server and device read footprint`, async t => {
+  const f = census === 'transitive' ? await fixture(t) : await fixture(t, readFileSync(new URL(`../../../crates/snapback4-lang/tests/fixtures/${census}.q`, import.meta.url), 'utf8'), []);
+  const backend = await fetch(f.url + '/schema', { headers: { 'x-snapback-persona': 'bob' } }).then(r => r.json());
   let core;
   const opener = deviceFor(tier, f.dir);
   const client = await createLocalClient({ url: f.url, persona: 'bob', fetch: parked, device: { async open(...args) { core = await opener.open(...args); return core; } } });
   t.after(() => client.close()); await client.sync();
   for (const { program, expected } of expectedFootprints(backend)) {
-    const args = program.name === 'conditional' ? { yes: false } : {};
+    const args = program.name === 'conditional' ? { yes: false } : program.name === 'unreadFor' ? { member: 'missing' } : {};
     const remote = await f.post('/q/' + program.name, { args });
     const local = (await core.call({ op: 'query', name: program.name, viewer: 'dev:bob', args, now: Date.now() })).ok;
-    for (const [host, actual] of [['server', remote?.tables], [tier, local?.tables], ['SDK', [...operationTables(program, backend.schema)]]]) {
+    for (const [host, actual] of [['compiler', backend.schema.operations[program.name].reads], ['server', remote?.tables], [tier, local?.tables], ['SDK', [...operationTables(program, backend.schema)]]]) {
       assert.ok(Array.isArray(actual), `${host}:${program.name} has metadata: ${JSON.stringify(local)}`);
       for (const table of expected) assert.ok(actual.includes(table), `${host}:${program.name} omitted ${table}; expected ${expected}, got ${actual}`);
     }
     assert.deepEqual([...remote.tables].sort(), [...local.tables].sort(), program.name + ': shared engine agrees, on acquired device');
     if (program.name === 'child' || program.name === 'helper' || program.name === 'conditional') assert.deepEqual(expected, ['children', 'docs', 'roots']);
     if (program.name === 'total') assert.deepEqual(expected, ['amounts', 'totals']);
+    if (program.name === 'countFor') assert.deepEqual(expected, ['members', 'messages', 'rooms', 'unread']);
+    if (program.name === 'unreadFor' || program.name === 'unreadRows') assert.deepEqual(expected, ['members', 'messages', 'unread']);
   }
 });
 

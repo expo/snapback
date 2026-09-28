@@ -572,7 +572,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function runQuery<A, R>(op: Query<A, R>, args: A, quiet = false): Promise<QueryResult<R>> {
-    const eph = ephemeralTables(op).length ? ephemeralReads.request() : undefined;
+    const eph = ephemeralTables(op).length ? ephemeralReads.request(ephemeralTables(op)) : undefined;
     const ticket = answerOrder.begin();
     const result = await runQueryOnce(op, args, eph, quiet);
     return { ...result, ticket, ...(eph ? { ephemeralRequest: eph } : {}) };
@@ -601,7 +601,7 @@ export function createClient(options: ClientOptions): Client {
       && (result.generation === undefined || generation === undefined || result.generation >= generation)
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
-      && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch));
+      && (!result.ephemeralRequest || ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch, undefined, !result.transportOffline && !("loading" in result.read)));
     return current;
   };
 

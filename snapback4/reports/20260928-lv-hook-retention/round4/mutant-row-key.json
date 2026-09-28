@@ -1,0 +1,5 @@
+{
+  "mutation": "remove maintain.row_key.table edge",
+  "exit": 101,
+  "killed": true
+}

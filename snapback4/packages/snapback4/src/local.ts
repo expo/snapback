@@ -957,7 +957,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       && result.incarnation === incarnation && result.authority === answers.revision
       && (result.credential === undefined || result.credential === credentialRevision)
       && (!result.controlCurrent || result.controlCurrent())
-      && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
+      && (!result.ephemeralRequest || ephemeralReads.valid(result.ephemeralRequest, result.ephemeral))
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
       && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), () => reconcileLocalRead(answers, watches, backend, result, publish, scheduleExpiry, watch, peer => { void rerun(peer); }), { client, watch });
   }
