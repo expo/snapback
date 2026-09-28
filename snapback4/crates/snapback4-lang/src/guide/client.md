@@ -37,7 +37,8 @@ with `revalidating: true` and no timer. Render their current result directly;
 no application cache or “had data” latch is needed. An EnsureProfile loading gate
 cannot unmount its children during plain revalidation after data has appeared.
 Keep routes owned by identity so actual invalidation can also preserve navigation.
-A changed dependency (including rule probes), denial, deadline or account/backend
+A changed dependency (including rule probes, inherited parents and maintained
+sources transitively), denial, deadline or account/backend
 change withdraws immediately and fences old replica reads until sync applies it.
 That fence follows the affected tables across query aliases and arguments; only
 an exact query/argument match can share a replacement answer.

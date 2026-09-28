@@ -1200,11 +1200,13 @@ New arguments, operation or client start a distinct read, never old-argument dat
 Every policy withdraws on invalidation evidence: changed read dependencies,
 unknown footprints, denial, expiry, schema/rule changes, sign-out/account or
 credential change, and store replacement/restore. The existing protocol names
-tables. Direct public-row lookups by immutable unique keys can retain through
+tables, including read-through parents, rule probes and maintained sources
+transitively, whether or not the source expires. Direct public-row lookups by immutable unique keys can retain through
 proved public inserts/updates; known unrelated mutation footprints also preserve
 them. Unseen gaps, saturated change intervals and relevant predictions still
 withdraw. A historical replay cannot invalidate an observation already validated
-through both the receipt and its current head.
+through both the receipt and its current head. Already-pending unrelated
+predictions preserve the public-put proof too; relevant or unknown effects cancel it.
 Every other changed dependency remains conservative. A pending sync cannot let
 a prediction or a new query resurrect pre-evidence replica data. Accepted
 one-shot and watch replacements reach every exactly matching read across

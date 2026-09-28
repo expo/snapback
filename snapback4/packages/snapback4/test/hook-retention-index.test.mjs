@@ -48,3 +48,41 @@ for (const cut of [undefined, 2]) test(`older refusal preserves newer grant (cut
   const handle = life.own(grant(cut === undefined ? undefined : 3), revision, 'secret', newer);
   life.own(refusal(cut), revision, 'secret', old); assert.ok(handle.url); handle.revoke();
 });
+
+// Exercise the actual mutation receipt loop, including lazy validation of an
+// unrelated watch and the conservative reset when a later receipt has a gap.
+test('Grok: 400 unrelated receipts do not visit all 400 online observations', async t => {
+  const { createClient } = await import('../dist/client.js');
+  const { until } = await import('./helpers/app-server.mjs');
+  let cut = 1, gap = false;
+  const reply = json => new Response(JSON.stringify(json), { headers: { 'content-type': 'application/json' } });
+  const client = createClient({ url: 'http://receipts.test', persona: 'alice', fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/changes') return new Promise((_, reject) => {
+      const abort = () => reject(Error('closed')); if (init.signal.aborted) abort(); else init.signal.addEventListener('abort', abort, { once: true });
+    });
+    if (path === '/schema') return reply({ generation: 1, schema: { tables: {} }, programs: [] });
+    if (path.startsWith('/q/')) return reply({ generation: 1, seq: cut, data: { id: path }, tables: [path], complete: true });
+    if (path.startsWith('/m/')) {
+      const body = JSON.parse(init.body); cut += gap ? 2 : 1;
+      return reply({ state: 'sent', id: body.id, seq: cut, head: cut, tables: ['notes'], result: null });
+    }
+    throw Error('unexpected path: ' + path);
+  } });
+  const watches = Array.from({ length: 400 }, (_, i) => client.observe({ kind: 'query', name: 'q' + i }, {}));
+  watches.forEach(w => w.subscribe(() => {}));
+  t.after(async () => { watches.forEach(w => w.close()); await client.close(); });
+  await until(() => watches.every(w => w.getSnapshot().data), 'all watches ready');
+  const original = ReadIndex.prototype.values;
+  let visits = 0;
+  ReadIndex.prototype.values = function* () { for (const watch of original.call(this)) { visits++; yield watch; } };
+  t.after(() => { ReadIndex.prototype.values = original; });
+  for (let i = 0; i < 400; i++) assert.equal((await client.mutate({ kind: 'mutation', name: 'note' }, {})).state, 'sent');
+  assert.equal(visits, 400, 'first receipt establishes the interval; adjacent known unrelated receipts use their empty bucket');
+  assert.ok(watches.every(w => w.getSnapshot().data));
+  let withdrawn = 0; watches.forEach(w => w.subscribe(() => { if (w.getSnapshot().loading) withdrawn++; }));
+  gap = true;
+  assert.equal((await client.mutate({ kind: 'mutation', name: 'note' }, {})).state, 'sent');
+  assert.ok(visits >= 800, 'an unseen commit gap checks every interval');
+  assert.equal(withdrawn >= 400, true, 'unknown intervening effects still withdraw all old owners');
+});

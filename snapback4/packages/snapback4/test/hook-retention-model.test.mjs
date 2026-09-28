@@ -27,7 +27,7 @@ class AuthorityHistory {
   log = [{ cut: 1, grants: { A: 1, B: 1 } }];
   change(allow, row) { this.cut++; this.grants = { ...this.grants, [row]: allow ? this.cut : null }; this.log.push({ cut: this.cut, grants: { ...this.grants } }); }
   learn(cut) { for (const event of this.log) if (event.cut <= cut) for (const row of ['A', 'B']) if (event.grants[row] === null) this.revokedThrough[row] = Math.max(this.revokedThrough[row], event.cut); }
-  apply() { this.replica = { cut: this.cut, grants: { ...this.grants } }; this.learn(this.cut); }
+  apply(cut) { const event = this.log.find(event => event.cut === cut); this.replica = { cut, grants: { ...event.grants } }; this.learn(cut); }
   assert(read, label) {
     const inspect = value => {
       if (!value || typeof value !== 'object') return;
@@ -88,7 +88,12 @@ for (const seed of Array.from({ length: 40 }, (_, i) => i + 1)) test(`independen
     if (event === 0) model.change(false, rand(2) ? 'A' : 'B');
     if (event === 1) model.change(true, rand(2) ? 'A' : 'B');
     if (event === 2) { model.epoch++; model.learn(model.cut); reads.changed(watches, ['members', 'secrets'], model.cut); }
-    if (event === 3) { model.epoch++; model.apply(); reads.committed(watches, 'apply', ['members', 'secrets']); reads.applied(model.cut); }
+    if (event === 3) {
+      // A sync page may publish an intermediate cut below evidence already
+      // delivered by a read or changes poll. Never turn that into a full apply.
+      model.epoch++; const cut = model.replica.cut + rand(model.cut - model.replica.cut + 1);
+      model.apply(cut); reads.committed(watches, 'apply', ['members', 'secrets']); reads.applied(cut);
+    }
     if (event === 4) start(watches[rand(watches.length)]);
     if (event === 5) start(undefined);
     if (event === 6 && requests.length) requests.splice(rand(requests.length), 1)[0].complete();
@@ -124,4 +129,18 @@ test('an already requested sync cannot discharge a later unknown-cut replacement
   assert.equal(reads.blocked(key, tables), true);
   reads.applied(10, true, reads.evidenceSerial);
   assert.equal(reads.blocked(key, tables), false);
+});
+
+test('finite dependency fence survives every intermediate apply for newly opened aliases', () => {
+  for (let evidence = 3; evidence <= 50; evidence++) {
+    const reads = new LocalReads(); reads.applied(1);
+    reads.replacement('remote:{}', evidence, tables);
+    for (let cut = 1; cut < evidence; cut++) {
+      reads.applied(cut, true);
+      assert.equal(reads.blocked(`newAlias${cut}:{}`, tables), true, `apply ${cut} is below evidence ${evidence}`);
+      assert.equal(reads.blocked('notes:{}', new Set(['notes'])), false);
+    }
+    reads.applied(evidence);
+    assert.equal(reads.blocked('finalAlias:{}', tables), false);
+  }
 });

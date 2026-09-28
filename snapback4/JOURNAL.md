@@ -75103,3 +75103,55 @@ their classifications and the 313-case fault matrix passes. Wasm remains
 Report: `reports/20260928-lv-hook-retention/round2/REPORT.md`, with failure names,
 logs, input digests, mutation runner/results and wasm measurement. Local commit
 with the GPT-6 Astra co-author trailer; no push, publication or shared installs.
+
+## 2026-09-28 — LV round 3: complete footprints before fencing
+
+Started with `git fetch origin && git merge origin/main` (already up to date,
+base `4c09767cc`). Read rounds 0–2 and their prompts, LLP 3000.029 and the full
+Astra round-2 review. Grok was checked before starting, read when complete, and
+checked again before completion. LLP 3000.029 §9 now supplies the missing fence
+premise: all authorization and answer dependencies, by construction.
+
+The compiler closes every query's lowered reads over read rules, transitive
+read-through parents, unconditional maintained sources, private maintained
+columns and timeline sources/work. Its certificate survives public projection;
+server and device union it after evaluation, preserving meter accounting. The
+SDK uses it for existing observation indexes and new-read fences. Raw/legacy
+metadata and native reads are conservative. Schema execution types moved into
+a small module to preserve the source cap; local.ts is 1,488 lines.
+
+Already-pending predictions are captured by table. A notes prediction no longer
+cancels a public profiles proof; relevant/unknown effects still do. Both process
+and wasm comparative-schema witnesses pass. Grok's receipt cost finding is also
+fixed: 400 adjacent unrelated receipts over 400 owners visit 400 owners total;
+a subsequent gap still withdraws all old owners.
+
+Independent censuses derive footprints from compiled declarations and IR,
+including parents, maintained sources, private projection, timelines, joins,
+indexes, helpers, rules, cycles and untaken branches. Real held-sync/null
+regressions cover child points, sums and private columns on all three clients.
+Round-2 artifacts fail the new cases. Intermediate-cut property histories and
+the named finite-fence test kill early release (17 failures in the mutant).
+Restoring the receipt scan produces 160,000 visits and fails its cost test.
+
+Ran `scripts/test.sh` exactly once: `== 2 failure(s) in 1724 s` (cargo test;
+client tests). All failures are ours: ten Rust stale metadata/schema assertions,
+six Following metadata assertions, and the delivery await inventory/fixture.
+The new capture also deadlocked the matrix's hold; its child was stopped, so
+the full main client's 4,240 tests / 4,223 pass / 7 fail / 10 skipped is explicitly
+incomplete for that matrix. All acquisition/server shards and all 79 full-count
+client models pass. No baseline or environmental exemption is claimed.
+
+Final affected evidence is 1,221 passing non-matrix cases plus the complete
+repaired 315-case matrix (157 classified awaits): 1,536 in disjoint scopes.
+Focused retention checks pass 66/66; the whole guide passes 98/98; Rust census,
+read-through, compatibility, aggregate metadata, native parity and search fixture
+checks pass. Every red name, setup error and counterfactual is in the round-3
+failure inventory. Both existing browser profile gates are among the passing
+cases; no new Expo UI claim is made.
+
+Wasm: 2,042,203 B raw / 593,640 B gzip-9, 79 B below the unchanged 593,719 B cap.
+No new package dependencies or increases to meter limits or budgets. Reference
+and whitespace audits pass.
+Report: `reports/20260928-lv-hook-retention/round3/REPORT.md`. Local commit with
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push or publication.

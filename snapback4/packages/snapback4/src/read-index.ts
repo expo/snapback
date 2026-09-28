@@ -10,6 +10,7 @@ export class ReadIndex<W extends IndexedRead> extends Map<string, W> {
   private readonly dependencies = new Map<string, Set<W>>();
   private readonly registered = new Map<W, { key: string; tables: Set<string> }>();
   private readonly cuts = new Map<string, number>();
+  private receiptThrough: number | undefined;
   private add(index: Map<string, Set<W>>, key: string, watch: W): void {
     let group = index.get(key); if (!group) index.set(key, group = new Set()); group.add(watch);
   }
@@ -31,6 +32,13 @@ export class ReadIndex<W extends IndexedRead> extends Map<string, W> {
       tables = next;
     };
     Object.defineProperty(watch, "tables", { configurable: true, enumerable: true, get: () => tables, set: update });
+    // An adjacent receipt validates unrelated owners without visiting each one.
+    // New bodies still pass the client's minimumReadSeq before publication.
+    let validThrough = watch.validThrough;
+    Object.defineProperty(watch, "validThrough", { configurable: true, enumerable: true,
+      get: () => this.receiptThrough === undefined ? validThrough : Math.max(validThrough ?? 0, this.receiptThrough),
+      set: (cut: number | undefined) => { validThrough = cut; },
+    });
     this.registered.set(watch, { key: canonical, tables: new Set() });
     this.add(this.byKey, canonical, watch); update(tables);
     return super.set(key, watch);
@@ -67,5 +75,15 @@ export class ReadIndex<W extends IndexedRead> extends Map<string, W> {
     }
     return advanced.length ? this.affected(advanced.includes("*") ? undefined : advanced) : new Set();
   }
-  clearAuthority(): void { this.cuts.clear(); }
+  // @ref LLP 3000.029#9 — only contiguous known receipts use affected buckets;
+  // an unseen gap or unknown footprint still inspects every owner's interval.
+  receiptCandidates(cut: number, head: number, inputs?: readonly string[]): { affected: Set<W>; candidates: Iterable<W> } {
+    if (this.receiptThrough !== undefined && head <= this.receiptThrough && cut <= this.receiptThrough) return { affected: new Set(), candidates: [] };
+    const affected = this.affected(inputs);
+    const adjacent = inputs !== undefined && this.receiptThrough !== undefined && cut === this.receiptThrough + 1 && head === cut;
+    return { affected, candidates: adjacent ? affected : this.values() };
+  }
+  coverReceipt(cut: number): void { this.receiptThrough = Math.max(this.receiptThrough ?? 0, cut); }
+  clearReceipts(): void { this.receiptThrough = undefined; }
+  clearAuthority(): void { this.cuts.clear(); this.clearReceipts(); }
 }

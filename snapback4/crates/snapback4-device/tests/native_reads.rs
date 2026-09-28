@@ -137,6 +137,8 @@ fn the_same_module_answers_the_same_on_the_server_and_on_both_devices() {
     assert_eq!(ranking[2].1, 20 - 1000);
     assert!(expected[0]["mine"].is_null() && expected[1]["mine"].is_null() && expected[2]["mine"] == json!(1), "{expected}");
     assert!(on_server.tables.iter().any(|t| t == "ranked") && on_server.tables.iter().any(|t| t == "seen"), "{:?}", on_server.tables);
+    // Native bodies are opaque: every visible table is a possible input.
+    assert!(backend.schema.visible_tables().all(|(table, _)| on_server.tables.contains(table)));
     // Both devices, over the rows bob holds, with no server in the call.
     let digest = hex(&sha256(module()));
     let mut memory = snapshotted(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &mut engine);
@@ -154,7 +156,7 @@ fn the_same_module_answers_the_same_on_the_server_and_on_both_devices() {
         let read = device.call_json(json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
         assert!(read["ok"]["denied"].is_null(), "{label}: {read}");
         assert_eq!(read["ok"]["data"], expected, "{label}: the device's answer is the server's");
-        assert_eq!(read["ok"]["tables"], json!(["affinity", "ranked", "seen", "votes"]), "{label}: {read}");
+        assert_eq!(read["ok"]["tables"], json!(on_server.tables), "{label}: {read}");
         // Acquisition selected 3 rows below last 500, so its whole boundary
         // proves the end. The viewer's own tables have no horizon either.
         assert_eq!(read["ok"]["complete"], true, "{label}: {read}");

@@ -1,6 +1,6 @@
 import { ReadIndex } from "./read-index.ts";
 import { reconcileLocalRead, localReadDeadlines } from "./local-read-publication.ts";
-import { PredictionEffects, nonRevokingPuts, putRetention } from "./read-nonrevoking.ts";
+import { PredictionEffects, outstandingPredictions, nonRevokingPuts, putRetention } from "./read-nonrevoking.ts";
 import { AssetLifetime } from "./asset-lifetime.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
@@ -335,7 +335,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery, String(request.op), changedInputs(request.op, result.ok), request.op === "apply" ? (request.page as { watermark?: number }).watermark : undefined,
-        request.op === "apply" && typeof request.predictionFreeRevision === "number" ? nonRevokingPuts(backend, request.page as Record<string, unknown>).filter(table => predictionEffects.unaffected(table, request.predictionFreeRevision as number)) : []);
+        request.op === "apply" && request.predictionTables instanceof Set ? nonRevokingPuts(backend, request.page as Record<string, unknown>).filter(table => !(request.predictionTables as Set<string>).has(table) && predictionEffects.unaffected(table, request.predictionFreeRevision as number)) : []);
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
         delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
@@ -618,6 +618,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
         let predictionFreeRevision = -1, evidenceSerial = answers.evidenceSerial;
+        let predictionTables: Set<string> | undefined;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
         let publishedStore: string | null | undefined;
@@ -625,10 +626,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let pageIncarnation = incarnation;
         try {
           const predictionRevision = predictionEffects.revision;
+          const predictions = await queued();
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
           const { generation: capturedGeneration, pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { generation: number; pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
-          if (pending_complete && pending.length === 0) predictionFreeRevision = predictionRevision;
+          predictionTables = outstandingPredictions(predictions, pending, pending_complete);
+          predictionFreeRevision = predictionRevision;
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
@@ -756,7 +759,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         page.stage_snapshot = !!page.snapshot;
         page.snapshot_catchup = catchingUp;
         const applyingIncarnation = incarnation;
-        const applied = await call({ op: "apply", page, predictionFreeRevision, first: !catchingUp && after === undefined }, touched);
+        const applied = await call({ op: "apply", page, predictionFreeRevision, predictionTables, first: !catchingUp && after === undefined }, touched);
         if (closed || applyingIncarnation !== incarnation) return false;
         if (applied.denied) { refuseRestore(applied.denied); return false; }
         restartingSnapshot = false;

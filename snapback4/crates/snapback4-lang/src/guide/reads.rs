@@ -67,7 +67,8 @@ Invalidation always wins: changed read dependencies, unknown change footprints,
 refusals, expiry, sign-out/account change, credentials, schema adoption and store
 replacement/restore withdraw immediately for every option. Dependency changes
 remain conservative, except for proved public puts to a direct immutable-key
-public lookup. Rule-probe tables are dependencies too. New authoritative
+public lookup. Dependencies include rule probes, read-through parents and
+maintained sources transitively, including non-expiring views. New authoritative
 replacements reach every exactly matching watch, including nonempty subsets.
 Other queries and arguments depending on the affected tables withdraw; new
 local reads of those tables stay fenced until sync applies the evidence.

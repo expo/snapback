@@ -107,7 +107,9 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     await drain();
     assert.ok(ok(await f.core.call({op:'queued'})).some(e => e.id === first.id && (e.sent_seq === 11 || scenario === 'acknowledgement') && e.observed_seq == null));
     let release; const held = new Promise(r => { release = r; }); queueRelease = release;
-    f.beforeCall(async request => { if (request.op === 'queued') await held; });
+    // Hold dispatch to stage the tails. Sync's read-only prediction capture
+    // must still inspect them; its failures use the ordinary fault injection.
+    f.beforeCall(async request => { if (request.op === 'queued' && !stack.getStore()?.includes('local.ts:syncRound:queued()#1')) await held; });
     const tails = ['tail1', 'tail2'].map(body => f.client.mutate(op, { conversationId: 'c1', body }, {waitSeconds:25}));
     await until(async () => ok(await f.core.call({op:'queued'})).length === 3);
     queueIds = ok(await f.core.call({op:'queued'})).map(e=>e.id);

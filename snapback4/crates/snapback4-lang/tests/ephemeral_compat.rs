@@ -12,8 +12,12 @@ fn durable_schema_and_types_keep_base_bytes() {
         let source = std::fs::read_to_string(&file).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         if !bound.diagnostics.is_empty() { continue; } // Repair fixtures deliberately refuse.
+        // @ref LLP 3000.029#9 — the new query footprint is the only added
+        // schema field; the independent dependency census checks its contents.
+        let mut schema = bound.schema.clone();
+        for facts in schema.operations.values_mut() { facts.reads = None; }
         actual.insert(file.file_name().unwrap().to_str().unwrap().to_owned(), (
-            serde_json::to_string(&bound.schema).unwrap(), snapback4_lang::emit::typescript(&bound)));
+            serde_json::to_string(&schema).unwrap(), snapback4_lang::emit::typescript(&bound)));
     }
     assert!(actual.len() >= 20, "only {} compilable fixtures", actual.len());
     let mut expected: BTreeMap<String, (String, String)> = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();

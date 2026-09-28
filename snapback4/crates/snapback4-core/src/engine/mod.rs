@@ -955,6 +955,7 @@ impl Engine {
                 let now = context.now.unwrap_or(0);
                 let runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
+                runner.complete_read_dependencies(program);
                 let data = value?;
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = runner.delivery_manifest(&data);

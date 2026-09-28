@@ -206,6 +206,7 @@ export function createClient(options: ClientOptions): Client {
   const answerOrder = new RememberedAnswers();
   const assetLifetime = new AssetLifetime(() => clock.estimatedServerNow());
   const resetWatches = (publish = true) => {
+    watches.clearReceipts();
     const deliver = deferReadNotifications(() => {
       assetLifetime.invalidate();
       endLingering(watches.values());
@@ -865,15 +866,16 @@ export function createClient(options: ClientOptions): Client {
       // @ref LLP 3000.029#7 — actual receipt footprints spare unrelated watches.
       const inputs = Array.isArray(json.tables) ? json.tables as string[] : undefined;
       const stable = Array.isArray(json.nonRevoking) ? json.nonRevoking as string[] : [];
-      const affected = watches.affected(inputs);
+      const { affected, candidates } = watches.receiptCandidates(at, Number(json.head ?? at), inputs);
       deferReadNotifications(() => {
         if (!inputs || inputs.length) assetLifetime.invalidate(at);
-        for (const watch of watches.values()) {
+        for (const watch of candidates) {
           if ((watch.validThrough ?? -1) < Math.max(at, Number(json.head ?? at)) && (!inputs || Number(json.head ?? at) > at || at > (watch.validThrough ?? 0) + 1 || watch.tables.size === 0 || inputs.some(table => watch.tables.has(table) && (!stable.includes(table) || !watch.stablePuts?.includes(table))))) {
             watch.reset({ loading: true }); scheduleExpiry(watch, null); affected.add(watch);
           } else if (affected.has(watch)) watch.reload();
           watch.validThrough = Math.max(watch.validThrough ?? 0, at);
         }
+        watches.coverReceipt(at);
       })();
       entry.resolve(outcome);
       emitWrite(outcome);

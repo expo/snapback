@@ -1,4 +1,6 @@
 import type { BackendJson } from "./backend.ts";
+import type { Queued } from "./local-types.ts";
+import { predictedTables } from "./local-reads.ts";
 
 // @ref LLP 3000.029#7 — only public base-row puts without prediction effects
 // preserve authority. This is metadata classification, never query evaluation.
@@ -50,4 +52,18 @@ export class PredictionEffects {
   unaffected(table: string, captured: number): boolean {
     return captured >= this.unknown && captured >= (this.changedAt.get(table) ?? 0);
   }
+}
+
+// @ref LLP 3000.029#9 — include effects already outstanding at capture, not
+// just admissions racing the request. Missing capture entries fail closed.
+export function outstandingPredictions(entries: readonly Queued[], pending: readonly string[], complete: boolean): Set<string> | undefined {
+  const ids = new Set(entries.map(entry => entry.id));
+  if (!complete || pending.some(id => !ids.has(id))) return;
+  const tables = new Set<string>();
+  for (const entry of entries) {
+    if (entry.observed_seq != null || entry.predictable === false) continue;
+    if (!Array.isArray(entry.predicted)) return;
+    for (const table of predictedTables(entry.predicted)) tables.add(table);
+  }
+  return tables;
 }

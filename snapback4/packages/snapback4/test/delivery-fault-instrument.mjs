@@ -29,7 +29,7 @@ function name(node) {
   if (ts.isVariableDeclaration(node.parent) || ts.isPropertyAssignment(node.parent)) return node.parent.name.getText();
 }
 export function census() {
-  const sites = [], iterators = [], additional = [];
+  const sites = [], iterators = [], additional = [], captures = [];
   for (const [file, functions] of Object.entries(scope)) {
     const source = readFileSync(join(packageRoot, 'src', file), 'utf8');
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
@@ -40,14 +40,16 @@ export function census() {
         const expression = node.expression.getText(tree).replace(/\s+/g, ' ');
         const key = `${file}:${owner}:${expression}`;
         const n = (counts.get(key) ?? 0) + 1; counts.set(key, n);
-        (file === 'local-assets.ts' && owner === 'remove' ? additional : sites).push({ id: `${key}#${n}`, file, owner, expression, line: tree.getLineAndCharacterOfPosition(node.getStart()).line + 1, start: node.getStart(), end: node.end });
+        // Append new capture sites so the established numeric fault recipes
+        // continue to name the same operations.
+        (file === 'local.ts' && owner === 'syncRound' && expression === 'queued()' ? captures : file === 'local-assets.ts' && owner === 'remove' ? additional : sites).push({ id: `${key}#${n}`, file, owner, expression, line: tree.getLineAndCharacterOfPosition(node.getStart()).line + 1, start: node.getStart(), end: node.end });
       }
       if (ts.isForOfStatement(node) && node.awaitModifier && (functions === '*' || functions.includes(owner))) { const expression = node.expression.getText(tree); iterators.push({id:`${file}:${owner}:for await ${expression}`,file,owner,expression,line:tree.getLineAndCharacterOfPosition(node.getStart()).line+1,start:node.getStart(),end:node.end,iterator:true}); }
       ts.forEachChild(node, child => visit(child, owner));
     }
     visit(tree);
   }
-  return [...sites, ...iterators, ...additional];
+  return [...sites, ...iterators, ...additional, ...captures];
 }
 export function instrument(destination) {
   mkdirSync(destination, { recursive: true });

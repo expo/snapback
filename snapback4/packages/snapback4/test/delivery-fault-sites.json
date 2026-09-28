@@ -197,7 +197,7 @@
   },
   {
     "index": 28,
-    "id": "local.ts:syncRound:call({ op: \"apply\", page, predictionFreeRevision, first: !catchingUp && after === undefined }, touched)#1",
+    "id": "local.ts:syncRound:call({ op: \"apply\", page, predictionFreeRevision, predictionTables, first: !catchingUp && after === undefined }, touched)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
@@ -1088,6 +1088,13 @@
     "index": 155,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 156,
+    "id": "local.ts:syncRound:queued()#1",
+    "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   }

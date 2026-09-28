@@ -67,7 +67,7 @@ pub fn aggregate_tables_constant(mut factory: impl FnMut(&str) -> Box<dyn Backen
                     assert_eq!(o.data, expected);
                     assert_eq!(
                         o.tables,
-                        vec!["children", "totals"],
+                        if inherited { vec!["children", "parents", "totals"] } else { vec!["children", "totals"] },
                         "{inherited}/{denied}/{world}"
                     );
                     if denied {
@@ -86,7 +86,7 @@ pub fn aggregate_tables_constant(mut factory: impl FnMut(&str) -> Box<dyn Backen
                         assert!(o.complete && !o.unavailable, "{o:?}");
                         assert_eq!(
                             o.tables,
-                            vec!["children", "totals", "witnesses"],
+                            if inherited { vec!["children", "parents", "totals", "witnesses"] } else { vec!["children", "totals", "witnesses"] },
                             "{world}/{viewer}"
                         );
                     }
@@ -317,7 +317,7 @@ pub fn authorized_expired_backlog_stays_metered(mut factory: impl FnMut(&str) ->
                 assert_eq!(o.complete, !capped, "{o:?}");
                 assert_eq!(o.unavailable, capped, "{o:?}");
                 assert_eq!(o.capped_at.is_some(), capped);
-                assert_eq!(o.tables, vec!["children", "totals"]);
+                assert_eq!(o.tables, vec!["children", "parents", "totals"]);
                 assert_eq!(o.next_expiry, None);
                 if denied {
                     o.seq = 0;
