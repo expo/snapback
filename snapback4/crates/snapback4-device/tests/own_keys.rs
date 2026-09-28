@@ -60,10 +60,15 @@ fn exercise<H: Host>(h: &mut H) {
         let mut p=p.clone();p.stage_snapshot=true;d.apply(&p,n==0).unwrap();
     }
     d.apply(&catchup,false).unwrap();
+    h.close("own",d);
+    let mut d = h.open("own",None).unwrap();
     assert_eq!(state(&mut d,"missing"),(false,true));
     assert_eq!(state(&mut d,"old"),(true,true));
     let (_, unknown, _) = d.query_with_coverage("own","bob",&json!({"post":"missing"}),10);
     assert!(unknown, "even a direct caller switch cannot borrow Alice's acquired marker");
+    h.close("own",d);
+    let mut d = h.open("own",None).unwrap();
+    assert_eq!(state(&mut d,"missing"),(false,true), "same-principal reopen keeps its proof after another caller's refused read");
     let (image, unknown, _) = d.query_with_coverage("image","alice",&json!({"post":"old"}),10);
     assert!(unknown && !image.unwrap().complete, "key cannot supply the row");
     for post in ["secret","missing"] {
@@ -105,6 +110,59 @@ fn e_backend(e: &snapback4_core::Engine, source: &str) -> snapback4_device::devi
 }
 #[test] fn sqlite() { exercise(&mut Sqlite::new("owner-keys")); }
 #[test] fn memory() { exercise(&mut Memory::new()); }
+
+#[test]
+fn snapshot_and_catchup_payloads_never_disclose_another_owners_keys() {
+    let (mut e, _) = compile(SOURCE);
+    e.seed([
+        row("alice-old", "alice-secret", "alice", 1),
+        row("bob-old", "bob-secret", "bob", 2),
+        row("new1", "new1", "bob", 3),
+        row("new2", "new2", "bob", 4),
+    ]).unwrap();
+    let mut keys = std::collections::BTreeMap::new();
+    for owner in ["alice", "bob"] {
+        let pages = snapshot_pages(&mut e, owner, 1);
+        let events: Vec<_> = pages.iter().flat_map(|p| &p.events)
+            .filter(|event| event.table.starts_with("$ownKeys:")).collect();
+        assert_eq!(events.len(), if owner == "alice" { 1 } else { 3 });
+        for event in events {
+            assert_eq!(event.kind, "put");
+            let data = event.data.as_ref().unwrap();
+            assert_eq!(data["owner"], owner, "snapshot leaked: {event:?}");
+            keys.insert((owner.to_owned(), data["post"].as_str().unwrap().to_owned()), event.id.clone());
+        }
+    }
+    let from = e.seq().unwrap();
+    for owner in ["alice", "bob"] {
+        for (op, post) in [("remove", format!("{owner}-secret")), ("add", format!("{owner}-new"))] {
+            let result = e.mutate(op, None, context(owner, &[("post", id(&post))]).at(10)).unwrap();
+            assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+        }
+    }
+    for owner in ["alice", "bob"] {
+        let page = stream_page(&mut e, owner, from);
+        let events: Vec<_> = page.events.iter().filter(|event| event.table.starts_with("$ownKeys:")).collect();
+        assert_eq!(events.len(), 2, "{owner}: {events:?}");
+        let mut puts = 0;
+        let mut deletes = 0;
+        for event in events {
+            match event.kind.as_str() {
+                "put" => {
+                    puts += 1;
+                    assert_eq!(event.data.as_ref().unwrap()["owner"], owner, "catch-up leaked: {event:?}");
+                }
+                "del" => {
+                    deletes += 1;
+                    assert_eq!(event.id, keys[&(owner.to_owned(), format!("{owner}-secret"))], "tombstone leaked: {event:?}");
+                    assert!(event.data.is_none());
+                }
+                kind => panic!("unexpected owner-key event {kind}"),
+            }
+        }
+        assert_eq!((puts, deletes), (1, 1));
+    }
+}
 
 #[test]
 fn failed_partition_publication_keeps_absence_unavailable() {

@@ -1,5 +1,10 @@
 # Lane OK — owner-key coverage
 
+Round 0 record. [Round 1](ROUND1.md) corrects the sign-out interpretation below:
+local sign-out preserves the replica and owner's proof; it is not `clear_rows`.
+Round 1 also adds same-store reopen, payload-disclosure and disjunct-policy
+regressions, exposes web owner-key residency, and records the native count boundary.
+
 Date: 2026-09-28. Branch: `sb4-intent/ok-owner-key-coverage`.
 Base: `a745b110f`. First operation was `git fetch origin && git merge origin/main`;
 merge reported already up to date. Nothing pushed or published.

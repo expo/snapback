@@ -53,6 +53,7 @@ fn unsafe_policies_refuse_at_the_sync_line() {
         SOURCE.replace("immutable post, owner", "immutable post"),
         SOURCE.replace("post: id", "post: id ?"),
         SOURCE.replace("insert <- .owner = viewer", "insert <- allow"),
+        SOURCE.replace("insert <- .owner = viewer", "insert <- .owner = viewer or allow"),
         SOURCE.replace("delete <- .owner = viewer", "delete <- allow"),
         SOURCE.replace("  public 'likes'", "  update <- allow\n  public 'likes'"),
         SOURCE.replace("  public 'likes'", "  expire at .at\n  public 'likes'"),

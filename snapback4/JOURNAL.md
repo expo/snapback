@@ -72244,3 +72244,47 @@ no other lane edited. Local commit has the co-author trailer; no push/publish.
 
 Evidence: [report](./reports/20260928-ok-owner-key-coverage/REPORT.md), P19
 owner-coverage/owner-faults/owner-browser witnesses and own_keys_cost.rs.
+
+## 2026-09-28 — Lane OK round 1: sign-out retention, residency and review regressions
+
+Addressed Grok's three findings and Astra's payload-test gap. Kept the existing
+local sign-out design: credentials are forgotten, the replica/outbox and owner's
+proof remain. Corrected guide feeds and LLP 3000.028 §§3.4/7.3, including the
+implementation record. Native and wasm public-client tests now acquire Alice,
+sign out offline and reopen the same store: Alice keeps complete false for a
+missing key; Bob's absent and old keys remain unknown, never false. Native and
+memory device tests additionally reopen their persisted stores.
+
+Web residency now lists declared `$ownKeys:*` projections beside ordinary tables,
+matching native. The deliberately aliased-store control confirms native residency
+can show Alice's owner-key counts to Bob, and ordinary private-table counts behave
+the same way. Normal SDK names already contain the principal. The ordinary private
+row is also readable through that incorrectly shared replica; owner-key absence
+still refuses. Filed `issues/20260928-snapback4-residency-counts-cross-principal-store-reuse.md`
+with both controls and a bounded follow-up; no replica deletion was introduced.
+
+Added the `insert <- .owner = viewer or allow` refusal case and payload assertions
+for both principals' snapshot puts and catch-up puts/tombstones. Regression
+controls fail on round 0's guide/web filter. Deliberate sign-out clearing,
+missing owner-group proof, public projection tombstones and `all`→`any` mutations
+all fail their respective tests; all mutations were restored before qualification.
+
+Full device suite: 1,373 passed, 0 failed, 5 existing ignored tests. Owner-key
+regressions: 6 device, 3 compiler and 2 public native/web lifecycle tests pass;
+whole guide: 93 pass. Package build/typecheck, native build, docs budget and
+reference audit pass. The broader JS web/device/residency/session run counted
+189 tests: 187 passed and 2 failed, representing one five-second exit-transport
+response timeout plus its parent. Isolated unchanged-baseline and final-candidate
+controls each pass 3/3. Recorded as environmental/timing, with root cause unproved;
+the report retains the original red. The only mistaken development assertion was
+ours: assuming ordinary row filtering on a deliberately aliased replica. It is
+now evidence for the ticket. Every failure and deliberate red is in the report.
+
+Wasm rebuild is byte-identical to round 0: 2,017,908 B raw / 585,100 B GNU gzip-9,
+zero delta, 1,093 B below the unchanged 586,193 B budget. No tools installed or
+other worktrees changed. Did not run scripts/test.sh: the supervisor's landing
+suite follows. Local commit carries the co-author trailer; no push or publication.
+
+Evidence: [round 1 report](./reports/20260928-ok-owner-key-coverage/ROUND1.md)
+and its round1 logs/measurements. The prior journal entry remains historical;
+this entry corrects its sign-out interpretation without rewriting it.

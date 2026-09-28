@@ -1,0 +1,12 @@
+✔ native: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3263.199035ms)
+ℹ {"tier":"native","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"bytes":186,"rows":1},"likes":{"bytes":226,"rows":2},"notes":{"bytes":116,"rows":1}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KF040GN2097BV8Z0ED8ZHT"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790580887689}}
+✔ web: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3496.983123ms)
+ℹ {"tier":"web","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"rows":1,"bytes":186},"likes":{"rows":2,"bytes":226},"notes":{"rows":1,"bytes":116}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KF076EPPZ0ZRG82XWHVZ8B"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790580891221}}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6884.143472

@@ -134,8 +134,10 @@ chooses one qualifying unique key; a direct `viewer` owner expression on that
 key qualifies. It proves existence only:
 row fields, extra predicates, counts and write targets keep their own coverage.
 Predicted writes overlay keys transactionally; unpredicted writes remain pending
-intents. Sign-out clears keys and coverage together. Interrupted acquisition or
-adoption grants no empty-partition proof. Existing windows do not opt in.
+intents. Sign-out preserves the replica and the owner's proof for an offline
+reopen as the same principal. A different caller cannot use that partition's proof;
+its own whole partition must be acquired. Interrupted acquisition or adoption
+grants no empty-partition proof. Existing windows do not opt in.
 
 Each viewer pays for their lifetime keys, plus the public window. The server
 pays for an owner index, one maintained row per key and private log events in

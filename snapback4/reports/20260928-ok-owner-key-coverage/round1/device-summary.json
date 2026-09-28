@@ -1,0 +1,8 @@
+{
+  "command": "CARGO_INCREMENTAL=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4-device --no-fail-fast",
+  "exit": 0,
+  "target_summaries": 72,
+  "passed": 1373,
+  "failed": 0,
+  "ignored": 5
+}
