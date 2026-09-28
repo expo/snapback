@@ -44,7 +44,7 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
                     }
                 }
                 let (column, target_column) = varying?;
-                let source = Expr::Read(ReadExpr { computed: Default::default(), table: probe.table.clone(), keys: Vec::new(), seeks: Vec::new(), filter: intent::conjunction(pins),
+                let source = Expr::Read(ReadExpr { cursor_prefix: None, computed: Default::default(), table: probe.table.clone(), keys: Vec::new(), seeks: Vec::new(), filter: intent::conjunction(pins),
                     index: None, range: None, matching: None, order_keys: vec![target_column.clone()], site: probe.site.clone() });
                 let value = Expr::Member { base: Box::new(Expr::Name { name: name.into(), site: probe.site.clone() }), name: target_column, site: probe.site.clone() };
                 (column, source, value)

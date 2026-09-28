@@ -9,7 +9,7 @@ impl Binder<'_> {
         match value {
             A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
             A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
-                Some(ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
+                Some(ReadExpr { cursor_prefix: None, order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
             _ => None,
         }
     }
@@ -71,7 +71,7 @@ impl Binder<'_> {
                 self.planned_view(&merge, out, prefix::Position::Page)
             }
             A::Name { name, .. } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) => {
-                self.read(&ReadExpr { computed: Default::default(), table: name.clone(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: Some("byId".into()),
+                self.read(&ReadExpr { cursor_prefix: None, computed: Default::default(), table: name.clone(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: Some("byId".into()),
                     order_keys: vec!["id".into()], range: None, matching: None, site: site.clone() }, out)
             }
             A::Name { name, .. } => self.name(name, site),

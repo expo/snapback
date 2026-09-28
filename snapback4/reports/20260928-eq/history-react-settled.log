@@ -1,0 +1,14 @@
+✔ React/IndexedDB: original receipt hook keeps one ordinary history through delayed decorations, leave, remount, reopen and rejoin (4681.414377ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-ARQIK8/snapshots.jsonl
+✔ ordinal: paired history, acquisition floor and membership lifecycle (18598.034712ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-E5aT2Y/snapshots.jsonl
+✔ timestamp: paired history, acquisition floor and membership lifecycle (19001.738896ms)
+ℹ evidence /home/ccheever/sb4-intent/lane-eq/snapback4/experiments/p19-one-query/.work/eq-small-lOVZXk/snapshots.jsonl
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42799.505469

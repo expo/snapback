@@ -17,7 +17,7 @@ pub(super) fn expand(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             let site = view.site.clone();
             doc.programs.push(ProgramDecl { delivery: None, held: false, predicts: false, server: false, native: false,
                 kind: ProgramKind::Query, name: format!("$view:{}", view.name), args: Vec::new(), prelude: Vec::new(), site: site.clone(),
-                body: vec![Stmt::Return { site: site.clone(), value: Expr::Read(ReadExpr {
+                body: vec![Stmt::Return { site: site.clone(), value: Expr::Read(ReadExpr { cursor_prefix: None,
                     table: view.name.clone(), keys: Vec::new(), seeks: Vec::new(), computed: BTreeMap::new(), index: None, order_keys: vec!["id".into()],
                     filter: None, matching: None, range: Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: site.clone() }), site,
                 }) }],
@@ -88,7 +88,7 @@ fn read_view(view: &ViewDecl, read: &ReadExpr) -> Fallible<MergeExpr> {
             }
         }
         if eliminate { continue; }
-        let planned = ReadExpr { computed: Default::default(), table: branch.source.clone(), keys: Vec::new(), seeks: Vec::new(), filter: intent::conjunction(filter), index: None,
+        let planned = ReadExpr { cursor_prefix: None, computed: Default::default(), table: branch.source.clone(), keys: Vec::new(), seeks: Vec::new(), filter: intent::conjunction(filter), index: None,
             order_keys: source_order, matching: read.matching.clone(), range: read.range.clone(), site: read.site.clone() };
         let mut fields = branch.fields.clone();
         if !fields.iter().any(|field| matches!(field, ShapeField::Bare { name, .. } if name == "id")) {

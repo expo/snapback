@@ -30,7 +30,7 @@ fn row(id: &str, room: &str, viewer: &str, body: &str) -> Value {
 fn scan(words: bool) -> Scan {
     let mut prefix = vec![IndexKeyExpr::Scalar(Expr::Literal(Value::Id("r".into())))];
     if words { prefix.push(IndexKeyExpr::WordPrefix(Expr::Literal(Value::String("cof".into())))); }
-    Scan { variant: None, site: "page".into(), table: "messages".into(), index: if words { "byWords" } else { "byRoom" }.into(), prefix, order: Order::Asc, take: Bound::Literal(10), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: true, merge_site: None, provenance: KeyProvenance::Const }
+    Scan { cursor_pins: 0, variant: None, site: "page".into(), table: "messages".into(), index: if words { "byWords" } else { "byRoom" }.into(), prefix, order: Order::Asc, take: Bound::Literal(10), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: true, merge_site: None, provenance: KeyProvenance::Const }
 }
 fn observation(or: bool, admitted: bool, hidden: bool, words: bool, cut: Cut, remaining: u64) -> Json {
     let mut messages = table();

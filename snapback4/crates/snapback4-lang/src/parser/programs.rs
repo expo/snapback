@@ -195,7 +195,7 @@ impl Parser {
             self.take("in")?;
             let start = self.position;
             let table = self.word()?;
-            let mut domain = if self.at("[") { self.parse_read(&table.value, &table.site)? } else { ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: table.value.clone(), keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: table.site.clone() } };
+            let mut domain = if self.at("[") { self.parse_read(&table.value, &table.site)? } else { ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: table.value.clone(), keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: table.site.clone() } };
             if !self.at("first") {
                 return Err(syntax(&self.peek().site.clone(), "chunk requires first N by index"));
             }

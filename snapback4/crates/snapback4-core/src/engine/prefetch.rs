@@ -272,7 +272,7 @@ impl Plan {
 mod tests {
     use super::*;
     fn scan() -> Scan {
-        Scan { variant: None, site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(10), existence: false,
+        Scan { cursor_pins: 0, variant: None, site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(10), existence: false,
             after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }
     }
     fn read(site: &str, key: Expr) -> Expr {
@@ -362,7 +362,7 @@ mod write_walk_tests {
             expressions(stmt, &mut |expr| mark(expr, "page", &env, &mut found));
         }
         assert_eq!(found.sites["page"].iter().map(|m| m.read.site.as_str()).collect::<Vec<_>>(), ["target", "current"]);
-        let scan = Scan { variant: None, site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc,
+        let scan = Scan { cursor_pins: 0, variant: None, site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc,
             take: Bound::Literal(10), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false,
             merge_site: None, provenance: KeyProvenance::Const };
         let make = |body| Program { name: "p".into(), kind: ProgramKind::Mutation,

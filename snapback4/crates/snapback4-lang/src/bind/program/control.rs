@@ -439,7 +439,7 @@ impl Binder<'_> {
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
         if let A::Read(read) = domain && let Some(shaped) = self.page_shape(read) { return self.loop_domain(&shaped, out); }
         if let A::Name { name, site } = domain && self.binding(name).is_none() && self.catalog.tables.contains_key(name) {
-            let read = ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
+            let read = ReadExpr { cursor_prefix: None, order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
             let (scan, _) = self.scan_at(&read, out, prefix::Position::Domain)?;
             return Ok((LoopDomain::Page(scan), Ty::Row(name.clone())));
         }
