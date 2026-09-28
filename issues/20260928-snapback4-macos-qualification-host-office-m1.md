@@ -94,3 +94,17 @@ M1 Max; probe load before assigning either.
    host; nothing there was changed.
 
 Close this ticket when the 0.4.8 record on main names the M1 as its host.
+
+## 2026-09-28 — 0.4.8 on the M1: the suite does not pass here yet; published from the M5 fallback
+
+The 0.4.8 native half, client preparation and Linux qualification ran as planned (release commit 7a056f2fee; Linux `== 0 failure(s) in 1807 s`). Both Darwin dry runs on the M1 failed on host speed, not product defects:
+
+- **Attempt 1** (19:07Z) overlapped the six-hourly local-proof backstop; the Rust stage took 9,660 s and `snapback4::replay::replay_delivers_900_followers_promptly_after_commit_without_schedules` missed its 5 s wall deadline. Stopped after that failure.
+- **Attempt 2** (22:26Z, no co-tenant): `== 3 failure(s) in 5269 s`. Rust: the same replay deadline, and `serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve` (its token bucket refills between requests on a slow host). Client tests: file-level timeouts under the suite's default parallelism on 10 cores, e.g. "web admission review: recovery and transport respect the session boundary" hit 180 s and cancelled every subtest, and "a peer logout commits before the next lock holder…" took 45 s. Client models failed as well.
+
+The same commit's dry run then ran on the black M5 (18 cores), the kit's documented fallback, reusing the Linux receipt; the 0.4.8 publication record names that host.
+
+Before the next M1 cut:
+1. The two Rust tests are made host-tolerant on main (the replay property is "wakes without a schedule tick", now bounded at 60 s with jobs asserted empty; the rate test re-drains its bucket before each request).
+2. The client test files that time out at 10 cores need their own fixes or a documented per-host concurrency for the publication run (the dry run unsets `SNAPBACK4_TEST_SERIAL_CLIENT_FILES`; decide whether publication may set a lower concurrency on smaller hosts without weakening the suite).
+3. Warm `cargo test --workspace --no-run` in the publication worktree before the dry run; compiling tests took most of an hour on the M1.

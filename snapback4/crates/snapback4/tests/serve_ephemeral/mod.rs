@@ -226,6 +226,9 @@ fn rate_and_input_refusals_are_http_200_failed_under_dev_and_serve() {
         assert_eq!(reply["why"]["retryable"], true);
         assert!(reply.get("seq").is_none());
         for spaces in 2..=7 {
+            // Re-drain at this instant: on a slow host the bucket can refill between requests.
+            let now = Instant::now();
+            while h.shared.ephemeral_rate.admit(key.clone(), now) {}
             let headers = format!("Authorization: Bearer{}{token}  \r\n", " ".repeat(spaces));
             let reply = body(&h.request("POST", "/m/setTyping", &headers,
                 r#"{"args":{"roomId":"r","payload":""}}"#));
