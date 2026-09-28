@@ -1,0 +1,10 @@
+✔ published social starter and guide snippets typecheck against generated operations (1195.992403ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (3274.584379ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4960.067767

@@ -5,6 +5,7 @@ import React from "react";
 export const View = ({children, testID}) => <div data-testid={testID}>{children}</div>;
 export const ScrollView = View;
 export function FlatList({ data, renderItem, keyExtractor, onViewableItemsChanged, testID }) {
+  React.useEffect(() => { window.listMounts = (window.listMounts || 0) + 1; return () => { window.listUnmounts = (window.listUnmounts || 0) + 1; }; }, []);
   React.useEffect(() => { onViewableItemsChanged({ viewableItems: data.map(item => ({ item, isViewable: true })) }); }, [data, onViewableItemsChanged]);
   return <div data-testid={testID}>{data.map(item => <React.Fragment key={keyExtractor(item)}>{renderItem({ item })}</React.Fragment>)}</div>;
 }
@@ -46,6 +47,8 @@ const values = new Map([
   ["messageReceipts", ready(history.map(row => ({ id: row.id, receipt: "delivered" })))],
 ]);
 const records = new Set();
+const linkListeners = new Set();
+let link = "online";
 let holdAsset = false, releaseAsset;
 function controlled() {
   const ownedSession = session, assetClient = currentRaw;
@@ -53,7 +56,7 @@ function controlled() {
   return {
     viewer: () => ownedSession.principal, onViewer: () => () => {},
     session: () => ownedSession, onSession: () => () => {},
-    now: () => Date.now(), link: () => "online", onLink: () => () => {},
+    now: () => Date.now(), link: () => link, onLink: callback => { linkListeners.add(callback); return () => linkListeners.delete(callback); },
     pendingWrites: async () => [], onPendingWrites: callback => { pendingListeners.add(callback); return () => pendingListeners.delete(callback); },
     onWrite: () => () => {}, write: async () => undefined,
     mutate: (op, args, options) => assetClient.mutate(op, args, options),
@@ -102,8 +105,8 @@ window.restore = () => {
 window.typingAtPeer = async () => (await peer.query(api.typingIn, { conversation })).data ?? [];
 window.peerTyping = () => peer.mutate(api.setTyping, { conversation });
 window.peerStop = () => peer.mutate(api.stopTyping, { conversation });
-window.drop = () => { disconnected = true; };
-window.reconnect = () => { disconnected = false; };
+window.drop = () => { disconnected = true; link = "offline"; for (const listener of linkListeners) listener(link); };
+window.reconnect = () => { disconnected = false; link = "online"; for (const listener of linkListeners) listener(link); };
 window.outboxes = async () => [await raw.pendingWrites(), await peer.pendingWrites()];
 window.expire = () => originalFetch(url + "/dev/clock/advance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ duration: "5s" }) });
 window.leave = () => raw.mutate(api.leave, { conversation });

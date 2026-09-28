@@ -68,11 +68,11 @@ export function ConversationScreen({ conversation, url, visible = true }: { conv
     <Text>{"data" in typing.read && typing.read.data.length ? "Someone is typing…" : ""}</Text>
     {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => setSelected(undefined)} />}
     <ReadState read={history.read} />
-    <FlatList testID="history" data={history.items} keyExtractor={row => row.id} onViewableItemsChanged={onViewableItemsChanged}
+    {"data" in history.read && <FlatList testID="history" data={history.items} keyExtractor={row => row.id} onViewableItemsChanged={onViewableItemsChanged}
       renderItem={({ item: row }) => <View testID={`message-${row.id}`}>
         <Text>{row.text}{row.pending ? " · Sending…" : ""}</Text>
         {row.photo && <Button title="View once photo" onPress={() => setSelected({ message: row.id, asset: row.photo!.id })} />}
-      </View>} />
+      </View>} />}
     <Button title="Older messages" disabled={!history.hasMore} onPress={history.loadMore} />
     <Decorations conversation={conversation} />
   </View>;

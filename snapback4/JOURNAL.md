@@ -72788,3 +72788,61 @@ LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
 Full file map, forms, failures, commands and retained evidence:
 reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — EX: the published social starter and client ownership recipes
+
+First fetched and merged origin/main at 80036b466 (already up to date);
+repeated after the implementation checkpoint with the same result. Added
+`snapback4 new <dir> --template social`: an embedded Expo Router starter with
+Following, chats, a pinned conversation, search and profile. Its Quarry keeps
+retained ordinary history separate from decorations, uses SDK delivery
+reporting, has ephemeral typing and ordinary/once images. The public like
+summary's replica expansion and current all-chat search domain split are
+explicit until OK/OS land; EQ's bracket-safe ordinary history already works.
+No private API, new Quarry syntax, core/contract change or weakened rule.
+
+`guide social` renders the installed recipe modules verbatim, compiled with
+the generated API. The current-session online typing arm owns observation,
+renewal and cleanup without session rotation custody or an outbox. The once
+viewer lives above a transient list, owns one explicit-open handle, revokes
+late results and closes on identity reset. The URL pins the route, the
+composer owns its draft/focus above independent room/history/receipt states,
+and SDK revalidation retention stays explicit. FlatList visibility controls
+seen positions; delivery belongs solely to the SDK. Pending writes use the
+published hook. The package README and guide entry point to this starter.
+
+Affected package tests pass 11/11, including the full generated app and all
+four guide snippets typechecked, public-client scaffold/check/dev smoke, and
+Chromium lifetimes with real server typing/media and controlled read gaps.
+The final witness asserts actual list detachment/remount with no extra fetch
+or handle revoke, draft/focus through connectivity and read transitions,
+expiry/revocation/no typing replay, second-open E_ASSET_VIEWED, late close and
+account cleanup. A freshly generated production Expo web export also passes
+on the installed npm client: guest, Following post, chat/send, retained leave
+and stable draft, with no page errors. Native Expo/Hermes lifecycle witnesses
+remain for all three recipes; this Linux host has no simulator harness. Web
+and TypeScript evidence do not close that §8 requirement.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1423 s`, exit 1,
+category cargo test. Rust 4,173 passed / 3 failed / 31 ignored; client shards
+3,933 passed / 0 failed / 10 skipped; client models 79/79; fixtures 9/9.
+All three failures were EX-owned guide-listing presentation regressions:
+why_and_discovery_keep_the_opt_in_one_step_away,
+guide_lists_aliases_and_resolves_them_on_stdout, and
+guide_unknown_word_suggests_cards_on_stdout. Preserve the existing first two
+listing lines and established core prefix, placing the social pointer third
+and its card beside client. Final affected proof: server_opt_in 7/7,
+CLI check 76/76, whole guide 92/92, package tests 11/11. The suite's red
+snapshot is retained; no second full run or passing full-suite claim.
+No baseline or environmental test failures. The report records all corrected
+exploratory schema/type/docs/harness failures as ours.
+
+Wasm remains 2,019,815 B raw / 585,384 B GNU file-input gzip-9 (delta 0/0),
+809 B below the unchanged 586,193 B cap. SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+README remains 300/300 lines; references, whitespace and source lengths pass.
+Implementation notes and Revised line are in LLP 3000.028 §8. Commands,
+limits, exact failures and retained evidence are in
+reports/20260928-ex-social-example/REPORT.md. Local dependencies/install caches
+only; nothing pushed or published. Co-authored local commits use
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

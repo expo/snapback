@@ -103,11 +103,14 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
     await page.evaluate(() => window.drop());
     await composer.fill("dropped hint");
+    assert.equal(await composer.evaluate(node => node === window.composerNode && document.activeElement === node), true);
     await page.evaluate(() => window.expire());
     await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
     assert.deepEqual(await page.evaluate(() => window.outboxes()), [[], []]);
     const sends = await page.evaluate(() => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length);
     await page.evaluate(() => window.reconnect());
+    assert.equal(await composer.inputValue(), "dropped hint");
+    assert.equal(await composer.evaluate(node => node === window.composerNode && document.activeElement === node), true);
     // Longer than the hook's renewal cadence: a retained draft cannot restart it.
     await page.waitForTimeout(1300);
     assert.equal(await page.evaluate(() => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length), sends);
@@ -127,8 +130,11 @@ test("social recipes in React/browser: real online signals and media, controlled
     const select = id => page.getByTestId(`message-${history.find(row => row.photo?.id === id).id}`).getByRole("button", { name: "View once photo" }).click();
     await select(photo); await page.getByRole("button", { name: "Open media", exact: true }).click();
     await page.getByAltText("Once photo").waitFor();
+    const listMounts = await page.evaluate(() => window.listMounts);
     await page.evaluate(() => window.setRead("history", { loading: true }));
+    await page.getByTestId("history").waitFor({ state: "detached" });
     await page.evaluate(() => window.restore());
+    await page.waitForFunction(before => window.listMounts > before, listMounts);
     assert.equal(await page.getByAltText("Once photo").count(), 1);
     assert.deepEqual(await page.evaluate(() => window.assetCalls), [photo]);
     assert.deepEqual(await page.evaluate(() => window.revoked), []);
