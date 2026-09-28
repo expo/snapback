@@ -122,12 +122,24 @@ impl Meter {
 
     /// Resume prepaid coordinator work on the same device read allowance.
     pub fn resume(ceilings: Ceilings, used: Metered) -> Result<Self, RuntimeError> {
+        Self::resume_read(ceilings, used, false)
+    }
+
+    /// Observe delivery state after a finished read. Capped read dimensions
+    /// retain the rejected charge and cannot do more work; the state check
+    /// may spend the remaining heap/step/output allowance. Never for a query.
+    // @ref LLP 3000.028#3.3 — constituent cuts preserve the shared ledger without discarding server proof.
+    pub fn resume_observation(ceilings: Ceilings, used: Metered) -> Result<Self, RuntimeError> {
+        Self::resume_read(ceilings, used, true)
+    }
+
+    fn resume_read(ceilings: Ceilings, used: Metered, finished: bool) -> Result<Self, RuntimeError> {
         let mut meter = Self::new(ceilings, Cut::Cap);
         meter.at("ordinary search coordinator");
         for (kind, amount) in [(MeterKind::Examined, used.examined), (MeterKind::IndexEntries, used.index_entries),
             (MeterKind::RuleProbes, used.rule_probes), (MeterKind::HeapBytes, used.heap_bytes),
             (MeterKind::OutputBytes, used.output_bytes), (MeterKind::RowsWritten, used.rows_written)] {
-            if !meter.charge(kind, amount)? {
+            if !meter.charge(kind, amount)? && !(finished && matches!(kind, MeterKind::Examined | MeterKind::IndexEntries | MeterKind::RuleProbes)) {
                 return Err(RuntimeError::Bound { kind, actual: amount, ceiling: ceilings.of(kind), site: meter.site.clone() });
             }
         }
@@ -260,6 +272,29 @@ impl Meter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn observation_preserves_capped_read_charges_without_reopening_the_scan() {
+        let ceilings = Ceilings::default();
+        for kind in [MeterKind::Examined, MeterKind::IndexEntries, MeterKind::RuleProbes] {
+            let mut used = Metered { steps: 100, heap_bytes: 1024, output_bytes: 128, ..Default::default() };
+            *used.slot(kind) = ceilings.of(kind) + 1;
+            assert!(Meter::resume(ceilings, used).is_err(), "a query cannot resume a cut scan");
+            let mut meter = Meter::resume_observation(ceilings, used).unwrap();
+            assert_eq!(meter.used, used);
+            assert_eq!(meter.ceilings, ceilings);
+            assert_eq!(meter.capped_at.as_ref().map(|cut| cut.0), Some(kind));
+            meter.step(1).unwrap(); meter.heap(64).unwrap();
+            assert!(meter.charge(MeterKind::OutputBytes, 10).unwrap());
+            assert!(!meter.charge(kind, 1).unwrap(), "no new read allowance");
+            assert_eq!(*meter.used.slot(kind), ceilings.of(kind) + 2);
+        }
+        for kind in [MeterKind::Steps, MeterKind::HeapBytes, MeterKind::OutputBytes, MeterKind::RowsWritten] {
+            let mut used = Metered::default();
+            *used.slot(kind) = ceilings.of(kind) + 1;
+            assert!(Meter::resume_observation(ceilings, used).is_err(), "{kind:?}");
+        }
+    }
 
     #[test]
     fn a_capped_read_records_where_it_was_cut() {

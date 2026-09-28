@@ -31,3 +31,18 @@ Investigate whether a durably published whole-empty group can certify this word
 range regardless of order, preserving the current incomplete answer during
 acquisition, failed publication, nonempty partial windows and unavailable ranges.
 Do not relax retained authority or recover departed history from the server.
+
+Round 4 of lane OS also pins the all-chat limitation on process and wasm:
+after departure, an absent needle exhausts the stored words and the server
+answers complete/empty, but the device's unscoped range is `unknown: true`.
+The horizon-free control is complete: this limitation belongs to windowed
+sources. `history::coverage_state` needs the audience group pinned in the
+scanned index prefix; the global words prefix cannot supply it.
+`horizon_coverage` consequently records an unknown fact for the windowed
+source. The SDK keeps `complete: false`; an empty list or absent continuation
+is not a range proof. A future improvement must compose each relevant group's
+actual acquired boundary, including partial/empty groups and current/Left
+transitions, under the same allowance. It must not simply clear unknown because
+`search_state.left` is nonempty. The round-4 report and the `current-only pages
+are fresh; windowed retained coverage stays unknown` process/wasm regression
+record this explicit limitation, separately from the repaired device-cut loss.

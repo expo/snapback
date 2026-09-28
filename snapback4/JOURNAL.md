@@ -73032,3 +73032,79 @@ failure, operational setup errors, measurements, commands and full suite output
 are retained in reports/20260928-os-ordinary-search/REPORT.md and round3/.
 ROUND2.md preserves the previous report. Local commits carry
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OS round 4: device cuts keep the proved current stream
+
+First fetched origin and merged origin/main on sb4-intent/os-ordinary-search;
+already up to date at d2b561fb3 (origin/main 80036b466). Read all binding prompts,
+prior reports and OS entries, Grok's full rounds-1/2 NOT READY review, the earlier
+reviews, Snapback 4 fence/rules and governing LLP/guide context. Applied llp-orient
+read-only from the populated lane-a5 copy. No other lane, shared installation or
+original evidence store changed; no tool installed, push or publication.
+
+Fixed the device word/read-cut discard. With a device cut and no continuation,
+returned device candidates cannot establish the newest retained hit: an unopened
+word can own a newer one. The SDK publishes the server's proved current rows,
+keeps complete false and the constituent cut, and advances only consumed server
+rows. The bounded localCut cursor flag suspends the device source for that
+traversal; retrying it behind already emitted current rows could break order.
+A fresh search can try retained history again. If no proved server hits remain,
+E_BOUND names narrowing the prefix or searching one chat instead of publishing
+an empty non-progressing cut page. Normal safe two-source merge behavior stays.
+This is the author's permitted incomplete-device alternative; the existing
+32-word and examined bounds can still prevent retrieving retained matches.
+
+The 8,192-current-hit fixture exposed the rejected 8,193rd examined charge in the
+receipt. SDK resumption now preserves it with the device meter cut. Delivery-only
+state observation retains exhausted examined/index/probe counters while spending
+remaining heap/steps/output. Query resumption is still strict; no new work in an
+exhausted dimension succeeds. No clamping, reset, third allowance or ceiling
+change. One server invocation per requested page remains.
+
+Freshness follows emitted rows: current-only pages are fresh, mixed/retained
+pages stale with since when available, independently of completeness. The
+horizon-free process/wasm control already proves complete empty answers after
+departure; no completeness override was needed. Windowed unscoped word scans
+cannot use a pinned group's acquisition boundary and keep unknown coverage.
+Documented that conservative limit in the search guide, existing coverage issue
+and LLP 3000.028 instead of inferring absence from next null or the Left list.
+
+Added process/wasm regressions for 40 current prefix words plus a newer retained
+word outside discovery, 8,192 newer current hits before one departed hit,
+consumed current continuations, per-page freshness and both exhaustion cases.
+The existing retained guard was already correct; new raw-device tests require a
+newer current row to be absent before SDK deduplication. An unsynced at-changing
+current edit appears once with its current body and never later as a stale device
+image. Broadening the filter to every delivered-history row fails both dedicated
+process cases (including duplicate m000) and the Rust Held/Rejoined guard test.
+Negative controls also fail for old discard, strict SDK/state receipt resumption,
+retrying a cut source, scope-wide stale flags and always-incomplete answers.
+Every mutation was restored before final artifact qualification.
+
+Affected qualification: 71 Rust tests (51 ordinary/membership/merge, 12 device
+merge, 4 meter, 4 state/retained-guard), 61 JavaScript search cases including
+process, wasm and mounted React, and all 92 guide tests pass. Client build and
+typecheck, 36 codec/family checks, wasm family/absence attribution, original input
+hashes and whitespace pass. Round 3's no-plan serialization assertion remains;
+its pagination/audience/comparison tests pass again. Full-builder 501-page,
+10,014-ID and searchChat floor-matrix evidence remains historical round 1;
+Expo and whole-RFC completion are not newly claimed.
+
+Did not run scripts/test.sh, as instructed: round 3 ran it once. Its historical
+summary is `== 2 failure(s) in 1682 s`, wasm build and client tests. The two
+lane-owned codec assertions were repaired in round 3 and pass here. Current
+remaining qualification failure is ours: unchanged wasm cap. Canonical final
+wasm is 2,039,944 B raw / 592,440 B gzip, +52 raw / +133 gzip from round 3 for
+finished-read receipt preservation, 6,247 B above the unchanged 586,193 B budget.
+SHA-256 d872d56c461ec5a2eefba8347bba82b4340cf0ca9c05647224aa6262cea89c47.
+The supervisor decides that cap. No budget raise or publication qualification.
+
+All failure logs remain: pre-fix discard/freshness reds; two mistaken examined
+assertions (the rejected charge is recorded); two mistaken horizon-free
+incompleteness assertions; four failures from a duplicated retain fixture line;
+intentional mutation reds and both expected canonical budget failures. These
+are ours; no baseline or environmental qualification failure. Harmless failed
+path/log reads and the nonmatching Revised-line patch are recorded too.
+Acceptance matrix and complete failure ledger: reports/20260928-os-ordinary-search/
+REPORT.md and round4/; ROUND3.md preserves the preceding report. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

@@ -7,7 +7,7 @@ impl<S: DeviceStore> Device<S> {
         let Some(plan) = self.schema.operations.get(name).and_then(|fact| fact.search.as_ref()) else { return Ok(serde_json::Value::Null) };
         let tx = self.store.read_transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
-        let mut meter = snapback4_core::meter::Meter::resume(Ceilings::default(), spent.unwrap_or_default())?;
+        let mut meter = snapback4_core::meter::Meter::resume_observation(Ceilings::default(), spent.unwrap_or_default())?;
         meter.heap(8192)?;
         meter.step(32)?;
         let mut capture = store_identity::adoption_capture(&tx)?;
@@ -120,5 +120,30 @@ query search(q: text <=100, c: cursor ?):
             meta(&mut device, history::GROUPS, groups);
             assert_ne!(first["epoch"], device.search_state("search", None).unwrap()["epoch"]);
         }
+    }
+
+    #[test]
+    fn retained_search_excludes_current_and_rejoined_images() {
+        let mut device = fixture();
+        let tx = device.store.read_transaction().unwrap();
+        let groups = decoded(r#"{"messages":{"[\"left\"]":"Left","[\"held\"]":"Held","[\"rejoined\"]":{"Rejoined":[]}}}"#).unwrap();
+        let reading = history::Reading { tx: &tx, schema: &device.schema, groups,
+            boundaries: boundary::Boundaries::load(&tx, false).unwrap(), retained: std::cell::Cell::new(false) };
+        for room in ["left", "held", "rejoined"] {
+            let row = snapback4_core::wire::row_from_json(&device.schema.tables["messages"],
+                &serde_json::json!({"id":"row", "room":room, "text":"coffee", "at":1000})).unwrap();
+            assert_eq!(reading.search_retained_row("messages", &row).unwrap(), room == "left", "{room}");
+        }
+    }
+
+    #[test]
+    fn delivery_state_preserves_a_scans_exhausted_read_counter() {
+        let mut device = fixture();
+        let spent = snapback4_core::meter::Metered { examined: Ceilings::default().examined + 1,
+            steps: 100, heap_bytes: 1024, ..Default::default() };
+        let after = device.search_state("search", Some(spent)).unwrap();
+        assert_eq!(after["metered"]["examined"], spent.examined);
+        assert!(after["metered"]["steps"].as_u64().unwrap() > spent.steps);
+        assert!(after["metered"]["heap_bytes"].as_u64().unwrap() > spent.heap_bytes);
     }
 }

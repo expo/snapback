@@ -34,9 +34,13 @@ export class SearchLedger {
     if (!Number.isSafeInteger(amount) || amount < 0 || this.used[kind] + amount > this.ceilings[kind]) throw new SearchBound(kind);
     this.used[kind] += amount;
   }
-  resume(spent: Counts) {
+  resume(spent: Counts, readCut = false) {
     for (const kind of Object.keys(this.used) as (keyof Counts)[]) {
-      if (!Number.isSafeInteger(spent[kind]) || spent[kind] < this.used[kind] || spent[kind] > this.ceilings[kind]) throw new SearchBound(kind);
+      // A capped Rust scan records the rejected charge too. Retain it without
+      // granting another read; decoding/merge spend only other dimensions.
+      const stopped = readCut && (kind === "examined" || kind === "index_entries" || kind === "rule_probes");
+      if (!Number.isSafeInteger(spent[kind]) || spent[kind] < this.used[kind]
+        || spent[kind] > Math.max(this.ceilings[kind], this.used[kind]) && !stopped) throw new SearchBound(kind);
     }
     this.used = { ...spent };
   }
@@ -79,7 +83,7 @@ function decoded(value: string): unknown {
 type Row = Record<string, unknown> & { id: string };
 type Page = { data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
 type State = { metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
-type Position = { binding: string; epoch: string; audience: string | null; server: string | null; local: string | null };
+type Position = { binding: string; epoch: string; audience: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
 // Hash that canonical proof on every page, including current-only pages. These
@@ -157,7 +161,8 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       let old: Position;
       try { old = decoded(cursor.slice(prefix.length)) as Position; }
       catch { return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } }; }
-      if (!old || typeof old !== "object" || ![old.server, old.local].every(c => c === null || typeof c === "string")) {
+      if (!old || typeof old !== "object" || ![old.server, old.local].every(c => c === null || typeof c === "string")
+        || old.localCut !== undefined && old.localCut !== "words" && old.localCut !== "meter") {
         return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } };
       }
       if (old.binding === binding && old.epoch === state.epoch && typeof old.audience === "string") position = old;
@@ -165,14 +170,14 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     } else if (typeof cursor === "string") {
       position.server = cursor; position.local = cursor;
     }
-    let local: Page = { data: [], complete: true, next: null, cut: null };
-    if (state.left?.length) {
+    let local: Page = { data: [], complete: !position.localCut, next: null, cut: position.localCut ?? null };
+    if (state.left?.length && !position.localCut) {
       const reply = await env.call({ op: "query", name, args: { ...args, [plan.cursor]: position.local },
         viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used }); checkpoint();
       local = (reply.ok ?? { denied: reply.denied }) as Page;
       if (local.denied) return { ...loading, read: { denied: local.denied } };
       if (local.loading || !local.data || !local.metered) return loading;
-      ledger.resume(local.metered);
+      ledger.resume(local.metered, local.cut === "meter");
     }
     if (await blocked()) return loading;
     checkpoint();
@@ -214,13 +219,23 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     if ((local.nextExpiry != null && local.nextExpiry <= env.deviceNow())
       || (remote.nextExpiry != null && remote.nextExpiry <= env.serverNow())) return { ...loading, retryExpired: true };
     // A missing head after an undisclosed cut is not proven exhaustion.
-    const localSafe = !local.cut || !!local.next;
     const remoteSafe = remote.complete !== false || !!remote.next;
-    if (!localSafe || !remoteSafe) return { ...loading, read: { data: [], complete: false, fresh: false,
+    if (!remoteSafe) return { ...loading, read: { data: [], complete: false, fresh: false,
       cut: remote.cut ?? local.cut ?? null, next: null } };
+    // @ref LLP 3000.028#3.3 — an unproved device head cannot erase proved server hits.
+    // Discovery may have missed a newer retained word, so even returned local
+    // candidates are not a global head. Publish only the proven current stream
+    // and preserve the cut for this entire continuation. Resuming the device
+    // later could insert a newer hit behind rows already emitted.
+    if (local.cut && !local.next) {
+      position.localCut = local.cut;
+      local = { data: [], complete: false, cut: local.cut, next: null };
+      if (!remote.data.length) throw new SearchBound(`retained ${local.cut}; narrow the search or search one chat`);
+    }
     const left = local.data!, right = remote.data;
     ledger.charge("heap_bytes", 128 + plan.limit * 128);
     const data: Row[] = [];
+    let retainedEmitted = false;
     const seen = new Set<string>();
     let i = 0, j = 0;
     const before = (a: Row, b: Row) => {
@@ -252,6 +267,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
         ledger.charge("heap_bytes", bytes * 2);
         ledger.charge("output_bytes", bytes + 1);
         data.push(row); seen.add(row.id);
+        if (fromLocal) retainedEmitted = true;
       }
       const next = sourceCursor(plan, row, env.backend.generation, ledger);
       if (fromLocal) { position.local = next; i++; } else { position.server = next; j++; }
@@ -266,8 +282,8 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     }
     const seq = [response.json.seq, response.json.head].find(x => typeof x === "number") as number | undefined;
     return { read: { data, complete: local.complete !== false && remote.complete !== false,
-      cut: remote.cut ?? local.cut ?? null, fresh: !state.left?.length, next: next as Cursor | null,
-      ...(state.left?.length && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) },
+      cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
+      ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) },
       nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
       credential, seq, served: true, searchAttempt: true };
   } catch (error) {

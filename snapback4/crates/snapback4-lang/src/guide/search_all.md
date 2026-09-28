@@ -27,6 +27,27 @@ only past consumed hits. Unconsumed hits are recomputed on the next requested
 page and charged again. The coordinator and device scan share the existing
 per-page device read allowance. There is no saved search session.
 
+If the device word or read meter cuts without a continuation, its candidates
+cannot establish the newest retained hit. The online page still publishes the
+server's proved current rows, with `complete: false` and the constituent `cut`.
+Its `next` continues only that current stream; the cut device source stays
+incomplete throughout this traversal. Start a fresh search with a longer prefix
+or search one chat to try retained history again. If that cut leaves no proved
+server hits either, the request refuses E_BOUND with that repair instead of
+returning an empty page that cannot advance. Server refusals still win.
+
+Freshness describes emitted rows: a current-only page is fresh even when the
+device holds other departed chats; a page emitting retained images is stale,
+with `since` when available. Fresh does not mean complete.
+With horizon-free acquisition, both sources can prove exhaustion and an empty
+answer can be complete after departure. For a windowed source, the current
+unscoped device word scan cannot certify exhaustion of all departed ranges,
+even when their stored rows happen to be exhausted. Its boundary proof needs a
+pinned group; a global `Left` list alone proves no acquisition range. That unknown
+coverage keeps the combined page incomplete, including an empty terminal page.
+The coordinator reports complete only if both sources prove the requested page.
+It must not infer “No matches” from `next: null`.
+
 A membership, incarnation, generation or link change invalidates an incompatible
 continuation. Every combined cursor binds the server's authorized audience, even
 with no departed chats. An unsynced audience change withdraws the stale page and

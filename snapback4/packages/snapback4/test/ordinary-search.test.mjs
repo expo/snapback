@@ -42,14 +42,16 @@ mutation join(room: id):
   insert members { room, principal: 'dev:bob' }
 mutation edit(id: messages, text: text <=200):
   update messages[id] { text }
+mutation move(id: messages, text: text <=200, at: time):
+  update messages[id] { text, at }
 `;
 const q = { kind: 'query', name: 'search' };
 const m = name => ({ kind: 'mutation', name });
 const ids = read => { assert.ok(Array.isArray(read.data), JSON.stringify(read)); return read.data.map(r => r.id); };
 const gate = () => { let resolve; const promise = new Promise(r => resolve = r); return { promise, resolve }; };
 const decode = c => JSON.parse(Buffer.from(c.slice(5), 'base64url'));
-async function setup(t, tier = 'process', expires = null) {
-  const {url, dir} = await server(t, '', source);
+async function setup(t, tier = 'process', expires = null, options = {}) {
+  const {url, dir} = await server(t, '', options.whole ? source.replace('sync to members[.room] last 100 by .at', 'sync to members[.room]') : source);
   const backend=await fetch(`${url}/schema`,{headers:{"x-snapback-persona":"bob"}}).then(r=>r.json());
   assert.ok(backend.schema.operations.search.search, JSON.stringify({fact:backend.schema.operations.search,program:backend.programs.find(p=>p.name==='search'),indexes:backend.schema.tables.messages.indexes}));
   const owner = createClient({url, persona: 'bob'}), admin = createClient({url, persona: 'alice'});
@@ -57,13 +59,18 @@ async function setup(t, tier = 'process', expires = null) {
   rows.push({table:'members',id:'al',room:'live',principal:'dev:alice'}, {table:'members',id:'ar',room:'left',principal:'dev:alice'});
   // Timestamp ties cross the two sources. 20 retained rows strictly dominate
   // page one; the remaining rows alternate in the oracle's full-key order.
-  for (let i=0;i<65;i++) rows.push({table:'messages', id:i===43?'\ue00043':i===44?'\u{10000}44':`m${String(i).padStart(3,'0')}`, room:i>=45||i%2?'left':'live', text:'coffee',at:1000+(i===43?44:i),tombstone:false,expires:i===64?expires:null});
-  assert.equal((await fetch(`${url}/seed`, {method:'POST',body:JSON.stringify(rows.map(({table,...row})=>({table,row})))}).then(r=>r.json())).seeded, rows.length);
+  if (options.messages) rows.push(...options.messages.map(row=>({table:'messages',tombstone:false,expires:null,...row})));
+  else for (let i=0;i<65;i++) rows.push({table:'messages', id:i===43?'\ue00043':i===44?'\u{10000}44':`m${String(i).padStart(3,'0')}`, room:i>=45||i%2?'left':'live', text:'coffee',at:1000+(i===43?44:i),tombstone:false,expires:i===64?expires:null});
+  for (let start=0;start<rows.length;start+=200) {
+    const batch=rows.slice(start,start+200).map(({table,...row})=>({table,row}));
+    const seeded=await fetch(`${url}/seed`, {method:'POST',body:JSON.stringify(batch)}).then(r=>r.json());
+    assert.equal(seeded.seeded,batch.length,JSON.stringify(seeded));
+  }
   let offline=false, hold, core;
   const requests=[], scans=[], states=[];
   const persist=memoryPersistence();
   const opener = tier==='wasm' ? webDevice({wasm:readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm',import.meta.url)),persist}) : processDevice({binary,dir:join(dir,'device')});
-  const options = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return result;}}}},fetch:async(input,init)=>{
+  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return result;}}}},fetch:async(input,init)=>{
     if(offline) throw new TypeError('offline');
     const path=new URL(input).pathname;
     if(path==='/changes') return parkedChanges(init.signal);
@@ -74,14 +81,14 @@ async function setup(t, tier = 'process', expires = null) {
     }
     return fetch(input,init);
   }};
-  let client = await createLocalClient(options);
+  let client = await createLocalClient(clientOptions);
   t.after(async()=>{hold?.release.resolve();await client.close();await owner.close();await admin.close();});
   await client.sync();
   assert.equal((await owner.mutate(m('leave'),{room:'left'})).state,'sent');
   await client.sync();
   return {url,dir,get client(){return client;},owner,admin,requests,scans,states,rows:rows.filter(r=>r.table==='messages'),core:()=>core,
     async network(on){offline=!on;await client.sync();},
-    async reopen(){await client.close();client=await createLocalClient(options);await client.sync();},
+    async reopen(){await client.close();client=await createLocalClient(clientOptions);await client.sync();},
     hold(){const value={arrived:gate(),release:gate()};hold=value;return value;}};
 }
 for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retained first page, consumed prefixes and every ID exactly once`,async t=>{
@@ -120,6 +127,78 @@ for (const tier of ['process', 'wasm']) test(`ordinary mixed search ${tier}: com
   assert.deepEqual(ids(read), f.rows.slice(45).reverse().map(r => r.id));
   assert.equal(read.complete, false);
   assert.ok(read.next);
+});
+for (const tier of ['process','wasm']) for (const cut of ['words','meter'])
+test(`ordinary mixed search ${tier}: device ${cut} cut keeps the server page and its consumed continuation`, {timeout:180000}, async t=>{
+  const count=cut==='words'?40:8192;
+  const current=Array.from({length:count},(_,i)=>({id:`current${String(i).padStart(5,'0')}`,room:'live',at:i+10,text:cut==='words'?`coffee${String(i).padStart(2,'0')}`:'coffee'}));
+  const departed=cut==='words'?[{id:'keptHead',room:'left',at:5000,text:'coffee00'}, {id:'undiscoveredHead',room:'left',at:6000,text:'coffee99'}]:[{id:'olderDeparted',room:'left',at:1,text:'coffee'}];
+  const f=await setup(t,tier,null,{messages:[...current,...departed],whole:true});
+  const term=cut==='words'?'cof':'coffee';
+  const raw=await f.core().call({op:'query',name:'search',viewer:'dev:bob',args:{q:term},now:Date.now(),search:true});
+  assert.equal(raw.ok.cut,cut,JSON.stringify(raw));assert.equal(raw.ok.next,null);
+  assert.equal(raw.ok.complete,false);
+  if(cut==='meter') {assert.equal(raw.ok.metered.examined,8193,'receipt includes the rejected charge');assert.deepEqual(raw.ok.data,[]);}
+  else {assert.ok(raw.ok.data.some(r=>r.id==='keptHead'));assert.ok(!raw.ok.data.some(r=>r.id==='undiscoveredHead'));}
+  const actual=[];let c;
+  // The word case exhausts the server; the 8,192-row case proves two distinct
+  // consumed prefixes without replaying hundreds of unaffected server pages.
+  for(let page=0;page<2;page++){
+    const calls=f.requests.length,read=await f.client.query(q,{q:term,c});
+    assert.equal(f.requests.length-calls,1);
+    const remote=f.requests.at(-1).json;
+    assert.deepEqual(ids(read),remote.data.map(r=>r.id));
+    assert.deepEqual(ids(read),current.slice().reverse().slice(page*20,page*20+20).map(r=>r.id));
+    assert.equal(read.cut,cut);assert.equal(read.complete,false);assert.equal(read.fresh,true);
+    assert.equal(read.since,undefined);actual.push(...ids(read));
+    if(page===0){assert.ok(read.next);assert.equal(decode(read.next).local,null);assert.equal(decode(read.next).localCut,cut);}
+    c=read.next;
+  }
+  assert.equal(new Set(actual).size,40);
+  assert.equal(f.scans.filter(s=>s.request.search).length,1,'the cut source is suspended for this continuation');
+  if(cut==='words')assert.equal(c,null,'terminal server page keeps device incompleteness');
+});
+for (const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: newer current rows never enter the retained device scan`,async t=>{
+  const f=await setup(t,tier,null,{messages:[
+    {id:'currentHead',room:'live',at:3000,text:'coffee'},
+    {id:'retainedHead',room:'left',at:2000,text:'coffee'},
+  ]});
+  const raw=await f.core().call({op:'query',name:'search',viewer:'dev:bob',args:{q:'coffee'},now:Date.now(),search:true});
+  assert.deepEqual(raw.ok.data.map(r=>r.id),['retainedHead']);
+  const mixed=await f.client.query(q,{q:'coffee'});
+  assert.deepEqual(ids(mixed),['currentHead','retainedHead']);assert.equal(mixed.fresh,false);
+});
+for (const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: an at-changing current edit cannot reappear as a stale later device body`,async t=>{
+  const f=await setup(t,tier);
+  // Keep the old current image on the device, while the server moves that
+  // same id ahead of every retained row. A broad delivered-history filter
+  // would later emit m000 again at its old at/body behind page one's server hit.
+  assert.equal((await f.admin.mutate(m('move'),{id:'m000',at:3000,text:'coffee edited'})).state,'sent');
+  const all=[];let c;
+  for(let page=0;page<10;page++){
+    const calls=f.requests.length,read=await f.client.query(q,{q:'coffee',c});
+    assert.equal(f.requests.length-calls,1);ids(read);all.push(...read.data);
+    if(page===0){assert.equal(read.data[0].id,'m000');assert.equal(read.data[0].text,'coffee edited');}
+    c=read.next;if(!c)break;
+  }
+  assert.equal(all.filter(r=>r.id==='m000').length,1,'the stale device image must not be a later-page hit');
+  assert.equal(all.length,65);assert.equal(new Set(all.map(r=>r.id)).size,65);
+  const oracle=f.rows.map(r=>r.id==='m000'?{...r,at:3000}:r).sort((a,b)=>b.at-a.at||Buffer.compare(Buffer.from(b.id),Buffer.from(a.id)));
+  assert.deepEqual(all.map(r=>r.id),oracle.map(r=>r.id));
+});
+for (const tier of ['process','wasm']) for (const whole of [false,true])
+test(`ordinary mixed search ${tier}: current-only pages are fresh; ${whole?'horizon-free absence is complete':'windowed retained coverage stays unknown'}`,async t=>{
+  const messages=Array.from({length:25},(_,i)=>({id:`c${i}`,room:'live',at:100+i,text:'coffee'}));
+  messages.push({id:'old',room:'left',at:1,text:'coffee'});
+  const f=await setup(t,tier,null,{messages,whole});
+  const first=await f.client.query(q,{q:'coffee'});
+  assert.equal(first.fresh,true);assert.equal(first.since,undefined);
+  const mixed=await f.client.query(q,{q:'coffee',c:first.next});
+  assert.equal(mixed.fresh,false);assert.ok(mixed.since);assert.equal(ids(mixed).at(-1),'old');
+  const absent=await f.client.query(q,{q:'absent'});
+  assert.deepEqual(ids(absent),[]);assert.equal(absent.next,null);assert.equal(absent.complete,whole);
+  assert.equal(f.requests.at(-1).json.complete,true);
+  assert.equal(f.scans.findLast(s=>s.request.search).result.ok.unknown,!whole,'only horizon-free coverage proves this unscoped absence');
 });
 for (const tier of ['process', 'wasm']) test(`ordinary mixed search ${tier}: server cursor seeks the exact offline suffix`, async t => {
   const f = await setup(t, tier);

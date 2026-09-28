@@ -8,7 +8,7 @@ const counts=()=>Object.fromEntries(Object.keys(ceilings).map(k=>[k,0]));
 const rows=(start,count)=>Array.from({length:count},(_,i)=>({id:`m${start-i}`,at:start-i,text:'coffee'}));
 const sourceCursor = c=>c?JSON.parse(Buffer.from(c,'base64url'))[5][0].Int:Infinity;
 const position = c=>JSON.parse(Buffer.from(c.slice(5),'base64url'));
-function fixture({retained=rows(200,20),live=rows(100,30),cut=false,exhaust=false,race,remainingSteps}={}) {
+function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=null,localComplete=false,exhaust=false,race,remainingSteps}={}) {
   let calls=0,epoch='a',now=0,scanUsed;
   const env={backend:{generation:1},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
     deviceNow:()=>now,serverNow:()=>now,
@@ -16,8 +16,9 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,exhaust=fals
       if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent&&remainingSteps!==undefined?{...r.spent,steps:ceilings.steps-remainingSteps}:r.spent??counts()}};
       assert.equal(r.search,true);assert.ok(r.spent.heap_bytes>0);
       scanUsed={...r.spent,heap_bytes:exhaust?ceilings.heap_bytes-1:r.spent.heap_bytes+1000,steps:r.spent.steps+100};
+      if(localCut==='meter')scanUsed.examined=ceilings.examined+1;
       const found=retained.filter(x=>x.at<sourceCursor(r.args.c));
-      return {ok:{data:found.slice(0,20),complete:false,cut:null,next:found.length>20?'next':null,metered:scanUsed,nextExpiry:race==='expiry'?5:null}};
+      return {ok:{data:found.slice(0,20),complete:localComplete,cut:localCut,next:!localCut&&found.length>20?'next':null,metered:scanUsed,nextExpiry:race==='expiry'?5:null}};
     },
     async searchPost(path,body,decode){calls++;
       const found=live.filter(x=>x.at<sourceCursor(body.args.c));
@@ -87,4 +88,63 @@ test('a current-only page still requires the authorized server audience proof',a
   f.env.call=async request=>{const reply=await call(request);if(request.op==='search_state')reply.ok.left=[];return reply;};
   f.env.searchPost=async(...args)=>{const reply=await post(...args);delete reply.json.searchScopes;return reply;};
   const result=await f.run();assert.equal(f.calls(),1);assert.deepEqual(result.read,{loading:true});
+});
+
+for(const localCut of ['words','meter']) for(const retained of [[],rows(200,20)])
+test(`a device ${localCut} cut with ${retained.length} candidates preserves the proven server stream`,async()=>{
+  const f=fixture({localCut,retained});
+  const first=await f.run();
+  assert.deepEqual(first.read.data,rows(100,20));
+  assert.equal(first.read.complete,false);assert.equal(first.read.cut,localCut);
+  assert.equal(first.read.fresh,true);assert.equal(first.read.since,undefined);
+  assert.ok(first.read.next);assert.equal(position(first.read.next).local,null);
+  assert.equal(position(first.read.next).localCut,localCut);
+  // A fresh coordinator cannot rediscover a newer retained candidate behind
+  // the already emitted server rows. The incomplete source stays suspended.
+  const reopened=fixture({retained:rows(300,20)}),second=await reopened.run(first.read.next);
+  assert.deepEqual(second.read.data,rows(80,10));
+  assert.equal(second.read.complete,false);assert.equal(second.read.cut,localCut);
+  assert.equal(second.read.next,null);assert.equal(reopened.scanUsed(),undefined);
+  assert.equal(f.calls(),1);assert.equal(reopened.calls(),1);
+});
+test('an unresumable device cut with no server hits refuses instead of publishing an empty dead end',async()=>{
+  const f=fixture({localCut:'words',retained:[],live:[]}),result=await f.run();
+  assert.equal(f.calls(),1);assert.equal(result.read.denied?.code,'E_BOUND');
+  assert.match(result.read.denied.message,/retained.*words/);assert.equal(result.read.data,undefined);
+});
+test('device word cut and server drain retain both constituent limits across continuation',async()=>{
+  const f=fixture({localCut:'words',cut:true});let c;const all=[];
+  for(let page=0;page<10;page++){
+    const before=f.calls(),{read}=await f.run(c);
+    assert.equal(f.calls()-before,1);assert.equal(read.complete,false);
+    assert.equal(read.cut,read.next?'meter':'words');
+    all.push(...read.data.map(r=>r.id));
+    if(read.next)assert.equal(position(read.next).localCut,'words');
+    c=read.next;if(!c)break;
+  }
+  assert.equal(c,null);assert.deepEqual(all,rows(100,30).map(r=>r.id));
+});
+test('freshness follows emitted rows and two proven exhausted lanes can be complete',async()=>{
+  const current=fixture({retained:rows(1,1)}),first=await current.run();
+  assert.equal(first.read.fresh,true);assert.equal(first.read.since,undefined);
+  const mixed=await current.run(first.read.next);
+  assert.equal(mixed.read.fresh,false);assert.equal(mixed.read.since,1);
+  const empty=fixture({retained:[],live:[],localComplete:true}),absent=await empty.run();
+  assert.deepEqual(absent.read.data,[]);assert.equal(absent.read.complete,true);
+  assert.equal(absent.read.fresh,true);assert.equal(absent.read.next,null);
+});
+test('a read cut retains rejected charges while every coordinator dimension stays bounded',()=>{
+  for(const kind of ['examined','index_entries','rule_probes']){
+    const ledger=new SearchLedger(ceilings),spent={...counts(),[kind]:ceilings[kind]+1};
+    assert.throws(()=>ledger.resume(spent),SearchBound,'an unexplained overrun is refused');
+    ledger.resume(spent,true);assert.deepEqual(ledger.used,spent);
+    ledger.text(1);assert.equal(ledger.used[kind],spent[kind]);
+    ledger.resume({...ledger.used});
+    assert.throws(()=>ledger.charge(kind,1),SearchBound,'no new read allowance');
+    assert.throws(()=>ledger.resume({...ledger.used,[kind]:ceilings[kind]}),SearchBound,'the cap cannot reset');
+    assert.throws(()=>ledger.resume({...ledger.used,[kind]:spent[kind]+1}),SearchBound,'a state observation cannot add over-budget read work');
+  }
+  for(const kind of ['steps','heap_bytes','output_bytes','rows_written']){
+    assert.throws(()=>new SearchLedger(ceilings).resume({...counts(),[kind]:ceilings[kind]+1},true),SearchBound,kind);
+  }
 });
